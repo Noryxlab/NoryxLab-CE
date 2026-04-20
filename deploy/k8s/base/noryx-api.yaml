@@ -12,9 +12,11 @@ spec:
       labels:
         app: noryx-api
     spec:
+      imagePullSecrets:
+        - name: harbor-regcred
       containers:
         - name: noryx-api
-          image: ghcr.io/noryxlab/noryx-api:dev
+          image: harbor.lan/noryx-ce/noryx-api:0.1.0-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

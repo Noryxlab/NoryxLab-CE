@@ -52,3 +52,7 @@ ssh -i ~/.ssh/id_ed25519_noryxops noryxops@192.168.1.140 'sudo -n true && echo o
 - Host alias used by default: `noryxlab-master` (`192.168.1.140`)
 - Domain for this environment: `datalab.noryxlab.ai`
 - Password variables in `clients/demo.yaml` are placeholders and must be changed.
+- Harbor integration variables are in `clients/demo.yaml`:
+  - `harbor_registry_host`
+  - `harbor_registry_ip`
+  - `harbor_registry_insecure_skip_verify`

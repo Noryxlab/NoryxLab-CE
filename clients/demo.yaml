@@ -8,6 +8,10 @@ k3s_disable_traefik: "false"
 noryx_namespace: noryx-ce
 noryx_deploy_path: /opt/noryx-ce
 
+harbor_registry_host: harbor.lan
+harbor_registry_ip: 192.168.1.106
+harbor_registry_insecure_skip_verify: true
+
 # Change before production use
 postgres_password: change-me
 keycloak_admin_password: change-me
