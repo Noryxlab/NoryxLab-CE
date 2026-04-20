@@ -1,0 +1,45 @@
+---
+- name: Ensure deploy directory exists
+  ansible.builtin.file:
+    path: "{{ noryx_deploy_path }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy Kubernetes baseline manifests
+  ansible.builtin.copy:
+    src: "{{ noryx_repo_root }}/deploy/k8s/base/"
+    dest: "{{ noryx_deploy_path }}/deploy/k8s/base/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Patch secret values for demo environment
+  ansible.builtin.shell: |
+    set -euo pipefail
+    sed -i 's/POSTGRES_PASSWORD: ".*"/POSTGRES_PASSWORD: "{{ postgres_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
+    sed -i 's/KEYCLOAK_ADMIN_PASSWORD: ".*"/KEYCLOAK_ADMIN_PASSWORD: "{{ keycloak_admin_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
+    sed -i 's/MINIO_ROOT_PASSWORD: ".*"/MINIO_ROOT_PASSWORD: "{{ minio_root_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
+  args:
+    executable: /bin/bash
+
+- name: Apply baseline manifests
+  ansible.builtin.command: kubectl apply -k {{ noryx_deploy_path }}/deploy/k8s/base
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for PostgreSQL deployment
+  ansible.builtin.command: kubectl -n {{ noryx_namespace }} rollout status deploy/postgres --timeout=180s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Keycloak deployment
+  ansible.builtin.command: kubectl -n {{ noryx_namespace }} rollout status deploy/keycloak --timeout=240s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for MinIO deployment
+  ansible.builtin.command: kubectl -n {{ noryx_namespace }} rollout status deploy/minio --timeout=240s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml

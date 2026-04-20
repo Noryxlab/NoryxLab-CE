@@ -23,6 +23,15 @@ curl -sfL https://get.k3s.io | sh -
 sudo kubectl get nodes
 ```
 
+## Sudo requirement for Ansible
+
+Target user (`stef`) must have sudo rights.
+
+Either:
+
+- passwordless sudo for automation (`NOPASSWD`)
+- or run playbook with `-K` to enter sudo password interactively
+
 ## Deploy baseline platform
 
 ```bash

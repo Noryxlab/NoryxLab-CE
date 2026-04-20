@@ -1,0 +1,23 @@
+---
+- name: Bootstrap Noryx CE demo host
+  hosts: demo_master
+  become: true
+  gather_facts: false
+
+  vars:
+    noryx_repo_root: "{{ playbook_dir }}/../.."
+
+  pre_tasks:
+    - name: Install python3 on minimal Debian hosts
+      ansible.builtin.raw: |
+        command -v python3 >/dev/null 2>&1 || (apt-get update && apt-get install -y python3)
+      changed_when: false
+
+    - name: Gather facts after python installation
+      ansible.builtin.setup:
+
+  roles:
+    - role: common
+    - role: k3s-master
+    - role: helm
+    - role: noryx-bootstrap

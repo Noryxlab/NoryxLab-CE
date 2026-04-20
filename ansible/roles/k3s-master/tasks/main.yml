@@ -1,0 +1,35 @@
+---
+- name: Check if k3s is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Install k3s
+  ansible.builtin.shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} {% if k3s_disable_traefik == "true" %}INSTALL_K3S_EXEC="--disable traefik"{% endif %} sh -
+  args:
+    executable: /bin/bash
+  when: not k3s_binary.stat.exists
+
+- name: Ensure kube config directory exists for user
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy k3s kubeconfig to user home
+  ansible.builtin.copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    remote_src: true
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Replace localhost endpoint with host IP in kubeconfig
+  ansible.builtin.replace:
+    path: "/home/{{ ansible_user }}/.kube/config"
+    regexp: "https://127.0.0.1:6443"
+    replace: "https://{{ ansible_host }}:6443"
