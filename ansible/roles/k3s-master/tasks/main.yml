@@ -33,3 +33,36 @@
     path: "/home/{{ ansible_user }}/.kube/config"
     regexp: "https://127.0.0.1:6443"
     replace: "https://{{ ansible_host }}:6443"
+
+- name: Ensure Harbor hostname is resolvable from node
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ harbor_registry_ip }} {{ harbor_registry_host }}"
+    state: present
+  when:
+    - harbor_registry_host is defined
+    - harbor_registry_ip is defined
+
+- name: Configure k3s containerd registry settings
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: "0644"
+    content: |
+      mirrors:
+        "{{ harbor_registry_host }}":
+          endpoint:
+            - "https://{{ harbor_registry_host }}"
+      configs:
+        "{{ harbor_registry_host }}":
+          tls:
+            insecure_skip_verify: {{ (harbor_registry_insecure_skip_verify | default(true)) | bool | lower }}
+  register: k3s_registry_config
+  when: harbor_registry_host is defined
+
+- name: Restart k3s when registry config changes
+  ansible.builtin.service:
+    name: k3s
+    state: restarted
+  when:
+    - harbor_registry_host is defined
+    - k3s_registry_config is changed
