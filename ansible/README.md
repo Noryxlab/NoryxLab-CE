@@ -9,6 +9,14 @@ Bootstrap one CE demo host with:
 - helm
 - baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-api`)
 
+## Service account model
+
+Ansible uses a dedicated account on target host:
+
+- user: `noryxops`
+- SSH key auth only
+- sudo configured for non-interactive automation
+
 ## Files
 
 - `inventory/hosts.ini`: target hosts
@@ -22,10 +30,21 @@ cd ansible
 ansible-playbook playbooks/bootstrap-demo.yml -e @../clients/demo.yaml
 ```
 
-If `sudo` requires a password on target host:
+## One-time host preparation
+
+From your laptop:
 
 ```bash
-ansible-playbook playbooks/bootstrap-demo.yml -e @../clients/demo.yaml -K
+ssh-keygen -t ed25519 -C "noryxops" -f ~/.ssh/id_ed25519_noryxops
+scp ~/.ssh/id_ed25519_noryxops.pub noryxlab-master:/tmp/noryxops.pub
+scp scripts/vm/create-noryxops.sh noryxlab-master:/tmp/create-noryxops.sh
+ssh -t noryxlab-master 'sudo bash /tmp/create-noryxops.sh /tmp/noryxops.pub'
+```
+
+Validation:
+
+```bash
+ssh -i ~/.ssh/id_ed25519_noryxops noryxops@192.168.1.140 'sudo -n true && echo ok'
 ```
 
 ## Notes
