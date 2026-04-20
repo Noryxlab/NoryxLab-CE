@@ -25,12 +25,19 @@ sudo kubectl get nodes
 
 ## Sudo requirement for Ansible
 
-Target user (`stef`) must have sudo rights.
+Target automation user must have sudo rights.
 
-Either:
+Recommended model:
 
-- passwordless sudo for automation (`NOPASSWD`)
-- or run playbook with `-K` to enter sudo password interactively
+- create dedicated service account `noryxops`
+- enable SSH key auth
+- configure `noryxops` in `/etc/sudoers.d/` with `NOPASSWD` for automation
+
+Helper script:
+
+```bash
+sudo bash scripts/vm/create-noryxops.sh /tmp/noryxops.pub
+```
 
 ## Deploy baseline platform
 
