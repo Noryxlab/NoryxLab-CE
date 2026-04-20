@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Go
+bin/
+*.test
+coverage.out
+
+# IDE
+.vscode/
+.idea/
