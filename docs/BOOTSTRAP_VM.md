@@ -1,5 +1,14 @@
 # VM Bootstrap (Noryx CE)
 
+## Preamble (mandatory)
+
+Prepare two external VMs first:
+
+- Harbor VM (registry)
+- Dockerbuild VM (build/push)
+
+Reference: `docs/INFRA_PREREQUISITES.md`.
+
 ## Minimum target
 
 - Ubuntu 24.04 LTS

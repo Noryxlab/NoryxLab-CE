@@ -2,6 +2,15 @@
 
 Noryx Community Edition codebase.
 
+## Preamble: required infrastructure
+
+Before cluster bootstrap, prepare:
+
+- one Harbor VM (registry)
+- one dockerbuild VM (build/push)
+
+Details: `docs/INFRA_PREREQUISITES.md`.
+
 ## V1 bootstrap scope
 
 - `backend/`: Noryx API skeleton (Go)
