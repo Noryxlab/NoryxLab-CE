@@ -9,6 +9,15 @@ Bootstrap one CE demo host with:
 - helm
 - baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-api`)
 
+## Preamble
+
+External services must exist before running this playbook:
+
+- Harbor VM (registry)
+- Dockerbuild VM (build and push)
+
+See `docs/INFRA_PREREQUISITES.md`.
+
 ## Service account model
 
 Ansible uses a dedicated account on target host:
