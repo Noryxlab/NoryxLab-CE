@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noryx-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: noryx-api
+  template:
+    metadata:
+      labels:
+        app: noryx-api
+    spec:
+      containers:
+        - name: noryx-api
+          image: ghcr.io/noryxlab/noryx-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NORYX_LISTEN_ADDR
+              value: ":8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noryx-api
+spec:
+  selector:
+    app: noryx-api
+  ports:
+    - port: 8080
+      targetPort: 8080
