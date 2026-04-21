@@ -55,6 +55,20 @@ kubectl apply -k deploy/k8s/base
 kubectl -n noryx-ce get pods
 ```
 
+## Enable TLS for datalab.noryxlab.ai
+
+Apply Traefik ACME config:
+
+```bash
+kubectl apply -f deploy/k8s/infra/traefik/letsencrypt-helmchartconfig.yaml
+kubectl -n kube-system rollout restart deploy/traefik
+```
+
+Requirements:
+
+- `datalab.noryxlab.ai` resolves to your public IP
+- router/NAT forwards TCP 80 and 443 to `192.168.1.140`
+
 ## Notes
 
 - Harbor remains external.
