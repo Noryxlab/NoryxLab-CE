@@ -10,3 +10,4 @@ resources:
   - keycloak.yaml
   - minio.yaml
   - noryx-api.yaml
+  - noryx-api-ingress.yaml

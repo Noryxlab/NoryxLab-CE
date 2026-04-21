@@ -55,6 +55,20 @@ kubectl apply -k deploy/k8s/base
 kubectl -n noryx-ce get pods
 ```
 
+## Enable TLS for datalab.example.local
+
+Apply Traefik ACME config:
+
+```bash
+kubectl apply -f deploy/k8s/infra/traefik/letsencrypt-helmchartconfig.yaml
+kubectl -n kube-system rollout restart deploy/traefik
+```
+
+Requirements:
+
+- `datalab.example.local` resolves to your public IP
+- router/NAT forwards TCP 80 and 443 to `CHANGE_ME`
+
 ## Notes
 
 - Harbor remains external.
