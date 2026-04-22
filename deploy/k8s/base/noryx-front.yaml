@@ -14,47 +14,55 @@ data:
         <title>NoryxLab CE</title>
         <style>
           :root {
-            --bg: #f5f7fb;
+            --bg: #f3f5fa;
             --panel: #ffffff;
-            --line: #d8deea;
+            --line: #d6deea;
             --text: #1f2937;
             --muted: #64748b;
-            --nav: #111827;
-            --navText: #dbe3f4;
+            --nav: #0f172a;
+            --navText: #dbe5f5;
             --accent: #2563eb;
             --accentSoft: #dbeafe;
             --success: #047857;
+            --warn: #9a3412;
             --danger: #b91c1c;
             --font: "IBM Plex Sans", "Segoe UI", sans-serif;
           }
           * { box-sizing: border-box; }
-          body { margin: 0; background: linear-gradient(180deg, #eef2f8 0%, #f8fafc 100%); color: var(--text); font-family: var(--font); }
-          .app { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
+          body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #edf2f8 0%, #f8fafc 100%);
+            color: var(--text);
+            font-family: var(--font);
+          }
+          .app { min-height: 100vh; display: grid; grid-template-columns: 270px 1fr; }
           .nav {
-            background: linear-gradient(180deg, #0f172a 0%, #1f2937 100%);
+            background: linear-gradient(180deg, #0b1220 0%, #1b2a44 100%);
             color: var(--navText);
             padding: 24px 18px;
-            border-right: 1px solid #0b1220;
+            border-right: 1px solid #07101d;
           }
-          .brand { font-size: 24px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 8px; }
+          .brand { font-size: 24px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 6px; }
           .edition { font-size: 12px; color: #9fb0cf; margin-bottom: 20px; }
-          .status { background: rgba(148, 163, 184, 0.16); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 10px; padding: 10px; font-size: 13px; margin-bottom: 22px; }
-          .nav h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #93a4c7; }
+          .status { background: rgba(148,163,184,0.16); border: 1px solid rgba(148,163,184,0.25); border-radius: 10px; padding: 10px; font-size: 13px; margin-bottom: 18px; }
+          .nav h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: #93a4c7; }
           .nav ul { list-style: none; margin: 0 0 18px; padding: 0; }
-          .nav li { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,0.04); font-size: 14px; }
+          .nav li { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,0.05); font-size: 14px; }
           .main { padding: 22px; }
           .header {
             background: var(--panel);
             border: 1px solid var(--line);
             border-radius: 14px;
-            padding: 16px;
+            padding: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
           }
           .title { margin: 0; font-size: 24px; letter-spacing: 0.02em; }
           .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
           .actions { display: flex; flex-wrap: wrap; gap: 8px; }
           .btn {
             border: 1px solid var(--line);
@@ -65,10 +73,11 @@ data:
             font-weight: 600;
             cursor: pointer;
           }
-          .btn:hover { background: #eef2ff; }
+          .btn:hover { background: #edf2ff; }
           .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
           .btn.good { background: #ecfdf5; border-color: #bbf7d0; color: var(--success); }
-          .btn.warn { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+          .btn.warn { background: #fff7ed; border-color: #fed7aa; color: var(--warn); }
+          .btn.danger { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
           .btn:disabled { opacity: 0.55; cursor: default; }
           .grid { margin-top: 14px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
           .card {
@@ -76,29 +85,29 @@ data:
             border: 1px solid var(--line);
             border-radius: 14px;
             padding: 14px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.04);
           }
+          .span-7 { grid-column: span 7; }
+          .span-5 { grid-column: span 5; }
           .span-6 { grid-column: span 6; }
-          .span-4 { grid-column: span 4; }
-          .span-8 { grid-column: span 8; }
           .span-12 { grid-column: span 12; }
           .card h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: 0.02em; }
-          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-          input {
+          .hint { margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid #bfdbfe; background: var(--accentSoft); color: #1e3a8a; font-size: 13px; }
+          input, select {
             border: 1px solid var(--line);
             border-radius: 9px;
             padding: 9px 10px;
             min-width: 170px;
             background: #fff;
+            color: #0f172a;
           }
-          .metric {
-            background: var(--accentSoft);
-            border: 1px solid #bfdbfe;
-            border-radius: 10px;
-            padding: 10px;
-            font-size: 13px;
-            color: #1e3a8a;
-          }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th, td { text-align: left; border-bottom: 1px solid #e5eaf3; padding: 8px 6px; vertical-align: top; }
+          th { color: #475569; font-weight: 700; }
+          .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+          .b-green { background: #dcfce7; color: #166534; }
+          .b-blue { background: #dbeafe; color: #1e40af; }
+          .b-orange { background: #ffedd5; color: #9a3412; }
           pre {
             margin: 0;
             background: #0b1220;
@@ -106,14 +115,14 @@ data:
             border-radius: 10px;
             padding: 10px;
             overflow: auto;
-            min-height: 120px;
+            min-height: 110px;
             font-size: 12px;
           }
           a { color: #1e40af; text-underline-offset: 3px; font-weight: 600; }
-          @media (max-width: 1100px) {
+          @media (max-width: 1200px) {
             .app { grid-template-columns: 1fr; }
             .nav { border-right: none; border-bottom: 1px solid #22304a; }
-            .span-6, .span-4, .span-8 { grid-column: span 12; }
+            .span-7, .span-5, .span-6 { grid-column: span 12; }
           }
         </style>
         <script src="/auth/js/keycloak.js"></script>
@@ -124,14 +133,14 @@ data:
             <div class="brand">NoryxLab</div>
             <div class="edition">Community Edition Console</div>
             <div class="status" id="meta">Not authenticated</div>
-            <h4>Workspace Platform</h4>
+            <h4>Platform</h4>
             <ul>
-              <li>Project-centric model</li>
-              <li>Jupyter workspace runtime</li>
-              <li>Keycloak OIDC auth</li>
-              <li>Kubernetes execution plane</li>
+              <li>Projects</li>
+              <li>Workspaces</li>
+              <li>Environments</li>
+              <li>Workloads</li>
             </ul>
-            <h4>Navigation</h4>
+            <h4>Ops</h4>
             <ul>
               <li><a href="/swagger">Open API Swagger</a></li>
             </ul>
@@ -140,68 +149,95 @@ data:
           <main class="main">
             <section class="header">
               <div>
-                <h1 class="title">Datalab Control Plane</h1>
-                <p class="sub">Bootstrap UI inspired by Domino console layout</p>
+                <h1 class="title">Domino-style Datalab Console</h1>
+                <p class="sub">Projects and workspaces on one side, reusable environments and workloads on another.</p>
               </div>
               <div class="actions">
                 <button id="login" class="btn primary">Login Keycloak</button>
                 <button id="logout" class="btn">Logout</button>
+                <button id="loadModules" class="btn good">Modules</button>
+                <button id="loadUsers" class="btn good">Users</button>
               </div>
             </section>
 
             <section class="grid">
-              <article class="card span-4">
-                <h3>Cluster Module Status</h3>
+              <article class="card span-7">
+                <h3>Projects and Workspaces</h3>
+                <div class="hint">First login auto-creates a starter project. Select a project, then launch workspaces inside it.</div>
                 <div class="row">
-                  <button id="loadModules" class="btn good">Load Modules</button>
-                </div>
-                <pre id="modulesOut">-</pre>
-              </article>
-
-              <article class="card span-4">
-                <h3>Admin Users (Keycloak)</h3>
-                <div class="row">
-                  <button id="loadUsers" class="btn good">Load Users</button>
-                </div>
-                <pre id="usersOut">-</pre>
-              </article>
-
-              <article class="card span-4">
-                <h3>Session</h3>
-                <div class="metric">API session cookie is required for workspace web proxy (`/workspaces/{id}`)</div>
-              </article>
-
-              <article class="card span-6">
-                <h3>Projects</h3>
-                <div class="metric">At first login, backend auto-creates a default project for the authenticated user.</div>
-                <div class="row">
+                  <select id="projectSelect"></select>
                   <input id="projectName" placeholder="New project name" />
                   <button id="createProject" class="btn primary">Create Project</button>
-                  <button id="loadProjects" class="btn">Load Projects</button>
+                  <button id="loadProjects" class="btn">Refresh Projects</button>
                 </div>
-                <pre id="projectsOut">-</pre>
+                <div class="row">
+                  <input id="workspaceName" placeholder="Workspace name (optional)" />
+                  <button id="createWorkspace" class="btn primary">Launch Jupyter Workspace</button>
+                  <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Status</th>
+                      <th>Access</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="workspaceRows"></tbody>
+                </table>
+              </article>
+
+              <article class="card span-5">
+                <h3>Environments Catalog</h3>
+                <div class="hint">Environment builds are reusable images. They are managed apart from runtime workspaces.</div>
+                <div class="row">
+                  <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
+                  <input id="envGitRef" value="main" />
+                </div>
+                <div class="row">
+                  <input id="envDockerfile" value="environments/jupyter-debian/Dockerfile" />
+                  <input id="envContext" value="." />
+                </div>
+                <div class="row">
+                  <input id="envDestination" value="harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0" />
+                  <button id="buildEnv" class="btn warn">Build Environment</button>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="environmentRows"></tbody>
+                </table>
               </article>
 
               <article class="card span-6">
-                <h3>Workspaces (Jupyter)</h3>
-                <div class="row">
-                  <input id="workspaceProjectId" placeholder="Workspace projectId" />
-                  <input id="workspaceName" placeholder="Workspace name (optional)" />
-                </div>
-                <div class="row">
-                  <button id="createWorkspace" class="btn primary">Create Workspace</button>
-                  <button id="loadWorkspaces" class="btn">Load Workspaces</button>
-                </div>
-                <div class="row">
-                  <input id="deleteWorkspaceId" placeholder="workspaceId to delete" />
-                  <button id="deleteWorkspace" class="btn warn">Delete Workspace</button>
-                </div>
-                <pre id="workspacesOut">-</pre>
+                <h3>Workloads</h3>
+                <div class="hint">Workloads combine active project workspaces and recent environment build jobs.</div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Name</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="workloadRows"></tbody>
+                </table>
+              </article>
+
+              <article class="card span-6">
+                <h3>Operational Feeds</h3>
+                <pre id="modulesOut">-</pre>
+                <pre id="usersOut" style="margin-top:10px;">-</pre>
               </article>
 
               <article class="card span-12">
-                <h3>Runtime Policy</h3>
-                <div class="metric">Current baseline: one pod + one service per workspace, fixed resources request=limit 500m CPU / 512Mi RAM, image `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`.</div>
+                <h3>Policy Baseline</h3>
+                <div class="hint">Workspace resources are fixed for now: request=limit 500m CPU / 512Mi RAM. Workspaces run in project context; environments are separate reusable images.</div>
               </article>
             </section>
           </main>
@@ -217,36 +253,52 @@ data:
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
           const modulesOut = document.getElementById('modulesOut');
-          const projectsOut = document.getElementById('projectsOut');
-          const workspacesOut = document.getElementById('workspacesOut');
-
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
           const usersBtn = document.getElementById('loadUsers');
           const modulesBtn = document.getElementById('loadModules');
-          const projectsBtn = document.getElementById('loadProjects');
-          const createProjectBtn = document.getElementById('createProject');
+
+          const projectSelect = document.getElementById('projectSelect');
           const projectNameInput = document.getElementById('projectName');
+          const createProjectBtn = document.getElementById('createProject');
+          const loadProjectsBtn = document.getElementById('loadProjects');
+
+          const workspaceNameInput = document.getElementById('workspaceName');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
           const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
-          const workspaceProjectIdInput = document.getElementById('workspaceProjectId');
-          const workspaceNameInput = document.getElementById('workspaceName');
-          const deleteWorkspaceIdInput = document.getElementById('deleteWorkspaceId');
-          const deleteWorkspaceBtn = document.getElementById('deleteWorkspace');
+          const workspaceRows = document.getElementById('workspaceRows');
+
+          const envGitRepo = document.getElementById('envGitRepo');
+          const envGitRef = document.getElementById('envGitRef');
+          const envDockerfile = document.getElementById('envDockerfile');
+          const envContext = document.getElementById('envContext');
+          const envDestination = document.getElementById('envDestination');
+          const buildEnvBtn = document.getElementById('buildEnv');
+          const environmentRows = document.getElementById('environmentRows');
+
+          const workloadRows = document.getElementById('workloadRows');
+
+          const state = {
+            projects: [],
+            workspaces: [],
+            builds: []
+          };
 
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
           function authHeader() { return { Authorization: 'Bearer ' + keycloak.token }; }
+          function selectedProjectId() { return projectSelect.value || ''; }
+          function ensureArray(v) { return Array.isArray(v) ? v : []; }
 
           function setButtons(enabled) {
             logoutBtn.disabled = !enabled;
             usersBtn.disabled = !enabled;
             modulesBtn.disabled = !enabled;
-            projectsBtn.disabled = !enabled;
+            loadProjectsBtn.disabled = !enabled;
             createProjectBtn.disabled = !enabled;
-            createWorkspaceBtn.disabled = !enabled;
             loadWorkspacesBtn.disabled = !enabled;
-            deleteWorkspaceBtn.disabled = !enabled;
+            createWorkspaceBtn.disabled = !enabled;
+            buildEnvBtn.disabled = !enabled;
           }
 
           async function callJSON(url, options = {}) {
@@ -261,6 +313,89 @@ data:
             await callJSON('/api/v1/auth/session', { method: 'POST' });
           }
 
+          function renderProjectOptions() {
+            const current = selectedProjectId();
+            projectSelect.innerHTML = '';
+            for (const p of state.projects) {
+              const opt = document.createElement('option');
+              opt.value = p.id;
+              opt.textContent = p.name;
+              projectSelect.appendChild(opt);
+            }
+            if (current && state.projects.some(p => p.id === current)) {
+              projectSelect.value = current;
+            }
+          }
+
+          function badge(status) {
+            const s = String(status || '').toLowerCase();
+            if (s.includes('run') || s.includes('complete')) return '<span class="badge b-green">' + status + '</span>';
+            if (s.includes('submit') || s.includes('pending')) return '<span class="badge b-orange">' + status + '</span>';
+            return '<span class="badge b-blue">' + (status || 'unknown') + '</span>';
+          }
+
+          function renderWorkspacesTable() {
+            const pid = selectedProjectId();
+            const items = state.workspaces.filter(w => !pid || w.projectId === pid);
+            workspaceRows.innerHTML = '';
+            if (items.length === 0) {
+              workspaceRows.innerHTML = '<tr><td colspan="4">No workspace for selected project.</td></tr>';
+              return;
+            }
+            for (const w of items) {
+              const tr = document.createElement('tr');
+              const openBtn = w.accessUrl ? '<button class="btn" data-open="' + w.id + '">Open</button>' : '';
+              tr.innerHTML =
+                '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#64748b">' + w.id + '</span></td>' +
+                '<td>' + badge(w.status || 'submitted') + '</td>' +
+                '<td>' + (w.accessUrl || '-') + '</td>' +
+                '<td>' + openBtn + ' <button class="btn danger" data-del="' + w.id + '">Delete</button></td>';
+              workspaceRows.appendChild(tr);
+            }
+          }
+
+          function renderEnvironmentsTable() {
+            const items = [...state.builds].reverse().slice(0, 8);
+            environmentRows.innerHTML = '';
+            if (items.length === 0) {
+              environmentRows.innerHTML = '<tr><td colspan="2">No environment build yet.</td></tr>';
+              return;
+            }
+            for (const b of items) {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><code>' + (b.destinationImage || '-') + '</code><br/><span style="color:#64748b">' + (b.dockerfilePath || '') + '</span></td>' +
+                '<td>' + badge(b.status || 'submitted') + '</td>';
+              environmentRows.appendChild(tr);
+            }
+          }
+
+          function renderWorkloadsTable() {
+            const pid = selectedProjectId();
+            const ws = state.workspaces.filter(w => !pid || w.projectId === pid);
+            const bs = state.builds.filter(b => !pid || b.projectId === pid);
+            const rows = [];
+            ws.forEach(w => rows.push({ type: 'Workspace', name: w.name || w.id, status: w.status || 'submitted' }));
+            bs.forEach(b => rows.push({ type: 'Build', name: b.jobName || b.destinationImage || 'build', status: b.status || 'submitted' }));
+            workloadRows.innerHTML = '';
+            if (rows.length === 0) {
+              workloadRows.innerHTML = '<tr><td colspan="3">No workload yet for selected project.</td></tr>';
+              return;
+            }
+            for (const r of rows.slice(0, 12)) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = '<td>' + r.type + '</td><td>' + r.name + '</td><td>' + badge(r.status) + '</td>';
+              workloadRows.appendChild(tr);
+            }
+          }
+
+          function renderAll() {
+            renderProjectOptions();
+            renderWorkspacesTable();
+            renderEnvironmentsTable();
+            renderWorkloadsTable();
+          }
+
           async function refreshProjects() {
             let body = await callJSON('/api/v1/projects');
             if (!Array.isArray(body?.items) || body.items.length === 0) {
@@ -272,17 +407,22 @@ data:
               });
               body = await callJSON('/api/v1/projects');
             }
-            pretty(projectsOut, body);
-            const first = body.items[0];
-            if (first?.id) {
-              workspaceProjectIdInput.value = first.id;
-            }
+            state.projects = ensureArray(body.items);
+            renderAll();
             return body;
           }
 
           async function refreshWorkspaces() {
             const body = await callJSON('/api/v1/workspaces');
-            pretty(workspacesOut, body);
+            state.workspaces = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshBuilds() {
+            const body = await callJSON('/api/v1/builds');
+            state.builds = ensureArray(body.items);
+            renderAll();
             return body;
           }
 
@@ -302,36 +442,38 @@ data:
             catch (e) { pretty(modulesOut, e); }
           };
 
-          projectsBtn.onclick = async () => {
+          loadProjectsBtn.onclick = async () => {
             try { await refreshProjects(); }
-            catch (e) { pretty(projectsOut, e); }
+            catch (e) { pretty(usersOut, e); }
           };
 
           createProjectBtn.onclick = async () => {
             try {
               const name = projectNameInput.value.trim();
               if (!name) throw { error: 'projectName is required' };
-              const created = await callJSON('/api/v1/projects', {
+              await callJSON('/api/v1/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
               });
-              pretty(projectsOut, created);
+              projectNameInput.value = '';
               await refreshProjects();
             } catch (e) {
-              pretty(projectsOut, e);
+              pretty(usersOut, e);
             }
           };
 
+          projectSelect.onchange = () => renderAll();
+
           loadWorkspacesBtn.onclick = async () => {
             try { await refreshWorkspaces(); }
-            catch (e) { pretty(workspacesOut, e); }
+            catch (e) { pretty(usersOut, e); }
           };
 
           createWorkspaceBtn.onclick = async () => {
             try {
-              const projectId = workspaceProjectIdInput.value.trim();
-              if (!projectId) throw { error: 'workspace projectId is required' };
+              const projectId = selectedProjectId();
+              if (!projectId) throw { error: 'select a project first' };
               const payload = { projectId };
               const name = workspaceNameInput.value.trim();
               if (name) payload.name = name;
@@ -340,28 +482,64 @@ data:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-              pretty(workspacesOut, created);
               await ensureWebSession();
+              await refreshWorkspaces();
               if (created.accessUrl) {
                 window.open(created.accessUrl, '_blank', 'noopener,noreferrer');
               }
             } catch (e) {
-              pretty(workspacesOut, e);
+              pretty(usersOut, e);
             }
           };
 
-          deleteWorkspaceBtn.onclick = async () => {
+          buildEnvBtn.onclick = async () => {
             try {
-              const workspaceId = deleteWorkspaceIdInput.value.trim();
-              if (!workspaceId) throw { error: 'workspaceId is required' };
-              const res = await fetch('/api/v1/workspaces/' + encodeURIComponent(workspaceId), {
-                method: 'DELETE',
-                headers: authHeader()
+              const projectId = selectedProjectId();
+              if (!projectId) throw { error: 'select a project first' };
+              const payload = {
+                projectId,
+                gitRepository: envGitRepo.value.trim(),
+                gitRef: envGitRef.value.trim() || 'main',
+                dockerfilePath: envDockerfile.value.trim() || 'Dockerfile',
+                contextPath: envContext.value.trim(),
+                destinationImage: envDestination.value.trim()
+              };
+              if (!payload.gitRepository || !payload.destinationImage) {
+                throw { error: 'gitRepository and destinationImage are required' };
+              }
+              await callJSON('/api/v1/builds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
               });
-              if (!res.ok) throw await res.json().catch(() => ({ error: 'delete failed' }));
-              pretty(workspacesOut, { deleted: workspaceId });
+              await refreshBuilds();
             } catch (e) {
-              pretty(workspacesOut, e);
+              pretty(usersOut, e);
+            }
+          };
+
+          workspaceRows.onclick = async (event) => {
+            const openId = event.target?.getAttribute('data-open');
+            const delId = event.target?.getAttribute('data-del');
+            if (openId) {
+              const ws = state.workspaces.find(w => w.id === openId);
+              if (ws?.accessUrl) {
+                await ensureWebSession();
+                window.open(ws.accessUrl, '_blank', 'noopener,noreferrer');
+              }
+              return;
+            }
+            if (delId) {
+              try {
+                const res = await fetch('/api/v1/workspaces/' + encodeURIComponent(delId), {
+                  method: 'DELETE',
+                  headers: authHeader()
+                });
+                if (!res.ok) throw await res.json().catch(() => ({ error: 'delete failed' }));
+                await refreshWorkspaces();
+              } catch (e) {
+                pretty(usersOut, e);
+              }
             }
           };
 
@@ -375,7 +553,7 @@ data:
             setButtons(true);
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => refreshWorkspaces())
+              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
               });
