@@ -20,6 +20,7 @@ data:
           p { margin: 0 0 16px; color: #4b5563; }
           .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 16px; }
           button { border: 1px solid #d1d5db; background: #f9fafb; color: #111827; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+          input { border: 1px solid #d1d5db; background: #fff; color: #111827; border-radius: 8px; padding: 8px 10px; min-width: 180px; }
           button.primary { background: #111827; color: #fff; border-color: #111827; }
           button:disabled { opacity: 0.5; cursor: default; }
           .meta { font-size: 14px; color: #374151; margin-bottom: 16px; }
@@ -40,7 +41,18 @@ data:
             <button id="logout">Logout</button>
             <button id="loadUsers">Load Users</button>
             <button id="loadModules">Load Modules</button>
+            <button id="loadProjects">Load Projects</button>
             <a href="/swagger">Open API Swagger</a>
+          </div>
+          <div class="row">
+            <input id="projectName" placeholder="New project name" />
+            <button id="createProject">Create Project</button>
+            <input id="workspaceProjectId" placeholder="Workspace projectId" />
+            <input id="workspaceName" placeholder="Workspace name (optional)" />
+            <button id="createWorkspace">Create Workspace</button>
+            <button id="loadWorkspaces">Load Workspaces</button>
+            <input id="deleteWorkspaceId" placeholder="workspaceId to delete" />
+            <button id="deleteWorkspace">Delete Workspace</button>
           </div>
           <div id="meta" class="meta">Not authenticated</div>
           <section class="cards">
@@ -51,6 +63,14 @@ data:
             <div class="card">
               <h3>/api/v1/admin/modules</h3>
               <pre id="modulesOut">-</pre>
+            </div>
+            <div class="card">
+              <h3>/api/v1/projects</h3>
+              <pre id="projectsOut">-</pre>
+            </div>
+            <div class="card">
+              <h3>/api/v1/workspaces</h3>
+              <pre id="workspacesOut">-</pre>
             </div>
           </section>
         </main>
@@ -64,10 +84,21 @@ data:
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
           const modulesOut = document.getElementById('modulesOut');
+          const projectsOut = document.getElementById('projectsOut');
+          const workspacesOut = document.getElementById('workspacesOut');
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
           const usersBtn = document.getElementById('loadUsers');
           const modulesBtn = document.getElementById('loadModules');
+          const projectsBtn = document.getElementById('loadProjects');
+          const createProjectBtn = document.getElementById('createProject');
+          const projectNameInput = document.getElementById('projectName');
+          const createWorkspaceBtn = document.getElementById('createWorkspace');
+          const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
+          const workspaceProjectIdInput = document.getElementById('workspaceProjectId');
+          const workspaceNameInput = document.getElementById('workspaceName');
+          const deleteWorkspaceIdInput = document.getElementById('deleteWorkspaceId');
+          const deleteWorkspaceBtn = document.getElementById('deleteWorkspace');
 
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
@@ -77,17 +108,30 @@ data:
             logoutBtn.disabled = !enabled;
             usersBtn.disabled = !enabled;
             modulesBtn.disabled = !enabled;
+            projectsBtn.disabled = !enabled;
+            createProjectBtn.disabled = !enabled;
+            createWorkspaceBtn.disabled = !enabled;
+            loadWorkspacesBtn.disabled = !enabled;
+            deleteWorkspaceBtn.disabled = !enabled;
           }
 
-          async function callJSON(url) {
-            const res = await fetch(url, { headers: authHeader() });
+          async function callJSON(url, options = {}) {
+            const headers = { ...(options.headers || {}), ...authHeader() };
+            const res = await fetch(url, { ...options, headers });
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw body;
             return body;
           }
 
+          async function ensureWebSession() {
+            await callJSON('/api/v1/auth/session', { method: 'POST' });
+          }
+
           loginBtn.onclick = () => keycloak.login();
-          logoutBtn.onclick = () => keycloak.logout({ redirectUri: window.location.origin + '/' });
+          logoutBtn.onclick = async () => {
+            try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
+            keycloak.logout({ redirectUri: window.location.origin + '/' });
+          };
 
           usersBtn.onclick = async () => {
             try { pretty(usersOut, await callJSON('/api/v1/admin/users')); }
@@ -99,6 +143,69 @@ data:
             catch (e) { pretty(modulesOut, e); }
           };
 
+          projectsBtn.onclick = async () => {
+            try { pretty(projectsOut, await callJSON('/api/v1/projects')); }
+            catch (e) { pretty(projectsOut, e); }
+          };
+
+          createProjectBtn.onclick = async () => {
+            try {
+              const name = projectNameInput.value.trim();
+              if (!name) throw { error: 'projectName is required' };
+              const created = await callJSON('/api/v1/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+              });
+              pretty(projectsOut, created);
+              workspaceProjectIdInput.value = created.id || workspaceProjectIdInput.value;
+            } catch (e) {
+              pretty(projectsOut, e);
+            }
+          };
+
+          loadWorkspacesBtn.onclick = async () => {
+            try { pretty(workspacesOut, await callJSON('/api/v1/workspaces')); }
+            catch (e) { pretty(workspacesOut, e); }
+          };
+
+          createWorkspaceBtn.onclick = async () => {
+            try {
+              const projectId = workspaceProjectIdInput.value.trim();
+              if (!projectId) throw { error: 'workspace projectId is required' };
+              const payload = { projectId };
+              const name = workspaceNameInput.value.trim();
+              if (name) payload.name = name;
+              const created = await callJSON('/api/v1/workspaces', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              pretty(workspacesOut, created);
+              await ensureWebSession();
+              if (created.accessUrl) {
+                window.open(created.accessUrl, '_blank', 'noopener,noreferrer');
+              }
+            } catch (e) {
+              pretty(workspacesOut, e);
+            }
+          };
+
+          deleteWorkspaceBtn.onclick = async () => {
+            try {
+              const workspaceId = deleteWorkspaceIdInput.value.trim();
+              if (!workspaceId) throw { error: 'workspaceId is required' };
+              const res = await fetch('/api/v1/workspaces/' + encodeURIComponent(workspaceId), {
+                method: 'DELETE',
+                headers: authHeader()
+              });
+              if (!res.ok) throw await res.json().catch(() => ({ error: 'delete failed' }));
+              pretty(workspacesOut, { deleted: workspaceId });
+            } catch (e) {
+              pretty(workspacesOut, e);
+            }
+          };
+
           keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
             if (!authenticated) {
               setMeta('Not authenticated');
@@ -107,6 +214,9 @@ data:
             }
             setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
             setButtons(true);
+            ensureWebSession().catch((err) => {
+              pretty(usersOut, { sessionError: String(err) });
+            });
           }).catch((err) => {
             setMeta('Keycloak init error');
             pretty(usersOut, { error: String(err) });

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.4.0
+  version: 0.5.0
 servers:
   - url: /
 components:
@@ -132,6 +132,8 @@ paths:
   /api/v1/workspaces:
     get:
       summary: List project workspaces
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: List of workspaces
@@ -152,6 +154,32 @@ paths:
       responses:
         '201':
           description: Workspace submitted
+  /api/v1/workspaces/{workspaceID}:
+    delete:
+      summary: Stop and delete a workspace
+      parameters:
+        - in: path
+          name: workspaceID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Workspace deleted
+  /api/v1/auth/session:
+    post:
+      summary: Exchange bearer token for web session cookie
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Web session created
+    delete:
+      summary: Logout web session cookie
+      responses:
+        '204':
+          description: Web session deleted
   /api/v1/admin/users:
     get:
       summary: List users from Keycloak realm

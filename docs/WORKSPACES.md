@@ -11,6 +11,10 @@ Current CE baseline for workspaces:
 
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`
+- `DELETE /api/v1/workspaces/{workspaceID}`
+- `POST /api/v1/auth/session` (create browser session from bearer)
+- `DELETE /api/v1/auth/session`
+- `/workspaces/{workspaceID}/...` (Jupyter reverse proxy)
 
 Create payload:
 
@@ -45,4 +49,7 @@ Use `POST /api/v1/builds` with:
 ## Notes
 
 - project membership is enforced (`editor` or `admin` required)
+- `GET /api/v1/workspaces` returns only workspaces from projects where caller has a role
+- Jupyter access path is guarded by Keycloak identity (bearer or web session cookie)
+- workspace URL returned by API points to `/workspaces/<workspaceID>/lab`
 - metadata stores are currently in-memory (restart resets records)

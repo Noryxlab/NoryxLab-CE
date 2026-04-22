@@ -16,13 +16,27 @@ type createWorkspaceRequest struct {
 	Name      string `json:"name"`
 }
 
-func (h Handlers) ListWorkspaces(w http.ResponseWriter, _ *http.Request) {
+func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+
 	items, err := h.workspaceStore.List()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list workspaces"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+
+	filtered := make([]workspace.Workspace, 0, len(items))
+	for _, item := range items {
+		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
 }
 
 func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +78,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	podName := "ws-" + shortID()
 	serviceName := podName
 	accessToken := shortID() + shortID()
-	accessURL := fmt.Sprintf("http://%s:8888/lab?token=%s", serviceName, accessToken)
 
 	record := workspace.NewJupyter(
 		req.ProjectID,
@@ -74,9 +87,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		serviceName,
 		h.workspaceCPU,
 		h.workspaceMemory,
-		accessURL,
+		"",
 		accessToken,
 	)
+	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab", record.ID)
 
 	if h.runtime != nil {
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
@@ -128,4 +142,49 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, record)
+}
+
+func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+
+	workspaceID := strings.TrimSpace(r.PathValue("workspaceID"))
+	if workspaceID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "workspaceID is required"})
+		return
+	}
+
+	record, found, err := h.workspaceStore.GetByID(workspaceID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read workspace"})
+		return
+	}
+	if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "workspace not found"})
+		return
+	}
+
+	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "workspace deletion") {
+		return
+	}
+
+	if h.runtime != nil {
+		if err := h.runtime.DeleteService(record.ServiceName); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service delete failed: " + err.Error()})
+			return
+		}
+		if err := h.runtime.DeletePod(record.PodName); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
+			return
+		}
+	}
+
+	if err := h.workspaceStore.Delete(record.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete workspace"})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

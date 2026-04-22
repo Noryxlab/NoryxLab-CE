@@ -21,6 +21,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/pods", h.LaunchPod)
 	mux.HandleFunc("GET /api/v1/workspaces", h.ListWorkspaces)
 	mux.HandleFunc("POST /api/v1/workspaces", h.CreateWorkspace)
+	mux.HandleFunc("DELETE /api/v1/workspaces/{workspaceID}", h.DeleteWorkspace)
+	mux.HandleFunc("POST /api/v1/auth/session", h.CreateWebSession)
+	mux.HandleFunc("DELETE /api/v1/auth/session", h.DeleteWebSession)
+	mux.HandleFunc("/workspaces/{workspaceID}", h.ProxyWorkspace)
+	mux.HandleFunc("/workspaces/{workspaceID}/{path...}", h.ProxyWorkspace)
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 

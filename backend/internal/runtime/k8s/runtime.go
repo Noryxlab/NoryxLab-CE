@@ -121,6 +121,13 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 	return err
 }
 
+func (r *Runtime) DeletePod(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("pod name is required")
+	}
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.namespace, name))
+}
+
 func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
 	payload := map[string]any{
 		"apiVersion": "v1",
@@ -141,6 +148,13 @@ func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/services", r.namespace), payload)
 	return err
+}
+
+func (r *Runtime) DeleteService(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("service name is required")
+	}
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/services/%s", r.namespace, name))
 }
 
 func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
@@ -337,4 +351,28 @@ func (r *Runtime) get(path string) ([]byte, error) {
 		return nil, fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
+}
+
+func (r *Runtime) delete(path string) error {
+	req, err := http.NewRequest(http.MethodDelete, r.apiURL+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
+	}
+	return nil
 }

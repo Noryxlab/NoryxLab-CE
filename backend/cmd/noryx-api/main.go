@@ -21,6 +21,7 @@ func main() {
 	buildStore := memory.NewBuildStore()
 	podStore := memory.NewPodStore()
 	workspaceStore := memory.NewWorkspaceStore()
+	sessionStore := memory.NewSessionStore()
 	accessStore := memory.NewAccessStore()
 
 	var runtime noryxruntime.Runner
@@ -62,6 +63,7 @@ func main() {
 		buildStore,
 		podStore,
 		workspaceStore,
+		sessionStore,
 		accessStore,
 		runtime,
 		verifier,

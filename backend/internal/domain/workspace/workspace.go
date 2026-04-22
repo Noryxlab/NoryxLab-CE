@@ -18,7 +18,7 @@ type Workspace struct {
 	Memory      string    `json:"memory"`
 	Status      string    `json:"status"`
 	AccessURL   string    `json:"accessUrl"`
-	AccessToken string    `json:"accessToken"`
+	AccessToken string    `json:"-"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
 

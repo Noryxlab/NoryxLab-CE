@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
@@ -13,6 +14,7 @@ const (
 	userHeader      = "X-Noryx-User"
 	authHeader      = "Authorization"
 	globalAdminRole = "noryx-admin"
+	sessionCookie   = "noryx_session"
 )
 
 func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
@@ -51,6 +53,59 @@ func (h Handlers) requireUserID(w http.ResponseWriter, r *http.Request) (string,
 		return "", false
 	}
 	return userID, true
+}
+
+func (h Handlers) requireUserIDFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (string, bool) {
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	if !ok {
+		return "", false
+	}
+	userID := identity.UserID()
+	if userID == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid authenticated identity"})
+		return "", false
+	}
+	return userID, true
+}
+
+func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
+	token := strings.TrimSpace(r.Header.Get(authHeader))
+	token = strings.TrimPrefix(token, "Bearer ")
+	token = strings.TrimSpace(token)
+	if token != "" {
+		return h.requireIdentity(w, r)
+	}
+
+	if h.sessionStore == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
+		return auth.Identity{}, false
+	}
+
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil || strings.TrimSpace(cookie.Value) == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
+		return auth.Identity{}, false
+	}
+
+	item, ok, err := h.sessionStore.Get(strings.TrimSpace(cookie.Value))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read authenticated session"})
+		return auth.Identity{}, false
+	}
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid authenticated session"})
+		return auth.Identity{}, false
+	}
+	if time.Now().UTC().After(item.ExpiresAt) {
+		_ = h.sessionStore.Delete(item.Token)
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "expired authenticated session"})
+		return auth.Identity{}, false
+	}
+
+	return auth.Identity{
+		Username: item.Identity,
+		Roles:    map[string]struct{}{},
+	}, true
 }
 
 func (h Handlers) requireProjectRole(
