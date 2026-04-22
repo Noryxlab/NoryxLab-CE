@@ -17,7 +17,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-api
-          image: harbor.lan/noryx-ce/noryx-api:0.2.0-dev
+          image: harbor.lan/noryx-ce/noryx-api:0.3.1-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -26,6 +26,16 @@ spec:
               value: ":8080"
             - name: NORYX_ENABLE_K8S_RUNTIME
               value: "true"
+            - name: NORYX_AUTH_MODE
+              value: "oidc"
+            - name: NORYX_OIDC_ISSUER_URL
+              value: "http://datalab.noryxlab.ai/auth/realms/noryx"
+            - name: NORYX_OIDC_JWKS_URL
+              value: "http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs"
+            - name: NORYX_OIDC_AUDIENCE
+              value: "noryx-api"
+            - name: NORYX_BOOTSTRAP_ADMIN_USER
+              value: "stef"
             - name: NORYX_KUBE_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -34,6 +44,19 @@ spec:
               value: "harbor-regcred"
             - name: NORYX_REGISTRY_PUSH_SECRET
               value: "harbor-regcred"
+            - name: NORYX_KEYCLOAK_BASE_URL
+              value: "http://keycloak:8080/auth"
+            - name: NORYX_KEYCLOAK_REALM
+              value: "noryx"
+            - name: NORYX_KEYCLOAK_ADMIN_REALM
+              value: "master"
+            - name: NORYX_KEYCLOAK_ADMIN_USER
+              value: "admin"
+            - name: NORYX_KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-secrets
+                  key: KEYCLOAK_ADMIN_PASSWORD
 ---
 apiVersion: v1
 kind: Service

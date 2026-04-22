@@ -39,8 +39,13 @@ API endpoints:
 - `POST /api/v1/builds`
 - `GET /api/v1/pods`
 - `POST /api/v1/pods`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/modules`
 
-All mutating endpoints require `X-Noryx-User` request header.
+Auth:
+
+- preferred: `Authorization: Bearer <access_token>` (Keycloak OIDC)
+- temporary fallback: `X-Noryx-User` header (bootstrap mode)
 
 Project RBAC:
 
@@ -59,7 +64,16 @@ Runtime mode in cluster:
 - API deployment enables in-cluster runtime (`NORYX_ENABLE_K8S_RUNTIME=true`)
 - API service account can create `pods` and `jobs`
 - registry credentials are read from secret name `harbor-regcred`
+- OIDC issuer (current deployment): `http://datalab.noryxlab.ai/auth/realms/noryx`
+- OIDC JWKS (current deployment): `http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs`
+- Keycloak base URL for admin API: `http://keycloak:8080/auth`
 
-Reference: `docs/BACKEND_RUNTIME_API.md`.
+Keycloak bootstrap helper:
+
+```bash
+scripts/keycloak/bootstrap-realm.sh
+```
+
+Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.

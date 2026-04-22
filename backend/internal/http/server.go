@@ -18,6 +18,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/builds", h.CreateBuild)
 	mux.HandleFunc("GET /api/v1/pods", h.ListPods)
 	mux.HandleFunc("POST /api/v1/pods", h.LaunchPod)
+	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
+	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 
 	mux.HandleFunc("GET /swagger", GetSwaggerUI)
 	mux.HandleFunc("GET /swagger/", GetSwaggerUI)
