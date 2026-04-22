@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noryx-api
+  name: noryx-back
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: noryx-api
+      app: noryx-back
   template:
     metadata:
       labels:
-        app: noryx-api
+        app: noryx-back
     spec:
-      serviceAccountName: noryx-api
+      serviceAccountName: noryx-back
       imagePullSecrets:
         - name: harbor-regcred
       containers:
-        - name: noryx-api
+        - name: noryx-back
           image: harbor.lan/noryx-ce/noryx-api:0.3.3-dev
           imagePullPolicy: IfNotPresent
           ports:
@@ -61,10 +61,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: noryx-api
+  name: noryx-back
 spec:
   selector:
-    app: noryx-api
+    app: noryx-back
   ports:
     - port: 8080
       targetPort: 8080
