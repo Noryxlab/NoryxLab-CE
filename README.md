@@ -15,10 +15,11 @@ Details: `docs/INFRA_PREREQUISITES.md`.
 
 - `backend/`: Noryx API skeleton (Go)
 - `deploy/k8s/base/`: baseline manifests for:
+  - Noryx Front
   - PostgreSQL
   - Keycloak
   - MinIO
-  - Noryx API
+  - Noryx Back API
 
 ## Quick start (local dev)
 
