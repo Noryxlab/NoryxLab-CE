@@ -59,6 +59,47 @@ func NewFromInCluster(namespace string) (*Runtime, error) {
 }
 
 func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
+	ports := make([]map[string]any, 0, len(spec.Ports))
+	for _, p := range spec.Ports {
+		ports = append(ports, map[string]any{"containerPort": p})
+	}
+
+	resources := map[string]any{}
+	requests := map[string]string{}
+	limits := map[string]string{}
+	if spec.CPURequest != "" {
+		requests["cpu"] = spec.CPURequest
+	}
+	if spec.MemRequest != "" {
+		requests["memory"] = spec.MemRequest
+	}
+	if spec.CPULimit != "" {
+		limits["cpu"] = spec.CPULimit
+	}
+	if spec.MemLimit != "" {
+		limits["memory"] = spec.MemLimit
+	}
+	if len(requests) > 0 {
+		resources["requests"] = requests
+	}
+	if len(limits) > 0 {
+		resources["limits"] = limits
+	}
+
+	container := map[string]any{
+		"name":    "main",
+		"image":   spec.Image,
+		"command": spec.Command,
+		"args":    spec.Args,
+		"env":     spec.Env,
+	}
+	if len(ports) > 0 {
+		container["ports"] = ports
+	}
+	if len(resources) > 0 {
+		container["resources"] = resources
+	}
+
 	payload := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "Pod",
@@ -67,15 +108,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			"labels": spec.Labels,
 		},
 		"spec": map[string]any{
-			"containers": []map[string]any{
-				{
-					"name":    "main",
-					"image":   spec.Image,
-					"command": spec.Command,
-					"args":    spec.Args,
-					"env":     spec.Env,
-				},
-			},
+			"containers":    []map[string]any{container},
 			"restartPolicy": "Never",
 		},
 	}
@@ -85,6 +118,28 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 	}
 
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.namespace), payload)
+	return err
+}
+
+func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
+	payload := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Service",
+		"metadata": map[string]any{
+			"name": spec.Name,
+		},
+		"spec": map[string]any{
+			"selector": spec.Selector,
+			"ports": []map[string]any{
+				{
+					"port":       spec.Port,
+					"targetPort": spec.Port,
+				},
+			},
+		},
+	}
+
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/services", r.namespace), payload)
 	return err
 }
 

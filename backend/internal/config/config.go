@@ -3,22 +3,25 @@ package config
 import "os"
 
 type Config struct {
-	ListenAddr          string
-	KubernetesNamespace string
-	EnableK8sRuntime    bool
-	RegistryPullSecret  string
-	RegistryPushSecret  string
-	AuthMode            string
-	OIDCIssuerURL       string
-	OIDCJWKSURL         string
-	OIDCAudience        string
-	BootstrapAdminUser  string
-	BootstrapAdminEmail string
-	KeycloakBaseURL     string
-	KeycloakRealm       string
-	KeycloakAdminRealm  string
-	KeycloakAdminUser   string
-	KeycloakAdminPass   string
+	ListenAddr            string
+	KubernetesNamespace   string
+	EnableK8sRuntime      bool
+	RegistryPullSecret    string
+	RegistryPushSecret    string
+	AuthMode              string
+	OIDCIssuerURL         string
+	OIDCJWKSURL           string
+	OIDCAudience          string
+	BootstrapAdminUser    string
+	BootstrapAdminEmail   string
+	KeycloakBaseURL       string
+	KeycloakRealm         string
+	KeycloakAdminRealm    string
+	KeycloakAdminUser     string
+	KeycloakAdminPass     string
+	WorkspaceJupyterImage string
+	WorkspaceCPU          string
+	WorkspaceMemory       string
 }
 
 func Load() Config {
@@ -73,22 +76,38 @@ func Load() Config {
 		keycloakAdminUser = "admin"
 	}
 
+	workspaceJupyterImage := os.Getenv("NORYX_WORKSPACE_JUPYTER_IMAGE")
+	if workspaceJupyterImage == "" {
+		workspaceJupyterImage = "harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0"
+	}
+	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
+	if workspaceCPU == "" {
+		workspaceCPU = "500m"
+	}
+	workspaceMemory := os.Getenv("NORYX_WORKSPACE_MEMORY")
+	if workspaceMemory == "" {
+		workspaceMemory = "512Mi"
+	}
+
 	return Config{
-		ListenAddr:          listenAddr,
-		KubernetesNamespace: namespace,
-		EnableK8sRuntime:    enableRuntime,
-		RegistryPullSecret:  pullSecret,
-		RegistryPushSecret:  pushSecret,
-		AuthMode:            authMode,
-		OIDCIssuerURL:       oidcIssuer,
-		OIDCJWKSURL:         os.Getenv("NORYX_OIDC_JWKS_URL"),
-		OIDCAudience:        os.Getenv("NORYX_OIDC_AUDIENCE"),
-		BootstrapAdminUser:  os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
-		BootstrapAdminEmail: os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
-		KeycloakBaseURL:     keycloakBaseURL,
-		KeycloakRealm:       keycloakRealm,
-		KeycloakAdminRealm:  keycloakAdminRealm,
-		KeycloakAdminUser:   keycloakAdminUser,
-		KeycloakAdminPass:   os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
+		ListenAddr:            listenAddr,
+		KubernetesNamespace:   namespace,
+		EnableK8sRuntime:      enableRuntime,
+		RegistryPullSecret:    pullSecret,
+		RegistryPushSecret:    pushSecret,
+		AuthMode:              authMode,
+		OIDCIssuerURL:         oidcIssuer,
+		OIDCJWKSURL:           os.Getenv("NORYX_OIDC_JWKS_URL"),
+		OIDCAudience:          os.Getenv("NORYX_OIDC_AUDIENCE"),
+		BootstrapAdminUser:    os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
+		BootstrapAdminEmail:   os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
+		KeycloakBaseURL:       keycloakBaseURL,
+		KeycloakRealm:         keycloakRealm,
+		KeycloakAdminRealm:    keycloakAdminRealm,
+		KeycloakAdminUser:     keycloakAdminUser,
+		KeycloakAdminPass:     os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
+		WorkspaceJupyterImage: workspaceJupyterImage,
+		WorkspaceCPU:          workspaceCPU,
+		WorkspaceMemory:       workspaceMemory,
 	}
 }

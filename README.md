@@ -41,6 +41,8 @@ API endpoints:
 - `POST /api/v1/builds`
 - `GET /api/v1/pods`
 - `POST /api/v1/pods`
+- `GET /api/v1/workspaces`
+- `POST /api/v1/workspaces`
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
 
@@ -54,6 +56,7 @@ Project RBAC:
 - project creator gets `admin`
 - `admin` can manage member roles
 - `editor` and `admin` can submit builds and launch pods
+- `editor` and `admin` can launch workspaces (Jupyter)
 
 ## Kubernetes bootstrap
 
@@ -77,5 +80,6 @@ scripts/keycloak/bootstrap-realm.sh
 ```
 
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
+Workspace module: `docs/WORKSPACES.md`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.3.0
+  version: 0.4.0
 servers:
   - url: /
 components:
@@ -129,6 +129,29 @@ paths:
       responses:
         '201':
           description: Pod launch submitted
+  /api/v1/workspaces:
+    get:
+      summary: List project workspaces
+      responses:
+        '200':
+          description: List of workspaces
+    post:
+      summary: Launch a Jupyter workspace (fixed 500m/512Mi)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId]
+              properties:
+                projectId: { type: string }
+                name: { type: string }
+      responses:
+        '201':
+          description: Workspace submitted
   /api/v1/admin/users:
     get:
       summary: List users from Keycloak realm

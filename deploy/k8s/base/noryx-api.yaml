@@ -17,7 +17,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-back
-          image: harbor.lan/noryx-ce/noryx-api:0.3.3-dev
+          image: harbor.lan/noryx-ce/noryx-api:0.4.1-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -57,6 +57,12 @@ spec:
                 secretKeyRef:
                   name: noryx-secrets
                   key: KEYCLOAK_ADMIN_PASSWORD
+            - name: NORYX_WORKSPACE_JUPYTER_IMAGE
+              value: "harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0"
+            - name: NORYX_WORKSPACE_CPU
+              value: "500m"
+            - name: NORYX_WORKSPACE_MEMORY
+              value: "512Mi"
 ---
 apiVersion: v1
 kind: Service

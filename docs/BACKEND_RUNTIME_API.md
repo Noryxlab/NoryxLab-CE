@@ -4,6 +4,7 @@ This module adds:
 
 - docker image build submission (Kaniko `Job`)
 - pod launch submission (`Pod`)
+- workspace launch submission (Jupyter `Pod` + `Service`)
 - project-scoped RBAC checks at API level
 - OIDC authentication with Keycloak bearer tokens
 - Swagger UI + OpenAPI spec
@@ -16,6 +17,8 @@ This module adds:
 - `PUT /api/v1/projects/{projectID}/members/{userID}/role`
 - `POST /api/v1/builds`
 - `POST /api/v1/pods`
+- `GET /api/v1/workspaces`
+- `POST /api/v1/workspaces`
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
 
@@ -34,6 +37,13 @@ Compatibility fallback:
 - project creator is set to `admin`
 - `admin` can assign `viewer|editor|admin`
 - `editor` and `admin` can submit builds and launch pods
+- `editor` and `admin` can launch workspaces
+
+## Workspace baseline (current)
+
+- kind: `jupyter`
+- image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- resources: requests=limits=`500m` CPU, `512Mi` memory
 - global admin is granted by realm role `noryx-admin`
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
 
