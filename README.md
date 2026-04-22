@@ -29,6 +29,7 @@ go run ./cmd/noryx-api
 
 API endpoints:
 
+- `GET /` (minimal landing page)
 - `GET /healthz`
 - `GET /swagger`
 - `GET /swagger/openapi.yaml`
