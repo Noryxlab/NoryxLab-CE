@@ -43,6 +43,7 @@ Compatibility fallback:
 - `admin` can assign `viewer|editor|admin`
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch/delete/access workspaces
+- first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
 
 ## Workspace baseline (current)
 

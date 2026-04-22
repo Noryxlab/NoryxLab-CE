@@ -61,6 +61,7 @@ Project RBAC:
 - `admin` can manage member roles
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch workspaces (Jupyter)
+- first authenticated `GET /api/v1/projects` auto-creates a default project if user has none
 
 ## Kubernetes bootstrap
 
@@ -96,3 +97,11 @@ Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.
+
+## Ops helper
+
+Cleanup all workspaces for a user (requires delete endpoint deployed):
+
+```bash
+BASE_URL=https://datalab.noryxlab.ai NORYX_USER=stef ./scripts/ops/cleanup-workspaces.sh
+```
