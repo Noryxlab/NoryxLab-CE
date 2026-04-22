@@ -19,7 +19,7 @@ spec:
             - "start-dev"
             - "--http-relative-path=/auth"
             - "--proxy-headers=xforwarded"
-            - "--hostname=https://datalab.noryxlab.ai/auth"
+            - "--hostname=datalab.noryxlab.ai"
             - "--hostname-strict=false"
           ports:
             - containerPort: 8080

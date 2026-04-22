@@ -29,7 +29,7 @@ spec:
             - name: NORYX_AUTH_MODE
               value: "oidc"
             - name: NORYX_OIDC_ISSUER_URL
-              value: "http://datalab.noryxlab.ai/auth/realms/noryx"
+              value: "https://datalab.noryxlab.ai/auth/realms/noryx"
             - name: NORYX_OIDC_JWKS_URL
               value: "http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs"
             - name: NORYX_OIDC_AUDIENCE
