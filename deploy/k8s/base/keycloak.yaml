@@ -19,7 +19,7 @@ spec:
             - "start-dev"
             - "--http-relative-path=/auth"
             - "--proxy-headers=xforwarded"
-            - "--hostname=https://datalab.example.local/auth"
+            - "--hostname=datalab.example.local"
             - "--hostname-strict=false"
           ports:
             - containerPort: 8080
