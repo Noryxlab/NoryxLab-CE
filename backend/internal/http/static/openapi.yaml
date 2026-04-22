@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: Noryx API
+  version: 0.2.0
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/v1/projects:
+    get:
+      summary: List projects
+      responses:
+        '200':
+          description: List of projects
+    post:
+      summary: Create project
+      parameters:
+        - in: header
+          name: X-Noryx-User
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Project created
+  /api/v1/projects/{projectID}/members/{userID}/role:
+    put:
+      summary: Set project member role
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: userID
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Noryx-User
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [viewer, editor, admin]
+      responses:
+        '200':
+          description: Role updated
+  /api/v1/builds:
+    get:
+      summary: List build submissions
+      responses:
+        '200':
+          description: List of builds
+    post:
+      summary: Submit a build
+      parameters:
+        - in: header
+          name: X-Noryx-User
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, gitRepository, destinationImage]
+              properties:
+                projectId: { type: string }
+                gitRepository: { type: string }
+                gitRef: { type: string }
+                dockerfilePath: { type: string }
+                contextPath: { type: string }
+                destinationImage: { type: string }
+      responses:
+        '201':
+          description: Build submitted
+  /api/v1/pods:
+    get:
+      summary: List launched pods
+      responses:
+        '200':
+          description: List of pod launches
+    post:
+      summary: Launch a pod
+      parameters:
+        - in: header
+          name: X-Noryx-User
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, image]
+              properties:
+                projectId: { type: string }
+                podName: { type: string }
+                image: { type: string }
+                command:
+                  type: array
+                  items: { type: string }
+                args:
+                  type: array
+                  items: { type: string }
+                env:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        '201':
+          description: Pod launch submitted

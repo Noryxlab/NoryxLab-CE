@@ -12,17 +12,28 @@ spec:
       labels:
         app: noryx-api
     spec:
+      serviceAccountName: noryx-api
       imagePullSecrets:
         - name: harbor-regcred
       containers:
         - name: noryx-api
-          image: harbor.lan/noryx-ce/noryx-api:0.1.0-dev
+          image: harbor.lan/noryx-ce/noryx-api:0.2.0-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           env:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
+            - name: NORYX_ENABLE_K8S_RUNTIME
+              value: "true"
+            - name: NORYX_KUBE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NORYX_REGISTRY_PULL_SECRET
+              value: "harbor-regcred"
+            - name: NORYX_REGISTRY_PUSH_SECRET
+              value: "harbor-regcred"
 ---
 apiVersion: v1
 kind: Service
