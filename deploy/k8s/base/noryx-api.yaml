@@ -40,6 +40,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: NORYX_WORKLOAD_NAMESPACE
+              value: "noryx-loads"
             - name: NORYX_REGISTRY_PULL_SECRET
               value: "harbor-regcred"
             - name: NORYX_REGISTRY_PUSH_SECRET

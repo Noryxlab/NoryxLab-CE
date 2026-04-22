@@ -5,6 +5,7 @@ import "os"
 type Config struct {
 	ListenAddr            string
 	KubernetesNamespace   string
+	WorkloadNamespace     string
 	EnableK8sRuntime      bool
 	RegistryPullSecret    string
 	RegistryPushSecret    string
@@ -33,6 +34,10 @@ func Load() Config {
 	namespace := os.Getenv("NORYX_KUBE_NAMESPACE")
 	if namespace == "" {
 		namespace = "noryx-ce"
+	}
+	workloadNamespace := os.Getenv("NORYX_WORKLOAD_NAMESPACE")
+	if workloadNamespace == "" {
+		workloadNamespace = namespace
 	}
 
 	pullSecret := os.Getenv("NORYX_REGISTRY_PULL_SECRET")
@@ -92,6 +97,7 @@ func Load() Config {
 	return Config{
 		ListenAddr:            listenAddr,
 		KubernetesNamespace:   namespace,
+		WorkloadNamespace:     workloadNamespace,
 		EnableK8sRuntime:      enableRuntime,
 		RegistryPullSecret:    pullSecret,
 		RegistryPushSecret:    pushSecret,

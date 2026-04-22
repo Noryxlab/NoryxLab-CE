@@ -26,7 +26,7 @@ func main() {
 
 	var runtime noryxruntime.Runner
 	if cfg.EnableK8sRuntime {
-		k8sRuntime, err := k8s.NewFromInCluster(cfg.KubernetesNamespace)
+		k8sRuntime, err := k8s.NewFromInCluster(cfg.KubernetesNamespace, cfg.WorkloadNamespace)
 		if err != nil {
 			log.Printf("warning: kubernetes runtime disabled: %v", err)
 		} else {

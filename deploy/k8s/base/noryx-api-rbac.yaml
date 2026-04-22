@@ -4,7 +4,7 @@ metadata:
   name: noryx-back
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
   name: noryx-back-runtime
 rules:
@@ -22,13 +22,14 @@ rules:
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: noryx-back-runtime
 subjects:
   - kind: ServiceAccount
     name: noryx-back
+    namespace: noryx-ce
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: ClusterRole
   name: noryx-back-runtime

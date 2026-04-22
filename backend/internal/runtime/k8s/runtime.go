@@ -15,13 +15,23 @@ import (
 )
 
 type Runtime struct {
-	httpClient *http.Client
-	apiURL     string
-	token      string
-	namespace  string
+	httpClient        *http.Client
+	apiURL            string
+	token             string
+	controlNamespace  string
+	workloadNamespace string
 }
 
-func NewFromInCluster(namespace string) (*Runtime, error) {
+func NewFromInCluster(controlNamespace, workloadNamespace string) (*Runtime, error) {
+	controlNamespace = strings.TrimSpace(controlNamespace)
+	if controlNamespace == "" {
+		return nil, fmt.Errorf("control namespace is required")
+	}
+	workloadNamespace = strings.TrimSpace(workloadNamespace)
+	if workloadNamespace == "" {
+		workloadNamespace = controlNamespace
+	}
+
 	tokenBytes, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
 		return nil, fmt.Errorf("read serviceaccount token: %w", err)
@@ -51,10 +61,11 @@ func NewFromInCluster(namespace string) (*Runtime, error) {
 	}
 
 	return &Runtime{
-		httpClient: client,
-		apiURL:     fmt.Sprintf("https://%s:%s", host, port),
-		token:      strings.TrimSpace(string(tokenBytes)),
-		namespace:  namespace,
+		httpClient:        client,
+		apiURL:            fmt.Sprintf("https://%s:%s", host, port),
+		token:             strings.TrimSpace(string(tokenBytes)),
+		controlNamespace:  controlNamespace,
+		workloadNamespace: workloadNamespace,
 	}, nil
 }
 
@@ -117,7 +128,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		payload["spec"].(map[string]any)["imagePullSecrets"] = []map[string]string{{"name": spec.PullSecret}}
 	}
 
-	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.namespace), payload)
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), payload)
 	return err
 }
 
@@ -125,7 +136,7 @@ func (r *Runtime) DeletePod(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("pod name is required")
 	}
-	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.namespace, name))
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
@@ -146,7 +157,7 @@ func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
 		},
 	}
 
-	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/services", r.namespace), payload)
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/services", r.workloadNamespace), payload)
 	return err
 }
 
@@ -154,7 +165,7 @@ func (r *Runtime) DeleteService(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("service name is required")
 	}
-	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/services/%s", r.namespace, name))
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/services/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
@@ -234,12 +245,12 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 		},
 	}
 
-	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.namespace), payload)
+	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
 	return err
 }
 
 func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
-	body, err := r.get(fmt.Sprintf("/apis/apps/v1/namespaces/%s/deployments", r.namespace))
+	body, err := r.get(fmt.Sprintf("/apis/apps/v1/namespaces/%s/deployments", r.controlNamespace))
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +288,7 @@ func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
 }
 
 func (r *Runtime) ListServices() ([]noryxruntime.ServiceStatus, error) {
-	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/services", r.namespace))
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/services", r.controlNamespace))
 	if err != nil {
 		return nil, err
 	}

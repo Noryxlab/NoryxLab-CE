@@ -71,6 +71,8 @@ kubectl apply -k deploy/k8s/base
 Runtime mode in cluster:
 
 - API deployment enables in-cluster runtime (`NORYX_ENABLE_K8S_RUNTIME=true`)
+- control-plane namespace: `NORYX_KUBE_NAMESPACE` (default `noryx-ce`)
+- workload namespace: `NORYX_WORKLOAD_NAMESPACE` (default = control namespace; current manifest sets `noryx-loads`)
 - API service account can create/delete `pods`, `services`, and `jobs`
 - registry credentials are read from secret name `harbor-regcred`
 - OIDC issuer (current deployment): `http://datalab.noryxlab.ai/auth/realms/noryx`
@@ -78,6 +80,11 @@ Runtime mode in cluster:
 - Keycloak base URL for admin API: `http://keycloak:8080/auth`
 - ingress policy: `web` (80) redirects to HTTPS and `websecure` (443) is mandatory for user traffic
 - security headers: HSTS enabled on `datalab.noryxlab.ai` (`max-age=31536000`, `includeSubDomains`, `preload`)
+
+Important for split namespaces:
+
+- create `harbor-regcred` in `noryx-loads` too (same credentials as `noryx-ce`)
+- otherwise workspace pods and Kaniko jobs created in `noryx-loads` will fail on image pull/push
 
 Keycloak bootstrap helper:
 
