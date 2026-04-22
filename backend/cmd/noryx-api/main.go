@@ -20,6 +20,7 @@ func main() {
 	projectStore := memory.NewProjectStore()
 	buildStore := memory.NewBuildStore()
 	podStore := memory.NewPodStore()
+	workspaceStore := memory.NewWorkspaceStore()
 	accessStore := memory.NewAccessStore()
 
 	var runtime noryxruntime.Runner
@@ -60,15 +61,19 @@ func main() {
 		projectStore,
 		buildStore,
 		podStore,
+		workspaceStore,
 		accessStore,
 		runtime,
 		verifier,
 		keycloakClient,
 		handlers.Options{
-			RegistryPullSecret:  cfg.RegistryPullSecret,
-			RegistryPushSecret:  cfg.RegistryPushSecret,
-			BootstrapAdminUser:  cfg.BootstrapAdminUser,
-			BootstrapAdminEmail: cfg.BootstrapAdminEmail,
+			RegistryPullSecret:    cfg.RegistryPullSecret,
+			RegistryPushSecret:    cfg.RegistryPushSecret,
+			BootstrapAdminUser:    cfg.BootstrapAdminUser,
+			BootstrapAdminEmail:   cfg.BootstrapAdminEmail,
+			WorkspaceJupyterImage: cfg.WorkspaceJupyterImage,
+			WorkspaceCPU:          cfg.WorkspaceCPU,
+			WorkspaceMemory:       cfg.WorkspaceMemory,
 		},
 	)
 

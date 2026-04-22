@@ -11,8 +11,19 @@ type PodSpec struct {
 	Command    []string
 	Args       []string
 	Env        []EnvVar
+	Ports      []int
+	CPURequest string
+	CPULimit   string
+	MemRequest string
+	MemLimit   string
 	Labels     map[string]string
 	PullSecret string
+}
+
+type ServiceSpec struct {
+	Name     string
+	Selector map[string]string
+	Port     int
 }
 
 type BuildSpec struct {
@@ -29,6 +40,7 @@ type BuildSpec struct {
 
 type Runner interface {
 	CreatePod(spec PodSpec) error
+	CreateService(spec ServiceSpec) error
 	CreateBuild(spec BuildSpec) error
 }
 
