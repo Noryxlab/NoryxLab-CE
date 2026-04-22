@@ -262,9 +262,18 @@ data:
           }
 
           async function refreshProjects() {
-            const body = await callJSON('/api/v1/projects');
+            let body = await callJSON('/api/v1/projects');
+            if (!Array.isArray(body?.items) || body.items.length === 0) {
+              const username = keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || 'user';
+              await callJSON('/api/v1/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: 'My First Project - ' + username })
+              });
+              body = await callJSON('/api/v1/projects');
+            }
             pretty(projectsOut, body);
-            const first = body?.items?.[0];
+            const first = body.items[0];
             if (first?.id) {
               workspaceProjectIdInput.value = first.id;
             }
