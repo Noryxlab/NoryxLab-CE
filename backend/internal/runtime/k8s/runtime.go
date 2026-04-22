@@ -169,6 +169,74 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 	return err
 }
 
+func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
+	body, err := r.get(fmt.Sprintf("/apis/apps/v1/namespaces/%s/deployments", r.namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Spec struct {
+				Replicas int `json:"replicas"`
+			} `json:"spec"`
+			Status struct {
+				ReadyReplicas     int `json:"readyReplicas"`
+				AvailableReplicas int `json:"availableReplicas"`
+				UpdatedReplicas   int `json:"updatedReplicas"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	out := make([]noryxruntime.DeploymentStatus, 0, len(response.Items))
+	for _, item := range response.Items {
+		out = append(out, noryxruntime.DeploymentStatus{
+			Name:              item.Metadata.Name,
+			Replicas:          item.Spec.Replicas,
+			ReadyReplicas:     item.Status.ReadyReplicas,
+			AvailableReplicas: item.Status.AvailableReplicas,
+			UpdatedReplicas:   item.Status.UpdatedReplicas,
+		})
+	}
+	return out, nil
+}
+
+func (r *Runtime) ListServices() ([]noryxruntime.ServiceStatus, error) {
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/services", r.namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Spec struct {
+				Type string `json:"type"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	out := make([]noryxruntime.ServiceStatus, 0, len(response.Items))
+	for _, item := range response.Items {
+		out = append(out, noryxruntime.ServiceStatus{
+			Name: item.Metadata.Name,
+			Type: item.Spec.Type,
+		})
+	}
+	return out, nil
+}
+
 func (r *Runtime) post(path string, payload any) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -181,6 +249,27 @@ func (r *Runtime) post(path string, payload any) ([]byte, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+r.token)
 	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
+	}
+	return respBody, nil
+}
+
+func (r *Runtime) get(path string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, r.apiURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {

@@ -31,3 +31,21 @@ type Runner interface {
 	CreatePod(spec PodSpec) error
 	CreateBuild(spec BuildSpec) error
 }
+
+type DeploymentStatus struct {
+	Name              string `json:"name"`
+	Replicas          int    `json:"replicas"`
+	ReadyReplicas     int    `json:"readyReplicas"`
+	AvailableReplicas int    `json:"availableReplicas"`
+	UpdatedReplicas   int    `json:"updatedReplicas"`
+}
+
+type ServiceStatus struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+type Inspector interface {
+	ListDeployments() ([]DeploymentStatus, error)
+	ListServices() ([]ServiceStatus, error)
+}

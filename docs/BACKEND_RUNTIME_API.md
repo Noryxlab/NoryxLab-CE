@@ -5,6 +5,7 @@ This module adds:
 - docker image build submission (Kaniko `Job`)
 - pod launch submission (`Pod`)
 - project-scoped RBAC checks at API level
+- OIDC authentication with Keycloak bearer tokens
 - Swagger UI + OpenAPI spec
 
 ## Endpoints
@@ -15,18 +16,26 @@ This module adds:
 - `PUT /api/v1/projects/{projectID}/members/{userID}/role`
 - `POST /api/v1/builds`
 - `POST /api/v1/pods`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/modules`
 
-## Auth Header
+## Auth
 
-Mutating routes require:
+Mutating and admin routes require:
 
-- `X-Noryx-User: <user-id>`
+- `Authorization: Bearer <access_token>`
+
+Compatibility fallback:
+
+- If no bearer token is provided, API still accepts `X-Noryx-User` header (temporary bootstrap mode).
 
 ## RBAC model
 
 - project creator is set to `admin`
 - `admin` can assign `viewer|editor|admin`
 - `editor` and `admin` can submit builds and launch pods
+- global admin is granted by realm role `noryx-admin`
+- bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
 
 ## Quick test
 
