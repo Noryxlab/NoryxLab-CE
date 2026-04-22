@@ -19,7 +19,9 @@ paths:
           description: OK
   /api/v1/projects:
     get:
-      summary: List projects
+      summary: List user projects (auto-create one on first access)
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: List of projects

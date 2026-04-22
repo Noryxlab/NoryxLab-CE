@@ -173,6 +173,7 @@ data:
 
               <article class="card span-6">
                 <h3>Projects</h3>
+                <div class="metric">At first login, backend auto-creates a default project for the authenticated user.</div>
                 <div class="row">
                   <input id="projectName" placeholder="New project name" />
                   <button id="createProject" class="btn primary">Create Project</button>
@@ -260,6 +261,22 @@ data:
             await callJSON('/api/v1/auth/session', { method: 'POST' });
           }
 
+          async function refreshProjects() {
+            const body = await callJSON('/api/v1/projects');
+            pretty(projectsOut, body);
+            const first = body?.items?.[0];
+            if (first?.id) {
+              workspaceProjectIdInput.value = first.id;
+            }
+            return body;
+          }
+
+          async function refreshWorkspaces() {
+            const body = await callJSON('/api/v1/workspaces');
+            pretty(workspacesOut, body);
+            return body;
+          }
+
           loginBtn.onclick = () => keycloak.login();
           logoutBtn.onclick = async () => {
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
@@ -277,7 +294,7 @@ data:
           };
 
           projectsBtn.onclick = async () => {
-            try { pretty(projectsOut, await callJSON('/api/v1/projects')); }
+            try { await refreshProjects(); }
             catch (e) { pretty(projectsOut, e); }
           };
 
@@ -291,14 +308,14 @@ data:
                 body: JSON.stringify({ name })
               });
               pretty(projectsOut, created);
-              workspaceProjectIdInput.value = created.id || workspaceProjectIdInput.value;
+              await refreshProjects();
             } catch (e) {
               pretty(projectsOut, e);
             }
           };
 
           loadWorkspacesBtn.onclick = async () => {
-            try { pretty(workspacesOut, await callJSON('/api/v1/workspaces')); }
+            try { await refreshWorkspaces(); }
             catch (e) { pretty(workspacesOut, e); }
           };
 
@@ -347,9 +364,12 @@ data:
             }
             setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
             setButtons(true);
-            ensureWebSession().catch((err) => {
-              pretty(usersOut, { sessionError: String(err) });
-            });
+            ensureWebSession()
+              .then(() => refreshProjects())
+              .then(() => refreshWorkspaces())
+              .catch((err) => {
+                pretty(usersOut, { sessionError: String(err) });
+              });
           }).catch((err) => {
             setMeta('Keycloak init error');
             pretty(usersOut, { error: String(err) });
