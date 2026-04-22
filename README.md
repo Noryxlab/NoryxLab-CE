@@ -76,6 +76,8 @@ Runtime mode in cluster:
 - OIDC issuer (current deployment): `http://datalab.noryxlab.ai/auth/realms/noryx`
 - OIDC JWKS (current deployment): `http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs`
 - Keycloak base URL for admin API: `http://keycloak:8080/auth`
+- ingress policy: `web` (80) redirects to HTTPS and `websecure` (443) is mandatory for user traffic
+- security headers: HSTS enabled on `datalab.noryxlab.ai` (`max-age=31536000`, `includeSubDomains`, `preload`)
 
 Keycloak bootstrap helper:
 

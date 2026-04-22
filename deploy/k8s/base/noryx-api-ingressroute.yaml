@@ -1,4 +1,40 @@
 apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: noryx-https-redirect
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: noryx-security-headers
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    stsPreload: true
+    forceSTSHeader: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: noryx-http-redirect
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`datalab.noryxlab.ai`)
+      kind: Rule
+      middlewares:
+        - name: noryx-https-redirect
+      services:
+        - name: noryx-front
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: noryx-back
@@ -8,16 +44,22 @@ spec:
   routes:
     - match: Host(`datalab.noryxlab.ai`) && PathPrefix(`/auth`)
       kind: Rule
+      middlewares:
+        - name: noryx-security-headers
       services:
         - name: keycloak
           port: 8080
     - match: Host(`datalab.noryxlab.ai`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/workspaces`) || Path(`/healthz`))
       kind: Rule
+      middlewares:
+        - name: noryx-security-headers
       services:
         - name: noryx-back
           port: 8080
     - match: Host(`datalab.noryxlab.ai`) && PathPrefix(`/`)
       kind: Rule
+      middlewares:
+        - name: noryx-security-headers
       services:
         - name: noryx-front
           port: 80
