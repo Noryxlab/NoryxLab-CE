@@ -8,6 +8,7 @@ This module adds:
 - project-scoped RBAC checks at API level
 - OIDC authentication with Keycloak bearer tokens
 - Swagger UI + OpenAPI spec
+- split namespace runtime (`noryx-ce` control-plane, `noryx-loads` workloads)
 
 ## Endpoints
 
@@ -50,6 +51,7 @@ Compatibility fallback:
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
 - web access auth: Keycloak bearer exchanged for secure HTTP-only session cookie
+- workloads are created in `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
 - global admin is granted by realm role `noryx-admin`
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
 

@@ -6,6 +6,7 @@ Current CE baseline for workspaces:
 - runtime: one Kubernetes pod per workspace
 - service: one ClusterIP service per workspace (port `8888`)
 - resources: request=limit `500m` CPU, `512Mi` memory
+- workload namespace: `noryx-loads` (via `NORYX_WORKLOAD_NAMESPACE`)
 
 ## API
 
@@ -52,4 +53,5 @@ Use `POST /api/v1/builds` with:
 - `GET /api/v1/workspaces` returns only workspaces from projects where caller has a role
 - Jupyter access path is guarded by Keycloak identity (bearer or web session cookie)
 - workspace URL returned by API points to `/workspaces/<workspaceID>/lab`
+- `harbor-regcred` must exist in workload namespace for image pull
 - metadata stores are currently in-memory (restart resets records)

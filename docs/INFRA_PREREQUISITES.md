@@ -37,3 +37,8 @@ The k3s node must be able to:
 - resolve Harbor hostname
 - trust Harbor TLS (or temporary `insecure_skip_verify` in lab mode)
 - pull with `imagePullSecrets` (`harbor-regcred`)
+
+If using split namespaces (`noryx-ce` + `noryx-loads`):
+
+- create `harbor-regcred` in both namespaces
+- builds/workspaces run in `noryx-loads`, so missing secret there breaks runtime launches
