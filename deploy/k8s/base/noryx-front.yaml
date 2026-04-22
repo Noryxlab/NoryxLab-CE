@@ -11,69 +11,201 @@ data:
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>NoryxLab</title>
+        <title>NoryxLab CE</title>
         <style>
-          :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-          body { margin: 0; min-height: 100vh; background: #ffffff; color: #111111; }
-          .wrap { max-width: 980px; margin: 48px auto; padding: 0 16px; }
-          h1 { margin: 0 0 8px; font-size: 42px; letter-spacing: 0.02em; }
-          p { margin: 0 0 16px; color: #4b5563; }
-          .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0 16px; }
-          button { border: 1px solid #d1d5db; background: #f9fafb; color: #111827; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
-          input { border: 1px solid #d1d5db; background: #fff; color: #111827; border-radius: 8px; padding: 8px 10px; min-width: 180px; }
-          button.primary { background: #111827; color: #fff; border-color: #111827; }
-          button:disabled { opacity: 0.5; cursor: default; }
-          .meta { font-size: 14px; color: #374151; margin-bottom: 16px; }
-          .cards { display: grid; grid-template-columns: 1fr; gap: 14px; }
-          .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
-          h3 { margin: 0 0 8px; font-size: 16px; }
-          pre { margin: 0; background: #0b1220; color: #dbeafe; border-radius: 10px; padding: 10px; overflow: auto; min-height: 120px; font-size: 12px; }
-          a { color: #0f172a; text-underline-offset: 3px; }
+          :root {
+            --bg: #f5f7fb;
+            --panel: #ffffff;
+            --line: #d8deea;
+            --text: #1f2937;
+            --muted: #64748b;
+            --nav: #111827;
+            --navText: #dbe3f4;
+            --accent: #2563eb;
+            --accentSoft: #dbeafe;
+            --success: #047857;
+            --danger: #b91c1c;
+            --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+          }
+          * { box-sizing: border-box; }
+          body { margin: 0; background: linear-gradient(180deg, #eef2f8 0%, #f8fafc 100%); color: var(--text); font-family: var(--font); }
+          .app { min-height: 100vh; display: grid; grid-template-columns: 260px 1fr; }
+          .nav {
+            background: linear-gradient(180deg, #0f172a 0%, #1f2937 100%);
+            color: var(--navText);
+            padding: 24px 18px;
+            border-right: 1px solid #0b1220;
+          }
+          .brand { font-size: 24px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 8px; }
+          .edition { font-size: 12px; color: #9fb0cf; margin-bottom: 20px; }
+          .status { background: rgba(148, 163, 184, 0.16); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 10px; padding: 10px; font-size: 13px; margin-bottom: 22px; }
+          .nav h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #93a4c7; }
+          .nav ul { list-style: none; margin: 0 0 18px; padding: 0; }
+          .nav li { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,0.04); font-size: 14px; }
+          .main { padding: 22px; }
+          .header {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+          }
+          .title { margin: 0; font-size: 24px; letter-spacing: 0.02em; }
+          .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+          .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+          .btn {
+            border: 1px solid var(--line);
+            background: #f8fafc;
+            color: #0f172a;
+            border-radius: 9px;
+            padding: 8px 12px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+          .btn:hover { background: #eef2ff; }
+          .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+          .btn.good { background: #ecfdf5; border-color: #bbf7d0; color: var(--success); }
+          .btn.warn { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
+          .btn:disabled { opacity: 0.55; cursor: default; }
+          .grid { margin-top: 14px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+          .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+          }
+          .span-6 { grid-column: span 6; }
+          .span-4 { grid-column: span 4; }
+          .span-8 { grid-column: span 8; }
+          .span-12 { grid-column: span 12; }
+          .card h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: 0.02em; }
+          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+          input {
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 9px 10px;
+            min-width: 170px;
+            background: #fff;
+          }
+          .metric {
+            background: var(--accentSoft);
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 13px;
+            color: #1e3a8a;
+          }
+          pre {
+            margin: 0;
+            background: #0b1220;
+            color: #dbeafe;
+            border-radius: 10px;
+            padding: 10px;
+            overflow: auto;
+            min-height: 120px;
+            font-size: 12px;
+          }
+          a { color: #1e40af; text-underline-offset: 3px; font-weight: 600; }
+          @media (max-width: 1100px) {
+            .app { grid-template-columns: 1fr; }
+            .nav { border-right: none; border-bottom: 1px solid #22304a; }
+            .span-6, .span-4, .span-8 { grid-column: span 12; }
+          }
         </style>
         <script src="/auth/js/keycloak.js"></script>
       </head>
       <body>
-        <main class="wrap">
-          <h1>NoryxLab</h1>
-          <p>Community Edition - minimal front pod</p>
-          <div class="row">
-            <button id="login" class="primary">Login Keycloak</button>
-            <button id="logout">Logout</button>
-            <button id="loadUsers">Load Users</button>
-            <button id="loadModules">Load Modules</button>
-            <button id="loadProjects">Load Projects</button>
-            <a href="/swagger">Open API Swagger</a>
-          </div>
-          <div class="row">
-            <input id="projectName" placeholder="New project name" />
-            <button id="createProject">Create Project</button>
-            <input id="workspaceProjectId" placeholder="Workspace projectId" />
-            <input id="workspaceName" placeholder="Workspace name (optional)" />
-            <button id="createWorkspace">Create Workspace</button>
-            <button id="loadWorkspaces">Load Workspaces</button>
-            <input id="deleteWorkspaceId" placeholder="workspaceId to delete" />
-            <button id="deleteWorkspace">Delete Workspace</button>
-          </div>
-          <div id="meta" class="meta">Not authenticated</div>
-          <section class="cards">
-            <div class="card">
-              <h3>/api/v1/admin/users</h3>
-              <pre id="usersOut">-</pre>
-            </div>
-            <div class="card">
-              <h3>/api/v1/admin/modules</h3>
-              <pre id="modulesOut">-</pre>
-            </div>
-            <div class="card">
-              <h3>/api/v1/projects</h3>
-              <pre id="projectsOut">-</pre>
-            </div>
-            <div class="card">
-              <h3>/api/v1/workspaces</h3>
-              <pre id="workspacesOut">-</pre>
-            </div>
-          </section>
-        </main>
+        <div class="app">
+          <aside class="nav">
+            <div class="brand">NoryxLab</div>
+            <div class="edition">Community Edition Console</div>
+            <div class="status" id="meta">Not authenticated</div>
+            <h4>Workspace Platform</h4>
+            <ul>
+              <li>Project-centric model</li>
+              <li>Jupyter workspace runtime</li>
+              <li>Keycloak OIDC auth</li>
+              <li>Kubernetes execution plane</li>
+            </ul>
+            <h4>Navigation</h4>
+            <ul>
+              <li><a href="/swagger">Open API Swagger</a></li>
+            </ul>
+          </aside>
+
+          <main class="main">
+            <section class="header">
+              <div>
+                <h1 class="title">Datalab Control Plane</h1>
+                <p class="sub">Bootstrap UI inspired by Domino console layout</p>
+              </div>
+              <div class="actions">
+                <button id="login" class="btn primary">Login Keycloak</button>
+                <button id="logout" class="btn">Logout</button>
+              </div>
+            </section>
+
+            <section class="grid">
+              <article class="card span-4">
+                <h3>Cluster Module Status</h3>
+                <div class="row">
+                  <button id="loadModules" class="btn good">Load Modules</button>
+                </div>
+                <pre id="modulesOut">-</pre>
+              </article>
+
+              <article class="card span-4">
+                <h3>Admin Users (Keycloak)</h3>
+                <div class="row">
+                  <button id="loadUsers" class="btn good">Load Users</button>
+                </div>
+                <pre id="usersOut">-</pre>
+              </article>
+
+              <article class="card span-4">
+                <h3>Session</h3>
+                <div class="metric">API session cookie is required for workspace web proxy (`/workspaces/{id}`)</div>
+              </article>
+
+              <article class="card span-6">
+                <h3>Projects</h3>
+                <div class="row">
+                  <input id="projectName" placeholder="New project name" />
+                  <button id="createProject" class="btn primary">Create Project</button>
+                  <button id="loadProjects" class="btn">Load Projects</button>
+                </div>
+                <pre id="projectsOut">-</pre>
+              </article>
+
+              <article class="card span-6">
+                <h3>Workspaces (Jupyter)</h3>
+                <div class="row">
+                  <input id="workspaceProjectId" placeholder="Workspace projectId" />
+                  <input id="workspaceName" placeholder="Workspace name (optional)" />
+                </div>
+                <div class="row">
+                  <button id="createWorkspace" class="btn primary">Create Workspace</button>
+                  <button id="loadWorkspaces" class="btn">Load Workspaces</button>
+                </div>
+                <div class="row">
+                  <input id="deleteWorkspaceId" placeholder="workspaceId to delete" />
+                  <button id="deleteWorkspace" class="btn warn">Delete Workspace</button>
+                </div>
+                <pre id="workspacesOut">-</pre>
+              </article>
+
+              <article class="card span-12">
+                <h3>Runtime Policy</h3>
+                <div class="metric">Current baseline: one pod + one service per workspace, fixed resources request=limit 500m CPU / 512Mi RAM, image `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`.</div>
+              </article>
+            </section>
+          </main>
+        </div>
+
         <script>
           const keycloak = new Keycloak({
             url: window.location.origin + '/auth',
@@ -86,6 +218,7 @@ data:
           const modulesOut = document.getElementById('modulesOut');
           const projectsOut = document.getElementById('projectsOut');
           const workspacesOut = document.getElementById('workspacesOut');
+
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
           const usersBtn = document.getElementById('loadUsers');
