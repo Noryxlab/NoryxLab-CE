@@ -29,7 +29,7 @@ go run ./cmd/noryx-api
 
 API endpoints:
 
-- `GET /` (minimal landing page)
+- `GET /` (minimal front with Keycloak login + admin API test buttons)
 - `GET /healthz`
 - `GET /swagger`
 - `GET /swagger/openapi.yaml`
