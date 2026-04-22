@@ -9,5 +9,6 @@ resources:
   - postgres.yaml
   - keycloak.yaml
   - minio.yaml
+  - noryx-api-rbac.yaml
   - noryx-api.yaml
   - noryx-api-ingressroute.yaml
