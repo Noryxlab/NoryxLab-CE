@@ -42,3 +42,13 @@ If using split namespaces (`noryx-ce` + `noryx-loads`):
 
 - create `harbor-regcred` in both namespaces
 - builds/workspaces run in `noryx-loads`, so missing secret there breaks runtime launches
+
+## DNS note for in-cluster Kaniko builds
+
+Kaniko build pods resolve registry hostnames using cluster DNS (CoreDNS), not host `/etc/hosts`.
+
+If Harbor is exposed as `harbor.lan`, add it to CoreDNS NodeHosts:
+
+- `192.168.1.106 harbor.lan`
+
+Otherwise build jobs can fail with `lookup harbor.lan on 10.43.0.10:53: no such host`.
