@@ -12,6 +12,7 @@ type Handlers struct {
 	buildStore            store.BuildStore
 	podStore              store.PodStore
 	workspaceStore        store.WorkspaceStore
+	sessionStore          store.SessionStore
 	accessStore           store.AccessStore
 	runtime               runtime.Runner
 	authVerifier          auth.Verifier
@@ -40,6 +41,7 @@ func New(
 	buildStore store.BuildStore,
 	podStore store.PodStore,
 	workspaceStore store.WorkspaceStore,
+	sessionStore store.SessionStore,
 	accessStore store.AccessStore,
 	runtime runtime.Runner,
 	authVerifier auth.Verifier,
@@ -51,6 +53,7 @@ func New(
 		buildStore:            buildStore,
 		podStore:              podStore,
 		workspaceStore:        workspaceStore,
+		sessionStore:          sessionStore,
 		accessStore:           accessStore,
 		runtime:               runtime,
 		authVerifier:          authVerifier,

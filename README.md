@@ -43,6 +43,10 @@ API endpoints:
 - `POST /api/v1/pods`
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`
+- `DELETE /api/v1/workspaces/{workspaceID}`
+- `POST /api/v1/auth/session`
+- `DELETE /api/v1/auth/session`
+- `/workspaces/{workspaceID}/...` (Jupyter reverse proxy via back)
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
 
@@ -67,7 +71,7 @@ kubectl apply -k deploy/k8s/base
 Runtime mode in cluster:
 
 - API deployment enables in-cluster runtime (`NORYX_ENABLE_K8S_RUNTIME=true`)
-- API service account can create `pods` and `jobs`
+- API service account can create/delete `pods`, `services`, and `jobs`
 - registry credentials are read from secret name `harbor-regcred`
 - OIDC issuer (current deployment): `http://datalab.noryxlab.ai/auth/realms/noryx`
 - OIDC JWKS (current deployment): `http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs`

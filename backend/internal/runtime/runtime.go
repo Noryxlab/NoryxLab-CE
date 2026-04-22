@@ -40,7 +40,9 @@ type BuildSpec struct {
 
 type Runner interface {
 	CreatePod(spec PodSpec) error
+	DeletePod(name string) error
 	CreateService(spec ServiceSpec) error
+	DeleteService(name string) error
 	CreateBuild(spec BuildSpec) error
 }
 

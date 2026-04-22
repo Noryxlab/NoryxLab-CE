@@ -19,6 +19,10 @@ This module adds:
 - `POST /api/v1/pods`
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`
+- `DELETE /api/v1/workspaces/{workspaceID}`
+- `POST /api/v1/auth/session`
+- `DELETE /api/v1/auth/session`
+- `/workspaces/{workspaceID}/...` (reverse-proxied Jupyter)
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
 
@@ -37,13 +41,15 @@ Compatibility fallback:
 - project creator is set to `admin`
 - `admin` can assign `viewer|editor|admin`
 - `editor` and `admin` can submit builds and launch pods
-- `editor` and `admin` can launch workspaces
+- `editor` and `admin` can launch/delete/access workspaces
 
 ## Workspace baseline (current)
 
 - kind: `jupyter`
 - image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
+- ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
+- web access auth: Keycloak bearer exchanged for secure HTTP-only session cookie
 - global admin is granted by realm role `noryx-admin`
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
 

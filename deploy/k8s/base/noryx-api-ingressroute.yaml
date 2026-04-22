@@ -11,7 +11,7 @@ spec:
       services:
         - name: keycloak
           port: 8080
-    - match: Host(`datalab.noryxlab.ai`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || Path(`/healthz`))
+    - match: Host(`datalab.noryxlab.ai`) && (PathPrefix(`/api`) || PathPrefix(`/swagger`) || PathPrefix(`/workspaces`) || Path(`/healthz`))
       kind: Rule
       services:
         - name: noryx-back
