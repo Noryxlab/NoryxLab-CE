@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.7';
+          const FRONT_VERSION = 'ce-web-0.6.8';
           const LOCALES = {
             en: {
               open: 'Open',
@@ -856,6 +856,7 @@ data:
                   usersOut.textContent = t('launchingMsg');
                   return;
                 }
+                await ensureWebSession();
                 window.open(ws.accessUrl, '_blank', 'noopener,noreferrer');
               }
               return;

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path"
 	"strings"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
@@ -56,14 +55,14 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		originalDirector(req)
 
 		rest := strings.TrimSpace(r.PathValue("path"))
-		targetPath := "/workspaces/" + workspaceID + "/"
+		targetPath := "/workspaces/" + workspaceID
 		if rest != "" {
 			targetPath = "/workspaces/" + workspaceID + "/" + strings.TrimPrefix(rest, "/")
 		}
-		req.URL.Path = path.Clean(targetPath)
-		if strings.HasSuffix(targetPath, "/") && !strings.HasSuffix(req.URL.Path, "/") {
-			req.URL.Path += "/"
-		}
+		req.URL.Path = targetPath
+		req.Header.Set("X-Forwarded-Proto", "https")
+		req.Header.Set("X-Forwarded-Host", r.Host)
+		req.Host = target.Host
 
 		q := req.URL.Query()
 		if q.Get("token") == "" {
