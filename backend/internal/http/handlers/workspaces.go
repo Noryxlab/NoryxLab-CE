@@ -86,6 +86,19 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Idempotency baseline for V1:
+	// - if a workspace with the same name already exists in this project, reuse it
+	// - if no name is provided, reuse the first workspace already present in this project
+	existing, foundExisting, err := h.findExistingWorkspace(req.ProjectID, req.Name)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to check existing workspaces"})
+		return
+	}
+	if foundExisting {
+		writeJSON(w, http.StatusOK, existing)
+		return
+	}
+
 	podName := "ws-" + shortID()
 	serviceName := podName
 	accessToken := shortID() + shortID()
@@ -154,6 +167,24 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, record)
+}
+
+func (h Handlers) findExistingWorkspace(projectID, workspaceName string) (workspace.Workspace, bool, error) {
+	items, err := h.workspaceStore.List()
+	if err != nil {
+		return workspace.Workspace{}, false, err
+	}
+
+	workspaceName = strings.TrimSpace(workspaceName)
+	for _, item := range items {
+		if item.ProjectID != projectID || item.Kind != "jupyter" {
+			continue
+		}
+		if workspaceName == "" || strings.EqualFold(strings.TrimSpace(item.Name), workspaceName) {
+			return item, true, nil
+		}
+	}
+	return workspace.Workspace{}, false, nil
 }
 
 func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
