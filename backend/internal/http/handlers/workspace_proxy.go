@@ -62,7 +62,11 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		req.URL.Path = targetPath
 		req.Header.Set("X-Forwarded-Proto", "https")
 		req.Header.Set("X-Forwarded-Host", r.Host)
-		req.Host = target.Host
+		req.Header.Set("X-Forwarded-Port", "443")
+		req.Header.Set("X-Forwarded-Prefix", "/workspaces/"+workspaceID)
+		req.Header.Set("X-Forwarded-For", r.RemoteAddr)
+		// Keep public host so Jupyter builds browser-facing URLs under datalab.noryxlab.ai.
+		req.Host = r.Host
 
 		q := req.URL.Query()
 		if q.Get("token") == "" {
