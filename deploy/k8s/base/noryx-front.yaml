@@ -14,143 +14,280 @@ data:
         <title>NoryxLab CE</title>
         <style>
           :root {
-            --bg: #f3f5fa;
-            --panel: #ffffff;
-            --line: #d6deea;
-            --text: #1f2937;
-            --muted: #64748b;
-            --nav: #0f172a;
-            --navText: #dbe5f5;
-            --accent: #2563eb;
-            --accentSoft: #dbeafe;
-            --success: #047857;
-            --warn: #9a3412;
-            --danger: #b91c1c;
-            --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+            --bg: #eef2f7;
+            --surface: #ffffff;
+            --surface-soft: #f7f9fc;
+            --line: #d7dee9;
+            --line-strong: #b7c2d4;
+            --text: #142033;
+            --muted: #5f6f86;
+            --nav-bg: #0a1526;
+            --nav-bg-2: #13263f;
+            --nav-text: #dce8fa;
+            --nav-muted: #96a9c8;
+            --brand: #0a6ae8;
+            --brand-soft: #deebff;
+            --ok: #0f7a4d;
+            --warn: #9a5a0f;
+            --bad: #ad1f2d;
+            --font: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
           }
           * { box-sizing: border-box; }
           body {
             margin: 0;
             min-height: 100vh;
-            background: linear-gradient(180deg, #edf2f8 0%, #f8fafc 100%);
             color: var(--text);
             font-family: var(--font);
+            background:
+              radial-gradient(1100px 600px at 20% -10%, #dfeaff 0%, transparent 70%),
+              radial-gradient(1000px 700px at 90% 120%, #e9f5ec 0%, transparent 60%),
+              var(--bg);
           }
-          .app { min-height: 100vh; display: grid; grid-template-columns: 270px 1fr; }
-          .nav {
-            background: linear-gradient(180deg, #0b1220 0%, #1b2a44 100%);
-            color: var(--navText);
+          .layout {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+          }
+          .sidebar {
             padding: 24px 18px;
-            border-right: 1px solid #07101d;
+            color: var(--nav-text);
+            background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-2) 100%);
+            border-right: 1px solid #0f2037;
           }
-          .brand { font-size: 24px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 6px; }
-          .edition { font-size: 12px; color: #9fb0cf; margin-bottom: 20px; }
-          .status { background: rgba(148,163,184,0.16); border: 1px solid rgba(148,163,184,0.25); border-radius: 10px; padding: 10px; font-size: 13px; margin-bottom: 18px; }
-          .nav h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: #93a4c7; }
-          .nav ul { list-style: none; margin: 0 0 18px; padding: 0; }
-          .nav li { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,0.05); font-size: 14px; }
-          .main { padding: 22px; }
-          .header {
-            background: var(--panel);
+          .brand {
+            font-size: 25px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            margin-bottom: 2px;
+          }
+          .edition {
+            font-size: 12px;
+            color: var(--nav-muted);
+            margin-bottom: 16px;
+          }
+          .who {
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 13px;
+            margin-bottom: 18px;
+          }
+          .menu-title {
+            margin: 12px 0 7px;
+            color: var(--nav-muted);
+            font-size: 11px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+          }
+          .menu {
+            display: grid;
+            gap: 7px;
+            margin-bottom: 12px;
+          }
+          .tab-btn {
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 10px;
+            padding: 9px 10px;
+            background: rgba(255,255,255,.04);
+            color: var(--nav-text);
+            text-align: left;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 700;
+          }
+          .tab-btn:hover { background: rgba(255,255,255,.1); }
+          .tab-btn.active {
+            background: linear-gradient(90deg, #14468f 0%, #1a6bda 100%);
+            border-color: #2a77de;
+          }
+          .sidebar a {
+            color: #c9defb;
+            text-decoration: none;
+            font-weight: 700;
+          }
+          .content {
+            padding: 18px;
+          }
+          .topbar {
+            background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 14px;
             display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            gap: 14px;
+            box-shadow: 0 6px 18px rgba(18, 34, 57, .05);
           }
-          .title { margin: 0; font-size: 24px; letter-spacing: 0.02em; }
-          .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-          .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+          .title {
+            margin: 0;
+            font-size: 23px;
+            letter-spacing: .01em;
+          }
+          .subtitle {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+          }
+          .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
           .btn {
-            border: 1px solid var(--line);
-            background: #f8fafc;
-            color: #0f172a;
-            border-radius: 9px;
+            border: 1px solid var(--line-strong);
+            background: #f4f7fb;
+            color: #102039;
+            border-radius: 10px;
             padding: 8px 12px;
-            font-weight: 600;
+            font-weight: 800;
             cursor: pointer;
           }
-          .btn:hover { background: #edf2ff; }
-          .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-          .btn.good { background: #ecfdf5; border-color: #bbf7d0; color: var(--success); }
-          .btn.warn { background: #fff7ed; border-color: #fed7aa; color: var(--warn); }
-          .btn.danger { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
-          .btn:disabled { opacity: 0.55; cursor: default; }
-          .grid { margin-top: 14px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
-          .card {
-            background: var(--panel);
+          .btn:hover { background: #e8eef8; }
+          .btn.primary {
+            background: var(--brand);
+            border-color: var(--brand);
+            color: #fff;
+          }
+          .btn.good {
+            background: #e9fbf2;
+            color: var(--ok);
+            border-color: #b8e9cf;
+          }
+          .btn.warn {
+            background: #fff6e8;
+            color: var(--warn);
+            border-color: #f6dab0;
+          }
+          .btn.danger {
+            background: #fef0f2;
+            color: var(--bad);
+            border-color: #f7c8ce;
+          }
+          .btn:disabled { opacity: .55; cursor: default; }
+          .stats {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+          }
+          .stat {
+            background: var(--surface);
             border: 1px solid var(--line);
             border-radius: 14px;
-            padding: 14px;
-            box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+            padding: 12px;
           }
-          .span-7 { grid-column: span 7; }
-          .span-5 { grid-column: span 5; }
-          .span-6 { grid-column: span 6; }
-          .span-12 { grid-column: span 12; }
-          .card h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: 0.02em; }
-          .hint { margin-bottom: 10px; padding: 10px; border-radius: 10px; border: 1px solid #bfdbfe; background: var(--accentSoft); color: #1e3a8a; font-size: 13px; }
-          input, select {
+          .stat .k { font-size: 12px; color: var(--muted); }
+          .stat .v { font-size: 22px; font-weight: 900; margin-top: 6px; }
+          .views { margin-top: 12px; }
+          .view { display: none; }
+          .view.active { display: block; }
+          .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+          .card {
+            background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 9px;
+            border-radius: 14px;
+            padding: 12px;
+          }
+          .card h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            letter-spacing: .02em;
+          }
+          .span-8 { grid-column: span 8; }
+          .span-7 { grid-column: span 7; }
+          .span-6 { grid-column: span 6; }
+          .span-5 { grid-column: span 5; }
+          .span-4 { grid-column: span 4; }
+          .span-12 { grid-column: span 12; }
+          .hint {
+            margin-bottom: 10px;
+            border: 1px solid #bdd8ff;
+            background: var(--brand-soft);
+            color: #19428c;
+            border-radius: 10px;
+            padding: 9px 10px;
+            font-size: 13px;
+          }
+          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 9px; }
+          input, select {
+            border: 1px solid var(--line-strong);
+            border-radius: 10px;
             padding: 9px 10px;
             min-width: 170px;
+            color: #0f213c;
             background: #fff;
-            color: #0f172a;
           }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th, td { text-align: left; border-bottom: 1px solid #e5eaf3; padding: 8px 6px; vertical-align: top; }
-          th { color: #475569; font-weight: 700; }
-          .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
-          .b-green { background: #dcfce7; color: #166534; }
-          .b-blue { background: #dbeafe; color: #1e40af; }
-          .b-orange { background: #ffedd5; color: #9a3412; }
+          th, td {
+            text-align: left;
+            border-bottom: 1px solid #e8edf4;
+            padding: 8px 6px;
+            vertical-align: top;
+          }
+          th { color: #4a5d78; font-weight: 800; }
+          .badge {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 800;
+          }
+          .b-ok { background: #d8fae8; color: #17603f; }
+          .b-mid { background: #fff0d7; color: #8f520d; }
+          .b-info { background: #ddebff; color: #1b4698; }
           pre {
             margin: 0;
-            background: #0b1220;
-            color: #dbeafe;
+            border: 1px solid #132541;
+            background: #0e1a2d;
+            color: #d4e5ff;
             border-radius: 10px;
             padding: 10px;
+            min-height: 130px;
             overflow: auto;
-            min-height: 110px;
             font-size: 12px;
           }
-          a { color: #1e40af; text-underline-offset: 3px; font-weight: 600; }
-          @media (max-width: 1200px) {
-            .app { grid-template-columns: 1fr; }
-            .nav { border-right: none; border-bottom: 1px solid #22304a; }
-            .span-7, .span-5, .span-6 { grid-column: span 12; }
+          @media (max-width: 1240px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { border-right: none; border-bottom: 1px solid #203657; }
+            .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; }
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          }
+          @media (max-width: 720px) {
+            .stats { grid-template-columns: 1fr; }
           }
         </style>
         <script src="/auth/js/keycloak.js"></script>
       </head>
       <body>
-        <div class="app">
-          <aside class="nav">
+        <div class="layout">
+          <aside class="sidebar">
             <div class="brand">NoryxLab</div>
             <div class="edition">Community Edition Console</div>
-            <div class="status" id="meta">Not authenticated</div>
-            <h4>Platform</h4>
-            <ul>
-              <li>Projects</li>
-              <li>Workspaces</li>
-              <li>Environments</li>
-              <li>Workloads</li>
-            </ul>
-            <h4>Ops</h4>
-            <ul>
-              <li><a href="/swagger">Open API Swagger</a></li>
-            </ul>
+            <div id="meta" class="who">Not authenticated</div>
+
+            <div class="menu-title">Workspace Hub</div>
+            <div class="menu">
+              <button class="tab-btn active" data-tab="projects">Projects</button>
+              <button class="tab-btn" data-tab="workspaces">Workspaces</button>
+              <button class="tab-btn" data-tab="environments">Environments</button>
+              <button class="tab-btn" data-tab="workloads">Workloads</button>
+              <button class="tab-btn" data-tab="ops">Ops</button>
+            </div>
+
+            <div class="menu-title">Platform</div>
+            <div class="menu">
+              <a href="/swagger" target="_blank" rel="noopener noreferrer">OpenAPI Swagger</a>
+            </div>
           </aside>
 
-          <main class="main">
-            <section class="header">
+          <main class="content">
+            <section class="topbar">
               <div>
-                <h1 class="title">Domino-style Datalab Console</h1>
-                <p class="sub">Projects and workspaces on one side, reusable environments and workloads on another.</p>
+                <h1 class="title">Domino 6-style Datalab Workspace Hub</h1>
+                <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
                 <button id="login" class="btn primary">Login Keycloak</button>
@@ -160,85 +297,127 @@ data:
               </div>
             </section>
 
-            <section class="grid">
-              <article class="card span-7">
-                <h3>Projects and Workspaces</h3>
-                <div class="hint">First login auto-creates a starter project. Select a project, then launch workspaces inside it.</div>
-                <div class="row">
-                  <select id="projectSelect"></select>
-                  <input id="projectName" placeholder="New project name" />
-                  <button id="createProject" class="btn primary">Create Project</button>
-                  <button id="loadProjects" class="btn">Refresh Projects</button>
-                </div>
-                <div class="row">
-                  <input id="workspaceName" placeholder="Workspace name (optional)" />
-                  <button id="createWorkspace" class="btn primary">Launch Jupyter Workspace</button>
-                  <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
-                </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Status</th>
-                      <th>Access</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="workspaceRows"></tbody>
-                </table>
-              </article>
+            <section class="stats">
+              <article class="stat"><div class="k">Projects</div><div id="statProjects" class="v">0</div></article>
+              <article class="stat"><div class="k">Workspaces</div><div id="statWorkspaces" class="v">0</div></article>
+              <article class="stat"><div class="k">Builds</div><div id="statBuilds" class="v">0</div></article>
+              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Projects</div></article>
+            </section>
 
-              <article class="card span-5">
-                <h3>Environments Catalog</h3>
-                <div class="hint">Environment builds are reusable images. They are managed apart from runtime workspaces.</div>
-                <div class="row">
-                  <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
-                  <input id="envGitRef" value="main" />
-                </div>
-                <div class="row">
-                  <input id="envDockerfile" value="environments/jupyter-debian/Dockerfile" />
-                  <input id="envContext" value="." />
-                </div>
-                <div class="row">
-                  <input id="envDestination" value="harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0" />
-                  <button id="buildEnv" class="btn warn">Build Environment</button>
-                </div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Image</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="environmentRows"></tbody>
-                </table>
-              </article>
+            <section class="views">
+              <section class="view active" id="view-projects">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Projects</h3>
+                    <div class="hint">Premier login: un projet est créé automatiquement pour démarrer vite.</div>
+                    <div class="row">
+                      <select id="projectSelect"></select>
+                      <input id="projectName" placeholder="New project name" />
+                      <button id="createProject" class="btn primary">Create Project</button>
+                      <button id="loadProjects" class="btn">Refresh Projects</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>ID</th></tr></thead>
+                      <tbody id="projectRows"></tbody>
+                    </table>
+                  </article>
 
-              <article class="card span-6">
-                <h3>Workloads</h3>
-                <div class="hint">Workloads combine active project workspaces and recent environment build jobs.</div>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Name</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="workloadRows"></tbody>
-                </table>
-              </article>
+                  <article class="card span-4">
+                    <h3>Project Context</h3>
+                    <div class="hint">Le projet sélectionné sert de scope pour Workspaces, Builds et Workloads.</div>
+                    <pre id="projectOut">-</pre>
+                  </article>
+                </div>
+              </section>
 
-              <article class="card span-6">
-                <h3>Operational Feeds</h3>
-                <pre id="modulesOut">-</pre>
-                <pre id="usersOut" style="margin-top:10px;">-</pre>
-              </article>
+              <section class="view" id="view-workspaces">
+                <div class="grid">
+                  <article class="card span-7">
+                    <h3>Workspace Launcher</h3>
+                    <div class="hint">Jupyter only, fixed profile: 500m CPU / 512Mi RAM.</div>
+                    <div class="row">
+                      <input id="workspaceName" placeholder="Workspace name (optional)" />
+                      <button id="createWorkspace" class="btn primary">Launch Jupyter Workspace</button>
+                      <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
+                    </div>
+                    <table>
+                      <thead>
+                        <tr><th>Name</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody id="workspaceRows"></tbody>
+                    </table>
+                  </article>
 
-              <article class="card span-12">
-                <h3>Policy Baseline</h3>
-                <div class="hint">Workspace resources are fixed for now: request=limit 500m CPU / 512Mi RAM. Workspaces run in project context; environments are separate reusable images.</div>
-              </article>
+                  <article class="card span-5">
+                    <h3>Selected Project Workspaces</h3>
+                    <div class="hint">Vue filtrée par projet actif.</div>
+                    <pre id="workspaceOut">-</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-environments">
+                <div class="grid">
+                  <article class="card span-7">
+                    <h3>Environment Catalog</h3>
+                    <div class="hint">Builds Kaniko vers Harbor pour images réutilisables.</div>
+                    <div class="row">
+                      <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
+                      <input id="envGitRef" value="main" />
+                    </div>
+                    <div class="row">
+                      <input id="envDockerfile" value="environments/jupyter-debian/Dockerfile" />
+                      <input id="envContext" value="." />
+                    </div>
+                    <div class="row">
+                      <input id="envDestination" value="harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0" />
+                      <button id="buildEnv" class="btn warn">Build Environment</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Image</th><th>Status</th></tr></thead>
+                      <tbody id="environmentRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-5">
+                    <h3>Build Feed</h3>
+                    <div class="hint">Historique court des builds pour le projet actif.</div>
+                    <pre id="buildOut">-</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-workloads">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Workloads</h3>
+                    <div class="hint">Agrégation des workspaces actifs et jobs de build récents.</div>
+                    <table>
+                      <thead><tr><th>Type</th><th>Name</th><th>Status</th></tr></thead>
+                      <tbody id="workloadRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-4">
+                    <h3>Policy Baseline</h3>
+                    <div class="hint">request=limit pour des workloads prévisibles.</div>
+                    <pre>Workspace profile | CPU: 500m | Memory: 512Mi | Storage: PVC (longhorn) | Namespace runtime: noryx-loads</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-ops">
+                <div class="grid">
+                  <article class="card span-6">
+                    <h3>Modules</h3>
+                    <pre id="modulesOut">-</pre>
+                  </article>
+                  <article class="card span-6">
+                    <h3>Users</h3>
+                    <pre id="usersOut">-</pre>
+                  </article>
+                </div>
+              </section>
             </section>
           </main>
         </div>
@@ -253,6 +432,10 @@ data:
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
           const modulesOut = document.getElementById('modulesOut');
+          const projectOut = document.getElementById('projectOut');
+          const workspaceOut = document.getElementById('workspaceOut');
+          const buildOut = document.getElementById('buildOut');
+
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
           const usersBtn = document.getElementById('loadUsers');
@@ -262,6 +445,7 @@ data:
           const projectNameInput = document.getElementById('projectName');
           const createProjectBtn = document.getElementById('createProject');
           const loadProjectsBtn = document.getElementById('loadProjects');
+          const projectRows = document.getElementById('projectRows');
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
@@ -277,11 +461,25 @@ data:
           const environmentRows = document.getElementById('environmentRows');
 
           const workloadRows = document.getElementById('workloadRows');
+          const tabButtons = [...document.querySelectorAll('.tab-btn')];
+          const views = {
+            projects: document.getElementById('view-projects'),
+            workspaces: document.getElementById('view-workspaces'),
+            environments: document.getElementById('view-environments'),
+            workloads: document.getElementById('view-workloads'),
+            ops: document.getElementById('view-ops')
+          };
+
+          const statProjects = document.getElementById('statProjects');
+          const statWorkspaces = document.getElementById('statWorkspaces');
+          const statBuilds = document.getElementById('statBuilds');
+          const statTab = document.getElementById('statTab');
 
           const state = {
             projects: [],
             workspaces: [],
-            builds: []
+            builds: [],
+            activeTab: 'projects'
           };
 
           function setMeta(text) { meta.textContent = text; }
@@ -301,6 +499,29 @@ data:
             buildEnvBtn.disabled = !enabled;
           }
 
+          function badge(status) {
+            const s = String(status || '').toLowerCase();
+            if (s.includes('run') || s.includes('complete')) return '<span class="badge b-ok">' + status + '</span>';
+            if (s.includes('submit') || s.includes('pending')) return '<span class="badge b-mid">' + status + '</span>';
+            return '<span class="badge b-info">' + (status || 'unknown') + '</span>';
+          }
+
+          function switchTab(tab) {
+            state.activeTab = tab;
+            tabButtons.forEach((btn) => {
+              const on = btn.getAttribute('data-tab') === tab;
+              btn.classList.toggle('active', on);
+            });
+            Object.keys(views).forEach((name) => {
+              views[name].classList.toggle('active', name === tab);
+            });
+            statTab.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
+          }
+
+          tabButtons.forEach((btn) => {
+            btn.onclick = () => switchTab(btn.getAttribute('data-tab'));
+          });
+
           async function callJSON(url, options = {}) {
             const headers = { ...(options.headers || {}), ...authHeader() };
             const res = await fetch(url, { ...options, headers });
@@ -311,6 +532,12 @@ data:
 
           async function ensureWebSession() {
             await callJSON('/api/v1/auth/session', { method: 'POST' });
+          }
+
+          function updateStats() {
+            statProjects.textContent = String(state.projects.length);
+            statWorkspaces.textContent = String(state.workspaces.length);
+            statBuilds.textContent = String(state.builds.length);
           }
 
           function renderProjectOptions() {
@@ -327,11 +554,17 @@ data:
             }
           }
 
-          function badge(status) {
-            const s = String(status || '').toLowerCase();
-            if (s.includes('run') || s.includes('complete')) return '<span class="badge b-green">' + status + '</span>';
-            if (s.includes('submit') || s.includes('pending')) return '<span class="badge b-orange">' + status + '</span>';
-            return '<span class="badge b-blue">' + (status || 'unknown') + '</span>';
+          function renderProjectsTable() {
+            projectRows.innerHTML = '';
+            if (state.projects.length === 0) {
+              projectRows.innerHTML = '<tr><td colspan="2">No project yet.</td></tr>';
+              return;
+            }
+            for (const p of state.projects) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = '<td><strong>' + p.name + '</strong></td><td><code>' + p.id + '</code></td>';
+              projectRows.appendChild(tr);
+            }
           }
 
           function renderWorkspacesTable() {
@@ -340,13 +573,15 @@ data:
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
               workspaceRows.innerHTML = '<tr><td colspan="4">No workspace for selected project.</td></tr>';
+              workspaceOut.textContent = '-';
               return;
             }
+            workspaceOut.textContent = JSON.stringify(items, null, 2);
             for (const w of items) {
               const tr = document.createElement('tr');
               const openBtn = w.accessUrl ? '<button class="btn" data-open="' + w.id + '">Open</button>' : '';
               tr.innerHTML =
-                '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#64748b">' + w.id + '</span></td>' +
+                '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
                 '<td>' + (w.accessUrl || '-') + '</td>' +
                 '<td>' + openBtn + ' <button class="btn danger" data-del="' + w.id + '">Delete</button></td>';
@@ -355,16 +590,18 @@ data:
           }
 
           function renderEnvironmentsTable() {
-            const items = [...state.builds].reverse().slice(0, 8);
+            const items = [...state.builds].reverse().slice(0, 12);
             environmentRows.innerHTML = '';
             if (items.length === 0) {
               environmentRows.innerHTML = '<tr><td colspan="2">No environment build yet.</td></tr>';
+              buildOut.textContent = '-';
               return;
             }
+            buildOut.textContent = JSON.stringify(items, null, 2);
             for (const b of items) {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><code>' + (b.destinationImage || '-') + '</code><br/><span style="color:#64748b">' + (b.dockerfilePath || '') + '</span></td>' +
+                '<td><code>' + (b.destinationImage || '-') + '</code><br/><span style="color:#667a98">' + (b.dockerfilePath || '') + '</span></td>' +
                 '<td>' + badge(b.status || 'submitted') + '</td>';
               environmentRows.appendChild(tr);
             }
@@ -382,18 +619,27 @@ data:
               workloadRows.innerHTML = '<tr><td colspan="3">No workload yet for selected project.</td></tr>';
               return;
             }
-            for (const r of rows.slice(0, 12)) {
+            rows.slice(0, 24).forEach((r) => {
               const tr = document.createElement('tr');
               tr.innerHTML = '<td>' + r.type + '</td><td>' + r.name + '</td><td>' + badge(r.status) + '</td>';
               workloadRows.appendChild(tr);
-            }
+            });
+          }
+
+          function renderProjectContext() {
+            const pid = selectedProjectId();
+            const p = state.projects.find((x) => x.id === pid) || null;
+            projectOut.textContent = JSON.stringify({ selectedProject: p }, null, 2);
           }
 
           function renderAll() {
             renderProjectOptions();
+            renderProjectsTable();
+            renderProjectContext();
             renderWorkspacesTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
+            updateStats();
           }
 
           async function refreshProjects() {
@@ -444,7 +690,7 @@ data:
 
           loadProjectsBtn.onclick = async () => {
             try { await refreshProjects(); }
-            catch (e) { pretty(usersOut, e); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
           createProjectBtn.onclick = async () => {
@@ -460,6 +706,7 @@ data:
               await refreshProjects();
             } catch (e) {
               pretty(usersOut, e);
+              switchTab('ops');
             }
           };
 
@@ -467,7 +714,7 @@ data:
 
           loadWorkspacesBtn.onclick = async () => {
             try { await refreshWorkspaces(); }
-            catch (e) { pretty(usersOut, e); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
           createWorkspaceBtn.onclick = async () => {
@@ -484,11 +731,13 @@ data:
               });
               await ensureWebSession();
               await refreshWorkspaces();
+              switchTab('workspaces');
               if (created.accessUrl) {
                 window.open(created.accessUrl, '_blank', 'noopener,noreferrer');
               }
             } catch (e) {
               pretty(usersOut, e);
+              switchTab('ops');
             }
           };
 
@@ -513,8 +762,10 @@ data:
                 body: JSON.stringify(payload)
               });
               await refreshBuilds();
+              switchTab('environments');
             } catch (e) {
               pretty(usersOut, e);
+              switchTab('ops');
             }
           };
 
@@ -539,6 +790,7 @@ data:
                 await refreshWorkspaces();
               } catch (e) {
                 pretty(usersOut, e);
+                switchTab('ops');
               }
             }
           };
@@ -547,6 +799,7 @@ data:
             if (!authenticated) {
               setMeta('Not authenticated');
               setButtons(false);
+              switchTab('projects');
               return;
             }
             setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
@@ -556,11 +809,13 @@ data:
               .then(() => Promise.all([refreshWorkspaces(), refreshBuilds()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
+                switchTab('ops');
               });
           }).catch((err) => {
             setMeta('Keycloak init error');
             pretty(usersOut, { error: String(err) });
             setButtons(false);
+            switchTab('ops');
           });
         </script>
       </body>
