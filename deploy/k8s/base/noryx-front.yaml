@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.11';
+          const FRONT_VERSION = 'ce-web-0.6.12';
           let openingWorkspaceId = null;
           const LOCALES = {
             en: {
@@ -861,15 +861,16 @@ data:
                   return;
                 }
                 openingWorkspaceId = openId;
-                const wsTab = window.open('about:blank', '_blank');
+                const targetUrl = window.location.origin + ws.accessUrl;
+                const wsTab = window.open(targetUrl, '_blank');
                 try {
                   if (!wsTab) {
                     usersOut.textContent = 'Popup blocked by browser. Allow popups for this site.';
                     openingWorkspaceId = null;
                     return;
                   }
-                  await ensureWebSession();
-                  wsTab.location.assign(ws.accessUrl);
+                  // Keep session warm for next opens, but do not block the user gesture.
+                  ensureWebSession().catch(() => {});
                   openingWorkspaceId = null;
                 } catch (e) {
                   if (wsTab && !wsTab.closed) wsTab.close();
