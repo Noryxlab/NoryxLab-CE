@@ -76,11 +76,12 @@ Runtime mode in cluster:
 - workload namespace: `NORYX_WORKLOAD_NAMESPACE` (default = control namespace; current manifest sets `noryx-loads`)
 - API service account can create/delete `pods`, `services`, and `jobs`
 - registry credentials are read from secret name `harbor-regcred`
-- OIDC issuer (current deployment): `http://datalab.noryxlab.ai/auth/realms/noryx`
+- OIDC issuer (current deployment): `https://datalab.noryxlab.ai/auth/realms/noryx`
 - OIDC JWKS (current deployment): `http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs`
 - Keycloak base URL for admin API: `http://keycloak:8080/auth`
 - ingress policy: `web` (80) redirects to HTTPS and `websecure` (443) is mandatory for user traffic
 - security headers: HSTS enabled on `datalab.noryxlab.ai` (`max-age=31536000`, `includeSubDomains`, `preload`)
+- DNS policy: wildcard records are not required. Noryx CE routes everything through one hostname (`datalab.noryxlab.ai`) with path-based routing (`/auth`, `/api`, `/swagger`, `/workspaces`).
 
 Important for split namespaces:
 

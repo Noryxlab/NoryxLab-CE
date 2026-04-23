@@ -53,5 +53,6 @@ Use `POST /api/v1/builds` with:
 - `GET /api/v1/workspaces` returns only workspaces from projects where caller has a role
 - Jupyter access path is guarded by Keycloak identity (bearer or web session cookie)
 - workspace URL returned by API points to `/workspaces/<workspaceID>/lab`
+- wildcard DNS is not required: workspace traffic stays on `https://datalab.noryxlab.ai/workspaces/<workspaceID>/...`
 - `harbor-regcred` must exist in workload namespace for image pull
 - metadata stores are currently in-memory (restart resets records)
