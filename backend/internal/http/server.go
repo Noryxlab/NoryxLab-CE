@@ -24,8 +24,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/workspaces/{workspaceID}", h.DeleteWorkspace)
 	mux.HandleFunc("POST /api/v1/auth/session", h.CreateWebSession)
 	mux.HandleFunc("DELETE /api/v1/auth/session", h.DeleteWebSession)
-	mux.HandleFunc("GET /workspaces/{workspaceID}", h.ProxyWorkspace)
-	mux.HandleFunc("GET /workspaces/{workspaceID}/{path...}", h.ProxyWorkspace)
+	// Workspace reverse-proxy must support all HTTP methods used by Jupyter
+	// (GET/POST/PUT/PATCH/DELETE/OPTIONS, websockets upgrade over GET).
+	mux.HandleFunc("/workspaces/{workspaceID}", h.ProxyWorkspace)
+	mux.HandleFunc("/workspaces/{workspaceID}/{path...}", h.ProxyWorkspace)
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 
