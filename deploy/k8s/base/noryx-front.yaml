@@ -486,9 +486,29 @@ data:
             projects: [],
             workspaces: [],
             builds: [],
+            workspaceRuntime: {},
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.3';
+          const FRONT_VERSION = 'ce-web-0.6.4';
+          const LOCALES = {
+            en: {
+              open: 'Open',
+              launching: 'Launching...',
+              readyMsg: 'Workspace ready. Click Open.',
+              launchingMsg: 'Workspace is launching... Open will be enabled automatically.'
+            },
+            fr: {
+              open: 'Ouvrir',
+              launching: 'Lancement...',
+              readyMsg: 'Workspace pret. Clique sur Ouvrir.',
+              launchingMsg: 'Le workspace demarre... Ouvrir sera active automatiquement.'
+            }
+          };
+          const locale = (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+          function t(key) {
+            return (LOCALES[locale] && LOCALES[locale][key]) || LOCALES.en[key] || key;
+          }
+          let workspacePollTimer = null;
 
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
@@ -542,28 +562,64 @@ data:
             await callJSON('/api/v1/auth/session', { method: 'POST' });
           }
 
-          function renderLaunchTab(tab, title, message) {
-            if (!tab || tab.closed) return;
-            tab.document.open();
-            tab.document.write('<!doctype html><html><head><meta charset="utf-8"/><title>' + title + '</title><style>body{font-family:Manrope,Segoe UI,sans-serif;background:#eef2f7;color:#142033;padding:24px} .box{max-width:680px;margin:30px auto;background:#fff;border:1px solid #d7dee9;border-radius:12px;padding:16px} h1{font-size:20px;margin:0 0 8px} p{margin:0;color:#52627b}</style></head><body><div class="box"><h1>' + title + '</h1><p>' + message + '</p></div></body></html>');
-            tab.document.close();
+          async function probeWorkspaceReady(workspaceID) {
+            try {
+              const res = await fetch('/workspaces/' + encodeURIComponent(workspaceID) + '/lab?_ts=' + Date.now(), {
+                method: 'GET',
+                redirect: 'manual'
+              });
+              return res.status === 200 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308;
+            } catch (_) {
+              return false;
+            }
           }
 
           async function waitWorkspaceReady(workspaceID, timeoutMs = 30000) {
             const started = Date.now();
             while ((Date.now() - started) < timeoutMs) {
-              try {
-                const res = await fetch('/workspaces/' + encodeURIComponent(workspaceID) + '/lab', {
-                  method: 'GET',
-                  redirect: 'manual'
-                });
-                if (res.status === 200 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
-                  return true;
-                }
-              } catch (_) {}
-              await new Promise((resolve) => setTimeout(resolve, 1000));
+              if (await probeWorkspaceReady(workspaceID)) return true;
+              await new Promise((resolve) => setTimeout(resolve, 1200));
             }
             return false;
+          }
+
+          async function refreshWorkspaceRuntimeStates() {
+            const currentIds = new Set(state.workspaces.map((w) => w.id));
+            Object.keys(state.workspaceRuntime).forEach((id) => {
+              if (!currentIds.has(id)) delete state.workspaceRuntime[id];
+            });
+
+            await Promise.all(state.workspaces.map(async (w) => {
+              if (!w.accessUrl) {
+                state.workspaceRuntime[w.id] = 'unavailable';
+                return;
+              }
+              if (state.workspaceRuntime[w.id] === 'ready') return;
+              const ready = await probeWorkspaceReady(w.id);
+              state.workspaceRuntime[w.id] = ready ? 'ready' : 'launching';
+            }));
+            renderWorkspacesTable();
+          }
+
+          function ensureWorkspacePolling() {
+            const hasLaunching = Object.values(state.workspaceRuntime).some((v) => v === 'launching');
+            if (!hasLaunching) {
+              if (workspacePollTimer) {
+                clearInterval(workspacePollTimer);
+                workspacePollTimer = null;
+              }
+              return;
+            }
+
+            if (workspacePollTimer) return;
+            workspacePollTimer = setInterval(async () => {
+              await refreshWorkspaceRuntimeStates();
+              const stillLaunching = Object.values(state.workspaceRuntime).some((v) => v === 'launching');
+              if (!stillLaunching && workspacePollTimer) {
+                clearInterval(workspacePollTimer);
+                workspacePollTimer = null;
+              }
+            }, 2500);
           }
 
           function updateStats() {
@@ -624,10 +680,15 @@ data:
             workspaceOut.textContent = JSON.stringify(items, null, 2);
             for (const w of items) {
               const tr = document.createElement('tr');
-              const openBtn = w.accessUrl ? '<button class="btn" data-open="' + w.id + '">Open</button>' : '';
+              const runtime = state.workspaceRuntime[w.id] || 'launching';
+              const ready = runtime === 'ready';
+              const openLabel = ready ? t('open') : t('launching');
+              const openBtn = w.accessUrl
+                ? '<button class="btn' + (ready ? '' : ' warn') + '" data-open="' + w.id + '"' + (ready ? '' : ' disabled') + '>' + openLabel + '</button>'
+                : '';
               tr.innerHTML =
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
-                '<td>' + badge(w.status || 'submitted') + '</td>' +
+                '<td>' + badge(w.status || 'submitted') + '<br/><span style="color:#667a98">' + runtime + '</span></td>' +
                 '<td>' + (w.accessUrl || '-') + '</td>' +
                 '<td>' + openBtn + ' <button class="btn danger" data-del="' + w.id + '">Delete</button></td>';
               workspaceRows.appendChild(tr);
@@ -707,6 +768,8 @@ data:
             const body = await callJSON('/api/v1/workspaces');
             state.workspaces = ensureArray(body.items);
             renderAll();
+            await refreshWorkspaceRuntimeStates();
+            ensureWorkspacePolling();
             return body;
           }
 
@@ -763,8 +826,6 @@ data:
           };
 
           createWorkspaceBtn.onclick = async () => {
-            const wsTab = window.open('about:blank', '_blank');
-            renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace is launching. This tab will redirect automatically when Jupyter is ready.');
             try {
               const projectId = selectedProjectId();
               if (!projectId) throw { error: 'select a project first' };
@@ -780,19 +841,17 @@ data:
               await refreshWorkspaces();
               switchTab('workspaces');
               if (created.accessUrl) {
-                usersOut.textContent = 'Workspace is starting, waiting for Jupyter endpoint...';
+                state.workspaceRuntime[created.id] = 'launching';
+                renderWorkspacesTable();
+                ensureWorkspacePolling();
+                usersOut.textContent = t('launchingMsg');
                 const ready = await waitWorkspaceReady(created.id, 60000);
-                if (ready && wsTab && !wsTab.closed) {
-                  wsTab.location.assign(created.accessUrl);
-                } else if (ready) {
-                  window.location.assign(created.accessUrl);
-                } else {
-                  usersOut.textContent = 'Workspace created but not ready yet. Use Open in ~10s.';
-                  renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace is still starting. Keep this tab open and retry with Open in a few seconds.');
-                }
+                state.workspaceRuntime[created.id] = ready ? 'ready' : 'launching';
+                usersOut.textContent = ready ? t('readyMsg') : t('launchingMsg');
+                renderWorkspacesTable();
+                ensureWorkspacePolling();
               }
             } catch (e) {
-              if (wsTab && !wsTab.closed) wsTab.close();
               pretty(usersOut, e);
               switchTab('ops');
             }
@@ -830,21 +889,14 @@ data:
             const openId = event.target?.getAttribute('data-open');
             const delId = event.target?.getAttribute('data-del');
             if (openId) {
-              const wsTab = window.open('about:blank', '_blank');
-              renderLaunchTab(wsTab, 'Noryx Workspace', 'Checking workspace endpoint before opening Jupyter...');
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
-                usersOut.textContent = 'Checking workspace endpoint...';
-                const ready = await waitWorkspaceReady(ws.id, 45000);
-                if (ready && wsTab && !wsTab.closed) {
-                  wsTab.location.assign(ws.accessUrl);
-                } else if (ready) {
-                  window.location.assign(ws.accessUrl);
-                } else {
-                  renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace endpoint still not ready. Retry from the main console in a few seconds.');
+                const runtime = state.workspaceRuntime[ws.id] || 'launching';
+                if (runtime !== 'ready') {
+                  usersOut.textContent = t('launchingMsg');
+                  return;
                 }
-              } else if (wsTab && !wsTab.closed) {
-                wsTab.close();
+                window.open(ws.accessUrl, '_blank', 'noopener,noreferrer');
               }
               return;
             }
