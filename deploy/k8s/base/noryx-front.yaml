@@ -488,7 +488,8 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.10';
+          const FRONT_VERSION = 'ce-web-0.6.11';
+          let openingWorkspaceId = null;
           const LOCALES = {
             en: {
               open: 'Open',
@@ -633,14 +634,14 @@ data:
               const ready = statusValue.includes('run');
               const openLabel = ready ? t('open') : t('launching');
               const openBtn = w.accessUrl
-                ? '<button class="btn' + (ready ? '' : ' warn') + '" data-open="' + w.id + '"' + (ready ? '' : ' disabled') + '>' + openLabel + '</button>'
+                ? '<button type="button" class="btn' + (ready ? '' : ' warn') + '" data-open="' + w.id + '"' + (ready ? '' : ' disabled') + '>' + openLabel + '</button>'
                 : '';
               tr.innerHTML =
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
                 '<td>' + (w.accessUrl || '-') + '</td>' +
-                '<td>' + openBtn + ' <button class="btn danger" data-del="' + w.id + '">Delete</button></td>';
+                '<td>' + openBtn + ' <button type="button" class="btn danger" data-del="' + w.id + '">Delete</button></td>';
               workspaceRows.appendChild(tr);
             }
           }
@@ -849,6 +850,9 @@ data:
             const openId = event.target?.getAttribute('data-open');
             const delId = event.target?.getAttribute('data-del');
             if (openId) {
+              event.preventDefault();
+              event.stopPropagation();
+              if (openingWorkspaceId === openId) return;
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
                 const ready = String(ws.status || '').toLowerCase().includes('run');
@@ -856,16 +860,20 @@ data:
                   usersOut.textContent = t('launchingMsg');
                   return;
                 }
+                openingWorkspaceId = openId;
                 const wsTab = window.open('about:blank', '_blank');
                 try {
                   if (!wsTab) {
                     usersOut.textContent = 'Popup blocked by browser. Allow popups for this site.';
+                    openingWorkspaceId = null;
                     return;
                   }
                   await ensureWebSession();
                   wsTab.location.assign(ws.accessUrl);
+                  openingWorkspaceId = null;
                 } catch (e) {
                   if (wsTab && !wsTab.closed) wsTab.close();
+                  openingWorkspaceId = null;
                   pretty(usersOut, e);
                   switchTab('ops');
                 }
@@ -873,6 +881,8 @@ data:
               return;
             }
             if (delId) {
+              event.preventDefault();
+              event.stopPropagation();
               try {
                 const res = await fetch('/api/v1/workspaces/' + encodeURIComponent(delId), {
                   method: 'DELETE',
