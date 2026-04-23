@@ -36,7 +36,20 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target, _ := url.Parse("http://" + record.ServiceName + ":8888")
+	targetHost := strings.TrimSpace(record.ServiceName)
+	if targetHost == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "workspace service is not configured"})
+		return
+	}
+	if !strings.Contains(targetHost, ".") {
+		namespace := strings.TrimSpace(h.workspaceNamespace)
+		if namespace == "" {
+			namespace = "default"
+		}
+		targetHost = targetHost + "." + namespace + ".svc.cluster.local"
+	}
+
+	target, _ := url.Parse("http://" + targetHost + ":8888")
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
