@@ -756,6 +756,7 @@ data:
           };
 
           createWorkspaceBtn.onclick = async () => {
+            const wsTab = window.open('about:blank', '_blank');
             try {
               const projectId = selectedProjectId();
               if (!projectId) throw { error: 'select a project first' };
@@ -773,9 +774,14 @@ data:
               if (created.accessUrl) {
                 usersOut.textContent = 'Workspace is starting, waiting for Jupyter endpoint...';
                 await waitWorkspaceReady(created.id, 45000);
-                window.location.assign(created.accessUrl);
+                if (wsTab && !wsTab.closed) {
+                  wsTab.location.assign(created.accessUrl);
+                } else {
+                  window.location.assign(created.accessUrl);
+                }
               }
             } catch (e) {
+              if (wsTab && !wsTab.closed) wsTab.close();
               pretty(usersOut, e);
               switchTab('ops');
             }
@@ -813,11 +819,18 @@ data:
             const openId = event.target?.getAttribute('data-open');
             const delId = event.target?.getAttribute('data-del');
             if (openId) {
+              const wsTab = window.open('about:blank', '_blank');
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
                 usersOut.textContent = 'Checking workspace endpoint...';
                 await waitWorkspaceReady(ws.id, 30000);
-                window.location.assign(ws.accessUrl);
+                if (wsTab && !wsTab.closed) {
+                  wsTab.location.assign(ws.accessUrl);
+                } else {
+                  window.location.assign(ws.accessUrl);
+                }
+              } else if (wsTab && !wsTab.closed) {
+                wsTab.close();
               }
               return;
             }
