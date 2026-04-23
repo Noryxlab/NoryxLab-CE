@@ -56,13 +56,13 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		originalDirector(req)
 
 		rest := strings.TrimSpace(r.PathValue("path"))
-		targetPath := "/"
+		targetPath := "/workspaces/" + workspaceID + "/"
 		if rest != "" {
-			targetPath = "/" + strings.TrimPrefix(rest, "/")
+			targetPath = "/workspaces/" + workspaceID + "/" + strings.TrimPrefix(rest, "/")
 		}
 		req.URL.Path = path.Clean(targetPath)
-		if targetPath == "/" {
-			req.URL.Path = "/"
+		if strings.HasSuffix(targetPath, "/") && !strings.HasSuffix(req.URL.Path, "/") {
+			req.URL.Path += "/"
 		}
 
 		q := req.URL.Query()
