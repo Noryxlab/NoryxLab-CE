@@ -63,7 +63,12 @@ data:
           .edition {
             font-size: 12px;
             color: var(--nav-muted);
-            margin-bottom: 16px;
+            margin-bottom: 8px;
+          }
+          .versions {
+            font-size: 11px;
+            color: #b4c4df;
+            margin-bottom: 14px;
           }
           .who {
             background: rgba(255,255,255,.07);
@@ -266,6 +271,7 @@ data:
           <aside class="sidebar">
             <div class="brand">NoryxLab</div>
             <div class="edition">Community Edition Console</div>
+            <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
             <div class="menu-title">Workspace Hub</div>
@@ -474,6 +480,7 @@ data:
           const statWorkspaces = document.getElementById('statWorkspaces');
           const statBuilds = document.getElementById('statBuilds');
           const statTab = document.getElementById('statTab');
+          const versionsNode = document.getElementById('versions');
 
           const state = {
             projects: [],
@@ -481,6 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
+          const FRONT_VERSION = 'ce-web-0.6.2';
 
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
@@ -538,6 +546,19 @@ data:
             statProjects.textContent = String(state.projects.length);
             statWorkspaces.textContent = String(state.workspaces.length);
             statBuilds.textContent = String(state.builds.length);
+          }
+
+          async function refreshVersions() {
+            let backVersion = 'unknown';
+            try {
+              const res = await fetch('/swagger/openapi.yaml');
+              if (res.ok) {
+                const yaml = await res.text();
+                const match = yaml.match(/^\s*version:\s*(.+)\s*$/m);
+                if (match && match[1]) backVersion = match[1].trim();
+              }
+            } catch (_) {}
+            versionsNode.textContent = 'front: ' + FRONT_VERSION + ' | back: ' + backVersion;
           }
 
           function renderProjectOptions() {
@@ -816,6 +837,8 @@ data:
             setButtons(false);
             switchTab('ops');
           });
+
+          refreshVersions();
         </script>
       </body>
     </html>
