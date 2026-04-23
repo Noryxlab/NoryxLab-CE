@@ -63,3 +63,7 @@ type Inspector interface {
 	ListDeployments() ([]DeploymentStatus, error)
 	ListServices() ([]ServiceStatus, error)
 }
+
+type WorkspaceReadiness interface {
+	IsServiceReady(serviceName string) (bool, error)
+}
