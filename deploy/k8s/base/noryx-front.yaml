@@ -542,6 +542,13 @@ data:
             await callJSON('/api/v1/auth/session', { method: 'POST' });
           }
 
+          function renderLaunchTab(tab, title, message) {
+            if (!tab || tab.closed) return;
+            tab.document.open();
+            tab.document.write('<!doctype html><html><head><meta charset="utf-8"/><title>' + title + '</title><style>body{font-family:Manrope,Segoe UI,sans-serif;background:#eef2f7;color:#142033;padding:24px} .box{max-width:680px;margin:30px auto;background:#fff;border:1px solid #d7dee9;border-radius:12px;padding:16px} h1{font-size:20px;margin:0 0 8px} p{margin:0;color:#52627b}</style></head><body><div class="box"><h1>' + title + '</h1><p>' + message + '</p></div></body></html>');
+            tab.document.close();
+          }
+
           async function waitWorkspaceReady(workspaceID, timeoutMs = 30000) {
             const started = Date.now();
             while ((Date.now() - started) < timeoutMs) {
@@ -550,7 +557,7 @@ data:
                   method: 'GET',
                   redirect: 'manual'
                 });
-                if (res.status >= 200 && res.status < 400) {
+                if (res.status === 200 || res.status === 302 || res.status === 303 || res.status === 307 || res.status === 308) {
                   return true;
                 }
               } catch (_) {}
@@ -757,6 +764,7 @@ data:
 
           createWorkspaceBtn.onclick = async () => {
             const wsTab = window.open('about:blank', '_blank');
+            renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace is launching. This tab will redirect automatically when Jupyter is ready.');
             try {
               const projectId = selectedProjectId();
               if (!projectId) throw { error: 'select a project first' };
@@ -773,11 +781,14 @@ data:
               switchTab('workspaces');
               if (created.accessUrl) {
                 usersOut.textContent = 'Workspace is starting, waiting for Jupyter endpoint...';
-                await waitWorkspaceReady(created.id, 45000);
-                if (wsTab && !wsTab.closed) {
+                const ready = await waitWorkspaceReady(created.id, 60000);
+                if (ready && wsTab && !wsTab.closed) {
                   wsTab.location.assign(created.accessUrl);
-                } else {
+                } else if (ready) {
                   window.location.assign(created.accessUrl);
+                } else {
+                  usersOut.textContent = 'Workspace created but not ready yet. Use Open in ~10s.';
+                  renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace is still starting. Keep this tab open and retry with Open in a few seconds.');
                 }
               }
             } catch (e) {
@@ -820,14 +831,17 @@ data:
             const delId = event.target?.getAttribute('data-del');
             if (openId) {
               const wsTab = window.open('about:blank', '_blank');
+              renderLaunchTab(wsTab, 'Noryx Workspace', 'Checking workspace endpoint before opening Jupyter...');
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
                 usersOut.textContent = 'Checking workspace endpoint...';
-                await waitWorkspaceReady(ws.id, 30000);
-                if (wsTab && !wsTab.closed) {
+                const ready = await waitWorkspaceReady(ws.id, 45000);
+                if (ready && wsTab && !wsTab.closed) {
                   wsTab.location.assign(ws.accessUrl);
-                } else {
+                } else if (ready) {
                   window.location.assign(ws.accessUrl);
+                } else {
+                  renderLaunchTab(wsTab, 'Noryx Workspace', 'Workspace endpoint still not ready. Retry from the main console in a few seconds.');
                 }
               } else if (wsTab && !wsTab.closed) {
                 wsTab.close();
