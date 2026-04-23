@@ -29,9 +29,20 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filtered := make([]workspace.Workspace, 0, len(items))
+	readiness, hasReadiness := h.runtime.(noryxruntime.WorkspaceReadiness)
 	for _, item := range items {
 		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
 			continue
+		}
+		if hasReadiness && item.ServiceName != "" {
+			ready, err := readiness.IsServiceReady(item.ServiceName)
+			if err == nil {
+				if ready {
+					item.Status = "running"
+				} else {
+					item.Status = "launching"
+				}
+			}
 		}
 		filtered = append(filtered, item)
 	}

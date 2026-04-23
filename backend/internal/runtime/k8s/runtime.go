@@ -317,6 +317,35 @@ func (r *Runtime) ListServices() ([]noryxruntime.ServiceStatus, error) {
 	return out, nil
 }
 
+func (r *Runtime) IsServiceReady(serviceName string) (bool, error) {
+	serviceName = strings.TrimSpace(serviceName)
+	if serviceName == "" {
+		return false, fmt.Errorf("service name is required")
+	}
+
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/endpoints/%s", r.workloadNamespace, serviceName))
+	if err != nil {
+		return false, err
+	}
+
+	var response struct {
+		Subsets []struct {
+			Addresses []any `json:"addresses"`
+			Ports     []any `json:"ports"`
+		} `json:"subsets"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return false, err
+	}
+
+	for _, subset := range response.Subsets {
+		if len(subset.Addresses) > 0 && len(subset.Ports) > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *Runtime) post(path string, payload any) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
