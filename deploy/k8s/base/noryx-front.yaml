@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.5';
+          const FRONT_VERSION = 'ce-web-0.6.6';
           const LOCALES = {
             en: {
               open: 'Open',
@@ -507,6 +507,7 @@ data:
           function t(key) {
             return (LOCALES[locale] && LOCALES[locale][key]) || LOCALES.en[key] || key;
           }
+          let workspacesAutoRefreshTimer = null;
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
           function authHeader() { return { Authorization: 'Bearer ' + keycloak.token }; }
@@ -726,8 +727,25 @@ data:
             return body;
           }
 
+          function stopWorkspacesAutoRefresh() {
+            if (workspacesAutoRefreshTimer) {
+              clearInterval(workspacesAutoRefreshTimer);
+              workspacesAutoRefreshTimer = null;
+            }
+          }
+
+          function startWorkspacesAutoRefresh() {
+            if (workspacesAutoRefreshTimer) return;
+            workspacesAutoRefreshTimer = setInterval(async () => {
+              try {
+                await refreshWorkspaces();
+              } catch (_) {}
+            }, 5000);
+          }
+
           loginBtn.onclick = () => keycloak.login();
           logoutBtn.onclick = async () => {
+            stopWorkspacesAutoRefresh();
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
             keycloak.logout({ redirectUri: window.location.origin + '/' });
           };
@@ -858,6 +876,7 @@ data:
 
           keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
             if (!authenticated) {
+              stopWorkspacesAutoRefresh();
               setMeta('Not authenticated');
               setButtons(false);
               switchTab('projects');
@@ -865,6 +884,7 @@ data:
             }
             setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
             setButtons(true);
+            startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
               .then(() => Promise.all([refreshWorkspaces(), refreshBuilds()]))
@@ -873,6 +893,7 @@ data:
                 switchTab('ops');
               });
           }).catch((err) => {
+            stopWorkspacesAutoRefresh();
             setMeta('Keycloak init error');
             pretty(usersOut, { error: String(err) });
             setButtons(false);
