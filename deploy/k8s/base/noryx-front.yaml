@@ -733,7 +733,7 @@ data:
               await refreshWorkspaces();
               switchTab('workspaces');
               if (created.accessUrl) {
-                window.open(created.accessUrl, '_blank', 'noopener,noreferrer');
+                window.location.assign(created.accessUrl);
               }
             } catch (e) {
               pretty(usersOut, e);
@@ -775,8 +775,7 @@ data:
             if (openId) {
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
-                await ensureWebSession();
-                window.open(ws.accessUrl, '_blank', 'noopener,noreferrer');
+                window.location.assign(ws.accessUrl);
               }
               return;
             }
