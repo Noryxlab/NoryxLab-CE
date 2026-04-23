@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.8';
+          const FRONT_VERSION = 'ce-web-0.6.9';
           const LOCALES = {
             en: {
               open: 'Open',
@@ -856,8 +856,19 @@ data:
                   usersOut.textContent = t('launchingMsg');
                   return;
                 }
-                await ensureWebSession();
-                window.open(ws.accessUrl, '_blank', 'noopener,noreferrer');
+                const wsTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+                try {
+                  await ensureWebSession();
+                  if (wsTab && !wsTab.closed) {
+                    wsTab.location.assign(ws.accessUrl);
+                  } else {
+                    window.location.assign(ws.accessUrl);
+                  }
+                } catch (e) {
+                  if (wsTab && !wsTab.closed) wsTab.close();
+                  pretty(usersOut, e);
+                  switchTab('ops');
+                }
               }
               return;
             }
