@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.12';
+          const FRONT_VERSION = 'ce-web-0.6.13';
           let openingWorkspaceId = null;
           const LOCALES = {
             en: {
@@ -861,7 +861,7 @@ data:
                   return;
                 }
                 openingWorkspaceId = openId;
-                const targetUrl = window.location.origin + ws.accessUrl;
+                const targetUrl = window.location.origin + '/workspaces/' + encodeURIComponent(ws.id) + '/tree';
                 const wsTab = window.open(targetUrl, '_blank');
                 try {
                   if (!wsTab) {
