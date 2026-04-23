@@ -542,6 +542,23 @@ data:
             await callJSON('/api/v1/auth/session', { method: 'POST' });
           }
 
+          async function waitWorkspaceReady(workspaceID, timeoutMs = 30000) {
+            const started = Date.now();
+            while ((Date.now() - started) < timeoutMs) {
+              try {
+                const res = await fetch('/workspaces/' + encodeURIComponent(workspaceID) + '/lab', {
+                  method: 'GET',
+                  redirect: 'manual'
+                });
+                if (res.status >= 200 && res.status < 400) {
+                  return true;
+                }
+              } catch (_) {}
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            return false;
+          }
+
           function updateStats() {
             statProjects.textContent = String(state.projects.length);
             statWorkspaces.textContent = String(state.workspaces.length);
@@ -754,6 +771,8 @@ data:
               await refreshWorkspaces();
               switchTab('workspaces');
               if (created.accessUrl) {
+                usersOut.textContent = 'Workspace is starting, waiting for Jupyter endpoint...';
+                await waitWorkspaceReady(created.id, 45000);
                 window.location.assign(created.accessUrl);
               }
             } catch (e) {
@@ -796,6 +815,8 @@ data:
             if (openId) {
               const ws = state.workspaces.find(w => w.id === openId);
               if (ws?.accessUrl) {
+                usersOut.textContent = 'Checking workspace endpoint...';
+                await waitWorkspaceReady(ws.id, 30000);
                 window.location.assign(ws.accessUrl);
               }
               return;
