@@ -102,6 +102,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				"--port=8888",
 				"--no-browser",
 				"--allow-root",
+				"--ServerApp.base_url=/workspaces/" + record.ID + "/",
 				"--ServerApp.token=" + accessToken,
 				"--ServerApp.password=",
 			},
