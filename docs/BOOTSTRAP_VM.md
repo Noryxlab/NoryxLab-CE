@@ -48,6 +48,29 @@ Helper script:
 sudo bash scripts/vm/create-noryxops.sh /tmp/noryxops.pub
 ```
 
+Validation:
+
+```bash
+ssh -i ~/.ssh/id_ed25519_noryxops noryxops@192.168.1.140 'sudo -n kubectl get ns'
+```
+
+If you use `~/.ssh/config` with a host alias (for example `noryxlab-master`), ensure it does not force the `stef` key for `noryxops` connections.
+Recommended:
+
+```sshconfig
+Host noryxlab-master
+  HostName 192.168.1.140
+  User stef
+  IdentityFile ~/.ssh/id_ed25519_noryx_vm
+  IdentitiesOnly yes
+
+Host noryxlab-master-ops
+  HostName 192.168.1.140
+  User noryxops
+  IdentityFile ~/.ssh/id_ed25519_noryxops
+  IdentitiesOnly yes
+```
+
 ## Deploy baseline platform
 
 ```bash
