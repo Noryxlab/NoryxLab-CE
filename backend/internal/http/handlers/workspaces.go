@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
@@ -25,7 +26,7 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 
 	// Keep API/UI idempotent after back restarts: rebuild missing workspace records
 	// from running Kubernetes pods labeled as noryx workspaces.
-	h.syncWorkspacesFromRuntime()
+	h.syncWorkspacesFromRuntime(userID)
 
 	items, err := h.workspaceStore.List()
 	if err != nil {
@@ -55,7 +56,7 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
 }
 
-func (h Handlers) syncWorkspacesFromRuntime() {
+func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 	discovery, ok := h.runtime.(noryxruntime.WorkspaceDiscovery)
 	if !ok {
 		return
@@ -68,6 +69,13 @@ func (h Handlers) syncWorkspacesFromRuntime() {
 		if strings.TrimSpace(item.WorkspaceID) == "" || strings.TrimSpace(item.ProjectID) == "" {
 			continue
 		}
+		h.ensureProjectInStore(item.ProjectID)
+		// After back restart, in-memory RBAC is empty.
+		// Re-grant current user admin on discovered runtime projects.
+		if strings.TrimSpace(userID) != "" {
+			h.accessStore.SetRole(item.ProjectID, userID, access.RoleAdmin)
+		}
+
 		_, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
 		if err != nil || found {
 			continue
@@ -88,6 +96,31 @@ func (h Handlers) syncWorkspacesFromRuntime() {
 		}
 		_ = h.workspaceStore.Create(record)
 	}
+}
+
+func (h Handlers) ensureProjectInStore(projectID string) {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return
+	}
+	items, err := h.projectStore.List()
+	if err != nil {
+		return
+	}
+	for _, item := range items {
+		if item.ID == projectID {
+			return
+		}
+	}
+	shortID := projectID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	_ = h.projectStore.Create(project.Project{
+		ID:        projectID,
+		Name:      "Recovered Project " + shortID,
+		CreatedAt: time.Now().UTC(),
+	})
 }
 
 func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
