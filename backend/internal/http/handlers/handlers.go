@@ -22,6 +22,7 @@ type Handlers struct {
 	bootstrapAdminUser    string
 	bootstrapAdminEmail   string
 	workspaceJupyterImage string
+	workspaceVSCodeImage  string
 	workspaceNamespace    string
 	workspaceCPU          string
 	workspaceMemory       string
@@ -37,6 +38,7 @@ type Options struct {
 	BootstrapAdminUser    string
 	BootstrapAdminEmail   string
 	WorkspaceJupyterImage string
+	WorkspaceVSCodeImage  string
 	WorkspaceNamespace    string
 	WorkspaceCPU          string
 	WorkspaceMemory       string
@@ -73,6 +75,7 @@ func New(
 		bootstrapAdminUser:    options.BootstrapAdminUser,
 		bootstrapAdminEmail:   options.BootstrapAdminEmail,
 		workspaceJupyterImage: options.WorkspaceJupyterImage,
+		workspaceVSCodeImage:  options.WorkspaceVSCodeImage,
 		workspaceNamespace:    options.WorkspaceNamespace,
 		workspaceCPU:          options.WorkspaceCPU,
 		workspaceMemory:       options.WorkspaceMemory,

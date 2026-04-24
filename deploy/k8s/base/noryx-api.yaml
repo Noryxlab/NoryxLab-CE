@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.23-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.25-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -62,6 +62,8 @@ spec:
                   key: KEYCLOAK_ADMIN_PASSWORD
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
               value: "harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0"
+            - name: NORYX_WORKSPACE_VSCODE_IMAGE
+              value: "harbor.lan/noryx-environments/noryx-workspace-vscode:0.1.0"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY

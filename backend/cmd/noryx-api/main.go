@@ -74,6 +74,7 @@ func main() {
 			BootstrapAdminUser:    cfg.BootstrapAdminUser,
 			BootstrapAdminEmail:   cfg.BootstrapAdminEmail,
 			WorkspaceJupyterImage: cfg.WorkspaceJupyterImage,
+			WorkspaceVSCodeImage:  cfg.WorkspaceVSCodeImage,
 			WorkspaceNamespace:    cfg.WorkloadNamespace,
 			WorkspaceCPU:          cfg.WorkspaceCPU,
 			WorkspaceMemory:       cfg.WorkspaceMemory,

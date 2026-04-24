@@ -437,7 +437,7 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			} `json:"metadata"`
 			Spec struct {
 				Containers []struct {
-					Image string `json:"image"`
+					Image string   `json:"image"`
 					Args  []string `json:"args"`
 				} `json:"containers"`
 			} `json:"spec"`
@@ -454,14 +454,20 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 		if workspaceID == "" || projectID == "" {
 			continue
 		}
+		kind := strings.ToLower(strings.TrimSpace(item.Metadata.Labels["noryx.io/workspace-kind"]))
+		if kind == "" {
+			kind = "jupyter"
+		}
 		image := ""
 		accessToken := ""
 		if len(item.Spec.Containers) > 0 {
 			image = strings.TrimSpace(item.Spec.Containers[0].Image)
-			for _, arg := range item.Spec.Containers[0].Args {
-				if strings.HasPrefix(arg, "--ServerApp.token=") {
-					accessToken = strings.TrimPrefix(arg, "--ServerApp.token=")
-					break
+			if kind == "jupyter" {
+				for _, arg := range item.Spec.Containers[0].Args {
+					if strings.HasPrefix(arg, "--ServerApp.token=") {
+						accessToken = strings.TrimPrefix(arg, "--ServerApp.token=")
+						break
+					}
 				}
 			}
 		}
@@ -472,6 +478,7 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 		out = append(out, noryxruntime.WorkspaceRuntimeInfo{
 			WorkspaceID: workspaceID,
 			ProjectID:   projectID,
+			Kind:        kind,
 			PodName:     podName,
 			ServiceName: podName,
 			Image:       image,

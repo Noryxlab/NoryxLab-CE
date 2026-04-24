@@ -341,16 +341,20 @@ data:
                 <div class="grid">
                   <article class="card span-7">
                     <h3>Workspace Launcher</h3>
-                    <div class="hint">Jupyter only, fixed profile: 500m CPU / 512Mi RAM. Storage default: 10Gi.</div>
+                    <div class="hint">IDE: Jupyter or VSCode, fixed profile: 500m CPU / 512Mi RAM. Storage default: 10Gi.</div>
                     <div class="row">
+                      <select id="workspaceIde">
+                        <option value="jupyter">jupyter</option>
+                        <option value="vscode">vscode</option>
+                      </select>
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
                       <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
-                      <button id="createWorkspace" class="btn primary">Launch Jupyter Workspace</button>
+                      <button id="createWorkspace" class="btn primary">Launch Workspace</button>
                       <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
                     </div>
                     <table>
                       <thead>
-                        <tr><th>Name</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                        <tr><th>Name</th><th>IDE</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
                       </thead>
                       <tbody id="workspaceRows"></tbody>
                     </table>
@@ -459,6 +463,7 @@ data:
           const projectRows = document.getElementById('projectRows');
 
           const workspaceNameInput = document.getElementById('workspaceName');
+          const workspaceIdeInput = document.getElementById('workspaceIde');
           const workspaceStorageSizeInput = document.getElementById('workspaceStorageSize');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
           const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
@@ -495,7 +500,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.21';
+          const FRONT_VERSION = 'ce-web-0.6.23';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -641,7 +646,7 @@ data:
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
-              workspaceRows.innerHTML = '<tr><td colspan="6">No workspace for selected project.</td></tr>';
+              workspaceRows.innerHTML = '<tr><td colspan="7">No workspace for selected project.</td></tr>';
               workspaceOut.textContent = '-';
               return;
             }
@@ -656,6 +661,7 @@ data:
                 : '';
               tr.innerHTML =
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
+                '<td><code>' + (w.kind || 'jupyter') + '</code></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
@@ -852,6 +858,8 @@ data:
               const projectId = selectedProjectId();
               if (!projectId) throw { error: 'select a project first' };
               const payload = { projectId };
+              const ide = workspaceIdeInput.value.trim();
+              if (ide) payload.ide = ide;
               const name = workspaceNameInput.value.trim();
               if (name) payload.name = name;
               const storageSize = workspaceStorageSizeInput.value.trim();
@@ -1037,7 +1045,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.21
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.23
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -21,6 +21,7 @@ type Config struct {
 	KeycloakAdminUser     string
 	KeycloakAdminPass     string
 	WorkspaceJupyterImage string
+	WorkspaceVSCodeImage  string
 	WorkspaceCPU          string
 	WorkspaceMemory       string
 	WorkspacePVCEnabled   bool
@@ -89,6 +90,10 @@ func Load() Config {
 	if workspaceJupyterImage == "" {
 		workspaceJupyterImage = "harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0"
 	}
+	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
+	if workspaceVSCodeImage == "" {
+		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-workspace-vscode:0.1.0"
+	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {
 		workspaceCPU = "500m"
@@ -133,6 +138,7 @@ func Load() Config {
 		KeycloakAdminUser:     keycloakAdminUser,
 		KeycloakAdminPass:     os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
 		WorkspaceJupyterImage: workspaceJupyterImage,
+		WorkspaceVSCodeImage:  workspaceVSCodeImage,
 		WorkspaceCPU:          workspaceCPU,
 		WorkspaceMemory:       workspaceMemory,
 		WorkspacePVCEnabled:   workspacePVCEnabled == "true",
