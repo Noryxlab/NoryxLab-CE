@@ -17,6 +17,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/members/{userID}/role", h.SetProjectMemberRole)
 	mux.HandleFunc("GET /api/v1/builds", h.ListBuilds)
 	mux.HandleFunc("POST /api/v1/builds", h.CreateBuild)
+	mux.HandleFunc("GET /api/v1/builds/{buildID}/dockerfile", h.GetBuildDockerfile)
+	mux.HandleFunc("GET /api/v1/environments", h.ListEnvironments)
 	mux.HandleFunc("GET /api/v1/pods", h.ListPods)
 	mux.HandleFunc("POST /api/v1/pods", h.LaunchPod)
 	mux.HandleFunc("GET /api/v1/workspaces", h.ListWorkspaces)

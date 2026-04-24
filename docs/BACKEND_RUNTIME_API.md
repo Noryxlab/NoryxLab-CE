@@ -3,6 +3,7 @@
 This module adds:
 
 - docker image build submission (Kaniko `Job`)
+- environment catalog from build revisions
 - pod launch submission (`Pod`)
 - workspace launch submission (Jupyter `Pod` + `Service`)
 - project-scoped RBAC checks at API level
@@ -16,7 +17,10 @@ This module adds:
 - `GET /swagger/openapi.yaml`
 - `POST /api/v1/projects`
 - `PUT /api/v1/projects/{projectID}/members/{userID}/role`
+- `GET /api/v1/builds`
 - `POST /api/v1/builds`
+- `GET /api/v1/builds/{buildID}/dockerfile`
+- `GET /api/v1/environments`
 - `POST /api/v1/pods`
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`

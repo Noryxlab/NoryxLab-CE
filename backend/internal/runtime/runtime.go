@@ -80,3 +80,19 @@ type WorkspaceRuntimeInfo struct {
 type WorkspaceDiscovery interface {
 	ListWorkspaces() ([]WorkspaceRuntimeInfo, error)
 }
+
+type BuildRuntimeInfo struct {
+	BuildID          string `json:"buildId"`
+	ProjectID        string `json:"projectId"`
+	JobName          string `json:"jobName"`
+	Status           string `json:"status"`
+	GitRepository    string `json:"gitRepository"`
+	GitRef           string `json:"gitRef"`
+	DockerfilePath   string `json:"dockerfilePath"`
+	ContextPath      string `json:"contextPath"`
+	DestinationImage string `json:"destinationImage"`
+}
+
+type BuildDiscovery interface {
+	ListBuilds() ([]BuildRuntimeInfo, error)
+}

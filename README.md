@@ -39,6 +39,8 @@ API endpoints:
 - `PUT /api/v1/projects/{projectID}/members/{userID}/role`
 - `GET /api/v1/builds`
 - `POST /api/v1/builds`
+- `GET /api/v1/builds/{buildID}/dockerfile`
+- `GET /api/v1/environments`
 - `GET /api/v1/pods`
 - `POST /api/v1/pods`
 - `GET /api/v1/workspaces`
@@ -96,6 +98,7 @@ scripts/keycloak/bootstrap-realm.sh
 
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
+Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.

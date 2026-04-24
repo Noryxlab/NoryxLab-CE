@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.19
+  version: 0.5.20
 servers:
   - url: /
 components:
@@ -73,6 +73,8 @@ paths:
   /api/v1/builds:
     get:
       summary: List build submissions
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: List of builds
@@ -97,6 +99,27 @@ paths:
       responses:
         '201':
           description: Build submitted
+  /api/v1/builds/{buildID}/dockerfile:
+    get:
+      summary: Fetch Dockerfile content for one build revision
+      parameters:
+        - in: path
+          name: buildID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Dockerfile content
+  /api/v1/environments:
+    get:
+      summary: List environment entries and build revisions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of environments
   /api/v1/pods:
     get:
       summary: List launched pods

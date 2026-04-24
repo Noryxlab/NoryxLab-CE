@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
@@ -19,13 +20,32 @@ type createBuildRequest struct {
 	DestinationImage string `json:"destinationImage"`
 }
 
-func (h Handlers) ListBuilds(w http.ResponseWriter, _ *http.Request) {
+func (h Handlers) ListBuilds(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+
+	h.syncBuildsFromRuntime()
+
 	items, err := h.buildStore.List()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list builds"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+
+	projectFilter := strings.TrimSpace(r.URL.Query().Get("projectId"))
+	filtered := make([]build.Build, 0, len(items))
+	for _, item := range items {
+		if projectFilter != "" && item.ProjectID != projectFilter {
+			continue
+		}
+		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
 }
 
 func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
@@ -104,4 +124,75 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, record)
+}
+
+func (h Handlers) syncBuildsFromRuntime() {
+	discovery, ok := h.runtime.(noryxruntime.BuildDiscovery)
+	if !ok {
+		return
+	}
+	runtimeItems, err := discovery.ListBuilds()
+	if err != nil {
+		return
+	}
+
+	for _, item := range runtimeItems {
+		buildID := strings.TrimSpace(item.BuildID)
+		projectID := strings.TrimSpace(item.ProjectID)
+		if buildID == "" || projectID == "" {
+			continue
+		}
+		h.ensureProjectInStore(projectID)
+
+		existing, found, err := h.buildStore.GetByID(buildID)
+		if err != nil {
+			continue
+		}
+
+		record := build.Build{
+			ID:               buildID,
+			ProjectID:        projectID,
+			GitRepository:    strings.TrimSpace(item.GitRepository),
+			GitRef:           strings.TrimSpace(item.GitRef),
+			DockerfilePath:   strings.TrimSpace(item.DockerfilePath),
+			ContextPath:      strings.TrimSpace(item.ContextPath),
+			DestinationImage: strings.TrimSpace(item.DestinationImage),
+			JobName:          strings.TrimSpace(item.JobName),
+			Status:           strings.TrimSpace(item.Status),
+			CreatedAt:        time.Now().UTC(),
+		}
+
+		if found {
+			record = existing
+			record.ProjectID = projectID
+			if v := strings.TrimSpace(item.GitRepository); v != "" {
+				record.GitRepository = v
+			}
+			if v := strings.TrimSpace(item.GitRef); v != "" {
+				record.GitRef = v
+			}
+			if v := strings.TrimSpace(item.DockerfilePath); v != "" {
+				record.DockerfilePath = v
+			}
+			if v := strings.TrimSpace(item.ContextPath); v != "" {
+				record.ContextPath = v
+			}
+			if v := strings.TrimSpace(item.DestinationImage); v != "" {
+				record.DestinationImage = v
+			}
+			if v := strings.TrimSpace(item.JobName); v != "" {
+				record.JobName = v
+			}
+			if v := strings.TrimSpace(item.Status); v != "" {
+				record.Status = v
+			}
+			if record.CreatedAt.IsZero() {
+				record.CreatedAt = time.Now().UTC()
+			}
+		} else if record.Status == "" {
+			record.Status = "submitted"
+		}
+
+		_ = h.buildStore.Upsert(record)
+	}
 }
