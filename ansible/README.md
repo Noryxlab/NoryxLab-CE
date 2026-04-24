@@ -10,6 +10,12 @@ Bootstrap one CE demo host with:
 - longhorn CSI
 - baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-back`, `noryx-frontend`)
 
+The `common` role also installs operator tooling on target node:
+
+- `jq`
+- `rsync`
+- `git`
+
 ## Preamble
 
 External services must exist before running this playbook:
