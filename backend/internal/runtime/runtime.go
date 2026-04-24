@@ -74,6 +74,7 @@ type WorkspaceRuntimeInfo struct {
 	PodName     string `json:"podName"`
 	ServiceName string `json:"serviceName"`
 	Image       string `json:"image"`
+	AccessToken string `json:"accessToken"`
 }
 
 type WorkspaceDiscovery interface {

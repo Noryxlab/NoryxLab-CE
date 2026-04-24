@@ -77,8 +77,11 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 		}
 
 		_, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
-		if err != nil || found {
+		if err != nil {
 			continue
+		}
+		if found {
+			_ = h.workspaceStore.Delete(item.WorkspaceID)
 		}
 		record := workspace.Workspace{
 			ID:         item.WorkspaceID,
@@ -92,6 +95,7 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 			Memory:     h.workspaceMemory,
 			Status:     "running",
 			AccessURL:  fmt.Sprintf("/workspaces/%s/tree", item.WorkspaceID),
+			AccessToken: item.AccessToken,
 			CreatedAt:  time.Now().UTC(),
 		}
 		_ = h.workspaceStore.Create(record)
