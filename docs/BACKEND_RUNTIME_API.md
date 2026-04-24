@@ -37,6 +37,13 @@ Compatibility fallback:
 
 - If no bearer token is provided, API still accepts `X-Noryx-User` header (temporary bootstrap mode).
 
+Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
+
+- preferred: bearer or `noryx_session` + project RBAC (`editor|admin`)
+- compatibility fallback: `?token=<workspace-access-token>` on workspace URL
+- when URL token is valid, backend writes `noryx_ws_token_<workspaceID>` (HTTP-only, secure, path-scoped)
+- follow-up Jupyter static/API calls can authenticate via this workspace cookie
+
 ## RBAC model
 
 - project creator is set to `admin`
@@ -51,7 +58,9 @@ Compatibility fallback:
 - image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
-- web access auth: Keycloak bearer exchanged for secure HTTP-only session cookie
+- web access auth:
+  - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)
+  - token fallback for workspace URL continuity (`noryx_ws_token_<workspaceID>`)
 - workloads are created in `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
 - global admin is granted by realm role `noryx-admin`
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`

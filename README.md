@@ -96,6 +96,7 @@ scripts/keycloak/bootstrap-realm.sh
 
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
+Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.
 
