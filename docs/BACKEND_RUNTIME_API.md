@@ -60,7 +60,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 ## Workspace baseline (current)
 
 - kind: `jupyter`
-- image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- image: `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)
 - `POST /api/v1/workspaces` accepts optional `storageSize` to override default PVC size per workspace
@@ -95,7 +95,7 @@ curl -sk -X POST "$BASE/api/v1/builds" \
     "gitRepository":"https://github.com/docker-library/hello-world.git",
     "gitRef":"master",
     "dockerfilePath":"Dockerfile",
-    "destinationImage":"harbor.lan/noryx-ce/hello-world:test1"
+    "destinationImage":"harbor.lan/noryx-environments/hello-world:test1"
   }'
 
 curl -sk -X POST "$BASE/api/v1/pods" \

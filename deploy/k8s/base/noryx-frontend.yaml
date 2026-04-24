@@ -378,7 +378,7 @@ data:
                       <input id="envContext" value="." />
                     </div>
                     <div class="row">
-                      <input id="envDestination" value="harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0" />
+                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0" />
                       <button id="buildEnv" class="btn warn">Build Environment</button>
                     </div>
                     <table>

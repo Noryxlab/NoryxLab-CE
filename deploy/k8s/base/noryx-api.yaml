@@ -61,7 +61,7 @@ spec:
                   name: noryx-secrets
                   key: KEYCLOAK_ADMIN_PASSWORD
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
-              value: "harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0"
+              value: "harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY

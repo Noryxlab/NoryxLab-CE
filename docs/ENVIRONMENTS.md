@@ -25,6 +25,7 @@ The environments API aggregates build history by `(projectId, destinationImage)`
 - revisions are sorted by creation time (newest first)
 - latest revision metadata is exposed directly on each environment item
 - Dockerfile content can be fetched per revision (build ID)
+- recommended registry namespace for environment images: `harbor.lan/noryx-environments/...`
 
 ## Endpoints
 
@@ -53,4 +54,3 @@ In the `Environments` tab:
   - `gitlab.com`
 - build list and status are synced from Kubernetes jobs (`app.kubernetes.io/name=noryx-build`)
 - runtime namespace for jobs: `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
-

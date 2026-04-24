@@ -8,10 +8,10 @@ Base image for Noryx workspaces:
 
 Target image:
 
-- `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
 
 Build with Noryx API (`/api/v1/builds`) using:
 
 - `dockerfilePath`: `environments/jupyter-debian/Dockerfile`
 - `contextPath`: `` (empty)
-- `destinationImage`: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- `destinationImage`: `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`

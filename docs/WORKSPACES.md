@@ -34,7 +34,7 @@ Create payload:
 
 Default workspace image:
 
-- `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
 
 Configurable with env var:
 
@@ -53,7 +53,7 @@ Dockerfile path in this repo:
 Use `POST /api/v1/builds` with:
 
 - `dockerfilePath`: `environments/jupyter-debian/Dockerfile`
-- `destinationImage`: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
+- `destinationImage`: `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
 
 ## Notes
 
