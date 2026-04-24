@@ -67,3 +67,15 @@ type Inspector interface {
 type WorkspaceReadiness interface {
 	IsServiceReady(serviceName string) (bool, error)
 }
+
+type WorkspaceRuntimeInfo struct {
+	WorkspaceID string `json:"workspaceId"`
+	ProjectID   string `json:"projectId"`
+	PodName     string `json:"podName"`
+	ServiceName string `json:"serviceName"`
+	Image       string `json:"image"`
+}
+
+type WorkspaceDiscovery interface {
+	ListWorkspaces() ([]WorkspaceRuntimeInfo, error)
+}
