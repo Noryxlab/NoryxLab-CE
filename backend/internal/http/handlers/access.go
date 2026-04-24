@@ -68,6 +68,47 @@ func (h Handlers) requireUserIDFromSessionOrBearer(w http.ResponseWriter, r *htt
 	return userID, true
 }
 
+func (h Handlers) userIDFromSessionOrBearerNoWrite(r *http.Request) (string, bool) {
+	token := strings.TrimSpace(r.Header.Get(authHeader))
+	token = strings.TrimPrefix(token, "Bearer ")
+	token = strings.TrimSpace(token)
+	if token != "" {
+		if h.authVerifier == nil {
+			return "", false
+		}
+		identity, err := h.authVerifier.VerifyBearerToken(token)
+		if err != nil {
+			return "", false
+		}
+		userID := strings.TrimSpace(identity.UserID())
+		if userID == "" {
+			return "", false
+		}
+		return userID, true
+	}
+
+	if h.sessionStore == nil {
+		return "", false
+	}
+	cookie, err := r.Cookie(sessionCookie)
+	if err != nil || strings.TrimSpace(cookie.Value) == "" {
+		return "", false
+	}
+	item, ok, err := h.sessionStore.Get(strings.TrimSpace(cookie.Value))
+	if err != nil || !ok {
+		return "", false
+	}
+	if time.Now().UTC().After(item.ExpiresAt) {
+		_ = h.sessionStore.Delete(item.Token)
+		return "", false
+	}
+	userID := strings.TrimSpace(item.Identity)
+	if userID == "" {
+		return "", false
+	}
+	return userID, true
+}
+
 func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
 	token := strings.TrimSpace(r.Header.Get(authHeader))
 	token = strings.TrimPrefix(token, "Bearer ")
