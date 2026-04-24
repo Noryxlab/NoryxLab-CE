@@ -1,0 +1,2 @@
+# source_image target_image
+harbor.example.local/noryx-ce/noryx-workspace-jupyter:0.1.0 harbor.example.local/noryx-environments/noryx-workspace-jupyter:0.1.0

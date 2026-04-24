@@ -87,7 +87,7 @@ func Load() Config {
 
 	workspaceJupyterImage := os.Getenv("NORYX_WORKSPACE_JUPYTER_IMAGE")
 	if workspaceJupyterImage == "" {
-		workspaceJupyterImage = "harbor.example.local/noryx-ce/noryx-workspace-jupyter:0.1.0"
+		workspaceJupyterImage = "harbor.example.local/noryx-environments/noryx-workspace-jupyter:0.1.0"
 	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {

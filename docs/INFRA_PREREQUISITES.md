@@ -24,6 +24,7 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
 - hostname/IP reachable from k3s node
 - Harbor registry installed and running
 - project created: `noryx-ce` (private recommended)
+- project created: `noryx-environments` (private recommended)
 - robot account with `repository:pull` and `repository:push`
 - tooling baseline: `jq`, `rsync`, `python3`
 - mirrored essential images available in project:
@@ -32,6 +33,8 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
   - `postgres`
   - `keycloak`
   - `minio`
+- mirrored environment base images available in project `noryx-environments`:
+  - `noryx-workspace-jupyter`
 
 ### Dockerbuild VM
 
@@ -54,6 +57,9 @@ These scripts install required tooling for automation/debug:
 - `jq` for JSON/API inspection
 - `rsync` for fast repo sync to build hosts
 - `python3` for lightweight operational scripts
+- run sync for both catalogs:
+  - `./scripts/ops/sync-images-to-harbor.sh`
+  - `CATALOG_FILE=deploy/images/environments-images.txt ./scripts/ops/sync-images-to-harbor.sh`
 
 ## Kubernetes node alignment
 

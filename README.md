@@ -17,6 +17,11 @@ Control-plane images expected in Harbor project `noryx-ce`:
 - `keycloak:24.0`
 - `minio:RELEASE.2025-02-18T16-25-55Z`
 
+Environment/workload images expected in Harbor project `noryx-environments`:
+
+- `noryx-workspace-jupyter:<tag>`
+- user-built environment images (via `POST /api/v1/builds`)
+
 Details: `docs/INFRA_PREREQUISITES.md`.
 
 ## V1 bootstrap scope
@@ -110,7 +115,10 @@ Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
-Image mirroring: `deploy/images/essential-images.txt` + `scripts/ops/sync-images-to-harbor.sh`.
+Image mirroring:
+- control-plane catalog: `deploy/images/essential-images.txt`
+- environments catalog: `deploy/images/environments-images.txt`
+- sync script: `scripts/ops/sync-images-to-harbor.sh`
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.
 
