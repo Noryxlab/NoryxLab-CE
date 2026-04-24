@@ -363,6 +363,7 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			Spec struct {
 				Containers []struct {
 					Image string `json:"image"`
+					Args  []string `json:"args"`
 				} `json:"containers"`
 			} `json:"spec"`
 		} `json:"items"`
@@ -379,8 +380,15 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			continue
 		}
 		image := ""
+		accessToken := ""
 		if len(item.Spec.Containers) > 0 {
 			image = strings.TrimSpace(item.Spec.Containers[0].Image)
+			for _, arg := range item.Spec.Containers[0].Args {
+				if strings.HasPrefix(arg, "--ServerApp.token=") {
+					accessToken = strings.TrimPrefix(arg, "--ServerApp.token=")
+					break
+				}
+			}
 		}
 		podName := strings.TrimSpace(item.Metadata.Name)
 		if podName == "" {
@@ -392,6 +400,7 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			PodName:     podName,
 			ServiceName: podName,
 			Image:       image,
+			AccessToken: strings.TrimSpace(accessToken),
 		})
 	}
 
