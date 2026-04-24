@@ -19,8 +19,7 @@ Control-plane images expected in Harbor project `noryx-ce`:
 
 Environment/workload images expected in Harbor project `noryx-environments`:
 
-- `noryx-workspace-jupyter:<tag>`
-- `noryx-workspace-vscode:<tag>`
+- `noryx-python:<tag>`
 - user-built environment images (via `POST /api/v1/builds`)
 
 Details: `docs/INFRA_PREREQUISITES.md`.
