@@ -83,21 +83,26 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 		if found {
 			_ = h.workspaceStore.Delete(item.WorkspaceID)
 		}
-		record := workspace.Workspace{
-			ID:         item.WorkspaceID,
-			ProjectID:  item.ProjectID,
-			Kind:       "jupyter",
-			Name:       item.PodName,
-			Image:      item.Image,
+			accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", item.WorkspaceID)
+			if strings.TrimSpace(item.AccessToken) != "" {
+				accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", item.WorkspaceID, item.AccessToken)
+			}
+
+			record := workspace.Workspace{
+				ID:         item.WorkspaceID,
+				ProjectID:  item.ProjectID,
+				Kind:       "jupyter",
+				Name:       item.PodName,
+				Image:      item.Image,
 			PodName:    item.PodName,
 			ServiceName: item.ServiceName,
 			CPU:        h.workspaceCPU,
 			Memory:     h.workspaceMemory,
 			Status:     "running",
-			AccessURL:  fmt.Sprintf("/workspaces/%s/tree", item.WorkspaceID),
-			AccessToken: item.AccessToken,
-			CreatedAt:  time.Now().UTC(),
-		}
+				AccessURL:  accessURL,
+				AccessToken: item.AccessToken,
+				CreatedAt:  time.Now().UTC(),
+			}
 		_ = h.workspaceStore.Create(record)
 	}
 }
@@ -191,7 +196,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"",
 		accessToken,
 	)
-	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab", record.ID)
+	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", record.ID, accessToken)
 
 	if h.runtime != nil {
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
