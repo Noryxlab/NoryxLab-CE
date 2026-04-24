@@ -200,7 +200,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	podName := "ws-" + shortID()
+	podName := "wks-" + shortID()
 	serviceName := podName
 	pvcName := podName
 	accessToken := shortID() + shortID()

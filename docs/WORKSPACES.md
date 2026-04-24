@@ -8,6 +8,7 @@ Current CE baseline for workspaces:
 - volume: one PVC per workspace (Longhorn by default)
 - resources: request=limit `500m` CPU, `512Mi` memory
 - workload namespace: `noryx-loads` (via `NORYX_WORKLOAD_NAMESPACE`)
+- generated runtime pod name prefix: `wks-`
 
 ## API
 
