@@ -23,9 +23,12 @@ Create payload:
 ```json
 {
   "projectId": "<project-id>",
-  "name": "jupyter-demo"
+  "name": "jupyter-demo",
+  "storageSize": "20Gi"
 }
 ```
+
+`storageSize` is optional. If omitted, backend uses `NORYX_WORKSPACE_PVC_SIZE` (`10Gi` by default).
 
 ## Image used
 

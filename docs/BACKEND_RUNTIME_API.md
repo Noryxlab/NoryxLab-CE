@@ -63,6 +63,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)
+- `POST /api/v1/workspaces` accepts optional `storageSize` to override default PVC size per workspace
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
 - web access auth:
   - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)

@@ -341,9 +341,10 @@ data:
                 <div class="grid">
                   <article class="card span-7">
                     <h3>Workspace Launcher</h3>
-                    <div class="hint">Jupyter only, fixed profile: 500m CPU / 512Mi RAM.</div>
+                    <div class="hint">Jupyter only, fixed profile: 500m CPU / 512Mi RAM. Storage default: 10Gi.</div>
                     <div class="row">
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
+                      <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
                       <button id="createWorkspace" class="btn primary">Launch Jupyter Workspace</button>
                       <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
                     </div>
@@ -458,6 +459,7 @@ data:
           const projectRows = document.getElementById('projectRows');
 
           const workspaceNameInput = document.getElementById('workspaceName');
+          const workspaceStorageSizeInput = document.getElementById('workspaceStorageSize');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
           const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
           const workspaceRows = document.getElementById('workspaceRows');
@@ -493,7 +495,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.19';
+          const FRONT_VERSION = 'ce-web-0.6.20';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -852,6 +854,8 @@ data:
               const payload = { projectId };
               const name = workspaceNameInput.value.trim();
               if (name) payload.name = name;
+              const storageSize = workspaceStorageSizeInput.value.trim();
+              if (storageSize) payload.storageSize = storageSize;
               const created = await callJSON('/api/v1/workspaces', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
