@@ -40,7 +40,7 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: noryx-back
+  name: noryx-backend
   namespace: noryx-ce
 spec:
   entryPoints:
@@ -58,7 +58,7 @@ spec:
       middlewares:
         - name: noryx-security-headers
       services:
-        - name: noryx-back
+        - name: noryx-backend
           port: 8080
     - match: Host(`datalab.noryxlab.ai`) && PathPrefix(`/`)
       kind: Rule
