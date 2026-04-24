@@ -1,0 +1,4 @@
+# source_image target_image
+postgres:16 harbor.lan/noryx-ce/postgres:16
+quay.io/keycloak/keycloak:24.0 harbor.lan/noryx-ce/keycloak:24.0
+minio/minio:RELEASE.2025-02-18T16-25-55Z harbor.lan/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z

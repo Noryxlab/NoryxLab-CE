@@ -25,9 +25,11 @@ spec:
       labels:
         app: minio
     spec:
+      imagePullSecrets:
+        - name: harbor-regcred
       containers:
         - name: minio
-          image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+          image: harbor.lan/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z
           args: ["server", "/data", "--console-address", ":9001"]
           ports:
             - containerPort: 9000

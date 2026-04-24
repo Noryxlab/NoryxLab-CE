@@ -26,6 +26,12 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
 - project created: `noryx-ce` (private recommended)
 - robot account with `repository:pull` and `repository:push`
 - tooling baseline: `jq`, `rsync`, `python3`
+- mirrored essential images available in project:
+  - `noryx-backend`
+  - `noryx-frontend`
+  - `postgres`
+  - `keycloak`
+  - `minio`
 
 ### Dockerbuild VM
 
@@ -41,6 +47,7 @@ Use provided scripts on each VM:
 
 - `scripts/vm/install-harbor-vm.sh`
 - `scripts/vm/install-dockerbuild-vm.sh`
+- `scripts/ops/sync-images-to-harbor.sh` (run from dockerbuild after `docker login harbor.lan`)
 
 These scripts install required tooling for automation/debug:
 
