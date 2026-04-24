@@ -8,7 +8,7 @@ Bootstrap one CE demo host with:
 - k3s
 - helm
 - longhorn CSI
-- baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-api`)
+- baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-back`, `noryx-frontend`)
 
 ## Preamble
 

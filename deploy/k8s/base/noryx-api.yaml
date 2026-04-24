@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-back
-          image: harbor.lan/noryx-ce/noryx-api:0.5.21-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.22-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

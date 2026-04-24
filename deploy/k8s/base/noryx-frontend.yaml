@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: noryx-front
+  name: noryx-frontend
   namespace: noryx-ce
   labels:
-    app: noryx-front
+    app: noryx-frontend
 data:
   index.html: |
     <!doctype html>
@@ -495,7 +495,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.20';
+          const FRONT_VERSION = 'ce-web-0.6.21';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -1021,21 +1021,23 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noryx-front
+  name: noryx-frontend
   namespace: noryx-ce
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: noryx-front
+      app: noryx-frontend
   template:
     metadata:
       labels:
-        app: noryx-front
+        app: noryx-frontend
     spec:
+      imagePullSecrets:
+        - name: harbor-regcred
       containers:
-        - name: noryx-front
-          image: nginx:1.27-alpine
+        - name: noryx-frontend
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.21
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
@@ -1046,16 +1048,16 @@ spec:
       volumes:
         - name: front-content
           configMap:
-            name: noryx-front
+            name: noryx-frontend
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: noryx-front
+  name: noryx-frontend
   namespace: noryx-ce
 spec:
   selector:
-    app: noryx-front
+    app: noryx-frontend
   ports:
     - port: 80
       targetPort: 80
