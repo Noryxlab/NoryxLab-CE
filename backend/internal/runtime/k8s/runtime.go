@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -344,6 +345,57 @@ func (r *Runtime) IsServiceReady(serviceName string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) {
+	selector := url.QueryEscape("app.kubernetes.io/name=noryx-workspace")
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name   string            `json:"name"`
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+			Spec struct {
+				Containers []struct {
+					Image string `json:"image"`
+				} `json:"containers"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	out := make([]noryxruntime.WorkspaceRuntimeInfo, 0, len(response.Items))
+	for _, item := range response.Items {
+		workspaceID := strings.TrimSpace(item.Metadata.Labels["noryx.io/workspace-id"])
+		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
+		if workspaceID == "" || projectID == "" {
+			continue
+		}
+		image := ""
+		if len(item.Spec.Containers) > 0 {
+			image = strings.TrimSpace(item.Spec.Containers[0].Image)
+		}
+		podName := strings.TrimSpace(item.Metadata.Name)
+		if podName == "" {
+			continue
+		}
+		out = append(out, noryxruntime.WorkspaceRuntimeInfo{
+			WorkspaceID: workspaceID,
+			ProjectID:   projectID,
+			PodName:     podName,
+			ServiceName: podName,
+			Image:       image,
+		})
+	}
+
+	return out, nil
 }
 
 func (r *Runtime) post(path string, payload any) ([]byte, error) {

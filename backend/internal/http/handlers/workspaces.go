@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
@@ -21,6 +22,10 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
+	// Keep API/UI idempotent after back restarts: rebuild missing workspace records
+	// from running Kubernetes pods labeled as noryx workspaces.
+	h.syncWorkspacesFromRuntime()
 
 	items, err := h.workspaceStore.List()
 	if err != nil {
@@ -48,6 +53,41 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
+}
+
+func (h Handlers) syncWorkspacesFromRuntime() {
+	discovery, ok := h.runtime.(noryxruntime.WorkspaceDiscovery)
+	if !ok {
+		return
+	}
+	runtimeItems, err := discovery.ListWorkspaces()
+	if err != nil {
+		return
+	}
+	for _, item := range runtimeItems {
+		if strings.TrimSpace(item.WorkspaceID) == "" || strings.TrimSpace(item.ProjectID) == "" {
+			continue
+		}
+		_, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
+		if err != nil || found {
+			continue
+		}
+		record := workspace.Workspace{
+			ID:         item.WorkspaceID,
+			ProjectID:  item.ProjectID,
+			Kind:       "jupyter",
+			Name:       item.PodName,
+			Image:      item.Image,
+			PodName:    item.PodName,
+			ServiceName: item.ServiceName,
+			CPU:        h.workspaceCPU,
+			Memory:     h.workspaceMemory,
+			Status:     "running",
+			AccessURL:  fmt.Sprintf("/workspaces/%s/tree", item.WorkspaceID),
+			CreatedAt:  time.Now().UTC(),
+		}
+		_ = h.workspaceStore.Create(record)
+	}
 }
 
 func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
