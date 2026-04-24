@@ -19,6 +19,10 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Reconcile runtime workspaces first so recovered project IDs are visible
+	// before the UI applies project-based filtering.
+	h.syncWorkspacesFromRuntime(userID)
+
 	items, err := h.listProjectsForUser(userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list projects"})
