@@ -77,6 +77,7 @@ Runtime mode in cluster:
 - control-plane namespace: `NORYX_KUBE_NAMESPACE` (default `noryx-ce`)
 - workload namespace: `NORYX_WORKLOAD_NAMESPACE` (default = control namespace; current manifest sets `noryx-loads`)
 - API service account can create/delete `pods`, `services`, and `jobs`
+- API service account can create/delete `persistentvolumeclaims` for workspace volumes
 - registry credentials are read from secret name `harbor-regcred`
 - OIDC issuer (current deployment): `https://datalab.noryxlab.ai/auth/realms/noryx`
 - OIDC JWKS (current deployment): `http://keycloak:8080/auth/realms/noryx/protocol/openid-connect/certs`
@@ -84,6 +85,7 @@ Runtime mode in cluster:
 - ingress policy: `web` (80) redirects to HTTPS and `websecure` (443) is mandatory for user traffic
 - security headers: HSTS enabled on `datalab.noryxlab.ai` (`max-age=31536000`, `includeSubDomains`, `preload`)
 - DNS policy: wildcard records are not required. Noryx CE routes everything through one hostname (`datalab.noryxlab.ai`) with path-based routing (`/auth`, `/api`, `/swagger`, `/workspaces`).
+- Longhorn CSI is installed by Ansible bootstrap and used for workspace PVCs (`NORYX_WORKSPACE_PVC_STORAGE_CLASS=longhorn`).
 
 Important for split namespaces:
 

@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-back
-          image: harbor.lan/noryx-ce/noryx-api:0.5.20-dev
+          image: harbor.lan/noryx-ce/noryx-api:0.5.21-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -66,6 +66,14 @@ spec:
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY
               value: "512Mi"
+            - name: NORYX_WORKSPACE_PVC_ENABLED
+              value: "true"
+            - name: NORYX_WORKSPACE_PVC_STORAGE_CLASS
+              value: "longhorn"
+            - name: NORYX_WORKSPACE_PVC_SIZE
+              value: "10Gi"
+            - name: NORYX_WORKSPACE_PVC_MOUNT_PATH
+              value: "/workspace"
 ---
 apiVersion: v1
 kind: Service

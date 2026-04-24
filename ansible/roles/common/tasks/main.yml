@@ -7,5 +7,7 @@
       - gnupg
       - apt-transport-https
       - python3-pip
+      - open-iscsi
+      - nfs-common
     state: present
     update_cache: true

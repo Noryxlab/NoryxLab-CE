@@ -6,6 +6,7 @@ This module adds:
 - environment catalog from build revisions
 - pod launch submission (`Pod`)
 - workspace launch submission (Jupyter `Pod` + `Service`)
+- workspace volume lifecycle (PVC per workspace)
 - project-scoped RBAC checks at API level
 - OIDC authentication with Keycloak bearer tokens
 - Swagger UI + OpenAPI spec
@@ -61,6 +62,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - kind: `jupyter`
 - image: `harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
+- volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
 - web access auth:
   - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)

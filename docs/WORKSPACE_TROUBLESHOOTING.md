@@ -14,16 +14,23 @@ curl -sk https://datalab.noryxlab.ai/swagger/openapi.yaml | rg "^\\s*version:"
 
 Expected for current fix line:
 
-- front `ce-web-0.6.17+`
-- back `0.5.19+`
+- front `ce-web-0.6.19+`
+- back `0.5.21+`
 
 ## 2) Check workspace is running
 
 ```bash
 ssh noryxlab-master 'KUBECONFIG=/home/stef/.kube/config kubectl -n noryx-loads get pods,svc -o wide'
+ssh noryxlab-master 'KUBECONFIG=/home/stef/.kube/config kubectl -n noryx-loads get pvc -o wide'
 ```
 
-If pod/service are missing, open will fail regardless of UI state.
+If pod/service/PVC are missing, open will fail regardless of UI state.
+
+Longhorn health check:
+
+```bash
+ssh noryxlab-master 'KUBECONFIG=/home/stef/.kube/config kubectl -n longhorn-system get pods'
+```
 
 ## 3) Validate Jupyter HTML from workspace URL
 

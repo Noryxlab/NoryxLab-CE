@@ -7,6 +7,7 @@ Bootstrap one CE demo host with:
 - base OS packages
 - k3s
 - helm
+- longhorn CSI
 - baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-api`)
 
 ## Preamble
@@ -65,3 +66,6 @@ ssh -i ~/.ssh/id_ed25519_noryxops noryxops@192.168.1.140 'sudo -n true && echo o
   - `harbor_registry_host`
   - `harbor_registry_ip`
   - `harbor_registry_insecure_skip_verify`
+- Longhorn variables are in `clients/demo.yaml`:
+  - `longhorn_chart_version` (empty = latest chart)
+  - `longhorn_default_replica_count` (`1` for single-node lab)

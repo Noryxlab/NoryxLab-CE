@@ -78,6 +78,14 @@ kubectl apply -k deploy/k8s/base
 kubectl -n noryx-ce get pods
 ```
 
+Longhorn is installed by Ansible bootstrap (`role: longhorn`).
+Validation:
+
+```bash
+kubectl -n longhorn-system get pods
+kubectl get sc longhorn
+```
+
 ## Enable TLS for datalab.noryxlab.ai
 
 Apply Traefik ACME config:

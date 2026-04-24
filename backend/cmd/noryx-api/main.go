@@ -77,6 +77,10 @@ func main() {
 			WorkspaceNamespace:    cfg.WorkloadNamespace,
 			WorkspaceCPU:          cfg.WorkspaceCPU,
 			WorkspaceMemory:       cfg.WorkspaceMemory,
+			WorkspacePVCEnabled:   cfg.WorkspacePVCEnabled,
+			WorkspacePVCClass:     cfg.WorkspacePVCClass,
+			WorkspacePVCSize:      cfg.WorkspacePVCSize,
+			WorkspacePVCMountPath: cfg.WorkspacePVCMountPath,
 		},
 	)
 

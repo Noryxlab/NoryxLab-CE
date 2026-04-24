@@ -83,26 +83,30 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 		if found {
 			_ = h.workspaceStore.Delete(item.WorkspaceID)
 		}
-			accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", item.WorkspaceID)
-			if strings.TrimSpace(item.AccessToken) != "" {
-				accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", item.WorkspaceID, item.AccessToken)
-			}
+		accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", item.WorkspaceID)
+		if strings.TrimSpace(item.AccessToken) != "" {
+			accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", item.WorkspaceID, item.AccessToken)
+		}
 
-			record := workspace.Workspace{
-				ID:         item.WorkspaceID,
-				ProjectID:  item.ProjectID,
-				Kind:       "jupyter",
-				Name:       item.PodName,
-				Image:      item.Image,
+		record := workspace.Workspace{
+			ID:          item.WorkspaceID,
+			ProjectID:   item.ProjectID,
+			Kind:        "jupyter",
+			Name:        item.PodName,
+			Image:       item.Image,
 			PodName:    item.PodName,
 			ServiceName: item.ServiceName,
-			CPU:        h.workspaceCPU,
-			Memory:     h.workspaceMemory,
-			Status:     "running",
-				AccessURL:  accessURL,
+			PVCName:     item.PodName,
+			PVCClass:    h.workspacePVCClass,
+			PVCSize:     h.workspacePVCSize,
+			PVCMountPath: h.workspacePVCMountPath,
+			CPU:         h.workspaceCPU,
+			Memory:      h.workspaceMemory,
+			Status:      "running",
+			AccessURL:   accessURL,
 				AccessToken: item.AccessToken,
-				CreatedAt:  time.Now().UTC(),
-			}
+			CreatedAt:   time.Now().UTC(),
+		}
 		_ = h.workspaceStore.Create(record)
 	}
 }
@@ -183,6 +187,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	podName := "ws-" + shortID()
 	serviceName := podName
+	pvcName := podName
 	accessToken := shortID() + shortID()
 
 	record := workspace.NewJupyter(
@@ -197,29 +202,60 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		accessToken,
 	)
 	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", record.ID, accessToken)
+	record.PVCName = pvcName
+	record.PVCClass = h.workspacePVCClass
+	record.PVCSize = h.workspacePVCSize
+	record.PVCMountPath = h.workspacePVCMountPath
 
 	if h.runtime != nil {
+		if h.workspacePVCEnabled {
+			err = h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
+				Name:             pvcName,
+				StorageClassName: h.workspacePVCClass,
+				Size:             h.workspacePVCSize,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workspace-volume",
+					"noryx.io/project-id":    req.ProjectID,
+					"noryx.io/workspace-id":  record.ID,
+					"noryx.io/workspace-pod": podName,
+				},
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pvc create failed: " + err.Error()})
+				return
+			}
+		}
+
+		volumes := []noryxruntime.PersistentVolumeClaimMount{}
+		if h.workspacePVCEnabled {
+			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
+				ClaimName: pvcName,
+				MountPath: h.workspacePVCMountPath,
+			})
+		}
+
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
 			PodName: podName,
 			Image:   h.workspaceJupyterImage,
 			Command: []string{"python3", "-m", "jupyterlab"},
-				Args: []string{
-					"--ip=0.0.0.0",
-					"--port=8888",
-					"--no-browser",
-					"--allow-root",
-					"--ServerApp.allow_remote_access=True",
-					"--ServerApp.trust_xheaders=True",
-					"--ServerApp.base_url=/workspaces/" + record.ID + "/",
-					"--ServerApp.token=" + accessToken,
-					"--ServerApp.password=",
-				},
+			Args: []string{
+				"--ip=0.0.0.0",
+				"--port=8888",
+				"--no-browser",
+				"--allow-root",
+				"--ServerApp.allow_remote_access=True",
+				"--ServerApp.trust_xheaders=True",
+				"--ServerApp.base_url=/workspaces/" + record.ID + "/",
+				"--ServerApp.token=" + accessToken,
+				"--ServerApp.password=",
+			},
 			Ports:      []int{8888},
 			CPURequest: h.workspaceCPU,
 			CPULimit:   h.workspaceCPU,
 			MemRequest: h.workspaceMemory,
 			MemLimit:   h.workspaceMemory,
 			PullSecret: h.registryPullSecret,
+			Volumes:    volumes,
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "noryx-workspace",
 				"noryx.io/project-id":    req.ProjectID,
@@ -228,6 +264,9 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
+			if h.workspacePVCEnabled {
+				_ = h.runtime.DeletePersistentVolumeClaim(pvcName)
+			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod launch failed: " + err.Error()})
 			return
 		}
@@ -240,6 +279,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			Port: 8888,
 		})
 		if err != nil {
+			_ = h.runtime.DeletePod(podName)
+			if h.workspacePVCEnabled {
+				_ = h.runtime.DeletePersistentVolumeClaim(pvcName)
+			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service creation failed: " + err.Error()})
 			return
 		}
@@ -305,6 +348,18 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		if err := h.runtime.DeletePod(record.PodName); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
 			return
+		}
+		if h.workspacePVCEnabled {
+			pvcName := strings.TrimSpace(record.PVCName)
+			if pvcName == "" {
+				pvcName = strings.TrimSpace(record.PodName)
+			}
+			if pvcName != "" {
+				if err := h.runtime.DeletePersistentVolumeClaim(pvcName); err != nil {
+					writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pvc delete failed: " + err.Error()})
+					return
+				}
+			}
 		}
 	}
 

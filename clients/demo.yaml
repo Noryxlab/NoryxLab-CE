@@ -12,6 +12,9 @@ harbor_registry_host: harbor.lan
 harbor_registry_ip: 192.168.1.106
 harbor_registry_insecure_skip_verify: true
 
+longhorn_chart_version: ""
+longhorn_default_replica_count: 1
+
 # Change before production use
 postgres_password: change-me
 keycloak_admin_password: change-me

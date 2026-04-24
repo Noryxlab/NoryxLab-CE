@@ -23,6 +23,10 @@ type Config struct {
 	WorkspaceJupyterImage string
 	WorkspaceCPU          string
 	WorkspaceMemory       string
+	WorkspacePVCEnabled   bool
+	WorkspacePVCClass     string
+	WorkspacePVCSize      string
+	WorkspacePVCMountPath string
 }
 
 func Load() Config {
@@ -93,6 +97,22 @@ func Load() Config {
 	if workspaceMemory == "" {
 		workspaceMemory = "512Mi"
 	}
+	workspacePVCEnabled := os.Getenv("NORYX_WORKSPACE_PVC_ENABLED")
+	if workspacePVCEnabled == "" {
+		workspacePVCEnabled = "true"
+	}
+	workspacePVCClass := os.Getenv("NORYX_WORKSPACE_PVC_STORAGE_CLASS")
+	if workspacePVCClass == "" {
+		workspacePVCClass = "longhorn"
+	}
+	workspacePVCSize := os.Getenv("NORYX_WORKSPACE_PVC_SIZE")
+	if workspacePVCSize == "" {
+		workspacePVCSize = "10Gi"
+	}
+	workspacePVCMountPath := os.Getenv("NORYX_WORKSPACE_PVC_MOUNT_PATH")
+	if workspacePVCMountPath == "" {
+		workspacePVCMountPath = "/workspace"
+	}
 
 	return Config{
 		ListenAddr:            listenAddr,
@@ -115,5 +135,9 @@ func Load() Config {
 		WorkspaceJupyterImage: workspaceJupyterImage,
 		WorkspaceCPU:          workspaceCPU,
 		WorkspaceMemory:       workspaceMemory,
+		WorkspacePVCEnabled:   workspacePVCEnabled == "true",
+		WorkspacePVCClass:     workspacePVCClass,
+		WorkspacePVCSize:      workspacePVCSize,
+		WorkspacePVCMountPath: workspacePVCMountPath,
 	}
 }

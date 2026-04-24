@@ -5,6 +5,7 @@ Current CE baseline for workspaces:
 - kind: `jupyter`
 - runtime: one Kubernetes pod per workspace
 - service: one ClusterIP service per workspace (port `8888`)
+- volume: one PVC per workspace (Longhorn by default)
 - resources: request=limit `500m` CPU, `512Mi` memory
 - workload namespace: `noryx-loads` (via `NORYX_WORKLOAD_NAMESPACE`)
 
@@ -35,6 +36,10 @@ Default workspace image:
 Configurable with env var:
 
 - `NORYX_WORKSPACE_JUPYTER_IMAGE`
+- `NORYX_WORKSPACE_PVC_ENABLED` (`true` by default)
+- `NORYX_WORKSPACE_PVC_STORAGE_CLASS` (`longhorn` by default)
+- `NORYX_WORKSPACE_PVC_SIZE` (`10Gi` by default)
+- `NORYX_WORKSPACE_PVC_MOUNT_PATH` (`/workspace` by default)
 
 ## Build the base image with Noryx
 
@@ -57,6 +62,7 @@ Use `POST /api/v1/builds` with:
 - workspace URL returned by API points to `/workspaces/<workspaceID>/lab`
 - wildcard DNS is not required: workspace traffic stays on `https://datalab.noryxlab.ai/workspaces/<workspaceID>/...`
 - `harbor-regcred` must exist in workload namespace for image pull
+- Longhorn must be installed and healthy for workspace creation when PVC is enabled
 - metadata stores are currently in-memory (restart resets records)
 
 ## Workspace Open Flow (UI)
