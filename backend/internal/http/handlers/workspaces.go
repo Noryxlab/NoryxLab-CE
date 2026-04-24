@@ -17,6 +17,7 @@ import (
 type createWorkspaceRequest struct {
 	ProjectID   string `json:"projectId"`
 	Name        string `json:"name"`
+	IDE         string `json:"ide"`
 	StorageSize string `json:"storageSize"`
 }
 
@@ -29,6 +30,10 @@ var (
 		"m":  "M",
 		"g":  "G",
 		"t":  "T",
+	}
+	allowedWorkspaceIDEs = map[string]bool{
+		"jupyter": true,
+		"vscode":  true,
 	}
 )
 
@@ -90,39 +95,73 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 			h.accessStore.SetRole(item.ProjectID, userID, access.RoleAdmin)
 		}
 
-		_, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
+		existingRecord, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
 		if err != nil {
 			continue
 		}
+
+		if strings.TrimSpace(item.Kind) == "" && found {
+			item.Kind = existingRecord.Kind
+		}
+		if strings.TrimSpace(item.AccessToken) == "" && found {
+			item.AccessToken = existingRecord.AccessToken
+		}
+
+		recordName := item.PodName
+		if found && strings.TrimSpace(existingRecord.Name) != "" {
+			recordName = existingRecord.Name
+		}
+
 		if found {
 			_ = h.workspaceStore.Delete(item.WorkspaceID)
 		}
-		accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", item.WorkspaceID)
-		if strings.TrimSpace(item.AccessToken) != "" {
-			accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", item.WorkspaceID, item.AccessToken)
-		}
+		kind := normalizeWorkspaceKind(item.Kind)
+		accessURL := workspaceAccessURL(kind, item.WorkspaceID, item.AccessToken)
 
 		record := workspace.Workspace{
-			ID:          item.WorkspaceID,
-			ProjectID:   item.ProjectID,
-			Kind:        "jupyter",
-			Name:        item.PodName,
-			Image:       item.Image,
-			PodName:    item.PodName,
-			ServiceName: item.ServiceName,
-			PVCName:     item.PodName,
-			PVCClass:    h.workspacePVCClass,
-			PVCSize:     h.workspacePVCSize,
+			ID:           item.WorkspaceID,
+			ProjectID:    item.ProjectID,
+			Kind:         kind,
+			Name:         recordName,
+			Image:        item.Image,
+			PodName:      item.PodName,
+			ServiceName:  item.ServiceName,
+			PVCName:      item.PodName,
+			PVCClass:     h.workspacePVCClass,
+			PVCSize:      h.workspacePVCSize,
 			PVCMountPath: h.workspacePVCMountPath,
-			CPU:         h.workspaceCPU,
-			Memory:      h.workspaceMemory,
-			Status:      "running",
-			AccessURL:   accessURL,
-				AccessToken: item.AccessToken,
-			CreatedAt:   time.Now().UTC(),
+			CPU:          h.workspaceCPU,
+			Memory:       h.workspaceMemory,
+			Status:       "running",
+			AccessURL:    accessURL,
+			AccessToken:  item.AccessToken,
+			CreatedAt:    time.Now().UTC(),
 		}
 		_ = h.workspaceStore.Create(record)
 	}
+}
+
+func normalizeWorkspaceKind(raw string) string {
+	kind := strings.ToLower(strings.TrimSpace(raw))
+	if allowedWorkspaceIDEs[kind] {
+		return kind
+	}
+	return "jupyter"
+}
+
+func workspaceAccessURL(kind, workspaceID, accessToken string) string {
+	if kind == "vscode" {
+		if strings.TrimSpace(accessToken) != "" {
+			return fmt.Sprintf("/workspaces/%s/?folder=/workspace&token=%s", workspaceID, accessToken)
+		}
+		return fmt.Sprintf("/workspaces/%s/?folder=/workspace", workspaceID)
+	}
+
+	accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
+	if strings.TrimSpace(accessToken) != "" {
+		accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", workspaceID, accessToken)
+	}
+	return accessURL
 }
 
 func (h Handlers) ensureProjectInStore(projectID string) {
@@ -165,12 +204,21 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
+	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
+	if rawIDE == "" {
+		req.IDE = "jupyter"
+	} else if !allowedWorkspaceIDEs[rawIDE] {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ide must be one of: jupyter, vscode"})
+		return
+	} else {
+		req.IDE = rawIDE
+	}
 	if req.ProjectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
 		return
 	}
 	if req.Name == "" {
-		req.Name = "jupyter-" + shortID()
+		req.Name = req.IDE + "-" + shortID()
 	}
 
 	exists, err := h.projectExists(req.ProjectID)
@@ -190,7 +238,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	// Idempotency baseline for V1:
 	// - if a workspace with the same name already exists in this project, reuse it
 	// - if no name is provided, reuse the first workspace already present in this project
-	existing, foundExisting, err := h.findExistingWorkspace(req.ProjectID, req.Name)
+	existing, foundExisting, err := h.findExistingWorkspace(req.ProjectID, req.Name, req.IDE)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to check existing workspaces"})
 		return
@@ -204,6 +252,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	serviceName := podName
 	pvcName := podName
 	accessToken := shortID() + shortID()
+	workspaceImage := h.workspaceJupyterImage
+	if req.IDE == "vscode" {
+		workspaceImage = h.workspaceVSCodeImage
+	}
+	workspaceCommand := []string{"python3", "-m", "jupyterlab"}
+	workspaceArgs := []string{}
 	pvcSize := h.workspacePVCSize
 	if h.workspacePVCEnabled {
 		normalizedDefaultSize, err := normalizeWorkspaceStorageSize(h.workspacePVCSize)
@@ -223,10 +277,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	record := workspace.NewJupyter(
+	record := workspace.New(
+		req.IDE,
 		req.ProjectID,
 		req.Name,
-		h.workspaceJupyterImage,
+		workspaceImage,
 		podName,
 		serviceName,
 		h.workspaceCPU,
@@ -234,7 +289,30 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"",
 		accessToken,
 	)
-	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", record.ID, accessToken)
+	record.AccessURL = workspaceAccessURL(req.IDE, record.ID, accessToken)
+	if req.IDE == "vscode" {
+		workspaceCommand = []string{"openvscode-server"}
+		workspaceArgs = []string{
+			"--host", "0.0.0.0",
+			"--port", "8888",
+			"--without-connection-token",
+			"--server-base-path", "/workspaces/" + record.ID,
+			"--default-folder", "/workspace",
+			"--telemetry-level", "off",
+		}
+	} else {
+		workspaceArgs = []string{
+			"--ip=0.0.0.0",
+			"--port=8888",
+			"--no-browser",
+			"--allow-root",
+			"--ServerApp.allow_remote_access=True",
+			"--ServerApp.trust_xheaders=True",
+			"--ServerApp.base_url=/workspaces/" + record.ID + "/",
+			"--ServerApp.token=" + accessToken,
+			"--ServerApp.password=",
+		}
+	}
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass
 	record.PVCSize = pvcSize
@@ -268,20 +346,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
-			PodName: podName,
-			Image:   h.workspaceJupyterImage,
-			Command: []string{"python3", "-m", "jupyterlab"},
-			Args: []string{
-				"--ip=0.0.0.0",
-				"--port=8888",
-				"--no-browser",
-				"--allow-root",
-				"--ServerApp.allow_remote_access=True",
-				"--ServerApp.trust_xheaders=True",
-				"--ServerApp.base_url=/workspaces/" + record.ID + "/",
-				"--ServerApp.token=" + accessToken,
-				"--ServerApp.password=",
-			},
+			PodName:    podName,
+			Image:      record.Image,
+			Command:    workspaceCommand,
+			Args:       workspaceArgs,
 			Ports:      []int{8888},
 			CPURequest: h.workspaceCPU,
 			CPULimit:   h.workspaceCPU,
@@ -290,10 +358,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			PullSecret: h.registryPullSecret,
 			Volumes:    volumes,
 			Labels: map[string]string{
-				"app.kubernetes.io/name": "noryx-workspace",
-				"noryx.io/project-id":    req.ProjectID,
-				"noryx.io/workspace-id":  record.ID,
-				"noryx.io/workspace-pod": podName,
+				"app.kubernetes.io/name":  "noryx-workspace",
+				"noryx.io/project-id":     req.ProjectID,
+				"noryx.io/workspace-id":   record.ID,
+				"noryx.io/workspace-pod":  podName,
+				"noryx.io/workspace-kind": req.IDE,
 			},
 		})
 		if err != nil {
@@ -329,7 +398,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, record)
 }
 
-func (h Handlers) findExistingWorkspace(projectID, workspaceName string) (workspace.Workspace, bool, error) {
+func (h Handlers) findExistingWorkspace(projectID, workspaceName, kind string) (workspace.Workspace, bool, error) {
 	items, err := h.workspaceStore.List()
 	if err != nil {
 		return workspace.Workspace{}, false, err
@@ -337,7 +406,10 @@ func (h Handlers) findExistingWorkspace(projectID, workspaceName string) (worksp
 
 	workspaceName = strings.TrimSpace(workspaceName)
 	for _, item := range items {
-		if item.ProjectID != projectID || item.Kind != "jupyter" {
+		if item.ProjectID != projectID {
+			continue
+		}
+		if normalizeWorkspaceKind(item.Kind) != normalizeWorkspaceKind(kind) {
 			continue
 		}
 		if workspaceName == "" || strings.EqualFold(strings.TrimSpace(item.Name), workspaceName) {

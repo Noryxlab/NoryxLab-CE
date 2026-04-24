@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.22
+  version: 0.5.25
 servers:
   - url: /
 components:
@@ -163,7 +163,7 @@ paths:
         '200':
           description: List of workspaces
     post:
-      summary: Launch a Jupyter workspace (fixed 500m/512Mi)
+      summary: Launch a workspace (jupyter or vscode, fixed 500m/512Mi)
       security:
         - bearerAuth: []
       requestBody:
@@ -176,6 +176,11 @@ paths:
               properties:
                 projectId: { type: string }
                 name: { type: string }
+                ide:
+                  type: string
+                  enum: [jupyter, vscode]
+                  description: Optional IDE type. Defaults to jupyter.
+                  example: vscode
                 storageSize:
                   type: string
                   description: Optional PVC size override for the workspace volume. Defaults to server config (10Gi by default).

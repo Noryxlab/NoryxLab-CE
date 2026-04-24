@@ -88,6 +88,7 @@ type WorkspaceReadiness interface {
 type WorkspaceRuntimeInfo struct {
 	WorkspaceID string `json:"workspaceId"`
 	ProjectID   string `json:"projectId"`
+	Kind        string `json:"kind"`
 	PodName     string `json:"podName"`
 	ServiceName string `json:"serviceName"`
 	Image       string `json:"image"`
