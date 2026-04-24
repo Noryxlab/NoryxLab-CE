@@ -5,7 +5,7 @@ Noryx CE bootstrap depends on two external VMs:
 - `harbor` VM: private container registry
 - `dockerbuild` VM: image build and push runner
 
-Without these two VMs, `noryx-api` image pull will fail in Kubernetes.
+Without these two VMs, control-plane image pulls (`noryx-backend`, `noryx-frontend`) will fail in Kubernetes.
 
 ## In-cluster storage baseline
 

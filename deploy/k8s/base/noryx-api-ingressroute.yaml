@@ -34,7 +34,7 @@ spec:
       middlewares:
         - name: noryx-https-redirect
       services:
-        - name: noryx-front
+        - name: noryx-frontend
           port: 80
 ---
 apiVersion: traefik.io/v1alpha1
@@ -65,7 +65,7 @@ spec:
       middlewares:
         - name: noryx-security-headers
       services:
-        - name: noryx-front
+        - name: noryx-frontend
           port: 80
   tls:
     certResolver: le

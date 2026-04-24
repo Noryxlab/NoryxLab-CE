@@ -9,6 +9,11 @@ Before cluster bootstrap, prepare:
 - one Harbor VM (registry)
 - one dockerbuild VM (build/push)
 
+Control-plane images expected in Harbor project `noryx-ce`:
+
+- `noryx-backend:<tag>`
+- `noryx-frontend:<tag>`
+
 Details: `docs/INFRA_PREREQUISITES.md`.
 
 ## V1 bootstrap scope

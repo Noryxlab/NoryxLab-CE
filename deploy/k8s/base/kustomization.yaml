@@ -7,7 +7,7 @@ resources:
   - postgres.yaml
   - keycloak.yaml
   - minio.yaml
-  - noryx-front.yaml
+  - noryx-frontend.yaml
   - noryx-api-rbac.yaml
   - noryx-api.yaml
   - noryx-api-ingressroute.yaml
