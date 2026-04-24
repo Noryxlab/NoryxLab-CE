@@ -64,7 +64,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)
 - `POST /api/v1/workspaces` accepts optional `storageSize` to override default PVC size per workspace
-- ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-back`
+- ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-backend`
 - web access auth:
   - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)
   - token fallback for workspace URL continuity (`noryx_ws_token_<workspaceID>`)

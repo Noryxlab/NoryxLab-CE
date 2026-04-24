@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: noryx-back
+  name: noryx-backend
   namespace: noryx-ce
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: noryx-back-runtime
+  name: noryx-backend-runtime
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -31,12 +31,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: noryx-back-runtime
+  name: noryx-backend-runtime
 subjects:
   - kind: ServiceAccount
-    name: noryx-back
+    name: noryx-backend
     namespace: noryx-ce
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: noryx-back-runtime
+  name: noryx-backend-runtime
