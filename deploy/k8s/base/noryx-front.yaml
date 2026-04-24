@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.13';
+          const FRONT_VERSION = 'ce-web-0.6.14';
           let openingWorkspaceId = null;
           const LOCALES = {
             en: {
@@ -531,6 +531,13 @@ data:
             if (s.includes('run') || s.includes('complete')) return '<span class="badge b-ok">' + status + '</span>';
             if (s.includes('submit') || s.includes('pending')) return '<span class="badge b-mid">' + status + '</span>';
             return '<span class="badge b-info">' + (status || 'unknown') + '</span>';
+          }
+
+          function displayAccessUrl(raw) {
+            if (!raw) return '-';
+            const s = String(raw);
+            const idx = s.indexOf('?');
+            return idx === -1 ? s : s.slice(0, idx) + '?...';
           }
 
           function switchTab(tab) {
@@ -640,7 +647,7 @@ data:
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
-                '<td>' + (w.accessUrl || '-') + '</td>' +
+                '<td>' + displayAccessUrl(w.accessUrl) + '</td>' +
                 '<td>' + openBtn + ' <button type="button" class="btn danger" data-del="' + w.id + '">Delete</button></td>';
               workspaceRows.appendChild(tr);
             }
@@ -861,7 +868,7 @@ data:
                   return;
                 }
                 openingWorkspaceId = openId;
-                const targetUrl = window.location.origin + '/workspaces/' + encodeURIComponent(ws.id) + '/tree';
+                const targetUrl = window.location.origin + (ws.accessUrl || ('/workspaces/' + encodeURIComponent(ws.id) + '/lab?reset'));
                 const wsTab = window.open(targetUrl, '_blank');
                 try {
                   if (!wsTab) {
