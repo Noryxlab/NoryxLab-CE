@@ -380,15 +380,17 @@ data:
                       <button id="buildEnv" class="btn warn">Build Environment</button>
                     </div>
                     <table>
-                      <thead><tr><th>Image</th><th>Status</th></tr></thead>
+                      <thead><tr><th>Name</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Actions</th></tr></thead>
                       <tbody id="environmentRows"></tbody>
                     </table>
                   </article>
 
                   <article class="card span-5">
-                    <h3>Build Feed</h3>
-                    <div class="hint">Historique court des builds pour le projet actif.</div>
+                    <h3>Environment Detail</h3>
+                    <div class="hint">Révisions et Dockerfile du build sélectionné.</div>
                     <pre id="buildOut">-</pre>
+                    <h3>Dockerfile</h3>
+                    <pre id="dockerfileOut">-</pre>
                   </article>
                 </div>
               </section>
@@ -441,6 +443,7 @@ data:
           const projectOut = document.getElementById('projectOut');
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
+          const dockerfileOut = document.getElementById('dockerfileOut');
 
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
@@ -486,9 +489,11 @@ data:
             projects: [],
             workspaces: [],
             builds: [],
+            environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.17';
+          const FRONT_VERSION = 'ce-web-0.6.18';
+          let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
             en: {
@@ -528,8 +533,8 @@ data:
 
           function badge(status) {
             const s = String(status || '').toLowerCase();
-            if (s.includes('run') || s.includes('complete')) return '<span class="badge b-ok">' + status + '</span>';
-            if (s.includes('submit') || s.includes('pending')) return '<span class="badge b-mid">' + status + '</span>';
+            if (s.includes('run') || s.includes('complete') || s.includes('succeed') || s.includes('ready')) return '<span class="badge b-ok">' + status + '</span>';
+            if (s.includes('submit') || s.includes('pending') || s.includes('queue')) return '<span class="badge b-mid">' + status + '</span>';
             return '<span class="badge b-info">' + (status || 'unknown') + '</span>';
           }
 
@@ -657,19 +662,37 @@ data:
           }
 
           function renderEnvironmentsTable() {
-            const items = [...state.builds].reverse().slice(0, 12);
+            const pid = selectedProjectId();
+            const items = state.environments.filter((env) => !pid || env.projectId === pid);
             environmentRows.innerHTML = '';
             if (items.length === 0) {
-              environmentRows.innerHTML = '<tr><td colspan="2">No environment build yet.</td></tr>';
+              environmentRows.innerHTML = '<tr><td colspan="5">No environment yet for selected project.</td></tr>';
               buildOut.textContent = '-';
+              dockerfileOut.textContent = '-';
+              selectedEnvironmentID = '';
               return;
             }
-            buildOut.textContent = JSON.stringify(items, null, 2);
-            for (const b of items) {
+            if (!selectedEnvironmentID || !items.some((env) => env.id === selectedEnvironmentID)) {
+              selectedEnvironmentID = items[0].id;
+            }
+            const selected = items.find((env) => env.id === selectedEnvironmentID) || items[0];
+            buildOut.textContent = JSON.stringify(selected, null, 2);
+
+            for (const env of items.slice(0, 20)) {
               const tr = document.createElement('tr');
+              const selectedClass = env.id === selectedEnvironmentID ? ' style="outline:1px solid #f4c542"' : '';
+              const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
+              const latestRef = env.latestGitRef || '-';
+              const selectID = encodeURIComponent(env.id || '');
+              const dockerBtn = env.latestBuildId
+                ? '<button type="button" class="btn" data-docker="' + env.latestBuildId + '">Dockerfile</button>'
+                : '';
               tr.innerHTML =
-                '<td><code>' + (b.destinationImage || '-') + '</code><br/><span style="color:#667a98">' + (b.dockerfilePath || '') + '</span></td>' +
-                '<td>' + badge(b.status || 'submitted') + '</td>';
+                '<td' + selectedClass + '><strong>' + (env.name || 'environment') + '</strong></td>' +
+                '<td' + selectedClass + '><code>' + (env.destinationImage || '-') + '</code></td>' +
+                '<td' + selectedClass + '>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
+                '<td' + selectedClass + '>' + String(revCount) + '</td>' +
+                '<td' + selectedClass + '><button type="button" class="btn" data-select="' + selectID + '">Details</button> ' + dockerBtn + '</td>';
               environmentRows.appendChild(tr);
             }
           }
@@ -739,6 +762,15 @@ data:
             return body;
           }
 
+          async function refreshEnvironments() {
+            const pid = selectedProjectId();
+            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
+            const body = await callJSON('/api/v1/environments' + query);
+            state.environments = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
           function stopWorkspacesAutoRefresh() {
             if (workspacesAutoRefreshTimer) {
               clearInterval(workspacesAutoRefreshTimer);
@@ -751,6 +783,9 @@ data:
             workspacesAutoRefreshTimer = setInterval(async () => {
               try {
                 await refreshWorkspaces();
+                if (state.activeTab === 'environments' || state.activeTab === 'workloads') {
+                  await Promise.all([refreshBuilds(), refreshEnvironments()]);
+                }
               } catch (_) {}
             }, 5000);
           }
@@ -794,7 +829,14 @@ data:
             }
           };
 
-          projectSelect.onchange = () => renderAll();
+          projectSelect.onchange = async () => {
+            try {
+              await Promise.all([refreshBuilds(), refreshEnvironments()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
 
           loadWorkspacesBtn.onclick = async () => {
             try { await refreshWorkspaces(); }
@@ -848,11 +890,38 @@ data:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-              await refreshBuilds();
+              dockerfileOut.textContent = '-';
+              await Promise.all([refreshBuilds(), refreshEnvironments()]);
               switchTab('environments');
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
+            }
+          };
+
+          environmentRows.onclick = async (event) => {
+            const selectID = event.target?.getAttribute('data-select');
+            const dockerBuildID = event.target?.getAttribute('data-docker');
+
+            if (selectID) {
+              event.preventDefault();
+              event.stopPropagation();
+              selectedEnvironmentID = decodeURIComponent(selectID);
+              renderEnvironmentsTable();
+              return;
+            }
+
+            if (dockerBuildID) {
+              event.preventDefault();
+              event.stopPropagation();
+              try {
+                const body = await callJSON('/api/v1/builds/' + encodeURIComponent(dockerBuildID) + '/dockerfile');
+                dockerfileOut.textContent = String(body.content || '-');
+                buildOut.textContent = JSON.stringify(body, null, 2);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
             }
           };
 
@@ -925,7 +994,7 @@ data:
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');

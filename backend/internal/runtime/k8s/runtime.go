@@ -407,6 +407,105 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 	return out, nil
 }
 
+func (r *Runtime) ListBuilds() ([]noryxruntime.BuildRuntimeInfo, error) {
+	selector := url.QueryEscape("app.kubernetes.io/name=noryx-build")
+	body, err := r.get(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name   string            `json:"name"`
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+			Spec struct {
+				Template struct {
+					Spec struct {
+						Containers []struct {
+							Args []string `json:"args"`
+						} `json:"containers"`
+					} `json:"spec"`
+				} `json:"template"`
+			} `json:"spec"`
+			Status struct {
+				Active    int `json:"active"`
+				Succeeded int `json:"succeeded"`
+				Failed    int `json:"failed"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	out := make([]noryxruntime.BuildRuntimeInfo, 0, len(response.Items))
+	for _, item := range response.Items {
+		buildID := strings.TrimSpace(item.Metadata.Labels["noryx.io/build-id"])
+		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
+		if buildID == "" || projectID == "" {
+			continue
+		}
+
+		status := "submitted"
+		switch {
+		case item.Status.Failed > 0:
+			status = "failed"
+		case item.Status.Succeeded > 0:
+			status = "succeeded"
+		case item.Status.Active > 0:
+			status = "running"
+		}
+
+		var args []string
+		if len(item.Spec.Template.Spec.Containers) > 0 {
+			args = item.Spec.Template.Spec.Containers[0].Args
+		}
+		repo, ref, dockerfilePath, contextPath, destinationImage := parseKanikoBuildArgs(args)
+		out = append(out, noryxruntime.BuildRuntimeInfo{
+			BuildID:          buildID,
+			ProjectID:        projectID,
+			JobName:          strings.TrimSpace(item.Metadata.Name),
+			Status:           status,
+			GitRepository:    repo,
+			GitRef:           ref,
+			DockerfilePath:   dockerfilePath,
+			ContextPath:      contextPath,
+			DestinationImage: destinationImage,
+		})
+	}
+
+	return out, nil
+}
+
+func parseKanikoBuildArgs(args []string) (repo, ref, dockerfilePath, contextPath, destinationImage string) {
+	for _, arg := range args {
+		switch {
+		case strings.HasPrefix(arg, "--context="):
+			contextArg := strings.TrimSpace(strings.TrimPrefix(arg, "--context="))
+			if contextArg == "" {
+				continue
+			}
+			repo = contextArg
+			ref = ""
+			if idx := strings.Index(contextArg, "#"); idx > 0 {
+				repo = strings.TrimSpace(contextArg[:idx])
+				refPart := strings.TrimSpace(contextArg[idx+1:])
+				refPart = strings.TrimPrefix(refPart, "refs/heads/")
+				ref = strings.TrimSpace(refPart)
+			}
+		case strings.HasPrefix(arg, "--dockerfile="):
+			dockerfilePath = strings.TrimSpace(strings.TrimPrefix(arg, "--dockerfile="))
+		case strings.HasPrefix(arg, "--context-sub-path="):
+			contextPath = strings.TrimSpace(strings.TrimPrefix(arg, "--context-sub-path="))
+		case strings.HasPrefix(arg, "--destination="):
+			destinationImage = strings.TrimSpace(strings.TrimPrefix(arg, "--destination="))
+		}
+	}
+	return repo, ref, dockerfilePath, contextPath, destinationImage
+}
+
 func (r *Runtime) post(path string, payload any) ([]byte, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
