@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak
+  namespace: noryx-ce
 spec:
   replicas: 1
   selector:
@@ -47,6 +48,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: keycloak
+  namespace: noryx-ce
 spec:
   selector:
     app: keycloak

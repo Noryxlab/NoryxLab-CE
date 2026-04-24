@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: noryx-front
+  namespace: noryx-ce
   labels:
     app: noryx-front
 data:
@@ -1016,6 +1017,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: noryx-front
+  namespace: noryx-ce
 spec:
   replicas: 1
   selector:
@@ -1045,6 +1047,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: noryx-front
+  namespace: noryx-ce
 spec:
   selector:
     app: noryx-front

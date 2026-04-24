@@ -2,6 +2,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: noryx-https-redirect
+  namespace: noryx-ce
 spec:
   redirectScheme:
     scheme: https
@@ -11,6 +12,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: noryx-security-headers
+  namespace: noryx-ce
 spec:
   headers:
     stsSeconds: 31536000
@@ -22,6 +24,7 @@ apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: noryx-http-redirect
+  namespace: noryx-ce
 spec:
   entryPoints:
     - web
@@ -38,6 +41,7 @@ apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: noryx-back
+  namespace: noryx-ce
 spec:
   entryPoints:
     - websecure
