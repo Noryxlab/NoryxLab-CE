@@ -488,7 +488,7 @@ data:
             builds: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.16';
+          const FRONT_VERSION = 'ce-web-0.6.17';
           let openingWorkspaceId = null;
           const LOCALES = {
             en: {
@@ -872,12 +872,22 @@ data:
                 }
                 openingWorkspaceId = openId;
                 const targetUrl = window.location.origin + (ws.accessUrl || ('/workspaces/' + encodeURIComponent(ws.id) + '/lab?reset'));
+                const wsTab = window.open('about:blank', '_blank');
                 try {
+                  if (!wsTab) {
+                    usersOut.textContent = 'Popup blocked by browser. Allow popups for this site.';
+                    openingWorkspaceId = null;
+                    return;
+                  }
+                  wsTab.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Noryx Workspace</title></head><body style="font-family: sans-serif; padding: 1rem;">Launching workspace...</body></html>');
+                  wsTab.document.close();
                   // Must complete before navigating workspace URL (proxy requires noryx_session cookie).
                   await ensureWebSession();
-                  window.location.assign(targetUrl);
+                  await new Promise((resolve) => setTimeout(resolve, 120));
+                  wsTab.location.assign(targetUrl);
                   openingWorkspaceId = null;
                 } catch (e) {
+                  if (wsTab && !wsTab.closed) wsTab.close();
                   openingWorkspaceId = null;
                   pretty(usersOut, e);
                   switchTab('ops');

@@ -5,16 +5,14 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
 
-func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserIDFromSessionOrBearer(w, r)
-	if !ok {
-		return
-	}
+const workspaceTokenCookiePrefix = "noryx_ws_token_"
 
+func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := strings.TrimSpace(r.PathValue("workspaceID"))
 	if workspaceID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "workspaceID is required"})
@@ -31,8 +29,35 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "workspace access") {
+	userID, hasUser := h.userIDFromSessionOrBearerNoWrite(r)
+	queryToken := strings.TrimSpace(r.URL.Query().Get("token"))
+	wsCookieName := workspaceTokenCookiePrefix + workspaceID
+	wsCookieToken := ""
+	if cookie, err := r.Cookie(wsCookieName); err == nil {
+		wsCookieToken = strings.TrimSpace(cookie.Value)
+	}
+
+	tokenAuth := queryToken != "" && queryToken == record.AccessToken
+	cookieAuth := wsCookieToken != "" && wsCookieToken == record.AccessToken
+	if hasUser {
+		if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "workspace access") {
+			return
+		}
+	} else if !(tokenAuth || cookieAuth) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
 		return
+	}
+
+	if tokenAuth && !cookieAuth {
+		http.SetCookie(w, &http.Cookie{
+			Name:     wsCookieName,
+			Value:    record.AccessToken,
+			Path:     "/workspaces/" + workspaceID + "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteLaxMode,
+			Expires:  time.Now().UTC().Add(8 * time.Hour),
+		})
 	}
 
 	targetHost := strings.TrimSpace(record.ServiceName)
