@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,9 +15,22 @@ import (
 )
 
 type createWorkspaceRequest struct {
-	ProjectID string `json:"projectId"`
-	Name      string `json:"name"`
+	ProjectID   string `json:"projectId"`
+	Name        string `json:"name"`
+	StorageSize string `json:"storageSize"`
 }
+
+var (
+	workspaceStorageSizePattern = regexp.MustCompile(`^([1-9][0-9]*)([A-Za-z]+)$`)
+	workspaceStorageUnits       = map[string]string{
+		"mi": "Mi",
+		"gi": "Gi",
+		"ti": "Ti",
+		"m":  "M",
+		"g":  "G",
+		"t":  "T",
+	}
+)
 
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
@@ -150,6 +164,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
+	req.StorageSize = strings.TrimSpace(req.StorageSize)
 	if req.ProjectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
 		return
@@ -189,6 +204,24 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	serviceName := podName
 	pvcName := podName
 	accessToken := shortID() + shortID()
+	pvcSize := h.workspacePVCSize
+	if h.workspacePVCEnabled {
+		normalizedDefaultSize, err := normalizeWorkspaceStorageSize(h.workspacePVCSize)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "invalid workspace PVC default size in server config"})
+			return
+		}
+		pvcSize = normalizedDefaultSize
+
+		if req.StorageSize != "" {
+			normalizedSize, err := normalizeWorkspaceStorageSize(req.StorageSize)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+				return
+			}
+			pvcSize = normalizedSize
+		}
+	}
 
 	record := workspace.NewJupyter(
 		req.ProjectID,
@@ -204,7 +237,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	record.AccessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", record.ID, accessToken)
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass
-	record.PVCSize = h.workspacePVCSize
+	record.PVCSize = pvcSize
 	record.PVCMountPath = h.workspacePVCMountPath
 
 	if h.runtime != nil {
@@ -212,7 +245,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			err = h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
 				Name:             pvcName,
 				StorageClassName: h.workspacePVCClass,
-				Size:             h.workspacePVCSize,
+				Size:             pvcSize,
 				Labels: map[string]string{
 					"app.kubernetes.io/name": "noryx-workspace-volume",
 					"noryx.io/project-id":    req.ProjectID,
@@ -312,6 +345,19 @@ func (h Handlers) findExistingWorkspace(projectID, workspaceName string) (worksp
 		}
 	}
 	return workspace.Workspace{}, false, nil
+}
+
+func normalizeWorkspaceStorageSize(raw string) (string, error) {
+	size := strings.TrimSpace(raw)
+	matches := workspaceStorageSizePattern.FindStringSubmatch(size)
+	if len(matches) != 3 {
+		return "", fmt.Errorf("storageSize must match <number><unit>, example: 10Gi or 20G")
+	}
+	unit, ok := workspaceStorageUnits[strings.ToLower(matches[2])]
+	if !ok {
+		return "", fmt.Errorf("storageSize unit must be one of: Mi, Gi, Ti, M, G, T")
+	}
+	return matches[1] + unit, nil
 }
 
 func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
