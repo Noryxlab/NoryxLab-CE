@@ -14,6 +14,10 @@ type Workspace struct {
 	Image       string    `json:"image"`
 	PodName     string    `json:"podName"`
 	ServiceName string    `json:"serviceName"`
+	PVCName     string    `json:"pvcName"`
+	PVCClass    string    `json:"pvcClass"`
+	PVCSize     string    `json:"pvcSize"`
+	PVCMountPath string   `json:"pvcMountPath"`
 	CPU         string    `json:"cpu"`
 	Memory      string    `json:"memory"`
 	Status      string    `json:"status"`

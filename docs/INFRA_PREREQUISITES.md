@@ -7,6 +7,16 @@ Noryx CE bootstrap depends on two external VMs:
 
 Without these two VMs, `noryx-api` image pull will fail in Kubernetes.
 
+## In-cluster storage baseline
+
+Noryx CE bootstrap installs Longhorn CSI for workspace PVCs.
+
+Node prerequisites (handled by Ansible `common` + `longhorn` roles):
+
+- `open-iscsi` package
+- `iscsid` service enabled
+- sufficient local disk capacity for workspace volumes
+
 ## Required baseline
 
 ### Harbor VM

@@ -349,7 +349,7 @@ data:
                     </div>
                     <table>
                       <thead>
-                        <tr><th>Name</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                        <tr><th>Name</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
                       </thead>
                       <tbody id="workspaceRows"></tbody>
                     </table>
@@ -493,7 +493,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.18';
+          const FRONT_VERSION = 'ce-web-0.6.19';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -639,7 +639,7 @@ data:
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
-              workspaceRows.innerHTML = '<tr><td colspan="5">No workspace for selected project.</td></tr>';
+              workspaceRows.innerHTML = '<tr><td colspan="6">No workspace for selected project.</td></tr>';
               workspaceOut.textContent = '-';
               return;
             }
@@ -655,6 +655,7 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
+                '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
                 '<td>' + displayAccessUrl(w.accessUrl) + '</td>' +
                 '<td>' + openBtn + ' <button type="button" class="btn danger" data-del="' + w.id + '">Delete</button></td>';

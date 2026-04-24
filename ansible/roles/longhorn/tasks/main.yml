@@ -1,0 +1,54 @@
+---
+- name: Ensure open-iscsi services are enabled for Longhorn
+  ansible.builtin.shell: |
+    set -euo pipefail
+    systemctl enable --now iscsid
+    if systemctl list-unit-files | grep -q '^open-iscsi\.service'; then
+      systemctl enable --now open-iscsi
+    fi
+  args:
+    executable: /bin/bash
+
+- name: Add Longhorn helm repository
+  ansible.builtin.command: helm repo add longhorn https://charts.longhorn.io --force-update
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Update helm repositories
+  ansible.builtin.command: helm repo update
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install or upgrade Longhorn
+  ansible.builtin.shell: |
+    set -euo pipefail
+    CHART_VERSION_FLAG=""
+    if [ -n "{{ longhorn_chart_version | default('') }}" ]; then
+      CHART_VERSION_FLAG="--version {{ longhorn_chart_version }}"
+    fi
+    helm upgrade --install longhorn longhorn/longhorn \
+      --namespace longhorn-system \
+      --create-namespace \
+      --set defaultSettings.defaultReplicaCount={{ longhorn_default_replica_count | default(1) }} \
+      ${CHART_VERSION_FLAG}
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Longhorn manager pods
+  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Longhorn UI pods
+  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-ui --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Longhorn driver deployer pod
+  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml

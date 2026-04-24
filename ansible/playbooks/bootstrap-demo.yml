@@ -20,4 +20,5 @@
     - role: common
     - role: k3s-master
     - role: helm
+    - role: longhorn
     - role: noryx-bootstrap

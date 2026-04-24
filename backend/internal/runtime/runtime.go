@@ -18,6 +18,7 @@ type PodSpec struct {
 	MemLimit   string
 	Labels     map[string]string
 	PullSecret string
+	Volumes    []PersistentVolumeClaimMount
 }
 
 type ServiceSpec struct {
@@ -38,7 +39,23 @@ type BuildSpec struct {
 	Labels             map[string]string
 }
 
+type PersistentVolumeClaimSpec struct {
+	Name             string
+	StorageClassName string
+	Size             string
+	AccessModes      []string
+	Labels           map[string]string
+}
+
+type PersistentVolumeClaimMount struct {
+	ClaimName string
+	MountPath string
+	ReadOnly  bool
+}
+
 type Runner interface {
+	CreatePersistentVolumeClaim(spec PersistentVolumeClaimSpec) error
+	DeletePersistentVolumeClaim(name string) error
 	CreatePod(spec PodSpec) error
 	DeletePod(name string) error
 	CreateService(spec ServiceSpec) error

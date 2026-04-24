@@ -25,6 +25,10 @@ type Handlers struct {
 	workspaceNamespace    string
 	workspaceCPU          string
 	workspaceMemory       string
+	workspacePVCEnabled   bool
+	workspacePVCClass     string
+	workspacePVCSize      string
+	workspacePVCMountPath string
 }
 
 type Options struct {
@@ -36,6 +40,10 @@ type Options struct {
 	WorkspaceNamespace    string
 	WorkspaceCPU          string
 	WorkspaceMemory       string
+	WorkspacePVCEnabled   bool
+	WorkspacePVCClass     string
+	WorkspacePVCSize      string
+	WorkspacePVCMountPath string
 }
 
 func New(
@@ -68,5 +76,9 @@ func New(
 		workspaceNamespace:    options.WorkspaceNamespace,
 		workspaceCPU:          options.WorkspaceCPU,
 		workspaceMemory:       options.WorkspaceMemory,
+		workspacePVCEnabled:   options.WorkspacePVCEnabled,
+		workspacePVCClass:     options.WorkspacePVCClass,
+		workspacePVCSize:      options.WorkspacePVCSize,
+		workspacePVCMountPath: options.WorkspacePVCMountPath,
 	}
 }

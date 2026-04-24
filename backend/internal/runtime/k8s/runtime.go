@@ -112,6 +112,31 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		container["resources"] = resources
 	}
 
+	volumes := make([]map[string]any, 0, len(spec.Volumes))
+	volumeMounts := make([]map[string]any, 0, len(spec.Volumes))
+	for i, vol := range spec.Volumes {
+		claimName := strings.TrimSpace(vol.ClaimName)
+		mountPath := strings.TrimSpace(vol.MountPath)
+		if claimName == "" || mountPath == "" {
+			continue
+		}
+		volumeName := fmt.Sprintf("pvc-%d", i)
+		volumes = append(volumes, map[string]any{
+			"name": volumeName,
+			"persistentVolumeClaim": map[string]any{
+				"claimName": claimName,
+			},
+		})
+		volumeMounts = append(volumeMounts, map[string]any{
+			"name":      volumeName,
+			"mountPath": mountPath,
+			"readOnly":  vol.ReadOnly,
+		})
+	}
+	if len(volumeMounts) > 0 {
+		container["volumeMounts"] = volumeMounts
+	}
+
 	payload := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "Pod",
@@ -124,6 +149,9 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			"restartPolicy": "Never",
 		},
 	}
+	if len(volumes) > 0 {
+		payload["spec"].(map[string]any)["volumes"] = volumes
+	}
 
 	if spec.PullSecret != "" {
 		payload["spec"].(map[string]any)["imagePullSecrets"] = []map[string]string{{"name": spec.PullSecret}}
@@ -131,6 +159,53 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), payload)
 	return err
+}
+
+func (r *Runtime) CreatePersistentVolumeClaim(spec noryxruntime.PersistentVolumeClaimSpec) error {
+	name := strings.TrimSpace(spec.Name)
+	if name == "" {
+		return fmt.Errorf("persistentvolumeclaim name is required")
+	}
+	size := strings.TrimSpace(spec.Size)
+	if size == "" {
+		return fmt.Errorf("persistentvolumeclaim size is required")
+	}
+	accessModes := spec.AccessModes
+	if len(accessModes) == 0 {
+		accessModes = []string{"ReadWriteOnce"}
+	}
+
+	payload := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "PersistentVolumeClaim",
+		"metadata": map[string]any{
+			"name":   name,
+			"labels": spec.Labels,
+		},
+		"spec": map[string]any{
+			"accessModes": accessModes,
+			"resources": map[string]any{
+				"requests": map[string]string{
+					"storage": size,
+				},
+			},
+		},
+	}
+
+	storageClassName := strings.TrimSpace(spec.StorageClassName)
+	if storageClassName != "" {
+		payload["spec"].(map[string]any)["storageClassName"] = storageClassName
+	}
+
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/persistentvolumeclaims", r.workloadNamespace), payload)
+	return err
+}
+
+func (r *Runtime) DeletePersistentVolumeClaim(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("persistentvolumeclaim name is required")
+	}
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/persistentvolumeclaims/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) DeletePod(name string) error {
