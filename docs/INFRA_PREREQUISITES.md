@@ -34,8 +34,7 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
   - `keycloak`
   - `minio`
 - mirrored environment base images available in project `noryx-environments`:
-  - `noryx-workspace-jupyter`
-  - `noryx-workspace-vscode`
+  - `noryx-python`
 
 ### Dockerbuild VM
 

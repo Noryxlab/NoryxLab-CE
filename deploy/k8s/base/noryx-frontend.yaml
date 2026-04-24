@@ -378,11 +378,11 @@ data:
                       <input id="envGitRef" value="main" />
                     </div>
                     <div class="row">
-                      <input id="envDockerfile" value="environments/jupyter-debian/Dockerfile" />
+                      <input id="envDockerfile" value="environments/noryx-python/Dockerfile" />
                       <input id="envContext" value="." />
                     </div>
                     <div class="row">
-                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0" />
+                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.1.0" />
                       <button id="buildEnv" class="btn warn">Build Environment</button>
                     </div>
                     <table>
@@ -500,7 +500,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.23';
+          const FRONT_VERSION = 'ce-web-0.6.24';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -1045,7 +1045,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.23
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.24
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

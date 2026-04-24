@@ -59,8 +59,8 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 
 ## Workspace baseline (current)
 
-- kind: `jupyter`
-- image: `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
+- kind: `jupyter` or `vscode`
+- base image: `harbor.lan/noryx-environments/noryx-python:0.1.0`
 - runtime pod naming: `wks-<shortid>`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)

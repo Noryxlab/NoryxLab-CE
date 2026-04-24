@@ -34,10 +34,9 @@ Create payload:
 
 ## Image used
 
-Default workspace images:
+Default workspace base image (shared by Jupyter + VSCode):
 
-- `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
-- `harbor.lan/noryx-environments/noryx-workspace-vscode:0.1.0`
+- `harbor.lan/noryx-environments/noryx-python:0.1.0`
 
 Configurable with env var:
 
@@ -52,15 +51,12 @@ Configurable with env var:
 
 Dockerfile path in this repo:
 
-- `environments/jupyter-debian/Dockerfile`
-- `environments/vscode-python312/Dockerfile`
+- `environments/noryx-python/Dockerfile`
 
 Use `POST /api/v1/builds` with:
 
-- `dockerfilePath`: `environments/jupyter-debian/Dockerfile`
-- `destinationImage`: `harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0`
-- `dockerfilePath`: `environments/vscode-python312/Dockerfile`
-- `destinationImage`: `harbor.lan/noryx-environments/noryx-workspace-vscode:0.1.0`
+- `dockerfilePath`: `environments/noryx-python/Dockerfile`
+- `destinationImage`: `harbor.lan/noryx-environments/noryx-python:0.1.0`
 
 ## Notes
 

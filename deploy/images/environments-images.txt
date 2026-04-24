@@ -1,2 +1,5 @@
 # source_image target_image
-harbor.lan/noryx-ce/noryx-workspace-jupyter:0.1.0 harbor.lan/noryx-environments/noryx-workspace-jupyter:0.1.0
+# no default mirror entry for noryx-python:
+# build and push it from this repo:
+#   docker build -t harbor.lan/noryx-environments/noryx-python:0.1.0 -f environments/noryx-python/Dockerfile .
+#   docker push harbor.lan/noryx-environments/noryx-python:0.1.0
