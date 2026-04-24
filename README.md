@@ -13,6 +13,9 @@ Control-plane images expected in Harbor project `noryx-ce`:
 
 - `noryx-backend:<tag>`
 - `noryx-frontend:<tag>`
+- `postgres:16`
+- `keycloak:24.0`
+- `minio:RELEASE.2025-02-18T16-25-55Z`
 
 Details: `docs/INFRA_PREREQUISITES.md`.
 
@@ -107,6 +110,7 @@ Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
+Image mirroring: `deploy/images/essential-images.txt` + `scripts/ops/sync-images-to-harbor.sh`.
 
 See `docs/BOOTSTRAP_VM.md` for VM preparation.
 
