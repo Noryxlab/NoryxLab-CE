@@ -25,6 +25,7 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
 - Harbor registry installed and running
 - project created: `noryx-ce` (private recommended)
 - robot account with `repository:pull` and `repository:push`
+- tooling baseline: `jq`, `rsync`, `python3`
 
 ### Dockerbuild VM
 
@@ -32,6 +33,7 @@ Node prerequisites (handled by Ansible `common` + `longhorn` roles):
 - network access to Harbor
 - DNS/hosts resolution for Harbor hostname (for example `harbor.lan`)
 - credentials to push in `noryx-ce` project
+- tooling baseline: `jq`, `rsync`, `python3`
 
 ## Quick setup scripts
 
@@ -39,6 +41,12 @@ Use provided scripts on each VM:
 
 - `scripts/vm/install-harbor-vm.sh`
 - `scripts/vm/install-dockerbuild-vm.sh`
+
+These scripts install required tooling for automation/debug:
+
+- `jq` for JSON/API inspection
+- `rsync` for fast repo sync to build hosts
+- `python3` for lightweight operational scripts
 
 ## Kubernetes node alignment
 

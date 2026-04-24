@@ -6,6 +6,9 @@
       - ca-certificates
       - gnupg
       - apt-transport-https
+      - jq
+      - rsync
+      - git
       - python3-pip
       - open-iscsi
       - nfs-common

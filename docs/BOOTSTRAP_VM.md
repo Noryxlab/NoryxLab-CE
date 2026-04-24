@@ -104,3 +104,4 @@ Requirements:
 
 - Harbor remains external.
 - MinIO starts in-cluster for V1 and can be externalized later.
+- VM helper scripts install baseline tooling (`jq`, `rsync`, `python3`) for operations.

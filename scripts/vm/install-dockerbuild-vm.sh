@@ -13,7 +13,7 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 apt-get update -y
-apt-get install -y ca-certificates curl docker.io docker-buildx
+apt-get install -y ca-certificates curl docker.io docker-buildx jq rsync python3
 systemctl enable --now docker
 
 # Optional hostname mapping for Harbor if local DNS is not configured.

@@ -20,7 +20,7 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 apt-get update -y
-apt-get install -y ca-certificates curl openssl docker.io docker-compose-plugin
+apt-get install -y ca-certificates curl openssl docker.io docker-compose-plugin jq rsync python3
 systemctl enable --now docker
 
 mkdir -p "$HARBOR_INSTALL_DIR"
