@@ -47,6 +47,23 @@ Configurable with env var:
 - `NORYX_WORKSPACE_PVC_SIZE` (`10Gi` by default)
 - `NORYX_WORKSPACE_PVC_MOUNT_PATH` (`/workspace` by default)
 
+## Filesystem layout
+
+Current implementation baseline:
+
+- workspace PVC mount path is `/workspace` (configurable with `NORYX_WORKSPACE_PVC_MOUNT_PATH`)
+
+Target contract (next rollout):
+
+- `/mnt` as project work directory (`/mnt/requirements.txt` for dependency bootstrap)
+- `/repos` for repositories
+- `/datasets` for datasets mounts
+- `/home/noryx/.noryx-profile` for user IDE profile persistence (RWX requirement for concurrent workspaces)
+
+Reference:
+
+- `docs/WORKSPACE_FILESYSTEM_LAYOUT.md`
+
 ## Build base images with Noryx
 
 Dockerfile path in this repo:
@@ -67,7 +84,7 @@ Use `POST /api/v1/builds` with:
   - compatibility fallback: workspace URL token (`?token=...`) upgraded to a workspace-scoped cookie (`noryx_ws_token_<workspaceID>`)
 - workspace URL returned by API:
   - Jupyter: `/workspaces/<workspaceID>/lab?reset`
-  - VSCode: `/workspaces/<workspaceID>/?folder=/workspace`
+  - VSCode: `/workspaces/<workspaceID>/?folder=/workspace` (will be aligned to `/mnt` with filesystem rollout)
 - wildcard DNS is not required: workspace traffic stays on `https://datalab.noryxlab.ai/workspaces/<workspaceID>/...`
 - `harbor-regcred` must exist in workload namespace for image pull
 - Longhorn must be installed and healthy for workspace creation when PVC is enabled
