@@ -5,8 +5,8 @@ This document defines the target filesystem contract for interactive workspaces.
 Status:
 
 - contract is validated
-- runtime rollout is in progress
-- current implementation details may still differ (see `docs/WORKSPACES.md`)
+- runtime baseline is implemented in CE
+- operational details are documented in `docs/WORKSPACES.md`
 
 ## Paths
 
@@ -18,7 +18,7 @@ Status:
 
 ## Persistence model
 
-- `/mnt`: persistent at project scope
+- `/mnt`: persistent at project scope (shared project PVC)
 - `/home/noryx/.noryx-profile`: persistent at user scope
 - `/datasets`: dataset mounts managed by Noryx dataset flow
 

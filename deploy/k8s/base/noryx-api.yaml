@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.26-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.29-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -61,9 +61,9 @@ spec:
                   name: noryx-secrets
                   key: KEYCLOAK_ADMIN_PASSWORD
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.1.0"
+              value: "harbor.lan/noryx-environments/noryx-python:0.2.1"
             - name: NORYX_WORKSPACE_VSCODE_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.1.0"
+              value: "harbor.lan/noryx-environments/noryx-python:0.2.1"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY
@@ -74,8 +74,20 @@ spec:
               value: "longhorn"
             - name: NORYX_WORKSPACE_PVC_SIZE
               value: "10Gi"
+            - name: NORYX_WORKSPACE_PVC_ACCESS_MODE
+              value: "ReadWriteMany"
             - name: NORYX_WORKSPACE_PVC_MOUNT_PATH
-              value: "/workspace"
+              value: "/mnt"
+            - name: NORYX_WORKSPACE_PROFILE_PVC_ENABLED
+              value: "true"
+            - name: NORYX_WORKSPACE_PROFILE_PVC_STORAGE_CLASS
+              value: "longhorn"
+            - name: NORYX_WORKSPACE_PROFILE_PVC_SIZE
+              value: "5Gi"
+            - name: NORYX_WORKSPACE_PROFILE_PVC_ACCESS_MODE
+              value: "ReadWriteMany"
+            - name: NORYX_WORKSPACE_PROFILE_PVC_MOUNT_PATH
+              value: "/home/noryx/.noryx-profile"
 ---
 apiVersion: v1
 kind: Service

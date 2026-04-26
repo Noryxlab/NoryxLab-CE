@@ -2,7 +2,7 @@ FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive \
     OPENVSCODE_VERSION=1.99.3 \
-    OPENVSCODE_DATA_DIR=/home/workspace/.openvscode-server \
+    OPENVSCODE_DATA_DIR=/home/noryx/.openvscode-server \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -12,6 +12,7 @@ RUN apt-get update \
     ca-certificates \
     curl \
     git \
+    sudo \
     tini \
  && rm -rf /var/lib/apt/lists/*
 
@@ -24,7 +25,7 @@ RUN mkdir -p /opt/openvscode-server \
     | tar -xz --strip-components=1 -C /opt/openvscode-server \
  && ln -sf /opt/openvscode-server/bin/openvscode-server /usr/local/bin/openvscode-server
 
-RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" /workspace \
+RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" /mnt \
  && printf '%s\n' \
     '{' \
     '  "workbench.colorTheme": "Default Dark Modern",' \
@@ -34,7 +35,17 @@ RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" /workspace \
 RUN openvscode-server --install-extension ms-python.python \
  || true
 
+RUN useradd -m -s /bin/bash noryx \
+ && usermod -aG sudo noryx \
+ && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
+ && chmod 0440 /etc/sudoers.d/90-noryx \
+ && mkdir -p /mnt/repos /datasets /home/noryx/.noryx-profile \
+ && ln -sfn /mnt/repos /repos \
+ && chown -R noryx:noryx /home/noryx /mnt /datasets
+
 EXPOSE 8888
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python3", "-m", "jupyterlab", "--ip=0.0.0.0", "--port=8888", "--no-browser"]
+
+USER noryx

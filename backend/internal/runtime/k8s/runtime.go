@@ -198,6 +198,9 @@ func (r *Runtime) CreatePersistentVolumeClaim(spec noryxruntime.PersistentVolume
 	}
 
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/persistentvolumeclaims", r.workloadNamespace), payload)
+	if err != nil && strings.Contains(err.Error(), "status=409") {
+		return nil
+	}
 	return err
 }
 

@@ -60,10 +60,11 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 ## Workspace baseline (current)
 
 - kind: `jupyter` or `vscode`
-- base image: `harbor.lan/noryx-environments/noryx-python:0.1.0`
+- base image: `harbor.lan/noryx-environments/noryx-python:0.2.1`
 - runtime pod naming: `wks-<shortid>`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
-- volume: `PersistentVolumeClaim` per workspace (`longhorn` default class, `10Gi` default size, mount `/workspace`)
+- project volume: shared `PersistentVolumeClaim` per project (`longhorn`, `ReadWriteMany`, `10Gi`, mount `/mnt`)
+- user profile volume: `PersistentVolumeClaim` per user (`longhorn`, `ReadWriteMany`, default `5Gi`, mount `/home/noryx/.noryx-profile`)
 - `POST /api/v1/workspaces` accepts optional `storageSize` to override default PVC size per workspace
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-backend`
 - web access auth:
@@ -72,6 +73,10 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - workloads are created in `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
 - global admin is granted by realm role `noryx-admin`
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
+- workspace bootstrap:
+  - `/mnt/requirements.txt` is auto-applied at startup (project virtualenv `/mnt/.venv`)
+  - `/repos` points to project repository area under `/mnt`
+  - `/datasets` is reserved for dataset mounts
 
 ## Quick test
 
