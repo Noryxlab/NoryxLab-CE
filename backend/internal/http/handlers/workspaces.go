@@ -37,6 +37,15 @@ var (
 	}
 )
 
+const (
+	workspaceProjectMountPath  = "/mnt"
+	workspaceRequirementsFile  = "/mnt/requirements.txt"
+	workspaceProjectVenvPath   = "/mnt/.venv"
+	workspaceReposPath         = "/repos"
+	workspaceDatasetsPath      = "/datasets"
+	defaultWorkspaceProfileDir = "/home/noryx/.noryx-profile"
+)
+
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -126,7 +135,7 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 			Image:        item.Image,
 			PodName:      item.PodName,
 			ServiceName:  item.ServiceName,
-			PVCName:      item.PodName,
+			PVCName:      "project-" + sanitizeK8sName(item.ProjectID),
 			PVCClass:     h.workspacePVCClass,
 			PVCSize:      h.workspacePVCSize,
 			PVCMountPath: h.workspacePVCMountPath,
@@ -152,9 +161,9 @@ func normalizeWorkspaceKind(raw string) string {
 func workspaceAccessURL(kind, workspaceID, accessToken string) string {
 	if kind == "vscode" {
 		if strings.TrimSpace(accessToken) != "" {
-			return fmt.Sprintf("/workspaces/%s/?folder=/workspace&token=%s", workspaceID, accessToken)
+			return fmt.Sprintf("/workspaces/%s/?folder=%s&token=%s", workspaceID, workspaceProjectMountPath, accessToken)
 		}
-		return fmt.Sprintf("/workspaces/%s/?folder=/workspace", workspaceID)
+		return fmt.Sprintf("/workspaces/%s/?folder=%s", workspaceID, workspaceProjectMountPath)
 	}
 
 	accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
@@ -250,13 +259,19 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	podName := "wks-" + shortID()
 	serviceName := podName
-	pvcName := podName
+	pvcName := "project-" + sanitizeK8sName(req.ProjectID)
+	profilePVCName := "profile-" + sanitizeK8sName(userID)
+	profileMountPath := strings.TrimSpace(h.workspaceProfilePVCMountPath)
+	if profileMountPath == "" {
+		profileMountPath = defaultWorkspaceProfileDir
+	}
+	projectMountPath := workspaceProjectMountPath
 	accessToken := shortID() + shortID()
 	workspaceImage := h.workspaceJupyterImage
 	if req.IDE == "vscode" {
 		workspaceImage = h.workspaceVSCodeImage
 	}
-	workspaceCommand := []string{"python3", "-m", "jupyterlab"}
+	workspaceCommand := []string{"/bin/sh", "-lc"}
 	workspaceArgs := []string{}
 	pvcSize := h.workspacePVCSize
 	if h.workspacePVCEnabled {
@@ -290,49 +305,49 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		accessToken,
 	)
 	record.AccessURL = workspaceAccessURL(req.IDE, record.ID, accessToken)
-	if req.IDE == "vscode" {
-		workspaceCommand = []string{"openvscode-server"}
-		workspaceArgs = []string{
-			"--host", "0.0.0.0",
-			"--port", "8888",
-			"--without-connection-token",
-			"--server-base-path", "/workspaces/" + record.ID,
-			"--default-folder", "/workspace",
-			"--telemetry-level", "off",
-		}
-	} else {
-		workspaceArgs = []string{
-			"--ip=0.0.0.0",
-			"--port=8888",
-			"--no-browser",
-			"--allow-root",
-			"--ServerApp.allow_remote_access=True",
-			"--ServerApp.trust_xheaders=True",
-			"--ServerApp.base_url=/workspaces/" + record.ID + "/",
-			"--ServerApp.token=" + accessToken,
-			"--ServerApp.password=",
-		}
-	}
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass
 	record.PVCSize = pvcSize
-	record.PVCMountPath = h.workspacePVCMountPath
+	record.PVCMountPath = projectMountPath
 
 	if h.runtime != nil {
 		if h.workspacePVCEnabled {
+			workspaceAccessMode := strings.TrimSpace(h.workspacePVCAccessMode)
+			if workspaceAccessMode == "" {
+				workspaceAccessMode = "ReadWriteMany"
+			}
 			err = h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
 				Name:             pvcName,
 				StorageClassName: h.workspacePVCClass,
 				Size:             pvcSize,
+				AccessModes:      []string{workspaceAccessMode},
 				Labels: map[string]string{
 					"app.kubernetes.io/name": "noryx-workspace-volume",
 					"noryx.io/project-id":    req.ProjectID,
-					"noryx.io/workspace-id":  record.ID,
-					"noryx.io/workspace-pod": podName,
 				},
 			})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pvc create failed: " + err.Error()})
+				return
+			}
+		}
+		if h.workspaceProfilePVCEnabled {
+			profileAccessMode := strings.TrimSpace(h.workspaceProfilePVCAccessMode)
+			if profileAccessMode == "" {
+				profileAccessMode = "ReadWriteMany"
+			}
+			err = h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
+				Name:             profilePVCName,
+				StorageClassName: h.workspaceProfilePVCClass,
+				Size:             h.workspaceProfilePVCSize,
+				AccessModes:      []string{profileAccessMode},
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-user-profile",
+					"noryx.io/user-id":       sanitizeK8sName(userID),
+				},
+			})
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace profile pvc create failed: " + err.Error()})
 				return
 			}
 		}
@@ -341,15 +356,31 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		if h.workspacePVCEnabled {
 			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
 				ClaimName: pvcName,
-				MountPath: h.workspacePVCMountPath,
+				MountPath: projectMountPath,
+			})
+		}
+		if h.workspaceProfilePVCEnabled {
+			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
+				ClaimName: profilePVCName,
+				MountPath: profileMountPath,
 			})
 		}
 
+		bootstrapScript := workspaceBootstrapScript(req.IDE, record.ID, accessToken, profileMountPath, projectMountPath)
+		workspaceArgs = []string{bootstrapScript}
+
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
-			PodName:    podName,
-			Image:      record.Image,
-			Command:    workspaceCommand,
-			Args:       workspaceArgs,
+			PodName: podName,
+			Image:   record.Image,
+			Command: workspaceCommand,
+			Args:    workspaceArgs,
+			Env: []noryxruntime.EnvVar{
+				{Name: "HOME", Value: "/home/noryx"},
+				{Name: "PIP_CACHE_DIR", Value: profileMountPath + "/pip-cache"},
+				{Name: "OPENVSCODE_DATA_DIR", Value: profileMountPath + "/vscode"},
+				{Name: "JUPYTER_CONFIG_DIR", Value: profileMountPath + "/jupyter/config"},
+				{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
+			},
 			Ports:      []int{8888},
 			CPURequest: h.workspaceCPU,
 			CPULimit:   h.workspaceCPU,
@@ -366,9 +397,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
-			if h.workspacePVCEnabled {
-				_ = h.runtime.DeletePersistentVolumeClaim(pvcName)
-			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod launch failed: " + err.Error()})
 			return
 		}
@@ -382,9 +410,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			_ = h.runtime.DeletePod(podName)
-			if h.workspacePVCEnabled {
-				_ = h.runtime.DeletePersistentVolumeClaim(pvcName)
-			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service creation failed: " + err.Error()})
 			return
 		}
@@ -432,6 +457,84 @@ func normalizeWorkspaceStorageSize(raw string) (string, error) {
 	return matches[1] + unit, nil
 }
 
+func sanitizeK8sName(raw string) string {
+	lowered := strings.ToLower(strings.TrimSpace(raw))
+	if lowered == "" {
+		return shortID()
+	}
+	var b strings.Builder
+	lastDash := false
+	for _, r := range lowered {
+		isAZ09 := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if isAZ09 {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteRune('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		out = shortID()
+	}
+	if len(out) > 50 {
+		out = out[:50]
+	}
+	return strings.Trim(out, "-")
+}
+
+func workspaceBootstrapScript(kind, workspaceID, accessToken, profileMountPath, projectMountPath string) string {
+	lines := []string{
+		"set -e",
+		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, projectMountPath+"/repos", workspaceDatasetsPath),
+		fmt.Sprintf("mkdir -p %s %s %s %s %s",
+			profileMountPath,
+			profileMountPath+"/vscode",
+			profileMountPath+"/jupyter/config",
+			profileMountPath+"/jupyter/lab/user-settings",
+			profileMountPath+"/pip-cache",
+		),
+		fmt.Sprintf("if [ -f %s ]; then", workspaceRequirementsFile),
+		fmt.Sprintf("  python3 -m venv %s || true", workspaceProjectVenvPath),
+		fmt.Sprintf("  if [ -x %s/bin/pip ]; then", workspaceProjectVenvPath),
+		fmt.Sprintf("    %s/bin/pip install --disable-pip-version-check -r %s", workspaceProjectVenvPath, workspaceRequirementsFile),
+		"  else",
+		fmt.Sprintf("    python3 -m pip install --disable-pip-version-check -r %s", workspaceRequirementsFile),
+		"  fi",
+		"fi",
+	}
+
+	if kind == "vscode" {
+		lines = append(lines,
+			"exec openvscode-server \\",
+			"  --host 0.0.0.0 \\",
+			"  --port 8888 \\",
+			"  --without-connection-token \\",
+			fmt.Sprintf("  --server-base-path /workspaces/%s \\", workspaceID),
+			fmt.Sprintf("  --default-folder %s \\", projectMountPath),
+			"  --telemetry-level off",
+		)
+		return strings.Join(lines, "\n")
+	}
+
+	lines = append(lines,
+		"exec python3 -m jupyterlab \\",
+		"  --ip=0.0.0.0 \\",
+		"  --port=8888 \\",
+		"  --no-browser \\",
+		"  --ServerApp.allow_remote_access=True \\",
+		"  --ServerApp.trust_xheaders=True \\",
+		fmt.Sprintf("  --ServerApp.root_dir=%s \\", projectMountPath),
+		fmt.Sprintf("  --ServerApp.base_url=/workspaces/%s/ \\", workspaceID),
+		fmt.Sprintf("  --ServerApp.token=%s \\", accessToken),
+		"  --ServerApp.password=",
+	)
+	return strings.Join(lines, "\n")
+}
+
 func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -466,18 +569,6 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		if err := h.runtime.DeletePod(record.PodName); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
 			return
-		}
-		if h.workspacePVCEnabled {
-			pvcName := strings.TrimSpace(record.PVCName)
-			if pvcName == "" {
-				pvcName = strings.TrimSpace(record.PodName)
-			}
-			if pvcName != "" {
-				if err := h.runtime.DeletePersistentVolumeClaim(pvcName); err != nil {
-					writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pvc delete failed: " + err.Error()})
-					return
-				}
-			}
 		}
 	}
 

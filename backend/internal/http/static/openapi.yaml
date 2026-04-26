@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.26
+  version: 0.5.29
 servers:
   - url: /
 components:
