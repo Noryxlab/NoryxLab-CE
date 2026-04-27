@@ -278,6 +278,7 @@ data:
             <div class="menu-title">Workspace Hub</div>
             <div class="menu">
               <button class="tab-btn active" data-tab="projects">Projects</button>
+              <button class="tab-btn" data-tab="data">Data</button>
               <button class="tab-btn" data-tab="workspaces">Workspaces</button>
               <button class="tab-btn" data-tab="environments">Environments</button>
               <button class="tab-btn" data-tab="workloads">Workloads</button>
@@ -333,6 +334,86 @@ data:
                     <h3>Project Context</h3>
                     <div class="hint">Le projet sélectionné sert de scope pour Workspaces, Builds et Workloads.</div>
                     <pre id="projectOut">-</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-data">
+                <div class="grid">
+                  <article class="card span-6">
+                    <h3>Secrets</h3>
+                    <div class="hint">Secrets utilisateur (tokens, passwords, API keys).</div>
+                    <div class="row">
+                      <input id="secretName" placeholder="Secret name" />
+                      <input id="secretType" placeholder="Type (optional)" value="generic" />
+                    </div>
+                    <div class="row">
+                      <input id="secretValue" placeholder="Secret value" />
+                      <button id="saveSecret" class="btn primary">Save Secret</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Type</th><th>Updated</th><th>Actions</th></tr></thead>
+                      <tbody id="secretRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-6">
+                    <h3>Datasets</h3>
+                    <div class="hint">Catalog datasets + optional object upload to MinIO.</div>
+                    <div class="row">
+                      <input id="datasetName" placeholder="Dataset name" />
+                      <input id="datasetDescription" placeholder="Description (optional)" />
+                    </div>
+                    <div class="row">
+                      <button id="createDataset" class="btn primary">Create Dataset</button>
+                      <button id="refreshData" class="btn">Refresh Data</button>
+                    </div>
+                    <div class="row">
+                      <select id="datasetUploadTarget"></select>
+                      <input id="datasetUploadPath" placeholder="Object path (e.g. raw/train.csv)" />
+                    </div>
+                    <div class="row">
+                      <input id="datasetUploadFile" type="file" />
+                      <button id="uploadDatasetObject" class="btn">Upload Object</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Bucket</th><th>Prefix</th><th>Actions</th></tr></thead>
+                      <tbody id="datasetRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-6">
+                    <h3>Repositories</h3>
+                    <div class="hint">Catalog git repositories and link optional auth secret.</div>
+                    <div class="row">
+                      <input id="repoName" placeholder="Repository name" />
+                      <input id="repoUrl" placeholder="https://..." />
+                    </div>
+                    <div class="row">
+                      <input id="repoRef" placeholder="Default ref (main)" value="main" />
+                      <select id="repoSecretRef"></select>
+                    </div>
+                    <div class="row">
+                      <button id="createRepository" class="btn primary">Create Repository</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>URL</th><th>Ref</th><th>Actions</th></tr></thead>
+                      <tbody id="repoRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-6">
+                    <h3>Attached To Project</h3>
+                    <div class="hint">Attach datasets/repositories to selected project context.</div>
+                    <pre id="projectBindingsOut">-</pre>
+                    <table>
+                      <thead><tr><th>Attached Datasets</th><th>Actions</th></tr></thead>
+                      <tbody id="projectDatasetRows"></tbody>
+                    </table>
+                    <table>
+                      <thead><tr><th>Attached Repositories</th><th>Actions</th></tr></thead>
+                      <tbody id="projectRepoRows"></tbody>
+                    </table>
                   </article>
                 </div>
               </section>
@@ -450,6 +531,7 @@ data:
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
+          const projectBindingsOut = document.getElementById('projectBindingsOut');
 
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
@@ -478,9 +560,34 @@ data:
           const environmentRows = document.getElementById('environmentRows');
 
           const workloadRows = document.getElementById('workloadRows');
+          const secretNameInput = document.getElementById('secretName');
+          const secretTypeInput = document.getElementById('secretType');
+          const secretValueInput = document.getElementById('secretValue');
+          const saveSecretBtn = document.getElementById('saveSecret');
+          const secretRows = document.getElementById('secretRows');
+
+          const datasetNameInput = document.getElementById('datasetName');
+          const datasetDescriptionInput = document.getElementById('datasetDescription');
+          const createDatasetBtn = document.getElementById('createDataset');
+          const refreshDataBtn = document.getElementById('refreshData');
+          const datasetRows = document.getElementById('datasetRows');
+          const datasetUploadTarget = document.getElementById('datasetUploadTarget');
+          const datasetUploadPathInput = document.getElementById('datasetUploadPath');
+          const datasetUploadFileInput = document.getElementById('datasetUploadFile');
+          const uploadDatasetObjectBtn = document.getElementById('uploadDatasetObject');
+
+          const repoNameInput = document.getElementById('repoName');
+          const repoUrlInput = document.getElementById('repoUrl');
+          const repoRefInput = document.getElementById('repoRef');
+          const repoSecretRefInput = document.getElementById('repoSecretRef');
+          const createRepositoryBtn = document.getElementById('createRepository');
+          const repoRows = document.getElementById('repoRows');
+          const projectDatasetRows = document.getElementById('projectDatasetRows');
+          const projectRepoRows = document.getElementById('projectRepoRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
           const views = {
             projects: document.getElementById('view-projects'),
+            data: document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
             environments: document.getElementById('view-environments'),
             workloads: document.getElementById('view-workloads'),
@@ -495,12 +602,17 @@ data:
 
           const state = {
             projects: [],
+            secrets: [],
+            datasets: [],
+            repositories: [],
+            projectDatasets: [],
+            projectRepositories: [],
             workspaces: [],
             builds: [],
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.25';
+          const FRONT_VERSION = 'ce-web-0.6.26';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -537,6 +649,11 @@ data:
             loadWorkspacesBtn.disabled = !enabled;
             createWorkspaceBtn.disabled = !enabled;
             buildEnvBtn.disabled = !enabled;
+            saveSecretBtn.disabled = !enabled;
+            createDatasetBtn.disabled = !enabled;
+            refreshDataBtn.disabled = !enabled;
+            uploadDatasetObjectBtn.disabled = !enabled;
+            createRepositoryBtn.disabled = !enabled;
           }
 
           function badge(status) {
@@ -641,6 +758,120 @@ data:
             }
           }
 
+          function renderSecretsTable() {
+            secretRows.innerHTML = '';
+            if (state.secrets.length === 0) {
+              secretRows.innerHTML = '<tr><td colspan="4">No secret yet.</td></tr>';
+              return;
+            }
+            state.secrets.forEach((s) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (s.name || '-') + '</strong></td>' +
+                '<td><code>' + (s.type || 'generic') + '</code></td>' +
+                '<td>' + (s.updatedAt || '-') + '</td>' +
+                '<td><button type="button" class="btn danger" data-del-secret="' + encodeURIComponent(s.name || '') + '">Delete</button></td>';
+              secretRows.appendChild(tr);
+            });
+          }
+
+          function renderDatasetsTable() {
+            datasetRows.innerHTML = '';
+            datasetUploadTarget.innerHTML = '';
+            if (state.datasets.length === 0) {
+              datasetRows.innerHTML = '<tr><td colspan="4">No dataset yet.</td></tr>';
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No dataset';
+              datasetUploadTarget.appendChild(opt);
+              return;
+            }
+            state.datasets.forEach((d) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span></td>' +
+                '<td><code>' + (d.bucket || '-') + '</code></td>' +
+                '<td><code>' + (d.prefix || '-') + '</code></td>' +
+                '<td><button type="button" class="btn" data-attach-dataset="' + (d.id || '') + '">Attach</button></td>';
+              datasetRows.appendChild(tr);
+
+              const opt = document.createElement('option');
+              opt.value = d.id || '';
+              opt.textContent = (d.name || d.id) + ' (' + (d.bucket || '-') + ')';
+              datasetUploadTarget.appendChild(opt);
+            });
+          }
+
+          function renderRepositoriesTable() {
+            repoRows.innerHTML = '';
+            if (state.repositories.length === 0) {
+              repoRows.innerHTML = '<tr><td colspan="4">No repository yet.</td></tr>';
+              return;
+            }
+            state.repositories.forEach((r) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (r.name || r.id) + '</strong></td>' +
+                '<td><code>' + (r.url || '-') + '</code></td>' +
+                '<td><code>' + (r.defaultRef || '-') + '</code></td>' +
+                '<td><button type="button" class="btn" data-attach-repo="' + (r.id || '') + '">Attach</button></td>';
+              repoRows.appendChild(tr);
+            });
+          }
+
+          function renderProjectBindings() {
+            projectDatasetRows.innerHTML = '';
+            projectRepoRows.innerHTML = '';
+            const pid = selectedProjectId();
+            projectBindingsOut.textContent = JSON.stringify({
+              projectId: pid || null,
+              datasets: state.projectDatasets.map(d => ({ id: d.id, name: d.name })),
+              repositories: state.projectRepositories.map(r => ({ id: r.id, name: r.name }))
+            }, null, 2);
+
+            if (state.projectDatasets.length === 0) {
+              projectDatasetRows.innerHTML = '<tr><td colspan="2">No dataset attached.</td></tr>';
+            } else {
+              state.projectDatasets.forEach((d) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + (d.name || d.id) + '</strong></td>' +
+                  '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
+                projectDatasetRows.appendChild(tr);
+              });
+            }
+
+            if (state.projectRepositories.length === 0) {
+              projectRepoRows.innerHTML = '<tr><td colspan="2">No repository attached.</td></tr>';
+            } else {
+              state.projectRepositories.forEach((r) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + (r.name || r.id) + '</strong></td>' +
+                  '<td><button type="button" class="btn danger" data-detach-repo="' + (r.id || '') + '">Detach</button></td>';
+                projectRepoRows.appendChild(tr);
+              });
+            }
+          }
+
+          function renderSecretOptions() {
+            const current = repoSecretRefInput.value || '';
+            repoSecretRefInput.innerHTML = '';
+            const none = document.createElement('option');
+            none.value = '';
+            none.textContent = 'No secret';
+            repoSecretRefInput.appendChild(none);
+            state.secrets.forEach((s) => {
+              const opt = document.createElement('option');
+              opt.value = s.name || '';
+              opt.textContent = (s.name || '-') + ' (' + (s.type || 'generic') + ')';
+              repoSecretRefInput.appendChild(opt);
+            });
+            if (current && state.secrets.some((s) => s.name === current)) {
+              repoSecretRefInput.value = current;
+            }
+          }
+
           function renderWorkspacesTable() {
             const pid = selectedProjectId();
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
@@ -736,6 +967,11 @@ data:
             renderProjectOptions();
             renderProjectsTable();
             renderProjectContext();
+            renderSecretsTable();
+            renderDatasetsTable();
+            renderRepositoriesTable();
+            renderProjectBindings();
+            renderSecretOptions();
             renderWorkspacesTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
@@ -763,6 +999,44 @@ data:
             state.workspaces = ensureArray(body.items);
             renderAll();
             return body;
+          }
+
+          async function refreshSecrets() {
+            const body = await callJSON('/api/v1/secrets');
+            state.secrets = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshDatasets() {
+            const body = await callJSON('/api/v1/datasets');
+            state.datasets = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshRepositories() {
+            const body = await callJSON('/api/v1/repositories');
+            state.repositories = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshProjectBindings() {
+            const pid = selectedProjectId();
+            if (!pid) {
+              state.projectDatasets = [];
+              state.projectRepositories = [];
+              renderAll();
+              return;
+            }
+            const [datasetsBody, reposBody] = await Promise.all([
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories')
+            ]);
+            state.projectDatasets = ensureArray(datasetsBody.items);
+            state.projectRepositories = ensureArray(reposBody.items);
+            renderAll();
           }
 
           async function refreshBuilds() {
@@ -841,7 +1115,109 @@ data:
 
           projectSelect.onchange = async () => {
             try {
-              await Promise.all([refreshBuilds(), refreshEnvironments()]);
+              await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectBindings()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          saveSecretBtn.onclick = async () => {
+            try {
+              const payload = {
+                name: secretNameInput.value.trim(),
+                type: secretTypeInput.value.trim(),
+                value: secretValueInput.value.trim()
+              };
+              if (!payload.name || !payload.value) throw { error: 'secret name and value are required' };
+              await callJSON('/api/v1/secrets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              secretValueInput.value = '';
+              await refreshSecrets();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          createDatasetBtn.onclick = async () => {
+            try {
+              const payload = {
+                name: datasetNameInput.value.trim(),
+                description: datasetDescriptionInput.value.trim()
+              };
+              if (!payload.name) throw { error: 'dataset name is required' };
+              await callJSON('/api/v1/datasets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              datasetNameInput.value = '';
+              datasetDescriptionInput.value = '';
+              await Promise.all([refreshDatasets(), refreshProjectBindings()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          refreshDataBtn.onclick = async () => {
+            try {
+              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectBindings()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          uploadDatasetObjectBtn.onclick = async () => {
+            try {
+              const datasetID = (datasetUploadTarget.value || '').trim();
+              const objectPath = (datasetUploadPathInput.value || '').trim();
+              const file = datasetUploadFileInput.files && datasetUploadFileInput.files[0];
+              if (!datasetID || !objectPath || !file) throw { error: 'dataset, object path and file are required' };
+              if (keycloak?.authenticated) {
+                try { await keycloak.updateToken(30); } catch (_) {}
+              }
+              const res = await fetch('/api/v1/datasets/' + encodeURIComponent(datasetID) + '/objects/' + encodeURIComponent(objectPath), {
+                method: 'PUT',
+                headers: {
+                  ...authHeader(),
+                  'Content-Type': file.type || 'application/octet-stream'
+                },
+                body: file
+              });
+              const body = await res.json().catch(() => ({}));
+              if (!res.ok) throw body;
+              pretty(projectBindingsOut, body);
+              datasetUploadPathInput.value = '';
+              datasetUploadFileInput.value = '';
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          createRepositoryBtn.onclick = async () => {
+            try {
+              const payload = {
+                name: repoNameInput.value.trim(),
+                url: repoUrlInput.value.trim(),
+                defaultRef: repoRefInput.value.trim(),
+                authSecretName: repoSecretRefInput.value.trim()
+              };
+              if (!payload.name || !payload.url) throw { error: 'repository name and url are required' };
+              await callJSON('/api/v1/repositories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              repoNameInput.value = '';
+              repoUrlInput.value = '';
+              await Promise.all([refreshRepositories(), refreshProjectBindings()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -995,6 +1371,74 @@ data:
             }
           };
 
+          secretRows.onclick = async (event) => {
+            const secretName = event.target?.getAttribute('data-del-secret');
+            if (!secretName) return;
+            try {
+              await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(secretName)), { method: 'DELETE' });
+              await Promise.all([refreshSecrets(), refreshRepositories()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          datasetRows.onclick = async (event) => {
+            const attachId = event.target?.getAttribute('data-attach-dataset');
+            if (!attachId) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(attachId), { method: 'PUT' });
+              await refreshProjectBindings();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          repoRows.onclick = async (event) => {
+            const attachId = event.target?.getAttribute('data-attach-repo');
+            if (!attachId) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(attachId), { method: 'PUT' });
+              await refreshProjectBindings();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectDatasetRows.onclick = async (event) => {
+            const detachId = event.target?.getAttribute('data-detach-dataset');
+            if (!detachId) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(detachId), { method: 'DELETE' });
+              await refreshProjectBindings();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectRepoRows.onclick = async (event) => {
+            const detachId = event.target?.getAttribute('data-detach-repo');
+            if (!detachId) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(detachId), { method: 'DELETE' });
+              await refreshProjectBindings();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
           keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
             if (!authenticated) {
               stopWorkspacesAutoRefresh();
@@ -1008,7 +1452,7 @@ data:
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectBindings()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');
