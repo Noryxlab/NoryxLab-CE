@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.32
+  version: 0.5.35
   description: |
     Noryx CE backend API contract.
 
@@ -295,11 +295,38 @@ components:
 
     Secret:
       type: object
-      required: [id, name, type, createdAt, updatedAt]
+      required: [id, name, type, isExpired, createdAt, updatedAt]
       properties:
         id: { type: string }
         name: { type: string }
         type: { type: string }
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        isExpired:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SecretReveal:
+      type: object
+      required: [id, name, type, value, isExpired, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        value: { type: string }
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        isExpired:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -329,6 +356,11 @@ components:
         value:
           type: string
           example: ghp_xxx
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional expiration date-time (RFC3339, UTC recommended).
 
     Dataset:
       type: object
@@ -383,7 +415,7 @@ components:
 
     Repository:
       type: object
-      required: [id, ownerUserId, name, url, defaultRef, createdAt, updatedAt]
+      required: [id, ownerUserId, name, url, createdAt, updatedAt]
       properties:
         id: { type: string }
         ownerUserId: { type: string }
@@ -417,9 +449,6 @@ components:
         url:
           type: string
           example: https://github.com/Noryxlab/NoryxLab-CE.git
-        defaultRef:
-          type: string
-          example: main
         authSecretName:
           type: string
           example: git-token
@@ -874,6 +903,32 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /api/v1/secrets/{name}:
+    get:
+      tags: [Secrets]
+      summary: Get one user secret including decrypted value
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Secret details with value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretReveal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
       tags: [Secrets]
       summary: Delete user secret
@@ -938,6 +993,30 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '502':
           $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/datasets/{datasetID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete one dataset owned by current user
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Dataset deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1011,7 +1090,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     post:
       tags: [Repositories]
-      summary: Register one git repository
+      summary: Register one git repository (connectivity validated)
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -1029,7 +1108,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Repository'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          description: Invalid payload or repository validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

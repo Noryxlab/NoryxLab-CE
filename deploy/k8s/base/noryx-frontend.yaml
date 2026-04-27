@@ -275,14 +275,31 @@ data:
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
-            <div class="menu-title">Workspace Hub</div>
+            <div class="menu-title">Navigation</div>
             <div class="menu">
-              <button class="tab-btn active" data-tab="projects">Projects</button>
-              <button class="tab-btn" data-tab="data">Data</button>
+              <button class="tab-btn active" data-tab="environments">Environments</button>
+            </div>
+
+            <div class="menu-title">Data</div>
+            <div class="menu">
+              <button class="tab-btn" data-tab="data" data-anchor="card-datasets">Datasets</button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-repositories">Git</button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-secrets">Secrets</button>
+            </div>
+
+            <div class="menu-title">Projects</div>
+            <div class="menu">
+              <button class="tab-btn" data-tab="projects">Overview</button>
               <button class="tab-btn" data-tab="workspaces">Workspaces</button>
-              <button class="tab-btn" data-tab="environments">Environments</button>
-              <button class="tab-btn" data-tab="workloads">Workloads</button>
-              <button class="tab-btn" data-tab="ops">Ops</button>
+              <button class="tab-btn" data-tab="project-jobs">Jobs</button>
+              <button class="tab-btn" data-tab="project-apps">Apps</button>
+              <button class="tab-btn" data-tab="project-apis">APIs</button>
+            </div>
+
+            <div class="menu-title">Ops</div>
+            <div class="menu">
+              <button class="tab-btn admin-only" data-tab="workloads">Workloads</button>
+              <button class="tab-btn" data-tab="ops">Admin</button>
             </div>
 
             <div class="menu-title">Platform</div>
@@ -300,8 +317,8 @@ data:
               <div class="actions">
                 <button id="login" class="btn primary">Login Keycloak</button>
                 <button id="logout" class="btn">Logout</button>
-                <button id="loadModules" class="btn good">Modules</button>
-                <button id="loadUsers" class="btn good">Users</button>
+                <button id="loadModules" class="btn good admin-only">Modules</button>
+                <button id="loadUsers" class="btn good admin-only">Users</button>
               </div>
             </section>
 
@@ -309,11 +326,11 @@ data:
               <article class="stat"><div class="k">Projects</div><div id="statProjects" class="v">0</div></article>
               <article class="stat"><div class="k">Workspaces</div><div id="statWorkspaces" class="v">0</div></article>
               <article class="stat"><div class="k">Builds</div><div id="statBuilds" class="v">0</div></article>
-              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Projects</div></article>
+              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Environments</div></article>
             </section>
 
             <section class="views">
-              <section class="view active" id="view-projects">
+              <section class="view" id="view-projects">
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Projects</h3>
@@ -340,24 +357,25 @@ data:
 
               <section class="view" id="view-data">
                 <div class="grid">
-                  <article class="card span-6">
+                  <article id="card-secrets" class="card span-6">
                     <h3>Secrets</h3>
-                    <div class="hint">Secrets utilisateur (tokens, passwords, API keys).</div>
+                    <div class="hint">Secrets utilisateur (tokens, passwords, API keys). Expiration optionnelle.</div>
                     <div class="row">
                       <input id="secretName" placeholder="Secret name" />
-                      <input id="secretType" placeholder="Type (optional)" value="generic" />
+                      <input id="secretExpiresAt" type="date" />
                     </div>
                     <div class="row">
                       <input id="secretValue" placeholder="Secret value" />
                       <button id="saveSecret" class="btn primary">Save Secret</button>
                     </div>
+                    <pre id="secretOut">-</pre>
                     <table>
-                      <thead><tr><th>Name</th><th>Type</th><th>Updated</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Name</th><th>Expires</th><th>Updated</th><th>Actions</th></tr></thead>
                       <tbody id="secretRows"></tbody>
                     </table>
                   </article>
 
-                  <article class="card span-6">
+                  <article id="card-datasets" class="card span-6">
                     <h3>Datasets</h3>
                     <div class="hint">Catalog datasets + optional object upload to MinIO.</div>
                     <div class="row">
@@ -382,39 +400,25 @@ data:
                     </table>
                   </article>
 
-                  <article class="card span-6">
+                  <article id="card-repositories" class="card span-6">
                     <h3>Repositories</h3>
-                    <div class="hint">Catalog git repositories and link optional auth secret.</div>
+                    <div class="hint">Catalog only: name + URL + optional auth secret, with validation on save.</div>
                     <div class="row">
                       <input id="repoName" placeholder="Repository name" />
                       <input id="repoUrl" placeholder="https://..." />
                     </div>
                     <div class="row">
-                      <input id="repoRef" placeholder="Default ref (main)" value="main" />
                       <select id="repoSecretRef"></select>
                     </div>
                     <div class="row">
                       <button id="createRepository" class="btn primary">Create Repository</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>URL</th><th>Ref</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th></tr></thead>
                       <tbody id="repoRows"></tbody>
                     </table>
                   </article>
 
-                  <article class="card span-6">
-                    <h3>Attached To Project</h3>
-                    <div class="hint">Attach datasets/repositories to selected project context.</div>
-                    <pre id="projectBindingsOut">-</pre>
-                    <table>
-                      <thead><tr><th>Attached Datasets</th><th>Actions</th></tr></thead>
-                      <tbody id="projectDatasetRows"></tbody>
-                    </table>
-                    <table>
-                      <thead><tr><th>Attached Repositories</th><th>Actions</th></tr></thead>
-                      <tbody id="projectRepoRows"></tbody>
-                    </table>
-                  </article>
                 </div>
               </section>
 
@@ -449,7 +453,7 @@ data:
                 </div>
               </section>
 
-              <section class="view" id="view-environments">
+              <section class="view active" id="view-environments">
                 <div class="grid">
                   <article class="card span-7">
                     <h3>Environment Catalog</h3>
@@ -478,6 +482,36 @@ data:
                     <pre id="buildOut">-</pre>
                     <h3>Dockerfile</h3>
                     <pre id="dockerfileOut">-</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-project-jobs">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Project Jobs</h3>
+                    <div class="hint">Coming soon. Jobs will run from one selected environment in project scope.</div>
+                    <pre>Planned V1: submit job, track status, inspect logs, stop run.</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-project-apps">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Project Apps</h3>
+                    <div class="hint">Coming soon. Apps will expose long-running services in project scope.</div>
+                    <pre>Planned V1: app deploy, endpoint URL, scale and stop.</pre>
+                  </article>
+                </div>
+              </section>
+
+              <section class="view" id="view-project-apis">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Project APIs</h3>
+                    <div class="hint">Coming soon. APIs will be managed workloads with environment + route.</div>
+                    <pre>Planned V1: API deploy, route, version and lifecycle controls.</pre>
                   </article>
                 </div>
               </section>
@@ -531,7 +565,7 @@ data:
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
-          const projectBindingsOut = document.getElementById('projectBindingsOut');
+          const secretOut = document.getElementById('secretOut');
 
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
@@ -561,7 +595,7 @@ data:
 
           const workloadRows = document.getElementById('workloadRows');
           const secretNameInput = document.getElementById('secretName');
-          const secretTypeInput = document.getElementById('secretType');
+          const secretExpiresAtInput = document.getElementById('secretExpiresAt');
           const secretValueInput = document.getElementById('secretValue');
           const saveSecretBtn = document.getElementById('saveSecret');
           const secretRows = document.getElementById('secretRows');
@@ -578,17 +612,17 @@ data:
 
           const repoNameInput = document.getElementById('repoName');
           const repoUrlInput = document.getElementById('repoUrl');
-          const repoRefInput = document.getElementById('repoRef');
           const repoSecretRefInput = document.getElementById('repoSecretRef');
           const createRepositoryBtn = document.getElementById('createRepository');
           const repoRows = document.getElementById('repoRows');
-          const projectDatasetRows = document.getElementById('projectDatasetRows');
-          const projectRepoRows = document.getElementById('projectRepoRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
           const views = {
             projects: document.getElementById('view-projects'),
             data: document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
+            'project-jobs': document.getElementById('view-project-jobs'),
+            'project-apps': document.getElementById('view-project-apps'),
+            'project-apis': document.getElementById('view-project-apis'),
             environments: document.getElementById('view-environments'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
@@ -605,14 +639,12 @@ data:
             secrets: [],
             datasets: [],
             repositories: [],
-            projectDatasets: [],
-            projectRepositories: [],
             workspaces: [],
             builds: [],
             environments: [],
-            activeTab: 'projects'
+            activeTab: 'environments'
           };
-          const FRONT_VERSION = 'ce-web-0.6.26';
+          const FRONT_VERSION = 'ce-web-0.6.31';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -639,11 +671,34 @@ data:
           function authHeader() { return { Authorization: 'Bearer ' + keycloak.token }; }
           function selectedProjectId() { return projectSelect.value || ''; }
           function ensureArray(v) { return Array.isArray(v) ? v : []; }
+          function dateToRFC3339EndOfDay(dateValue) {
+            const d = String(dateValue || '').trim();
+            if (!d) return '';
+            return d + 'T23:59:59Z';
+          }
+
+          async function copyText(value) {
+            const text = String(value || '');
+            if (!text) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+              return;
+            }
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.style.position = 'fixed';
+            area.style.top = '-1000px';
+            document.body.appendChild(area);
+            area.focus();
+            area.select();
+            document.execCommand('copy');
+            document.body.removeChild(area);
+          }
 
           function setButtons(enabled) {
             logoutBtn.disabled = !enabled;
-            usersBtn.disabled = !enabled;
-            modulesBtn.disabled = !enabled;
+            usersBtn.disabled = !enabled || !isAdminUser();
+            modulesBtn.disabled = !enabled || !isAdminUser();
             loadProjectsBtn.disabled = !enabled;
             createProjectBtn.disabled = !enabled;
             loadWorkspacesBtn.disabled = !enabled;
@@ -654,6 +709,23 @@ data:
             refreshDataBtn.disabled = !enabled;
             uploadDatasetObjectBtn.disabled = !enabled;
             createRepositoryBtn.disabled = !enabled;
+          }
+
+          function isAdminUser() {
+            const realmRoles = ensureArray(keycloak?.tokenParsed?.realm_access?.roles);
+            const clientRoles = ensureArray(keycloak?.tokenParsed?.resource_access?.['noryx-api']?.roles);
+            const roles = new Set([...realmRoles, ...clientRoles].map((r) => String(r || '').toLowerCase()));
+            return roles.has('admin') || roles.has('platform_admin');
+          }
+
+          function applyRoleVisibility() {
+            const admin = isAdminUser();
+            document.querySelectorAll('.admin-only').forEach((el) => {
+              el.style.display = admin ? '' : 'none';
+            });
+            if (!admin && state.activeTab === 'workloads') {
+              switchTab('environments');
+            }
           }
 
           function badge(status) {
@@ -670,20 +742,37 @@ data:
             return idx === -1 ? s : s.slice(0, idx) + '?...';
           }
 
-          function switchTab(tab) {
+          function switchTab(tab, sourceBtn) {
             state.activeTab = tab;
-            tabButtons.forEach((btn) => {
-              const on = btn.getAttribute('data-tab') === tab;
-              btn.classList.toggle('active', on);
-            });
+            const activeButton = sourceBtn || tabButtons.find((btn) => btn.getAttribute('data-tab') === tab);
+            tabButtons.forEach((btn) => btn.classList.toggle('active', btn === activeButton));
             Object.keys(views).forEach((name) => {
               views[name].classList.toggle('active', name === tab);
             });
-            statTab.textContent = tab.charAt(0).toUpperCase() + tab.slice(1);
+            const labels = {
+              projects: 'Projects',
+              data: 'Data',
+              workspaces: 'Workspaces',
+              'project-jobs': 'Project Jobs',
+              'project-apps': 'Project Apps',
+              'project-apis': 'Project APIs',
+              environments: 'Environments',
+              workloads: 'Workloads',
+              ops: 'Admin Ops'
+            };
+            statTab.textContent = labels[tab] || tab;
           }
 
           tabButtons.forEach((btn) => {
-            btn.onclick = () => switchTab(btn.getAttribute('data-tab'));
+            btn.onclick = () => {
+              const tab = btn.getAttribute('data-tab');
+              switchTab(tab, btn);
+              const anchor = btn.getAttribute('data-anchor');
+              if (anchor && tab === 'data') {
+                const node = document.getElementById(anchor);
+                if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            };
           });
 
           async function callJSON(url, options = {}) {
@@ -765,12 +854,20 @@ data:
               return;
             }
             state.secrets.forEach((s) => {
+              const secretName = encodeURIComponent(s.name || '');
+              const expiresLabel = s.expiresAt
+                ? (String(s.expiresAt) + (s.isExpired ? ' (expired)' : ''))
+                : '-';
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (s.name || '-') + '</strong></td>' +
-                '<td><code>' + (s.type || 'generic') + '</code></td>' +
+                '<td><code>' + expiresLabel + '</code></td>' +
                 '<td>' + (s.updatedAt || '-') + '</td>' +
-                '<td><button type="button" class="btn danger" data-del-secret="' + encodeURIComponent(s.name || '') + '">Delete</button></td>';
+                '<td>' +
+                '<button type="button" class="btn" data-view-secret="' + secretName + '">View</button> ' +
+                '<button type="button" class="btn" data-copy-secret="' + secretName + '">Copy</button> ' +
+                '<button type="button" class="btn danger" data-del-secret="' + secretName + '">Delete</button>' +
+                '</td>';
               secretRows.appendChild(tr);
             });
           }
@@ -792,7 +889,7 @@ data:
                 '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span></td>' +
                 '<td><code>' + (d.bucket || '-') + '</code></td>' +
                 '<td><code>' + (d.prefix || '-') + '</code></td>' +
-                '<td><button type="button" class="btn" data-attach-dataset="' + (d.id || '') + '">Attach</button></td>';
+                '<td><button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button></td>';
               datasetRows.appendChild(tr);
 
               const opt = document.createElement('option');
@@ -805,7 +902,7 @@ data:
           function renderRepositoriesTable() {
             repoRows.innerHTML = '';
             if (state.repositories.length === 0) {
-              repoRows.innerHTML = '<tr><td colspan="4">No repository yet.</td></tr>';
+              repoRows.innerHTML = '<tr><td colspan="3">No repository yet.</td></tr>';
               return;
             }
             state.repositories.forEach((r) => {
@@ -813,45 +910,9 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (r.name || r.id) + '</strong></td>' +
                 '<td><code>' + (r.url || '-') + '</code></td>' +
-                '<td><code>' + (r.defaultRef || '-') + '</code></td>' +
-                '<td><button type="button" class="btn" data-attach-repo="' + (r.id || '') + '">Attach</button></td>';
+                '<td><code>' + (r.authSecretName || '-') + '</code></td>';
               repoRows.appendChild(tr);
             });
-          }
-
-          function renderProjectBindings() {
-            projectDatasetRows.innerHTML = '';
-            projectRepoRows.innerHTML = '';
-            const pid = selectedProjectId();
-            projectBindingsOut.textContent = JSON.stringify({
-              projectId: pid || null,
-              datasets: state.projectDatasets.map(d => ({ id: d.id, name: d.name })),
-              repositories: state.projectRepositories.map(r => ({ id: r.id, name: r.name }))
-            }, null, 2);
-
-            if (state.projectDatasets.length === 0) {
-              projectDatasetRows.innerHTML = '<tr><td colspan="2">No dataset attached.</td></tr>';
-            } else {
-              state.projectDatasets.forEach((d) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                  '<td><strong>' + (d.name || d.id) + '</strong></td>' +
-                  '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
-                projectDatasetRows.appendChild(tr);
-              });
-            }
-
-            if (state.projectRepositories.length === 0) {
-              projectRepoRows.innerHTML = '<tr><td colspan="2">No repository attached.</td></tr>';
-            } else {
-              state.projectRepositories.forEach((r) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                  '<td><strong>' + (r.name || r.id) + '</strong></td>' +
-                  '<td><button type="button" class="btn danger" data-detach-repo="' + (r.id || '') + '">Detach</button></td>';
-                projectRepoRows.appendChild(tr);
-              });
-            }
           }
 
           function renderSecretOptions() {
@@ -864,7 +925,7 @@ data:
             state.secrets.forEach((s) => {
               const opt = document.createElement('option');
               opt.value = s.name || '';
-              opt.textContent = (s.name || '-') + ' (' + (s.type || 'generic') + ')';
+              opt.textContent = (s.name || '-');
               repoSecretRefInput.appendChild(opt);
             });
             if (current && state.secrets.some((s) => s.name === current)) {
@@ -970,7 +1031,6 @@ data:
             renderSecretsTable();
             renderDatasetsTable();
             renderRepositoriesTable();
-            renderProjectBindings();
             renderSecretOptions();
             renderWorkspacesTable();
             renderEnvironmentsTable();
@@ -1020,23 +1080,6 @@ data:
             state.repositories = ensureArray(body.items);
             renderAll();
             return body;
-          }
-
-          async function refreshProjectBindings() {
-            const pid = selectedProjectId();
-            if (!pid) {
-              state.projectDatasets = [];
-              state.projectRepositories = [];
-              renderAll();
-              return;
-            }
-            const [datasetsBody, reposBody] = await Promise.all([
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories')
-            ]);
-            state.projectDatasets = ensureArray(datasetsBody.items);
-            state.projectRepositories = ensureArray(reposBody.items);
-            renderAll();
           }
 
           async function refreshBuilds() {
@@ -1115,7 +1158,7 @@ data:
 
           projectSelect.onchange = async () => {
             try {
-              await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectBindings()]);
+              await Promise.all([refreshBuilds(), refreshEnvironments()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1126,9 +1169,10 @@ data:
             try {
               const payload = {
                 name: secretNameInput.value.trim(),
-                type: secretTypeInput.value.trim(),
                 value: secretValueInput.value.trim()
               };
+              const expiresAt = dateToRFC3339EndOfDay(secretExpiresAtInput.value);
+              if (expiresAt) payload.expiresAt = expiresAt;
               if (!payload.name || !payload.value) throw { error: 'secret name and value are required' };
               await callJSON('/api/v1/secrets', {
                 method: 'POST',
@@ -1136,6 +1180,8 @@ data:
                 body: JSON.stringify(payload)
               });
               secretValueInput.value = '';
+              secretExpiresAtInput.value = '';
+              secretOut.textContent = '-';
               await refreshSecrets();
             } catch (e) {
               pretty(usersOut, e);
@@ -1157,7 +1203,7 @@ data:
               });
               datasetNameInput.value = '';
               datasetDescriptionInput.value = '';
-              await Promise.all([refreshDatasets(), refreshProjectBindings()]);
+              await refreshDatasets();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1166,7 +1212,7 @@ data:
 
           refreshDataBtn.onclick = async () => {
             try {
-              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectBindings()]);
+              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1192,7 +1238,7 @@ data:
               });
               const body = await res.json().catch(() => ({}));
               if (!res.ok) throw body;
-              pretty(projectBindingsOut, body);
+              pretty(usersOut, body);
               datasetUploadPathInput.value = '';
               datasetUploadFileInput.value = '';
             } catch (e) {
@@ -1206,7 +1252,6 @@ data:
               const payload = {
                 name: repoNameInput.value.trim(),
                 url: repoUrlInput.value.trim(),
-                defaultRef: repoRefInput.value.trim(),
                 authSecretName: repoSecretRefInput.value.trim()
               };
               if (!payload.name || !payload.url) throw { error: 'repository name and url are required' };
@@ -1217,7 +1262,8 @@ data:
               });
               repoNameInput.value = '';
               repoUrlInput.value = '';
-              await Promise.all([refreshRepositories(), refreshProjectBindings()]);
+              usersOut.textContent = 'Repository validation succeeded.';
+              await refreshRepositories();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1372,10 +1418,25 @@ data:
           };
 
           secretRows.onclick = async (event) => {
+            const viewName = event.target?.getAttribute('data-view-secret');
+            const copyName = event.target?.getAttribute('data-copy-secret');
             const secretName = event.target?.getAttribute('data-del-secret');
-            if (!secretName) return;
+            if (!viewName && !copyName && !secretName) return;
             try {
+              if (viewName) {
+                const body = await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(viewName)));
+                pretty(secretOut, body);
+                return;
+              }
+              if (copyName) {
+                const body = await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(copyName)));
+                await copyText(body?.value || '');
+                usersOut.textContent = 'Secret copied to clipboard.';
+                pretty(secretOut, body);
+                return;
+              }
               await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(secretName)), { method: 'DELETE' });
+              secretOut.textContent = '-';
               await Promise.all([refreshSecrets(), refreshRepositories()]);
             } catch (e) {
               pretty(usersOut, e);
@@ -1384,55 +1445,11 @@ data:
           };
 
           datasetRows.onclick = async (event) => {
-            const attachId = event.target?.getAttribute('data-attach-dataset');
-            if (!attachId) return;
+            const datasetID = event.target?.getAttribute('data-del-dataset');
+            if (!datasetID) return;
             try {
-              const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(attachId), { method: 'PUT' });
-              await refreshProjectBindings();
-            } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
-            }
-          };
-
-          repoRows.onclick = async (event) => {
-            const attachId = event.target?.getAttribute('data-attach-repo');
-            if (!attachId) return;
-            try {
-              const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(attachId), { method: 'PUT' });
-              await refreshProjectBindings();
-            } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
-            }
-          };
-
-          projectDatasetRows.onclick = async (event) => {
-            const detachId = event.target?.getAttribute('data-detach-dataset');
-            if (!detachId) return;
-            try {
-              const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(detachId), { method: 'DELETE' });
-              await refreshProjectBindings();
-            } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
-            }
-          };
-
-          projectRepoRows.onclick = async (event) => {
-            const detachId = event.target?.getAttribute('data-detach-repo');
-            if (!detachId) return;
-            try {
-              const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(detachId), { method: 'DELETE' });
-              await refreshProjectBindings();
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
+              await refreshDatasets();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1443,16 +1460,18 @@ data:
             if (!authenticated) {
               stopWorkspacesAutoRefresh();
               setMeta('Not authenticated');
+              applyRoleVisibility();
               setButtons(false);
-              switchTab('projects');
+              switchTab('environments');
               return;
             }
             setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
+            applyRoleVisibility();
             setButtons(true);
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectBindings()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');
@@ -1461,6 +1480,7 @@ data:
             stopWorkspacesAutoRefresh();
             setMeta('Keycloak init error');
             pretty(usersOut, { error: String(err) });
+            applyRoleVisibility();
             setButtons(false);
             switchTab('ops');
           });

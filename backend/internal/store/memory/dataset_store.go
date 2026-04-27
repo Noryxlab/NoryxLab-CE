@@ -45,3 +45,17 @@ func (s *DatasetStore) Create(item dataset.Dataset) error {
 	s.items = append(s.items, item)
 	return nil
 }
+
+func (s *DatasetStore) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	target := strings.TrimSpace(id)
+	filtered := make([]dataset.Dataset, 0, len(s.items))
+	for _, item := range s.items {
+		if item.ID != target {
+			filtered = append(filtered, item)
+		}
+	}
+	s.items = filtered
+	return nil
+}

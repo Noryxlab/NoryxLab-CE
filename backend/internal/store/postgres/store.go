@@ -168,6 +168,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			name TEXT NOT NULL,
 			type TEXT NOT NULL,
 			value_encrypted TEXT NOT NULL,
+			expires_at TIMESTAMPTZ NULL,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (user_id, name)
@@ -209,6 +210,9 @@ func (s *Store) migrate(ctx context.Context) error {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			return err
 		}
+	}
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE user_secrets ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL`); err != nil {
+		return err
 	}
 	return nil
 }
@@ -494,7 +498,7 @@ func (s *Store) DeleteSession(token string) error {
 }
 
 func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {
-	rows, err := s.db.Query(`SELECT id, user_id, name, type, value_encrypted, created_at, updated_at FROM user_secrets WHERE user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	rows, err := s.db.Query(`SELECT id, user_id, name, type, value_encrypted, expires_at, created_at, updated_at FROM user_secrets WHERE user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +506,7 @@ func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {
 	out := []secret.Secret{}
 	for rows.Next() {
 		var item secret.Secret
-		if err := rows.Scan(&item.ID, &item.UserID, &item.Name, &item.Type, &item.ValueEncrypted, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Name, &item.Type, &item.ValueEncrypted, &item.ExpiresAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -512,12 +516,13 @@ func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {
 
 func (s *Store) GetByName(userID, name string) (secret.Secret, bool, error) {
 	var item secret.Secret
-	err := s.db.QueryRow(`SELECT id, user_id, name, type, value_encrypted, created_at, updated_at FROM user_secrets WHERE user_id=$1 AND name=$2`, strings.TrimSpace(userID), strings.TrimSpace(name)).Scan(
+	err := s.db.QueryRow(`SELECT id, user_id, name, type, value_encrypted, expires_at, created_at, updated_at FROM user_secrets WHERE user_id=$1 AND name=$2`, strings.TrimSpace(userID), strings.TrimSpace(name)).Scan(
 		&item.ID,
 		&item.UserID,
 		&item.Name,
 		&item.Type,
 		&item.ValueEncrypted,
+		&item.ExpiresAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -532,13 +537,14 @@ func (s *Store) GetByName(userID, name string) (secret.Secret, bool, error) {
 
 func (s *Store) Upsert(item secret.Secret) error {
 	_, err := s.db.Exec(`
-		INSERT INTO user_secrets (id, user_id, name, type, value_encrypted, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		INSERT INTO user_secrets (id, user_id, name, type, value_encrypted, expires_at, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 		ON CONFLICT (user_id, name) DO UPDATE SET
 			type=EXCLUDED.type,
 			value_encrypted=EXCLUDED.value_encrypted,
+			expires_at=EXCLUDED.expires_at,
 			updated_at=EXCLUDED.updated_at
-	`, item.ID, item.UserID, item.Name, item.Type, item.ValueEncrypted, item.CreatedAt, item.UpdatedAt)
+	`, item.ID, item.UserID, item.Name, item.Type, item.ValueEncrypted, item.ExpiresAt, item.CreatedAt, item.UpdatedAt)
 	return err
 }
 
@@ -597,6 +603,22 @@ func (s *Store) CreateDataset(item dataset.Dataset) error {
 		item.UpdatedAt,
 	)
 	return err
+}
+
+func (s *Store) DeleteDataset(id string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM project_datasets WHERE dataset_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM datasets WHERE id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, error) {

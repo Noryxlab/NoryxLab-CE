@@ -191,11 +191,19 @@ func (h Handlers) projectExists(projectID string) (bool, error) {
 }
 
 func (h Handlers) requireGlobalAdmin(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
+	return h.requireAdminModule(w, r, "global")
+}
+
+func (h Handlers) requireAdminModule(w http.ResponseWriter, r *http.Request, module string) (auth.Identity, bool) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return auth.Identity{}, false
 	}
-	if h.isGlobalAdmin(identity) {
+	fallback := h.isGlobalAdmin(identity)
+	if h.editionHooks.RBAC != nil && h.editionHooks.RBAC.CanAccessAdminModule(identity, module, fallback) {
+		return identity, true
+	}
+	if fallback {
 		return identity, true
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required"})
@@ -203,6 +211,16 @@ func (h Handlers) requireGlobalAdmin(w http.ResponseWriter, r *http.Request) (au
 }
 
 func (h Handlers) isGlobalAdmin(identity auth.Identity) bool {
+	fallbackFn := func(id auth.Identity) bool {
+		return h.defaultIsGlobalAdmin(id)
+	}
+	if h.editionHooks.RBAC != nil {
+		return h.editionHooks.RBAC.IsGlobalAdmin(identity, fallbackFn)
+	}
+	return fallbackFn(identity)
+}
+
+func (h Handlers) defaultIsGlobalAdmin(identity auth.Identity) bool {
 	if identity.HasRole(globalAdminRole) {
 		return true
 	}

@@ -132,6 +132,32 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": len(payload)})
 }
 
+func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	datasetID := strings.TrimSpace(r.PathValue("datasetID"))
+	if datasetID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasetID is required"})
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(datasetID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found || item.OwnerUserID != userID {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if err := h.datasetStore.Delete(datasetID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete dataset"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {

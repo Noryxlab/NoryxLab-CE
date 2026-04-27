@@ -115,6 +115,8 @@ Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
+RBAC baseline: `docs/RBAC_MODEL.md`.
+EE extension hooks in CE: `docs/EE_EXTENSION_POINTS.md`.
 Image mirroring:
 - control-plane catalog: `deploy/images/essential-images.txt`
 - environments catalog: `deploy/images/environments-images.txt`
