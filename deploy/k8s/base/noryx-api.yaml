@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.38-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.42-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -83,7 +83,7 @@ spec:
                   name: noryx-secrets
                   key: NORYX_SECRETS_MASTER_KEY
             - name: NORYX_MINIO_ENDPOINT
-              value: "minio:9000"
+              value: "minio.noryx-ce.svc.cluster.local:9000"
             - name: NORYX_MINIO_ACCESS_KEY
               value: "noryx"
             - name: NORYX_MINIO_SECRET_KEY

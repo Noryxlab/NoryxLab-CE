@@ -24,6 +24,10 @@ type Handlers struct {
 	authVerifier                  auth.Verifier
 	keycloak                      *keycloak.Client
 	minioClient                   *minio.Client
+	minioEndpoint                 string
+	minioAccessKey                string
+	minioSecretKey                string
+	minioUseSSL                   bool
 	minioRegion                   string
 	secretsMasterKey              string
 	registryPullSecret            string
@@ -70,6 +74,10 @@ type Options struct {
 	WorkspaceProfilePVCMountPath  string
 	SecretsMasterKey              string
 	MinIOClient                   *minio.Client
+	MinIOEndpoint                 string
+	MinIOAccessKey                string
+	MinIOSecretKey                string
+	MinIOUseSSL                   bool
 	MinIORegion                   string
 	EditionHooks                  *edition.Hooks
 }
@@ -118,6 +126,10 @@ func New(
 		authVerifier:                  authVerifier,
 		keycloak:                      keycloakClient,
 		minioClient:                   options.MinIOClient,
+		minioEndpoint:                 options.MinIOEndpoint,
+		minioAccessKey:                options.MinIOAccessKey,
+		minioSecretKey:                options.MinIOSecretKey,
+		minioUseSSL:                   options.MinIOUseSSL,
 		minioRegion:                   options.MinIORegion,
 		secretsMasterKey:              options.SecretsMasterKey,
 		registryPullSecret:            options.RegistryPullSecret,

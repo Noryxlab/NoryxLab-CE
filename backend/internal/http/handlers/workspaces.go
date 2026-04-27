@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
@@ -45,6 +48,18 @@ const (
 	workspaceDatasetsPath      = "/datasets"
 	defaultWorkspaceProfileDir = "/home/noryx/.noryx-profile"
 )
+
+type workspaceAttachedRepo struct {
+	Name       string
+	URL        string
+	DefaultRef string
+}
+
+type workspaceAttachedDataset struct {
+	Name   string
+	Bucket string
+	Prefix string
+}
 
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
@@ -310,6 +325,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	record.PVCSize = pvcSize
 	record.PVCMountPath = projectMountPath
 
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
+		return
+	}
+
 	if h.runtime != nil {
 		if h.workspacePVCEnabled {
 			workspaceAccessMode := strings.TrimSpace(h.workspacePVCAccessMode)
@@ -366,7 +387,19 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
-		bootstrapScript := workspaceBootstrapScript(req.IDE, record.ID, accessToken, profileMountPath, projectMountPath)
+		bootstrapScript := workspaceBootstrapScript(
+			req.IDE,
+			record.ID,
+			accessToken,
+			profileMountPath,
+			projectMountPath,
+			attachedRepos,
+			attachedDatasets,
+			h.minioEndpoint,
+			h.minioAccessKey,
+			h.minioSecretKey,
+			h.minioUseSSL,
+		)
 		workspaceArgs = []string{bootstrapScript}
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
@@ -486,10 +519,149 @@ func sanitizeK8sName(raw string) string {
 	return strings.Trim(out, "-")
 }
 
-func workspaceBootstrapScript(kind, workspaceID, accessToken, profileMountPath, projectMountPath string) string {
+func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {
+	repoIDs, err := h.projectResourceStore.ListProjectRepositoryIDs(projectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	attachedRepos := make([]workspaceAttachedRepo, 0, len(repoIDs))
+	for _, repoID := range repoIDs {
+		item, found, err := h.repositoryStore.GetByID(repoID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !found || item.OwnerUserID != userID {
+			continue
+		}
+		cloneURL := strings.TrimSpace(item.URL)
+		if strings.TrimSpace(item.AuthSecretName) != "" {
+			secretValue, err := h.resolveRepositorySecretValueForWorkspace(userID, item.AuthSecretName)
+			if err != nil {
+				return nil, nil, err
+			}
+			authURL, err := authenticatedGitURL(cloneURL, secretValue)
+			if err != nil {
+				return nil, nil, err
+			}
+			cloneURL = authURL
+		}
+		attachedRepos = append(attachedRepos, workspaceAttachedRepo{
+			Name:       fallbackResourceName(item.Name, item.ID),
+			URL:        cloneURL,
+			DefaultRef: strings.TrimSpace(item.DefaultRef),
+		})
+	}
+
+	datasetIDs, err := h.projectResourceStore.ListProjectDatasetIDs(projectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	attachedDatasets := make([]workspaceAttachedDataset, 0, len(datasetIDs))
+	for _, datasetID := range datasetIDs {
+		item, found, err := h.datasetStore.GetByID(datasetID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !found || item.OwnerUserID != userID {
+			continue
+		}
+		attachedDatasets = append(attachedDatasets, workspaceAttachedDataset{
+			Name:   fallbackResourceName(item.Name, item.ID),
+			Bucket: strings.TrimSpace(item.Bucket),
+			Prefix: strings.Trim(strings.TrimSpace(item.Prefix), "/"),
+		})
+	}
+
+	return attachedRepos, attachedDatasets, nil
+}
+
+func (h Handlers) resolveRepositorySecretValueForWorkspace(userID, secretName string) (string, error) {
+	item, found, err := h.secretStore.GetByName(userID, strings.TrimSpace(secretName))
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", fmt.Errorf("repository auth secret not found: %s", secretName)
+	}
+	if strings.TrimSpace(h.secretsMasterKey) == "" {
+		return "", fmt.Errorf("secrets encryption key is not configured")
+	}
+	value, err := security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
+}
+
+func authenticatedGitURL(rawURL, token string) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return "", err
+	}
+	if !strings.EqualFold(u.Scheme, "https") {
+		return "", fmt.Errorf("repository auth currently supports https URLs only")
+	}
+	u.User = url.UserPassword("oauth2", token)
+	return u.String(), nil
+}
+
+func fallbackResourceName(name, fallback string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		trimmed = strings.TrimSpace(fallback)
+	}
+	return sanitizeWorkspacePathName(trimmed)
+}
+
+func sanitizeWorkspacePathName(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "resource-" + shortID()
+	}
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + ('a' - 'A'))
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	out := strings.Trim(strings.ReplaceAll(b.String(), "--", "-"), "-.")
+	if out == "" {
+		return "resource-" + shortID()
+	}
+	return out
+}
+
+func shellQuote(raw string) string {
+	return "'" + strings.ReplaceAll(raw, "'", "'\"'\"'") + "'"
+}
+
+func workspaceBootstrapScript(
+	kind,
+	workspaceID,
+	accessToken,
+	profileMountPath,
+	projectMountPath string,
+	attachedRepos []workspaceAttachedRepo,
+	attachedDatasets []workspaceAttachedDataset,
+	minioEndpoint,
+	minioAccessKey,
+	minioSecretKey string,
+	minioUseSSL bool,
+) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, workspaceReposPath, workspaceDatasetsPath),
+		"echo NORYX_WS_BOOTSTRAP_V2 >/tmp/noryx-bootstrap-version || true",
+		fmt.Sprintf("echo repos=%d datasets=%d >/tmp/noryx-resource-count || true", len(attachedRepos), len(attachedDatasets)),
 		fmt.Sprintf("mkdir -p %s %s %s %s %s",
 			profileMountPath,
 			profileMountPath+"/vscode",
@@ -505,6 +677,91 @@ func workspaceBootstrapScript(kind, workspaceID, accessToken, profileMountPath, 
 		fmt.Sprintf("    python3 -m pip install --disable-pip-version-check -r %s", workspaceRequirementsFile),
 		"  fi",
 		"fi",
+	}
+
+	for _, repo := range attachedRepos {
+		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
+		cloneURL := strings.TrimSpace(repo.URL)
+		repoRef := strings.TrimSpace(repo.DefaultRef)
+		lines = append(lines,
+			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
+			fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
+			"else",
+			fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(cloneURL), shellQuote(repoDir)),
+			"fi",
+		)
+		if repoRef != "" {
+			lines = append(lines,
+				fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
+				fmt.Sprintf("  git -C %s fetch --all --tags || true", shellQuote(repoDir)),
+				fmt.Sprintf("  git -C %s checkout %s || true", shellQuote(repoDir), shellQuote(repoRef)),
+				"fi",
+			)
+		}
+	}
+
+	if len(attachedDatasets) > 0 && strings.TrimSpace(minioEndpoint) != "" && strings.TrimSpace(minioAccessKey) != "" && strings.TrimSpace(minioSecretKey) != "" {
+		pythonSecure := "False"
+		if minioUseSSL {
+			pythonSecure = "True"
+		}
+		lines = append(lines,
+			"python3 - <<'PY' || true",
+			"import importlib.util",
+			"import os",
+			"import site",
+			"import subprocess",
+			"import sys",
+			"",
+			"if importlib.util.find_spec('minio') is None:",
+			"    subprocess.run([sys.executable, '-m', 'pip', 'install', '--disable-pip-version-check', '--user', 'minio'], check=False)",
+			"",
+			"user_site = site.getusersitepackages()",
+			"if user_site and user_site not in sys.path:",
+			"    sys.path.append(user_site)",
+			"",
+			"try:",
+			"    from minio import Minio  # type: ignore",
+			"except Exception as exc:",
+			"    os.makedirs('/datasets', exist_ok=True)",
+			"    with open('/datasets/.noryx_sync_error', 'w', encoding='utf-8') as fh:",
+			"        fh.write(str(exc))",
+			"    raise SystemExit(0)",
+			"",
+			fmt.Sprintf("client = Minio(%s, access_key=%s, secret_key=%s, secure=%s)", strconv.Quote(minioEndpoint), strconv.Quote(minioAccessKey), strconv.Quote(minioSecretKey), pythonSecure),
+			"datasets = [",
+		)
+		for _, ds := range attachedDatasets {
+			lines = append(lines, fmt.Sprintf(
+				"    {'name': %s, 'bucket': %s, 'prefix': %s},",
+				strconv.Quote(sanitizeWorkspacePathName(ds.Name)),
+				strconv.Quote(strings.TrimSpace(ds.Bucket)),
+				strconv.Quote(strings.Trim(strings.TrimSpace(ds.Prefix), "/")),
+			))
+		}
+		lines = append(lines,
+			"]",
+			"",
+			"for ds in datasets:",
+			"    target = os.path.join('/datasets', ds['name'])",
+			"    os.makedirs(target, exist_ok=True)",
+			"    prefix = ds.get('prefix', '').strip('/')",
+			"    prefix_with_slash = (prefix + '/') if prefix else ''",
+			"    try:",
+			"        for obj in client.list_objects(ds['bucket'], prefix=prefix_with_slash, recursive=True):",
+			"            object_name = obj.object_name",
+			"            rel = object_name[len(prefix_with_slash):] if prefix_with_slash and object_name.startswith(prefix_with_slash) else object_name",
+			"            if not rel or rel.endswith('/'):",
+			"                continue",
+			"            dst = os.path.join(target, rel)",
+			"            os.makedirs(os.path.dirname(dst), exist_ok=True)",
+			"            client.fget_object(ds['bucket'], object_name, dst)",
+			"    except Exception as exc:",
+			"        err_file = os.path.join(target, '.noryx_sync_error')",
+			"        with open(err_file, 'w', encoding='utf-8') as fh:",
+			"            fh.write(str(exc))",
+			"PY",
+		)
 	}
 
 	if kind == "vscode" {
