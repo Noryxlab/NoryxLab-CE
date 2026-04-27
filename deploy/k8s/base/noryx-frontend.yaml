@@ -352,6 +352,31 @@ data:
                     <div class="hint">Le projet sélectionné sert de scope pour Workspaces, Builds et Workloads.</div>
                     <pre id="projectOut">-</pre>
                   </article>
+                  <article class="card span-6">
+                    <h3>Project Datasets</h3>
+                    <div class="hint">Attach one or more datasets to the selected project.</div>
+                    <div class="row">
+                      <select id="attachDatasetSelect"></select>
+                      <button id="attachDatasetBtn" class="btn primary">Attach Dataset</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Bucket</th><th>Prefix</th><th>Actions</th></tr></thead>
+                      <tbody id="projectDatasetRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article class="card span-6">
+                    <h3>Project Repositories</h3>
+                    <div class="hint">Attach one or more Git repositories to the selected project.</div>
+                    <div class="row">
+                      <select id="attachRepoSelect"></select>
+                      <button id="attachRepoBtn" class="btn primary">Attach Repository</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
+                      <tbody id="projectRepoRows"></tbody>
+                    </table>
+                  </article>
                 </div>
               </section>
 
@@ -577,6 +602,12 @@ data:
           const createProjectBtn = document.getElementById('createProject');
           const loadProjectsBtn = document.getElementById('loadProjects');
           const projectRows = document.getElementById('projectRows');
+          const attachDatasetSelect = document.getElementById('attachDatasetSelect');
+          const attachDatasetBtn = document.getElementById('attachDatasetBtn');
+          const projectDatasetRows = document.getElementById('projectDatasetRows');
+          const attachRepoSelect = document.getElementById('attachRepoSelect');
+          const attachRepoBtn = document.getElementById('attachRepoBtn');
+          const projectRepoRows = document.getElementById('projectRepoRows');
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const workspaceIdeInput = document.getElementById('workspaceIde');
@@ -639,13 +670,15 @@ data:
             secrets: [],
             datasets: [],
             repositories: [],
+            projectDatasets: [],
+            projectRepositories: [],
             workspaces: [],
             builds: [],
             environments: [],
             activeTab: 'environments',
             repositoryChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.33';
+          const FRONT_VERSION = 'ce-web-0.6.34';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -710,6 +743,8 @@ data:
             refreshDataBtn.disabled = !enabled;
             uploadDatasetObjectBtn.disabled = !enabled;
             createRepositoryBtn.disabled = !enabled;
+            attachDatasetBtn.disabled = !enabled;
+            attachRepoBtn.disabled = !enabled;
           }
 
           function isAdminUser() {
@@ -1034,10 +1069,97 @@ data:
             projectOut.textContent = JSON.stringify({ selectedProject: p }, null, 2);
           }
 
+          function renderProjectResourceSelectors() {
+            const pid = selectedProjectId();
+            attachDatasetSelect.innerHTML = '';
+            attachRepoSelect.innerHTML = '';
+
+            if (!pid) {
+              const ds = document.createElement('option');
+              ds.value = '';
+              ds.textContent = 'Select a project first';
+              attachDatasetSelect.appendChild(ds);
+              const rp = document.createElement('option');
+              rp.value = '';
+              rp.textContent = 'Select a project first';
+              attachRepoSelect.appendChild(rp);
+              return;
+            }
+
+            const attachedDatasetIDs = new Set(ensureArray(state.projectDatasets).map((d) => d.id));
+            const attachedRepoIDs = new Set(ensureArray(state.projectRepositories).map((r) => r.id));
+
+            const availableDatasets = ensureArray(state.datasets).filter((d) => d && d.id && !attachedDatasetIDs.has(d.id));
+            const availableRepos = ensureArray(state.repositories).filter((r) => r && r.id && !attachedRepoIDs.has(r.id));
+
+            if (availableDatasets.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No dataset to attach';
+              attachDatasetSelect.appendChild(opt);
+            } else {
+              availableDatasets.forEach((d) => {
+                const opt = document.createElement('option');
+                opt.value = d.id || '';
+                opt.textContent = (d.name || d.id) + ' (' + (d.bucket || '-') + ')';
+                attachDatasetSelect.appendChild(opt);
+              });
+            }
+
+            if (availableRepos.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No repository to attach';
+              attachRepoSelect.appendChild(opt);
+            } else {
+              availableRepos.forEach((r) => {
+                const opt = document.createElement('option');
+                opt.value = r.id || '';
+                opt.textContent = (r.name || r.id) + ' (' + (r.url || '-') + ')';
+                attachRepoSelect.appendChild(opt);
+              });
+            }
+          }
+
+          function renderProjectResourcesTable() {
+            projectDatasetRows.innerHTML = '';
+            projectRepoRows.innerHTML = '';
+
+            if (state.projectDatasets.length === 0) {
+              projectDatasetRows.innerHTML = '<tr><td colspan="4">No dataset attached.</td></tr>';
+            } else {
+              state.projectDatasets.forEach((d) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + (d.name || d.id) + '</strong></td>' +
+                  '<td><code>' + (d.bucket || '-') + '</code></td>' +
+                  '<td><code>' + (d.prefix || '-') + '</code></td>' +
+                  '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
+                projectDatasetRows.appendChild(tr);
+              });
+            }
+
+            if (state.projectRepositories.length === 0) {
+              projectRepoRows.innerHTML = '<tr><td colspan="4">No repository attached.</td></tr>';
+            } else {
+              state.projectRepositories.forEach((r) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + (r.name || r.id) + '</strong></td>' +
+                  '<td><code>' + (r.url || '-') + '</code></td>' +
+                  '<td><code>' + (r.authSecretName || '-') + '</code></td>' +
+                  '<td><button type="button" class="btn danger" data-detach-repo="' + (r.id || '') + '">Detach</button></td>';
+                projectRepoRows.appendChild(tr);
+              });
+            }
+          }
+
           function renderAll() {
             renderProjectOptions();
             renderProjectsTable();
             renderProjectContext();
+            renderProjectResourceSelectors();
+            renderProjectResourcesTable();
             renderSecretsTable();
             renderDatasetsTable();
             renderRepositoriesTable();
@@ -1108,6 +1230,23 @@ data:
             return body;
           }
 
+          async function refreshProjectResources() {
+            const pid = selectedProjectId();
+            if (!pid) {
+              state.projectDatasets = [];
+              state.projectRepositories = [];
+              renderAll();
+              return;
+            }
+            const [datasetsBody, repositoriesBody] = await Promise.all([
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories')
+            ]);
+            state.projectDatasets = ensureArray(datasetsBody.items);
+            state.projectRepositories = ensureArray(repositoriesBody.items);
+            renderAll();
+          }
+
           function stopWorkspacesAutoRefresh() {
             if (workspacesAutoRefreshTimer) {
               clearInterval(workspacesAutoRefreshTimer);
@@ -1171,7 +1310,7 @@ data:
             if (!projectID) return;
             try {
               await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
-              await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments()]);
+              await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1180,7 +1319,63 @@ data:
 
           projectSelect.onchange = async () => {
             try {
-              await Promise.all([refreshBuilds(), refreshEnvironments()]);
+              await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          attachDatasetBtn.onclick = async () => {
+            try {
+              const pid = selectedProjectId();
+              const datasetID = (attachDatasetSelect.value || '').trim();
+              if (!pid) throw { error: 'select a project first' };
+              if (!datasetID) throw { error: 'select a dataset to attach' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'PUT' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          attachRepoBtn.onclick = async () => {
+            try {
+              const pid = selectedProjectId();
+              const repositoryID = (attachRepoSelect.value || '').trim();
+              if (!pid) throw { error: 'select a project first' };
+              if (!repositoryID) throw { error: 'select a repository to attach' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'PUT' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectDatasetRows.onclick = async (event) => {
+            const datasetID = event.target?.getAttribute('data-detach-dataset');
+            if (!datasetID) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectRepoRows.onclick = async (event) => {
+            const repositoryID = event.target?.getAttribute('data-detach-repo');
+            if (!repositoryID) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'DELETE' });
+              await refreshProjectResources();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1514,7 +1709,7 @@ data:
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectResources()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');
