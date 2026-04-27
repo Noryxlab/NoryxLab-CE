@@ -1,50 +1,559 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.31
+  version: 0.5.32
+  description: |
+    Noryx CE backend API contract.
+
+    Authentication modes:
+    - `Bearer` token (OIDC / Keycloak)
+    - bootstrap compatibility header `X-Noryx-User` (lab mode)
 servers:
   - url: /
+
+tags:
+  - name: Health
+  - name: Projects
+  - name: RBAC
+  - name: Environments
+  - name: Workloads
+  - name: Secrets
+  - name: Datasets
+  - name: Repositories
+  - name: Auth
+  - name: Admin
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    xNoryxUser:
+      type: apiKey
+      in: header
+      name: X-Noryx-User
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    Project:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    ProjectListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Premyom Fraud
+
+    SetRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [viewer, editor, admin]
+
+    SetRoleResponse:
+      type: object
+      required: [projectId, userId, role]
+      properties:
+        projectId: { type: string }
+        userId: { type: string }
+        role:
+          type: string
+          enum: [viewer, editor, admin]
+
+    Build:
+      type: object
+      required: [id, projectId, gitRepository, destinationImage, jobName, status, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        gitRepository: { type: string }
+        gitRef: { type: string }
+        dockerfilePath: { type: string }
+        contextPath: { type: string }
+        destinationImage: { type: string }
+        jobName: { type: string }
+        status: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    BuildListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Build'
+
+    CreateBuildRequest:
+      type: object
+      required: [projectId, gitRepository, destinationImage]
+      properties:
+        projectId:
+          type: string
+        gitRepository:
+          type: string
+          example: https://github.com/Noryxlab/NoryxLab-CE.git
+        gitRef:
+          type: string
+          example: main
+        dockerfilePath:
+          type: string
+          example: environments/noryx-python/Dockerfile
+        contextPath:
+          type: string
+          example: .
+        destinationImage:
+          type: string
+          example: harbor.lan/noryx-environments/noryx-python:0.2.2
+
+    BuildDockerfileResponse:
+      type: object
+      required: [buildId, projectId, gitRepository, dockerfilePath, sourceUrl, content]
+      properties:
+        buildId: { type: string }
+        projectId: { type: string }
+        gitRepository: { type: string }
+        gitRef: { type: string }
+        dockerfilePath: { type: string }
+        sourceUrl: { type: string }
+        content:
+          type: string
+
+    EnvironmentRevision:
+      type: object
+      required: [buildId, destinationImage, status, createdAt]
+      properties:
+        buildId: { type: string }
+        jobName: { type: string }
+        status: { type: string }
+        gitRepository: { type: string }
+        gitRef: { type: string }
+        dockerfilePath: { type: string }
+        contextPath: { type: string }
+        destinationImage: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    Environment:
+      type: object
+      required: [id, projectId, name, destinationImage, revisions]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        destinationImage: { type: string }
+        latestBuildId: { type: string }
+        latestStatus: { type: string }
+        latestGitRepository: { type: string }
+        latestGitRef: { type: string }
+        latestDockerfilePath: { type: string }
+        updatedAt:
+          type: string
+          format: date-time
+        revisions:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvironmentRevision'
+
+    EnvironmentListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Environment'
+
+    PodLaunch:
+      type: object
+      required: [id, projectId, podName, image, status, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        podName: { type: string }
+        image: { type: string }
+        command:
+          type: array
+          items: { type: string }
+        args:
+          type: array
+          items: { type: string }
+        env:
+          type: object
+          additionalProperties:
+            type: string
+        status: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    PodLaunchListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PodLaunch'
+
+    CreatePodRequest:
+      type: object
+      required: [projectId, image]
+      properties:
+        projectId: { type: string }
+        podName: { type: string }
+        image: { type: string }
+        command:
+          type: array
+          items: { type: string }
+        args:
+          type: array
+          items: { type: string }
+        env:
+          type: object
+          additionalProperties:
+            type: string
+
+    Workspace:
+      type: object
+      required: [id, projectId, kind, name, image, podName, serviceName, status, accessUrl, createdAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        kind:
+          type: string
+          enum: [jupyter, vscode]
+        name: { type: string }
+        image: { type: string }
+        podName: { type: string }
+        serviceName: { type: string }
+        pvcName: { type: string }
+        pvcClass: { type: string }
+        pvcSize: { type: string }
+        pvcMountPath: { type: string }
+        cpu: { type: string }
+        memory: { type: string }
+        status: { type: string }
+        accessUrl: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    WorkspaceListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'
+
+    CreateWorkspaceRequest:
+      type: object
+      required: [projectId]
+      properties:
+        projectId: { type: string }
+        name: { type: string }
+        ide:
+          type: string
+          enum: [jupyter, vscode]
+          example: jupyter
+        storageSize:
+          type: string
+          description: PVC size override, e.g. `20Gi`.
+          example: 20Gi
+
+    Secret:
+      type: object
+      required: [id, name, type, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SecretListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Secret'
+
+    UpsertSecretRequest:
+      type: object
+      required: [name, value]
+      properties:
+        name:
+          type: string
+          example: git-token
+        type:
+          type: string
+          example: pat
+        value:
+          type: string
+          example: ghp_xxx
+
+    Dataset:
+      type: object
+      required: [id, ownerUserId, name, bucket, prefix, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DatasetListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+
+    CreateDatasetRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: fraud-training
+        description:
+          type: string
+        bucket:
+          type: string
+          example: premyom-fraud-ds
+        prefix:
+          type: string
+          example: raw/2026
+
+    DatasetUploadResponse:
+      type: object
+      required: [bucket, key, size]
+      properties:
+        bucket: { type: string }
+        key: { type: string }
+        size:
+          type: integer
+
+    Repository:
+      type: object
+      required: [id, ownerUserId, name, url, defaultRef, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string }
+        name: { type: string }
+        url: { type: string }
+        defaultRef: { type: string }
+        authSecretName: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    RepositoryListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Repository'
+
+    CreateRepositoryRequest:
+      type: object
+      required: [name, url]
+      properties:
+        name:
+          type: string
+          example: NoryxLab-CE
+        url:
+          type: string
+          example: https://github.com/Noryxlab/NoryxLab-CE.git
+        defaultRef:
+          type: string
+          example: main
+        authSecretName:
+          type: string
+          example: git-token
+
+    SessionCreateResponse:
+      type: object
+      required: [expiresAt]
+      properties:
+        expiresAt:
+          type: string
+          format: date-time
+
+    AdminUsersResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    AdminModulesResponse:
+      type: object
+      properties:
+        deployments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        services:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Invalid request payload or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Not enough permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UpstreamError:
+      description: Upstream dependency error (Kubernetes, Keycloak, storage, git)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
 paths:
   /healthz:
     get:
+      tags: [Health]
       summary: Health check
       responses:
         '200':
           description: OK
+
   /api/v1/projects:
     get:
-      summary: List user projects (auto-create one on first access)
+      tags: [Projects]
+      summary: List user projects (auto-create default project on first access)
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of projects
+          description: Project list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
+      tags: [Projects]
       summary: Create project
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
+              $ref: '#/components/schemas/CreateProjectRequest'
       responses:
         '201':
           description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/projects/{projectID}/members/{userID}/role:
     put:
+      tags: [RBAC]
       summary: Set project member role
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
@@ -54,224 +563,394 @@ paths:
           name: userID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [role]
-              properties:
-                role:
-                  type: string
-                  enum: [viewer, editor, admin]
+              $ref: '#/components/schemas/SetRoleRequest'
       responses:
         '200':
           description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetRoleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/builds:
     get:
+      tags: [Environments]
       summary: List build submissions
       security:
         - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: string }
       responses:
         '200':
-          description: List of builds
+          description: Build list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Submit a build
+      tags: [Environments]
+      summary: Submit image build
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [projectId, gitRepository, destinationImage]
-              properties:
-                projectId: { type: string }
-                gitRepository: { type: string }
-                gitRef: { type: string }
-                dockerfilePath: { type: string }
-                contextPath: { type: string }
-                destinationImage: { type: string }
+              $ref: '#/components/schemas/CreateBuildRequest'
       responses:
         '201':
           description: Build submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Build'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/builds/{buildID}/dockerfile:
     get:
+      tags: [Environments]
       summary: Fetch Dockerfile content for one build revision
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: buildID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Dockerfile content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildDockerfileResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/environments:
     get:
-      summary: List environment entries and build revisions
+      tags: [Environments]
+      summary: List environment entries and revisions
       security:
         - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: string }
       responses:
         '200':
-          description: List of environments
+          description: Environment catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/pods:
     get:
-      summary: List launched pods
+      tags: [Workloads]
+      summary: List pod launches (current implementation is not auth-filtered)
       responses:
         '200':
-          description: List of pod launches
+          description: Pod launch list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PodLaunchListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Launch a pod
+      tags: [Workloads]
+      summary: Launch pod in a project
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [projectId, image]
-              properties:
-                projectId: { type: string }
-                podName: { type: string }
-                image: { type: string }
-                command:
-                  type: array
-                  items: { type: string }
-                args:
-                  type: array
-                  items: { type: string }
-                env:
-                  type: object
-                  additionalProperties:
-                    type: string
+              $ref: '#/components/schemas/CreatePodRequest'
       responses:
         '201':
           description: Pod launch submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PodLaunch'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/workspaces:
     get:
-      summary: List project workspaces
+      tags: [Workloads]
+      summary: List accessible workspaces
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of workspaces
+          description: Workspace list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Launch a workspace (jupyter or vscode, fixed 500m/512Mi)
+      tags: [Workloads]
+      summary: Launch workspace (jupyter/vscode)
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [projectId]
-              properties:
-                projectId: { type: string }
-                name: { type: string }
-                ide:
-                  type: string
-                  enum: [jupyter, vscode]
-                  description: Optional IDE type. Defaults to jupyter.
-                  example: vscode
-                storageSize:
-                  type: string
-                  description: Optional PVC size override for the workspace volume. Defaults to server config (10Gi by default).
-                  example: 20Gi
+              $ref: '#/components/schemas/CreateWorkspaceRequest'
       responses:
         '201':
           description: Workspace submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/workspaces/{workspaceID}:
     delete:
-      summary: Stop and delete a workspace
+      tags: [Workloads]
+      summary: Stop and delete workspace
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: workspaceID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Workspace deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/secrets:
     get:
+      tags: [Secrets]
       summary: List current user secrets (metadata only)
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of secrets
+          description: Secret list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SecretListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Create or update a user secret
+      tags: [Secrets]
+      summary: Create or update user secret
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name, value]
-              properties:
-                name: { type: string }
-                type: { type: string }
-                value: { type: string }
+              $ref: '#/components/schemas/UpsertSecretRequest'
+            examples:
+              gitPAT:
+                value:
+                  name: git-token
+                  type: pat
+                  value: ghp_xxx
       responses:
         '201':
           description: Secret created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Secret'
         '200':
           description: Secret updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Secret'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/secrets/{name}:
     delete:
-      summary: Delete a user secret
+      tags: [Secrets]
+      summary: Delete user secret
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: name
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Secret deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/datasets:
     get:
+      tags: [Datasets]
       summary: List datasets owned by current user
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of datasets
+          description: Dataset list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Create a dataset (backed by S3 bucket/prefix)
+      tags: [Datasets]
+      summary: Create dataset (bucket + optional prefix)
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-                description: { type: string }
-                bucket: { type: string }
-                prefix: { type: string }
+              $ref: '#/components/schemas/CreateDatasetRequest'
       responses:
         '201':
           description: Dataset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/datasets/{datasetID}/objects/{path}:
     put:
-      summary: Upload raw object bytes into a dataset
+      tags: [Datasets]
+      summary: Upload bytes to one dataset object
+      description: |
+        `path` should be URL-encoded when containing `/`.
+        Backend accepts nested object paths.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: datasetID
@@ -281,8 +960,6 @@ paths:
           name: path
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -293,49 +970,106 @@ paths:
       responses:
         '201':
           description: Object uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetUploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '501':
+          description: Object storage not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/repositories:
     get:
+      tags: [Repositories]
       summary: List repositories owned by current user
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of repositories
+          description: Repository list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     post:
-      summary: Register a git repository
+      tags: [Repositories]
+      summary: Register one git repository
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [name, url]
-              properties:
-                name: { type: string }
-                url: { type: string }
-                defaultRef: { type: string }
-                authSecretName: { type: string }
+              $ref: '#/components/schemas/CreateRepositoryRequest'
       responses:
         '201':
           description: Repository created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/projects/{projectID}/datasets:
     get:
+      tags: [Datasets]
       summary: List datasets attached to one project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Project datasets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/projects/{projectID}/datasets/{datasetID}:
     put:
+      tags: [Datasets]
       summary: Attach dataset to project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
@@ -345,13 +1079,25 @@ paths:
           name: datasetID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Attached
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      tags: [Datasets]
       summary: Detach dataset from project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
@@ -361,27 +1107,53 @@ paths:
           name: datasetID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Detached
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/projects/{projectID}/repositories:
     get:
+      tags: [Repositories]
       summary: List repositories attached to one project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Project repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/projects/{projectID}/repositories/{repositoryID}:
     put:
+      tags: [Repositories]
       summary: Attach repository to project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
@@ -391,13 +1163,25 @@ paths:
           name: repositoryID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Attached
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
+      tags: [Repositories]
       summary: Detach repository from project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
       parameters:
         - in: path
           name: projectID
@@ -407,37 +1191,92 @@ paths:
           name: repositoryID
           required: true
           schema: { type: string }
-      security:
-        - bearerAuth: []
       responses:
         '204':
           description: Detached
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /api/v1/auth/session:
     post:
-      summary: Exchange bearer token for web session cookie
+      tags: [Auth]
+      summary: Exchange bearer token for secure web session cookie
       security:
         - bearerAuth: []
       responses:
         '201':
-          description: Web session created
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionCreateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
     delete:
-      summary: Logout web session cookie
+      tags: [Auth]
+      summary: Delete web session cookie
       responses:
         '204':
-          description: Web session deleted
+          description: Session deleted
+
   /api/v1/admin/users:
     get:
+      tags: [Admin]
       summary: List users from Keycloak realm
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: List of users
+          description: User list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '501':
+          description: Admin client not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
   /api/v1/admin/modules:
     get:
-      summary: List installed modules/services status from Kubernetes namespace
+      tags: [Admin]
+      summary: List deployed modules/services from Kubernetes runtime
       security:
         - bearerAuth: []
+        - xNoryxUser: []
       responses:
         '200':
-          description: Modules and services status
+          description: Modules status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminModulesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '501':
+          description: Runtime inspector not available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
