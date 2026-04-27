@@ -7,12 +7,12 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
 
 type createRepositoryRequest struct {
 	Name           string `json:"name"`
 	URL            string `json:"url"`
-	DefaultRef     string `json:"defaultRef"`
 	AuthSecretName string `json:"authSecretName"`
 }
 
@@ -41,14 +41,15 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	req.URL = strings.TrimSpace(req.URL)
-	req.DefaultRef = strings.TrimSpace(req.DefaultRef)
 	req.AuthSecretName = strings.TrimSpace(req.AuthSecretName)
 	if req.Name == "" || req.URL == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and url are required"})
 		return
 	}
+
+	secretValue := ""
 	if req.AuthSecretName != "" {
-		_, found, err := h.secretStore.GetByName(userID, req.AuthSecretName)
+		item, found, err := h.secretStore.GetByName(userID, req.AuthSecretName)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to validate auth secret"})
 			return
@@ -57,11 +58,23 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authSecretName not found for current user"})
 			return
 		}
+		if strings.TrimSpace(h.secretsMasterKey) == "" {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "secrets encryption key is not configured"})
+			return
+		}
+		secretValue, err = security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to decrypt auth secret"})
+			return
+		}
 	}
-	item := repository.New(userID, req.Name, req.URL, req.DefaultRef, req.AuthSecretName)
-	if item.DefaultRef == "" {
-		item.DefaultRef = "main"
+
+	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
+		return
 	}
+
+	item := repository.New(userID, req.Name, req.URL, "", req.AuthSecretName)
 	if err := h.repositoryStore.Create(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create repository"})
 		return

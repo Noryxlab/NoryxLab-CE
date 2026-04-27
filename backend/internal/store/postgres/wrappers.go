@@ -50,6 +50,7 @@ type DatasetStore struct{ *Store }
 func (s *DatasetStore) ListByUser(userID string) ([]dataset.Dataset, error)              { return s.Store.ListDatasetsByUser(userID) }
 func (s *DatasetStore) GetByID(id string) (dataset.Dataset, bool, error)                 { return s.Store.GetDatasetByID(id) }
 func (s *DatasetStore) Create(item dataset.Dataset) error                                { return s.Store.CreateDataset(item) }
+func (s *DatasetStore) Delete(id string) error                                            { return s.Store.DeleteDataset(id) }
 
 type RepositoryStore struct{ *Store }
 

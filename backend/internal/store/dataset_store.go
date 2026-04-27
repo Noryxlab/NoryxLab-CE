@@ -6,4 +6,5 @@ type DatasetStore interface {
 	ListByUser(userID string) ([]dataset.Dataset, error)
 	GetByID(id string) (dataset.Dataset, bool, error)
 	Create(item dataset.Dataset) error
+	Delete(id string) error
 }

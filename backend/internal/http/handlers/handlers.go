@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
@@ -44,6 +45,7 @@ type Handlers struct {
 	workspaceProfilePVCSize       string
 	workspaceProfilePVCAccessMode string
 	workspaceProfilePVCMountPath  string
+	editionHooks                  edition.Hooks
 }
 
 type Options struct {
@@ -69,6 +71,7 @@ type Options struct {
 	SecretsMasterKey              string
 	MinIOClient                   *minio.Client
 	MinIORegion                   string
+	EditionHooks                  *edition.Hooks
 }
 
 func New(
@@ -87,6 +90,19 @@ func New(
 	keycloakClient *keycloak.Client,
 	options Options,
 ) Handlers {
+	hooks := edition.DefaultHooks()
+	if options.EditionHooks != nil {
+		if options.EditionHooks.RBAC != nil {
+			hooks.RBAC = options.EditionHooks.RBAC
+		}
+		if options.EditionHooks.Feature != nil {
+			hooks.Feature = options.EditionHooks.Feature
+		}
+		if options.EditionHooks.Audit != nil {
+			hooks.Audit = options.EditionHooks.Audit
+		}
+	}
+
 	return Handlers{
 		projectStore:                  projectStore,
 		buildStore:                    buildStore,
@@ -123,5 +139,6 @@ func New(
 		workspaceProfilePVCSize:       options.WorkspaceProfilePVCSize,
 		workspaceProfilePVCAccessMode: options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:  options.WorkspaceProfilePVCMountPath,
+		editionHooks:                  hooks,
 	}
 }

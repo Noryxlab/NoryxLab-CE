@@ -7,7 +7,7 @@ import (
 )
 
 func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
-	_, ok := h.requireGlobalAdmin(w, r)
+	_, ok := h.requireAdminModule(w, r, "users")
 	if !ok {
 		return
 	}
@@ -26,7 +26,7 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) GetModulesStatus(w http.ResponseWriter, r *http.Request) {
-	_, ok := h.requireGlobalAdmin(w, r)
+	_, ok := h.requireAdminModule(w, r, "modules")
 	if !ok {
 		return
 	}
