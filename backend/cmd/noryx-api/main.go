@@ -144,6 +144,10 @@ func main() {
 			WorkspaceProfilePVCMountPath:  cfg.WorkspaceProfilePVCMountPath,
 			SecretsMasterKey:              cfg.SecretsMasterKey,
 			MinIOClient:                   minioClient,
+			MinIOEndpoint:                 cfg.MinIOEndpoint,
+			MinIOAccessKey:                cfg.MinIOAccessKey,
+			MinIOSecretKey:                cfg.MinIOSecretKey,
+			MinIOUseSSL:                   cfg.MinIOUseSSL,
 			MinIORegion:                   cfg.MinIORegion,
 		},
 	)
