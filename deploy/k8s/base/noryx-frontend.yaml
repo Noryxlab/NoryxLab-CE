@@ -377,7 +377,7 @@ data:
 
                   <article id="card-datasets" class="card span-6">
                     <h3>Datasets</h3>
-                    <div class="hint">Catalog datasets + optional object upload to MinIO.</div>
+                    <div class="hint">Catalog datasets + optional object upload to MinIO. Prefix = subpath in bucket (e.g. raw/2026).</div>
                     <div class="row">
                       <input id="datasetName" placeholder="Dataset name" />
                       <input id="datasetDescription" placeholder="Description (optional)" />
@@ -388,7 +388,7 @@ data:
                     </div>
                     <div class="row">
                       <select id="datasetUploadTarget"></select>
-                      <input id="datasetUploadPath" placeholder="Object path (e.g. raw/train.csv)" />
+                      <input id="datasetUploadPath" placeholder="Object path inside prefix (e.g. train.csv)" />
                     </div>
                     <div class="row">
                       <input id="datasetUploadFile" type="file" />
@@ -414,7 +414,7 @@ data:
                       <button id="createRepository" class="btn primary">Create Repository</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th></tr></thead>
+                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Connection</th><th>Actions</th></tr></thead>
                       <tbody id="repoRows"></tbody>
                     </table>
                   </article>
@@ -642,9 +642,10 @@ data:
             workspaces: [],
             builds: [],
             environments: [],
-            activeTab: 'environments'
+            activeTab: 'environments',
+            repositoryChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.31';
+          const FRONT_VERSION = 'ce-web-0.6.32';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -902,15 +903,21 @@ data:
           function renderRepositoriesTable() {
             repoRows.innerHTML = '';
             if (state.repositories.length === 0) {
-              repoRows.innerHTML = '<tr><td colspan="3">No repository yet.</td></tr>';
+              repoRows.innerHTML = '<tr><td colspan="5">No repository yet.</td></tr>';
               return;
             }
             state.repositories.forEach((r) => {
+              const check = state.repositoryChecks[r.id] || null;
+              const checkLabel = check
+                ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error')))
+                : '-';
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (r.name || r.id) + '</strong></td>' +
                 '<td><code>' + (r.url || '-') + '</code></td>' +
-                '<td><code>' + (r.authSecretName || '-') + '</code></td>';
+                '<td><code>' + (r.authSecretName || '-') + '</code></td>' +
+                '<td><code>' + checkLabel + '</code></td>' +
+                '<td><button type="button" class="btn" data-test-repo="' + (r.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-repo="' + (r.id || '') + '">Delete</button></td>';
               repoRows.appendChild(tr);
             });
           }
@@ -1262,7 +1269,7 @@ data:
               });
               repoNameInput.value = '';
               repoUrlInput.value = '';
-              usersOut.textContent = 'Repository validation succeeded.';
+              usersOut.textContent = 'Repository created and validated.';
               await refreshRepositories();
             } catch (e) {
               pretty(usersOut, e);
@@ -1450,6 +1457,27 @@ data:
             try {
               await callJSON('/api/v1/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
               await refreshDatasets();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          repoRows.onclick = async (event) => {
+            const repositoryIDToTest = event.target?.getAttribute('data-test-repo');
+            const repositoryIDToDelete = event.target?.getAttribute('data-del-repo');
+            if (!repositoryIDToTest && !repositoryIDToDelete) return;
+            try {
+              if (repositoryIDToTest) {
+                const result = await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToTest) + '/validate', { method: 'POST' });
+                state.repositoryChecks[repositoryIDToTest] = result;
+                renderRepositoriesTable();
+                usersOut.textContent = result.reachable ? 'Repository connection OK.' : ('Repository connection failed: ' + (result.error || 'unknown error'));
+                return;
+              }
+              await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToDelete), { method: 'DELETE' });
+              delete state.repositoryChecks[repositoryIDToDelete];
+              await refreshRepositories();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');

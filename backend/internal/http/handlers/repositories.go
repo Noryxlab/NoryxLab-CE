@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
@@ -47,26 +48,9 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secretValue := ""
-	if req.AuthSecretName != "" {
-		item, found, err := h.secretStore.GetByName(userID, req.AuthSecretName)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to validate auth secret"})
-			return
-		}
-		if !found {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authSecretName not found for current user"})
-			return
-		}
-		if strings.TrimSpace(h.secretsMasterKey) == "" {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "secrets encryption key is not configured"})
-			return
-		}
-		secretValue, err = security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to decrypt auth secret"})
-			return
-		}
+	secretValue, ok := h.resolveRepositorySecretValue(w, userID, req.AuthSecretName)
+	if !ok {
+		return
 	}
 
 	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
@@ -80,6 +64,99 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, item)
+}
+
+func (h Handlers) ValidateRepository(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	repositoryID := strings.TrimSpace(r.PathValue("repositoryID"))
+	if repositoryID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repositoryID is required"})
+		return
+	}
+	item, found, err := h.repositoryStore.GetByID(repositoryID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read repository"})
+		return
+	}
+	if !found || item.OwnerUserID != userID {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "repository not found"})
+		return
+	}
+
+	secretValue, ok := h.resolveRepositorySecretValue(w, userID, item.AuthSecretName)
+	if !ok {
+		return
+	}
+
+	if err := validateRepositoryConnectivity(item.URL, secretValue); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"repositoryId": item.ID,
+			"reachable":    false,
+			"error":        err.Error(),
+			"checkedAt":    time.Now().UTC(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"repositoryId": item.ID,
+		"reachable":    true,
+		"checkedAt":    time.Now().UTC(),
+	})
+}
+
+func (h Handlers) DeleteRepository(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	repositoryID := strings.TrimSpace(r.PathValue("repositoryID"))
+	if repositoryID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repositoryID is required"})
+		return
+	}
+	item, found, err := h.repositoryStore.GetByID(repositoryID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read repository"})
+		return
+	}
+	if !found || item.OwnerUserID != userID {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "repository not found"})
+		return
+	}
+	if err := h.repositoryStore.Delete(repositoryID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete repository"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) resolveRepositorySecretValue(w http.ResponseWriter, userID, secretName string) (string, bool) {
+	secretName = strings.TrimSpace(secretName)
+	if secretName == "" {
+		return "", true
+	}
+	item, found, err := h.secretStore.GetByName(userID, secretName)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to validate auth secret"})
+		return "", false
+	}
+	if !found {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authSecretName not found for current user"})
+		return "", false
+	}
+	if strings.TrimSpace(h.secretsMasterKey) == "" {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "secrets encryption key is not configured"})
+		return "", false
+	}
+	value, err := security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to decrypt auth secret"})
+		return "", false
+	}
+	return value, true
 }
 
 func (h Handlers) ListProjectRepositories(w http.ResponseWriter, r *http.Request) {
