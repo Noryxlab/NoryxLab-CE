@@ -673,6 +673,22 @@ func (s *Store) CreateRepository(item repository.Repository) error {
 	return err
 }
 
+func (s *Store) DeleteRepository(id string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM project_repositories WHERE repository_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM repositories WHERE id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Store) AttachDataset(projectID, datasetID string) error {
 	_, err := s.db.Exec(`INSERT INTO project_datasets (project_id, dataset_id, created_at) VALUES ($1,$2,$3) ON CONFLICT (project_id, dataset_id) DO NOTHING`, strings.TrimSpace(projectID), strings.TrimSpace(datasetID), time.Now().UTC())
 	return err

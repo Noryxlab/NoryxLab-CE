@@ -57,5 +57,6 @@ type RepositoryStore struct{ *Store }
 func (s *RepositoryStore) ListByUser(userID string) ([]repository.Repository, error)     { return s.Store.ListRepositoriesByUser(userID) }
 func (s *RepositoryStore) GetByID(id string) (repository.Repository, bool, error)        { return s.Store.GetRepositoryByID(id) }
 func (s *RepositoryStore) Create(item repository.Repository) error                        { return s.Store.CreateRepository(item) }
+func (s *RepositoryStore) Delete(id string) error                                         { return s.Store.DeleteRepository(id) }
 
 type ProjectResourceStore struct{ *Store }

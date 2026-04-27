@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.35
+  version: 0.5.36
   description: |
     Noryx CE backend API contract.
 
@@ -452,6 +452,17 @@ components:
         authSecretName:
           type: string
           example: git-token
+
+    RepositoryValidationResponse:
+      type: object
+      required: [repositoryId, reachable, checkedAt]
+      properties:
+        repositoryId: { type: string }
+        reachable: { type: boolean }
+        error: { type: string }
+        checkedAt:
+          type: string
+          format: date-time
 
     SessionCreateResponse:
       type: object
@@ -1086,6 +1097,58 @@ paths:
                 $ref: '#/components/schemas/RepositoryListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/repositories/{repositoryID}/validate:
+    post:
+      tags: [Repositories]
+      summary: Re-test repository connectivity
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryValidationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/repositories/{repositoryID}:
+    delete:
+      tags: [Repositories]
+      summary: Delete one repository owned by current user
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Repository deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     post:

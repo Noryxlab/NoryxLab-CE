@@ -34,6 +34,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/objects/{path...}", h.PutDatasetObject)
 	mux.HandleFunc("GET /api/v1/repositories", h.ListRepositories)
 	mux.HandleFunc("POST /api/v1/repositories", h.CreateRepository)
+	mux.HandleFunc("POST /api/v1/repositories/{repositoryID}/validate", h.ValidateRepository)
+	mux.HandleFunc("DELETE /api/v1/repositories/{repositoryID}", h.DeleteRepository)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/datasets", h.ListProjectDatasets)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/datasets/{datasetID}", h.AttachProjectDataset)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/datasets/{datasetID}", h.DetachProjectDataset)
