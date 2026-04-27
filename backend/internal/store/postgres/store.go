@@ -239,6 +239,32 @@ func (s *Store) Create(p project.Project) error {
 	return err
 }
 
+func (s *Store) DeleteProject(projectID string) error {
+	pid := strings.TrimSpace(projectID)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	statements := []string{
+		`DELETE FROM access_roles WHERE project_id=$1`,
+		`DELETE FROM project_datasets WHERE project_id=$1`,
+		`DELETE FROM project_repositories WHERE project_id=$1`,
+		`DELETE FROM workspaces WHERE project_id=$1`,
+		`DELETE FROM builds WHERE project_id=$1`,
+		`DELETE FROM pods WHERE project_id=$1`,
+		`DELETE FROM projects WHERE id=$1`,
+	}
+	for _, stmt := range statements {
+		if _, err := tx.Exec(stmt, pid); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (s *Store) SetRole(projectID, userID string, role access.Role) {
 	_, err := s.db.Exec(`
 		INSERT INTO access_roles (project_id, user_id, role) VALUES ($1,$2,$3)

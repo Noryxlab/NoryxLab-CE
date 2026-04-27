@@ -342,7 +342,7 @@ data:
                       <button id="loadProjects" class="btn">Refresh Projects</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>ID</th></tr></thead>
+                      <thead><tr><th>Name</th><th>ID</th><th>Actions</th></tr></thead>
                       <tbody id="projectRows"></tbody>
                     </table>
                   </article>
@@ -645,7 +645,7 @@ data:
             activeTab: 'environments',
             repositoryChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.32';
+          const FRONT_VERSION = 'ce-web-0.6.33';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -838,12 +838,15 @@ data:
           function renderProjectsTable() {
             projectRows.innerHTML = '';
             if (state.projects.length === 0) {
-              projectRows.innerHTML = '<tr><td colspan="2">No project yet.</td></tr>';
+              projectRows.innerHTML = '<tr><td colspan="3">No project yet.</td></tr>';
               return;
             }
             for (const p of state.projects) {
               const tr = document.createElement('tr');
-              tr.innerHTML = '<td><strong>' + p.name + '</strong></td><td><code>' + p.id + '</code></td>';
+              tr.innerHTML =
+                '<td><strong>' + p.name + '</strong></td>' +
+                '<td><code>' + p.id + '</code></td>' +
+                '<td><button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
               projectRows.appendChild(tr);
             }
           }
@@ -1157,6 +1160,18 @@ data:
               });
               projectNameInput.value = '';
               await refreshProjects();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectRows.onclick = async (event) => {
+            const projectID = event.target?.getAttribute('data-del-project');
+            if (!projectID) return;
+            try {
+              await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
+              await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');

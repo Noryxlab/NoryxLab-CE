@@ -31,3 +31,18 @@ func (s *ProjectStore) Create(p project.Project) error {
 	s.items = append(s.items, p)
 	return nil
 }
+
+func (s *ProjectStore) DeleteProject(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	filtered := make([]project.Project, 0, len(s.items))
+	for _, item := range s.items {
+		if item.ID == id {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	s.items = filtered
+	return nil
+}
