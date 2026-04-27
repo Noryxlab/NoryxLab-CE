@@ -293,7 +293,7 @@ data:
           <main class="content">
             <section class="topbar">
               <div>
-                <h1 class="title">Domino 6-style Datalab Workspace Hub</h1>
+                <h1 class="title">NoryxLab Datalab Workspace Hub</h1>
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
