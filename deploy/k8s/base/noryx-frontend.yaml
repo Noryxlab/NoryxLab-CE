@@ -500,7 +500,7 @@ data:
             environments: [],
             activeTab: 'projects'
           };
-          const FRONT_VERSION = 'ce-web-0.6.24';
+          const FRONT_VERSION = 'ce-web-0.6.25';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -1045,7 +1045,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.24
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.25
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
