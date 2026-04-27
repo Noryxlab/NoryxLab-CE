@@ -382,7 +382,7 @@ data:
                       <input id="envContext" value="." />
                     </div>
                     <div class="row">
-                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.2.1" />
+                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.2.2" />
                       <button id="buildEnv" class="btn warn">Build Environment</button>
                     </div>
                     <table>

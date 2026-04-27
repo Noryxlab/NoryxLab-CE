@@ -1,5 +1,5 @@
 # source_image target_image
 # no default mirror entry for noryx-python:
 # build and push it from this repo:
-#   docker build -t harbor.lan/noryx-environments/noryx-python:0.2.1 -f environments/noryx-python/Dockerfile .
-#   docker push harbor.lan/noryx-environments/noryx-python:0.2.1
+#   docker build -t harbor.lan/noryx-environments/noryx-python:0.2.2 -f environments/noryx-python/Dockerfile .
+#   docker push harbor.lan/noryx-environments/noryx-python:0.2.2

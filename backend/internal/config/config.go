@@ -94,11 +94,11 @@ func Load() Config {
 
 	workspaceJupyterImage := os.Getenv("NORYX_WORKSPACE_JUPYTER_IMAGE")
 	if workspaceJupyterImage == "" {
-		workspaceJupyterImage = "harbor.lan/noryx-environments/noryx-python:0.2.1"
+		workspaceJupyterImage = "harbor.lan/noryx-environments/noryx-python:0.2.2"
 	}
 	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
 	if workspaceVSCodeImage == "" {
-		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-python:0.2.1"
+		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-python:0.2.2"
 	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {
