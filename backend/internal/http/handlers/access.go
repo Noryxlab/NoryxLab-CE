@@ -164,6 +164,19 @@ func (h Handlers) requireProjectRole(
 	return true
 }
 
+func (h Handlers) requireProjectMember(
+	w http.ResponseWriter,
+	projectID string,
+	userID string,
+	action string,
+) bool {
+	if _, ok := h.accessStore.GetRole(projectID, userID); !ok {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "project membership required for " + action})
+		return false
+	}
+	return true
+}
+
 func (h Handlers) projectExists(projectID string) (bool, error) {
 	projects, err := h.projectStore.List()
 	if err != nil {

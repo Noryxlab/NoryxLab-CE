@@ -11,6 +11,7 @@ This module adds:
 - OIDC authentication with Keycloak bearer tokens
 - Swagger UI + OpenAPI spec
 - split namespace runtime (`noryx-ce` control-plane, `noryx-loads` workloads)
+- PostgreSQL persistence for platform objects (projects, RBAC, builds, workspaces, sessions, catalogs)
 
 ## Endpoints
 
@@ -26,6 +27,20 @@ This module adds:
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`
 - `DELETE /api/v1/workspaces/{workspaceID}`
+- `GET /api/v1/secrets`
+- `POST /api/v1/secrets`
+- `DELETE /api/v1/secrets/{name}`
+- `GET /api/v1/datasets`
+- `POST /api/v1/datasets`
+- `PUT /api/v1/datasets/{datasetID}/objects/{path...}`
+- `GET /api/v1/repositories`
+- `POST /api/v1/repositories`
+- `GET /api/v1/projects/{projectID}/datasets`
+- `PUT /api/v1/projects/{projectID}/datasets/{datasetID}`
+- `DELETE /api/v1/projects/{projectID}/datasets/{datasetID}`
+- `GET /api/v1/projects/{projectID}/repositories`
+- `PUT /api/v1/projects/{projectID}/repositories/{repositoryID}`
+- `DELETE /api/v1/projects/{projectID}/repositories/{repositoryID}`
 - `POST /api/v1/auth/session`
 - `DELETE /api/v1/auth/session`
 - `/workspaces/{workspaceID}/...` (reverse-proxied Jupyter)

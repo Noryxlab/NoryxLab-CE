@@ -4,6 +4,13 @@ import "os"
 
 type Config struct {
 	ListenAddr                    string
+	StoreBackend                  string
+	DatabaseHost                  string
+	DatabasePort                  string
+	DatabaseName                  string
+	DatabaseUser                  string
+	DatabasePassword              string
+	DatabaseSSLMode               string
 	KubernetesNamespace           string
 	WorkloadNamespace             string
 	EnableK8sRuntime              bool
@@ -34,12 +41,22 @@ type Config struct {
 	WorkspaceProfilePVCSize       string
 	WorkspaceProfilePVCAccessMode string
 	WorkspaceProfilePVCMountPath  string
+	SecretsMasterKey              string
+	MinIOEndpoint                 string
+	MinIOAccessKey                string
+	MinIOSecretKey                string
+	MinIOUseSSL                   bool
+	MinIORegion                   string
 }
 
 func Load() Config {
 	listenAddr := os.Getenv("NORYX_LISTEN_ADDR")
 	if listenAddr == "" {
 		listenAddr = ":8080"
+	}
+	storeBackend := os.Getenv("NORYX_STORE_BACKEND")
+	if storeBackend == "" {
+		storeBackend = "postgres"
 	}
 
 	namespace := os.Getenv("NORYX_KUBE_NAMESPACE")
@@ -148,9 +165,28 @@ func Load() Config {
 	if workspaceProfilePVCMountPath == "" {
 		workspaceProfilePVCMountPath = "/home/noryx/.noryx-profile"
 	}
+	minioEndpoint := os.Getenv("NORYX_MINIO_ENDPOINT")
+	if minioEndpoint == "" {
+		minioEndpoint = "minio:9000"
+	}
+	minioAccessKey := os.Getenv("NORYX_MINIO_ACCESS_KEY")
+	if minioAccessKey == "" {
+		minioAccessKey = "noryx"
+	}
+	minioRegion := os.Getenv("NORYX_MINIO_REGION")
+	if minioRegion == "" {
+		minioRegion = "us-east-1"
+	}
 
 	return Config{
 		ListenAddr:                    listenAddr,
+		StoreBackend:                  storeBackend,
+		DatabaseHost:                  os.Getenv("NORYX_DATABASE_HOST"),
+		DatabasePort:                  os.Getenv("NORYX_DATABASE_PORT"),
+		DatabaseName:                  os.Getenv("NORYX_DATABASE_NAME"),
+		DatabaseUser:                  os.Getenv("NORYX_DATABASE_USER"),
+		DatabasePassword:              os.Getenv("NORYX_DATABASE_PASSWORD"),
+		DatabaseSSLMode:               os.Getenv("NORYX_DATABASE_SSLMODE"),
 		KubernetesNamespace:           namespace,
 		WorkloadNamespace:             workloadNamespace,
 		EnableK8sRuntime:              enableRuntime,
@@ -181,5 +217,11 @@ func Load() Config {
 		WorkspaceProfilePVCSize:       workspaceProfilePVCSize,
 		WorkspaceProfilePVCAccessMode: workspaceProfilePVCAccessMode,
 		WorkspaceProfilePVCMountPath:  workspaceProfilePVCMountPath,
+		SecretsMasterKey:              os.Getenv("NORYX_SECRETS_MASTER_KEY"),
+		MinIOEndpoint:                 minioEndpoint,
+		MinIOAccessKey:                minioAccessKey,
+		MinIOSecretKey:                os.Getenv("NORYX_MINIO_SECRET_KEY"),
+		MinIOUseSSL:                   os.Getenv("NORYX_MINIO_USE_SSL") == "true",
+		MinIORegion:                   minioRegion,
 	}
 }

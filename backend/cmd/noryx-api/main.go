@@ -11,18 +11,68 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime/k8s"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/postgres"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func main() {
 	cfg := config.Load()
 
-	projectStore := memory.NewProjectStore()
-	buildStore := memory.NewBuildStore()
-	podStore := memory.NewPodStore()
-	workspaceStore := memory.NewWorkspaceStore()
-	sessionStore := memory.NewSessionStore()
-	accessStore := memory.NewAccessStore()
+	var projectStore store.ProjectStore = memory.NewProjectStore()
+	var buildStore store.BuildStore = memory.NewBuildStore()
+	var podStore store.PodStore = memory.NewPodStore()
+	var workspaceStore store.WorkspaceStore = memory.NewWorkspaceStore()
+	var sessionStore store.SessionStore = memory.NewSessionStore()
+	var accessStore store.AccessStore = memory.NewAccessStore()
+	var secretStore store.SecretStore = memory.NewSecretStore()
+	var datasetStore store.DatasetStore = memory.NewDatasetStore()
+	var repositoryStore store.RepositoryStore = memory.NewRepositoryStore()
+	var projectResourceStore store.ProjectResourceStore = memory.NewProjectResourceStore()
+
+	if strings.EqualFold(cfg.StoreBackend, "postgres") {
+		pg, err := postgres.New(postgres.Config{
+			Host:     cfg.DatabaseHost,
+			Port:     cfg.DatabasePort,
+			DBName:   cfg.DatabaseName,
+			User:     cfg.DatabaseUser,
+			Password: cfg.DatabasePassword,
+			SSLMode:  cfg.DatabaseSSLMode,
+		})
+		if err != nil {
+			log.Printf("warning: postgres store init failed, fallback to memory: %v", err)
+		} else {
+			defer func() {
+				_ = pg.Close()
+			}()
+			projectStore = &postgres.ProjectStore{Store: pg}
+			buildStore = &postgres.BuildStore{Store: pg}
+			podStore = &postgres.PodStore{Store: pg}
+			workspaceStore = &postgres.WorkspaceStore{Store: pg}
+			sessionStore = &postgres.SessionStore{Store: pg}
+			accessStore = &postgres.AccessStore{Store: pg}
+			secretStore = &postgres.SecretStore{Store: pg}
+			datasetStore = &postgres.DatasetStore{Store: pg}
+			repositoryStore = &postgres.RepositoryStore{Store: pg}
+			projectResourceStore = &postgres.ProjectResourceStore{Store: pg}
+			log.Printf("postgres store backend enabled")
+		}
+	}
+
+	var minioClient *minio.Client
+	if strings.TrimSpace(cfg.MinIOEndpoint) != "" && strings.TrimSpace(cfg.MinIOAccessKey) != "" && strings.TrimSpace(cfg.MinIOSecretKey) != "" {
+		client, err := minio.New(cfg.MinIOEndpoint, &minio.Options{
+			Creds:  credentials.NewStaticV4(cfg.MinIOAccessKey, cfg.MinIOSecretKey, ""),
+			Secure: cfg.MinIOUseSSL,
+		})
+		if err != nil {
+			log.Printf("warning: minio client disabled: %v", err)
+		} else {
+			minioClient = client
+		}
+	}
 
 	var runtime noryxruntime.Runner
 	if cfg.EnableK8sRuntime {
@@ -65,6 +115,10 @@ func main() {
 		workspaceStore,
 		sessionStore,
 		accessStore,
+		secretStore,
+		datasetStore,
+		repositoryStore,
+		projectResourceStore,
 		runtime,
 		verifier,
 		keycloakClient,
@@ -88,6 +142,9 @@ func main() {
 			WorkspaceProfilePVCSize:       cfg.WorkspaceProfilePVCSize,
 			WorkspaceProfilePVCAccessMode: cfg.WorkspaceProfilePVCAccessMode,
 			WorkspaceProfilePVCMountPath:  cfg.WorkspaceProfilePVCMountPath,
+			SecretsMasterKey:              cfg.SecretsMasterKey,
+			MinIOClient:                   minioClient,
+			MinIORegion:                   cfg.MinIORegion,
 		},
 	)
 
