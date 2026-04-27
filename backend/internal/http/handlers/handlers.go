@@ -5,6 +5,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
+	"github.com/minio/minio-go/v7"
 )
 
 type Handlers struct {
@@ -14,9 +15,16 @@ type Handlers struct {
 	workspaceStore                store.WorkspaceStore
 	sessionStore                  store.SessionStore
 	accessStore                   store.AccessStore
+	secretStore                   store.SecretStore
+	datasetStore                  store.DatasetStore
+	repositoryStore               store.RepositoryStore
+	projectResourceStore          store.ProjectResourceStore
 	runtime                       runtime.Runner
 	authVerifier                  auth.Verifier
 	keycloak                      *keycloak.Client
+	minioClient                   *minio.Client
+	minioRegion                   string
+	secretsMasterKey              string
 	registryPullSecret            string
 	registryPushSecret            string
 	bootstrapAdminUser            string
@@ -58,6 +66,9 @@ type Options struct {
 	WorkspaceProfilePVCSize       string
 	WorkspaceProfilePVCAccessMode string
 	WorkspaceProfilePVCMountPath  string
+	SecretsMasterKey              string
+	MinIOClient                   *minio.Client
+	MinIORegion                   string
 }
 
 func New(
@@ -67,6 +78,10 @@ func New(
 	workspaceStore store.WorkspaceStore,
 	sessionStore store.SessionStore,
 	accessStore store.AccessStore,
+	secretStore store.SecretStore,
+	datasetStore store.DatasetStore,
+	repositoryStore store.RepositoryStore,
+	projectResourceStore store.ProjectResourceStore,
 	runtime runtime.Runner,
 	authVerifier auth.Verifier,
 	keycloakClient *keycloak.Client,
@@ -79,9 +94,16 @@ func New(
 		workspaceStore:                workspaceStore,
 		sessionStore:                  sessionStore,
 		accessStore:                   accessStore,
+		secretStore:                   secretStore,
+		datasetStore:                  datasetStore,
+		repositoryStore:               repositoryStore,
+		projectResourceStore:          projectResourceStore,
 		runtime:                       runtime,
 		authVerifier:                  authVerifier,
 		keycloak:                      keycloakClient,
+		minioClient:                   options.MinIOClient,
+		minioRegion:                   options.MinIORegion,
+		secretsMasterKey:              options.SecretsMasterKey,
 		registryPullSecret:            options.RegistryPullSecret,
 		registryPushSecret:            options.RegistryPushSecret,
 		bootstrapAdminUser:            options.BootstrapAdminUser,

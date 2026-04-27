@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.29
+  version: 0.5.31
 servers:
   - url: /
 components:
@@ -201,6 +201,217 @@ paths:
       responses:
         '204':
           description: Workspace deleted
+  /api/v1/secrets:
+    get:
+      summary: List current user secrets (metadata only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of secrets
+    post:
+      summary: Create or update a user secret
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, value]
+              properties:
+                name: { type: string }
+                type: { type: string }
+                value: { type: string }
+      responses:
+        '201':
+          description: Secret created
+        '200':
+          description: Secret updated
+  /api/v1/secrets/{name}:
+    delete:
+      summary: Delete a user secret
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Secret deleted
+  /api/v1/datasets:
+    get:
+      summary: List datasets owned by current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of datasets
+    post:
+      summary: Create a dataset (backed by S3 bucket/prefix)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                bucket: { type: string }
+                prefix: { type: string }
+      responses:
+        '201':
+          description: Dataset created
+  /api/v1/datasets/{datasetID}/objects/{path}:
+    put:
+      summary: Upload raw object bytes into a dataset
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Object uploaded
+  /api/v1/repositories:
+    get:
+      summary: List repositories owned by current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of repositories
+    post:
+      summary: Register a git repository
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name: { type: string }
+                url: { type: string }
+                defaultRef: { type: string }
+                authSecretName: { type: string }
+      responses:
+        '201':
+          description: Repository created
+  /api/v1/projects/{projectID}/datasets:
+    get:
+      summary: List datasets attached to one project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Project datasets
+  /api/v1/projects/{projectID}/datasets/{datasetID}:
+    put:
+      summary: Attach dataset to project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Attached
+    delete:
+      summary: Detach dataset from project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Detached
+  /api/v1/projects/{projectID}/repositories:
+    get:
+      summary: List repositories attached to one project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Project repositories
+  /api/v1/projects/{projectID}/repositories/{repositoryID}:
+    put:
+      summary: Attach repository to project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Attached
+    delete:
+      summary: Detach repository from project
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Detached
   /api/v1/auth/session:
     post:
       summary: Exchange bearer token for web session cookie

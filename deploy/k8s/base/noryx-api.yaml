@@ -18,13 +18,30 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.30-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.31-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           env:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
+            - name: NORYX_STORE_BACKEND
+              value: "postgres"
+            - name: NORYX_DATABASE_HOST
+              value: "postgres"
+            - name: NORYX_DATABASE_PORT
+              value: "5432"
+            - name: NORYX_DATABASE_NAME
+              value: "noryx"
+            - name: NORYX_DATABASE_USER
+              value: "noryx"
+            - name: NORYX_DATABASE_SSLMODE
+              value: "disable"
+            - name: NORYX_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-secrets
+                  key: POSTGRES_PASSWORD
             - name: NORYX_ENABLE_K8S_RUNTIME
               value: "true"
             - name: NORYX_AUTH_MODE
@@ -60,6 +77,24 @@ spec:
                 secretKeyRef:
                   name: noryx-secrets
                   key: KEYCLOAK_ADMIN_PASSWORD
+            - name: NORYX_SECRETS_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-secrets
+                  key: NORYX_SECRETS_MASTER_KEY
+            - name: NORYX_MINIO_ENDPOINT
+              value: "minio:9000"
+            - name: NORYX_MINIO_ACCESS_KEY
+              value: "noryx"
+            - name: NORYX_MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-secrets
+                  key: MINIO_ROOT_PASSWORD
+            - name: NORYX_MINIO_USE_SSL
+              value: "false"
+            - name: NORYX_MINIO_REGION
+              value: "us-east-1"
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
               value: "harbor.lan/noryx-environments/noryx-python:0.2.2"
             - name: NORYX_WORKSPACE_VSCODE_IMAGE
