@@ -19,6 +19,7 @@ Status:
 ## Persistence model
 
 - `/mnt`: persistent at project scope (shared project PVC)
+- `/repos`: ephemeral at workspace scope
 - `/home/noryx/.noryx-profile`: persistent at user scope
 - `/datasets`: dataset mounts managed by Noryx dataset flow
 

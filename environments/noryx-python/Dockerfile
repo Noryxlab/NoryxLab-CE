@@ -39,9 +39,8 @@ RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
  && chmod 0440 /etc/sudoers.d/90-noryx \
- && mkdir -p /mnt/repos /datasets /home/noryx/.noryx-profile \
- && ln -sfn /mnt/repos /repos \
- && chown -R noryx:noryx /home/noryx /mnt /datasets
+ && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile \
+ && chown -R noryx:noryx /home/noryx /mnt /repos /datasets
 
 EXPOSE 8888
 

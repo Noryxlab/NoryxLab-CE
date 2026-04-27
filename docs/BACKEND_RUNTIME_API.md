@@ -75,7 +75,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
 - workspace bootstrap:
   - `/mnt/requirements.txt` is auto-applied at startup (project virtualenv `/mnt/.venv`)
-  - `/repos` points to project repository area under `/mnt`
+  - `/repos` is workspace-local and non-persistent
   - `/datasets` is reserved for dataset mounts
 
 ## Quick test

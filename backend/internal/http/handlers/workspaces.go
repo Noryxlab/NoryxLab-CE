@@ -489,7 +489,7 @@ func sanitizeK8sName(raw string) string {
 func workspaceBootstrapScript(kind, workspaceID, accessToken, profileMountPath, projectMountPath string) string {
 	lines := []string{
 		"set -e",
-		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, projectMountPath+"/repos", workspaceDatasetsPath),
+		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, workspaceReposPath, workspaceDatasetsPath),
 		fmt.Sprintf("mkdir -p %s %s %s %s %s",
 			profileMountPath,
 			profileMountPath+"/vscode",

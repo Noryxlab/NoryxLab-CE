@@ -61,7 +61,7 @@ Current implementation baseline:
 - workspace PVC mount path is `/mnt` (project persistent)
 - project PVC is created as `project-<projectId>` and reused across workspaces
 - `/mnt/requirements.txt` is auto-applied at workspace startup (project venv: `/mnt/.venv`)
-- `/repos` is linked to project repository area under `/mnt`
+- `/repos` is ephemeral (workspace-local, non-persistent)
 - `/datasets` is reserved for datasets mounts
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
 - runtime user is `noryx` with `sudo` enabled in `noryx-python` image
