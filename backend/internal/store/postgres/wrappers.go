@@ -4,6 +4,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
@@ -12,6 +13,10 @@ import (
 
 type ProjectStore struct{ *Store }
 type AccessStore struct{ *Store }
+
+func (s *ProjectStore) List() ([]project.Project, error) { return s.Store.List() }
+func (s *ProjectStore) Create(p project.Project) error   { return s.Store.Create(p) }
+func (s *ProjectStore) DeleteProject(id string) error    { return s.Store.DeleteProject(id) }
 
 type BuildStore struct{ *Store }
 

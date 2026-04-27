@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.36
+  version: 0.5.37
   description: |
     Noryx CE backend API contract.
 
@@ -586,6 +586,34 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /api/v1/projects/{projectID}:
+    delete:
+      tags: [Projects]
+      summary: Delete project
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Project deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
 
   /api/v1/projects/{projectID}/members/{userID}/role:
     put:

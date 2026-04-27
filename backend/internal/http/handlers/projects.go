@@ -95,3 +95,66 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusCreated, p)
 }
+
+func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	if projectID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
+		return
+	}
+
+	exists, err := h.projectExists(projectID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to verify project"})
+		return
+	}
+	if !exists {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
+		return
+	}
+
+	if !h.requireProjectRole(w, projectID, userID, func(role access.Role) bool { return role == access.RoleAdmin }, "project deletion") {
+		return
+	}
+
+	if err := h.deleteProjectWorkspaces(projectID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete project workloads: " + err.Error()})
+		return
+	}
+
+	if err := h.projectStore.DeleteProject(projectID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete project"})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) deleteProjectWorkspaces(projectID string) error {
+	items, err := h.workspaceStore.List()
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if item.ProjectID != projectID {
+			continue
+		}
+		if h.runtime != nil {
+			if err := h.runtime.DeleteService(item.ServiceName); err != nil {
+				return err
+			}
+			if err := h.runtime.DeletePod(item.PodName); err != nil {
+				return err
+			}
+		}
+		if err := h.workspaceStore.Delete(item.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}

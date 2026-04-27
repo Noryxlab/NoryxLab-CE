@@ -14,6 +14,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /healthz", h.GetHealth)
 	mux.HandleFunc("GET /api/v1/projects", h.ListProjects)
 	mux.HandleFunc("POST /api/v1/projects", h.CreateProject)
+	mux.HandleFunc("DELETE /api/v1/projects/{projectID}", h.DeleteProject)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/members/{userID}/role", h.SetProjectMemberRole)
 	mux.HandleFunc("GET /api/v1/builds", h.ListBuilds)
 	mux.HandleFunc("POST /api/v1/builds", h.CreateBuild)
