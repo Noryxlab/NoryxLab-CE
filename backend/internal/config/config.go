@@ -3,50 +3,52 @@ package config
 import "os"
 
 type Config struct {
-	ListenAddr                    string
-	StoreBackend                  string
-	DatabaseHost                  string
-	DatabasePort                  string
-	DatabaseName                  string
-	DatabaseUser                  string
-	DatabasePassword              string
-	DatabaseSSLMode               string
-	KubernetesNamespace           string
-	WorkloadNamespace             string
-	EnableK8sRuntime              bool
-	RegistryPullSecret            string
-	RegistryPushSecret            string
-	AuthMode                      string
-	OIDCIssuerURL                 string
-	OIDCJWKSURL                   string
-	OIDCAudience                  string
-	BootstrapAdminUser            string
-	BootstrapAdminEmail           string
-	KeycloakBaseURL               string
-	KeycloakRealm                 string
-	KeycloakAdminRealm            string
-	KeycloakAdminUser             string
-	KeycloakAdminPass             string
-	WorkspaceJupyterImage         string
-	WorkspaceVSCodeImage          string
-	WorkspaceCPU                  string
-	WorkspaceMemory               string
-	WorkspacePVCEnabled           bool
-	WorkspacePVCClass             string
-	WorkspacePVCSize              string
-	WorkspacePVCAccessMode        string
-	WorkspacePVCMountPath         string
-	WorkspaceProfilePVCEnabled    bool
-	WorkspaceProfilePVCClass      string
-	WorkspaceProfilePVCSize       string
-	WorkspaceProfilePVCAccessMode string
-	WorkspaceProfilePVCMountPath  string
-	SecretsMasterKey              string
-	MinIOEndpoint                 string
-	MinIOAccessKey                string
-	MinIOSecretKey                string
-	MinIOUseSSL                   bool
-	MinIORegion                   string
+	ListenAddr                       string
+	StoreBackend                     string
+	DatabaseHost                     string
+	DatabasePort                     string
+	DatabaseName                     string
+	DatabaseUser                     string
+	DatabasePassword                 string
+	DatabaseSSLMode                  string
+	KubernetesNamespace              string
+	WorkloadNamespace                string
+	EnableK8sRuntime                 bool
+	RegistryPullSecret               string
+	RegistryPushSecret               string
+	AuthMode                         string
+	OIDCIssuerURL                    string
+	OIDCJWKSURL                      string
+	OIDCAudience                     string
+	BootstrapAdminUser               string
+	BootstrapAdminEmail              string
+	KeycloakBaseURL                  string
+	KeycloakRealm                    string
+	KeycloakAdminRealm               string
+	KeycloakAdminUser                string
+	KeycloakAdminPass                string
+	WorkspaceJupyterImage            string
+	WorkspaceVSCodeImage             string
+	WorkspaceCPU                     string
+	WorkspaceMemory                  string
+	WorkspaceEphemeralStorageRequest string
+	WorkspaceEphemeralStorageLimit   string
+	WorkspacePVCEnabled              bool
+	WorkspacePVCClass                string
+	WorkspacePVCSize                 string
+	WorkspacePVCAccessMode           string
+	WorkspacePVCMountPath            string
+	WorkspaceProfilePVCEnabled       bool
+	WorkspaceProfilePVCClass         string
+	WorkspaceProfilePVCSize          string
+	WorkspaceProfilePVCAccessMode    string
+	WorkspaceProfilePVCMountPath     string
+	SecretsMasterKey                 string
+	MinIOEndpoint                    string
+	MinIOAccessKey                   string
+	MinIOSecretKey                   string
+	MinIOUseSSL                      bool
+	MinIORegion                      string
 }
 
 func Load() Config {
@@ -125,6 +127,14 @@ func Load() Config {
 	if workspaceMemory == "" {
 		workspaceMemory = "512Mi"
 	}
+	workspaceEphemeralStorageRequest := os.Getenv("NORYX_WORKSPACE_EPHEMERAL_STORAGE_REQUEST")
+	if workspaceEphemeralStorageRequest == "" {
+		workspaceEphemeralStorageRequest = "1Gi"
+	}
+	workspaceEphemeralStorageLimit := os.Getenv("NORYX_WORKSPACE_EPHEMERAL_STORAGE_LIMIT")
+	if workspaceEphemeralStorageLimit == "" {
+		workspaceEphemeralStorageLimit = "4Gi"
+	}
 	workspacePVCEnabled := os.Getenv("NORYX_WORKSPACE_PVC_ENABLED")
 	if workspacePVCEnabled == "" {
 		workspacePVCEnabled = "true"
@@ -179,49 +189,51 @@ func Load() Config {
 	}
 
 	return Config{
-		ListenAddr:                    listenAddr,
-		StoreBackend:                  storeBackend,
-		DatabaseHost:                  os.Getenv("NORYX_DATABASE_HOST"),
-		DatabasePort:                  os.Getenv("NORYX_DATABASE_PORT"),
-		DatabaseName:                  os.Getenv("NORYX_DATABASE_NAME"),
-		DatabaseUser:                  os.Getenv("NORYX_DATABASE_USER"),
-		DatabasePassword:              os.Getenv("NORYX_DATABASE_PASSWORD"),
-		DatabaseSSLMode:               os.Getenv("NORYX_DATABASE_SSLMODE"),
-		KubernetesNamespace:           namespace,
-		WorkloadNamespace:             workloadNamespace,
-		EnableK8sRuntime:              enableRuntime,
-		RegistryPullSecret:            pullSecret,
-		RegistryPushSecret:            pushSecret,
-		AuthMode:                      authMode,
-		OIDCIssuerURL:                 oidcIssuer,
-		OIDCJWKSURL:                   os.Getenv("NORYX_OIDC_JWKS_URL"),
-		OIDCAudience:                  os.Getenv("NORYX_OIDC_AUDIENCE"),
-		BootstrapAdminUser:            os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
-		BootstrapAdminEmail:           os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
-		KeycloakBaseURL:               keycloakBaseURL,
-		KeycloakRealm:                 keycloakRealm,
-		KeycloakAdminRealm:            keycloakAdminRealm,
-		KeycloakAdminUser:             keycloakAdminUser,
-		KeycloakAdminPass:             os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
-		WorkspaceJupyterImage:         workspaceJupyterImage,
-		WorkspaceVSCodeImage:          workspaceVSCodeImage,
-		WorkspaceCPU:                  workspaceCPU,
-		WorkspaceMemory:               workspaceMemory,
-		WorkspacePVCEnabled:           workspacePVCEnabled == "true",
-		WorkspacePVCClass:             workspacePVCClass,
-		WorkspacePVCSize:              workspacePVCSize,
-		WorkspacePVCAccessMode:        workspacePVCAccessMode,
-		WorkspacePVCMountPath:         workspacePVCMountPath,
-		WorkspaceProfilePVCEnabled:    workspaceProfilePVCEnabled == "true",
-		WorkspaceProfilePVCClass:      workspaceProfilePVCClass,
-		WorkspaceProfilePVCSize:       workspaceProfilePVCSize,
-		WorkspaceProfilePVCAccessMode: workspaceProfilePVCAccessMode,
-		WorkspaceProfilePVCMountPath:  workspaceProfilePVCMountPath,
-		SecretsMasterKey:              os.Getenv("NORYX_SECRETS_MASTER_KEY"),
-		MinIOEndpoint:                 minioEndpoint,
-		MinIOAccessKey:                minioAccessKey,
-		MinIOSecretKey:                os.Getenv("NORYX_MINIO_SECRET_KEY"),
-		MinIOUseSSL:                   os.Getenv("NORYX_MINIO_USE_SSL") == "true",
-		MinIORegion:                   minioRegion,
+		ListenAddr:                       listenAddr,
+		StoreBackend:                     storeBackend,
+		DatabaseHost:                     os.Getenv("NORYX_DATABASE_HOST"),
+		DatabasePort:                     os.Getenv("NORYX_DATABASE_PORT"),
+		DatabaseName:                     os.Getenv("NORYX_DATABASE_NAME"),
+		DatabaseUser:                     os.Getenv("NORYX_DATABASE_USER"),
+		DatabasePassword:                 os.Getenv("NORYX_DATABASE_PASSWORD"),
+		DatabaseSSLMode:                  os.Getenv("NORYX_DATABASE_SSLMODE"),
+		KubernetesNamespace:              namespace,
+		WorkloadNamespace:                workloadNamespace,
+		EnableK8sRuntime:                 enableRuntime,
+		RegistryPullSecret:               pullSecret,
+		RegistryPushSecret:               pushSecret,
+		AuthMode:                         authMode,
+		OIDCIssuerURL:                    oidcIssuer,
+		OIDCJWKSURL:                      os.Getenv("NORYX_OIDC_JWKS_URL"),
+		OIDCAudience:                     os.Getenv("NORYX_OIDC_AUDIENCE"),
+		BootstrapAdminUser:               os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
+		BootstrapAdminEmail:              os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
+		KeycloakBaseURL:                  keycloakBaseURL,
+		KeycloakRealm:                    keycloakRealm,
+		KeycloakAdminRealm:               keycloakAdminRealm,
+		KeycloakAdminUser:                keycloakAdminUser,
+		KeycloakAdminPass:                os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
+		WorkspaceJupyterImage:            workspaceJupyterImage,
+		WorkspaceVSCodeImage:             workspaceVSCodeImage,
+		WorkspaceCPU:                     workspaceCPU,
+		WorkspaceMemory:                  workspaceMemory,
+		WorkspaceEphemeralStorageRequest: workspaceEphemeralStorageRequest,
+		WorkspaceEphemeralStorageLimit:   workspaceEphemeralStorageLimit,
+		WorkspacePVCEnabled:              workspacePVCEnabled == "true",
+		WorkspacePVCClass:                workspacePVCClass,
+		WorkspacePVCSize:                 workspacePVCSize,
+		WorkspacePVCAccessMode:           workspacePVCAccessMode,
+		WorkspacePVCMountPath:            workspacePVCMountPath,
+		WorkspaceProfilePVCEnabled:       workspaceProfilePVCEnabled == "true",
+		WorkspaceProfilePVCClass:         workspaceProfilePVCClass,
+		WorkspaceProfilePVCSize:          workspaceProfilePVCSize,
+		WorkspaceProfilePVCAccessMode:    workspaceProfilePVCAccessMode,
+		WorkspaceProfilePVCMountPath:     workspaceProfilePVCMountPath,
+		SecretsMasterKey:                 os.Getenv("NORYX_SECRETS_MASTER_KEY"),
+		MinIOEndpoint:                    minioEndpoint,
+		MinIOAccessKey:                   minioAccessKey,
+		MinIOSecretKey:                   os.Getenv("NORYX_MINIO_SECRET_KEY"),
+		MinIOUseSSL:                      os.Getenv("NORYX_MINIO_USE_SSL") == "true",
+		MinIORegion:                      minioRegion,
 	}
 }

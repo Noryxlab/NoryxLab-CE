@@ -22,7 +22,9 @@ func main() {
 	cfg := config.Load()
 
 	var projectStore store.ProjectStore = memory.NewProjectStore()
+	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
+	var jobStore store.JobStore = memory.NewJobStore()
 	var podStore store.PodStore = memory.NewPodStore()
 	var workspaceStore store.WorkspaceStore = memory.NewWorkspaceStore()
 	var sessionStore store.SessionStore = memory.NewSessionStore()
@@ -48,7 +50,9 @@ func main() {
 				_ = pg.Close()
 			}()
 			projectStore = &postgres.ProjectStore{Store: pg}
+			appStore = &postgres.AppStore{Store: pg}
 			buildStore = &postgres.BuildStore{Store: pg}
+			jobStore = &postgres.JobStore{Store: pg}
 			podStore = &postgres.PodStore{Store: pg}
 			workspaceStore = &postgres.WorkspaceStore{Store: pg}
 			sessionStore = &postgres.SessionStore{Store: pg}
@@ -110,7 +114,9 @@ func main() {
 
 	h := handlers.New(
 		projectStore,
+		appStore,
 		buildStore,
+		jobStore,
 		podStore,
 		workspaceStore,
 		sessionStore,
@@ -123,32 +129,34 @@ func main() {
 		verifier,
 		keycloakClient,
 		handlers.Options{
-			RegistryPullSecret:            cfg.RegistryPullSecret,
-			RegistryPushSecret:            cfg.RegistryPushSecret,
-			BootstrapAdminUser:            cfg.BootstrapAdminUser,
-			BootstrapAdminEmail:           cfg.BootstrapAdminEmail,
-			WorkspaceJupyterImage:         cfg.WorkspaceJupyterImage,
-			WorkspaceVSCodeImage:          cfg.WorkspaceVSCodeImage,
-			WorkspaceNamespace:            cfg.WorkloadNamespace,
-			WorkspaceCPU:                  cfg.WorkspaceCPU,
-			WorkspaceMemory:               cfg.WorkspaceMemory,
-			WorkspacePVCEnabled:           cfg.WorkspacePVCEnabled,
-			WorkspacePVCClass:             cfg.WorkspacePVCClass,
-			WorkspacePVCSize:              cfg.WorkspacePVCSize,
-			WorkspacePVCAccessMode:        cfg.WorkspacePVCAccessMode,
-			WorkspacePVCMountPath:         cfg.WorkspacePVCMountPath,
-			WorkspaceProfilePVCEnabled:    cfg.WorkspaceProfilePVCEnabled,
-			WorkspaceProfilePVCClass:      cfg.WorkspaceProfilePVCClass,
-			WorkspaceProfilePVCSize:       cfg.WorkspaceProfilePVCSize,
-			WorkspaceProfilePVCAccessMode: cfg.WorkspaceProfilePVCAccessMode,
-			WorkspaceProfilePVCMountPath:  cfg.WorkspaceProfilePVCMountPath,
-			SecretsMasterKey:              cfg.SecretsMasterKey,
-			MinIOClient:                   minioClient,
-			MinIOEndpoint:                 cfg.MinIOEndpoint,
-			MinIOAccessKey:                cfg.MinIOAccessKey,
-			MinIOSecretKey:                cfg.MinIOSecretKey,
-			MinIOUseSSL:                   cfg.MinIOUseSSL,
-			MinIORegion:                   cfg.MinIORegion,
+			RegistryPullSecret:               cfg.RegistryPullSecret,
+			RegistryPushSecret:               cfg.RegistryPushSecret,
+			BootstrapAdminUser:               cfg.BootstrapAdminUser,
+			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
+			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
+			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
+			WorkspaceNamespace:               cfg.WorkloadNamespace,
+			WorkspaceCPU:                     cfg.WorkspaceCPU,
+			WorkspaceMemory:                  cfg.WorkspaceMemory,
+			WorkspaceEphemeralStorageRequest: cfg.WorkspaceEphemeralStorageRequest,
+			WorkspaceEphemeralStorageLimit:   cfg.WorkspaceEphemeralStorageLimit,
+			WorkspacePVCEnabled:              cfg.WorkspacePVCEnabled,
+			WorkspacePVCClass:                cfg.WorkspacePVCClass,
+			WorkspacePVCSize:                 cfg.WorkspacePVCSize,
+			WorkspacePVCAccessMode:           cfg.WorkspacePVCAccessMode,
+			WorkspacePVCMountPath:            cfg.WorkspacePVCMountPath,
+			WorkspaceProfilePVCEnabled:       cfg.WorkspaceProfilePVCEnabled,
+			WorkspaceProfilePVCClass:         cfg.WorkspaceProfilePVCClass,
+			WorkspaceProfilePVCSize:          cfg.WorkspaceProfilePVCSize,
+			WorkspaceProfilePVCAccessMode:    cfg.WorkspaceProfilePVCAccessMode,
+			WorkspaceProfilePVCMountPath:     cfg.WorkspaceProfilePVCMountPath,
+			SecretsMasterKey:                 cfg.SecretsMasterKey,
+			MinIOClient:                      minioClient,
+			MinIOEndpoint:                    cfg.MinIOEndpoint,
+			MinIOAccessKey:                   cfg.MinIOAccessKey,
+			MinIOSecretKey:                   cfg.MinIOSecretKey,
+			MinIOUseSSL:                      cfg.MinIOUseSSL,
+			MinIORegion:                      cfg.MinIORegion,
 		},
 	)
 

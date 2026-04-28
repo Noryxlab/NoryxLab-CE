@@ -13,8 +13,8 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
 
 type createWorkspaceRequest struct {
@@ -46,6 +46,7 @@ const (
 	workspaceProjectVenvPath   = "/mnt/.venv"
 	workspaceReposPath         = "/repos"
 	workspaceDatasetsPath      = "/datasets"
+	workspaceVSCodeFilePath    = "/home/noryx/.noryx-profile/vscode/noryx.code-workspace"
 	defaultWorkspaceProfileDir = "/home/noryx/.noryx-profile"
 )
 
@@ -91,6 +92,10 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 				} else {
 					item.Status = "launching"
 				}
+			} else if isNotFoundError(err) {
+				// Runtime service no longer exists: cleanup stale DB record.
+				_ = h.workspaceStore.Delete(item.ID)
+				continue
 			}
 		}
 		filtered = append(filtered, item)
@@ -175,10 +180,11 @@ func normalizeWorkspaceKind(raw string) string {
 
 func workspaceAccessURL(kind, workspaceID, accessToken string) string {
 	if kind == "vscode" {
+		workspaceQuery := url.QueryEscape(workspaceVSCodeFilePath)
 		if strings.TrimSpace(accessToken) != "" {
-			return fmt.Sprintf("/workspaces/%s/?folder=%s&token=%s", workspaceID, workspaceProjectMountPath, accessToken)
+			return fmt.Sprintf("/workspaces/%s/?workspace=%s&token=%s", workspaceID, workspaceQuery, accessToken)
 		}
-		return fmt.Sprintf("/workspaces/%s/?folder=%s", workspaceID, workspaceProjectMountPath)
+		return fmt.Sprintf("/workspaces/%s/?workspace=%s", workspaceID, workspaceQuery)
 	}
 
 	accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
@@ -414,13 +420,15 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				{Name: "JUPYTER_CONFIG_DIR", Value: profileMountPath + "/jupyter/config"},
 				{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
 			},
-			Ports:      []int{8888},
-			CPURequest: h.workspaceCPU,
-			CPULimit:   h.workspaceCPU,
-			MemRequest: h.workspaceMemory,
-			MemLimit:   h.workspaceMemory,
-			PullSecret: h.registryPullSecret,
-			Volumes:    volumes,
+			Ports:                   []int{8888},
+			CPURequest:              h.workspaceCPU,
+			CPULimit:                h.workspaceCPU,
+			MemRequest:              h.workspaceMemory,
+			MemLimit:                h.workspaceMemory,
+			EphemeralStorageRequest: h.workspaceEphemeralStorageRequest,
+			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
+			PullSecret:              h.registryPullSecret,
+			Volumes:                 volumes,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":  "noryx-workspace",
 				"noryx.io/project-id":     req.ProjectID,
@@ -670,13 +678,28 @@ func workspaceBootstrapScript(
 			profileMountPath+"/pip-cache",
 		),
 		fmt.Sprintf("if [ -f %s ]; then", workspaceRequirementsFile),
+		fmt.Sprintf("  echo '[bootstrap] requirements detected at %s'", workspaceRequirementsFile),
+		"  echo '[bootstrap] installing requirements into project venv and user site packages'",
 		fmt.Sprintf("  python3 -m venv %s || true", workspaceProjectVenvPath),
 		fmt.Sprintf("  if [ -x %s/bin/pip ]; then", workspaceProjectVenvPath),
-		fmt.Sprintf("    %s/bin/pip install --disable-pip-version-check -r %s", workspaceProjectVenvPath, workspaceRequirementsFile),
-		"  else",
-		fmt.Sprintf("    python3 -m pip install --disable-pip-version-check -r %s", workspaceRequirementsFile),
+		fmt.Sprintf("    %s/bin/pip install --disable-pip-version-check -r %s > /tmp/noryx-requirements.log 2>&1 || true", workspaceProjectVenvPath, workspaceRequirementsFile),
 		"  fi",
+		fmt.Sprintf("  python3 -m pip install --disable-pip-version-check --user -r %s >> /tmp/noryx-requirements.log 2>&1 || true", workspaceRequirementsFile),
+		fmt.Sprintf("  if [ -x %s/bin/python ]; then", workspaceProjectVenvPath),
+		fmt.Sprintf("    %s/bin/python -m pip list --format=freeze > /tmp/noryx-requirements-installed.txt 2>/dev/null || true", workspaceProjectVenvPath),
+		"  fi",
+		"  python3 -m pip list --format=freeze > /tmp/noryx-requirements-user-installed.txt 2>/dev/null || true",
+		"  echo '[bootstrap] requirements installation completed'",
+		"else",
+		fmt.Sprintf("  echo '[bootstrap] no requirements file found at %s'", workspaceRequirementsFile),
 		"fi",
+		// Cleanup legacy symlink shortcuts previously created in /mnt.
+		fmt.Sprintf("rm -f %s/home %s/repos %s/datasets || true", projectMountPath, projectMountPath, projectMountPath),
+		// Hide filesystem housekeeping entries in IDE explorers.
+		fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/jupyter/config/jupyter_server_config.py")),
+		"c = get_config()",
+		"c.ContentsManager.hide_globs = ['__pycache__', '*.pyc', 'lost+found']",
+		"EOF",
 	}
 
 	for _, repo := range attachedRepos {
@@ -760,31 +783,90 @@ func workspaceBootstrapScript(
 			"        err_file = os.path.join(target, '.noryx_sync_error')",
 			"        with open(err_file, 'w', encoding='utf-8') as fh:",
 			"            fh.write(str(exc))",
+			"",
+			"import threading",
+			"import time",
+			"",
+			"state = {}",
+			"",
+			"def sync_loop():",
+			"    while True:",
+			"        try:",
+			"            for ds in datasets:",
+			"                base = os.path.join('/datasets', ds['name'])",
+			"                if not os.path.isdir(base):",
+			"                    continue",
+			"                prefix = ds.get('prefix', '').strip('/')",
+			"                for root, _, files in os.walk(base):",
+			"                    for fn in files:",
+			"                        if fn == '.noryx_sync_error':",
+			"                            continue",
+			"                        local_path = os.path.join(root, fn)",
+			"                        rel = os.path.relpath(local_path, base).replace('\\\\', '/')",
+			"                        object_name = ((prefix + '/') if prefix else '') + rel",
+			"                        try:",
+			"                            mtime = int(os.path.getmtime(local_path))",
+			"                            size = int(os.path.getsize(local_path))",
+			"                            key = (ds['bucket'], object_name)",
+			"                            sig = (mtime, size)",
+			"                            if state.get(key) == sig:",
+			"                                continue",
+			"                            client.fput_object(ds['bucket'], object_name, local_path)",
+			"                            state[key] = sig",
+			"                        except Exception as exc:",
+			"                            err_file = os.path.join(base, '.noryx_sync_error')",
+			"                            with open(err_file, 'w', encoding='utf-8') as fh:",
+			"                                fh.write(str(exc))",
+			"        except Exception:",
+			"            pass",
+			"        time.sleep(10)",
+			"",
+			"threading.Thread(target=sync_loop, daemon=True).start()",
+			"time.sleep(1)",
 			"PY",
 		)
 	}
 
 	if kind == "vscode" {
 		lines = append(lines,
+			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
+			"{",
+			"  \"folders\": [",
+			"    { \"path\": \"/mnt\" },",
+			"    { \"path\": \"/repos\" },",
+			"    { \"path\": \"/datasets\" },",
+			"    { \"path\": \"/home\" }",
+			"  ],",
+			"  \"settings\": {",
+			"    \"files.exclude\": {",
+			"      \"**/lost+found\": true",
+			"    }",
+			"  }",
+			"}",
+			"EOF",
+			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
 			"exec openvscode-server \\",
 			"  --host 0.0.0.0 \\",
 			"  --port 8888 \\",
 			"  --without-connection-token \\",
 			fmt.Sprintf("  --server-base-path /workspaces/%s \\", workspaceID),
-			fmt.Sprintf("  --default-folder %s \\", projectMountPath),
-			"  --telemetry-level off",
+			fmt.Sprintf("  --default-workspace %s \\", profileMountPath+"/vscode/noryx.code-workspace"),
+			"  --telemetry-level off \\",
+			fmt.Sprintf("  %s", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 		)
 		return strings.Join(lines, "\n")
 	}
 
 	lines = append(lines,
+		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
 		"exec python3 -m jupyterlab \\",
 		"  --ip=0.0.0.0 \\",
 		"  --port=8888 \\",
 		"  --no-browser \\",
 		"  --ServerApp.allow_remote_access=True \\",
 		"  --ServerApp.trust_xheaders=True \\",
-		fmt.Sprintf("  --ServerApp.root_dir=%s \\", projectMountPath),
+		"  --ServerApp.root_dir=/ \\",
+		"  --ServerApp.default_url=/lab/tree/home/noryx \\",
 		fmt.Sprintf("  --ServerApp.base_url=/workspaces/%s/ \\", workspaceID),
 		fmt.Sprintf("  --ServerApp.token=%s \\", accessToken),
 		"  --ServerApp.password=",
@@ -820,12 +902,16 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	if h.runtime != nil {
 		if err := h.runtime.DeleteService(record.ServiceName); err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service delete failed: " + err.Error()})
-			return
+			if !isNotFoundError(err) {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service delete failed: " + err.Error()})
+				return
+			}
 		}
 		if err := h.runtime.DeletePod(record.PodName); err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
-			return
+			if !isNotFoundError(err) {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
+				return
+			}
 		}
 	}
 
@@ -835,4 +921,12 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(msg, "not found") || strings.Contains(msg, "404")
 }

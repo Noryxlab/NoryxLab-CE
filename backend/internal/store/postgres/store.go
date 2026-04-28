@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
@@ -127,6 +129,21 @@ func (s *Store) migrate(ctx context.Context) error {
 			status TEXT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS apps (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			slug TEXT NOT NULL UNIQUE,
+			image TEXT NOT NULL,
+			command_json JSONB,
+			args_json JSONB,
+			port INTEGER NOT NULL,
+			pod_name TEXT NOT NULL,
+			service_name TEXT NOT NULL,
+			status TEXT NOT NULL,
+			access_url TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS pods (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -155,8 +172,19 @@ func (s *Store) migrate(ctx context.Context) error {
 			status TEXT NOT NULL,
 			access_url TEXT,
 			access_token TEXT,
-			created_at TIMESTAMPTZ NOT NULL
-		)`,
+				created_at TIMESTAMPTZ NOT NULL
+			)`,
+		`CREATE TABLE IF NOT EXISTS jobs (
+				id TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				name TEXT NOT NULL,
+				image TEXT NOT NULL,
+				command_json JSONB,
+				args_json JSONB,
+				job_name TEXT NOT NULL,
+				status TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL
+			)`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			identity TEXT NOT NULL,
@@ -253,6 +281,8 @@ func (s *Store) DeleteProject(projectID string) error {
 		`DELETE FROM project_repositories WHERE project_id=$1`,
 		`DELETE FROM workspaces WHERE project_id=$1`,
 		`DELETE FROM builds WHERE project_id=$1`,
+		`DELETE FROM apps WHERE project_id=$1`,
+		`DELETE FROM jobs WHERE project_id=$1`,
 		`DELETE FROM pods WHERE project_id=$1`,
 		`DELETE FROM projects WHERE id=$1`,
 	}
@@ -303,6 +333,158 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 		out = append(out, b)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) ListApps() ([]app.App, error) {
+	rows, err := s.db.Query(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []app.App{}
+	for rows.Next() {
+		var item app.App
+		var commandJSON, argsJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		if len(commandJSON) > 0 {
+			_ = json.Unmarshal(commandJSON, &item.Command)
+		}
+		if len(argsJSON) > 0 {
+			_ = json.Unmarshal(argsJSON, &item.Args)
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetAppByID(id string) (app.App, bool, error) {
+	var item app.App
+	var commandJSON, argsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID,
+		&item.ProjectID,
+		&item.Name,
+		&item.Slug,
+		&item.Image,
+		&commandJSON,
+		&argsJSON,
+		&item.Port,
+		&item.PodName,
+		&item.ServiceName,
+		&item.Status,
+		&item.AccessURL,
+		&item.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return app.App{}, false, nil
+	}
+	if err != nil {
+		return app.App{}, false, err
+	}
+	if len(commandJSON) > 0 {
+		_ = json.Unmarshal(commandJSON, &item.Command)
+	}
+	if len(argsJSON) > 0 {
+		_ = json.Unmarshal(argsJSON, &item.Args)
+	}
+	return item, true, nil
+}
+
+func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
+	var item app.App
+	var commandJSON, argsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
+		&item.ID,
+		&item.ProjectID,
+		&item.Name,
+		&item.Slug,
+		&item.Image,
+		&commandJSON,
+		&argsJSON,
+		&item.Port,
+		&item.PodName,
+		&item.ServiceName,
+		&item.Status,
+		&item.AccessURL,
+		&item.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return app.App{}, false, nil
+	}
+	if err != nil {
+		return app.App{}, false, err
+	}
+	if len(commandJSON) > 0 {
+		_ = json.Unmarshal(commandJSON, &item.Command)
+	}
+	if len(argsJSON) > 0 {
+		_ = json.Unmarshal(argsJSON, &item.Args)
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateApp(item app.App) error {
+	commandJSON, _ := json.Marshal(item.Command)
+	argsJSON, _ := json.Marshal(item.Args)
+	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		item.ID,
+		item.ProjectID,
+		item.Name,
+		item.Slug,
+		item.Image,
+		commandJSON,
+		argsJSON,
+		item.Port,
+		item.PodName,
+		item.ServiceName,
+		item.Status,
+		item.AccessURL,
+		item.CreatedAt,
+	)
+	return err
+}
+
+func (s *Store) UpsertApp(item app.App) error {
+	commandJSON, _ := json.Marshal(item.Command)
+	argsJSON, _ := json.Marshal(item.Args)
+	_, err := s.db.Exec(`
+		INSERT INTO apps (id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		ON CONFLICT (id) DO UPDATE SET
+			project_id=EXCLUDED.project_id,
+			name=EXCLUDED.name,
+			slug=EXCLUDED.slug,
+			image=EXCLUDED.image,
+			command_json=EXCLUDED.command_json,
+			args_json=EXCLUDED.args_json,
+			port=EXCLUDED.port,
+			pod_name=EXCLUDED.pod_name,
+			service_name=EXCLUDED.service_name,
+			status=EXCLUDED.status,
+			access_url=EXCLUDED.access_url
+	`,
+		item.ID,
+		item.ProjectID,
+		item.Name,
+		item.Slug,
+		item.Image,
+		commandJSON,
+		argsJSON,
+		item.Port,
+		item.PodName,
+		item.ServiceName,
+		item.Status,
+		item.AccessURL,
+		item.CreatedAt,
+	)
+	return err
+}
+
+func (s *Store) DeleteApp(id string) error {
+	_, err := s.db.Exec(`DELETE FROM apps WHERE id=$1`, strings.TrimSpace(id))
+	return err
 }
 
 func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
@@ -369,6 +551,109 @@ func (s *Store) UpsertBuild(b build.Build) error {
 		b.Status,
 		b.CreatedAt,
 	)
+	return err
+}
+
+func (s *Store) ListJobs() ([]job.Job, error) {
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, command_json, args_json, job_name, status, created_at FROM jobs ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []job.Job{}
+	for rows.Next() {
+		var item job.Job
+		var commandJSON, argsJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &commandJSON, &argsJSON, &item.JobName, &item.Status, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		if len(commandJSON) > 0 {
+			_ = json.Unmarshal(commandJSON, &item.Command)
+		}
+		if len(argsJSON) > 0 {
+			_ = json.Unmarshal(argsJSON, &item.Args)
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
+	var item job.Job
+	var commandJSON, argsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, command_json, args_json, job_name, status, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID,
+		&item.ProjectID,
+		&item.Name,
+		&item.Image,
+		&commandJSON,
+		&argsJSON,
+		&item.JobName,
+		&item.Status,
+		&item.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return job.Job{}, false, nil
+	}
+	if err != nil {
+		return job.Job{}, false, err
+	}
+	if len(commandJSON) > 0 {
+		_ = json.Unmarshal(commandJSON, &item.Command)
+	}
+	if len(argsJSON) > 0 {
+		_ = json.Unmarshal(argsJSON, &item.Args)
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateJob(item job.Job) error {
+	commandJSON, _ := json.Marshal(item.Command)
+	argsJSON, _ := json.Marshal(item.Args)
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, command_json, args_json, job_name, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		item.ID,
+		item.ProjectID,
+		item.Name,
+		item.Image,
+		commandJSON,
+		argsJSON,
+		item.JobName,
+		item.Status,
+		item.CreatedAt,
+	)
+	return err
+}
+
+func (s *Store) UpsertJob(item job.Job) error {
+	commandJSON, _ := json.Marshal(item.Command)
+	argsJSON, _ := json.Marshal(item.Args)
+	_, err := s.db.Exec(`
+		INSERT INTO jobs (id, project_id, name, image, command_json, args_json, job_name, status, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		ON CONFLICT (id) DO UPDATE SET
+			project_id=EXCLUDED.project_id,
+			name=EXCLUDED.name,
+			image=EXCLUDED.image,
+			command_json=EXCLUDED.command_json,
+			args_json=EXCLUDED.args_json,
+			job_name=EXCLUDED.job_name,
+			status=EXCLUDED.status
+	`,
+		item.ID,
+		item.ProjectID,
+		item.Name,
+		item.Image,
+		commandJSON,
+		argsJSON,
+		item.JobName,
+		item.Status,
+		item.CreatedAt,
+	)
+	return err
+}
+
+func (s *Store) DeleteJob(id string) error {
+	_, err := s.db.Exec(`DELETE FROM jobs WHERE id=$1`, strings.TrimSpace(id))
 	return err
 }
 
