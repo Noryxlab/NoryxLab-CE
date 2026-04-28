@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.37
+  version: 0.5.63
   description: |
     Noryx CE backend API contract.
 

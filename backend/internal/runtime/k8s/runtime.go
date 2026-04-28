@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,11 +86,17 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 	if spec.MemRequest != "" {
 		requests["memory"] = spec.MemRequest
 	}
+	if spec.EphemeralStorageRequest != "" {
+		requests["ephemeral-storage"] = spec.EphemeralStorageRequest
+	}
 	if spec.CPULimit != "" {
 		limits["cpu"] = spec.CPULimit
 	}
 	if spec.MemLimit != "" {
 		limits["memory"] = spec.MemLimit
+	}
+	if spec.EphemeralStorageLimit != "" {
+		limits["ephemeral-storage"] = spec.EphemeralStorageLimit
 	}
 	if len(requests) > 0 {
 		resources["requests"] = requests
@@ -328,6 +335,110 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 	return err
 }
 
+func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
+	resources := map[string]any{}
+	requests := map[string]string{}
+	limits := map[string]string{}
+	if spec.CPURequest != "" {
+		requests["cpu"] = spec.CPURequest
+	}
+	if spec.MemRequest != "" {
+		requests["memory"] = spec.MemRequest
+	}
+	if spec.EphemeralStorageRequest != "" {
+		requests["ephemeral-storage"] = spec.EphemeralStorageRequest
+	}
+	if spec.CPULimit != "" {
+		limits["cpu"] = spec.CPULimit
+	}
+	if spec.MemLimit != "" {
+		limits["memory"] = spec.MemLimit
+	}
+	if spec.EphemeralStorageLimit != "" {
+		limits["ephemeral-storage"] = spec.EphemeralStorageLimit
+	}
+	if len(requests) > 0 {
+		resources["requests"] = requests
+	}
+	if len(limits) > 0 {
+		resources["limits"] = limits
+	}
+
+	container := map[string]any{
+		"name":    "main",
+		"image":   spec.Image,
+		"command": spec.Command,
+		"args":    spec.Args,
+	}
+	if len(resources) > 0 {
+		container["resources"] = resources
+	}
+
+	podSpec := map[string]any{
+		"restartPolicy": "Never",
+		"containers":    []map[string]any{container},
+	}
+	if spec.PullSecret != "" {
+		podSpec["imagePullSecrets"] = []map[string]string{{"name": spec.PullSecret}}
+	}
+
+	volumes := make([]map[string]any, 0, len(spec.Volumes))
+	volumeMounts := make([]map[string]any, 0, len(spec.Volumes))
+	for i, vol := range spec.Volumes {
+		claimName := strings.TrimSpace(vol.ClaimName)
+		mountPath := strings.TrimSpace(vol.MountPath)
+		if claimName == "" || mountPath == "" {
+			continue
+		}
+		volumeName := fmt.Sprintf("pvc-%d", i)
+		volumes = append(volumes, map[string]any{
+			"name": volumeName,
+			"persistentVolumeClaim": map[string]any{
+				"claimName": claimName,
+				"readOnly":  vol.ReadOnly,
+			},
+		})
+		volumeMounts = append(volumeMounts, map[string]any{
+			"name":      volumeName,
+			"mountPath": mountPath,
+			"readOnly":  vol.ReadOnly,
+		})
+	}
+	if len(volumes) > 0 {
+		podSpec["volumes"] = volumes
+		container["volumeMounts"] = volumeMounts
+	}
+
+	payload := map[string]any{
+		"apiVersion": "batch/v1",
+		"kind":       "Job",
+		"metadata": map[string]any{
+			"name":   spec.JobName,
+			"labels": spec.Labels,
+		},
+		"spec": map[string]any{
+			"ttlSecondsAfterFinished": int64(86400),
+			"backoffLimit":            int64(0),
+			"template": map[string]any{
+				"metadata": map[string]any{
+					"labels": spec.Labels,
+				},
+				"spec": podSpec,
+			},
+		},
+	}
+
+	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
+	return err
+}
+
+func (r *Runtime) DeleteJob(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("job name is required")
+	}
+	return r.delete(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", r.workloadNamespace, name))
+}
+
 func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
 	body, err := r.get(fmt.Sprintf("/apis/apps/v1/namespaces/%s/deployments", r.controlNamespace))
 	if err != nil {
@@ -562,6 +673,132 @@ func (r *Runtime) ListBuilds() ([]noryxruntime.BuildRuntimeInfo, error) {
 	}
 
 	return out, nil
+}
+
+func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
+	selector := url.QueryEscape("app.kubernetes.io/name=noryx-job")
+	body, err := r.get(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name   string            `json:"name"`
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+			Spec struct {
+				Template struct {
+					Spec struct {
+						Containers []struct {
+							Image string `json:"image"`
+						} `json:"containers"`
+					} `json:"spec"`
+				} `json:"template"`
+			} `json:"spec"`
+			Status struct {
+				Active    int `json:"active"`
+				Succeeded int `json:"succeeded"`
+				Failed    int `json:"failed"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+	out := make([]noryxruntime.JobRuntimeInfo, 0, len(response.Items))
+	for _, item := range response.Items {
+		jobID := strings.TrimSpace(item.Metadata.Labels["noryx.io/job-id"])
+		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
+		if jobID == "" || projectID == "" {
+			continue
+		}
+		status := "submitted"
+		switch {
+		case item.Status.Failed > 0:
+			status = "failed"
+		case item.Status.Succeeded > 0:
+			status = "succeeded"
+		case item.Status.Active > 0:
+			status = "running"
+		}
+		image := ""
+		if len(item.Spec.Template.Spec.Containers) > 0 {
+			image = strings.TrimSpace(item.Spec.Template.Spec.Containers[0].Image)
+		}
+		out = append(out, noryxruntime.JobRuntimeInfo{
+			JobID:     jobID,
+			ProjectID: projectID,
+			JobName:   strings.TrimSpace(item.Metadata.Name),
+			Status:    status,
+			Image:     image,
+		})
+	}
+	return out, nil
+}
+
+func (r *Runtime) GetJobLogs(jobName string, tailLines int) (noryxruntime.JobLogs, error) {
+	jobName = strings.TrimSpace(jobName)
+	if jobName == "" {
+		return noryxruntime.JobLogs{}, fmt.Errorf("job name is required")
+	}
+	if tailLines <= 0 {
+		tailLines = 200
+	}
+	if tailLines > 2000 {
+		tailLines = 2000
+	}
+
+	selector := url.QueryEscape("job-name=" + jobName)
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return noryxruntime.JobLogs{}, err
+	}
+	var pods struct {
+		Items []struct {
+			Metadata struct {
+				Name              string `json:"name"`
+				CreationTimestamp string `json:"creationTimestamp"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &pods); err != nil {
+		return noryxruntime.JobLogs{}, err
+	}
+	if len(pods.Items) == 0 {
+		return noryxruntime.JobLogs{}, fmt.Errorf("job pod not found for %s", jobName)
+	}
+	selected := strings.TrimSpace(pods.Items[0].Metadata.Name)
+	latestTs := strings.TrimSpace(pods.Items[0].Metadata.CreationTimestamp)
+	for _, item := range pods.Items[1:] {
+		name := strings.TrimSpace(item.Metadata.Name)
+		if name == "" {
+			continue
+		}
+		ts := strings.TrimSpace(item.Metadata.CreationTimestamp)
+		if ts > latestTs {
+			latestTs = ts
+			selected = name
+		}
+	}
+	if selected == "" {
+		return noryxruntime.JobLogs{}, fmt.Errorf("job pod not found for %s", jobName)
+	}
+
+	logPath := fmt.Sprintf(
+		"/api/v1/namespaces/%s/pods/%s/log?container=main&tailLines=%s",
+		r.workloadNamespace,
+		url.PathEscape(selected),
+		url.QueryEscape(strconv.Itoa(tailLines)),
+	)
+	logBody, err := r.get(logPath)
+	if err != nil {
+		return noryxruntime.JobLogs{}, err
+	}
+	return noryxruntime.JobLogs{
+		PodName: selected,
+		Logs:    string(logBody),
+	}, nil
 }
 
 func parseKanikoBuildArgs(args []string) (repo, ref, dockerfilePath, contextPath, destinationImage string) {

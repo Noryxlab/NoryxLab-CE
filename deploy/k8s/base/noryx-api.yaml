@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.42-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.63-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -103,6 +103,10 @@ spec:
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY
               value: "512Mi"
+            - name: NORYX_WORKSPACE_EPHEMERAL_STORAGE_REQUEST
+              value: "1Gi"
+            - name: NORYX_WORKSPACE_EPHEMERAL_STORAGE_LIMIT
+              value: "4Gi"
             - name: NORYX_WORKSPACE_PVC_ENABLED
               value: "true"
             - name: NORYX_WORKSPACE_PVC_STORAGE_CLASS

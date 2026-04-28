@@ -6,19 +6,21 @@ type EnvVar struct {
 }
 
 type PodSpec struct {
-	PodName    string
-	Image      string
-	Command    []string
-	Args       []string
-	Env        []EnvVar
-	Ports      []int
-	CPURequest string
-	CPULimit   string
-	MemRequest string
-	MemLimit   string
-	Labels     map[string]string
-	PullSecret string
-	Volumes    []PersistentVolumeClaimMount
+	PodName                 string
+	Image                   string
+	Command                 []string
+	Args                    []string
+	Env                     []EnvVar
+	Ports                   []int
+	CPURequest              string
+	CPULimit                string
+	MemRequest              string
+	MemLimit                string
+	EphemeralStorageRequest string
+	EphemeralStorageLimit   string
+	Labels                  map[string]string
+	PullSecret              string
+	Volumes                 []PersistentVolumeClaimMount
 }
 
 type ServiceSpec struct {
@@ -37,6 +39,22 @@ type BuildSpec struct {
 	PullSecret         string
 	RegistrySecretName string
 	Labels             map[string]string
+}
+
+type JobSpec struct {
+	JobName                 string
+	Image                   string
+	Command                 []string
+	Args                    []string
+	CPURequest              string
+	CPULimit                string
+	MemRequest              string
+	MemLimit                string
+	EphemeralStorageRequest string
+	EphemeralStorageLimit   string
+	PullSecret              string
+	Volumes                 []PersistentVolumeClaimMount
+	Labels                  map[string]string
 }
 
 type PersistentVolumeClaimSpec struct {
@@ -61,6 +79,8 @@ type Runner interface {
 	CreateService(spec ServiceSpec) error
 	DeleteService(name string) error
 	CreateBuild(spec BuildSpec) error
+	CreateJob(spec JobSpec) error
+	DeleteJob(name string) error
 }
 
 type DeploymentStatus struct {
@@ -113,4 +133,25 @@ type BuildRuntimeInfo struct {
 
 type BuildDiscovery interface {
 	ListBuilds() ([]BuildRuntimeInfo, error)
+}
+
+type JobRuntimeInfo struct {
+	JobID     string `json:"jobId"`
+	ProjectID string `json:"projectId"`
+	JobName   string `json:"jobName"`
+	Status    string `json:"status"`
+	Image     string `json:"image"`
+}
+
+type JobDiscovery interface {
+	ListJobs() ([]JobRuntimeInfo, error)
+}
+
+type JobLogs struct {
+	PodName string `json:"podName"`
+	Logs    string `json:"logs"`
+}
+
+type JobLogReader interface {
+	GetJobLogs(jobName string, tailLines int) (JobLogs, error)
 }

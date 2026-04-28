@@ -515,8 +515,22 @@ data:
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Project Jobs</h3>
-                    <div class="hint">Coming soon. Jobs will run from one selected environment in project scope.</div>
-                    <pre>Planned V1: submit job, track status, inspect logs, stop run.</pre>
+                    <div class="hint">Run one-shot jobs in selected project with selected environment image.</div>
+                    <div class="row">
+                      <input id="jobName" placeholder="job name (optional)" />
+                      <select id="jobEnv"></select>
+                    </div>
+                    <div class="row">
+                      <input id="jobCommand" value="python -V" placeholder="shell command" />
+                      <button id="createJob" class="btn warn">Launch Job</button>
+                      <button id="loadJobs" class="btn">Refresh</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Pod/Job</th><th>Image</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                      <tbody id="jobRows"></tbody>
+                    </table>
+                    <h3>Job Logs</h3>
+                    <pre id="jobLogsOut">-</pre>
                   </article>
                 </div>
               </section>
@@ -525,8 +539,24 @@ data:
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Project Apps</h3>
-                    <div class="hint">Coming soon. Apps will expose long-running services in project scope.</div>
-                    <pre>Planned V1: app deploy, endpoint URL, scale and stop.</pre>
+                    <div class="hint">Deploy long-running apps with custom URL slug. Access is authenticated via Keycloak session.</div>
+                    <div class="row">
+                      <input id="appName" placeholder="app name (optional)" />
+                      <input id="appSlug" placeholder="url slug (example: fraud-ui)" />
+                    </div>
+                    <div class="row">
+                      <select id="appEnv"></select>
+                      <input id="appPort" value="9000" placeholder="port (default 9000)" />
+                    </div>
+                    <div class="row">
+                      <input id="appCommand" value="python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt" placeholder="launch command" />
+                      <button id="createApp" class="btn warn">Launch App</button>
+                      <button id="loadApps" class="btn">Refresh</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
+                      <tbody id="appRows"></tbody>
+                    </table>
                   </article>
                 </div>
               </section>
@@ -615,6 +645,21 @@ data:
           const createWorkspaceBtn = document.getElementById('createWorkspace');
           const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
           const workspaceRows = document.getElementById('workspaceRows');
+          const jobNameInput = document.getElementById('jobName');
+          const jobEnvInput = document.getElementById('jobEnv');
+          const jobCommandInput = document.getElementById('jobCommand');
+          const createJobBtn = document.getElementById('createJob');
+          const loadJobsBtn = document.getElementById('loadJobs');
+          const jobRows = document.getElementById('jobRows');
+          const jobLogsOut = document.getElementById('jobLogsOut');
+          const appNameInput = document.getElementById('appName');
+          const appSlugInput = document.getElementById('appSlug');
+          const appEnvInput = document.getElementById('appEnv');
+          const appPortInput = document.getElementById('appPort');
+          const appCommandInput = document.getElementById('appCommand');
+          const createAppBtn = document.getElementById('createApp');
+          const loadAppsBtn = document.getElementById('loadApps');
+          const appRows = document.getElementById('appRows');
 
           const envGitRepo = document.getElementById('envGitRepo');
           const envGitRef = document.getElementById('envGitRef');
@@ -673,12 +718,14 @@ data:
             projectDatasets: [],
             projectRepositories: [],
             workspaces: [],
+            jobs: [],
+            apps: [],
             builds: [],
             environments: [],
             activeTab: 'environments',
             repositoryChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.34';
+          const FRONT_VERSION = 'ce-web-0.6.37';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -737,6 +784,10 @@ data:
             createProjectBtn.disabled = !enabled;
             loadWorkspacesBtn.disabled = !enabled;
             createWorkspaceBtn.disabled = !enabled;
+            createJobBtn.disabled = !enabled;
+            loadJobsBtn.disabled = !enabled;
+            createAppBtn.disabled = !enabled;
+            loadAppsBtn.disabled = !enabled;
             buildEnvBtn.disabled = !enabled;
             saveSecretBtn.disabled = !enabled;
             createDatasetBtn.disabled = !enabled;
@@ -839,7 +890,7 @@ data:
 
           function updateStats() {
             statProjects.textContent = String(state.projects.length);
-            statWorkspaces.textContent = String(state.workspaces.length);
+            statWorkspaces.textContent = String(state.workspaces.length + state.jobs.length + state.apps.length);
             statBuilds.textContent = String(state.builds.length);
           }
 
@@ -1008,6 +1059,94 @@ data:
             }
           }
 
+          function renderJobEnvOptions() {
+            const current = jobEnvInput.value || '';
+            jobEnvInput.innerHTML = '';
+            const pid = selectedProjectId();
+            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            if (items.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No environment available';
+              jobEnvInput.appendChild(opt);
+              return;
+            }
+            items.forEach((env) => {
+              const opt = document.createElement('option');
+              opt.value = env.destinationImage || '';
+              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              jobEnvInput.appendChild(opt);
+            });
+            if (current && items.some((env) => env.destinationImage === current)) {
+              jobEnvInput.value = current;
+            }
+          }
+
+          function renderAppEnvOptions() {
+            const current = appEnvInput.value || '';
+            appEnvInput.innerHTML = '';
+            const pid = selectedProjectId();
+            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            if (items.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No environment available';
+              appEnvInput.appendChild(opt);
+              return;
+            }
+            items.forEach((env) => {
+              const opt = document.createElement('option');
+              opt.value = env.destinationImage || '';
+              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              appEnvInput.appendChild(opt);
+            });
+            if (current && items.some((env) => env.destinationImage === current)) {
+              appEnvInput.value = current;
+            }
+          }
+
+          function renderJobsTable() {
+            const pid = selectedProjectId();
+            const items = state.jobs.filter((j) => !pid || j.projectId === pid);
+            jobRows.innerHTML = '';
+            if (items.length === 0) {
+              jobRows.innerHTML = '<tr><td colspan="6">No jobs for selected project.</td></tr>';
+              return;
+            }
+            items.forEach((j) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (j.name || j.id) + '</strong><br/><span style="color:#667a98">' + (j.id || '-') + '</span></td>' +
+                '<td><code>' + (j.jobName || '-') + '</code></td>' +
+                '<td><code>' + (j.image || '-') + '</code></td>' +
+                '<td>' + badge(j.status || 'submitted') + '</td>' +
+                '<td><code>' + (j.createdAt || '-') + '</code></td>' +
+                '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">Logs</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Delete</button></td>';
+              jobRows.appendChild(tr);
+            });
+          }
+
+          function renderAppsTable() {
+            const pid = selectedProjectId();
+            const items = state.apps.filter((a) => !pid || a.projectId === pid);
+            appRows.innerHTML = '';
+            if (items.length === 0) {
+              appRows.innerHTML = '<tr><td colspan="6">No apps for selected project.</td></tr>';
+              return;
+            }
+            items.forEach((a) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (a.name || a.id) + '</strong><br/><span style="color:#667a98">' + (a.id || '-') + '</span></td>' +
+                '<td><code>' + (a.slug || '-') + '</code></td>' +
+                '<td><code>' + (a.podName || '-') + '</code></td>' +
+                '<td>' + badge(a.status || 'submitted') + '</td>' +
+                '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
+                '<td><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
+              appRows.appendChild(tr);
+            });
+          }
+
           function renderEnvironmentsTable() {
             const pid = selectedProjectId();
             const items = state.environments.filter((env) => !pid || env.projectId === pid);
@@ -1047,9 +1186,13 @@ data:
           function renderWorkloadsTable() {
             const pid = selectedProjectId();
             const ws = state.workspaces.filter(w => !pid || w.projectId === pid);
+            const js = state.jobs.filter(j => !pid || j.projectId === pid);
+            const aps = state.apps.filter(a => !pid || a.projectId === pid);
             const bs = state.builds.filter(b => !pid || b.projectId === pid);
             const rows = [];
             ws.forEach(w => rows.push({ type: 'Workspace', name: w.name || w.id, status: w.status || 'submitted' }));
+            js.forEach(j => rows.push({ type: 'Job', name: j.name || j.jobName || j.id, status: j.status || 'submitted' }));
+            aps.forEach(a => rows.push({ type: 'App', name: a.name || a.slug || a.id, status: a.status || 'submitted' }));
             bs.forEach(b => rows.push({ type: 'Build', name: b.jobName || b.destinationImage || 'build', status: b.status || 'submitted' }));
             workloadRows.innerHTML = '';
             if (rows.length === 0) {
@@ -1165,6 +1308,10 @@ data:
             renderRepositoriesTable();
             renderSecretOptions();
             renderWorkspacesTable();
+            renderJobEnvOptions();
+            renderJobsTable();
+            renderAppEnvOptions();
+            renderAppsTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
             updateStats();
@@ -1189,6 +1336,24 @@ data:
           async function refreshWorkspaces() {
             const body = await callJSON('/api/v1/workspaces');
             state.workspaces = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshJobs() {
+            const pid = selectedProjectId();
+            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
+            const body = await callJSON('/api/v1/jobs' + query);
+            state.jobs = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshApps() {
+            const pid = selectedProjectId();
+            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
+            const body = await callJSON('/api/v1/apps' + query);
+            state.apps = ensureArray(body.items);
             renderAll();
             return body;
           }
@@ -1258,7 +1423,7 @@ data:
             if (workspacesAutoRefreshTimer) return;
             workspacesAutoRefreshTimer = setInterval(async () => {
               try {
-                await refreshWorkspaces();
+                await Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps()]);
                 if (state.activeTab === 'environments' || state.activeTab === 'workloads') {
                   await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 }
@@ -1320,6 +1485,8 @@ data:
           projectSelect.onchange = async () => {
             try {
               await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
+              await refreshJobs();
+              await refreshApps();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1492,6 +1659,16 @@ data:
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
+          loadJobsBtn.onclick = async () => {
+            try { await refreshJobs(); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
+          loadAppsBtn.onclick = async () => {
+            try { await refreshApps(); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
           createWorkspaceBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
@@ -1517,6 +1694,58 @@ data:
                 usersOut.textContent = ready ? t('readyMsg') : t('launchingMsg');
                 await refreshWorkspaces();
               }
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          createJobBtn.onclick = async () => {
+            try {
+              const projectId = selectedProjectId();
+              if (!projectId) throw { error: 'select a project first' };
+              const image = (jobEnvInput.value || '').trim();
+              if (!image) throw { error: 'select an environment image first' };
+              const payload = { projectId, image };
+              const name = jobNameInput.value.trim();
+              if (name) payload.name = name;
+              const rawCommand = (jobCommandInput.value || '').trim();
+              if (rawCommand) payload.args = [rawCommand];
+              await callJSON('/api/v1/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              await refreshJobs();
+              switchTab('project-jobs');
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          createAppBtn.onclick = async () => {
+            try {
+              const projectId = selectedProjectId();
+              if (!projectId) throw { error: 'select a project first' };
+              const image = (appEnvInput.value || '').trim();
+              if (!image) throw { error: 'select an environment image first' };
+              const payload = { projectId, image };
+              const name = appNameInput.value.trim();
+              const slug = appSlugInput.value.trim();
+              const cmd = appCommandInput.value.trim();
+              const portRaw = appPortInput.value.trim();
+              if (name) payload.name = name;
+              if (slug) payload.slug = slug;
+              if (cmd) payload.args = [cmd];
+              if (portRaw) payload.port = Number(portRaw);
+              await callJSON('/api/v1/apps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              await refreshApps();
+              switchTab('project-apps');
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1634,6 +1863,49 @@ data:
             }
           };
 
+          jobRows.onclick = async (event) => {
+            const logsId = event.target?.getAttribute('data-logs-job');
+            const delId = event.target?.getAttribute('data-del-job');
+            if (logsId) {
+              try {
+                const body = await callJSON('/api/v1/jobs/' + encodeURIComponent(logsId) + '/logs?tailLines=300');
+                jobLogsOut.textContent = '[job=' + (body.jobName || '-') + ' pod=' + (body.podName || '-') + ']\n' + (body.logs || '');
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+              return;
+            }
+            if (!delId) return;
+            try {
+              await callJSON('/api/v1/jobs/' + encodeURIComponent(delId), { method: 'DELETE' });
+              await refreshJobs();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          appRows.onclick = async (event) => {
+            const openId = event.target?.getAttribute('data-open-app');
+            const delId = event.target?.getAttribute('data-del-app');
+            if (openId) {
+              const item = state.apps.find((a) => a.id === openId);
+              if (item && item.accessUrl) {
+                window.open(window.location.origin + item.accessUrl, '_blank');
+              }
+              return;
+            }
+            if (!delId) return;
+            try {
+              await callJSON('/api/v1/apps/' + encodeURIComponent(delId), { method: 'DELETE' });
+              await refreshApps();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
           secretRows.onclick = async (event) => {
             const viewName = event.target?.getAttribute('data-view-secret');
             const copyName = event.target?.getAttribute('data-copy-secret');
@@ -1709,7 +1981,7 @@ data:
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectResources()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');
