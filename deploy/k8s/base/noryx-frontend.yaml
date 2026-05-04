@@ -650,8 +650,26 @@ data:
           </main>
         </div>
 
-        <script>
-          const LAB_DEFAULT_USER = 'stef';
+    <script>
+      (function () {
+        var node = document.getElementById('versions');
+        if (!node) return;
+        var front = 'ce-web-0.6.39';
+        node.textContent = 'front: ' + front + ' | back: ...';
+        fetch('/api/v1/version', { credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (j) {
+            var back = (j && j.version) ? String(j.version) : 'unknown';
+            node.textContent = 'front: ' + front + ' | back: ' + back;
+          })
+          .catch(function () {
+            node.textContent = 'front: ' + front + ' | back: unknown';
+          });
+      })();
+    </script>
+
+    <script>
+      const LAB_DEFAULT_USER = 'stef';
           const LAB_USER_KEY = 'noryx.labUser';
           function currentLabUser() {
             try {
