@@ -265,11 +265,7 @@ data:
             .stats { grid-template-columns: 1fr; }
           }
         </style>
-    <script src="/auth/js/keycloak.js"></script>
-    <script type="module">
-      import Keycloak from '/auth/js/keycloak.js';
-      window.NoryxKeycloakFactory = function (cfg) { return new Keycloak(cfg); };
-    </script>
+        <script src="/auth/js/keycloak.js"></script>
       </head>
       <body>
         <div class="layout">
@@ -319,7 +315,7 @@ data:
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
-                <a id="login" class="btn primary" style="position:relative;z-index:9999;pointer-events:auto;" href="/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=https%3A%2F%2Fdatalab.noryxlab.ai%2F&response_type=code&scope=openid%20profile%20email">Login Keycloak</a>
+                <button id="login" class="btn primary">Login Keycloak</button>
                 <button id="logout" class="btn">Logout</button>
                 <button id="loadModules" class="btn good admin-only">Modules</button>
                 <button id="loadUsers" class="btn good admin-only">Users</button>
@@ -654,76 +650,8 @@ data:
           </main>
         </div>
 
-    <script>
-      function createKeycloakClient(cfg) {
-        if (typeof window.NoryxKeycloakFactory === 'function') {
-          return window.NoryxKeycloakFactory(cfg);
-        }
-        if (typeof Keycloak === 'function') {
-          return new Keycloak(cfg);
-        }
-        return null;
-      }
-
-      function buildOidcLoginURL() {
-        var base = window.location.origin + '/auth/realms/noryx/protocol/openid-connect/auth';
-        var redirect = window.location.origin + '/';
-        var state = String(Date.now());
-        var nonce = String(Math.random()).slice(2) + String(Date.now());
-        var q = new URLSearchParams({
-          client_id: 'noryx-api',
-          redirect_uri: redirect,
-          response_type: 'code',
-          scope: 'openid profile email',
-          state: state,
-          nonce: nonce
-        });
-        return base + '?' + q.toString();
-      }
-
-      (function () {
-        try {
-          var p = new URLSearchParams(window.location.search || '');
-          if (p.get('login') === '1') {
-            window.location.replace(buildOidcLoginURL());
-            return;
-          }
-        } catch (_) {}
-
-        var node = document.getElementById('versions');
-        var loginBtn = document.getElementById('login');
-        var logoutBtn = document.getElementById('logout');
-        var metaNode = document.getElementById('meta');
-        if (!node) return;
-        var front = 'ce-web-0.6.39';
-        node.textContent = 'front: ' + front + ' | back: ...';
-        fetch('/api/v1/version', { credentials: 'same-origin' })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (j) {
-            var back = (j && j.version) ? String(j.version) : 'unknown';
-            node.textContent = 'front: ' + front + ' | back: ' + back;
-          })
-          .catch(function () {
-            node.textContent = 'front: ' + front + ' | back: unknown';
-          });
-
-        if (loginBtn) {
-          loginBtn.setAttribute('type', 'button');
-          loginBtn.addEventListener('click', function () {
-            window.location.href = buildOidcLoginURL();
-          }, { capture: true });
-        }
-
-        if (logoutBtn) {
-          logoutBtn.addEventListener('click', function () {
-            fetch('/api/v1/auth/session', { method: 'DELETE' }).catch(function () {});
-          }, { capture: true });
-        }
-      })();
-    </script>
-
-    <script>
-      const LAB_DEFAULT_USER = 'stef';
+        <script>
+          const LAB_DEFAULT_USER = 'stef';
           const LAB_USER_KEY = 'noryx.labUser';
           function currentLabUser() {
             try {
@@ -733,21 +661,21 @@ data:
             return LAB_DEFAULT_USER;
           }
 
-      let keycloak = null;
-      let authMode = 'lab';
-      {
-        try {
-          keycloak = createKeycloakClient({
-            url: window.location.origin + '/auth',
-            realm: 'noryx',
-            clientId: 'noryx-api'
-          });
-          authMode = keycloak ? 'oidc' : 'lab';
-        } catch (_) {
-          keycloak = null;
-          authMode = 'lab';
-        }
-      }
+          let keycloak = null;
+          let authMode = 'lab';
+          if (typeof Keycloak === 'function') {
+            try {
+              keycloak = new Keycloak({
+                url: window.location.origin + '/auth',
+                realm: 'noryx',
+                clientId: 'noryx-api'
+              });
+              authMode = 'oidc';
+            } catch (_) {
+              keycloak = null;
+              authMode = 'lab';
+            }
+          }
 
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
@@ -1686,7 +1614,12 @@ data:
           }
 
           loginBtn.onclick = () => {
-            window.location.href = buildOidcLoginURL();
+            if (authMode === 'oidc') {
+              keycloak.login();
+              return;
+            }
+            try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
+            setMeta('Lab mode active as ' + currentLabUser());
           };
           logoutBtn.onclick = async () => {
             stopWorkspacesAutoRefresh();
