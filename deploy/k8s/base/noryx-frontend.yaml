@@ -700,18 +700,8 @@ data:
           });
 
         if (loginBtn) {
+          loginBtn.setAttribute('type', 'button');
           loginBtn.addEventListener('click', function () {
-            var kc = createKeycloakClient({
-              url: window.location.origin + '/auth',
-              realm: 'noryx',
-              clientId: 'noryx-api'
-            });
-            if (kc) {
-              try {
-                kc.login();
-                return;
-              } catch (e) {}
-            }
             window.location.href = buildOidcLoginURL();
           }, { capture: true });
         }
@@ -1688,10 +1678,6 @@ data:
           }
 
           loginBtn.onclick = () => {
-            if (authMode === 'oidc') {
-              keycloak.login();
-              return;
-            }
             window.location.href = buildOidcLoginURL();
           };
           logoutBtn.onclick = async () => {
