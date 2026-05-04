@@ -319,7 +319,7 @@ data:
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
-                <button id="login" class="btn primary">Login Keycloak</button>
+                <a id="login" class="btn primary" style="position:relative;z-index:9999;pointer-events:auto;" href="/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=https%3A%2F%2Fdatalab.noryxlab.ai%2F&response_type=code&scope=openid%20profile%20email">Login Keycloak</a>
                 <button id="logout" class="btn">Logout</button>
                 <button id="loadModules" class="btn good admin-only">Modules</button>
                 <button id="loadUsers" class="btn good admin-only">Users</button>
