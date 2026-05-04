@@ -42,6 +42,16 @@ Notes:
 - If `args` is empty, backend starts a default static server command.
 - Slug must match: lowercase `[a-z0-9-]` and stay unique cluster-wide in V1.
 
+## App entrypoint resolution
+
+App startup follows this order:
+
+1. UI command (`command/args`) when provided
+2. `/mnt/app.sh` when present
+3. fallback static HTTP server on selected port
+
+Standard recommended format is `/mnt/app.sh` (single entrypoint style).
+
 ## Bootstrap behavior
 
 At app startup:

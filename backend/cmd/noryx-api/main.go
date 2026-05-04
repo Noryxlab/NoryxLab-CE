@@ -31,6 +31,7 @@ func main() {
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
+	var datasourceStore store.DatasourceStore = memory.NewDatasourceStore()
 	var repositoryStore store.RepositoryStore = memory.NewRepositoryStore()
 	var projectResourceStore store.ProjectResourceStore = memory.NewProjectResourceStore()
 
@@ -59,6 +60,7 @@ func main() {
 			accessStore = &postgres.AccessStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
+			datasourceStore = &postgres.DatasourceStore{Store: pg}
 			repositoryStore = &postgres.RepositoryStore{Store: pg}
 			projectResourceStore = &postgres.ProjectResourceStore{Store: pg}
 			log.Printf("postgres store backend enabled")
@@ -123,6 +125,7 @@ func main() {
 		accessStore,
 		secretStore,
 		datasetStore,
+		datasourceStore,
 		repositoryStore,
 		projectResourceStore,
 		runtime,

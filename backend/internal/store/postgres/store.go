@@ -14,6 +14,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
@@ -211,6 +212,20 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS datasources (
+			id TEXT PRIMARY KEY,
+			owner_user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			type TEXT NOT NULL,
+			host TEXT NOT NULL,
+			port INTEGER NOT NULL,
+			database_name TEXT NOT NULL,
+			username TEXT NOT NULL,
+			password_secret TEXT NOT NULL,
+			ssl_mode TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS repositories (
 			id TEXT PRIMARY KEY,
 			owner_user_id TEXT NOT NULL,
@@ -232,6 +247,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			repository_id TEXT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (project_id, repository_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS project_datasources (
+			project_id TEXT NOT NULL,
+			datasource_id TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (project_id, datasource_id)
 		)`,
 	}
 	for _, stmt := range stmts {
@@ -279,6 +300,7 @@ func (s *Store) DeleteProject(projectID string) error {
 		`DELETE FROM access_roles WHERE project_id=$1`,
 		`DELETE FROM project_datasets WHERE project_id=$1`,
 		`DELETE FROM project_repositories WHERE project_id=$1`,
+		`DELETE FROM project_datasources WHERE project_id=$1`,
 		`DELETE FROM workspaces WHERE project_id=$1`,
 		`DELETE FROM builds WHERE project_id=$1`,
 		`DELETE FROM apps WHERE project_id=$1`,
@@ -932,6 +954,59 @@ func (s *Store) DeleteDataset(id string) error {
 	return tx.Commit()
 }
 
+func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, error) {
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, type, host, port, database_name, username, password_secret, ssl_mode, created_at, updated_at FROM datasources WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []datasource.Datasource{}
+	for rows.Next() {
+		var item datasource.Datasource
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetDatasourceByID(id string) (datasource.Datasource, bool, error) {
+	var item datasource.Datasource
+	err := s.db.QueryRow(`SELECT id, owner_user_id, name, type, host, port, database_name, username, password_secret, ssl_mode, created_at, updated_at FROM datasources WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.CreatedAt, &item.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return datasource.Datasource{}, false, nil
+	}
+	if err != nil {
+		return datasource.Datasource{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateDatasource(item datasource.Datasource) error {
+	_, err := s.db.Exec(`INSERT INTO datasources (id, owner_user_id, name, type, host, port, database_name, username, password_secret, ssl_mode, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		item.ID, item.OwnerUserID, item.Name, item.Type, item.Host, item.Port, item.Database, item.Username, item.PasswordSecret, item.SSLMode, item.CreatedAt, item.UpdatedAt,
+	)
+	return err
+}
+
+func (s *Store) DeleteDatasource(id string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM project_datasources WHERE datasource_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM datasources WHERE id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, error) {
 	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, created_at, updated_at FROM repositories WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
@@ -1039,6 +1114,33 @@ func (s *Store) DetachRepository(projectID, repositoryID string) error {
 
 func (s *Store) ListProjectRepositoryIDs(projectID string) ([]string, error) {
 	rows, err := s.db.Query(`SELECT repository_id FROM project_repositories WHERE project_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(projectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) AttachDatasource(projectID, datasourceID string) error {
+	_, err := s.db.Exec(`INSERT INTO project_datasources (project_id, datasource_id, created_at) VALUES ($1,$2,$3) ON CONFLICT (project_id, datasource_id) DO NOTHING`, strings.TrimSpace(projectID), strings.TrimSpace(datasourceID), time.Now().UTC())
+	return err
+}
+
+func (s *Store) DetachDatasource(projectID, datasourceID string) error {
+	_, err := s.db.Exec(`DELETE FROM project_datasources WHERE project_id=$1 AND datasource_id=$2`, strings.TrimSpace(projectID), strings.TrimSpace(datasourceID))
+	return err
+}
+
+func (s *Store) ListProjectDatasourceIDs(projectID string) ([]string, error) {
+	rows, err := s.db.Query(`SELECT datasource_id FROM project_datasources WHERE project_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(projectID))
 	if err != nil {
 		return nil, err
 	}

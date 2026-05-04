@@ -369,6 +369,7 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 		"image":   spec.Image,
 		"command": spec.Command,
 		"args":    spec.Args,
+		"env":     spec.Env,
 	}
 	if len(resources) > 0 {
 		container["resources"] = resources

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
@@ -128,13 +127,15 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
 	}
+	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
+		return
+	}
 
 	command := []string{"/bin/sh", "-lc"}
 	userLaunch := strings.TrimSpace(strings.Join(append(req.Command, req.Args...), " "))
-	if userLaunch == "" {
-		userLaunch = "python3 -m http.server " + strconv.Itoa(req.Port) + " --bind 0.0.0.0 --directory /mnt"
-	}
-	bootstrapScript := appBootstrapScript([]string{userLaunch}, attachedRepos, attachedDatasets, h.minioEndpoint, h.minioAccessKey, h.minioSecretKey, h.minioUseSSL)
+	bootstrapScript := appBootstrapScript(req.Port, userLaunch, attachedRepos, attachedDatasets, h.minioEndpoint, h.minioAccessKey, h.minioSecretKey, h.minioUseSSL)
 	args := []string{bootstrapScript}
 
 	record := app.New(req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
@@ -152,6 +153,7 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 			Image:                   record.Image,
 			Command:                 command,
 			Args:                    args,
+			Env:                     datasourceEnv,
 			Ports:                   []int{record.Port},
 			CPURequest:              h.workspaceCPU,
 			CPULimit:                h.workspaceCPU,
@@ -245,7 +247,7 @@ func normalizeAppSlug(raw string) string {
 	return out
 }
 
-func appBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo, attachedDatasets []workspaceAttachedDataset, minioEndpoint, minioAccessKey, minioSecretKey string, minioUseSSL bool) string {
+func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAttachedRepo, attachedDatasets []workspaceAttachedDataset, minioEndpoint, minioAccessKey, minioSecretKey string, minioUseSSL bool) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -279,10 +281,20 @@ func appBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 	if len(attachedDatasets) > 0 && strings.TrimSpace(minioEndpoint) != "" && strings.TrimSpace(minioAccessKey) != "" && strings.TrimSpace(minioSecretKey) != "" {
 		lines = append(lines, workspaceDatasetBootstrapLines(attachedDatasets, minioEndpoint, minioAccessKey, minioSecretKey, minioUseSSL)...)
 	}
-	if len(userArgs) > 0 {
-		lines = append(lines, strings.Join(userArgs, " "))
-	} else {
-		lines = append(lines, "echo 'app bootstrap finished: no command provided'; sleep infinity")
-	}
+	userLaunch = strings.TrimSpace(userLaunch)
+	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
+	lines = append(lines,
+		"if [ -n "+shellQuote(userLaunch)+" ]; then",
+		"  echo '[bootstrap] using UI command entrypoint'",
+		"  "+userLaunch,
+		"elif [ -f /mnt/app.sh ]; then",
+		"  echo '[bootstrap] using /mnt/app.sh entrypoint'",
+		"  chmod +x /mnt/app.sh || true",
+		"  /bin/sh /mnt/app.sh",
+		"else",
+		"  echo '[bootstrap] no /mnt/app.sh found, using default static server'",
+		"  "+defaultHTTP,
+		"fi",
+	)
 	return strings.Join(lines, "\n")
 }

@@ -336,6 +336,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
 	}
+	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
+		return
+	}
 
 	if h.runtime != nil {
 		if h.workspacePVCEnabled {
@@ -408,18 +413,21 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		)
 		workspaceArgs = []string{bootstrapScript}
 
+		envVars := []noryxruntime.EnvVar{
+			{Name: "HOME", Value: "/home/noryx"},
+			{Name: "PIP_CACHE_DIR", Value: profileMountPath + "/pip-cache"},
+			{Name: "OPENVSCODE_DATA_DIR", Value: profileMountPath + "/vscode"},
+			{Name: "JUPYTER_CONFIG_DIR", Value: profileMountPath + "/jupyter/config"},
+			{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
+		}
+		envVars = append(envVars, datasourceEnv...)
+
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
 			PodName: podName,
 			Image:   record.Image,
 			Command: workspaceCommand,
 			Args:    workspaceArgs,
-			Env: []noryxruntime.EnvVar{
-				{Name: "HOME", Value: "/home/noryx"},
-				{Name: "PIP_CACHE_DIR", Value: profileMountPath + "/pip-cache"},
-				{Name: "OPENVSCODE_DATA_DIR", Value: profileMountPath + "/vscode"},
-				{Name: "JUPYTER_CONFIG_DIR", Value: profileMountPath + "/jupyter/config"},
-				{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
-			},
+			Env:     envVars,
 			Ports:                   []int{8888},
 			CPURequest:              h.workspaceCPU,
 			CPULimit:                h.workspaceCPU,

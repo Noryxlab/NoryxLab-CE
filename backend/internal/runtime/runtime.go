@@ -46,6 +46,7 @@ type JobSpec struct {
 	Image                   string
 	Command                 []string
 	Args                    []string
+	Env                     []EnvVar
 	CPURequest              string
 	CPULimit                string
 	MemRequest              string
