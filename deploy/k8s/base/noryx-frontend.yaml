@@ -377,6 +377,19 @@ data:
                       <tbody id="projectRepoRows"></tbody>
                     </table>
                   </article>
+
+                  <article class="card span-6">
+                    <h3>Project Datasources</h3>
+                    <div class="hint">Attach one or more datasources to the selected project.</div>
+                    <div class="row">
+                      <select id="attachDatasourceSelect"></select>
+                      <button id="attachDatasourceBtn" class="btn primary">Attach Datasource</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
+                      <tbody id="projectDatasourceRows"></tbody>
+                    </table>
+                  </article>
                 </div>
               </section>
 
@@ -441,6 +454,37 @@ data:
                     <table>
                       <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Connection</th><th>Actions</th></tr></thead>
                       <tbody id="repoRows"></tbody>
+                    </table>
+                  </article>
+
+                  <article id="card-datasources" class="card span-6">
+                    <h3>Datasources</h3>
+                    <div class="hint">External DB connections (V1: postgres).</div>
+                    <div class="row">
+                      <input id="dsName" placeholder="Datasource name" />
+                      <input id="dsHost" placeholder="Host" />
+                    </div>
+                    <div class="row">
+                      <input id="dsPort" value="5432" placeholder="Port" />
+                      <input id="dsDatabase" placeholder="Database" />
+                    </div>
+                    <div class="row">
+                      <input id="dsUsername" placeholder="Username" />
+                      <select id="dsPasswordSecret"></select>
+                    </div>
+                    <div class="row">
+                      <select id="dsSSLMode">
+                        <option value="disable">disable</option>
+                        <option value="require">require</option>
+                        <option value="verify-ca">verify-ca</option>
+                        <option value="verify-full">verify-full</option>
+                      </select>
+                      <button id="createDatasource" class="btn primary">Create Datasource</button>
+                      <button id="refreshDatasources" class="btn">Refresh Datasources</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Validation</th><th>Actions</th></tr></thead>
+                      <tbody id="datasourceRows"></tbody>
                     </table>
                   </article>
 
@@ -638,6 +682,9 @@ data:
           const attachRepoSelect = document.getElementById('attachRepoSelect');
           const attachRepoBtn = document.getElementById('attachRepoBtn');
           const projectRepoRows = document.getElementById('projectRepoRows');
+          const attachDatasourceSelect = document.getElementById('attachDatasourceSelect');
+          const attachDatasourceBtn = document.getElementById('attachDatasourceBtn');
+          const projectDatasourceRows = document.getElementById('projectDatasourceRows');
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const workspaceIdeInput = document.getElementById('workspaceIde');
@@ -691,6 +738,16 @@ data:
           const repoSecretRefInput = document.getElementById('repoSecretRef');
           const createRepositoryBtn = document.getElementById('createRepository');
           const repoRows = document.getElementById('repoRows');
+          const dsNameInput = document.getElementById('dsName');
+          const dsHostInput = document.getElementById('dsHost');
+          const dsPortInput = document.getElementById('dsPort');
+          const dsDatabaseInput = document.getElementById('dsDatabase');
+          const dsUsernameInput = document.getElementById('dsUsername');
+          const dsPasswordSecretInput = document.getElementById('dsPasswordSecret');
+          const dsSSLModeInput = document.getElementById('dsSSLMode');
+          const createDatasourceBtn = document.getElementById('createDatasource');
+          const refreshDatasourcesBtn = document.getElementById('refreshDatasources');
+          const datasourceRows = document.getElementById('datasourceRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
           const views = {
             projects: document.getElementById('view-projects'),
@@ -715,17 +772,20 @@ data:
             secrets: [],
             datasets: [],
             repositories: [],
+            datasources: [],
             projectDatasets: [],
             projectRepositories: [],
+            projectDatasources: [],
             workspaces: [],
             jobs: [],
             apps: [],
             builds: [],
             environments: [],
             activeTab: 'environments',
-            repositoryChecks: {}
+            repositoryChecks: {},
+            datasourceChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.37';
+          const FRONT_VERSION = 'ce-web-0.6.38';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -796,6 +856,9 @@ data:
             createRepositoryBtn.disabled = !enabled;
             attachDatasetBtn.disabled = !enabled;
             attachRepoBtn.disabled = !enabled;
+            createDatasourceBtn.disabled = !enabled;
+            refreshDatasourcesBtn.disabled = !enabled;
+            attachDatasourceBtn.disabled = !enabled;
           }
 
           function isAdminUser() {
@@ -1011,6 +1074,26 @@ data:
             });
           }
 
+          function renderDatasourcesTable() {
+            datasourceRows.innerHTML = '';
+            if (state.datasources.length === 0) {
+              datasourceRows.innerHTML = '<tr><td colspan="5">No datasource yet.</td></tr>';
+              return;
+            }
+            state.datasources.forEach((d) => {
+              const check = state.datasourceChecks && state.datasourceChecks[d.id] ? state.datasourceChecks[d.id] : null;
+              const checkLabel = check ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error'))) : '-';
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (d.name || d.id) + '</strong></td>' +
+                '<td><code>' + (d.type || '-') + '</code></td>' +
+                '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code></td>' +
+                '<td><code>' + checkLabel + '</code></td>' +
+                '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
+              datasourceRows.appendChild(tr);
+            });
+          }
+
           function renderSecretOptions() {
             const current = repoSecretRefInput.value || '';
             repoSecretRefInput.innerHTML = '';
@@ -1026,6 +1109,24 @@ data:
             });
             if (current && state.secrets.some((s) => s.name === current)) {
               repoSecretRefInput.value = current;
+            }
+          }
+
+          function renderDatasourceSecretOptions() {
+            const current = dsPasswordSecretInput.value || '';
+            dsPasswordSecretInput.innerHTML = '';
+            const none = document.createElement('option');
+            none.value = '';
+            none.textContent = 'Select password secret';
+            dsPasswordSecretInput.appendChild(none);
+            state.secrets.forEach((s) => {
+              const opt = document.createElement('option');
+              opt.value = s.name || '';
+              opt.textContent = (s.name || '-');
+              dsPasswordSecretInput.appendChild(opt);
+            });
+            if (current && state.secrets.some((s) => s.name === current)) {
+              dsPasswordSecretInput.value = current;
             }
           }
 
@@ -1216,6 +1317,7 @@ data:
             const pid = selectedProjectId();
             attachDatasetSelect.innerHTML = '';
             attachRepoSelect.innerHTML = '';
+            attachDatasourceSelect.innerHTML = '';
 
             if (!pid) {
               const ds = document.createElement('option');
@@ -1226,14 +1328,20 @@ data:
               rp.value = '';
               rp.textContent = 'Select a project first';
               attachRepoSelect.appendChild(rp);
+              const ds = document.createElement('option');
+              ds.value = '';
+              ds.textContent = 'Select a project first';
+              attachDatasourceSelect.appendChild(ds);
               return;
             }
 
             const attachedDatasetIDs = new Set(ensureArray(state.projectDatasets).map((d) => d.id));
             const attachedRepoIDs = new Set(ensureArray(state.projectRepositories).map((r) => r.id));
+            const attachedDatasourceIDs = new Set(ensureArray(state.projectDatasources).map((d) => d.id));
 
             const availableDatasets = ensureArray(state.datasets).filter((d) => d && d.id && !attachedDatasetIDs.has(d.id));
             const availableRepos = ensureArray(state.repositories).filter((r) => r && r.id && !attachedRepoIDs.has(r.id));
+            const availableDatasources = ensureArray(state.datasources).filter((d) => d && d.id && !attachedDatasourceIDs.has(d.id));
 
             if (availableDatasets.length === 0) {
               const opt = document.createElement('option');
@@ -1262,11 +1370,26 @@ data:
                 attachRepoSelect.appendChild(opt);
               });
             }
+
+            if (availableDatasources.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No datasource to attach';
+              attachDatasourceSelect.appendChild(opt);
+            } else {
+              availableDatasources.forEach((d) => {
+                const opt = document.createElement('option');
+                opt.value = d.id || '';
+                opt.textContent = (d.name || d.id) + ' (' + (d.type || '-') + ')';
+                attachDatasourceSelect.appendChild(opt);
+              });
+            }
           }
 
           function renderProjectResourcesTable() {
             projectDatasetRows.innerHTML = '';
             projectRepoRows.innerHTML = '';
+            projectDatasourceRows.innerHTML = '';
 
             if (state.projectDatasets.length === 0) {
               projectDatasetRows.innerHTML = '<tr><td colspan="4">No dataset attached.</td></tr>';
@@ -1295,6 +1418,20 @@ data:
                 projectRepoRows.appendChild(tr);
               });
             }
+
+            if (state.projectDatasources.length === 0) {
+              projectDatasourceRows.innerHTML = '<tr><td colspan="4">No datasource attached.</td></tr>';
+            } else {
+              state.projectDatasources.forEach((d) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + (d.name || d.id) + '</strong></td>' +
+                  '<td><code>' + (d.type || '-') + '</code></td>' +
+                  '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code></td>' +
+                  '<td><button type="button" class="btn danger" data-detach-ds="' + (d.id || '') + '">Detach</button></td>';
+                projectDatasourceRows.appendChild(tr);
+              });
+            }
           }
 
           function renderAll() {
@@ -1306,7 +1443,9 @@ data:
             renderSecretsTable();
             renderDatasetsTable();
             renderRepositoriesTable();
+            renderDatasourcesTable();
             renderSecretOptions();
+            renderDatasourceSecretOptions();
             renderWorkspacesTable();
             renderJobEnvOptions();
             renderJobsTable();
@@ -1379,6 +1518,13 @@ data:
             return body;
           }
 
+          async function refreshDatasources() {
+            const body = await callJSON('/api/v1/datasources');
+            state.datasources = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
           async function refreshBuilds() {
             const body = await callJSON('/api/v1/builds');
             state.builds = ensureArray(body.items);
@@ -1400,6 +1546,7 @@ data:
             if (!pid) {
               state.projectDatasets = [];
               state.projectRepositories = [];
+              state.projectDatasources = [];
               renderAll();
               return;
             }
@@ -1407,8 +1554,10 @@ data:
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories')
             ]);
+            const datasourcesBody = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources');
             state.projectDatasets = ensureArray(datasetsBody.items);
             state.projectRepositories = ensureArray(repositoriesBody.items);
+            state.projectDatasources = ensureArray(datasourcesBody.items);
             renderAll();
           }
 
@@ -1521,6 +1670,20 @@ data:
             }
           };
 
+          attachDatasourceBtn.onclick = async () => {
+            try {
+              const pid = selectedProjectId();
+              const datasourceID = (attachDatasourceSelect.value || '').trim();
+              if (!pid) throw { error: 'select a project first' };
+              if (!datasourceID) throw { error: 'select a datasource to attach' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'PUT' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
           projectDatasetRows.onclick = async (event) => {
             const datasetID = event.target?.getAttribute('data-detach-dataset');
             if (!datasetID) return;
@@ -1542,6 +1705,20 @@ data:
               const pid = selectedProjectId();
               if (!pid) throw { error: 'select a project first' };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'DELETE' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectDatasourceRows.onclick = async (event) => {
+            const datasourceID = event.target?.getAttribute('data-detach-ds');
+            if (!datasourceID) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: 'select a project first' };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
               pretty(usersOut, e);
@@ -1596,7 +1773,7 @@ data:
 
           refreshDataBtn.onclick = async () => {
             try {
-              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories()]);
+              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1652,6 +1829,42 @@ data:
               pretty(usersOut, e);
               switchTab('ops');
             }
+          };
+
+          createDatasourceBtn.onclick = async () => {
+            try {
+              const payload = {
+                name: dsNameInput.value.trim(),
+                type: 'postgres',
+                host: dsHostInput.value.trim(),
+                port: Number(dsPortInput.value || '5432'),
+                database: dsDatabaseInput.value.trim(),
+                username: dsUsernameInput.value.trim(),
+                passwordSecret: dsPasswordSecretInput.value.trim(),
+                sslMode: dsSSLModeInput.value.trim() || 'disable'
+              };
+              if (!payload.name || !payload.host || !payload.database || !payload.username || !payload.passwordSecret) {
+                throw { error: 'name, host, database, username, passwordSecret are required' };
+              }
+              await callJSON('/api/v1/datasources', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              dsNameInput.value = '';
+              dsHostInput.value = '';
+              dsDatabaseInput.value = '';
+              dsUsernameInput.value = '';
+              await refreshDatasources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          refreshDatasourcesBtn.onclick = async () => {
+            try { await refreshDatasources(); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
           loadWorkspacesBtn.onclick = async () => {
@@ -1966,6 +2179,27 @@ data:
             }
           };
 
+          datasourceRows.onclick = async (event) => {
+            const datasourceIDToTest = event.target?.getAttribute('data-test-ds');
+            const datasourceIDToDelete = event.target?.getAttribute('data-del-ds');
+            if (!datasourceIDToTest && !datasourceIDToDelete) return;
+            try {
+              if (datasourceIDToTest) {
+                const result = await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToTest) + '/validate', { method: 'POST' });
+                state.datasourceChecks[datasourceIDToTest] = result;
+                renderDatasourcesTable();
+                usersOut.textContent = result.reachable ? 'Datasource connection OK.' : ('Datasource connection failed: ' + (result.error || 'unknown error'));
+                return;
+              }
+              await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToDelete), { method: 'DELETE' });
+              delete state.datasourceChecks[datasourceIDToDelete];
+              await refreshDatasources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
           keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
             if (!authenticated) {
               stopWorkspacesAutoRefresh();
@@ -1981,7 +2215,7 @@ data:
             startWorkspacesAutoRefresh();
             ensureWebSession()
               .then(() => refreshProjects())
-              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
               .catch((err) => {
                 pretty(usersOut, { sessionError: String(err) });
                 switchTab('ops');
