@@ -665,6 +665,22 @@ data:
         return null;
       }
 
+      function buildOidcLoginURL() {
+        var base = window.location.origin + '/auth/realms/noryx/protocol/openid-connect/auth';
+        var redirect = window.location.origin + '/';
+        var state = String(Date.now());
+        var nonce = String(Math.random()).slice(2) + String(Date.now());
+        var q = new URLSearchParams({
+          client_id: 'noryx-api',
+          redirect_uri: redirect,
+          response_type: 'code',
+          scope: 'openid profile email',
+          state: state,
+          nonce: nonce
+        });
+        return base + '?' + q.toString();
+      }
+
       (function () {
         var node = document.getElementById('versions');
         var loginBtn = document.getElementById('login');
@@ -696,7 +712,7 @@ data:
                 return;
               } catch (e) {}
             }
-            if (metaNode) metaNode.textContent = 'Login fallback unavailable (Keycloak JS not ready)';
+            window.location.href = buildOidcLoginURL();
           }, { capture: true });
         }
 
@@ -1676,8 +1692,7 @@ data:
               keycloak.login();
               return;
             }
-            try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
-            setMeta('Lab mode active as ' + currentLabUser());
+            window.location.href = buildOidcLoginURL();
           };
           logoutBtn.onclick = async () => {
             stopWorkspacesAutoRefresh();
