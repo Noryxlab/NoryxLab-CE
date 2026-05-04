@@ -653,6 +653,9 @@ data:
     <script>
       (function () {
         var node = document.getElementById('versions');
+        var loginBtn = document.getElementById('login');
+        var logoutBtn = document.getElementById('logout');
+        var metaNode = document.getElementById('meta');
         if (!node) return;
         var front = 'ce-web-0.6.39';
         node.textContent = 'front: ' + front + ' | back: ...';
@@ -665,6 +668,29 @@ data:
           .catch(function () {
             node.textContent = 'front: ' + front + ' | back: unknown';
           });
+
+        if (loginBtn) {
+          loginBtn.addEventListener('click', function () {
+            if (typeof Keycloak === 'function') {
+              try {
+                var kc = new Keycloak({
+                  url: window.location.origin + '/auth',
+                  realm: 'noryx',
+                  clientId: 'noryx-api'
+                });
+                kc.login();
+                return;
+              } catch (e) {}
+            }
+            if (metaNode) metaNode.textContent = 'Login fallback unavailable (Keycloak JS not ready)';
+          }, { capture: true });
+        }
+
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', function () {
+            fetch('/api/v1/auth/session', { method: 'DELETE' }).catch(function () {});
+          }, { capture: true });
+        }
       })();
     </script>
 
