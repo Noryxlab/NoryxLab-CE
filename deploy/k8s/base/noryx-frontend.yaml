@@ -265,7 +265,11 @@ data:
             .stats { grid-template-columns: 1fr; }
           }
         </style>
-        <script src="/auth/js/keycloak.js"></script>
+    <script src="/auth/js/keycloak.js"></script>
+    <script type="module">
+      import Keycloak from '/auth/js/keycloak.js';
+      window.NoryxKeycloakFactory = function (cfg) { return new Keycloak(cfg); };
+    </script>
       </head>
       <body>
         <div class="layout">
@@ -651,6 +655,16 @@ data:
         </div>
 
     <script>
+      function createKeycloakClient(cfg) {
+        if (typeof window.NoryxKeycloakFactory === 'function') {
+          return window.NoryxKeycloakFactory(cfg);
+        }
+        if (typeof Keycloak === 'function') {
+          return new Keycloak(cfg);
+        }
+        return null;
+      }
+
       (function () {
         var node = document.getElementById('versions');
         var loginBtn = document.getElementById('login');
@@ -671,13 +685,13 @@ data:
 
         if (loginBtn) {
           loginBtn.addEventListener('click', function () {
-            if (typeof Keycloak === 'function') {
+            var kc = createKeycloakClient({
+              url: window.location.origin + '/auth',
+              realm: 'noryx',
+              clientId: 'noryx-api'
+            });
+            if (kc) {
               try {
-                var kc = new Keycloak({
-                  url: window.location.origin + '/auth',
-                  realm: 'noryx',
-                  clientId: 'noryx-api'
-                });
                 kc.login();
                 return;
               } catch (e) {}
@@ -705,21 +719,21 @@ data:
             return LAB_DEFAULT_USER;
           }
 
-          let keycloak = null;
-          let authMode = 'lab';
-          if (typeof Keycloak === 'function') {
-            try {
-              keycloak = new Keycloak({
-                url: window.location.origin + '/auth',
-                realm: 'noryx',
-                clientId: 'noryx-api'
-              });
-              authMode = 'oidc';
-            } catch (_) {
-              keycloak = null;
-              authMode = 'lab';
-            }
-          }
+      let keycloak = null;
+      let authMode = 'lab';
+      {
+        try {
+          keycloak = createKeycloakClient({
+            url: window.location.origin + '/auth',
+            realm: 'noryx',
+            clientId: 'noryx-api'
+          });
+          authMode = keycloak ? 'oidc' : 'lab';
+        } catch (_) {
+          keycloak = null;
+          authMode = 'lab';
+        }
+      }
 
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
