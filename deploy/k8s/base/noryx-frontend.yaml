@@ -682,6 +682,14 @@ data:
       }
 
       (function () {
+        try {
+          var p = new URLSearchParams(window.location.search || '');
+          if (p.get('login') === '1') {
+            window.location.replace(buildOidcLoginURL());
+            return;
+          }
+        } catch (_) {}
+
         var node = document.getElementById('versions');
         var loginBtn = document.getElementById('login');
         var logoutBtn = document.getElementById('logout');
