@@ -7,4 +7,7 @@ type ProjectResourceStore interface {
 	AttachRepository(projectID, repositoryID string) error
 	DetachRepository(projectID, repositoryID string) error
 	ListProjectRepositoryIDs(projectID string) ([]string, error)
+	AttachDatasource(projectID, datasourceID string) error
+	DetachDatasource(projectID, datasourceID string) error
+	ListProjectDatasourceIDs(projectID string) ([]string, error)
 }

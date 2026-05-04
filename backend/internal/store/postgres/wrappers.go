@@ -4,6 +4,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
@@ -90,6 +91,17 @@ func (s *DatasetStore) GetByID(id string) (dataset.Dataset, bool, error) {
 func (s *DatasetStore) Create(item dataset.Dataset) error { return s.Store.CreateDataset(item) }
 func (s *DatasetStore) Delete(id string) error            { return s.Store.DeleteDataset(id) }
 
+type DatasourceStore struct{ *Store }
+
+func (s *DatasourceStore) ListByUser(userID string) ([]datasource.Datasource, error) {
+	return s.Store.ListDatasourcesByUser(userID)
+}
+func (s *DatasourceStore) GetByID(id string) (datasource.Datasource, bool, error) {
+	return s.Store.GetDatasourceByID(id)
+}
+func (s *DatasourceStore) Create(item datasource.Datasource) error { return s.Store.CreateDatasource(item) }
+func (s *DatasourceStore) Delete(id string) error                  { return s.Store.DeleteDatasource(id) }
+
 type RepositoryStore struct{ *Store }
 
 func (s *RepositoryStore) ListByUser(userID string) ([]repository.Repository, error) {
@@ -104,3 +116,31 @@ func (s *RepositoryStore) Create(item repository.Repository) error {
 func (s *RepositoryStore) Delete(id string) error { return s.Store.DeleteRepository(id) }
 
 type ProjectResourceStore struct{ *Store }
+
+func (s *ProjectResourceStore) AttachDataset(projectID, datasetID string) error {
+	return s.Store.AttachDataset(projectID, datasetID)
+}
+func (s *ProjectResourceStore) DetachDataset(projectID, datasetID string) error {
+	return s.Store.DetachDataset(projectID, datasetID)
+}
+func (s *ProjectResourceStore) ListProjectDatasetIDs(projectID string) ([]string, error) {
+	return s.Store.ListProjectDatasetIDs(projectID)
+}
+func (s *ProjectResourceStore) AttachRepository(projectID, repositoryID string) error {
+	return s.Store.AttachRepository(projectID, repositoryID)
+}
+func (s *ProjectResourceStore) DetachRepository(projectID, repositoryID string) error {
+	return s.Store.DetachRepository(projectID, repositoryID)
+}
+func (s *ProjectResourceStore) ListProjectRepositoryIDs(projectID string) ([]string, error) {
+	return s.Store.ListProjectRepositoryIDs(projectID)
+}
+func (s *ProjectResourceStore) AttachDatasource(projectID, datasourceID string) error {
+	return s.Store.AttachDatasource(projectID, datasourceID)
+}
+func (s *ProjectResourceStore) DetachDatasource(projectID, datasourceID string) error {
+	return s.Store.DetachDatasource(projectID, datasourceID)
+}
+func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]string, error) {
+	return s.Store.ListProjectDatasourceIDs(projectID)
+}

@@ -84,6 +84,11 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
 	}
+	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
+		return
+	}
 	command := req.Command
 	args := req.Args
 	if len(command) == 0 {
@@ -97,6 +102,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			Image:                   req.Image,
 			Command:                 command,
 			Args:                    args,
+			Env:                     datasourceEnv,
 			CPURequest:              h.workspaceCPU,
 			CPULimit:                h.workspaceCPU,
 			MemRequest:              h.workspaceMemory,

@@ -20,6 +20,7 @@ type Handlers struct {
 	accessStore                      store.AccessStore
 	secretStore                      store.SecretStore
 	datasetStore                     store.DatasetStore
+	datasourceStore                  store.DatasourceStore
 	repositoryStore                  store.RepositoryStore
 	projectResourceStore             store.ProjectResourceStore
 	runtime                          runtime.Runner
@@ -99,6 +100,7 @@ func New(
 	accessStore store.AccessStore,
 	secretStore store.SecretStore,
 	datasetStore store.DatasetStore,
+	datasourceStore store.DatasourceStore,
 	repositoryStore store.RepositoryStore,
 	projectResourceStore store.ProjectResourceStore,
 	runtime runtime.Runner,
@@ -130,6 +132,7 @@ func New(
 		accessStore:                      accessStore,
 		secretStore:                      secretStore,
 		datasetStore:                     datasetStore,
+		datasourceStore:                  datasourceStore,
 		repositoryStore:                  repositoryStore,
 		projectResourceStore:             projectResourceStore,
 		runtime:                          runtime,
