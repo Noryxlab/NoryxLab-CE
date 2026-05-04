@@ -651,11 +651,31 @@ data:
         </div>
 
         <script>
-          const keycloak = new Keycloak({
-            url: window.location.origin + '/auth',
-            realm: 'noryx',
-            clientId: 'noryx-api'
-          });
+          const LAB_DEFAULT_USER = 'stef';
+          const LAB_USER_KEY = 'noryx.labUser';
+          function currentLabUser() {
+            try {
+              const fromStorage = String(localStorage.getItem(LAB_USER_KEY) || '').trim();
+              if (fromStorage) return fromStorage;
+            } catch (_) {}
+            return LAB_DEFAULT_USER;
+          }
+
+          let keycloak = null;
+          let authMode = 'lab';
+          if (typeof Keycloak === 'function') {
+            try {
+              keycloak = new Keycloak({
+                url: window.location.origin + '/auth',
+                realm: 'noryx',
+                clientId: 'noryx-api'
+              });
+              authMode = 'oidc';
+            } catch (_) {
+              keycloak = null;
+              authMode = 'lab';
+            }
+          }
 
           const meta = document.getElementById('meta');
           const usersOut = document.getElementById('usersOut');
@@ -785,7 +805,7 @@ data:
             repositoryChecks: {},
             datasourceChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.38';
+          const FRONT_VERSION = 'ce-web-0.6.39';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -809,7 +829,12 @@ data:
           let workspacesAutoRefreshTimer = null;
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
-          function authHeader() { return { Authorization: 'Bearer ' + keycloak.token }; }
+          function authHeader() {
+            if (authMode === 'oidc' && (keycloak && keycloak.token)) {
+              return { Authorization: 'Bearer ' + keycloak.token };
+            }
+            return { 'X-Noryx-User': currentLabUser() };
+          }
           function selectedProjectId() { return projectSelect.value || ''; }
           function ensureArray(v) { return Array.isArray(v) ? v : []; }
           function dateToRFC3339EndOfDay(dateValue) {
@@ -862,8 +887,9 @@ data:
           }
 
           function isAdminUser() {
-            const realmRoles = ensureArray(keycloak?.tokenParsed?.realm_access?.roles);
-            const clientRoles = ensureArray(keycloak?.tokenParsed?.resource_access?.['noryx-api']?.roles);
+            if (authMode === 'lab') return true;
+            const realmRoles = ensureArray((keycloak && keycloak.tokenParsed && keycloak.tokenParsed.realm_access && keycloak.tokenParsed.realm_access.roles));
+            const clientRoles = ensureArray((keycloak && keycloak.tokenParsed && keycloak.tokenParsed.resource_access && keycloak.tokenParsed.resource_access['noryx-api'] && keycloak.tokenParsed.resource_access['noryx-api'].roles));
             const roles = new Set([...realmRoles, ...clientRoles].map((r) => String(r || '').toLowerCase()));
             return roles.has('admin') || roles.has('platform_admin');
           }
@@ -926,7 +952,7 @@ data:
           });
 
           async function callJSON(url, options = {}) {
-            if (keycloak?.authenticated) {
+            if ((keycloak && keycloak.authenticated)) {
               try { await keycloak.updateToken(30); } catch (_) {}
             }
             const headers = { ...(options.headers || {}), ...authHeader() };
@@ -960,13 +986,18 @@ data:
           async function refreshVersions() {
             let backVersion = 'unknown';
             try {
-              const res = await fetch('/swagger/openapi.yaml');
-              if (res.ok) {
-                const yaml = await res.text();
-                const match = yaml.match(/^\s*version:\s*(.+)\s*$/m);
-                if (match && match[1]) backVersion = match[1].trim();
-              }
-            } catch (_) {}
+              const v = await callJSON('/api/v1/version');
+              if (v && v.version) backVersion = String(v.version);
+            } catch (_) {
+              try {
+                const res = await fetch('/swagger/openapi.yaml');
+                if (res.ok) {
+                  const yaml = await res.text();
+                  const match = yaml.match(/^\s*version:\s*(.+)\s*$/m);
+                  if (match && match[1]) backVersion = match[1].trim();
+                }
+              } catch (_) {}
+            }
             versionsNode.textContent = 'front: ' + FRONT_VERSION + ' | back: ' + backVersion;
           }
 
@@ -1458,8 +1489,10 @@ data:
 
           async function refreshProjects() {
             let body = await callJSON('/api/v1/projects');
-            if (!Array.isArray(body?.items) || body.items.length === 0) {
-              const username = keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || 'user';
+            if (!Array.isArray((body && body.items)) || body.items.length === 0) {
+              const username = (authMode === 'oidc')
+                ? ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || 'user')
+                : currentLabUser();
               await callJSON('/api/v1/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1580,11 +1613,22 @@ data:
             }, 5000);
           }
 
-          loginBtn.onclick = () => keycloak.login();
+          loginBtn.onclick = () => {
+            if (authMode === 'oidc') {
+              keycloak.login();
+              return;
+            }
+            try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
+            setMeta('Lab mode active as ' + currentLabUser());
+          };
           logoutBtn.onclick = async () => {
             stopWorkspacesAutoRefresh();
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
-            keycloak.logout({ redirectUri: window.location.origin + '/' });
+            if (authMode === 'oidc') {
+              keycloak.logout({ redirectUri: window.location.origin + '/' });
+              return;
+            }
+            setMeta('Lab mode');
           };
 
           usersBtn.onclick = async () => {
@@ -1620,7 +1664,7 @@ data:
           };
 
           projectRows.onclick = async (event) => {
-            const projectID = event.target?.getAttribute('data-del-project');
+            const projectID = (event.target && event.target.getAttribute('data-del-project'));
             if (!projectID) return;
             try {
               await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
@@ -1685,7 +1729,7 @@ data:
           };
 
           projectDatasetRows.onclick = async (event) => {
-            const datasetID = event.target?.getAttribute('data-detach-dataset');
+            const datasetID = (event.target && event.target.getAttribute('data-detach-dataset'));
             if (!datasetID) return;
             try {
               const pid = selectedProjectId();
@@ -1699,7 +1743,7 @@ data:
           };
 
           projectRepoRows.onclick = async (event) => {
-            const repositoryID = event.target?.getAttribute('data-detach-repo');
+            const repositoryID = (event.target && event.target.getAttribute('data-detach-repo'));
             if (!repositoryID) return;
             try {
               const pid = selectedProjectId();
@@ -1713,7 +1757,7 @@ data:
           };
 
           projectDatasourceRows.onclick = async (event) => {
-            const datasourceID = event.target?.getAttribute('data-detach-ds');
+            const datasourceID = (event.target && event.target.getAttribute('data-detach-ds'));
             if (!datasourceID) return;
             try {
               const pid = selectedProjectId();
@@ -1786,7 +1830,7 @@ data:
               const objectPath = (datasetUploadPathInput.value || '').trim();
               const file = datasetUploadFileInput.files && datasetUploadFileInput.files[0];
               if (!datasetID || !objectPath || !file) throw { error: 'dataset, object path and file are required' };
-              if (keycloak?.authenticated) {
+              if ((keycloak && keycloak.authenticated)) {
                 try { await keycloak.updateToken(30); } catch (_) {}
               }
               const res = await fetch('/api/v1/datasets/' + encodeURIComponent(datasetID) + '/objects/' + encodeURIComponent(objectPath), {
@@ -1995,8 +2039,8 @@ data:
           };
 
           environmentRows.onclick = async (event) => {
-            const selectID = event.target?.getAttribute('data-select');
-            const dockerBuildID = event.target?.getAttribute('data-docker');
+            const selectID = (event.target && event.target.getAttribute('data-select'));
+            const dockerBuildID = (event.target && event.target.getAttribute('data-docker'));
 
             if (selectID) {
               event.preventDefault();
@@ -2021,14 +2065,14 @@ data:
           };
 
           workspaceRows.onclick = async (event) => {
-            const openId = event.target?.getAttribute('data-open');
-            const delId = event.target?.getAttribute('data-del');
+            const openId = (event.target && event.target.getAttribute('data-open'));
+            const delId = (event.target && event.target.getAttribute('data-del'));
             if (openId) {
               event.preventDefault();
               event.stopPropagation();
               if (openingWorkspaceId === openId) return;
               const ws = state.workspaces.find(w => w.id === openId);
-              if (ws?.accessUrl) {
+              if ((ws && ws.accessUrl)) {
                 const ready = String(ws.status || '').toLowerCase().includes('run');
                 if (!ready) {
                   usersOut.textContent = t('launchingMsg');
@@ -2077,8 +2121,8 @@ data:
           };
 
           jobRows.onclick = async (event) => {
-            const logsId = event.target?.getAttribute('data-logs-job');
-            const delId = event.target?.getAttribute('data-del-job');
+            const logsId = (event.target && event.target.getAttribute('data-logs-job'));
+            const delId = (event.target && event.target.getAttribute('data-del-job'));
             if (logsId) {
               try {
                 const body = await callJSON('/api/v1/jobs/' + encodeURIComponent(logsId) + '/logs?tailLines=300');
@@ -2100,8 +2144,8 @@ data:
           };
 
           appRows.onclick = async (event) => {
-            const openId = event.target?.getAttribute('data-open-app');
-            const delId = event.target?.getAttribute('data-del-app');
+            const openId = (event.target && event.target.getAttribute('data-open-app'));
+            const delId = (event.target && event.target.getAttribute('data-del-app'));
             if (openId) {
               const item = state.apps.find((a) => a.id === openId);
               if (item && item.accessUrl) {
@@ -2120,9 +2164,9 @@ data:
           };
 
           secretRows.onclick = async (event) => {
-            const viewName = event.target?.getAttribute('data-view-secret');
-            const copyName = event.target?.getAttribute('data-copy-secret');
-            const secretName = event.target?.getAttribute('data-del-secret');
+            const viewName = (event.target && event.target.getAttribute('data-view-secret'));
+            const copyName = (event.target && event.target.getAttribute('data-copy-secret'));
+            const secretName = (event.target && event.target.getAttribute('data-del-secret'));
             if (!viewName && !copyName && !secretName) return;
             try {
               if (viewName) {
@@ -2132,7 +2176,7 @@ data:
               }
               if (copyName) {
                 const body = await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(copyName)));
-                await copyText(body?.value || '');
+                await copyText((body && body.value) || '');
                 usersOut.textContent = 'Secret copied to clipboard.';
                 pretty(secretOut, body);
                 return;
@@ -2147,7 +2191,7 @@ data:
           };
 
           datasetRows.onclick = async (event) => {
-            const datasetID = event.target?.getAttribute('data-del-dataset');
+            const datasetID = (event.target && event.target.getAttribute('data-del-dataset'));
             if (!datasetID) return;
             try {
               await callJSON('/api/v1/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
@@ -2159,8 +2203,8 @@ data:
           };
 
           repoRows.onclick = async (event) => {
-            const repositoryIDToTest = event.target?.getAttribute('data-test-repo');
-            const repositoryIDToDelete = event.target?.getAttribute('data-del-repo');
+            const repositoryIDToTest = (event.target && event.target.getAttribute('data-test-repo'));
+            const repositoryIDToDelete = (event.target && event.target.getAttribute('data-del-repo'));
             if (!repositoryIDToTest && !repositoryIDToDelete) return;
             try {
               if (repositoryIDToTest) {
@@ -2180,8 +2224,8 @@ data:
           };
 
           datasourceRows.onclick = async (event) => {
-            const datasourceIDToTest = event.target?.getAttribute('data-test-ds');
-            const datasourceIDToDelete = event.target?.getAttribute('data-del-ds');
+            const datasourceIDToTest = (event.target && event.target.getAttribute('data-test-ds'));
+            const datasourceIDToDelete = (event.target && event.target.getAttribute('data-del-ds'));
             if (!datasourceIDToTest && !datasourceIDToDelete) return;
             try {
               if (datasourceIDToTest) {
@@ -2200,34 +2244,57 @@ data:
             }
           };
 
-          keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
-            if (!authenticated) {
-              stopWorkspacesAutoRefresh();
-              setMeta('Not authenticated');
+          if (authMode === 'oidc') {
+            keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
+              if (!authenticated) {
+                stopWorkspacesAutoRefresh();
+                setMeta('Not authenticated (lab mode active as ' + currentLabUser() + ')');
+                applyRoleVisibility();
+                setButtons(true);
+                startWorkspacesAutoRefresh();
+                refreshProjects()
+                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                  .catch((err) => {
+                    pretty(usersOut, { sessionError: String(err) });
+                    switchTab('ops');
+                  });
+                switchTab('environments');
+                return;
+              }
+              setMeta('Authenticated as ' + ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || (keycloak.tokenParsed && keycloak.tokenParsed.sub)));
               applyRoleVisibility();
-              setButtons(false);
+              setButtons(true);
+              startWorkspacesAutoRefresh();
+              ensureWebSession()
+                .then(() => refreshProjects())
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .catch((err) => {
+                  pretty(usersOut, { sessionError: String(err) });
+                  switchTab('ops');
+                });
+            }).catch((err) => {
+              stopWorkspacesAutoRefresh();
+              setMeta('Keycloak init error - fallback to lab mode');
+              pretty(usersOut, { error: String(err) });
+              authMode = 'lab';
+              applyRoleVisibility();
+              setButtons(true);
+              startWorkspacesAutoRefresh();
+              refreshProjects()
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .catch(() => {});
               switchTab('environments');
-              return;
-            }
-            setMeta('Authenticated as ' + (keycloak.tokenParsed?.preferred_username || keycloak.tokenParsed?.email || keycloak.tokenParsed?.sub));
+            });
+          } else {
+            setMeta('Lab mode as ' + currentLabUser());
             applyRoleVisibility();
             setButtons(true);
             startWorkspacesAutoRefresh();
-            ensureWebSession()
-              .then(() => refreshProjects())
+            refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
-              .catch((err) => {
-                pretty(usersOut, { sessionError: String(err) });
-                switchTab('ops');
-              });
-          }).catch((err) => {
-            stopWorkspacesAutoRefresh();
-            setMeta('Keycloak init error');
-            pretty(usersOut, { error: String(err) });
-            applyRoleVisibility();
-            setButtons(false);
-            switchTab('ops');
-          });
+              .catch(() => {});
+            switchTab('environments');
+          }
 
           refreshVersions();
         </script>
@@ -2253,7 +2320,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.25
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.39
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
