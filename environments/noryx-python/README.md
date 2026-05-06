@@ -18,6 +18,7 @@ Bundled Python/Data Science tooling:
   - `ms-toolsai.jupyter-keymap`
   - `ms-toolsai.jupyter-renderers`
   - `charliermarsh.ruff`
+  - `kilocode.Kilo-Code` (best effort; may depend on extension registry availability)
 - Jupyter/Python packages:
   - `ipywidgets`
   - `jupyterlab-git`

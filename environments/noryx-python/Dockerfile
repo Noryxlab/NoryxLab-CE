@@ -43,7 +43,7 @@ RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" /mnt \
     '}' > "${OPENVSCODE_DATA_DIR}/data/Machine/settings.json"
 
 RUN set -eux; \
-    exts='ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter ms-toolsai.jupyter-keymap ms-toolsai.jupyter-renderers charliermarsh.ruff'; \
+    exts='ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter ms-toolsai.jupyter-keymap ms-toolsai.jupyter-renderers charliermarsh.ruff kilocode.Kilo-Code'; \
     for ext in $exts; do openvscode-server --install-extension "$ext" || true; done
 
 RUN cat > /usr/local/bin/noryx-sync-ide-tooling <<'EOF'
@@ -60,7 +60,7 @@ fi
 
 mkdir -p "${PROFILE_DIR}"
 echo "[ide-tooling] updating VS Code extensions"
-exts='ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter ms-toolsai.jupyter-keymap ms-toolsai.jupyter-renderers charliermarsh.ruff'
+exts='ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter ms-toolsai.jupyter-keymap ms-toolsai.jupyter-renderers charliermarsh.ruff kilocode.Kilo-Code'
 for ext in $exts; do
   openvscode-server --install-extension "$ext" --force >/tmp/noryx-vscode-extensions.log 2>&1 || true
 done
