@@ -654,17 +654,21 @@ data:
       (function () {
         var node = document.getElementById('versions');
         if (!node) return;
-        var front = 'ce-web-0.6.39';
-        node.textContent = 'front: ' + front + ' | back: ...';
-        fetch('/api/v1/version', { credentials: 'same-origin' })
-          .then(function (r) { return r.ok ? r.json() : null; })
-          .then(function (j) {
-            var back = (j && j.version) ? String(j.version) : 'unknown';
-            node.textContent = 'front: ' + front + ' | back: ' + back;
-          })
-          .catch(function () {
-            node.textContent = 'front: ' + front + ' | back: unknown';
-          });
+        var front = 'unknown';
+        var back = 'unknown';
+        node.textContent = 'front: ' + front + ' | back: ' + back;
+        Promise.all([
+          fetch('/version.json', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+          fetch('/api/v1/version', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+        ]).then(function (res) {
+          var f = res[0];
+          var b = res[1];
+          if (f && f.version) front = String(f.version);
+          if (b && (b.backendVersion || b.version)) back = String(b.backendVersion || b.version);
+          node.textContent = 'front: ' + front + ' | back: ' + back;
+        }).catch(function () {
+          node.textContent = 'front: ' + front + ' | back: ' + back;
+        });
       })();
     </script>
 
@@ -2350,7 +2354,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.40"}
+    {"version":"ce-web-0.6.41"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2371,7 +2375,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.40
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.41
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
