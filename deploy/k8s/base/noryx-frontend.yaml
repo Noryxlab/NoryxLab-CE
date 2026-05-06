@@ -232,6 +232,25 @@ data:
             font-size: 13px;
           }
           .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
+          .stack { display: grid; gap: 12px; }
+          .hero {
+            background: linear-gradient(120deg, #0b4455 0%, #0f6b7b 55%, #1793a2 100%);
+            color: #f3fbfd;
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: var(--shadow-md);
+          }
+          .hero h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: .01em; }
+          .hero p { margin: 0; color: #d2edf2; max-width: 760px; line-height: 1.5; }
+          .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+          .quick {
+            border: 1px solid #d7e3eb;
+            border-radius: 14px;
+            background: #fff;
+            padding: 14px;
+          }
+          .quick .q-title { margin: 0 0 5px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #2d425d; }
+          .quick .q-text { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
@@ -282,6 +301,7 @@ data:
             .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; }
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .content { padding: 14px; }
+            .quick-grid { grid-template-columns: 1fr; }
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
@@ -299,7 +319,8 @@ data:
 
             <div class="menu-title">Navigation</div>
             <div class="menu">
-              <button class="tab-btn active" data-tab="environments">Environments</button>
+              <button class="tab-btn active" data-tab="intro">Home</button>
+              <button class="tab-btn" data-tab="environments">Environments</button>
             </div>
 
             <div class="menu-title">Data</div>
@@ -349,10 +370,40 @@ data:
               <article class="stat"><div class="k">Projects</div><div id="statProjects" class="v">0</div></article>
               <article class="stat"><div class="k">Workspaces</div><div id="statWorkspaces" class="v">0</div></article>
               <article class="stat"><div class="k">Builds</div><div id="statBuilds" class="v">0</div></article>
-              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Environments</div></article>
+              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
             </section>
 
             <section class="views">
+              <section class="view active" id="view-intro">
+                <div class="stack">
+                  <article class="hero">
+                    <h2>NoryxLab for Collaborative Data Science</h2>
+                    <p>Start from a project, attach data and repositories, then launch workspaces, jobs, apps, dashboards and APIs with governed access.</p>
+                  </article>
+                  <div class="quick-grid">
+                    <article class="quick">
+                      <h3 class="q-title">1. Data Foundation</h3>
+                      <p class="q-text">Register datasets, repositories, datasources and secrets before launching workloads.</p>
+                    </article>
+                    <article class="quick">
+                      <h3 class="q-title">2. Project Context</h3>
+                      <p class="q-text">Create a project, attach resources, and invite collaborators with project roles.</p>
+                    </article>
+                    <article class="quick">
+                      <h3 class="q-title">3. Run Workloads</h3>
+                      <p class="q-text">Use curated environments to run Jupyter/VSCode, jobs, apps, dashboards and APIs.</p>
+                    </article>
+                  </div>
+                  <article class="card span-12">
+                    <h3>Quick Start</h3>
+                    <div class="row">
+                      <button class="btn primary" data-tab-jump="projects">Open Projects</button>
+                      <button class="btn" data-tab-jump="data">Open Data</button>
+                      <button class="btn" data-tab-jump="environments">Open Environments</button>
+                    </div>
+                  </article>
+                </div>
+              </section>
               <section class="view" id="view-projects">
                 <div class="grid">
                   <article class="card span-8">
@@ -545,7 +596,7 @@ data:
                 </div>
               </section>
 
-              <section class="view active" id="view-environments">
+              <section class="view" id="view-environments">
                 <div class="grid">
                   <article class="card span-7">
                     <h3>Environment Catalog</h3>
@@ -849,6 +900,7 @@ data:
           const datasourceRows = document.getElementById('datasourceRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
           const views = {
+            intro: document.getElementById('view-intro'),
             projects: document.getElementById('view-projects'),
             data: document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
@@ -882,7 +934,7 @@ data:
             dashboards: [],
             builds: [],
             environments: [],
-            activeTab: 'environments',
+            activeTab: 'intro',
             repositoryChecks: {},
             datasourceChecks: {}
           };
@@ -980,7 +1032,7 @@ data:
               el.style.display = admin ? '' : 'none';
             });
             if (!admin && state.activeTab === 'workloads') {
-              switchTab('environments');
+              switchTab('intro');
             }
           }
 
@@ -1006,6 +1058,7 @@ data:
               views[name].classList.toggle('active', name === tab);
             });
             const labels = {
+              intro: 'Home',
               projects: 'Projects',
               data: 'Data',
               workspaces: 'Workspaces',
@@ -1029,6 +1082,13 @@ data:
                 const node = document.getElementById(anchor);
                 if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
+            };
+          });
+          document.querySelectorAll('[data-tab-jump]').forEach((btn) => {
+            btn.onclick = () => {
+              const tab = btn.getAttribute('data-tab-jump');
+              const src = tabButtons.find((b) => b.getAttribute('data-tab') === tab);
+              switchTab(tab, src || null);
             };
           });
 
@@ -2485,7 +2545,7 @@ data:
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
                   });
-                switchTab('environments');
+                switchTab('intro');
                 return;
               }
               setMeta('Authenticated as ' + ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || (keycloak.tokenParsed && keycloak.tokenParsed.sub)));
@@ -2510,7 +2570,7 @@ data:
               refreshProjects()
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                 .catch(() => {});
-              switchTab('environments');
+              switchTab('intro');
             });
           } else {
             setMeta('Lab mode as ' + currentLabUser());
@@ -2520,7 +2580,7 @@ data:
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
               .catch(() => {});
-            switchTab('environments');
+            switchTab('intro');
           }
 
           refreshVersions();
@@ -2528,7 +2588,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.46"}
+    {"version":"ce-web-0.6.47"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2549,7 +2609,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.46
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.47
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
