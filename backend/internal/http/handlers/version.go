@@ -4,8 +4,7 @@ import "net/http"
 
 func (h Handlers) GetVersion(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
-		"version":         h.backendVersion,
-		"backendVersion":  h.backendVersion,
-		"frontendVersion": h.frontendVersion,
+		"version":        h.backendVersion,
+		"backendVersion": h.backendVersion,
 	})
 }

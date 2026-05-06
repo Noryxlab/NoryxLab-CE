@@ -1004,12 +1004,18 @@ data:
             let backVersion = 'unknown';
             let frontVersion = 'unknown';
             try {
-              const res = await fetch('/api/v1/version');
-              if (res.ok) {
-                const v = await res.json();
-                if (v && v.backendVersion) backVersion = String(v.backendVersion);
-                if (v && v.frontendVersion) frontVersion = String(v.frontendVersion);
-                if (backVersion === 'unknown' && v && v.version) backVersion = String(v.version);
+              const [frontRes, backRes] = await Promise.all([
+                fetch('/version.json'),
+                fetch('/api/v1/version')
+              ]);
+              if (frontRes.ok) {
+                const f = await frontRes.json();
+                if (f && f.version) frontVersion = String(f.version);
+              }
+              if (backRes.ok) {
+                const b = await backRes.json();
+                if (b && b.backendVersion) backVersion = String(b.backendVersion);
+                if (backVersion === 'unknown' && b && b.version) backVersion = String(b.version);
               }
             } catch (_) {}
             versionsNode.textContent = 'front: ' + frontVersion + ' | back: ' + backVersion;
@@ -2314,6 +2320,8 @@ data:
         </script>
       </body>
     </html>
+  version.json: |
+    {"version":"ce-web-0.6.39"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2342,6 +2350,9 @@ spec:
             - name: front-content
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
+            - name: front-content
+              mountPath: /usr/share/nginx/html/version.json
+              subPath: version.json
       volumes:
         - name: front-content
           configMap:
