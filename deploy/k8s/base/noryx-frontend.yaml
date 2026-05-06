@@ -1633,9 +1633,15 @@ data:
             }, 5000);
           }
 
-      loginBtn.onclick = () => {
+      loginBtn.onclick = async () => {
         if (authMode === 'oidc') {
-          keycloak.login({ redirectUri: window.location.origin + '/' });
+          try {
+            const loginUrl = await keycloak.createLoginUrl({ redirectUri: window.location.origin + '/' });
+            window.location.assign(loginUrl);
+          } catch (err) {
+            pretty(usersOut, { loginError: String(err) });
+            setMeta('Keycloak login error');
+          }
           return;
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
