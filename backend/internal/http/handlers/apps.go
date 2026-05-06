@@ -25,6 +25,14 @@ type createAppRequest struct {
 var appSlugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`)
 
 func (h Handlers) ListApps(w http.ResponseWriter, r *http.Request) {
+	h.listAppsByKind(w, r, "app")
+}
+
+func (h Handlers) ListDashboards(w http.ResponseWriter, r *http.Request) {
+	h.listAppsByKind(w, r, "dashboard")
+}
+
+func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
 		return
@@ -38,6 +46,12 @@ func (h Handlers) ListApps(w http.ResponseWriter, r *http.Request) {
 	projectFilter := strings.TrimSpace(r.URL.Query().Get("projectId"))
 	filtered := make([]app.App, 0, len(items))
 	for _, item := range items {
+		if strings.TrimSpace(item.Kind) == "" {
+			item.Kind = "app"
+		}
+		if item.Kind != kind {
+			continue
+		}
 		if projectFilter != "" && item.ProjectID != projectFilter {
 			continue
 		}
@@ -60,6 +74,14 @@ func (h Handlers) ListApps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
+	h.createAppByKind(w, r, "app")
+}
+
+func (h Handlers) CreateDashboard(w http.ResponseWriter, r *http.Request) {
+	h.createAppByKind(w, r, "dashboard")
+}
+
+func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
 		return
@@ -78,7 +100,11 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Name == "" {
-		req.Name = "app-" + shortID()
+		if kind == "dashboard" {
+			req.Name = "dashboard-" + shortID()
+		} else {
+			req.Name = "app-" + shortID()
+		}
 	}
 	if req.Slug == "" {
 		req.Slug = normalizeAppSlug(req.Name)
@@ -118,9 +144,16 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	podName := "app-" + shortID()
+	prefix := "app"
+	if kind == "dashboard" {
+		prefix = "dash"
+	}
+	podName := prefix + "-" + shortID()
 	serviceName := podName
 	accessURL := "/apps/" + req.Slug + "/"
+	if kind == "dashboard" {
+		accessURL = "/dashboards/" + req.Slug + "/"
+	}
 
 	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID)
 	if err != nil {
@@ -138,7 +171,7 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 	bootstrapScript := appBootstrapScript(req.Port, userLaunch, attachedRepos, attachedDatasets, h.minioEndpoint, h.minioAccessKey, h.minioSecretKey, h.minioUseSSL)
 	args := []string{bootstrapScript}
 
-	record := app.New(req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
+	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
 
 	if h.runtime != nil {
 		volumes := []noryxruntime.PersistentVolumeClaimMount{}
@@ -167,6 +200,7 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 				"app.kubernetes.io/name": "noryx-app",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/app-id":        record.ID,
+				"noryx.io/app-kind":      kind,
 				"noryx.io/app-slug":      req.Slug,
 				"noryx.io/app-pod":       podName,
 			},
@@ -196,11 +230,22 @@ func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) DeleteApp(w http.ResponseWriter, r *http.Request) {
+	h.deleteAppByKind(w, r, "app")
+}
+
+func (h Handlers) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
+	h.deleteAppByKind(w, r, "dashboard")
+}
+
+func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
 		return
 	}
 	appID := strings.TrimSpace(r.PathValue("appID"))
+	if appID == "" {
+		appID = strings.TrimSpace(r.PathValue("dashboardID"))
+	}
 	record, found, err := h.appStore.GetByID(appID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read app"})
@@ -208,6 +253,13 @@ func (h Handlers) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "app not found"})
+		return
+	}
+	if strings.TrimSpace(record.Kind) == "" {
+		record.Kind = "app"
+	}
+	if record.Kind != kind {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
 	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "app deletion") {

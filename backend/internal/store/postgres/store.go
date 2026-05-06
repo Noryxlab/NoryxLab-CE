@@ -133,6 +133,7 @@ func (s *Store) migrate(ctx context.Context) error {
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
+			kind TEXT NOT NULL DEFAULT 'app',
 			name TEXT NOT NULL,
 			slug TEXT NOT NULL UNIQUE,
 			image TEXT NOT NULL,
@@ -145,6 +146,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			access_url TEXT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'app'`,
 		`CREATE TABLE IF NOT EXISTS pods (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -358,7 +360,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 }
 
 func (s *Store) ListApps() ([]app.App, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -367,7 +369,7 @@ func (s *Store) ListApps() ([]app.App, error) {
 	for rows.Next() {
 		var item app.App
 		var commandJSON, argsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -384,9 +386,10 @@ func (s *Store) ListApps() ([]app.App, error) {
 func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
+		&item.Kind,
 		&item.Name,
 		&item.Slug,
 		&item.Image,
@@ -417,9 +420,10 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
 		&item.ID,
 		&item.ProjectID,
+		&item.Kind,
 		&item.Name,
 		&item.Slug,
 		&item.Image,
@@ -450,9 +454,10 @@ func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 func (s *Store) CreateApp(item app.App) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
-	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		item.ID,
 		item.ProjectID,
+		item.Kind,
 		item.Name,
 		item.Slug,
 		item.Image,
@@ -472,10 +477,11 @@ func (s *Store) UpsertApp(item app.App) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
 	_, err := s.db.Exec(`
-		INSERT INTO apps (id, project_id, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		INSERT INTO apps (id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
+			kind=EXCLUDED.kind,
 			name=EXCLUDED.name,
 			slug=EXCLUDED.slug,
 			image=EXCLUDED.image,
@@ -489,6 +495,7 @@ func (s *Store) UpsertApp(item app.App) error {
 	`,
 		item.ID,
 		item.ProjectID,
+		item.Kind,
 		item.Name,
 		item.Slug,
 		item.Image,

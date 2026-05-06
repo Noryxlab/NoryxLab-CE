@@ -293,6 +293,7 @@ data:
               <button class="tab-btn" data-tab="workspaces">Workspaces</button>
               <button class="tab-btn" data-tab="project-jobs">Jobs</button>
               <button class="tab-btn" data-tab="project-apps">Apps</button>
+              <button class="tab-btn" data-tab="project-dashboards">Dashboards</button>
               <button class="tab-btn" data-tab="project-apis">APIs</button>
             </div>
 
@@ -605,6 +606,32 @@ data:
                 </div>
               </section>
 
+              <section class="view" id="view-project-dashboards">
+                <div class="grid">
+                  <article class="card span-8">
+                    <h3>Project Dashboards</h3>
+                    <div class="hint">Deploy dashboards as dedicated workloads with their own URL slug.</div>
+                    <div class="row">
+                      <input id="dashboardName" placeholder="dashboard name (optional)" />
+                      <input id="dashboardSlug" placeholder="url slug (example: kpi-overview)" />
+                    </div>
+                    <div class="row">
+                      <select id="dashboardEnv"></select>
+                      <input id="dashboardPort" value="9000" placeholder="port (default 9000)" />
+                    </div>
+                    <div class="row">
+                      <input id="dashboardCommand" value="python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt" placeholder="launch command" />
+                      <button id="createDashboard" class="btn warn">Launch Dashboard</button>
+                      <button id="loadDashboards" class="btn">Refresh</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Name</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
+                      <tbody id="dashboardRows"></tbody>
+                    </table>
+                  </article>
+                </div>
+              </section>
+
               <section class="view" id="view-project-apis">
                 <div class="grid">
                   <article class="card span-8">
@@ -749,6 +776,14 @@ data:
           const createAppBtn = document.getElementById('createApp');
           const loadAppsBtn = document.getElementById('loadApps');
           const appRows = document.getElementById('appRows');
+          const dashboardNameInput = document.getElementById('dashboardName');
+          const dashboardSlugInput = document.getElementById('dashboardSlug');
+          const dashboardEnvInput = document.getElementById('dashboardEnv');
+          const dashboardPortInput = document.getElementById('dashboardPort');
+          const dashboardCommandInput = document.getElementById('dashboardCommand');
+          const createDashboardBtn = document.getElementById('createDashboard');
+          const loadDashboardsBtn = document.getElementById('loadDashboards');
+          const dashboardRows = document.getElementById('dashboardRows');
 
           const envGitRepo = document.getElementById('envGitRepo');
           const envGitRef = document.getElementById('envGitRef');
@@ -797,6 +832,7 @@ data:
             workspaces: document.getElementById('view-workspaces'),
             'project-jobs': document.getElementById('view-project-jobs'),
             'project-apps': document.getElementById('view-project-apps'),
+            'project-dashboards': document.getElementById('view-project-dashboards'),
             'project-apis': document.getElementById('view-project-apis'),
             environments: document.getElementById('view-environments'),
             workloads: document.getElementById('view-workloads'),
@@ -821,6 +857,7 @@ data:
             workspaces: [],
             jobs: [],
             apps: [],
+            dashboards: [],
             builds: [],
             environments: [],
             activeTab: 'environments',
@@ -952,6 +989,7 @@ data:
               workspaces: 'Workspaces',
               'project-jobs': 'Project Jobs',
               'project-apps': 'Project Apps',
+              'project-dashboards': 'Project Dashboards',
               'project-apis': 'Project APIs',
               environments: 'Environments',
               workloads: 'Workloads',
@@ -1000,7 +1038,7 @@ data:
 
           function updateStats() {
             statProjects.textContent = String(state.projects.length);
-            statWorkspaces.textContent = String(state.workspaces.length + state.jobs.length + state.apps.length);
+            statWorkspaces.textContent = String(state.workspaces.length + state.jobs.length + state.apps.length + state.dashboards.length);
             statBuilds.textContent = String(state.builds.length);
           }
 
@@ -1261,6 +1299,29 @@ data:
             }
           }
 
+          function renderDashboardEnvOptions() {
+            const current = dashboardEnvInput.value || '';
+            dashboardEnvInput.innerHTML = '';
+            const pid = selectedProjectId();
+            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            if (items.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'No environment available';
+              dashboardEnvInput.appendChild(opt);
+              return;
+            }
+            items.forEach((env) => {
+              const opt = document.createElement('option');
+              opt.value = env.destinationImage || '';
+              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              dashboardEnvInput.appendChild(opt);
+            });
+            if (current && items.some((env) => env.destinationImage === current)) {
+              dashboardEnvInput.value = current;
+            }
+          }
+
           function renderJobsTable() {
             const pid = selectedProjectId();
             const items = state.jobs.filter((j) => !pid || j.projectId === pid);
@@ -1300,6 +1361,27 @@ data:
                 '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
                 '<td><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
+            });
+          }
+
+          function renderDashboardsTable() {
+            const pid = selectedProjectId();
+            const items = state.dashboards.filter((a) => !pid || a.projectId === pid);
+            dashboardRows.innerHTML = '';
+            if (items.length === 0) {
+              dashboardRows.innerHTML = '<tr><td colspan="6">No dashboards for selected project.</td></tr>';
+              return;
+            }
+            items.forEach((a) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + (a.name || a.id) + '</strong><br/><span style="color:#667a98">' + (a.id || '-') + '</span></td>' +
+                '<td><code>' + (a.slug || '-') + '</code></td>' +
+                '<td><code>' + (a.podName || '-') + '</code></td>' +
+                '<td>' + badge(a.status || 'submitted') + '</td>' +
+                '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
+                '<td><button type="button" class="btn" data-open-dashboard="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-dashboard="' + (a.id || '') + '">Delete</button></td>';
+              dashboardRows.appendChild(tr);
             });
           }
 
@@ -1344,11 +1426,13 @@ data:
             const ws = state.workspaces.filter(w => !pid || w.projectId === pid);
             const js = state.jobs.filter(j => !pid || j.projectId === pid);
             const aps = state.apps.filter(a => !pid || a.projectId === pid);
+            const dsh = state.dashboards.filter(a => !pid || a.projectId === pid);
             const bs = state.builds.filter(b => !pid || b.projectId === pid);
             const rows = [];
             ws.forEach(w => rows.push({ type: 'Workspace', name: w.name || w.id, status: w.status || 'submitted' }));
             js.forEach(j => rows.push({ type: 'Job', name: j.name || j.jobName || j.id, status: j.status || 'submitted' }));
             aps.forEach(a => rows.push({ type: 'App', name: a.name || a.slug || a.id, status: a.status || 'submitted' }));
+            dsh.forEach(a => rows.push({ type: 'Dashboard', name: a.name || a.slug || a.id, status: a.status || 'submitted' }));
             bs.forEach(b => rows.push({ type: 'Build', name: b.jobName || b.destinationImage || 'build', status: b.status || 'submitted' }));
             workloadRows.innerHTML = '';
             if (rows.length === 0) {
@@ -1506,6 +1590,8 @@ data:
             renderJobsTable();
             renderAppEnvOptions();
             renderAppsTable();
+            renderDashboardEnvOptions();
+            renderDashboardsTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
             updateStats();
@@ -1550,6 +1636,15 @@ data:
             const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
             const body = await callJSON('/api/v1/apps' + query);
             state.apps = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
+          async function refreshDashboards() {
+            const pid = selectedProjectId();
+            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
+            const body = await callJSON('/api/v1/dashboards' + query);
+            state.dashboards = ensureArray(body.items);
             renderAll();
             return body;
           }
@@ -1629,7 +1724,7 @@ data:
             if (workspacesAutoRefreshTimer) return;
             workspacesAutoRefreshTimer = setInterval(async () => {
               try {
-                await Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps()]);
+                await Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards()]);
                 if (state.activeTab === 'environments' || state.activeTab === 'workloads') {
                   await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 }
@@ -1736,6 +1831,7 @@ data:
               await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
               await refreshJobs();
               await refreshApps();
+              await refreshDashboards();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -1982,6 +2078,11 @@ data:
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
+          loadDashboardsBtn.onclick = async () => {
+            try { await refreshDashboards(); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
           createWorkspaceBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
@@ -2059,6 +2160,34 @@ data:
               });
               await refreshApps();
               switchTab('project-apps');
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          createDashboardBtn.onclick = async () => {
+            try {
+              const projectId = selectedProjectId();
+              if (!projectId) throw { error: 'select a project first' };
+              const image = (dashboardEnvInput.value || '').trim();
+              if (!image) throw { error: 'select an environment image first' };
+              const payload = { projectId, image };
+              const name = dashboardNameInput.value.trim();
+              const slug = dashboardSlugInput.value.trim();
+              const cmd = dashboardCommandInput.value.trim();
+              const portRaw = dashboardPortInput.value.trim();
+              if (name) payload.name = name;
+              if (slug) payload.slug = slug;
+              if (cmd) payload.args = [cmd];
+              if (portRaw) payload.port = Number(portRaw);
+              await callJSON('/api/v1/dashboards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              await refreshDashboards();
+              switchTab('project-dashboards');
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -2219,6 +2348,26 @@ data:
             }
           };
 
+          dashboardRows.onclick = async (event) => {
+            const openId = (event.target && event.target.getAttribute('data-open-dashboard'));
+            const delId = (event.target && event.target.getAttribute('data-del-dashboard'));
+            if (openId) {
+              const item = state.dashboards.find((a) => a.id === openId);
+              if (item && item.accessUrl) {
+                window.open(window.location.origin + item.accessUrl, '_blank');
+              }
+              return;
+            }
+            if (!delId) return;
+            try {
+              await callJSON('/api/v1/dashboards/' + encodeURIComponent(delId), { method: 'DELETE' });
+              await refreshDashboards();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
           secretRows.onclick = async (event) => {
             const viewName = (event.target && event.target.getAttribute('data-view-secret'));
             const copyName = (event.target && event.target.getAttribute('data-copy-secret'));
@@ -2309,7 +2458,7 @@ data:
                 setButtons(true);
                 startWorkspacesAutoRefresh();
                 refreshProjects()
-                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                   .catch((err) => {
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
@@ -2323,7 +2472,7 @@ data:
               startWorkspacesAutoRefresh();
               ensureWebSession()
                 .then(() => refreshProjects())
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                 .catch((err) => {
                   pretty(usersOut, { sessionError: String(err) });
                   switchTab('ops');
@@ -2337,7 +2486,7 @@ data:
               setButtons(true);
               startWorkspacesAutoRefresh();
               refreshProjects()
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                 .catch(() => {});
               switchTab('environments');
             });
@@ -2347,7 +2496,7 @@ data:
             setButtons(true);
             startWorkspacesAutoRefresh();
             refreshProjects()
-              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
               .catch(() => {});
             switchTab('environments');
           }
@@ -2357,7 +2506,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.43"}
+    {"version":"ce-web-0.6.44"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2378,7 +2527,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.43
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.44
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
