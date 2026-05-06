@@ -1,6 +1,9 @@
 package edition
 
-import "github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+import (
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+)
 
 const (
 	FeatureCustomRBACMatrix = "custom_rbac_matrix"
@@ -13,6 +16,8 @@ type RBACProvider interface {
 	IsGlobalAdmin(identity auth.Identity, fallback func(auth.Identity) bool) bool
 	// CanAccessAdminModule can override access to admin modules (users/modules/workloads).
 	CanAccessAdminModule(identity auth.Identity, module string, fallback bool) bool
+	// CanAccessProjectAction can implement matrix-based project permissions (EE).
+	CanAccessProjectAction(identity auth.Identity, projectID string, role access.Role, action string, fallback bool) bool
 }
 
 type FeatureGate interface {
@@ -39,6 +44,10 @@ func (defaultRBACProvider) CanAccessAdminModule(_ auth.Identity, _ string, fallb
 	return fallback
 }
 
+func (defaultRBACProvider) CanAccessProjectAction(_ auth.Identity, _ string, _ access.Role, _ string, fallback bool) bool {
+	return fallback
+}
+
 type defaultFeatureGate struct{}
 
 func (defaultFeatureGate) Enabled(string) bool { return false }
@@ -54,4 +63,3 @@ func DefaultHooks() Hooks {
 		Audit:   noopAuditSink{},
 	}
 }
-
