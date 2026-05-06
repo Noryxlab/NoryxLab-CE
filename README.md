@@ -131,3 +131,11 @@ Cleanup all workspaces for a user (requires delete endpoint deployed):
 ```bash
 BASE_URL=https://datalab.noryxlab.ai NORYX_USER=stef ./scripts/ops/cleanup-workspaces.sh
 ```
+
+Frontend login smoke test (versions + Keycloak redirect):
+
+```bash
+python3 -m pip install --user playwright
+python3 -m playwright install chromium
+BASE_URL=https://datalab.noryxlab.ai python3 scripts/ops/smoke_frontend_login.py
+```
