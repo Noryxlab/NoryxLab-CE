@@ -1383,10 +1383,10 @@ data:
               rp.value = '';
               rp.textContent = 'Select a project first';
               attachRepoSelect.appendChild(rp);
-              const ds = document.createElement('option');
-              ds.value = '';
-              ds.textContent = 'Select a project first';
-              attachDatasourceSelect.appendChild(ds);
+              const ds2 = document.createElement('option');
+              ds2.value = '';
+              ds2.textContent = 'Select a project first';
+              attachDatasourceSelect.appendChild(ds2);
               return;
             }
 
@@ -2357,7 +2357,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.42"}
+    {"version":"ce-web-0.6.43"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2378,7 +2378,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.42
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.43
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
