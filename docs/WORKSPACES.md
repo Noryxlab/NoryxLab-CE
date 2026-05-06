@@ -61,6 +61,11 @@ Current implementation baseline:
 - workspace PVC mount path is `/mnt` (project persistent)
 - project PVC is created as `project-<projectId>` and reused across workspaces
 - `/mnt/requirements.txt` is auto-applied at workspace startup (project venv: `/mnt/.venv`)
+- IDE tooling auto-update runs in background once/day by default:
+  - VS Code extensions (Python/Jupyter/Data Science baseline)
+  - Jupyter/Python packages (`ipywidgets`, `jupyterlab-git`, `jupyterlab-lsp`, `python-lsp-server`, `black`, `isort`, `ruff`, ...)
+  - disable with `NORYX_AUTO_UPDATE_IDE=0`
+  - logs: `/tmp/noryx-ide-tooling.log`, `/tmp/noryx-vscode-extensions.log`, `/tmp/noryx-jupyter-extensions.log`
 - `/repos` is ephemeral (workspace-local, non-persistent)
 - `/datasets` is reserved for datasets mounts
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)

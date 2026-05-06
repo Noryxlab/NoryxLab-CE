@@ -842,7 +842,7 @@ func workspaceBootstrapScript(
 
 	if kind == "vscode" {
 		lines = append(lines,
-			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
+		fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 			"{",
 			"  \"folders\": [",
 			"    { \"path\": \"/mnt\" },",
@@ -857,6 +857,9 @@ func workspaceBootstrapScript(
 			"  }",
 			"}",
 			"EOF",
+			"if [ \"${NORYX_AUTO_UPDATE_IDE:-1}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
+			"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
+			"fi",
 			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
 			"exec openvscode-server \\",
 			"  --host 0.0.0.0 \\",
@@ -871,6 +874,9 @@ func workspaceBootstrapScript(
 	}
 
 	lines = append(lines,
+		"if [ \"${NORYX_AUTO_UPDATE_IDE:-1}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
+		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
+		"fi",
 		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
 		"exec python3 -m jupyterlab \\",
 		"  --ip=0.0.0.0 \\",
