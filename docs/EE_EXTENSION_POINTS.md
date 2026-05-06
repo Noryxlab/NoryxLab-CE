@@ -11,6 +11,12 @@ NoryxLab-CE keeps enterprise hooks explicit so NoryxLab-EE can extend behavior w
 1. `RBACProvider`
 - override global admin resolution
 - override access to admin modules (`users`, `modules`, `workloads`)
+- override project-action authorization with `CanAccessProjectAction(...)`
+  - action IDs used by CE core:
+    - `project.read`
+    - `project.launch`
+    - `project.build`
+    - `project.manage_members`
 
 2. `FeatureGate`
 - central feature flags by name (default CE = disabled)

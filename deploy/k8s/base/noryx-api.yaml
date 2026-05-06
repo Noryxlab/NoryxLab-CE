@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.70-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.71-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -26,7 +26,7 @@ spec:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
             - name: NORYX_BACKEND_VERSION
-              value: "0.5.70"
+              value: "0.5.71"
             - name: NORYX_STORE_BACKEND
               value: "postgres"
             - name: NORYX_DATABASE_HOST

@@ -15,6 +15,11 @@ const (
 	authHeader      = "Authorization"
 	globalAdminRole = "noryx-admin"
 	sessionCookie   = "noryx_session"
+
+	projectActionRead         = "project.read"
+	projectActionLaunch       = "project.launch"
+	projectActionRunBuild     = "project.build"
+	projectActionManageMember = "project.manage_members"
 )
 
 func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
@@ -160,7 +165,8 @@ func (h Handlers) requireProjectRole(
 		return true
 	}
 	role, ok := h.accessStore.GetRole(projectID, userID)
-	if !ok || !check(role) {
+	fallback := ok && check(role)
+	if !h.canProjectAction(userID, projectID, role, mapRoleCheckToAction(check, action), fallback) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + action})
 		return false
 	}
@@ -184,8 +190,11 @@ func (h Handlers) hasProjectMembership(userID, projectID string) bool {
 	if h.isGlobalAdminUserID(userID) {
 		return true
 	}
-	_, ok := h.accessStore.GetRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
-	return ok
+	role, ok := h.accessStore.GetRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
+	if !ok {
+		return false
+	}
+	return h.canProjectAction(userID, projectID, role, projectActionRead, true)
 }
 
 func (h Handlers) isGlobalAdminUserID(userID string) bool {
@@ -198,6 +207,38 @@ func (h Handlers) isGlobalAdminUserID(userID string) bool {
 		return true
 	}
 	return false
+}
+
+func (h Handlers) canProjectAction(userID, projectID string, role access.Role, action string, fallback bool) bool {
+	if action == "" {
+		action = projectActionRead
+	}
+	if h.editionHooks.RBAC == nil {
+		return fallback
+	}
+	return h.editionHooks.RBAC.CanAccessProjectAction(
+		auth.Identity{Username: strings.TrimSpace(userID), Roles: map[string]struct{}{}},
+		strings.TrimSpace(projectID),
+		role,
+		action,
+		fallback,
+	)
+}
+
+func mapRoleCheckToAction(check func(access.Role) bool, actionLabel string) string {
+	switch {
+	case check == nil:
+		return projectActionRead
+	case check(access.RoleEditor) && check(access.RoleAdmin):
+		if strings.Contains(strings.ToLower(actionLabel), "build") {
+			return projectActionRunBuild
+		}
+		return projectActionLaunch
+	case check(access.RoleAdmin):
+		return projectActionManageMember
+	default:
+		return projectActionRead
+	}
 }
 
 func (h Handlers) projectExists(projectID string) (bool, error) {
