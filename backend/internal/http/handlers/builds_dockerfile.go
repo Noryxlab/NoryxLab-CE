@@ -33,7 +33,7 @@ func (h Handlers) GetBuildDockerfile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "build not found"})
 		return
 	}
-	if _, allowed := h.accessStore.GetRole(record.ProjectID, userID); !allowed {
+	if !h.hasProjectMembership(userID, record.ProjectID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for environment access"})
 		return
 	}

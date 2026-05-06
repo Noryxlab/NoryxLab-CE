@@ -156,6 +156,9 @@ func (h Handlers) requireProjectRole(
 	check func(access.Role) bool,
 	action string,
 ) bool {
+	if h.isGlobalAdminUserID(userID) {
+		return true
+	}
 	role, ok := h.accessStore.GetRole(projectID, userID)
 	if !ok || !check(role) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + action})
@@ -170,11 +173,31 @@ func (h Handlers) requireProjectMember(
 	userID string,
 	action string,
 ) bool {
-	if _, ok := h.accessStore.GetRole(projectID, userID); !ok {
+	if !h.hasProjectMembership(userID, projectID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "project membership required for " + action})
 		return false
 	}
 	return true
+}
+
+func (h Handlers) hasProjectMembership(userID, projectID string) bool {
+	if h.isGlobalAdminUserID(userID) {
+		return true
+	}
+	_, ok := h.accessStore.GetRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
+	return ok
+}
+
+func (h Handlers) isGlobalAdminUserID(userID string) bool {
+	uid := strings.TrimSpace(userID)
+	if uid == "" {
+		return false
+	}
+	adminUser := strings.TrimSpace(h.bootstrapAdminUser)
+	if adminUser != "" && strings.EqualFold(uid, adminUser) {
+		return true
+	}
+	return false
 }
 
 func (h Handlers) projectExists(projectID string) (bool, error) {

@@ -53,7 +53,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		if projectFilter != "" && b.ProjectID != projectFilter {
 			continue
 		}
-		if _, allowed := h.accessStore.GetRole(b.ProjectID, userID); !allowed {
+		if !h.hasProjectMembership(userID, b.ProjectID) {
 			continue
 		}
 		destination := strings.TrimSpace(b.DestinationImage)
