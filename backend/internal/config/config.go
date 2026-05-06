@@ -3,6 +3,8 @@ package config
 import "os"
 
 type Config struct {
+	BackendVersion                   string
+	FrontendVersion                  string
 	ListenAddr                       string
 	StoreBackend                     string
 	DatabaseHost                     string
@@ -52,6 +54,15 @@ type Config struct {
 }
 
 func Load() Config {
+	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
+	if backendVersion == "" {
+		backendVersion = "0.5.67"
+	}
+	frontendVersion := os.Getenv("NORYX_FRONTEND_VERSION")
+	if frontendVersion == "" {
+		frontendVersion = "unknown"
+	}
+
 	listenAddr := os.Getenv("NORYX_LISTEN_ADDR")
 	if listenAddr == "" {
 		listenAddr = ":8080"
@@ -189,6 +200,8 @@ func Load() Config {
 	}
 
 	return Config{
+		BackendVersion:                   backendVersion,
+		FrontendVersion:                  frontendVersion,
 		ListenAddr:                       listenAddr,
 		StoreBackend:                     storeBackend,
 		DatabaseHost:                     os.Getenv("NORYX_DATABASE_HOST"),
