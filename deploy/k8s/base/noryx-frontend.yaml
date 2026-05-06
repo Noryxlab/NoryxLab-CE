@@ -313,93 +313,93 @@ data:
         <div class="layout">
           <aside class="sidebar">
             <div class="brand">NoryxLab</div>
-            <div class="edition">Community Edition Platform</div>
+            <div class="edition">Community Edition</div>
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
-            <div class="menu-title">Navigation</div>
+            <div class="menu-title">Accueil</div>
             <div class="menu">
               <button class="tab-btn active" data-tab="intro">Home</button>
-              <button class="tab-btn" data-tab="environments">Environments</button>
+              <button class="tab-btn" data-tab="environments">Environnements</button>
             </div>
 
-            <div class="menu-title">Data</div>
+            <div class="menu-title">Donnees</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="data" data-anchor="card-datasets">Datasets</button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-datasets">Jeux de donnees</button>
               <button class="tab-btn" data-tab="data" data-anchor="card-repositories">Git</button>
               <button class="tab-btn" data-tab="data" data-anchor="card-secrets">Secrets</button>
             </div>
 
-            <div class="menu-title">Projects</div>
+            <div class="menu-title">Projets</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="projects">Overview</button>
-              <button class="tab-btn" data-tab="workspaces">Workspaces</button>
-              <button class="tab-btn" data-tab="project-jobs">Jobs</button>
+              <button class="tab-btn" data-tab="projects">Vue d'ensemble</button>
+              <button class="tab-btn" data-tab="workspaces">Espaces de travail</button>
+              <button class="tab-btn" data-tab="project-jobs">Traitements</button>
               <button class="tab-btn" data-tab="project-apps">Apps</button>
               <button class="tab-btn" data-tab="project-dashboards">Dashboards</button>
-              <button class="tab-btn" data-tab="project-apis">APIs</button>
+              <button class="tab-btn" data-tab="project-apis">Services API</button>
             </div>
 
-            <div class="menu-title">Ops</div>
+            <div class="menu-title">Pilotage</div>
             <div class="menu">
-              <button class="tab-btn admin-only" data-tab="workloads">Workloads</button>
-              <button class="tab-btn" data-tab="ops">Admin</button>
+              <button class="tab-btn admin-only" data-tab="workloads">Activites</button>
+              <button class="tab-btn" data-tab="ops">Administration</button>
             </div>
 
-            <div class="menu-title">Platform</div>
+            <div class="menu-title">Documentation</div>
             <div class="menu">
-              <a href="/swagger" target="_blank" rel="noopener noreferrer">OpenAPI Swagger</a>
+              <a href="/swagger" target="_blank" rel="noopener noreferrer">Reference API</a>
             </div>
           </aside>
 
           <main class="content">
             <section class="topbar">
               <div>
-                <h1 class="title">NoryxLab Control Plane</h1>
-                <p class="subtitle">Project-centric platform for workloads, environments and governed data access.</p>
+                <h1 class="title">NoryxLab</h1>
+                <p class="subtitle">Plateforme collaborative pour les equipes data, de l'exploration au passage en production.</p>
               </div>
               <div class="actions">
-                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;">Login Keycloak</button>
-                <button id="logout" class="btn">Logout</button>
-                <button id="loadModules" class="btn good admin-only">Modules</button>
-                <button id="loadUsers" class="btn good admin-only">Users</button>
+                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;">Se connecter</button>
+                <button id="logout" class="btn">Se deconnecter</button>
+                <button id="loadModules" class="btn good admin-only">Etat plateforme</button>
+                <button id="loadUsers" class="btn good admin-only">Utilisateurs</button>
               </div>
             </section>
 
             <section class="stats">
-              <article class="stat"><div class="k">Projects</div><div id="statProjects" class="v">0</div></article>
-              <article class="stat"><div class="k">Workspaces</div><div id="statWorkspaces" class="v">0</div></article>
-              <article class="stat"><div class="k">Builds</div><div id="statBuilds" class="v">0</div></article>
-              <article class="stat"><div class="k">Active Tab</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
+              <article class="stat"><div class="k">Projets</div><div id="statProjects" class="v">0</div></article>
+              <article class="stat"><div class="k">Activites</div><div id="statWorkspaces" class="v">0</div></article>
+              <article class="stat"><div class="k">Environnements</div><div id="statBuilds" class="v">0</div></article>
+              <article class="stat"><div class="k">Section active</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
             </section>
 
             <section class="views">
               <section class="view active" id="view-intro">
                 <div class="stack">
                   <article class="hero">
-                    <h2>NoryxLab for Collaborative Data Science</h2>
-                    <p>Start from a project, attach data and repositories, then launch workspaces, jobs, apps, dashboards and APIs with governed access.</p>
+                    <h2>Votre hub de collaboration data</h2>
+                    <p>Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.</p>
                   </article>
                   <div class="quick-grid">
                     <article class="quick">
-                      <h3 class="q-title">1. Data Foundation</h3>
-                      <p class="q-text">Register datasets, repositories, datasources and secrets before launching workloads.</p>
+                      <h3 class="q-title">1. Ressources</h3>
+                      <p class="q-text">Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.</p>
                     </article>
                     <article class="quick">
-                      <h3 class="q-title">2. Project Context</h3>
-                      <p class="q-text">Create a project, attach resources, and invite collaborators with project roles.</p>
+                      <h3 class="q-title">2. Projet</h3>
+                      <p class="q-text">Creez un projet, rattachez les ressources et invitez les collaborateurs.</p>
                     </article>
                     <article class="quick">
-                      <h3 class="q-title">3. Run Workloads</h3>
-                      <p class="q-text">Use curated environments to run Jupyter/VSCode, jobs, apps, dashboards and APIs.</p>
+                      <h3 class="q-title">3. Usages</h3>
+                      <p class="q-text">Lancez espaces de travail, traitements, applications, dashboards et APIs.</p>
                     </article>
                   </div>
                   <article class="card span-12">
-                    <h3>Quick Start</h3>
+                    <h3>Demarrage rapide</h3>
                     <div class="row">
-                      <button class="btn primary" data-tab-jump="projects">Open Projects</button>
-                      <button class="btn" data-tab-jump="data">Open Data</button>
-                      <button class="btn" data-tab-jump="environments">Open Environments</button>
+                      <button class="btn primary" data-tab-jump="projects">Aller aux projets</button>
+                      <button class="btn" data-tab-jump="data">Aller aux donnees</button>
+                      <button class="btn" data-tab-jump="environments">Aller aux environnements</button>
                     </div>
                   </article>
                 </div>
@@ -1058,17 +1058,17 @@ data:
               views[name].classList.toggle('active', name === tab);
             });
             const labels = {
-              intro: 'Home',
-              projects: 'Projects',
-              data: 'Data',
-              workspaces: 'Workspaces',
-              'project-jobs': 'Project Jobs',
-              'project-apps': 'Project Apps',
-              'project-dashboards': 'Project Dashboards',
-              'project-apis': 'Project APIs',
-              environments: 'Environments',
-              workloads: 'Workloads',
-              ops: 'Admin Ops'
+              intro: 'Accueil',
+              projects: 'Projets',
+              data: 'Donnees',
+              workspaces: 'Espaces',
+              'project-jobs': 'Traitements',
+              'project-apps': 'Applications',
+              'project-dashboards': 'Dashboards',
+              'project-apis': 'Services API',
+              environments: 'Environnements',
+              workloads: 'Activites',
+              ops: 'Administration'
             };
             statTab.textContent = labels[tab] || tab;
           }
@@ -2588,7 +2588,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.47"}
+    {"version":"ce-web-0.6.48"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2609,7 +2609,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.47
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.48
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
