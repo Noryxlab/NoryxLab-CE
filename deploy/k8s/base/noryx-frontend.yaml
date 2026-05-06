@@ -1041,6 +1041,44 @@ data:
               ph_dash_slug: 'Slug URL (ex: kpi-overview)',
               ph_dash_port: 'Port (defaut 9000)',
               ph_dash_cmd: 'Commande de lancement',
+              msg_not_authenticated: 'Non connecte',
+              msg_no_project: 'Aucun projet pour le moment.',
+              msg_no_secret: 'Aucun secret.',
+              msg_no_dataset: 'Aucun jeu de donnees.',
+              msg_no_repository: 'Aucun depot.',
+              msg_no_datasource: 'Aucune connexion.',
+              msg_no_workspace_project: 'Aucun espace pour ce projet.',
+              msg_no_jobs_project: 'Aucun traitement pour ce projet.',
+              msg_no_apps_project: 'Aucune application pour ce projet.',
+              msg_no_dashboards_project: 'Aucun dashboard pour ce projet.',
+              msg_no_env_project: 'Aucun environnement pour ce projet.',
+              msg_no_activity_project: 'Aucune activite pour ce projet.',
+              msg_no_dataset_attach: 'Aucun jeu de donnees a associer',
+              msg_no_repo_attach: 'Aucun depot a associer',
+              msg_no_ds_attach: 'Aucune connexion a associer',
+              msg_dataset_attached_none: 'Aucun jeu de donnees associe.',
+              msg_repo_attached_none: 'Aucun depot associe.',
+              msg_ds_attached_none: 'Aucune connexion associee.',
+              msg_secret_copied: 'Secret copie dans le presse-papiers.',
+              msg_repo_conn_ok: 'Connexion depot OK.',
+              msg_repo_conn_failed: 'Echec connexion depot: ',
+              msg_ds_conn_ok: 'Connexion source OK.',
+              msg_ds_conn_failed: 'Echec connexion source: ',
+              msg_popup_blocked: 'Popup bloquee par le navigateur. Autorisez les popups pour ce site.',
+              msg_unknown_error: 'erreur inconnue',
+              err_project_name_required: 'projectName requis',
+              err_select_project_first: 'selectionner un projet',
+              err_select_dataset_attach: 'selectionner un jeu de donnees a associer',
+              err_select_repo_attach: 'selectionner un depot a associer',
+              err_select_ds_attach: 'selectionner une connexion a associer',
+              err_secret_required: 'nom et valeur du secret requis',
+              err_dataset_required: 'nom du jeu de donnees requis',
+              err_dataset_upload_required: 'jeu de donnees, chemin objet et fichier requis',
+              err_repo_required: 'nom et URL du depot requis',
+              err_ds_required: 'name, host, database, username, passwordSecret requis',
+              err_select_env_first: "selectionner une image d'environnement",
+              err_build_required: 'gitRepository et destinationImage requis',
+              err_delete_failed: 'suppression echouee',
               tab_label_intro: 'Accueil',
               tab_label_projects: 'Projets',
               tab_label_data: 'Donnees',
@@ -1134,6 +1172,44 @@ data:
               ph_dash_slug: 'URL slug (e.g. kpi-overview)',
               ph_dash_port: 'Port (default 9000)',
               ph_dash_cmd: 'Launch command',
+              msg_not_authenticated: 'Not authenticated',
+              msg_no_project: 'No project yet.',
+              msg_no_secret: 'No secret yet.',
+              msg_no_dataset: 'No dataset yet.',
+              msg_no_repository: 'No repository yet.',
+              msg_no_datasource: 'No datasource yet.',
+              msg_no_workspace_project: 'No workspace for selected project.',
+              msg_no_jobs_project: 'No jobs for selected project.',
+              msg_no_apps_project: 'No apps for selected project.',
+              msg_no_dashboards_project: 'No dashboards for selected project.',
+              msg_no_env_project: 'No environment yet for selected project.',
+              msg_no_activity_project: 'No workload yet for selected project.',
+              msg_no_dataset_attach: 'No dataset to attach',
+              msg_no_repo_attach: 'No repository to attach',
+              msg_no_ds_attach: 'No datasource to attach',
+              msg_dataset_attached_none: 'No dataset attached.',
+              msg_repo_attached_none: 'No repository attached.',
+              msg_ds_attached_none: 'No datasource attached.',
+              msg_secret_copied: 'Secret copied to clipboard.',
+              msg_repo_conn_ok: 'Repository connection OK.',
+              msg_repo_conn_failed: 'Repository connection failed: ',
+              msg_ds_conn_ok: 'Datasource connection OK.',
+              msg_ds_conn_failed: 'Datasource connection failed: ',
+              msg_popup_blocked: 'Popup blocked by browser. Allow popups for this site.',
+              msg_unknown_error: 'unknown error',
+              err_project_name_required: 'projectName is required',
+              err_select_project_first: 'select a project first',
+              err_select_dataset_attach: 'select a dataset to attach',
+              err_select_repo_attach: 'select a repository to attach',
+              err_select_ds_attach: 'select a datasource to attach',
+              err_secret_required: 'secret name and value are required',
+              err_dataset_required: 'dataset name is required',
+              err_dataset_upload_required: 'dataset, object path and file are required',
+              err_repo_required: 'repository name and url are required',
+              err_ds_required: 'name, host, database, username, passwordSecret are required',
+              err_select_env_first: 'select an environment image first',
+              err_build_required: 'gitRepository and destinationImage are required',
+              err_delete_failed: 'delete failed',
               tab_label_intro: 'Home',
               tab_label_projects: 'Projects',
               tab_label_data: 'Data',
@@ -1468,7 +1544,7 @@ data:
           function renderProjectsTable() {
             projectRows.innerHTML = '';
             if (state.projects.length === 0) {
-              projectRows.innerHTML = '<tr><td colspan="3">No project yet.</td></tr>';
+              projectRows.innerHTML = '<tr><td colspan="3">' + tui('msg_no_project') + '</td></tr>';
               return;
             }
             for (const p of state.projects) {
@@ -1484,7 +1560,7 @@ data:
           function renderSecretsTable() {
             secretRows.innerHTML = '';
             if (state.secrets.length === 0) {
-              secretRows.innerHTML = '<tr><td colspan="4">No secret yet.</td></tr>';
+              secretRows.innerHTML = '<tr><td colspan="4">' + tui('msg_no_secret') + '</td></tr>';
               return;
             }
             state.secrets.forEach((s) => {
@@ -1510,10 +1586,10 @@ data:
             datasetRows.innerHTML = '';
             datasetUploadTarget.innerHTML = '';
             if (state.datasets.length === 0) {
-              datasetRows.innerHTML = '<tr><td colspan="4">No dataset yet.</td></tr>';
+              datasetRows.innerHTML = '<tr><td colspan="4">' + tui('msg_no_dataset') + '</td></tr>';
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No dataset';
+              opt.textContent = tui('msg_no_dataset');
               datasetUploadTarget.appendChild(opt);
               return;
             }
@@ -1536,7 +1612,7 @@ data:
           function renderRepositoriesTable() {
             repoRows.innerHTML = '';
             if (state.repositories.length === 0) {
-              repoRows.innerHTML = '<tr><td colspan="5">No repository yet.</td></tr>';
+              repoRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_repository') + '</td></tr>';
               return;
             }
             state.repositories.forEach((r) => {
@@ -1558,7 +1634,7 @@ data:
           function renderDatasourcesTable() {
             datasourceRows.innerHTML = '';
             if (state.datasources.length === 0) {
-              datasourceRows.innerHTML = '<tr><td colspan="5">No datasource yet.</td></tr>';
+              datasourceRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_datasource') + '</td></tr>';
               return;
             }
             state.datasources.forEach((d) => {
@@ -1580,7 +1656,7 @@ data:
             repoSecretRefInput.innerHTML = '';
             const none = document.createElement('option');
             none.value = '';
-            none.textContent = 'No secret';
+            none.textContent = tui('msg_no_secret');
             repoSecretRefInput.appendChild(none);
             state.secrets.forEach((s) => {
               const opt = document.createElement('option');
@@ -1616,7 +1692,7 @@ data:
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
-              workspaceRows.innerHTML = '<tr><td colspan="7">No workspace for selected project.</td></tr>';
+              workspaceRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_workspace_project') + '</td></tr>';
               workspaceOut.textContent = '-';
               return;
             }
@@ -1649,7 +1725,7 @@ data:
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No environment available';
+              opt.textContent = tui('msg_no_env_project');
               jobEnvInput.appendChild(opt);
               return;
             }
@@ -1672,7 +1748,7 @@ data:
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No environment available';
+              opt.textContent = tui('msg_no_env_project');
               appEnvInput.appendChild(opt);
               return;
             }
@@ -1695,7 +1771,7 @@ data:
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No environment available';
+              opt.textContent = tui('msg_no_env_project');
               dashboardEnvInput.appendChild(opt);
               return;
             }
@@ -1715,7 +1791,7 @@ data:
             const items = state.jobs.filter((j) => !pid || j.projectId === pid);
             jobRows.innerHTML = '';
             if (items.length === 0) {
-              jobRows.innerHTML = '<tr><td colspan="6">No jobs for selected project.</td></tr>';
+              jobRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_jobs_project') + '</td></tr>';
               return;
             }
             items.forEach((j) => {
@@ -1736,7 +1812,7 @@ data:
             const items = state.apps.filter((a) => !pid || a.projectId === pid);
             appRows.innerHTML = '';
             if (items.length === 0) {
-              appRows.innerHTML = '<tr><td colspan="6">No apps for selected project.</td></tr>';
+              appRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_apps_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
@@ -1757,7 +1833,7 @@ data:
             const items = state.dashboards.filter((a) => !pid || a.projectId === pid);
             dashboardRows.innerHTML = '';
             if (items.length === 0) {
-              dashboardRows.innerHTML = '<tr><td colspan="6">No dashboards for selected project.</td></tr>';
+              dashboardRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_dashboards_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
@@ -1778,7 +1854,7 @@ data:
             const items = state.environments.filter((env) => !pid || env.projectId === pid);
             environmentRows.innerHTML = '';
             if (items.length === 0) {
-              environmentRows.innerHTML = '<tr><td colspan="5">No environment yet for selected project.</td></tr>';
+              environmentRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_env_project') + '</td></tr>';
               buildOut.textContent = '-';
               dockerfileOut.textContent = '-';
               selectedEnvironmentID = '';
@@ -1824,7 +1900,7 @@ data:
             bs.forEach(b => rows.push({ type: 'Build', name: b.jobName || b.destinationImage || 'build', status: b.status || 'submitted' }));
             workloadRows.innerHTML = '';
             if (rows.length === 0) {
-              workloadRows.innerHTML = '<tr><td colspan="3">No workload yet for selected project.</td></tr>';
+              workloadRows.innerHTML = '<tr><td colspan="3">' + tui('msg_no_activity_project') + '</td></tr>';
               return;
             }
             rows.slice(0, 24).forEach((r) => {
@@ -1873,7 +1949,7 @@ data:
             if (availableDatasets.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No dataset to attach';
+              opt.textContent = tui('msg_no_dataset_attach');
               attachDatasetSelect.appendChild(opt);
             } else {
               availableDatasets.forEach((d) => {
@@ -1887,7 +1963,7 @@ data:
             if (availableRepos.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No repository to attach';
+              opt.textContent = tui('msg_no_repo_attach');
               attachRepoSelect.appendChild(opt);
             } else {
               availableRepos.forEach((r) => {
@@ -1901,7 +1977,7 @@ data:
             if (availableDatasources.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'No datasource to attach';
+              opt.textContent = tui('msg_no_ds_attach');
               attachDatasourceSelect.appendChild(opt);
             } else {
               availableDatasources.forEach((d) => {
@@ -1919,7 +1995,7 @@ data:
             projectDatasourceRows.innerHTML = '';
 
             if (state.projectDatasets.length === 0) {
-              projectDatasetRows.innerHTML = '<tr><td colspan="4">No dataset attached.</td></tr>';
+              projectDatasetRows.innerHTML = '<tr><td colspan="4">' + tui('msg_dataset_attached_none') + '</td></tr>';
             } else {
               state.projectDatasets.forEach((d) => {
                 const tr = document.createElement('tr');
@@ -1933,7 +2009,7 @@ data:
             }
 
             if (state.projectRepositories.length === 0) {
-              projectRepoRows.innerHTML = '<tr><td colspan="4">No repository attached.</td></tr>';
+              projectRepoRows.innerHTML = '<tr><td colspan="4">' + tui('msg_repo_attached_none') + '</td></tr>';
             } else {
               state.projectRepositories.forEach((r) => {
                 const tr = document.createElement('tr');
@@ -1947,7 +2023,7 @@ data:
             }
 
             if (state.projectDatasources.length === 0) {
-              projectDatasourceRows.innerHTML = '<tr><td colspan="4">No datasource attached.</td></tr>';
+              projectDatasourceRows.innerHTML = '<tr><td colspan="4">' + tui('msg_ds_attached_none') + '</td></tr>';
             } else {
               state.projectDatasources.forEach((d) => {
                 const tr = document.createElement('tr');
@@ -2188,7 +2264,7 @@ data:
           createProjectBtn.onclick = async () => {
             try {
               const name = projectNameInput.value.trim();
-              if (!name) throw { error: 'projectName is required' };
+              if (!name) throw { error: tui('err_project_name_required') };
               await callJSON('/api/v1/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2230,8 +2306,8 @@ data:
             try {
               const pid = selectedProjectId();
               const datasetID = (attachDatasetSelect.value || '').trim();
-              if (!pid) throw { error: 'select a project first' };
-              if (!datasetID) throw { error: 'select a dataset to attach' };
+              if (!pid) throw { error: tui('err_select_project_first') };
+              if (!datasetID) throw { error: tui('err_select_dataset_attach') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'PUT' });
               await refreshProjectResources();
             } catch (e) {
@@ -2244,8 +2320,8 @@ data:
             try {
               const pid = selectedProjectId();
               const repositoryID = (attachRepoSelect.value || '').trim();
-              if (!pid) throw { error: 'select a project first' };
-              if (!repositoryID) throw { error: 'select a repository to attach' };
+              if (!pid) throw { error: tui('err_select_project_first') };
+              if (!repositoryID) throw { error: tui('err_select_repo_attach') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'PUT' });
               await refreshProjectResources();
             } catch (e) {
@@ -2258,8 +2334,8 @@ data:
             try {
               const pid = selectedProjectId();
               const datasourceID = (attachDatasourceSelect.value || '').trim();
-              if (!pid) throw { error: 'select a project first' };
-              if (!datasourceID) throw { error: 'select a datasource to attach' };
+              if (!pid) throw { error: tui('err_select_project_first') };
+              if (!datasourceID) throw { error: tui('err_select_ds_attach') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'PUT' });
               await refreshProjectResources();
             } catch (e) {
@@ -2273,7 +2349,7 @@ data:
             if (!datasetID) return;
             try {
               const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
+              if (!pid) throw { error: tui('err_select_project_first') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
@@ -2287,7 +2363,7 @@ data:
             if (!repositoryID) return;
             try {
               const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
+              if (!pid) throw { error: tui('err_select_project_first') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
@@ -2301,7 +2377,7 @@ data:
             if (!datasourceID) return;
             try {
               const pid = selectedProjectId();
-              if (!pid) throw { error: 'select a project first' };
+              if (!pid) throw { error: tui('err_select_project_first') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
@@ -2318,7 +2394,7 @@ data:
               };
               const expiresAt = dateToRFC3339EndOfDay(secretExpiresAtInput.value);
               if (expiresAt) payload.expiresAt = expiresAt;
-              if (!payload.name || !payload.value) throw { error: 'secret name and value are required' };
+              if (!payload.name || !payload.value) throw { error: tui('err_secret_required') };
               await callJSON('/api/v1/secrets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2340,7 +2416,7 @@ data:
                 name: datasetNameInput.value.trim(),
                 description: datasetDescriptionInput.value.trim()
               };
-              if (!payload.name) throw { error: 'dataset name is required' };
+              if (!payload.name) throw { error: tui('err_dataset_required') };
               await callJSON('/api/v1/datasets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2369,7 +2445,7 @@ data:
               const datasetID = (datasetUploadTarget.value || '').trim();
               const objectPath = (datasetUploadPathInput.value || '').trim();
               const file = datasetUploadFileInput.files && datasetUploadFileInput.files[0];
-              if (!datasetID || !objectPath || !file) throw { error: 'dataset, object path and file are required' };
+              if (!datasetID || !objectPath || !file) throw { error: tui('err_dataset_upload_required') };
               if ((keycloak && keycloak.authenticated)) {
                 try { await keycloak.updateToken(30); } catch (_) {}
               }
@@ -2399,7 +2475,7 @@ data:
                 url: repoUrlInput.value.trim(),
                 authSecretName: repoSecretRefInput.value.trim()
               };
-              if (!payload.name || !payload.url) throw { error: 'repository name and url are required' };
+              if (!payload.name || !payload.url) throw { error: tui('err_repo_required') };
               await callJSON('/api/v1/repositories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2428,7 +2504,7 @@ data:
                 sslMode: dsSSLModeInput.value.trim() || 'disable'
               };
               if (!payload.name || !payload.host || !payload.database || !payload.username || !payload.passwordSecret) {
-                throw { error: 'name, host, database, username, passwordSecret are required' };
+                throw { error: tui('err_ds_required') };
               }
               await callJSON('/api/v1/datasources', {
                 method: 'POST',
@@ -2474,7 +2550,7 @@ data:
           createWorkspaceBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
-              if (!projectId) throw { error: 'select a project first' };
+              if (!projectId) throw { error: tui('err_select_project_first') };
               const payload = { projectId };
               const ide = workspaceIdeInput.value.trim();
               if (ide) payload.ide = ide;
@@ -2505,9 +2581,9 @@ data:
           createJobBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
-              if (!projectId) throw { error: 'select a project first' };
+              if (!projectId) throw { error: tui('err_select_project_first') };
               const image = (jobEnvInput.value || '').trim();
-              if (!image) throw { error: 'select an environment image first' };
+              if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
               const name = jobNameInput.value.trim();
               if (name) payload.name = name;
@@ -2529,9 +2605,9 @@ data:
           createAppBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
-              if (!projectId) throw { error: 'select a project first' };
+              if (!projectId) throw { error: tui('err_select_project_first') };
               const image = (appEnvInput.value || '').trim();
-              if (!image) throw { error: 'select an environment image first' };
+              if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
               const name = appNameInput.value.trim();
               const slug = appSlugInput.value.trim();
@@ -2557,9 +2633,9 @@ data:
           createDashboardBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
-              if (!projectId) throw { error: 'select a project first' };
+              if (!projectId) throw { error: tui('err_select_project_first') };
               const image = (dashboardEnvInput.value || '').trim();
-              if (!image) throw { error: 'select an environment image first' };
+              if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
               const name = dashboardNameInput.value.trim();
               const slug = dashboardSlugInput.value.trim();
@@ -2585,7 +2661,7 @@ data:
           buildEnvBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
-              if (!projectId) throw { error: 'select a project first' };
+              if (!projectId) throw { error: tui('err_select_project_first') };
               const payload = {
                 projectId,
                 gitRepository: envGitRepo.value.trim(),
@@ -2595,7 +2671,7 @@ data:
                 destinationImage: envDestination.value.trim()
               };
               if (!payload.gitRepository || !payload.destinationImage) {
-                throw { error: 'gitRepository and destinationImage are required' };
+                throw { error: tui('err_build_required') };
               }
               await callJSON('/api/v1/builds', {
                 method: 'POST',
@@ -2656,7 +2732,7 @@ data:
                 const wsTab = window.open('about:blank', '_blank');
                 try {
                   if (!wsTab) {
-                    usersOut.textContent = 'Popup blocked by browser. Allow popups for this site.';
+                    usersOut.textContent = tui('msg_popup_blocked');
                     openingWorkspaceId = null;
                     return;
                   }
@@ -2684,7 +2760,7 @@ data:
                   method: 'DELETE',
                   headers: authHeader()
                 });
-                if (!res.ok) throw await res.json().catch(() => ({ error: 'delete failed' }));
+                if (!res.ok) throw await res.json().catch(() => ({ error: tui('err_delete_failed') }));
                 await refreshWorkspaces();
               } catch (e) {
                 pretty(usersOut, e);
@@ -2770,7 +2846,7 @@ data:
               if (copyName) {
                 const body = await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(copyName)));
                 await copyText((body && body.value) || '');
-                usersOut.textContent = 'Secret copied to clipboard.';
+                usersOut.textContent = tui('msg_secret_copied');
                 pretty(secretOut, body);
                 return;
               }
@@ -2804,7 +2880,7 @@ data:
                 const result = await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToTest) + '/validate', { method: 'POST' });
                 state.repositoryChecks[repositoryIDToTest] = result;
                 renderRepositoriesTable();
-                usersOut.textContent = result.reachable ? 'Repository connection OK.' : ('Repository connection failed: ' + (result.error || 'unknown error'));
+                usersOut.textContent = result.reachable ? tui('msg_repo_conn_ok') : (tui('msg_repo_conn_failed') + (result.error || tui('msg_unknown_error')));
                 return;
               }
               await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToDelete), { method: 'DELETE' });
@@ -2825,7 +2901,7 @@ data:
                 const result = await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToTest) + '/validate', { method: 'POST' });
                 state.datasourceChecks[datasourceIDToTest] = result;
                 renderDatasourcesTable();
-                usersOut.textContent = result.reachable ? 'Datasource connection OK.' : ('Datasource connection failed: ' + (result.error || 'unknown error'));
+                usersOut.textContent = result.reachable ? tui('msg_ds_conn_ok') : (tui('msg_ds_conn_failed') + (result.error || tui('msg_unknown_error')));
                 return;
               }
               await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToDelete), { method: 'DELETE' });
@@ -2899,7 +2975,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.51"}
+    {"version":"ce-web-0.6.52"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2920,7 +2996,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.51
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.52
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
