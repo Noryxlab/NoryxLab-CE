@@ -13,13 +13,16 @@ CE keeps the model intentionally minimal:
 
 - `admin`
   - full platform access
+  - sees all projects (cross-project visibility)
   - can access admin modules (`users`, `modules`, `workloads`)
-  - can manage project member roles
+  - can invite collaborators and manage project member roles
   - can create/update/delete all catalog objects (datasets, repositories, secrets)
 - `user`
   - can access non-admin product modules
   - can manage own objects
-  - can create and use project-scoped workloads (workspaces now, jobs/apps/apis later)
+  - each created project belongs to the creator (`project admin` on that project)
+  - can invite other users only on projects where user is `project admin`
+  - can create and use project-scoped workloads (workspaces, jobs, apps, dashboards)
   - cannot access platform admin modules
 
 ## EE (Enterprise Edition)

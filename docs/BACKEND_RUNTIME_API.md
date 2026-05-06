@@ -68,9 +68,11 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 
 - project creator is set to `admin`
 - `admin` can assign `viewer|editor|admin`
+- `POST /api/v1/projects/{projectID}/invitations` invites one user with role (`editor` by default)
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch/delete/access workspaces
 - first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
+- CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
 
 ## Workspace baseline (current)
 
@@ -86,8 +88,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
   - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)
   - token fallback for workspace URL continuity (`noryx_ws_token_<workspaceID>`)
 - workloads are created in `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
-- global admin is granted by realm role `noryx-admin`
-- bootstrap global admin can be forced with `NORYX_BOOTSTRAP_ADMIN_USER`
+- global admin for CE operations is controlled by `NORYX_BOOTSTRAP_ADMIN_USER`
 - workspace bootstrap:
   - `/mnt/requirements.txt` is auto-applied at startup (project virtualenv `/mnt/.venv`)
   - `/repos` is workspace-local and non-persistent
