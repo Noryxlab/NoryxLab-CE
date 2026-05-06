@@ -1638,15 +1638,18 @@ data:
           }
 
       async function triggerLogin() {
-        if (authMode === 'oidc') {
-          try {
-            const loginUrl = await keycloak.createLoginUrl({ redirectUri: window.location.origin + '/' });
-            window.location.assign(loginUrl);
-          } catch (err) {
-            pretty(usersOut, { loginError: String(err) });
-            setMeta('Keycloak login error');
-          }
+        try {
+          const kc = keycloak || new Keycloak({
+            url: window.location.origin + '/auth',
+            realm: 'noryx',
+            clientId: 'noryx-api'
+          });
+          const loginUrl = await kc.createLoginUrl({ redirectUri: window.location.origin + '/' });
+          window.location.assign(loginUrl);
           return false;
+        } catch (err) {
+          pretty(usersOut, { loginError: String(err) });
+          setMeta('Keycloak login error');
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
         setMeta('Lab mode active as ' + currentLabUser());
@@ -2354,7 +2357,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.41"}
+    {"version":"ce-web-0.6.42"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2375,7 +2378,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.41
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.42
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
