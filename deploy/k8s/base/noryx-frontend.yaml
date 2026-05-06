@@ -315,7 +315,7 @@ data:
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
-                <button id="login" class="btn primary">Login Keycloak</button>
+                <a id="login" class="btn primary" href="/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=https%3A%2F%2Fdatalab.noryxlab.ai%2F&response_type=code&scope=openid%20profile%20email">Login Keycloak</a>
                 <button id="logout" class="btn">Logout</button>
                 <button id="loadModules" class="btn good admin-only">Modules</button>
                 <button id="loadUsers" class="btn good admin-only">Users</button>
@@ -1631,14 +1631,15 @@ data:
             }, 5000);
           }
 
-          loginBtn.onclick = () => {
-            if (authMode === 'oidc') {
-              keycloak.login();
-              return;
-            }
-            try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
-            setMeta('Lab mode active as ' + currentLabUser());
-          };
+      loginBtn.onclick = (event) => {
+        if (event && event.preventDefault) event.preventDefault();
+        if (authMode === 'oidc') {
+          window.location.href = '/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=' + encodeURIComponent(window.location.origin + '/') + '&response_type=code&scope=openid%20profile%20email';
+          return;
+        }
+        try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
+        setMeta('Lab mode active as ' + currentLabUser());
+      };
           logoutBtn.onclick = async () => {
             stopWorkspacesAutoRefresh();
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
@@ -2262,8 +2263,15 @@ data:
             }
           };
 
-          if (authMode === 'oidc') {
-            keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
+      if (authMode === 'oidc') {
+        try {
+          const q = new URLSearchParams(window.location.search || '');
+          if (q.get('autologin') === '1') {
+            window.location.href = '/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=' + encodeURIComponent(window.location.origin + '/') + '&response_type=code&scope=openid%20profile%20email';
+            throw new Error('autologin_redirect');
+          }
+        } catch (_) {}
+        keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
               if (!authenticated) {
                 stopWorkspacesAutoRefresh();
                 setMeta('Not authenticated (lab mode active as ' + currentLabUser() + ')');
