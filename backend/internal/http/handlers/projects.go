@@ -47,10 +47,13 @@ func (h Handlers) listProjectsForUser(userID string) ([]project.Project, error) 
 	if err != nil {
 		return nil, err
 	}
+	if h.isGlobalAdminUserID(userID) {
+		return projects, nil
+	}
 
 	filtered := make([]project.Project, 0, len(projects))
 	for _, item := range projects {
-		if _, ok := h.accessStore.GetRole(item.ID, userID); !ok {
+		if !h.hasProjectMembership(userID, item.ID) {
 			continue
 		}
 		filtered = append(filtered, item)

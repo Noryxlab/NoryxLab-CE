@@ -40,7 +40,7 @@ func (h Handlers) ListBuilds(w http.ResponseWriter, r *http.Request) {
 		if projectFilter != "" && item.ProjectID != projectFilter {
 			continue
 		}
-		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
+		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
 		filtered = append(filtered, item)

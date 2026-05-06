@@ -55,7 +55,7 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		if projectFilter != "" && item.ProjectID != projectFilter {
 			continue
 		}
-		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
+		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
 		if hasReadiness && strings.TrimSpace(item.ServiceName) != "" {

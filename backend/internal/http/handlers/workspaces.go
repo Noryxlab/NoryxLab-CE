@@ -81,7 +81,7 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	filtered := make([]workspace.Workspace, 0, len(items))
 	readiness, hasReadiness := h.runtime.(noryxruntime.WorkspaceReadiness)
 	for _, item := range items {
-		if _, allowed := h.accessStore.GetRole(item.ProjectID, userID); !allowed {
+		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
 		if hasReadiness && item.ServiceName != "" {
