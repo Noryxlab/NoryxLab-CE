@@ -15,22 +15,23 @@ data:
         <title>NoryxLab CE</title>
         <style>
           :root {
-            --bg: #eef2f7;
+            --bg: #eef3f8;
             --surface: #ffffff;
-            --surface-soft: #f7f9fc;
-            --line: #d7dee9;
-            --line-strong: #b7c2d4;
+            --surface-soft: #f8fbff;
+            --line: #dce5f0;
+            --line-strong: #bfccde;
             --text: #142033;
             --muted: #5f6f86;
-            --nav-bg: #0a1526;
-            --nav-bg-2: #13263f;
+            --nav-bg: #0d192b;
+            --nav-bg-2: #172a44;
             --nav-text: #dce8fa;
-            --nav-muted: #96a9c8;
-            --brand: #0a6ae8;
-            --brand-soft: #deebff;
+            --nav-muted: #98aed1;
+            --brand: #0b6cea;
+            --brand-soft: #e6f0ff;
             --ok: #0f7a4d;
             --warn: #9a5a0f;
             --bad: #ad1f2d;
+            --shadow-sm: 0 4px 14px rgba(16, 31, 50, .06);
             --font: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
           }
           * { box-sizing: border-box; }
@@ -47,10 +48,10 @@ data:
           .layout {
             min-height: 100vh;
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 292px 1fr;
           }
           .sidebar {
-            padding: 24px 18px;
+            padding: 26px 18px;
             color: var(--nav-text);
             background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-2) 100%);
             border-right: 1px solid #0f2037;
@@ -93,16 +94,18 @@ data:
           }
           .tab-btn {
             border: 1px solid rgba(255,255,255,.1);
-            border-radius: 10px;
-            padding: 9px 10px;
+            border-radius: 12px;
+            padding: 10px 12px;
             background: rgba(255,255,255,.04);
             color: var(--nav-text);
             text-align: left;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
+            letter-spacing: .01em;
+            transition: transform .12s ease, background .16s ease, border-color .16s ease;
           }
-          .tab-btn:hover { background: rgba(255,255,255,.1); }
+          .tab-btn:hover { background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
           .tab-btn.active {
             background: linear-gradient(90deg, #14468f 0%, #1a6bda 100%);
             border-color: #2a77de;
@@ -113,19 +116,19 @@ data:
             font-weight: 700;
           }
           .content {
-            padding: 18px;
+            padding: 24px;
           }
           .topbar {
             background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 14px;
+            border-radius: 18px;
+            padding: 16px;
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 6px 18px rgba(18, 34, 57, .05);
+            box-shadow: var(--shadow-sm);
           }
           .title {
             margin: 0;
@@ -146,12 +149,13 @@ data:
             border: 1px solid var(--line-strong);
             background: #f4f7fb;
             color: #102039;
-            border-radius: 10px;
-            padding: 8px 12px;
+            border-radius: 12px;
+            padding: 8px 13px;
             font-weight: 800;
             cursor: pointer;
+            transition: transform .12s ease, box-shadow .16s ease, background .16s ease;
           }
-          .btn:hover { background: #e8eef8; }
+          .btn:hover { background: #e8eef8; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(16, 35, 62, .08); }
           .btn.primary {
             background: var(--brand);
             border-color: var(--brand);
@@ -174,28 +178,30 @@ data:
           }
           .btn:disabled { opacity: .55; cursor: default; }
           .stats {
-            margin-top: 12px;
+            margin-top: 14px;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 10px;
+            gap: 12px;
           }
           .stat {
             background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 12px;
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: var(--shadow-sm);
           }
           .stat .k { font-size: 12px; color: var(--muted); }
           .stat .v { font-size: 22px; font-weight: 900; margin-top: 6px; }
-          .views { margin-top: 12px; }
+          .views { margin-top: 14px; }
           .view { display: none; }
           .view.active { display: block; }
-          .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+          .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
           .card {
             background: var(--surface);
             border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 12px;
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: var(--shadow-sm);
           }
           .card h3 {
             margin: 0 0 8px;
@@ -217,14 +223,19 @@ data:
             padding: 9px 10px;
             font-size: 13px;
           }
-          .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 9px; }
+          .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 10px; }
           input, select {
             border: 1px solid var(--line-strong);
-            border-radius: 10px;
-            padding: 9px 10px;
+            border-radius: 12px;
+            padding: 10px 11px;
             min-width: 170px;
             color: #0f213c;
             background: #fff;
+          }
+          input:focus, select:focus {
+            outline: none;
+            border-color: #6fa5f6;
+            box-shadow: 0 0 0 3px rgba(13, 108, 234, .16);
           }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           th, td {
@@ -249,7 +260,7 @@ data:
             border: 1px solid #132541;
             background: #0e1a2d;
             color: #d4e5ff;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px;
             min-height: 130px;
             overflow: auto;
@@ -260,6 +271,7 @@ data:
             .sidebar { border-right: none; border-bottom: 1px solid #203657; }
             .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; }
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .content { padding: 16px; }
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
@@ -2506,7 +2518,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.44"}
+    {"version":"ce-web-0.6.45"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2527,7 +2539,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.44
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.45
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
