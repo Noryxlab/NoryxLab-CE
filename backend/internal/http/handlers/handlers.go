@@ -54,6 +54,8 @@ type Handlers struct {
 	workspaceProfilePVCSize          string
 	workspaceProfilePVCAccessMode    string
 	workspaceProfilePVCMountPath     string
+	backendVersion                   string
+	frontendVersion                  string
 	editionHooks                     edition.Hooks
 }
 
@@ -79,6 +81,8 @@ type Options struct {
 	WorkspaceProfilePVCSize          string
 	WorkspaceProfilePVCAccessMode    string
 	WorkspaceProfilePVCMountPath     string
+	BackendVersion                   string
+	FrontendVersion                  string
 	SecretsMasterKey                 string
 	MinIOClient                      *minio.Client
 	MinIOEndpoint                    string
@@ -166,6 +170,8 @@ func New(
 		workspaceProfilePVCSize:          options.WorkspaceProfilePVCSize,
 		workspaceProfilePVCAccessMode:    options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
+		backendVersion:                   options.BackendVersion,
+		frontendVersion:                  options.FrontendVersion,
 		editionHooks:                     hooks,
 	}
 }

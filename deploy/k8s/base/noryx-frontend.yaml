@@ -315,7 +315,7 @@ data:
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
-                <a id="login" class="btn primary" href="/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=https%3A%2F%2Fdatalab.noryxlab.ai%2F&response_type=code&scope=openid%20profile%20email">Login Keycloak</a>
+                <button id="login" class="btn primary">Login Keycloak</button>
                 <button id="logout" class="btn">Logout</button>
                 <button id="loadModules" class="btn good admin-only">Modules</button>
                 <button id="loadUsers" class="btn good admin-only">Users</button>
@@ -823,7 +823,6 @@ data:
             repositoryChecks: {},
             datasourceChecks: {}
           };
-          const FRONT_VERSION = 'ce-web-0.6.39';
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
           const LOCALES = {
@@ -1003,20 +1002,17 @@ data:
 
           async function refreshVersions() {
             let backVersion = 'unknown';
+            let frontVersion = 'unknown';
             try {
-              const v = await callJSON('/api/v1/version');
-              if (v && v.version) backVersion = String(v.version);
-            } catch (_) {
-              try {
-                const res = await fetch('/swagger/openapi.yaml');
-                if (res.ok) {
-                  const yaml = await res.text();
-                  const match = yaml.match(/^\s*version:\s*(.+)\s*$/m);
-                  if (match && match[1]) backVersion = match[1].trim();
-                }
-              } catch (_) {}
-            }
-            versionsNode.textContent = 'front: ' + FRONT_VERSION + ' | back: ' + backVersion;
+              const res = await fetch('/api/v1/version');
+              if (res.ok) {
+                const v = await res.json();
+                if (v && v.backendVersion) backVersion = String(v.backendVersion);
+                if (v && v.frontendVersion) frontVersion = String(v.frontendVersion);
+                if (backVersion === 'unknown' && v && v.version) backVersion = String(v.version);
+              }
+            } catch (_) {}
+            versionsNode.textContent = 'front: ' + frontVersion + ' | back: ' + backVersion;
           }
 
           function renderProjectOptions() {
@@ -1631,10 +1627,9 @@ data:
             }, 5000);
           }
 
-      loginBtn.onclick = (event) => {
-        if (event && event.preventDefault) event.preventDefault();
+      loginBtn.onclick = () => {
         if (authMode === 'oidc') {
-          window.location.href = '/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=' + encodeURIComponent(window.location.origin + '/') + '&response_type=code&scope=openid%20profile%20email';
+          keycloak.login({ redirectUri: window.location.origin + '/' });
           return;
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
@@ -2264,13 +2259,6 @@ data:
           };
 
       if (authMode === 'oidc') {
-        try {
-          const q = new URLSearchParams(window.location.search || '');
-          if (q.get('autologin') === '1') {
-            window.location.href = '/auth/realms/noryx/protocol/openid-connect/auth?client_id=noryx-api&redirect_uri=' + encodeURIComponent(window.location.origin + '/') + '&response_type=code&scope=openid%20profile%20email';
-            throw new Error('autologin_redirect');
-          }
-        } catch (_) {}
         keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
               if (!authenticated) {
                 stopWorkspacesAutoRefresh();
