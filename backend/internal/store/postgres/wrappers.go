@@ -116,6 +116,7 @@ func (s *RepositoryStore) Create(item repository.Repository) error {
 func (s *RepositoryStore) Delete(id string) error { return s.Store.DeleteRepository(id) }
 
 type ProjectResourceStore struct{ *Store }
+type UserPreferenceStore struct{ *Store }
 
 func (s *ProjectResourceStore) AttachDataset(projectID, datasetID string) error {
 	return s.Store.AttachDataset(projectID, datasetID)
@@ -143,4 +144,11 @@ func (s *ProjectResourceStore) DetachDatasource(projectID, datasourceID string) 
 }
 func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]string, error) {
 	return s.Store.ListProjectDatasourceIDs(projectID)
+}
+
+func (s *UserPreferenceStore) Get(userID, key string) (string, bool, error) {
+	return s.Store.GetUserPreference(userID, key)
+}
+func (s *UserPreferenceStore) Set(userID, key, value string) error {
+	return s.Store.SetUserPreference(userID, key, value)
 }

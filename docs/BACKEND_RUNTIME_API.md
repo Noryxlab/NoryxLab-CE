@@ -17,6 +17,8 @@ This module adds:
 
 - `GET /swagger`
 - `GET /swagger/openapi.yaml`
+- `GET /api/v1/user/preferences`
+- `PUT /api/v1/user/preferences`
 - `POST /api/v1/projects`
 - `PUT /api/v1/projects/{projectID}/members/{userID}/role`
 - `GET /api/v1/builds`
@@ -46,6 +48,11 @@ This module adds:
 - `/workspaces/{workspaceID}/...` (reverse-proxied Jupyter)
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
+
+User preferences:
+
+- `language` (`fr` or `en`) is persisted server-side per user
+- frontend uses browser language by default, then applies stored preference when present
 
 ## Auth
 

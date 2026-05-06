@@ -256,6 +256,13 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (project_id, datasource_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS user_preferences (
+			user_id TEXT NOT NULL,
+			key TEXT NOT NULL,
+			value TEXT NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (user_id, key)
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -1161,6 +1168,38 @@ func (s *Store) ListProjectDatasourceIDs(projectID string) ([]string, error) {
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) GetUserPreference(userID, key string) (string, bool, error) {
+	var value string
+	err := s.db.QueryRow(
+		`SELECT value FROM user_preferences WHERE user_id=$1 AND key=$2`,
+		strings.TrimSpace(userID),
+		strings.TrimSpace(key),
+	).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return value, true, nil
+}
+
+func (s *Store) SetUserPreference(userID, key, value string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO user_preferences (user_id, key, value, updated_at)
+		VALUES ($1,$2,$3,$4)
+		ON CONFLICT (user_id, key) DO UPDATE SET
+			value=EXCLUDED.value,
+			updated_at=EXCLUDED.updated_at
+	`,
+		strings.TrimSpace(userID),
+		strings.TrimSpace(key),
+		strings.TrimSpace(value),
+		time.Now().UTC(),
+	)
+	return err
 }
 
 func marshalJSON(v any) []byte {
