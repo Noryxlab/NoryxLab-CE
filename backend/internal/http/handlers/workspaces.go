@@ -402,6 +402,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			req.IDE,
 			record.ID,
 			accessToken,
+			h.shouldSeedFirstProjectExamples(req.ProjectID, userID),
 			profileMountPath,
 			projectMountPath,
 			attachedRepos,
@@ -664,6 +665,7 @@ func workspaceBootstrapScript(
 	kind,
 	workspaceID,
 	accessToken,
+	seedFirstProjectExamples bool,
 	profileMountPath,
 	projectMountPath string,
 	attachedRepos []workspaceAttachedRepo,
@@ -708,6 +710,9 @@ func workspaceBootstrapScript(
 		"c = get_config()",
 		"c.ContentsManager.hide_globs = ['__pycache__', '*.pyc', 'lost+found']",
 		"EOF",
+	}
+	if seedFirstProjectExamples {
+		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
 
 	for _, repo := range attachedRepos {
@@ -880,6 +885,95 @@ func workspaceBootstrapScript(
 		"  --ServerApp.password=",
 	)
 	return strings.Join(lines, "\n")
+}
+
+func (h Handlers) shouldSeedFirstProjectExamples(projectID, userID string) bool {
+	projectID = strings.TrimSpace(projectID)
+	userID = strings.TrimSpace(userID)
+	if projectID == "" || userID == "" {
+		return false
+	}
+	items, err := h.projectStore.List()
+	if err != nil {
+		return false
+	}
+	expected := defaultProjectName(userID)
+	for _, p := range items {
+		if strings.TrimSpace(p.ID) != projectID {
+			continue
+		}
+		return strings.TrimSpace(p.Name) == expected
+	}
+	return false
+}
+
+func workspaceSeedExamplesLines(projectMountPath string) []string {
+	seedMarker := projectMountPath + "/.noryx-seed-v1"
+	return []string{
+		fmt.Sprintf("if [ ! -f %s ]; then", shellQuote(seedMarker)),
+		"  echo '[bootstrap] seeding first-project app/api examples'",
+		fmt.Sprintf("  mkdir -p %s/examples/app %s/examples/api", shellQuote(projectMountPath), shellQuote(projectMountPath)),
+		fmt.Sprintf("  cat > %s <<'EOF'", shellQuote(projectMountPath+"/examples/README.md")),
+		"# Noryx First Project Examples",
+		"",
+		"- App example: `examples/app/app.py`",
+		"- API example: `examples/api/main.py`",
+		"",
+		"Run App from `examples/app/app.py` with your App workload.",
+		"Run API from `examples/api/main.py` with FastAPI/Uvicorn.",
+		"EOF",
+		fmt.Sprintf("  cat > %s <<'EOF'", shellQuote(projectMountPath+"/examples/app/app.py")),
+		"from http.server import BaseHTTPRequestHandler, HTTPServer",
+		"",
+		"HOST = '0.0.0.0'",
+		"PORT = 8080",
+		"",
+		"class Handler(BaseHTTPRequestHandler):",
+		"    def do_GET(self):",
+		"        body = b'Noryx demo app is running\\n'",
+		"        self.send_response(200)",
+		"        self.send_header('Content-Type', 'text/plain; charset=utf-8')",
+		"        self.send_header('Content-Length', str(len(body)))",
+		"        self.end_headers()",
+		"        self.wfile.write(body)",
+		"",
+		"if __name__ == '__main__':",
+		"    HTTPServer((HOST, PORT), Handler).serve_forever()",
+		"EOF",
+		fmt.Sprintf("  cat > %s <<'EOF'", shellQuote(projectMountPath+"/examples/api/main.py")),
+		"from fastapi import FastAPI",
+		"from pydantic import BaseModel",
+		"",
+		"app = FastAPI(title='Noryx Demo API')",
+		"",
+		"class ScoreInput(BaseModel):",
+		"    age: int",
+		"    bmi: float",
+		"",
+		"@app.get('/health')",
+		"def health():",
+		"    return {'status': 'ok'}",
+		"",
+		"@app.post('/score')",
+		"def score(payload: ScoreInput):",
+		"    value = round((payload.age * 0.1) + (payload.bmi * 0.9), 2)",
+		"    return {'score': value}",
+		"EOF",
+		fmt.Sprintf("  cat > %s <<'EOF'", shellQuote(projectMountPath+"/examples/api/requirements.txt")),
+		"fastapi==0.116.1",
+		"uvicorn[standard]==0.35.0",
+		"pydantic==2.11.7",
+		"EOF",
+		fmt.Sprintf("  cat > %s <<'EOF'", shellQuote(projectMountPath+"/examples/api/run.sh")),
+		"#!/usr/bin/env sh",
+		"set -eu",
+		"python3 -m pip install --disable-pip-version-check -r /mnt/examples/api/requirements.txt",
+		"python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 --app-dir /mnt/examples/api",
+		"EOF",
+		fmt.Sprintf("  chmod +x %s", shellQuote(projectMountPath+"/examples/api/run.sh")),
+		fmt.Sprintf("  touch %s", shellQuote(seedMarker)),
+		"fi",
+	}
 }
 
 func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
