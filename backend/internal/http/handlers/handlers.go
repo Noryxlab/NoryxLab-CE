@@ -23,6 +23,7 @@ type Handlers struct {
 	datasourceStore                  store.DatasourceStore
 	repositoryStore                  store.RepositoryStore
 	projectResourceStore             store.ProjectResourceStore
+	userPreferenceStore              store.UserPreferenceStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
 	keycloak                         *keycloak.Client
@@ -105,6 +106,7 @@ func New(
 	datasourceStore store.DatasourceStore,
 	repositoryStore store.RepositoryStore,
 	projectResourceStore store.ProjectResourceStore,
+	userPreferenceStore store.UserPreferenceStore,
 	runtime runtime.Runner,
 	authVerifier auth.Verifier,
 	keycloakClient *keycloak.Client,
@@ -137,6 +139,7 @@ func New(
 		datasourceStore:                  datasourceStore,
 		repositoryStore:                  repositoryStore,
 		projectResourceStore:             projectResourceStore,
+		userPreferenceStore:              userPreferenceStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,
 		keycloak:                         keycloakClient,

@@ -1099,10 +1099,17 @@ data:
             }
           }
           if (langSelect) {
-            langSelect.onchange = () => {
+            langSelect.onchange = async () => {
               const next = (langSelect.value === 'en') ? 'en' : 'fr';
               currentLang = next;
               try { localStorage.setItem('noryx.ui.lang', currentLang); } catch (_) {}
+              try {
+                await callJSON('/api/v1/user/preferences', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ language: currentLang })
+                });
+              } catch (_) {}
               applyI18n();
             };
           }
@@ -1249,6 +1256,19 @@ data:
             const body = await res.json().catch(() => ({}));
             if (!res.ok) throw body;
             return body;
+          }
+
+          async function loadUserLanguagePreference() {
+            try {
+              const body = await callJSON('/api/v1/user/preferences');
+              const serverLang = String((body && body.language) || '').trim().toLowerCase();
+              if (serverLang === 'fr' || serverLang === 'en') {
+                currentLang = serverLang;
+                if (langSelect) langSelect.value = currentLang;
+                try { localStorage.setItem('noryx.ui.lang', currentLang); } catch (_) {}
+              }
+            } catch (_) {}
+            applyI18n();
           }
 
           async function ensureWebSession() {
@@ -2686,6 +2706,7 @@ data:
                 setMeta('Not authenticated (lab mode active as ' + currentLabUser() + ')');
                 applyRoleVisibility();
                 setButtons(true);
+                loadUserLanguagePreference();
                 startWorkspacesAutoRefresh();
                 refreshProjects()
                   .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -2699,6 +2720,7 @@ data:
               setMeta('Authenticated as ' + ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || (keycloak.tokenParsed && keycloak.tokenParsed.sub)));
               applyRoleVisibility();
               setButtons(true);
+              loadUserLanguagePreference();
               startWorkspacesAutoRefresh();
               ensureWebSession()
                 .then(() => refreshProjects())
@@ -2714,6 +2736,7 @@ data:
               authMode = 'lab';
               applyRoleVisibility();
               setButtons(true);
+              loadUserLanguagePreference();
               startWorkspacesAutoRefresh();
               refreshProjects()
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -2724,7 +2747,7 @@ data:
             setMeta('Lab mode as ' + currentLabUser());
             applyRoleVisibility();
             setButtons(true);
-            applyI18n();
+            loadUserLanguagePreference();
             startWorkspacesAutoRefresh();
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -2732,13 +2755,13 @@ data:
             switchTab('intro');
           }
 
-          applyI18n();
+          loadUserLanguagePreference();
           refreshVersions();
         </script>
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.49"}
+    {"version":"ce-web-0.6.50"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2759,7 +2782,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.49
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.50
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
