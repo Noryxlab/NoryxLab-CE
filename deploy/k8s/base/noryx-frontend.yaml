@@ -313,93 +313,97 @@ data:
         <div class="layout">
           <aside class="sidebar">
             <div class="brand">NoryxLab</div>
-            <div class="edition">Community Edition</div>
+            <div class="edition" data-i18n="edition">Community Edition</div>
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
-            <div class="menu-title">Accueil</div>
+            <div class="menu-title" data-i18n="menu_home">Accueil</div>
             <div class="menu">
-              <button class="tab-btn active" data-tab="intro">Home</button>
-              <button class="tab-btn" data-tab="environments">Environnements</button>
+              <button class="tab-btn active" data-tab="intro" data-i18n="tab_home">Home</button>
+              <button class="tab-btn" data-tab="environments" data-i18n="tab_environments">Environnements</button>
             </div>
 
-            <div class="menu-title">Donnees</div>
+            <div class="menu-title" data-i18n="menu_data">Donnees</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="data" data-anchor="card-datasets">Jeux de donnees</button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-datasets" data-i18n="tab_datasets">Jeux de donnees</button>
               <button class="tab-btn" data-tab="data" data-anchor="card-repositories">Git</button>
               <button class="tab-btn" data-tab="data" data-anchor="card-secrets">Secrets</button>
             </div>
 
-            <div class="menu-title">Projets</div>
+            <div class="menu-title" data-i18n="menu_projects">Projets</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="projects">Vue d'ensemble</button>
-              <button class="tab-btn" data-tab="workspaces">Espaces de travail</button>
-              <button class="tab-btn" data-tab="project-jobs">Traitements</button>
+              <button class="tab-btn" data-tab="projects" data-i18n="tab_projects_overview">Vue d'ensemble</button>
+              <button class="tab-btn" data-tab="workspaces" data-i18n="tab_workspaces">Espaces de travail</button>
+              <button class="tab-btn" data-tab="project-jobs" data-i18n="tab_jobs">Traitements</button>
               <button class="tab-btn" data-tab="project-apps">Apps</button>
               <button class="tab-btn" data-tab="project-dashboards">Dashboards</button>
-              <button class="tab-btn" data-tab="project-apis">Services API</button>
+              <button class="tab-btn" data-tab="project-apis" data-i18n="tab_apis">Services API</button>
             </div>
 
-            <div class="menu-title">Pilotage</div>
+            <div class="menu-title" data-i18n="menu_ops">Pilotage</div>
             <div class="menu">
-              <button class="tab-btn admin-only" data-tab="workloads">Activites</button>
-              <button class="tab-btn" data-tab="ops">Administration</button>
+              <button class="tab-btn admin-only" data-tab="workloads" data-i18n="tab_activity">Activites</button>
+              <button class="tab-btn" data-tab="ops" data-i18n="tab_admin">Administration</button>
             </div>
 
-            <div class="menu-title">Documentation</div>
+            <div class="menu-title" data-i18n="menu_docs">Documentation</div>
             <div class="menu">
-              <a href="/swagger" target="_blank" rel="noopener noreferrer">Reference API</a>
+              <a href="/swagger" target="_blank" rel="noopener noreferrer" data-i18n="api_reference">Reference API</a>
             </div>
           </aside>
 
           <main class="content">
             <section class="topbar">
               <div>
-                <h1 class="title">NoryxLab</h1>
-                <p class="subtitle">Plateforme collaborative pour les equipes data, de l'exploration au passage en production.</p>
+                <h1 class="title" data-i18n="title">NoryxLab</h1>
+                <p class="subtitle" data-i18n="subtitle">Plateforme collaborative pour les equipes data, de l'exploration au passage en production.</p>
               </div>
               <div class="actions">
-                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;">Se connecter</button>
-                <button id="logout" class="btn">Se deconnecter</button>
-                <button id="loadModules" class="btn good admin-only">Etat plateforme</button>
-                <button id="loadUsers" class="btn good admin-only">Utilisateurs</button>
+                <select id="langSelect" class="btn" style="font-weight:700;">
+                  <option value="fr">FR</option>
+                  <option value="en">EN</option>
+                </select>
+                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
+                <button id="logout" class="btn" data-i18n="logout">Se deconnecter</button>
+                <button id="loadModules" class="btn good admin-only" data-i18n="platform_status">Etat plateforme</button>
+                <button id="loadUsers" class="btn good admin-only" data-i18n="users">Utilisateurs</button>
               </div>
             </section>
 
             <section class="stats">
-              <article class="stat"><div class="k">Projets</div><div id="statProjects" class="v">0</div></article>
-              <article class="stat"><div class="k">Activites</div><div id="statWorkspaces" class="v">0</div></article>
-              <article class="stat"><div class="k">Environnements</div><div id="statBuilds" class="v">0</div></article>
-              <article class="stat"><div class="k">Section active</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
+              <article class="stat"><div class="k" data-i18n="stat_projects">Projets</div><div id="statProjects" class="v">0</div></article>
+              <article class="stat"><div class="k" data-i18n="stat_activity">Activites</div><div id="statWorkspaces" class="v">0</div></article>
+              <article class="stat"><div class="k" data-i18n="stat_env">Environnements</div><div id="statBuilds" class="v">0</div></article>
+              <article class="stat"><div class="k" data-i18n="stat_active">Section active</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
             </section>
 
             <section class="views">
               <section class="view active" id="view-intro">
                 <div class="stack">
                   <article class="hero">
-                    <h2>Votre hub de collaboration data</h2>
-                    <p>Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.</p>
+                    <h2 data-i18n="hero_title">Votre hub de collaboration data</h2>
+                    <p data-i18n="hero_subtitle">Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.</p>
                   </article>
                   <div class="quick-grid">
                     <article class="quick">
-                      <h3 class="q-title">1. Ressources</h3>
-                      <p class="q-text">Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.</p>
+                      <h3 class="q-title" data-i18n="quick1_title">1. Ressources</h3>
+                      <p class="q-text" data-i18n="quick1_text">Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.</p>
                     </article>
                     <article class="quick">
-                      <h3 class="q-title">2. Projet</h3>
-                      <p class="q-text">Creez un projet, rattachez les ressources et invitez les collaborateurs.</p>
+                      <h3 class="q-title" data-i18n="quick2_title">2. Projet</h3>
+                      <p class="q-text" data-i18n="quick2_text">Creez un projet, rattachez les ressources et invitez les collaborateurs.</p>
                     </article>
                     <article class="quick">
-                      <h3 class="q-title">3. Usages</h3>
-                      <p class="q-text">Lancez espaces de travail, traitements, applications, dashboards et APIs.</p>
+                      <h3 class="q-title" data-i18n="quick3_title">3. Usages</h3>
+                      <p class="q-text" data-i18n="quick3_text">Lancez espaces de travail, traitements, applications, dashboards et APIs.</p>
                     </article>
                   </div>
                   <article class="card span-12">
-                    <h3>Demarrage rapide</h3>
+                    <h3 data-i18n="quickstart">Demarrage rapide</h3>
                     <div class="row">
-                      <button class="btn primary" data-tab-jump="projects">Aller aux projets</button>
-                      <button class="btn" data-tab-jump="data">Aller aux donnees</button>
-                      <button class="btn" data-tab-jump="environments">Aller aux environnements</button>
+                      <button class="btn primary" data-tab-jump="projects" data-i18n="go_projects">Aller aux projets</button>
+                      <button class="btn" data-tab-jump="data" data-i18n="go_data">Aller aux donnees</button>
+                      <button class="btn" data-tab-jump="environments" data-i18n="go_env">Aller aux environnements</button>
                     </div>
                   </article>
                 </div>
@@ -918,6 +922,7 @@ data:
           const statBuilds = document.getElementById('statBuilds');
           const statTab = document.getElementById('statTab');
           const versionsNode = document.getElementById('versions');
+          const langSelect = document.getElementById('langSelect');
 
           const state = {
             projects: [],
@@ -954,9 +959,152 @@ data:
               launchingMsg: 'Le workspace demarre... Ouvrir sera active automatiquement.'
             }
           };
-          const locale = (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+          const UI_TEXT = {
+            fr: {
+              edition: 'Community Edition',
+              menu_home: 'Accueil',
+              menu_data: 'Donnees',
+              menu_projects: 'Projets',
+              menu_ops: 'Pilotage',
+              menu_docs: 'Documentation',
+              tab_home: 'Home',
+              tab_environments: 'Environnements',
+              tab_datasets: 'Jeux de donnees',
+              tab_projects_overview: "Vue d'ensemble",
+              tab_workspaces: 'Espaces de travail',
+              tab_jobs: 'Traitements',
+              tab_apis: 'Services API',
+              tab_activity: 'Activites',
+              tab_admin: 'Administration',
+              api_reference: 'Reference API',
+              title: 'NoryxLab',
+              subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
+              login: 'Se connecter',
+              logout: 'Se deconnecter',
+              platform_status: 'Etat plateforme',
+              users: 'Utilisateurs',
+              stat_projects: 'Projets',
+              stat_activity: 'Activites',
+              stat_env: 'Environnements',
+              stat_active: 'Section active',
+              hero_title: 'Votre hub de collaboration data',
+              hero_subtitle: "Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.",
+              quick1_title: '1. Ressources',
+              quick1_text: 'Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.',
+              quick2_title: '2. Projet',
+              quick2_text: 'Creez un projet, rattachez les ressources et invitez les collaborateurs.',
+              quick3_title: '3. Usages',
+              quick3_text: 'Lancez espaces de travail, traitements, applications, dashboards et APIs.',
+              quickstart: 'Demarrage rapide',
+              go_projects: 'Aller aux projets',
+              go_data: 'Aller aux donnees',
+              go_env: 'Aller aux environnements',
+              tab_label_intro: 'Accueil',
+              tab_label_projects: 'Projets',
+              tab_label_data: 'Donnees',
+              tab_label_workspaces: 'Espaces',
+              tab_label_project_jobs: 'Traitements',
+              tab_label_project_apps: 'Applications',
+              tab_label_project_dashboards: 'Dashboards',
+              tab_label_project_apis: 'Services API',
+              tab_label_environments: 'Environnements',
+              tab_label_workloads: 'Activites',
+              tab_label_ops: 'Administration'
+            },
+            en: {
+              edition: 'Community Edition',
+              menu_home: 'Home',
+              menu_data: 'Data',
+              menu_projects: 'Projects',
+              menu_ops: 'Operations',
+              menu_docs: 'Documentation',
+              tab_home: 'Home',
+              tab_environments: 'Environments',
+              tab_datasets: 'Datasets',
+              tab_projects_overview: 'Overview',
+              tab_workspaces: 'Workspaces',
+              tab_jobs: 'Jobs',
+              tab_apis: 'API Services',
+              tab_activity: 'Activity',
+              tab_admin: 'Administration',
+              api_reference: 'API Reference',
+              title: 'NoryxLab',
+              subtitle: 'Collaborative platform for data teams, from exploration to production.',
+              login: 'Sign in',
+              logout: 'Sign out',
+              platform_status: 'Platform status',
+              users: 'Users',
+              stat_projects: 'Projects',
+              stat_activity: 'Activity',
+              stat_env: 'Environments',
+              stat_active: 'Active section',
+              hero_title: 'Your collaborative data hub',
+              hero_subtitle: 'Structure projects, share resources, and run data use-cases in a governed setup.',
+              quick1_title: '1. Resources',
+              quick1_text: 'Register datasets, Git repositories, data connections and secrets.',
+              quick2_title: '2. Project',
+              quick2_text: 'Create a project, attach resources, and invite collaborators.',
+              quick3_title: '3. Usage',
+              quick3_text: 'Launch workspaces, jobs, applications, dashboards and APIs.',
+              quickstart: 'Quick start',
+              go_projects: 'Go to projects',
+              go_data: 'Go to data',
+              go_env: 'Go to environments',
+              tab_label_intro: 'Home',
+              tab_label_projects: 'Projects',
+              tab_label_data: 'Data',
+              tab_label_workspaces: 'Workspaces',
+              tab_label_project_jobs: 'Jobs',
+              tab_label_project_apps: 'Applications',
+              tab_label_project_dashboards: 'Dashboards',
+              tab_label_project_apis: 'API Services',
+              tab_label_environments: 'Environments',
+              tab_label_workloads: 'Activity',
+              tab_label_ops: 'Administration'
+            }
+          };
+          const savedLang = (() => { try { return String(localStorage.getItem('noryx.ui.lang') || '').trim(); } catch (_) { return ''; } })();
+          let currentLang = (savedLang === 'fr' || savedLang === 'en')
+            ? savedLang
+            : ((navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+          if (langSelect) langSelect.value = currentLang;
           function t(key) {
-            return (LOCALES[locale] && LOCALES[locale][key]) || LOCALES.en[key] || key;
+            return (LOCALES[currentLang] && LOCALES[currentLang][key]) || LOCALES.en[key] || key;
+          }
+          function tui(key) {
+            return (UI_TEXT[currentLang] && UI_TEXT[currentLang][key]) || UI_TEXT.en[key] || key;
+          }
+          function applyI18n() {
+            document.querySelectorAll('[data-i18n]').forEach((node) => {
+              const key = node.getAttribute('data-i18n');
+              if (!key) return;
+              node.textContent = tui(key);
+            });
+            if (state && state.activeTab) {
+              const tab = state.activeTab;
+              const map = {
+                intro: 'tab_label_intro',
+                projects: 'tab_label_projects',
+                data: 'tab_label_data',
+                workspaces: 'tab_label_workspaces',
+                'project-jobs': 'tab_label_project_jobs',
+                'project-apps': 'tab_label_project_apps',
+                'project-dashboards': 'tab_label_project_dashboards',
+                'project-apis': 'tab_label_project_apis',
+                environments: 'tab_label_environments',
+                workloads: 'tab_label_workloads',
+                ops: 'tab_label_ops'
+              };
+              statTab.textContent = tui(map[tab] || 'tab_label_intro');
+            }
+          }
+          if (langSelect) {
+            langSelect.onchange = () => {
+              const next = (langSelect.value === 'en') ? 'en' : 'fr';
+              currentLang = next;
+              try { localStorage.setItem('noryx.ui.lang', currentLang); } catch (_) {}
+              applyI18n();
+            };
           }
           let workspacesAutoRefreshTimer = null;
           function setMeta(text) { meta.textContent = text; }
@@ -1058,19 +1206,19 @@ data:
               views[name].classList.toggle('active', name === tab);
             });
             const labels = {
-              intro: 'Accueil',
-              projects: 'Projets',
-              data: 'Donnees',
-              workspaces: 'Espaces',
-              'project-jobs': 'Traitements',
-              'project-apps': 'Applications',
-              'project-dashboards': 'Dashboards',
-              'project-apis': 'Services API',
-              environments: 'Environnements',
-              workloads: 'Activites',
-              ops: 'Administration'
+              intro: 'tab_label_intro',
+              projects: 'tab_label_projects',
+              data: 'tab_label_data',
+              workspaces: 'tab_label_workspaces',
+              'project-jobs': 'tab_label_project_jobs',
+              'project-apps': 'tab_label_project_apps',
+              'project-dashboards': 'tab_label_project_dashboards',
+              'project-apis': 'tab_label_project_apis',
+              environments: 'tab_label_environments',
+              workloads: 'tab_label_workloads',
+              ops: 'tab_label_ops'
             };
-            statTab.textContent = labels[tab] || tab;
+            statTab.textContent = tui(labels[tab] || 'tab_label_intro');
           }
 
           tabButtons.forEach((btn) => {
@@ -2576,6 +2724,7 @@ data:
             setMeta('Lab mode as ' + currentLabUser());
             applyRoleVisibility();
             setButtons(true);
+            applyI18n();
             startWorkspacesAutoRefresh();
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -2583,12 +2732,13 @@ data:
             switchTab('intro');
           }
 
+          applyI18n();
           refreshVersions();
         </script>
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.48"}
+    {"version":"ce-web-0.6.49"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2609,7 +2759,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.48
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.49
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
