@@ -662,9 +662,9 @@ func shellQuote(raw string) string {
 }
 
 func workspaceBootstrapScript(
-	kind,
-	workspaceID,
-	accessToken,
+	kind string,
+	workspaceID string,
+	accessToken string,
 	seedFirstProjectExamples bool,
 	profileMountPath,
 	projectMountPath string,
