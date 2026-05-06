@@ -315,7 +315,7 @@ data:
                 <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
               </div>
               <div class="actions">
-                <button id="login" class="btn primary">Login Keycloak</button>
+                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;">Login Keycloak</button>
                 <button id="logout" class="btn">Logout</button>
                 <button id="loadModules" class="btn good admin-only">Modules</button>
                 <button id="loadUsers" class="btn good admin-only">Users</button>
@@ -1633,7 +1633,7 @@ data:
             }, 5000);
           }
 
-      loginBtn.onclick = async () => {
+      async function triggerLogin() {
         if (authMode === 'oidc') {
           try {
             const loginUrl = await keycloak.createLoginUrl({ redirectUri: window.location.origin + '/' });
@@ -1642,11 +1642,34 @@ data:
             pretty(usersOut, { loginError: String(err) });
             setMeta('Keycloak login error');
           }
-          return;
+          return false;
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
         setMeta('Lab mode active as ' + currentLabUser());
+        return false;
+      }
+
+      loginBtn.onclick = async (event) => {
+        if (event && event.preventDefault) event.preventDefault();
+        await triggerLogin();
       };
+
+      document.addEventListener('click', async (event) => {
+        const target = event && event.target ? event.target : null;
+        if (target && target.closest && target.closest('#login')) {
+          event.preventDefault();
+          await triggerLogin();
+          return;
+        }
+        if (!loginBtn) return;
+        const r = loginBtn.getBoundingClientRect();
+        const x = event.clientX;
+        const y = event.clientY;
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+          event.preventDefault();
+          await triggerLogin();
+        }
+      }, true);
           logoutBtn.onclick = async () => {
             stopWorkspacesAutoRefresh();
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
