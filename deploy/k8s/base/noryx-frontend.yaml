@@ -999,6 +999,48 @@ data:
               go_projects: 'Aller aux projets',
               go_data: 'Aller aux donnees',
               go_env: 'Aller aux environnements',
+              btn_create_project: 'Creer projet',
+              btn_refresh_projects: 'Actualiser projets',
+              btn_attach_dataset: 'Associer jeu de donnees',
+              btn_attach_repo: 'Associer depot',
+              btn_attach_datasource: 'Associer connexion',
+              btn_save_secret: 'Enregistrer secret',
+              btn_create_dataset: 'Creer jeu de donnees',
+              btn_refresh_data: 'Actualiser donnees',
+              btn_upload_object: 'Envoyer fichier',
+              btn_create_repo: 'Creer depot',
+              btn_create_datasource: 'Creer connexion',
+              btn_refresh_datasources: 'Actualiser connexions',
+              btn_launch_workspace: 'Lancer espace',
+              btn_refresh_workspaces: 'Actualiser espaces',
+              btn_refresh_jobs: 'Actualiser',
+              btn_refresh_apps: 'Actualiser',
+              btn_refresh_dashboards: 'Actualiser',
+              ph_project_name: 'Nom du projet',
+              ph_secret_name: 'Nom du secret',
+              ph_secret_value: 'Valeur du secret',
+              ph_dataset_name: 'Nom du jeu de donnees',
+              ph_dataset_description: 'Description (optionnelle)',
+              ph_dataset_path: 'Chemin du fichier (ex: train.csv)',
+              ph_repo_name: 'Nom du depot',
+              ph_repo_url: 'https://...',
+              ph_ds_name: 'Nom de la connexion',
+              ph_ds_host: 'Hote',
+              ph_ds_port: 'Port',
+              ph_ds_db: 'Base',
+              ph_ds_user: 'Utilisateur',
+              ph_workspace_name: "Nom de l'espace (optionnel)",
+              ph_workspace_size: 'Taille stockage (ex: 10Gi)',
+              ph_job_name: 'Nom du traitement (optionnel)',
+              ph_job_cmd: 'Commande shell',
+              ph_app_name: 'Nom app (optionnel)',
+              ph_app_slug: 'Slug URL (ex: fraude-ui)',
+              ph_app_port: 'Port (defaut 9000)',
+              ph_app_cmd: 'Commande de lancement',
+              ph_dash_name: 'Nom dashboard (optionnel)',
+              ph_dash_slug: 'Slug URL (ex: kpi-overview)',
+              ph_dash_port: 'Port (defaut 9000)',
+              ph_dash_cmd: 'Commande de lancement',
               tab_label_intro: 'Accueil',
               tab_label_projects: 'Projets',
               tab_label_data: 'Donnees',
@@ -1050,6 +1092,48 @@ data:
               go_projects: 'Go to projects',
               go_data: 'Go to data',
               go_env: 'Go to environments',
+              btn_create_project: 'Create project',
+              btn_refresh_projects: 'Refresh projects',
+              btn_attach_dataset: 'Attach dataset',
+              btn_attach_repo: 'Attach repository',
+              btn_attach_datasource: 'Attach datasource',
+              btn_save_secret: 'Save secret',
+              btn_create_dataset: 'Create dataset',
+              btn_refresh_data: 'Refresh data',
+              btn_upload_object: 'Upload object',
+              btn_create_repo: 'Create repository',
+              btn_create_datasource: 'Create datasource',
+              btn_refresh_datasources: 'Refresh datasources',
+              btn_launch_workspace: 'Launch workspace',
+              btn_refresh_workspaces: 'Refresh workspaces',
+              btn_refresh_jobs: 'Refresh',
+              btn_refresh_apps: 'Refresh',
+              btn_refresh_dashboards: 'Refresh',
+              ph_project_name: 'Project name',
+              ph_secret_name: 'Secret name',
+              ph_secret_value: 'Secret value',
+              ph_dataset_name: 'Dataset name',
+              ph_dataset_description: 'Description (optional)',
+              ph_dataset_path: 'Object path (e.g. train.csv)',
+              ph_repo_name: 'Repository name',
+              ph_repo_url: 'https://...',
+              ph_ds_name: 'Datasource name',
+              ph_ds_host: 'Host',
+              ph_ds_port: 'Port',
+              ph_ds_db: 'Database',
+              ph_ds_user: 'Username',
+              ph_workspace_name: 'Workspace name (optional)',
+              ph_workspace_size: 'Storage size (e.g. 10Gi)',
+              ph_job_name: 'Job name (optional)',
+              ph_job_cmd: 'Shell command',
+              ph_app_name: 'App name (optional)',
+              ph_app_slug: 'URL slug (e.g. fraud-ui)',
+              ph_app_port: 'Port (default 9000)',
+              ph_app_cmd: 'Launch command',
+              ph_dash_name: 'Dashboard name (optional)',
+              ph_dash_slug: 'URL slug (e.g. kpi-overview)',
+              ph_dash_port: 'Port (default 9000)',
+              ph_dash_cmd: 'Launch command',
               tab_label_intro: 'Home',
               tab_label_projects: 'Projects',
               tab_label_data: 'Data',
@@ -1097,6 +1181,60 @@ data:
               };
               statTab.textContent = tui(map[tab] || 'tab_label_intro');
             }
+            const txtById = {
+              createProject: 'btn_create_project',
+              loadProjects: 'btn_refresh_projects',
+              attachDatasetBtn: 'btn_attach_dataset',
+              attachRepoBtn: 'btn_attach_repo',
+              attachDatasourceBtn: 'btn_attach_datasource',
+              saveSecret: 'btn_save_secret',
+              createDataset: 'btn_create_dataset',
+              refreshData: 'btn_refresh_data',
+              uploadDatasetObject: 'btn_upload_object',
+              createRepository: 'btn_create_repo',
+              createDatasource: 'btn_create_datasource',
+              refreshDatasources: 'btn_refresh_datasources',
+              createWorkspace: 'btn_launch_workspace',
+              loadWorkspaces: 'btn_refresh_workspaces',
+              loadJobs: 'btn_refresh_jobs',
+              loadApps: 'btn_refresh_apps',
+              loadDashboards: 'btn_refresh_dashboards'
+            };
+            Object.keys(txtById).forEach((id) => {
+              const node = document.getElementById(id);
+              if (node) node.textContent = tui(txtById[id]);
+            });
+            const placeholders = {
+              projectName: 'ph_project_name',
+              secretName: 'ph_secret_name',
+              secretValue: 'ph_secret_value',
+              datasetName: 'ph_dataset_name',
+              datasetDescription: 'ph_dataset_description',
+              datasetUploadPath: 'ph_dataset_path',
+              repoName: 'ph_repo_name',
+              repoUrl: 'ph_repo_url',
+              dsName: 'ph_ds_name',
+              dsHost: 'ph_ds_host',
+              dsPort: 'ph_ds_port',
+              dsDatabase: 'ph_ds_db',
+              dsUsername: 'ph_ds_user',
+              workspaceName: 'ph_workspace_name',
+              workspaceStorageSize: 'ph_workspace_size',
+              jobName: 'ph_job_name',
+              jobCommand: 'ph_job_cmd',
+              appName: 'ph_app_name',
+              appSlug: 'ph_app_slug',
+              appPort: 'ph_app_port',
+              appCommand: 'ph_app_cmd',
+              dashboardName: 'ph_dash_name',
+              dashboardSlug: 'ph_dash_slug',
+              dashboardPort: 'ph_dash_port',
+              dashboardCommand: 'ph_dash_cmd'
+            };
+            Object.keys(placeholders).forEach((id) => {
+              const node = document.getElementById(id);
+              if (node) node.setAttribute('placeholder', tui(placeholders[id]));
+            });
           }
           if (langSelect) {
             langSelect.onchange = async () => {
@@ -2761,7 +2899,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.50"}
+    {"version":"ce-web-0.6.51"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2782,7 +2920,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.50
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.51
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
