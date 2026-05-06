@@ -2350,7 +2350,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.39"}
+    {"version":"ce-web-0.6.40"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2371,7 +2371,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.39
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.40
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
