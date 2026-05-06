@@ -27,8 +27,6 @@ spec:
               value: ":8080"
             - name: NORYX_BACKEND_VERSION
               value: "0.5.67"
-            - name: NORYX_FRONTEND_VERSION
-              value: "ce-web-0.6.39"
             - name: NORYX_STORE_BACKEND
               value: "postgres"
             - name: NORYX_DATABASE_HOST
