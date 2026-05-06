@@ -9,6 +9,7 @@ import (
 type App struct {
 	ID          string    `json:"id"`
 	ProjectID   string    `json:"projectId"`
+	Kind        string    `json:"kind"`
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`
 	Image       string    `json:"image"`
@@ -26,6 +27,7 @@ func New(projectID, name, slug, image string, command, args []string, port int, 
 	return App{
 		ID:          uuid.NewString(),
 		ProjectID:   projectID,
+		Kind:        "app",
 		Name:        name,
 		Slug:        slug,
 		Image:       image,
@@ -38,4 +40,12 @@ func New(projectID, name, slug, image string, command, args []string, port int, 
 		AccessURL:   accessURL,
 		CreatedAt:   time.Now().UTC(),
 	}
+}
+
+func NewWithKind(kind, projectID, name, slug, image string, command, args []string, port int, podName, serviceName, accessURL string) App {
+	item := New(projectID, name, slug, image, command, args, port, podName, serviceName, accessURL)
+	if kind != "" {
+		item.Kind = kind
+	}
+	return item
 }

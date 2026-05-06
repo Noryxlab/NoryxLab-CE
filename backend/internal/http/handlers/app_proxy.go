@@ -11,6 +11,14 @@ import (
 )
 
 func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
+	isDashboardRoute := strings.HasPrefix(r.URL.Path, "/dashboards/")
+	expectedKind := "app"
+	forwardedPrefix := "/apps/"
+	if isDashboardRoute {
+		expectedKind = "dashboard"
+		forwardedPrefix = "/dashboards/"
+	}
+
 	slug := normalizeAppSlug(r.PathValue("slug"))
 	if slug == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "slug is required"})
@@ -23,6 +31,13 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "app not found"})
+		return
+	}
+	if strings.TrimSpace(record.Kind) == "" {
+		record.Kind = "app"
+	}
+	if record.Kind != expectedKind {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
 	userID, ok := h.requireUserIDFromSessionOrBearer(w, r)
@@ -59,7 +74,7 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("X-Forwarded-Proto", "https")
 		req.Header.Set("X-Forwarded-Host", r.Host)
 		req.Header.Set("X-Forwarded-Port", "443")
-		req.Header.Set("X-Forwarded-Prefix", "/apps/"+record.Slug)
+		req.Header.Set("X-Forwarded-Prefix", forwardedPrefix+record.Slug)
 		req.Header.Set("X-Forwarded-For", r.RemoteAddr)
 		req.Host = r.Host
 	}

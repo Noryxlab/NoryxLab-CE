@@ -22,6 +22,9 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/apps", h.ListApps)
 	mux.HandleFunc("POST /api/v1/apps", h.CreateApp)
 	mux.HandleFunc("DELETE /api/v1/apps/{appID}", h.DeleteApp)
+	mux.HandleFunc("GET /api/v1/dashboards", h.ListDashboards)
+	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
+	mux.HandleFunc("DELETE /api/v1/dashboards/{dashboardID}", h.DeleteDashboard)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/dockerfile", h.GetBuildDockerfile)
 	mux.HandleFunc("GET /api/v1/environments", h.ListEnvironments)
 	mux.HandleFunc("GET /api/v1/pods", h.ListPods)
@@ -66,6 +69,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 		mux.HandleFunc(method+" /workspaces/{workspaceID}/{path...}", h.ProxyWorkspace)
 		mux.HandleFunc(method+" /apps/{slug}", h.ProxyApp)
 		mux.HandleFunc(method+" /apps/{slug}/{path...}", h.ProxyApp)
+		mux.HandleFunc(method+" /dashboards/{slug}", h.ProxyApp)
+		mux.HandleFunc(method+" /dashboards/{slug}/{path...}", h.ProxyApp)
 	}
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
