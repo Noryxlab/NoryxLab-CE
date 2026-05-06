@@ -15,23 +15,25 @@ data:
         <title>NoryxLab CE</title>
         <style>
           :root {
-            --bg: #eef3f8;
+            --bg: #eef2f4;
             --surface: #ffffff;
-            --surface-soft: #f8fbff;
-            --line: #dce5f0;
-            --line-strong: #bfccde;
-            --text: #142033;
-            --muted: #5f6f86;
-            --nav-bg: #0d192b;
-            --nav-bg-2: #172a44;
-            --nav-text: #dce8fa;
-            --nav-muted: #98aed1;
-            --brand: #0b6cea;
-            --brand-soft: #e6f0ff;
-            --ok: #0f7a4d;
-            --warn: #9a5a0f;
-            --bad: #ad1f2d;
-            --shadow-sm: 0 4px 14px rgba(16, 31, 50, .06);
+            --surface-soft: #f4f7f9;
+            --line: #dde5eb;
+            --line-strong: #bcc8d3;
+            --text: #122031;
+            --muted: #5e6f83;
+            --nav-bg: #0f1f2d;
+            --nav-bg-2: #163346;
+            --nav-text: #d8e8f4;
+            --nav-muted: #97b1c8;
+            --brand: #006d77;
+            --brand-2: #0f93a0;
+            --brand-soft: #d8f0f3;
+            --ok: #1f8b4c;
+            --warn: #a9690f;
+            --bad: #af2c36;
+            --shadow-sm: 0 8px 22px rgba(21, 35, 49, .07);
+            --shadow-md: 0 18px 44px rgba(11, 25, 36, .12);
             --font: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
           }
           * { box-sizing: border-box; }
@@ -41,124 +43,129 @@ data:
             color: var(--text);
             font-family: var(--font);
             background:
-              radial-gradient(1100px 600px at 20% -10%, #dfeaff 0%, transparent 70%),
-              radial-gradient(1000px 700px at 90% 120%, #e9f5ec 0%, transparent 60%),
+              radial-gradient(1200px 640px at 16% -18%, #d4e9ee 0%, transparent 72%),
+              radial-gradient(1100px 760px at 94% 110%, #f7e8d0 0%, transparent 62%),
               var(--bg);
           }
           .layout {
             min-height: 100vh;
             display: grid;
-            grid-template-columns: 292px 1fr;
+            grid-template-columns: 304px 1fr;
           }
           .sidebar {
-            padding: 26px 18px;
+            padding: 24px 18px;
             color: var(--nav-text);
             background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-2) 100%);
-            border-right: 1px solid #0f2037;
+            border-right: 1px solid #17364b;
+            box-shadow: inset -1px 0 0 rgba(255,255,255,.04);
           }
           .brand {
-            font-size: 25px;
+            font-size: 27px;
             font-weight: 800;
-            letter-spacing: .02em;
-            margin-bottom: 2px;
+            letter-spacing: .03em;
+            margin-bottom: 1px;
           }
           .edition {
             font-size: 12px;
             color: var(--nav-muted);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            letter-spacing: .04em;
+            text-transform: uppercase;
           }
           .versions {
             font-size: 11px;
-            color: #b4c4df;
-            margin-bottom: 14px;
+            color: #aec3d7;
+            margin-bottom: 12px;
           }
           .who {
-            background: rgba(255,255,255,.07);
-            border: 1px solid rgba(255,255,255,.14);
-            border-radius: 12px;
-            padding: 10px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.16);
+            border-radius: 14px;
+            padding: 11px;
             font-size: 13px;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
           }
           .menu-title {
-            margin: 12px 0 7px;
+            margin: 14px 0 8px;
             color: var(--nav-muted);
             font-size: 11px;
-            letter-spacing: .1em;
+            letter-spacing: .14em;
             text-transform: uppercase;
           }
           .menu {
             display: grid;
-            gap: 7px;
-            margin-bottom: 12px;
+            gap: 8px;
+            margin-bottom: 13px;
           }
           .tab-btn {
             border: 1px solid rgba(255,255,255,.1);
             border-radius: 12px;
-            padding: 10px 12px;
-            background: rgba(255,255,255,.04);
+            padding: 10px 13px;
+            background: rgba(255,255,255,.045);
             color: var(--nav-text);
             text-align: left;
             cursor: pointer;
             font-size: 13px;
             font-weight: 700;
-            letter-spacing: .01em;
+            letter-spacing: .015em;
             transition: transform .12s ease, background .16s ease, border-color .16s ease;
           }
-          .tab-btn:hover { background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
+          .tab-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24); transform: translateY(-1px); }
           .tab-btn.active {
-            background: linear-gradient(90deg, #14468f 0%, #1a6bda 100%);
-            border-color: #2a77de;
+            background: linear-gradient(90deg, #006978 0%, #1491a0 100%);
+            border-color: #33a9b6;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.1);
           }
           .sidebar a {
-            color: #c9defb;
+            color: #d5edf4;
             text-decoration: none;
             font-weight: 700;
           }
+          .sidebar a:hover { text-decoration: underline; }
           .content {
-            padding: 24px;
+            padding: 26px;
           }
           .topbar {
             background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 18px;
-            padding: 16px;
+            border: 1px solid #d8e2e8;
+            border-radius: 20px;
+            padding: 18px;
             display: flex;
-            gap: 12px;
+            gap: 14px;
             flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            box-shadow: var(--shadow-sm);
+            box-shadow: var(--shadow-md);
           }
           .title {
             margin: 0;
-            font-size: 23px;
-            letter-spacing: .01em;
+            font-size: 24px;
+            letter-spacing: .015em;
           }
           .subtitle {
-            margin: 4px 0 0;
+            margin: 5px 0 0;
             color: var(--muted);
             font-size: 14px;
           }
           .actions {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 9px;
           }
           .btn {
             border: 1px solid var(--line-strong);
-            background: #f4f7fb;
+            background: #f2f6f8;
             color: #102039;
             border-radius: 12px;
-            padding: 8px 13px;
+            padding: 9px 13px;
             font-weight: 800;
             cursor: pointer;
             transition: transform .12s ease, box-shadow .16s ease, background .16s ease;
           }
-          .btn:hover { background: #e8eef8; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(16, 35, 62, .08); }
+          .btn:hover { background: #e7eef2; transform: translateY(-1px); box-shadow: 0 8px 16px rgba(16, 35, 62, .09); }
           .btn.primary {
-            background: var(--brand);
-            border-color: var(--brand);
+            background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
+            border-color: #1a9fac;
             color: #fff;
           }
           .btn.good {
@@ -178,35 +185,36 @@ data:
           }
           .btn:disabled { opacity: .55; cursor: default; }
           .stats {
-            margin-top: 14px;
+            margin-top: 16px;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
+            gap: 14px;
           }
           .stat {
             background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 14px;
+            border: 1px solid #dbe4ea;
+            border-radius: 18px;
+            padding: 15px;
             box-shadow: var(--shadow-sm);
           }
-          .stat .k { font-size: 12px; color: var(--muted); }
-          .stat .v { font-size: 22px; font-weight: 900; margin-top: 6px; }
-          .views { margin-top: 14px; }
+          .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+          .stat .v { font-size: 24px; font-weight: 900; margin-top: 7px; }
+          .views { margin-top: 16px; }
           .view { display: none; }
           .view.active { display: block; }
-          .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+          .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 15px; }
           .card {
             background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 14px;
+            border: 1px solid #dbe4ea;
+            border-radius: 18px;
+            padding: 15px;
             box-shadow: var(--shadow-sm);
           }
           .card h3 {
-            margin: 0 0 8px;
-            font-size: 15px;
-            letter-spacing: .02em;
+            margin: 0 0 9px;
+            font-size: 14px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
           }
           .span-8 { grid-column: span 8; }
           .span-7 { grid-column: span 7; }
@@ -215,63 +223,65 @@ data:
           .span-4 { grid-column: span 4; }
           .span-12 { grid-column: span 12; }
           .hint {
-            margin-bottom: 10px;
-            border: 1px solid #bdd8ff;
+            margin-bottom: 11px;
+            border: 1px solid #b8dfe5;
             background: var(--brand-soft);
-            color: #19428c;
-            border-radius: 10px;
-            padding: 9px 10px;
+            color: #1d5b62;
+            border-radius: 12px;
+            padding: 10px 11px;
             font-size: 13px;
           }
-          .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 10px; }
+          .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
-            padding: 10px 11px;
+            padding: 10px 12px;
             min-width: 170px;
             color: #0f213c;
             background: #fff;
           }
           input:focus, select:focus {
             outline: none;
-            border-color: #6fa5f6;
-            box-shadow: 0 0 0 3px rgba(13, 108, 234, .16);
+            border-color: #3ca5b2;
+            box-shadow: 0 0 0 3px rgba(16, 138, 150, .15);
           }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           th, td {
             text-align: left;
-            border-bottom: 1px solid #e8edf4;
-            padding: 8px 6px;
+            border-bottom: 1px solid #e6edf2;
+            padding: 9px 6px;
             vertical-align: top;
           }
-          th { color: #4a5d78; font-weight: 800; }
+          th { color: #4f6279; font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
           .badge {
             display: inline-block;
             border-radius: 999px;
-            padding: 2px 8px;
-            font-size: 12px;
+            padding: 3px 9px;
+            font-size: 11px;
             font-weight: 800;
+            letter-spacing: .04em;
+            text-transform: uppercase;
           }
           .b-ok { background: #d8fae8; color: #17603f; }
           .b-mid { background: #fff0d7; color: #8f520d; }
           .b-info { background: #ddebff; color: #1b4698; }
           pre {
             margin: 0;
-            border: 1px solid #132541;
-            background: #0e1a2d;
-            color: #d4e5ff;
+            border: 1px solid #123042;
+            background: #0f2534;
+            color: #d9edf6;
             border-radius: 12px;
-            padding: 10px;
+            padding: 11px;
             min-height: 130px;
             overflow: auto;
             font-size: 12px;
           }
           @media (max-width: 1240px) {
             .layout { grid-template-columns: 1fr; }
-            .sidebar { border-right: none; border-bottom: 1px solid #203657; }
+            .sidebar { border-right: none; border-bottom: 1px solid #22455f; }
             .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; }
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .content { padding: 16px; }
+            .content { padding: 14px; }
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
@@ -283,7 +293,7 @@ data:
         <div class="layout">
           <aside class="sidebar">
             <div class="brand">NoryxLab</div>
-            <div class="edition">Community Edition Console</div>
+            <div class="edition">Community Edition Platform</div>
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
@@ -324,8 +334,8 @@ data:
           <main class="content">
             <section class="topbar">
               <div>
-                <h1 class="title">NoryxLab Datalab Workspace Hub</h1>
-                <p class="subtitle">Projects own workloads. Environments are reusable build artifacts.</p>
+                <h1 class="title">NoryxLab Control Plane</h1>
+                <p class="subtitle">Project-centric platform for workloads, environments and governed data access.</p>
               </div>
               <div class="actions">
                 <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;">Login Keycloak</button>
@@ -2518,7 +2528,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.45"}
+    {"version":"ce-web-0.6.46"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2539,7 +2549,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.45
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.46
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
