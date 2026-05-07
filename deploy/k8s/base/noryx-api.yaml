@@ -98,9 +98,9 @@ spec:
             - name: NORYX_MINIO_REGION
               value: "us-east-1"
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.2.2"
+              value: "harbor.lan/noryx-environments/noryx-python:0.2.3"
             - name: NORYX_WORKSPACE_VSCODE_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.2.2"
+              value: "harbor.lan/noryx-environments/noryx-python:0.2.3"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_MEMORY

@@ -37,7 +37,7 @@ Create payload:
 
 Default workspace base image (shared by Jupyter + VSCode):
 
-- `harbor.lan/noryx-environments/noryx-python:0.2.2`
+- `harbor.lan/noryx-environments/noryx-python:0.2.3`
 
 Configurable with env var:
 
@@ -84,7 +84,7 @@ Dockerfile path in this repo:
 Use `POST /api/v1/builds` with:
 
 - `dockerfilePath`: `environments/noryx-python/Dockerfile`
-- `destinationImage`: `harbor.lan/noryx-environments/noryx-python:0.2.2`
+- `destinationImage`: `harbor.lan/noryx-environments/noryx-python:0.2.3`
 
 ## Notes
 

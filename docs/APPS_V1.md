@@ -31,7 +31,7 @@ Create payload example:
   "projectId": "PROJECT_ID",
   "name": "Fraud UI",
   "slug": "fraud-ui",
-  "image": "harbor.lan/noryx-environments/noryx-python:0.2.2",
+  "image": "harbor.lan/noryx-environments/noryx-python:0.2.3",
   "port": 9000,
   "args": ["python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt"]
 }
