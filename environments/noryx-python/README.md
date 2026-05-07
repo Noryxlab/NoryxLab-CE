@@ -35,10 +35,10 @@ Auto-update:
 
 Target image:
 
-- `harbor.example.local/noryx-environments/noryx-python:0.2.2`
+- `harbor.example.local/noryx-environments/noryx-python:0.2.3`
 
 Build with Noryx API (`/api/v1/builds`) using:
 
 - `dockerfilePath`: `environments/noryx-python/Dockerfile`
 - `contextPath`: `` (empty)
-- `destinationImage`: `harbor.example.local/noryx-environments/noryx-python:0.2.2`
+- `destinationImage`: `harbor.example.local/noryx-environments/noryx-python:0.2.3`
