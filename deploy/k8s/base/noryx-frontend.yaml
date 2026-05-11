@@ -453,6 +453,7 @@ data:
             <div class="menu-title" data-i18n="menu_data">Donnees</div>
             <div class="menu">
               <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
+              <button class="tab-btn" data-tab="data-datasources"><span class="menu-ico">◎</span><span>Datasources</span></button>
               <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
               <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
             </div>
@@ -1060,6 +1061,7 @@ data:
             projects: document.getElementById('view-projects'),
             data: document.getElementById('view-data'),
             'data-datasets': document.getElementById('view-data'),
+            'data-datasources': document.getElementById('view-data'),
             'data-git': document.getElementById('view-data'),
             'data-secrets': document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
@@ -1692,6 +1694,7 @@ data:
               projects: 'tab_label_projects',
               data: 'tab_label_data',
               'data-datasets': 'tab_label_data',
+              'data-datasources': 'tab_label_data',
               'data-git': 'tab_label_data',
               'data-secrets': 'tab_label_data',
               workspaces: 'tab_label_workspaces',
@@ -1723,6 +1726,13 @@ data:
               datasets.style.display = 'none';
               datasources.style.display = 'none';
               repos.style.display = '';
+              secrets.style.display = 'none';
+              return;
+            }
+            if (tab === 'data-datasources') {
+              datasets.style.display = 'none';
+              datasources.style.display = '';
+              repos.style.display = 'none';
               secrets.style.display = 'none';
               return;
             }
@@ -3281,7 +3291,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.59"}
+    {"version":"ce-web-0.6.60"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3302,7 +3312,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.59
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.60
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
