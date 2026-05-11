@@ -14,6 +14,7 @@ data:
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <title>NoryxLab CE</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
           :root {
             --bg: #eef2f4;
             --surface: #ffffff;
@@ -34,7 +35,17 @@ data:
             --bad: #af2c36;
             --shadow-sm: 0 8px 22px rgba(21, 35, 49, .07);
             --shadow-md: 0 18px 44px rgba(11, 25, 36, .12);
-            --font: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
+            --font: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+            --fs-11: 11px;
+            --fs-12: 12px;
+            --fs-13: 13px;
+            --fs-14: 14px;
+            --fs-16: 16px;
+            --fs-18: 18px;
+            --fs-24: 24px;
+            --fs-36: 36px;
+            --lh-tight: 1.2;
+            --lh-base: 1.45;
           }
           * { box-sizing: border-box; }
           body {
@@ -42,6 +53,8 @@ data:
             min-height: 100vh;
             color: var(--text);
             font-family: var(--font);
+            font-size: var(--fs-14);
+            line-height: var(--lh-base);
             background:
               radial-gradient(1200px 640px at 16% -18%, #d4e9ee 0%, transparent 72%),
               radial-gradient(1100px 760px at 94% 110%, #f7e8d0 0%, transparent 62%),
@@ -125,7 +138,7 @@ data:
           }
           .brand {
             font-size: 27px;
-            font-weight: 800;
+            font-weight: 700;
             letter-spacing: .03em;
             margin-bottom: 1px;
           }
@@ -154,7 +167,7 @@ data:
           .menu-title {
             margin: 14px 0 8px;
             color: var(--nav-muted);
-            font-size: 11px;
+            font-size: var(--fs-12);
             letter-spacing: .14em;
             text-transform: uppercase;
           }
@@ -174,8 +187,8 @@ data:
             align-items: center;
             gap: 10px;
             cursor: pointer;
-            font-size: 13px;
-            font-weight: 700;
+            font-size: var(--fs-13);
+            font-weight: 600;
             letter-spacing: .015em;
             transition: transform .12s ease, background .16s ease, border-color .16s ease;
           }
@@ -229,13 +242,16 @@ data:
           }
           .title {
             margin: 0;
-            font-size: 24px;
+            font-size: var(--fs-24);
+            line-height: var(--lh-tight);
+            font-weight: 700;
             letter-spacing: .015em;
           }
           .subtitle {
             margin: 5px 0 0;
             color: var(--muted);
-            font-size: 14px;
+            font-size: var(--fs-14);
+            font-weight: 500;
           }
           .actions {
             display: flex;
@@ -248,7 +264,7 @@ data:
             color: #102039;
             border-radius: 12px;
             padding: 9px 13px;
-            font-weight: 800;
+            font-weight: 600;
             cursor: pointer;
             transition: transform .12s ease, box-shadow .16s ease, background .16s ease;
           }
@@ -288,7 +304,7 @@ data:
             box-shadow: var(--shadow-sm);
           }
           .stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-          .stat .v { font-size: 24px; font-weight: 900; margin-top: 7px; }
+          .stat .v { font-size: var(--fs-24); font-weight: 700; margin-top: 7px; }
           .views { margin-top: 16px; }
           .view { display: none; }
           .view.active { display: block; }
@@ -302,7 +318,8 @@ data:
           }
           .card h3 {
             margin: 0 0 9px;
-            font-size: 14px;
+            font-size: var(--fs-14);
+            font-weight: 700;
             letter-spacing: .1em;
             text-transform: uppercase;
           }
@@ -333,8 +350,8 @@ data:
             box-shadow: var(--shadow-md);
             border: 1px solid #3e4b69;
           }
-          .hero h2 { margin: 0 0 8px; font-size: 34px; letter-spacing: .01em; }
-          .hero p { margin: 0; color: #d6e0f4; max-width: 760px; line-height: 1.5; font-size: 21px; }
+          .hero h2 { margin: 0 0 8px; font-size: var(--fs-36); line-height: var(--lh-tight); font-weight: 700; letter-spacing: .01em; }
+          .hero p { margin: 0; color: #d6e0f4; max-width: 760px; line-height: var(--lh-base); font-size: var(--fs-16); font-weight: 500; }
           .hero-meta {
             margin-top: 15px;
             display: inline-flex;
@@ -355,8 +372,8 @@ data:
             background: #fff;
             padding: 14px;
           }
-          .quick .q-title { margin: 0 0 5px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #2d425d; }
-          .quick .q-text { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+          .quick .q-title { margin: 0 0 5px; font-size: var(--fs-14); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #2d425d; }
+          .quick .q-text { margin: 0; color: var(--muted); font-size: var(--fs-13); line-height: var(--lh-base); font-weight: 500; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
@@ -377,7 +394,7 @@ data:
             padding: 9px 6px;
             vertical-align: top;
           }
-          th { color: #4f6279; font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+          th { color: #4f6279; font-weight: 700; font-size: var(--fs-12); letter-spacing: .06em; text-transform: uppercase; }
           .badge {
             display: inline-block;
             border-radius: 999px;
@@ -3224,7 +3241,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.55"}
+    {"version":"ce-web-0.6.56"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3245,7 +3262,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.55
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.56
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
