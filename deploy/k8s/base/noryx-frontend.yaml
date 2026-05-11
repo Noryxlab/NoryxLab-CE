@@ -908,9 +908,10 @@ data:
         var back = 'unknown';
         node.textContent = 'front: ' + front + ' | back: ' + back;
         if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
+        var bust = String(Date.now());
         Promise.all([
-          fetch('/version.json', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-          fetch('/api/v1/version', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+          fetch('/version.json?nocache=' + bust, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+          fetch('/api/v1/version?nocache=' + bust, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
         ]).then(function (res) {
           var f = res[0];
           var b = res[1];
@@ -1770,9 +1771,10 @@ data:
             let backVersion = 'unknown';
             let frontVersion = 'unknown';
             try {
+              const bust = String(Date.now());
               const [frontRes, backRes] = await Promise.all([
-                fetch('/version.json'),
-                fetch('/api/v1/version')
+                fetch('/version.json?nocache=' + bust, { cache: 'no-store' }),
+                fetch('/api/v1/version?nocache=' + bust, { cache: 'no-store' })
               ]);
               if (frontRes.ok) {
                 const f = await frontRes.json();
@@ -3241,7 +3243,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.56"}
+    {"version":"ce-web-0.6.57"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3262,7 +3264,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.56
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.57
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
