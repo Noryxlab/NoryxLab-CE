@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
@@ -56,6 +58,7 @@ type Handlers struct {
 	workspaceProfilePVCAccessMode    string
 	workspaceProfilePVCMountPath     string
 	backendVersion                   string
+	defaultTheme                     string
 	editionHooks                     edition.Hooks
 }
 
@@ -82,6 +85,7 @@ type Options struct {
 	WorkspaceProfilePVCAccessMode    string
 	WorkspaceProfilePVCMountPath     string
 	BackendVersion                   string
+	DefaultTheme                     string
 	SecretsMasterKey                 string
 	MinIOClient                      *minio.Client
 	MinIOEndpoint                    string
@@ -172,6 +176,7 @@ func New(
 		workspaceProfilePVCAccessMode:    options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
 		backendVersion:                   options.BackendVersion,
+		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),
 		editionHooks:                     hooks,
 	}
 }

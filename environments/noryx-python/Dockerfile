@@ -35,6 +35,21 @@ RUN mkdir -p /opt/openvscode-server \
     | tar -xz --strip-components=1 -C /opt/openvscode-server \
  && ln -sf /opt/openvscode-server/bin/openvscode-server /usr/local/bin/openvscode-server
 
+# Use Microsoft VS Code Marketplace instead of OpenVSX for extension install/update.
+RUN python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path("/opt/openvscode-server/product.json")
+data = json.loads(p.read_text(encoding="utf-8"))
+data["extensionsGallery"] = {
+    "serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery",
+    "itemUrl": "https://marketplace.visualstudio.com/items",
+    "cacheUrl": "https://vscode.blob.core.windows.net/gallery/index",
+    "controlUrl": ""
+}
+p.write_text(json.dumps(data, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
+PY
+
 RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" /mnt \
  && printf '%s\n' \
     '{' \

@@ -4,6 +4,7 @@ import "os"
 
 type Config struct {
 	BackendVersion                   string
+	DefaultTheme                     string
 	ListenAddr                       string
 	StoreBackend                     string
 	DatabaseHost                     string
@@ -56,6 +57,10 @@ func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
 		backendVersion = "0.5.67"
+	}
+	defaultTheme := os.Getenv("NORYX_UI_DEFAULT_THEME")
+	if defaultTheme == "" {
+		defaultTheme = "noryx"
 	}
 	listenAddr := os.Getenv("NORYX_LISTEN_ADDR")
 	if listenAddr == "" {
@@ -195,6 +200,7 @@ func Load() Config {
 
 	return Config{
 		BackendVersion:                   backendVersion,
+		DefaultTheme:                     defaultTheme,
 		ListenAddr:                       listenAddr,
 		StoreBackend:                     storeBackend,
 		DatabaseHost:                     os.Getenv("NORYX_DATABASE_HOST"),

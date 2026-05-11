@@ -157,6 +157,7 @@ func main() {
 			WorkspaceProfilePVCAccessMode:    cfg.WorkspaceProfilePVCAccessMode,
 			WorkspaceProfilePVCMountPath:     cfg.WorkspaceProfilePVCMountPath,
 			BackendVersion:                   cfg.BackendVersion,
+			DefaultTheme:                     cfg.DefaultTheme,
 			SecretsMasterKey:                 cfg.SecretsMasterKey,
 			MinIOClient:                      minioClient,
 			MinIOEndpoint:                    cfg.MinIOEndpoint,
