@@ -452,7 +452,7 @@ data:
 
             <div class="menu-title" data-i18n="menu_data">Donnees</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Jeux de donnees</span></button>
+              <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
               <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
               <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
             </div>
@@ -1202,7 +1202,7 @@ data:
               menu_docs: 'Documentation',
               tab_home: 'Home',
               tab_environments: 'Environnements',
-              tab_datasets: 'Jeux de donnees',
+              tab_datasets: 'Datasets',
               tab_projects_overview: "Vue d'ensemble",
               tab_workspaces: 'Espaces de travail',
               tab_jobs: 'Traitements',
@@ -1240,11 +1240,11 @@ data:
               go_env: 'Aller aux environnements',
               btn_create_project: 'Creer projet',
               btn_refresh_projects: 'Actualiser projets',
-              btn_attach_dataset: 'Associer jeu de donnees',
+              btn_attach_dataset: 'Associer dataset',
               btn_attach_repo: 'Associer depot',
               btn_attach_datasource: 'Associer connexion',
               btn_save_secret: 'Enregistrer secret',
-              btn_create_dataset: 'Creer jeu de donnees',
+              btn_create_dataset: 'Creer dataset',
               btn_refresh_data: 'Actualiser donnees',
               btn_upload_object: 'Envoyer fichier',
               btn_create_repo: 'Creer depot',
@@ -1258,7 +1258,7 @@ data:
               ph_project_name: 'Nom du projet',
               ph_secret_name: 'Nom du secret',
               ph_secret_value: 'Valeur du secret',
-              ph_dataset_name: 'Nom du jeu de donnees',
+              ph_dataset_name: 'Nom du dataset',
               ph_dataset_description: 'Description (optionnelle)',
               ph_dataset_path: 'Chemin du fichier (ex: train.csv)',
               ph_repo_name: 'Nom du depot',
@@ -1283,7 +1283,7 @@ data:
               msg_not_authenticated: 'Non connecte',
               msg_no_project: 'Aucun projet pour le moment.',
               msg_no_secret: 'Aucun secret.',
-              msg_no_dataset: 'Aucun jeu de donnees.',
+              msg_no_dataset: 'Aucun dataset.',
               msg_no_repository: 'Aucun depot.',
               msg_no_datasource: 'Aucune connexion.',
               msg_no_workspace_project: 'Aucun espace pour ce projet.',
@@ -1292,10 +1292,10 @@ data:
               msg_no_dashboards_project: 'Aucun dashboard pour ce projet.',
               msg_no_env_project: 'Aucun environnement pour ce projet.',
               msg_no_activity_project: 'Aucune activite pour ce projet.',
-              msg_no_dataset_attach: 'Aucun jeu de donnees a associer',
+              msg_no_dataset_attach: 'Aucun dataset a associer',
               msg_no_repo_attach: 'Aucun depot a associer',
               msg_no_ds_attach: 'Aucune connexion a associer',
-              msg_dataset_attached_none: 'Aucun jeu de donnees associe.',
+              msg_dataset_attached_none: 'Aucun dataset associe.',
               msg_repo_attached_none: 'Aucun depot associe.',
               msg_ds_attached_none: 'Aucune connexion associee.',
               msg_secret_copied: 'Secret copie dans le presse-papiers.',
@@ -1307,12 +1307,12 @@ data:
               msg_unknown_error: 'erreur inconnue',
               err_project_name_required: 'projectName requis',
               err_select_project_first: 'selectionner un projet',
-              err_select_dataset_attach: 'selectionner un jeu de donnees a associer',
+              err_select_dataset_attach: 'selectionner un dataset a associer',
               err_select_repo_attach: 'selectionner un depot a associer',
               err_select_ds_attach: 'selectionner une connexion a associer',
               err_secret_required: 'nom et valeur du secret requis',
-              err_dataset_required: 'nom du jeu de donnees requis',
-              err_dataset_upload_required: 'jeu de donnees, chemin objet et fichier requis',
+              err_dataset_required: 'nom du dataset requis',
+              err_dataset_upload_required: 'dataset, chemin objet et fichier requis',
               err_repo_required: 'nom et URL du depot requis',
               err_ds_required: 'name, host, database, username, passwordSecret requis',
               err_select_env_first: "selectionner une image d'environnement",
@@ -3281,7 +3281,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.58"}
+    {"version":"ce-web-0.6.59"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3302,7 +3302,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.58
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.59
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
