@@ -1720,8 +1720,8 @@ data:
             const secrets = document.getElementById('card-secrets');
             if (!datasets || !datasources || !repos || !secrets) return;
             if (tab === 'data-datasets') {
-              datasets.style.display = '';
-              datasources.style.display = '';
+              datasets.style.display = 'block';
+              datasources.style.display = 'none';
               repos.style.display = 'none';
               secrets.style.display = 'none';
               return;
@@ -1729,13 +1729,13 @@ data:
             if (tab === 'data-git') {
               datasets.style.display = 'none';
               datasources.style.display = 'none';
-              repos.style.display = '';
+              repos.style.display = 'block';
               secrets.style.display = 'none';
               return;
             }
             if (tab === 'data-datasources') {
               datasets.style.display = 'none';
-              datasources.style.display = '';
+              datasources.style.display = 'block';
               repos.style.display = 'none';
               secrets.style.display = 'none';
               return;
@@ -1744,13 +1744,13 @@ data:
               datasets.style.display = 'none';
               datasources.style.display = 'none';
               repos.style.display = 'none';
-              secrets.style.display = '';
+              secrets.style.display = 'block';
               return;
             }
-            datasets.style.display = '';
-            datasources.style.display = '';
-            repos.style.display = '';
-            secrets.style.display = '';
+            datasets.style.display = 'block';
+            datasources.style.display = 'block';
+            repos.style.display = 'block';
+            secrets.style.display = 'block';
           }
 
           tabButtons.forEach((btn) => {
@@ -3295,7 +3295,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.61"}
+    {"version":"ce-web-0.6.62"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3316,7 +3316,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.61
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.62
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
