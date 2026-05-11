@@ -477,6 +477,10 @@ data:
                   <option value="fr">FR</option>
                   <option value="en">EN</option>
                 </select>
+                <select id="themeSelect" class="lang-min" aria-label="Theme">
+                  <option value="noryx">Noryx</option>
+                  <option value="premyom-dark">Premyom</option>
+                </select>
                 <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
                 <button id="logout" class="btn" data-i18n="logout">Se deconnecter</button>
                 <button id="loadModules" class="btn good admin-only" data-i18n="platform_status">Etat plateforme</button>
@@ -1053,6 +1057,58 @@ data:
           const statTab = document.getElementById('statTab');
           const versionsNode = document.getElementById('versions');
           const langSelect = document.getElementById('langSelect');
+          const themeSelect = document.getElementById('themeSelect');
+          const THEME_KEY = 'noryx.ui.theme';
+          let adminDefaultTheme = 'noryx';
+          const THEMES = {
+            noryx: {
+              '--bg': '#eef2f4',
+              '--surface': '#ffffff',
+              '--surface-soft': '#f4f7f9',
+              '--line': '#dde5eb',
+              '--line-strong': '#bcc8d3',
+              '--text': '#122031',
+              '--muted': '#5e6f83',
+              '--nav-bg': '#0f1f2d',
+              '--nav-bg-2': '#163346',
+              '--nav-text': '#d8e8f4',
+              '--nav-muted': '#97b1c8',
+              '--brand': '#006d77',
+              '--brand-2': '#0f93a0',
+              '--brand-soft': '#d8f0f3'
+            },
+            'premyom-dark': {
+              '--bg': '#262f43',
+              '--surface': '#34405a',
+              '--surface-soft': '#3a4660',
+              '--line': '#4a5a79',
+              '--line-strong': '#62739a',
+              '--text': '#ecf1fb',
+              '--muted': '#b8c7e1',
+              '--nav-bg': '#30384f',
+              '--nav-bg-2': '#3a435f',
+              '--nav-text': '#eef3ff',
+              '--nav-muted': '#b4c1da',
+              '--brand': '#ff6434',
+              '--brand-2': '#ff4b1f',
+              '--brand-soft': '#453f4b'
+            }
+          };
+
+          function normalizeTheme(raw) {
+            const v = String(raw || '').trim().toLowerCase();
+            if (v === 'premyom-dark' || v === 'premyom') return 'premyom-dark';
+            return 'noryx';
+          }
+          function applyTheme(themeID) {
+            const normalized = normalizeTheme(themeID);
+            const theme = THEMES[normalized] || THEMES.noryx;
+            const root = document.documentElement;
+            Object.keys(theme).forEach((k) => root.style.setProperty(k, theme[k]));
+            if (themeSelect) themeSelect.value = normalized;
+            try { localStorage.setItem(THEME_KEY, normalized); } catch (_) {}
+            return normalized;
+          }
           const NAV_COLLAPSED_KEY = 'noryx.ui.nav.collapsed';
 
           function applyCollapsedNav(collapsed) {
@@ -1097,6 +1153,10 @@ data:
           };
           let selectedEnvironmentID = '';
           let openingWorkspaceId = null;
+          let currentTheme = normalizeTheme((() => {
+            try { return localStorage.getItem(THEME_KEY) || ''; } catch (_) { return ''; }
+          })());
+          applyTheme(currentTheme);
           const LOCALES = {
             en: {
               open: 'Open',
@@ -1491,6 +1551,19 @@ data:
               applyI18n();
             };
           }
+          if (themeSelect) {
+            themeSelect.onchange = async () => {
+              const next = applyTheme(themeSelect.value);
+              currentTheme = next;
+              try {
+                await callJSON('/api/v1/user/preferences', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ theme: currentTheme })
+                });
+              } catch (_) {}
+            };
+          }
           let workspacesAutoRefreshTimer = null;
           function setMeta(text) { meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
@@ -1636,14 +1709,20 @@ data:
             return body;
           }
 
-          async function loadUserLanguagePreference() {
+          async function loadUserPreferences() {
             try {
               const body = await callJSON('/api/v1/user/preferences');
               const serverLang = String((body && body.language) || '').trim().toLowerCase();
+              const serverTheme = normalizeTheme((body && body.theme) || '');
               if (serverLang === 'fr' || serverLang === 'en') {
                 currentLang = serverLang;
                 if (langSelect) langSelect.value = currentLang;
                 try { localStorage.setItem('noryx.ui.lang', currentLang); } catch (_) {}
+              }
+              if (serverTheme) {
+                currentTheme = applyTheme(serverTheme);
+              } else {
+                currentTheme = applyTheme(adminDefaultTheme);
               }
             } catch (_) {}
             applyI18n();
@@ -1686,6 +1765,12 @@ data:
                 const b = await backRes.json();
                 if (b && b.backendVersion) backVersion = String(b.backendVersion);
                 if (backVersion === 'unknown' && b && b.version) backVersion = String(b.version);
+                if (b && b.defaultTheme) {
+                  adminDefaultTheme = normalizeTheme(b.defaultTheme);
+                  if (!localStorage.getItem(THEME_KEY)) {
+                    currentTheme = applyTheme(adminDefaultTheme);
+                  }
+                }
               }
             } catch (_) {}
             versionsNode.textContent = 'front: ' + frontVersion + ' | back: ' + backVersion;
@@ -3084,7 +3169,7 @@ data:
                 setMeta('Not authenticated (lab mode active as ' + currentLabUser() + ')');
                 applyRoleVisibility();
                 setButtons(true);
-                loadUserLanguagePreference();
+                loadUserPreferences();
                 startWorkspacesAutoRefresh();
                 refreshProjects()
                   .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3098,7 +3183,7 @@ data:
               setMeta('Authenticated as ' + ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || (keycloak.tokenParsed && keycloak.tokenParsed.sub)));
               applyRoleVisibility();
               setButtons(true);
-              loadUserLanguagePreference();
+              loadUserPreferences();
               startWorkspacesAutoRefresh();
               ensureWebSession()
                 .then(() => refreshProjects())
@@ -3114,7 +3199,7 @@ data:
               authMode = 'lab';
               applyRoleVisibility();
               setButtons(true);
-              loadUserLanguagePreference();
+              loadUserPreferences();
               startWorkspacesAutoRefresh();
               refreshProjects()
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3125,7 +3210,7 @@ data:
             setMeta('Lab mode as ' + currentLabUser());
             applyRoleVisibility();
             setButtons(true);
-            loadUserLanguagePreference();
+            loadUserPreferences();
             startWorkspacesAutoRefresh();
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3133,13 +3218,13 @@ data:
             switchTab('intro');
           }
 
-          loadUserLanguagePreference();
+          loadUserPreferences();
           refreshVersions();
         </script>
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.54"}
+    {"version":"ce-web-0.6.55"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3160,7 +3245,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.54
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.55
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
