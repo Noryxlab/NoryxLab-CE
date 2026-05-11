@@ -51,6 +51,10 @@ data:
             min-height: 100vh;
             display: grid;
             grid-template-columns: 304px 1fr;
+            transition: grid-template-columns .18s ease;
+          }
+          .layout.is-collapsed {
+            grid-template-columns: 86px 1fr;
           }
           .sidebar {
             padding: 24px 18px;
@@ -58,6 +62,60 @@ data:
             background: linear-gradient(180deg, var(--nav-bg) 0%, var(--nav-bg-2) 100%);
             border-right: 1px solid #17364b;
             box-shadow: inset -1px 0 0 rgba(255,255,255,.04);
+            position: relative;
+            overflow: hidden;
+          }
+          .sidebar::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(560px 260px at -10% -10%, rgba(255,255,255,.12), transparent 68%);
+          }
+          .reduce-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 2px 0 8px;
+          }
+          .reduce-btn {
+            border: 1px solid rgba(255,255,255,.2);
+            background: rgba(255,255,255,.08);
+            color: #dceaf6;
+            border-radius: 10px;
+            padding: 6px 9px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .reduce-btn:hover { background: rgba(255,255,255,.16); }
+          .layout.is-collapsed .reduce-btn .txt { display: none; }
+          .layout.is-collapsed .reduce-btn { padding: 6px 8px; }
+          .layout.is-collapsed .brand,
+          .layout.is-collapsed .edition,
+          .layout.is-collapsed .who,
+          .layout.is-collapsed .menu-title,
+          .layout.is-collapsed .versions,
+          .layout.is-collapsed .menu span:not(.menu-ico),
+          .layout.is-collapsed .menu a { display: none; }
+          .layout.is-collapsed .sidebar { padding: 18px 10px; }
+          .layout.is-collapsed .tab-btn {
+            justify-content: center;
+            padding: 10px 8px;
+            min-height: 40px;
+          }
+          .layout.is-collapsed .menu {
+            gap: 7px;
+            margin-bottom: 9px;
+          }
+          .layout.is-collapsed .side-sep { margin: 8px 0; }
+          .layout.is-collapsed .menu-ico { width: auto; font-size: 16px; }
+          .layout.is-collapsed .sidebar [data-tab] { position: relative; }
+          .layout.is-collapsed .sidebar [data-tab]::after {
+            content: attr(data-tab);
+            position: absolute;
+            left: 60px;
+            opacity: 0;
           }
           .side-sep {
             height: 1px;
@@ -79,9 +137,11 @@ data:
             text-transform: uppercase;
           }
           .versions {
-            font-size: 11px;
-            color: #aec3d7;
-            margin-bottom: 12px;
+            font-size: 10px;
+            color: #93adc5;
+            margin: 2px 0 8px;
+            letter-spacing: .03em;
+            opacity: .85;
           }
           .who {
             background: rgba(255,255,255,.08);
@@ -139,6 +199,21 @@ data:
           .sidebar a:hover { text-decoration: underline; }
           .content {
             padding: 26px;
+          }
+          .topbar-meta {
+            font-size: 11px;
+            color: #768ca4;
+            margin-top: 6px;
+            letter-spacing: .03em;
+          }
+          .lang-min {
+            border: 1px solid #d7e0e8;
+            border-radius: 999px;
+            font-size: 11px;
+            padding: 6px 9px;
+            min-width: 56px;
+            color: #5a6f86;
+            background: #f8fafc;
           }
           .topbar {
             background: var(--surface);
@@ -343,7 +418,10 @@ data:
       <body>
         <div class="layout">
           <aside class="sidebar">
-            <div class="brand">NoryxLab</div>
+            <div class="reduce-row">
+              <div class="brand">NoryxLab</div>
+              <button id="reduceNav" class="reduce-btn" type="button"><span class="ico">◀</span> <span class="txt">Reduce</span></button>
+            </div>
             <div class="edition" data-i18n="edition">Community Edition</div>
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
@@ -392,9 +470,10 @@ data:
               <div>
                 <h1 class="title" data-i18n="title">NoryxLab</h1>
                 <p class="subtitle" data-i18n="subtitle">Plateforme collaborative pour les equipes data, de l'exploration au passage en production.</p>
+                <div id="topMeta" class="topbar-meta">-</div>
               </div>
               <div class="actions">
-                <select id="langSelect" class="btn" style="font-weight:700;">
+                <select id="langSelect" class="lang-min" aria-label="Language">
                   <option value="fr">FR</option>
                   <option value="en">EN</option>
                 </select>
@@ -802,10 +881,12 @@ data:
     <script>
       (function () {
         var node = document.getElementById('versions');
+        var topMeta = document.getElementById('topMeta');
         if (!node) return;
         var front = 'unknown';
         var back = 'unknown';
         node.textContent = 'front: ' + front + ' | back: ' + back;
+        if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         Promise.all([
           fetch('/version.json', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
           fetch('/api/v1/version', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
@@ -815,8 +896,10 @@ data:
           if (f && f.version) front = String(f.version);
           if (b && (b.backendVersion || b.version)) back = String(b.backendVersion || b.version);
           node.textContent = 'front: ' + front + ' | back: ' + back;
+          if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         }).catch(function () {
           node.textContent = 'front: ' + front + ' | back: ' + back;
+          if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         });
       })();
     </script>
@@ -849,6 +932,8 @@ data:
           }
 
           const meta = document.getElementById('meta');
+          const layoutNode = document.querySelector('.layout');
+          const reduceNavBtn = document.getElementById('reduceNav');
           const usersOut = document.getElementById('usersOut');
           const modulesOut = document.getElementById('modulesOut');
           const projectOut = document.getElementById('projectOut');
@@ -968,6 +1053,28 @@ data:
           const statTab = document.getElementById('statTab');
           const versionsNode = document.getElementById('versions');
           const langSelect = document.getElementById('langSelect');
+          const NAV_COLLAPSED_KEY = 'noryx.ui.nav.collapsed';
+
+          function applyCollapsedNav(collapsed) {
+            if (!layoutNode) return;
+            layoutNode.classList.toggle('is-collapsed', !!collapsed);
+            if (reduceNavBtn) {
+              reduceNavBtn.innerHTML = collapsed
+                ? '<span class="ico">▶</span> <span class="txt">Expand</span>'
+                : '<span class="ico">◀</span> <span class="txt">Reduce</span>';
+            }
+          }
+
+          applyCollapsedNav((() => {
+            try { return localStorage.getItem(NAV_COLLAPSED_KEY) === '1'; } catch (_) { return false; }
+          })());
+          if (reduceNavBtn) {
+            reduceNavBtn.onclick = () => {
+              const next = !(layoutNode && layoutNode.classList.contains('is-collapsed'));
+              applyCollapsedNav(next);
+              try { localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0'); } catch (_) {}
+            };
+          }
 
           const state = {
             projects: [],
@@ -3032,7 +3139,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.53"}
+    {"version":"ce-web-0.6.54"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3053,7 +3160,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.53
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.54
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
