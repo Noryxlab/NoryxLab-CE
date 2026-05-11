@@ -1689,6 +1689,10 @@ data:
               views[name].classList.toggle('active', name === viewTab);
             });
             applyDataTab(tab);
+            if (viewTab === 'data') {
+              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources()])
+                .catch(() => {});
+            }
             const labels = {
               intro: 'tab_label_intro',
               projects: 'tab_label_projects',
@@ -3291,7 +3295,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.60"}
+    {"version":"ce-web-0.6.61"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3312,7 +3316,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.60
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.61
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
