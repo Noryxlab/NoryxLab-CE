@@ -452,9 +452,9 @@ data:
 
             <div class="menu-title" data-i18n="menu_data">Donnees</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="data" data-anchor="card-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Jeux de donnees</span></button>
-              <button class="tab-btn" data-tab="data" data-anchor="card-repositories"><span class="menu-ico">⑂</span><span>Git</span></button>
-              <button class="tab-btn" data-tab="data" data-anchor="card-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
+              <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Jeux de donnees</span></button>
+              <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
+              <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
             </div>
             <hr class="side-sep" />
 
@@ -618,7 +618,7 @@ data:
 
               <section class="view" id="view-data">
                 <div class="grid">
-                  <article id="card-secrets" class="card span-6">
+                  <article id="card-secrets" class="card span-12">
                     <h3>Secrets</h3>
                     <div class="hint">Secrets utilisateur (tokens, passwords, API keys). Expiration optionnelle.</div>
                     <div class="row">
@@ -636,7 +636,7 @@ data:
                     </table>
                   </article>
 
-                  <article id="card-datasets" class="card span-6">
+                  <article id="card-datasets" class="card span-12">
                     <h3>Datasets</h3>
                     <div class="hint">Catalog datasets + optional object upload to MinIO. Prefix = subpath in bucket (e.g. raw/2026).</div>
                     <div class="row">
@@ -661,7 +661,7 @@ data:
                     </table>
                   </article>
 
-                  <article id="card-repositories" class="card span-6">
+                  <article id="card-repositories" class="card span-12">
                     <h3>Repositories</h3>
                     <div class="hint">Catalog only: name + URL + optional auth secret, with validation on save.</div>
                     <div class="row">
@@ -680,7 +680,7 @@ data:
                     </table>
                   </article>
 
-                  <article id="card-datasources" class="card span-6">
+                  <article id="card-datasources" class="card span-12">
                     <h3>Datasources</h3>
                     <div class="hint">External DB connections (V1: postgres).</div>
                     <div class="row">
@@ -1059,6 +1059,9 @@ data:
             intro: document.getElementById('view-intro'),
             projects: document.getElementById('view-projects'),
             data: document.getElementById('view-data'),
+            'data-datasets': document.getElementById('view-data'),
+            'data-git': document.getElementById('view-data'),
+            'data-secrets': document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
             'project-jobs': document.getElementById('view-project-jobs'),
             'project-apps': document.getElementById('view-project-apps'),
@@ -1676,15 +1679,21 @@ data:
 
           function switchTab(tab, sourceBtn) {
             state.activeTab = tab;
+            const viewTab = tab.startsWith('data-') ? 'data' : tab;
             const activeButton = sourceBtn || tabButtons.find((btn) => btn.getAttribute('data-tab') === tab);
             tabButtons.forEach((btn) => btn.classList.toggle('active', btn === activeButton));
             Object.keys(views).forEach((name) => {
-              views[name].classList.toggle('active', name === tab);
+              if (name === 'data-datasets' || name === 'data-git' || name === 'data-secrets') return;
+              views[name].classList.toggle('active', name === viewTab);
             });
+            applyDataTab(tab);
             const labels = {
               intro: 'tab_label_intro',
               projects: 'tab_label_projects',
               data: 'tab_label_data',
+              'data-datasets': 'tab_label_data',
+              'data-git': 'tab_label_data',
+              'data-secrets': 'tab_label_data',
               workspaces: 'tab_label_workspaces',
               'project-jobs': 'tab_label_project_jobs',
               'project-apps': 'tab_label_project_apps',
@@ -1697,22 +1706,51 @@ data:
             statTab.textContent = tui(labels[tab] || 'tab_label_intro');
           }
 
+          function applyDataTab(tab) {
+            const datasets = document.getElementById('card-datasets');
+            const datasources = document.getElementById('card-datasources');
+            const repos = document.getElementById('card-repositories');
+            const secrets = document.getElementById('card-secrets');
+            if (!datasets || !datasources || !repos || !secrets) return;
+            if (tab === 'data-datasets') {
+              datasets.style.display = '';
+              datasources.style.display = '';
+              repos.style.display = 'none';
+              secrets.style.display = 'none';
+              return;
+            }
+            if (tab === 'data-git') {
+              datasets.style.display = 'none';
+              datasources.style.display = 'none';
+              repos.style.display = '';
+              secrets.style.display = 'none';
+              return;
+            }
+            if (tab === 'data-secrets') {
+              datasets.style.display = 'none';
+              datasources.style.display = 'none';
+              repos.style.display = 'none';
+              secrets.style.display = '';
+              return;
+            }
+            datasets.style.display = '';
+            datasources.style.display = '';
+            repos.style.display = '';
+            secrets.style.display = '';
+          }
+
           tabButtons.forEach((btn) => {
             btn.onclick = () => {
               const tab = btn.getAttribute('data-tab');
               switchTab(tab, btn);
-              const anchor = btn.getAttribute('data-anchor');
-              if (anchor && tab === 'data') {
-                const node = document.getElementById(anchor);
-                if (node) node.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
             };
           });
           document.querySelectorAll('[data-tab-jump]').forEach((btn) => {
             btn.onclick = () => {
               const tab = btn.getAttribute('data-tab-jump');
-              const src = tabButtons.find((b) => b.getAttribute('data-tab') === tab);
-              switchTab(tab, src || null);
+              const jumpTab = tab === 'data' ? 'data-datasets' : tab;
+              const src = tabButtons.find((b) => b.getAttribute('data-tab') === jumpTab);
+              switchTab(jumpTab, src || null);
             };
           });
 
@@ -3243,7 +3281,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.57"}
+    {"version":"ce-web-0.6.58"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3264,7 +3302,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.57
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.58
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
