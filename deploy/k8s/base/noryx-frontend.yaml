@@ -59,6 +59,12 @@ data:
             border-right: 1px solid #17364b;
             box-shadow: inset -1px 0 0 rgba(255,255,255,.04);
           }
+          .side-sep {
+            height: 1px;
+            border: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,.03), rgba(255,255,255,.24), rgba(255,255,255,.03));
+            margin: 10px 0 12px;
+          }
           .brand {
             font-size: 27px;
             font-weight: 800;
@@ -104,11 +110,20 @@ data:
             background: rgba(255,255,255,.045);
             color: var(--nav-text);
             text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             cursor: pointer;
             font-size: 13px;
             font-weight: 700;
             letter-spacing: .015em;
             transition: transform .12s ease, background .16s ease, border-color .16s ease;
+          }
+          .menu-ico {
+            width: 20px;
+            text-align: center;
+            opacity: .95;
+            font-size: 15px;
           }
           .tab-btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.24); transform: translateY(-1px); }
           .tab-btn.active {
@@ -234,14 +249,30 @@ data:
           .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           .stack { display: grid; gap: 12px; }
           .hero {
-            background: linear-gradient(120deg, #0b4455 0%, #0f6b7b 55%, #1793a2 100%);
-            color: #f3fbfd;
+            background:
+              radial-gradient(800px 280px at 5% 0%, rgba(245, 189, 73, .22), transparent 68%),
+              linear-gradient(124deg, #1f2b43 0%, #27344e 55%, #2f3b57 100%);
+            color: #f4f7fc;
             border-radius: 18px;
             padding: 22px;
             box-shadow: var(--shadow-md);
+            border: 1px solid #3e4b69;
           }
-          .hero h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: .01em; }
-          .hero p { margin: 0; color: #d2edf2; max-width: 760px; line-height: 1.5; }
+          .hero h2 { margin: 0 0 8px; font-size: 34px; letter-spacing: .01em; }
+          .hero p { margin: 0; color: #d6e0f4; max-width: 760px; line-height: 1.5; font-size: 21px; }
+          .hero-meta {
+            margin-top: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.2);
+            font-size: 12px;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+          }
           .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
           .quick {
             border: 1px solid #d7e3eb;
@@ -319,32 +350,36 @@ data:
 
             <div class="menu-title" data-i18n="menu_home">Accueil</div>
             <div class="menu">
-              <button class="tab-btn active" data-tab="intro" data-i18n="tab_home">Home</button>
-              <button class="tab-btn" data-tab="environments" data-i18n="tab_environments">Environnements</button>
+              <button class="tab-btn active" data-tab="intro"><span class="menu-ico">⌂</span><span data-i18n="tab_home">Home</span></button>
+              <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
             </div>
+            <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_data">Donnees</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="data" data-anchor="card-datasets" data-i18n="tab_datasets">Jeux de donnees</button>
-              <button class="tab-btn" data-tab="data" data-anchor="card-repositories">Git</button>
-              <button class="tab-btn" data-tab="data" data-anchor="card-secrets">Secrets</button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Jeux de donnees</span></button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-repositories"><span class="menu-ico">⑂</span><span>Git</span></button>
+              <button class="tab-btn" data-tab="data" data-anchor="card-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
             </div>
+            <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_projects">Projets</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="projects" data-i18n="tab_projects_overview">Vue d'ensemble</button>
-              <button class="tab-btn" data-tab="workspaces" data-i18n="tab_workspaces">Espaces de travail</button>
-              <button class="tab-btn" data-tab="project-jobs" data-i18n="tab_jobs">Traitements</button>
-              <button class="tab-btn" data-tab="project-apps">Apps</button>
-              <button class="tab-btn" data-tab="project-dashboards">Dashboards</button>
-              <button class="tab-btn" data-tab="project-apis" data-i18n="tab_apis">Services API</button>
+              <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Vue d'ensemble</span></button>
+              <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Espaces de travail</span></button>
+              <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Traitements</span></button>
+              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
+              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
+              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
             </div>
+            <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_ops">Pilotage</div>
             <div class="menu">
-              <button class="tab-btn admin-only" data-tab="workloads" data-i18n="tab_activity">Activites</button>
-              <button class="tab-btn" data-tab="ops" data-i18n="tab_admin">Administration</button>
+              <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
+              <button class="tab-btn" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
+            <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_docs">Documentation</div>
             <div class="menu">
@@ -382,7 +417,17 @@ data:
                 <div class="stack">
                   <article class="hero">
                     <h2 data-i18n="hero_title">Votre hub de collaboration data</h2>
-                    <p data-i18n="hero_subtitle">Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.</p>
+                    <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
+                    <div class="hero-meta" data-i18n="home_notice_badge">Home personnalisable</div>
+                  </article>
+                  <article class="card span-12">
+                    <h3 data-i18n="home_notice_title">Informations equipe</h3>
+                    <div class="hint" data-i18n="home_notice_text">Ajoutez ici vos consignes internes, vos liens de formation et vos actualites data.</div>
+                    <div class="row">
+                      <a class="btn" href="/swagger" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_api">Documentation API</a>
+                      <a class="btn" href="https://docs.noryxlab.ai" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_docs">Documentation utilisateur</a>
+                      <a class="btn" href="https://status.noryxlab.ai" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_status">Etat plateforme</a>
+                    </div>
                   </article>
                   <div class="quick-grid">
                     <article class="quick">
@@ -988,7 +1033,13 @@ data:
               stat_env: 'Environnements',
               stat_active: 'Section active',
               hero_title: 'Votre hub de collaboration data',
-              hero_subtitle: "Structurez les projets, partagez les ressources, puis lancez les usages data de votre equipe dans un cadre gouverne.",
+              hero_subtitle: "Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.",
+              home_notice_badge: 'Home personnalisable',
+              home_notice_title: 'Informations equipe',
+              home_notice_text: 'Ajoutez ici vos consignes internes, vos liens de formation et vos actualites data.',
+              home_notice_cta_api: 'Documentation API',
+              home_notice_cta_docs: 'Documentation utilisateur',
+              home_notice_cta_status: 'Etat plateforme',
               quick1_title: '1. Ressources',
               quick1_text: 'Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.',
               quick2_title: '2. Projet',
@@ -1119,7 +1170,13 @@ data:
               stat_env: 'Environments',
               stat_active: 'Active section',
               hero_title: 'Your collaborative data hub',
-              hero_subtitle: 'Structure projects, share resources, and run data use-cases in a governed setup.',
+              hero_subtitle: 'A simple business-oriented platform for Python and data science teams, from idea to production.',
+              home_notice_badge: 'Customizable home',
+              home_notice_title: 'Team information',
+              home_notice_text: 'Add your internal guidelines, training links and data announcements here.',
+              home_notice_cta_api: 'API documentation',
+              home_notice_cta_docs: 'User documentation',
+              home_notice_cta_status: 'Platform status',
               quick1_title: '1. Resources',
               quick1_text: 'Register datasets, Git repositories, data connections and secrets.',
               quick2_title: '2. Project',
@@ -2975,7 +3032,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.52"}
+    {"version":"ce-web-0.6.53"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2996,7 +3053,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.52
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.53
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
