@@ -754,8 +754,8 @@ data:
               <section class="view" id="view-environments">
                 <div class="grid">
                   <article class="card span-7">
-                    <h3>Environment Catalog</h3>
-                    <div class="hint">Builds Kaniko vers Harbor pour images réutilisables.</div>
+                    <h3>Environments</h3>
+                    <div class="hint">Crée une nouvelle révision d'environnement à partir d'un Dockerfile versionné.</div>
                     <div class="row">
                       <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
                       <input id="envGitRef" value="main" />
@@ -776,10 +776,27 @@ data:
 
                   <article class="card span-5">
                     <h3>Environment Detail</h3>
-                    <div class="hint">Révisions et Dockerfile du build sélectionné.</div>
-                    <pre id="buildOut">-</pre>
+                    <div class="hint">Vue claire de l'environnement sélectionné et de sa définition Dockerfile.</div>
+                    <table>
+                      <tbody>
+                        <tr><th>Name</th><td id="envSelectedName">-</td></tr>
+                        <tr><th>Image</th><td id="envSelectedImage">-</td></tr>
+                        <tr><th>Status</th><td id="envSelectedStatus">-</td></tr>
+                        <tr><th>Git Ref</th><td id="envSelectedRef">-</td></tr>
+                        <tr><th>Build ID</th><td id="envSelectedBuildId">-</td></tr>
+                      </tbody>
+                    </table>
+                    <h3>Revisions</h3>
+                    <table>
+                      <thead><tr><th>Revision</th><th>Status</th><th>Git Ref</th></tr></thead>
+                      <tbody id="envRevisionRows"></tbody>
+                    </table>
+                    <div class="row" style="margin-top:10px;">
+                      <button id="envReloadDockerfile" class="btn">Reload Dockerfile</button>
+                    </div>
                     <h3>Dockerfile</h3>
                     <pre id="dockerfileOut">-</pre>
+                    <pre id="buildOut">-</pre>
                   </article>
                 </div>
               </section>
@@ -968,6 +985,13 @@ data:
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
+          const envSelectedName = document.getElementById('envSelectedName');
+          const envSelectedImage = document.getElementById('envSelectedImage');
+          const envSelectedStatus = document.getElementById('envSelectedStatus');
+          const envSelectedRef = document.getElementById('envSelectedRef');
+          const envSelectedBuildId = document.getElementById('envSelectedBuildId');
+          const envRevisionRows = document.getElementById('envRevisionRows');
+          const envReloadDockerfileBtn = document.getElementById('envReloadDockerfile');
           const secretOut = document.getElementById('secretOut');
 
           const loginBtn = document.getElementById('login');
@@ -2182,6 +2206,12 @@ data:
             environmentRows.innerHTML = '';
             if (items.length === 0) {
               environmentRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_env_project') + '</td></tr>';
+              envSelectedName.textContent = '-';
+              envSelectedImage.textContent = '-';
+              envSelectedStatus.textContent = '-';
+              envSelectedRef.textContent = '-';
+              envSelectedBuildId.textContent = '-';
+              envRevisionRows.innerHTML = '<tr><td colspan="3">-</td></tr>';
               buildOut.textContent = '-';
               dockerfileOut.textContent = '-';
               selectedEnvironmentID = '';
@@ -2191,24 +2221,60 @@ data:
               selectedEnvironmentID = items[0].id;
             }
             const selected = items.find((env) => env.id === selectedEnvironmentID) || items[0];
-            buildOut.textContent = JSON.stringify(selected, null, 2);
+            renderEnvironmentDetail(selected);
 
             for (const env of items.slice(0, 20)) {
               const tr = document.createElement('tr');
-              const selectedClass = env.id === selectedEnvironmentID ? ' style="outline:1px solid #f4c542"' : '';
+              const selectedClass = env.id === selectedEnvironmentID ? ' style="outline:1px solid #4ea6ff"' : '';
               const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
               const latestRef = env.latestGitRef || '-';
               const selectID = encodeURIComponent(env.id || '');
-              const dockerBtn = env.latestBuildId
-                ? '<button type="button" class="btn" data-docker="' + env.latestBuildId + '">Dockerfile</button>'
-                : '';
               tr.innerHTML =
                 '<td' + selectedClass + '><strong>' + (env.name || 'environment') + '</strong></td>' +
                 '<td' + selectedClass + '><code>' + (env.destinationImage || '-') + '</code></td>' +
                 '<td' + selectedClass + '>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
                 '<td' + selectedClass + '>' + String(revCount) + '</td>' +
-                '<td' + selectedClass + '><button type="button" class="btn" data-select="' + selectID + '">Details</button> ' + dockerBtn + '</td>';
+                '<td' + selectedClass + '><button type="button" class="btn" data-select="' + selectID + '">Open</button></td>';
               environmentRows.appendChild(tr);
+            }
+          }
+
+          function renderEnvironmentDetail(env) {
+            if (!env) return;
+            envSelectedName.textContent = env.name || '-';
+            envSelectedImage.textContent = env.destinationImage || '-';
+            envSelectedStatus.innerHTML = badge(env.latestStatus || 'submitted');
+            envSelectedRef.textContent = env.latestGitRef || '-';
+            envSelectedBuildId.textContent = env.latestBuildId || '-';
+            const revisions = Array.isArray(env.revisions) ? env.revisions : [];
+            envRevisionRows.innerHTML = '';
+            if (revisions.length === 0) {
+              envRevisionRows.innerHTML = '<tr><td colspan="3">-</td></tr>';
+            } else {
+              revisions.slice(-10).reverse().forEach((rev) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><code>' + (rev.id || '-') + '</code></td>' +
+                  '<td>' + badge(rev.status || 'submitted') + '</td>' +
+                  '<td>' + (rev.gitRef || '-') + '</td>';
+                envRevisionRows.appendChild(tr);
+              });
+            }
+            buildOut.textContent = JSON.stringify(env, null, 2);
+            loadSelectedDockerfile();
+          }
+
+          async function loadSelectedDockerfile() {
+            const env = state.environments.find((e) => e.id === selectedEnvironmentID);
+            if (!env || !env.latestBuildId) {
+              dockerfileOut.textContent = '-';
+              return;
+            }
+            try {
+              const body = await callJSON('/api/v1/builds/' + encodeURIComponent(env.latestBuildId) + '/dockerfile');
+              dockerfileOut.textContent = String(body.content || '-');
+            } catch (_) {
+              dockerfileOut.textContent = '-';
             }
           }
 
@@ -3016,7 +3082,6 @@ data:
 
           environmentRows.onclick = async (event) => {
             const selectID = (event.target && event.target.getAttribute('data-select'));
-            const dockerBuildID = (event.target && event.target.getAttribute('data-docker'));
 
             if (selectID) {
               event.preventDefault();
@@ -3025,20 +3090,13 @@ data:
               renderEnvironmentsTable();
               return;
             }
-
-            if (dockerBuildID) {
-              event.preventDefault();
-              event.stopPropagation();
-              try {
-                const body = await callJSON('/api/v1/builds/' + encodeURIComponent(dockerBuildID) + '/dockerfile');
-                dockerfileOut.textContent = String(body.content || '-');
-                buildOut.textContent = JSON.stringify(body, null, 2);
-              } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
-              }
-            }
           };
+
+          if (envReloadDockerfileBtn) {
+            envReloadDockerfileBtn.onclick = async () => {
+              await loadSelectedDockerfile();
+            };
+          }
 
           workspaceRows.onclick = async (event) => {
             const openId = (event.target && event.target.getAttribute('data-open'));
@@ -3302,7 +3360,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.63"}
+    {"version":"ce-web-0.6.64"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3323,7 +3381,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.63
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.64
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
