@@ -443,14 +443,13 @@ data:
             <div id="versions" class="versions">front: loading | back: loading</div>
             <div id="meta" class="who">Not authenticated</div>
 
-            <div class="menu-title" data-i18n="menu_home">Accueil</div>
+            <div class="menu-title" data-i18n="menu_home">Home</div>
             <div class="menu">
               <button class="tab-btn active" data-tab="intro"><span class="menu-ico">⌂</span><span data-i18n="tab_home">Home</span></button>
-              <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
             </div>
             <hr class="side-sep" />
 
-            <div class="menu-title" data-i18n="menu_data">Donnees</div>
+            <div class="menu-title" data-i18n="menu_data">Data</div>
             <div class="menu">
               <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
               <button class="tab-btn" data-tab="data-datasources"><span class="menu-ico">◎</span><span>Datasources</span></button>
@@ -459,19 +458,25 @@ data:
             </div>
             <hr class="side-sep" />
 
-            <div class="menu-title" data-i18n="menu_projects">Projets</div>
+            <div class="menu-title" data-i18n="menu_develop">Develop</div>
             <div class="menu">
               <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Vue d'ensemble</span></button>
               <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Espaces de travail</span></button>
               <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Traitements</span></button>
-              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
-              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
-              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
             </div>
             <hr class="side-sep" />
 
-            <div class="menu-title" data-i18n="menu_ops">Pilotage</div>
+            <div class="menu-title" data-i18n="menu_deploy">Deploy</div>
             <div class="menu">
+              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
+              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
+              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
+            </div>
+            <hr class="side-sep" />
+
+            <div class="menu-title" data-i18n="menu_govern">Govern</div>
+            <div class="menu">
+              <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1197,10 +1202,11 @@ data:
           const UI_TEXT = {
             fr: {
               edition: 'Community Edition',
-              menu_home: 'Accueil',
-              menu_data: 'Donnees',
-              menu_projects: 'Projets',
-              menu_ops: 'Pilotage',
+              menu_home: 'Home',
+              menu_data: 'Data',
+              menu_develop: 'Develop',
+              menu_deploy: 'Deploy',
+              menu_govern: 'Govern',
               menu_docs: 'Documentation',
               tab_home: 'Home',
               tab_environments: 'Environnements',
@@ -1336,8 +1342,9 @@ data:
               edition: 'Community Edition',
               menu_home: 'Home',
               menu_data: 'Data',
-              menu_projects: 'Projects',
-              menu_ops: 'Operations',
+              menu_develop: 'Develop',
+              menu_deploy: 'Deploy',
+              menu_govern: 'Govern',
               menu_docs: 'Documentation',
               tab_home: 'Home',
               tab_environments: 'Environments',
@@ -3295,7 +3302,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.62"}
+    {"version":"ce-web-0.6.63"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3316,7 +3323,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.62
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.63
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
