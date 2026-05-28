@@ -374,6 +374,14 @@ data:
           }
           .quick .q-title { margin: 0 0 5px; font-size: var(--fs-14); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #2d425d; }
           .quick .q-text { margin: 0; color: var(--muted); font-size: var(--fs-13); line-height: var(--lh-base); font-weight: 500; }
+          .projects-toolbar { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
+          .projects-toolbar input { min-width: 240px; flex: 1 1 240px; }
+          .projects-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+          .project-card { border: 1px solid #d7e3eb; border-radius: 14px; background: #fff; padding: 13px; }
+          .project-card h4 { margin: 0 0 6px; font-size: var(--fs-20); }
+          .project-meta { color: var(--muted); font-size: var(--fs-13); margin-bottom: 10px; }
+          .project-actions { display: flex; gap: 8px; }
+          .project-list table { margin-top: 8px; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
@@ -425,6 +433,7 @@ data:
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .content { padding: 14px; }
             .quick-grid { grid-template-columns: 1fr; }
+            .projects-grid { grid-template-columns: 1fr; }
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
@@ -460,7 +469,7 @@ data:
 
             <div class="menu-title" data-i18n="menu_develop">Develop</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Vue d'ensemble</span></button>
+              <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Projets</span></button>
               <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Espaces de travail</span></button>
               <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Traitements</span></button>
             </div>
@@ -561,25 +570,27 @@ data:
               </section>
               <section class="view" id="view-projects">
                 <div class="grid">
-                  <article class="card span-8">
+                  <article class="card span-12">
                     <h3>Projects</h3>
-                    <div class="hint">Premier login: un projet est créé automatiquement pour démarrer vite.</div>
-                    <div class="row">
+                    <div class="hint">Vue claire des projets: créez, recherchez, puis gérez votre contexte de travail.</div>
+                    <div class="projects-toolbar">
+                      <input id="projectSearch" placeholder="Find project" />
+                      <select id="projectViewMode">
+                        <option value="grid">Grid</option>
+                        <option value="list">List</option>
+                      </select>
                       <select id="projectSelect"></select>
                       <input id="projectName" placeholder="New project name" />
                       <button id="createProject" class="btn primary">Create Project</button>
                       <button id="loadProjects" class="btn">Refresh Projects</button>
                     </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>ID</th><th>Actions</th></tr></thead>
-                      <tbody id="projectRows"></tbody>
-                    </table>
-                  </article>
-
-                  <article class="card span-4">
-                    <h3>Project Context</h3>
-                    <div class="hint">Le projet sélectionné sert de scope pour Workspaces, Builds et Workloads.</div>
-                    <pre id="projectOut">-</pre>
+                    <div id="projectCards" class="projects-grid"></div>
+                    <div id="projectList" class="project-list" style="display:none;">
+                      <table>
+                        <thead><tr><th>Name</th><th>ID</th><th>Actions</th></tr></thead>
+                        <tbody id="projectRows"></tbody>
+                      </table>
+                    </div>
                   </article>
                   <article class="card span-6">
                     <h3>Project Datasets</h3>
@@ -981,7 +992,6 @@ data:
           const reduceNavBtn = document.getElementById('reduceNav');
           const usersOut = document.getElementById('usersOut');
           const modulesOut = document.getElementById('modulesOut');
-          const projectOut = document.getElementById('projectOut');
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
@@ -1003,6 +1013,10 @@ data:
           const projectNameInput = document.getElementById('projectName');
           const createProjectBtn = document.getElementById('createProject');
           const loadProjectsBtn = document.getElementById('loadProjects');
+          const projectSearchInput = document.getElementById('projectSearch');
+          const projectViewMode = document.getElementById('projectViewMode');
+          const projectCards = document.getElementById('projectCards');
+          const projectList = document.getElementById('projectList');
           const projectRows = document.getElementById('projectRows');
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
@@ -1235,7 +1249,7 @@ data:
               tab_home: 'Home',
               tab_environments: 'Environnements',
               tab_datasets: 'Datasets',
-              tab_projects_overview: "Vue d'ensemble",
+              tab_projects_overview: "Projets",
               tab_workspaces: 'Espaces de travail',
               tab_jobs: 'Traitements',
               tab_apis: 'Services API',
@@ -1373,7 +1387,7 @@ data:
               tab_home: 'Home',
               tab_environments: 'Environments',
               tab_datasets: 'Datasets',
-              tab_projects_overview: 'Overview',
+              tab_projects_overview: 'Projects',
               tab_workspaces: 'Workspaces',
               tab_jobs: 'Jobs',
               tab_apis: 'API Services',
@@ -1893,19 +1907,42 @@ data:
           }
 
           function renderProjectsTable() {
+            const query = (projectSearchInput.value || '').trim().toLowerCase();
+            const mode = projectViewMode.value || 'grid';
+            const filtered = state.projects.filter((p) => {
+              const name = String(p.name || '').toLowerCase();
+              const id = String(p.id || '').toLowerCase();
+              return !query || name.includes(query) || id.includes(query);
+            });
+            projectCards.innerHTML = '';
             projectRows.innerHTML = '';
-            if (state.projects.length === 0) {
+            if (filtered.length === 0) {
+              projectCards.innerHTML = '<article class="project-card"><h4>No projects</h4><div class="project-meta">Create your first project to get started.</div></article>';
               projectRows.innerHTML = '<tr><td colspan="3">' + tui('msg_no_project') + '</td></tr>';
               return;
             }
-            for (const p of state.projects) {
+            for (const p of filtered) {
+              const isSelected = selectedProjectId() === p.id;
+              const card = document.createElement('article');
+              card.className = 'project-card';
+              card.innerHTML =
+                '<h4>' + (p.name || '-') + '</h4>' +
+                '<div class="project-meta"><code>' + (p.id || '-') + '</code>' + (isSelected ? ' · Selected' : '') + '</div>' +
+                '<div class="project-actions">' +
+                '<button type="button" class="btn primary" data-select-project="' + (p.id || '') + '">Open</button>' +
+                '<button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button>' +
+                '</div>';
+              projectCards.appendChild(card);
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + p.name + '</strong></td>' +
                 '<td><code>' + p.id + '</code></td>' +
-                '<td><button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
+                '<td><button type="button" class="btn" data-select-project="' + (p.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
               projectRows.appendChild(tr);
             }
+            const showList = mode === 'list';
+            projectCards.style.display = showList ? 'none' : 'grid';
+            projectList.style.display = showList ? 'block' : 'none';
           }
 
           function renderSecretsTable() {
@@ -2306,7 +2343,7 @@ data:
           function renderProjectContext() {
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
-            projectOut.textContent = JSON.stringify({ selectedProject: p }, null, 2);
+            // project detail is now shown in card/list context only
           }
 
           function renderProjectResourceSelectors() {
@@ -2671,8 +2708,23 @@ data:
             }
           };
 
+          async function selectProjectAndRefresh(projectID) {
+            projectSelect.value = projectID;
+            await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
+            await refreshJobs();
+            await refreshApps();
+            await refreshDashboards();
+            renderProjectsTable();
+          }
+
           projectRows.onclick = async (event) => {
+            const selectProjectID = (event.target && event.target.getAttribute('data-select-project'));
             const projectID = (event.target && event.target.getAttribute('data-del-project'));
+            if (selectProjectID) {
+              try { await selectProjectAndRefresh(selectProjectID); }
+              catch (e) { pretty(usersOut, e); switchTab('ops'); }
+              return;
+            }
             if (!projectID) return;
             try {
               await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
@@ -2682,6 +2734,27 @@ data:
               switchTab('ops');
             }
           };
+
+          projectCards.onclick = async (event) => {
+            const selectProjectID = (event.target && event.target.getAttribute('data-select-project'));
+            const projectID = (event.target && event.target.getAttribute('data-del-project'));
+            if (selectProjectID) {
+              try { await selectProjectAndRefresh(selectProjectID); }
+              catch (e) { pretty(usersOut, e); switchTab('ops'); }
+              return;
+            }
+            if (!projectID) return;
+            try {
+              await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
+              await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectSearchInput.oninput = () => renderProjectsTable();
+          projectViewMode.onchange = () => renderProjectsTable();
 
           projectSelect.onchange = async () => {
             try {
@@ -3360,7 +3433,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.64"}
+    {"version":"ce-web-0.6.65"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3381,7 +3454,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.64
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.65
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
