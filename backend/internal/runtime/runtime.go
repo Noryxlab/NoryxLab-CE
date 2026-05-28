@@ -34,6 +34,7 @@ type BuildSpec struct {
 	ContextGitURL      string
 	GitRef             string
 	DockerfilePath     string
+	DockerfileContent  string
 	ContextPath        string
 	DestinationImage   string
 	PullSecret         string

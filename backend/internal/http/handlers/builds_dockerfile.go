@@ -38,10 +38,17 @@ func (h Handlers) GetBuildDockerfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, sourceURL, err := fetchDockerfileContent(record.GitRepository, record.GitRef, record.DockerfilePath)
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dockerfile fetch failed: " + err.Error()})
-		return
+	content := strings.TrimSpace(record.DockerfileContent)
+	sourceURL := ""
+	if content == "" {
+		var err error
+		content, sourceURL, err = fetchDockerfileContent(record.GitRepository, record.GitRef, record.DockerfilePath)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dockerfile fetch failed: " + err.Error()})
+			return
+		}
+	} else {
+		sourceURL = "inline://build/" + record.ID
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{

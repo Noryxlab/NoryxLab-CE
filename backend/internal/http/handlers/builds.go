@@ -12,12 +12,13 @@ import (
 )
 
 type createBuildRequest struct {
-	ProjectID        string `json:"projectId"`
-	GitRepository    string `json:"gitRepository"`
-	GitRef           string `json:"gitRef"`
-	DockerfilePath   string `json:"dockerfilePath"`
-	ContextPath      string `json:"contextPath"`
-	DestinationImage string `json:"destinationImage"`
+	ProjectID         string `json:"projectId"`
+	GitRepository     string `json:"gitRepository"`
+	GitRef            string `json:"gitRef"`
+	DockerfilePath    string `json:"dockerfilePath"`
+	DockerfileContent string `json:"dockerfileContent"`
+	ContextPath       string `json:"contextPath"`
+	DestinationImage  string `json:"destinationImage"`
 }
 
 func (h Handlers) ListBuilds(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +64,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.GitRepository = strings.TrimSpace(req.GitRepository)
 	req.DestinationImage = strings.TrimSpace(req.DestinationImage)
+	req.DockerfileContent = strings.TrimSpace(req.DockerfileContent)
 	if req.ProjectID == "" || req.GitRepository == "" || req.DestinationImage == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId, gitRepository and destinationImage are required"})
 		return
@@ -95,6 +97,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 		req.DestinationImage,
 		jobName,
 	)
+	record.DockerfileContent = req.DockerfileContent
 
 	if h.runtime != nil {
 		err = h.runtime.CreateBuild(noryxruntime.BuildSpec{
@@ -102,6 +105,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 			ContextGitURL:      req.GitRepository,
 			GitRef:             req.GitRef,
 			DockerfilePath:     req.DockerfilePath,
+			DockerfileContent:  req.DockerfileContent,
 			ContextPath:        req.ContextPath,
 			DestinationImage:   req.DestinationImage,
 			PullSecret:         h.registryPullSecret,

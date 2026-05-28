@@ -7,16 +7,17 @@ import (
 )
 
 type Build struct {
-	ID               string    `json:"id"`
-	ProjectID        string    `json:"projectId"`
-	GitRepository    string    `json:"gitRepository"`
-	GitRef           string    `json:"gitRef"`
-	DockerfilePath   string    `json:"dockerfilePath"`
-	ContextPath      string    `json:"contextPath"`
-	DestinationImage string    `json:"destinationImage"`
-	JobName          string    `json:"jobName"`
-	Status           string    `json:"status"`
-	CreatedAt        time.Time `json:"createdAt"`
+	ID                string    `json:"id"`
+	ProjectID         string    `json:"projectId"`
+	GitRepository     string    `json:"gitRepository"`
+	GitRef            string    `json:"gitRef"`
+	DockerfilePath    string    `json:"dockerfilePath"`
+	DockerfileContent string    `json:"dockerfileContent,omitempty"`
+	ContextPath       string    `json:"contextPath"`
+	DestinationImage  string    `json:"destinationImage"`
+	JobName           string    `json:"jobName"`
+	Status            string    `json:"status"`
+	CreatedAt         time.Time `json:"createdAt"`
 }
 
 func New(projectID, gitRepo, gitRef, dockerfilePath, contextPath, destinationImage, jobName string) Build {
