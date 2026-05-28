@@ -1,0 +1,82 @@
+---
+- name: Skip observability role when disabled
+  ansible.builtin.meta: end_host
+  when: not (observability_enabled | bool)
+
+- name: Ensure observability namespace exists
+  ansible.builtin.command: kubectl create namespace {{ observability_namespace }}
+  register: observability_ns_create
+  failed_when: observability_ns_create.rc != 0 and ("AlreadyExists" not in observability_ns_create.stderr)
+  changed_when: observability_ns_create.rc == 0
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Add grafana helm repo
+  ansible.builtin.command: helm repo add grafana https://grafana.github.io/helm-charts
+  changed_when: false
+
+- name: Add prometheus-community helm repo
+  ansible.builtin.command: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  changed_when: false
+
+- name: Update helm repos
+  ansible.builtin.command: helm repo update
+  changed_when: false
+
+- name: Render kube-prometheus values
+  ansible.builtin.template:
+    src: kube-prometheus-stack-values.yaml.j2
+    dest: /tmp/noryx-kube-prometheus-values.yaml
+    mode: "0644"
+
+- name: Render loki values
+  ansible.builtin.template:
+    src: loki-values.yaml.j2
+    dest: /tmp/noryx-loki-values.yaml
+    mode: "0644"
+
+- name: Install/upgrade kube-prometheus-stack
+  ansible.builtin.shell: |
+    set -euo pipefail
+    helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+      --namespace {{ observability_namespace }} \
+      {% if observability_prometheus_chart_version | trim != "" %}--version {{ observability_prometheus_chart_version }}{% endif %} \
+      -f /tmp/noryx-kube-prometheus-values.yaml
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install/upgrade Loki
+  ansible.builtin.shell: |
+    set -euo pipefail
+    helm upgrade --install loki grafana/loki \
+      --namespace {{ observability_namespace }} \
+      {% if observability_loki_chart_version | trim != "" %}--version {{ observability_loki_chart_version }}{% endif %} \
+      -f /tmp/noryx-loki-values.yaml
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install/upgrade Promtail
+  ansible.builtin.shell: |
+    set -euo pipefail
+    helm upgrade --install promtail grafana/promtail \
+      --namespace {{ observability_namespace }} \
+      {% if observability_promtail_chart_version | trim != "" %}--version {{ observability_promtail_chart_version }}{% endif %} \
+      --set "config.clients[0].url=http://loki-gateway.{{ observability_namespace }}.svc.cluster.local/loki/api/v1/push"
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Grafana deployment
+  ansible.builtin.command: kubectl -n {{ observability_namespace }} rollout status deploy/kube-prometheus-stack-grafana --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Wait for Loki rollout
+  ansible.builtin.command: kubectl -n {{ observability_namespace }} wait --for=condition=ready pod -l app.kubernetes.io/name=loki --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml

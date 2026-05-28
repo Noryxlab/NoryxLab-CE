@@ -8,6 +8,7 @@ Bootstrap one CE demo host with:
 - k3s
 - helm
 - longhorn CSI
+- observability baseline (`kube-prometheus-stack`, `loki`, `promtail`)
 - baseline services in Kubernetes (`postgres`, `keycloak`, `minio`, `noryx-backend`, `noryx-frontend`)
 
 The `common` role also installs operator tooling on target node:
@@ -75,3 +76,11 @@ ssh -i ~/.ssh/id_ed25519_noryxops noryxops@CHANGE_ME 'sudo -n true && echo ok'
 - Longhorn variables are in `clients/demo.yaml`:
   - `longhorn_chart_version` (empty = latest chart)
   - `longhorn_default_replica_count` (`1` for single-node lab)
+- Observability variables are in `clients/demo.yaml`:
+  - `observability_enabled`
+  - `observability_namespace`
+  - `observability_loki_retention_hours` (default `744` = 31 days)
+  - `observability_storage_class`
+  - `observability_prometheus_size`
+  - `observability_grafana_size`
+  - `observability_loki_size`

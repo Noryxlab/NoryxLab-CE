@@ -1,0 +1,15 @@
+---
+observability_enabled: true
+observability_namespace: observability
+
+observability_loki_retention_hours: 744
+
+observability_prometheus_chart_version: ""
+observability_loki_chart_version: ""
+observability_promtail_chart_version: ""
+
+# Local lab defaults (can be overridden in client vars)
+observability_storage_class: longhorn
+observability_prometheus_size: 20Gi
+observability_grafana_size: 5Gi
+observability_loki_size: 20Gi

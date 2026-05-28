@@ -15,6 +15,14 @@ harbor_registry_insecure_skip_verify: true
 longhorn_chart_version: ""
 longhorn_default_replica_count: 1
 
+observability_enabled: true
+observability_namespace: observability
+observability_loki_retention_hours: 744
+observability_storage_class: longhorn
+observability_prometheus_size: 20Gi
+observability_grafana_size: 5Gi
+observability_loki_size: 20Gi
+
 # Change before production use
 postgres_password: change-me
 keycloak_admin_password: change-me

@@ -1,0 +1,41 @@
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClassName: "{{ observability_storage_class }}"
+    size: "{{ observability_grafana_size }}"
+  adminPassword: "admin"
+  defaultDashboardsEnabled: true
+  sidecar:
+    datasources:
+      enabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.{{ observability_namespace }}.svc.cluster.local
+      isDefault: false
+      jsonData:
+        maxLines: 1000
+
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "{{ observability_storage_class }}"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: "{{ observability_prometheus_size }}"
+
+alertmanager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
