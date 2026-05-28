@@ -470,6 +470,13 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.emitAudit(r, userID, "workspace.launch", "workspace", record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":        record.Name,
+		"ide":         record.Kind,
+		"podName":     record.PodName,
+		"serviceName": record.ServiceName,
+		"image":       record.Image,
+	})
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -1029,6 +1036,10 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	h.emitAudit(r, userID, "workspace.delete", "workspace", record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":    record.Name,
+		"podName": record.PodName,
+	})
 }
 
 func isNotFoundError(err error) bool {

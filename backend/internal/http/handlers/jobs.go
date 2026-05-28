@@ -128,6 +128,11 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save job"})
 		return
 	}
+	h.emitAudit(r, userID, "job.launch", "job", record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":    record.Name,
+		"jobName": record.JobName,
+		"image":   record.Image,
+	})
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -160,6 +165,10 @@ func (h Handlers) DeleteJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	h.emitAudit(r, userID, "job.delete", "job", record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":    record.Name,
+		"jobName": record.JobName,
+	})
 }
 
 func (h Handlers) GetJobLogs(w http.ResponseWriter, r *http.Request) {

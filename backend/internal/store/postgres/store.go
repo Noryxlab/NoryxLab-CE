@@ -12,6 +12,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
@@ -22,6 +23,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	storepkg "github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	_ "github.com/lib/pq"
 )
 
@@ -195,6 +197,24 @@ func (s *Store) migrate(ctx context.Context) error {
 			identity TEXT NOT NULL,
 			expires_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS audit_events (
+			id TEXT PRIMARY KEY,
+			occurred_at TIMESTAMPTZ NOT NULL,
+			actor_user_id TEXT NOT NULL,
+			actor_ip TEXT NOT NULL,
+			actor_user_agent TEXT NOT NULL,
+			action TEXT NOT NULL,
+			resource_type TEXT NOT NULL,
+			resource_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			outcome TEXT NOT NULL,
+			error_code TEXT NOT NULL,
+			details_json JSONB NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_events_occurred_at ON audit_events (occurred_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_events_actor_user_id ON audit_events (actor_user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_events_project_id ON audit_events (project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events (action)`,
 		`CREATE TABLE IF NOT EXISTS user_secrets (
 			id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -848,6 +868,89 @@ func (s *Store) GetSession(token string) (session.Session, bool, error) {
 func (s *Store) DeleteSession(token string) error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE token=$1`, strings.TrimSpace(token))
 	return err
+}
+
+func (s *Store) CreateAuditEvent(event audit.Event) error {
+	detailsJSON, _ := json.Marshal(event.Details)
+	_, err := s.db.Exec(`INSERT INTO audit_events (id, occurred_at, actor_user_id, actor_ip, actor_user_agent, action, resource_type, resource_id, project_id, outcome, error_code, details_json) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		event.ID,
+		event.OccurredAt,
+		event.ActorUserID,
+		event.ActorIP,
+		event.ActorAgent,
+		event.Action,
+		event.ResourceType,
+		event.ResourceID,
+		event.ProjectID,
+		event.Outcome,
+		event.ErrorCode,
+		detailsJSON,
+	)
+	return err
+}
+
+func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, error) {
+	limit := filter.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	clauses := []string{"1=1"}
+	args := []any{}
+	nextArg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if filter.Since != nil {
+		clauses = append(clauses, "occurred_at >= "+nextArg(*filter.Since))
+	}
+	if filter.Until != nil {
+		clauses = append(clauses, "occurred_at <= "+nextArg(*filter.Until))
+	}
+	if v := strings.TrimSpace(filter.Action); v != "" {
+		clauses = append(clauses, "action = "+nextArg(v))
+	}
+	if v := strings.TrimSpace(filter.ActorUserID); v != "" {
+		clauses = append(clauses, "actor_user_id = "+nextArg(v))
+	}
+	if v := strings.TrimSpace(filter.ProjectID); v != "" {
+		clauses = append(clauses, "project_id = "+nextArg(v))
+	}
+	query := `SELECT id, occurred_at, actor_user_id, actor_ip, actor_user_agent, action, resource_type, resource_id, project_id, outcome, error_code, details_json
+		FROM audit_events
+		WHERE ` + strings.Join(clauses, " AND ") + `
+		ORDER BY occurred_at DESC
+		LIMIT ` + nextArg(limit)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []audit.Event{}
+	for rows.Next() {
+		var item audit.Event
+		var detailsJSON []byte
+		if err := rows.Scan(
+			&item.ID,
+			&item.OccurredAt,
+			&item.ActorUserID,
+			&item.ActorIP,
+			&item.ActorAgent,
+			&item.Action,
+			&item.ResourceType,
+			&item.ResourceID,
+			&item.ProjectID,
+			&item.Outcome,
+			&item.ErrorCode,
+			&detailsJSON,
+		); err != nil {
+			return nil, err
+		}
+		if len(detailsJSON) > 0 {
+			_ = json.Unmarshal(detailsJSON, &item.Details)
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {

@@ -19,6 +19,7 @@ type Handlers struct {
 	podStore                         store.PodStore
 	workspaceStore                   store.WorkspaceStore
 	sessionStore                     store.SessionStore
+	auditStore                       store.AuditStore
 	accessStore                      store.AccessStore
 	secretStore                      store.SecretStore
 	datasetStore                     store.DatasetStore
@@ -104,6 +105,7 @@ func New(
 	podStore store.PodStore,
 	workspaceStore store.WorkspaceStore,
 	sessionStore store.SessionStore,
+	auditStore store.AuditStore,
 	accessStore store.AccessStore,
 	secretStore store.SecretStore,
 	datasetStore store.DatasetStore,
@@ -137,6 +139,7 @@ func New(
 		podStore:                         podStore,
 		workspaceStore:                   workspaceStore,
 		sessionStore:                     sessionStore,
+		auditStore:                       auditStore,
 		accessStore:                      accessStore,
 		secretStore:                      secretStore,
 		datasetStore:                     datasetStore,

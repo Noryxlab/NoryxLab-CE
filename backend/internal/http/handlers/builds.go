@@ -127,6 +127,13 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.emitAudit(r, userID, "environment.build.submit", "build", record.ID, record.ProjectID, "success", "", map[string]any{
+		"destinationImage": record.DestinationImage,
+		"gitRepository":    record.GitRepository,
+		"gitRef":           record.GitRef,
+		"dockerfilePath":   record.DockerfilePath,
+		"inlineDockerfile": strings.TrimSpace(record.DockerfileContent) != "",
+	})
 	writeJSON(w, http.StatusCreated, record)
 }
 
