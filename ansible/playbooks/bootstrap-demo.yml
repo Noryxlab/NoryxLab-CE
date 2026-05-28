@@ -21,4 +21,5 @@
     - role: k3s-master
     - role: helm
     - role: longhorn
+    - role: observability
     - role: noryx-bootstrap
