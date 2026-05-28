@@ -82,6 +82,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch/delete/access workspaces
 - key actions are audited (auth session, project, RBAC, secret, build, workspace, job, app/dashboard)
+- audit retention: no purge policy is applied by default in CE (append-only audit table)
 - first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
 - CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
 
