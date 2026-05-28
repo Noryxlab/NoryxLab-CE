@@ -14,6 +14,7 @@ Each revision is linked to:
 - `gitRepository`
 - `gitRef`
 - `dockerfilePath`
+- optional `dockerfileContent` (inline edited content)
 - `contextPath`
 - `status`
 
@@ -44,13 +45,15 @@ In the `Environments` tab:
 
 - submit a new build (repository/ref/dockerfile/context/destination)
 - list environment entries (name, image, latest status, revision count)
-- inspect selected environment JSON details
-- fetch and display Dockerfile for latest revision
+- select an environment revision and load its Dockerfile
+- edit Dockerfile inline
+- submit a new build revision directly from edited Dockerfile content
 
 ## Notes and limits
 
 - Dockerfile fetch currently supports public repositories on:
   - `github.com`
   - `gitlab.com`
+- if a revision was created with inline Dockerfile content, `GET /api/v1/builds/{buildID}/dockerfile` returns this stored inline content
 - build list and status are synced from Kubernetes jobs (`app.kubernetes.io/name=noryx-build`)
 - runtime namespace for jobs: `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
