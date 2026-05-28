@@ -773,25 +773,13 @@ data:
                   <article class="card span-7">
                     <h3>Environments</h3>
                     <div class="hint">Crée une nouvelle révision d'environnement à partir d'un Dockerfile versionné.</div>
-                    <div class="row">
-                      <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
-                      <input id="envGitRef" value="main" />
-                    </div>
-                    <div class="row">
-                      <input id="envDockerfile" value="environments/noryx-python/Dockerfile" />
-                      <input id="envContext" value="." />
-                    </div>
-                    <div class="row">
-                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.2.3" />
-                      <button id="buildEnv" class="btn warn">Build Environment</button>
-                    </div>
                     <table>
-                      <thead><tr><th>Name</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Name</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Last Build</th></tr></thead>
                       <tbody id="environmentRows"></tbody>
                     </table>
                   </article>
 
-                  <article class="card span-5">
+                  <article class="card span-5" id="envDetailCard">
                     <div class="env-header">
                       <h3>Environment Detail</h3>
                       <div class="env-header-actions">
@@ -811,6 +799,19 @@ data:
                         <tr><th>Build ID</th><td id="envSelectedBuildId">-</td></tr>
                       </tbody>
                     </table>
+                    <h3>Build Configuration</h3>
+                    <div class="row">
+                      <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
+                      <input id="envGitRef" value="main" />
+                    </div>
+                    <div class="row">
+                      <input id="envDockerfile" value="environments/noryx-python/Dockerfile" />
+                      <input id="envContext" value="." />
+                    </div>
+                    <div class="row">
+                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.2.3" />
+                      <button id="buildEnv" class="btn warn">Build from Git</button>
+                    </div>
                     <div id="envActiveRevision" class="env-active-rev">Active revision: -</div>
                     <h3>Revisions</h3>
                     <table>
@@ -1089,6 +1090,7 @@ data:
           const envDestination = document.getElementById('envDestination');
           const buildEnvBtn = document.getElementById('buildEnv');
           const environmentRows = document.getElementById('environmentRows');
+          const envDetailCard = document.getElementById('envDetailCard');
 
           const workloadRows = document.getElementById('workloadRows');
           const secretNameInput = document.getElementById('secretName');
@@ -2301,16 +2303,18 @@ data:
 
             for (const env of items.slice(0, 20)) {
               const tr = document.createElement('tr');
+              tr.setAttribute('data-select', encodeURIComponent(env.id || ''));
+              tr.style.cursor = 'pointer';
               const selectedClass = env.id === selectedEnvironmentID ? ' style="outline:1px solid #4ea6ff"' : '';
               const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
               const latestRef = env.latestGitRef || '-';
-              const selectID = encodeURIComponent(env.id || '');
+              const lastBuild = formatDateTime(env.updatedAt);
               tr.innerHTML =
                 '<td' + selectedClass + '><strong>' + (env.name || 'environment') + '</strong></td>' +
                 '<td' + selectedClass + '><code>' + (env.destinationImage || '-') + '</code></td>' +
                 '<td' + selectedClass + '>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
                 '<td' + selectedClass + '>' + String(revCount) + '</td>' +
-                '<td' + selectedClass + '><button type="button" class="btn" data-select="' + selectID + '">Open</button></td>';
+                '<td' + selectedClass + '>' + lastBuild + '</td>';
               environmentRows.appendChild(tr);
             }
           }
@@ -3230,7 +3234,8 @@ data:
           };
 
           environmentRows.onclick = async (event) => {
-            const selectID = (event.target && event.target.getAttribute('data-select'));
+            const selectNode = event.target && event.target.closest ? event.target.closest('[data-select]') : null;
+            const selectID = selectNode ? selectNode.getAttribute('data-select') : '';
 
             if (selectID) {
               event.preventDefault();
@@ -3239,6 +3244,9 @@ data:
               selectedEnvironmentBuildID = '';
               setDockerfileEditMode(false);
               renderEnvironmentsTable();
+              if (envDetailCard && envDetailCard.scrollIntoView) {
+                envDetailCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
               return;
             }
           };
@@ -3565,7 +3573,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.69"}
+    {"version":"ce-web-0.6.70"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3586,7 +3594,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.69
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.70
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
