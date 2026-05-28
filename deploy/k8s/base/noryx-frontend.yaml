@@ -520,7 +520,7 @@ data:
               </div>
             </section>
 
-            <section class="stats">
+            <section class="stats" id="statsBar">
               <article class="stat"><div class="k" data-i18n="stat_projects">Projets</div><div id="statProjects" class="v">0</div></article>
               <article class="stat"><div class="k" data-i18n="stat_activity">Activites</div><div id="statWorkspaces" class="v">0</div></article>
               <article class="stat"><div class="k" data-i18n="stat_env">Environnements</div><div id="statBuilds" class="v">0</div></article>
@@ -1121,6 +1121,7 @@ data:
           const statWorkspaces = document.getElementById('statWorkspaces');
           const statBuilds = document.getElementById('statBuilds');
           const statTab = document.getElementById('statTab');
+          const statsBar = document.getElementById('statsBar');
           const versionsNode = document.getElementById('versions');
           const langSelect = document.getElementById('langSelect');
           const themeSelect = document.getElementById('themeSelect');
@@ -1727,6 +1728,9 @@ data:
           function switchTab(tab, sourceBtn) {
             state.activeTab = tab;
             const viewTab = tab.startsWith('data-') ? 'data' : tab;
+            if (statsBar) {
+              statsBar.style.display = (viewTab === 'environments') ? 'none' : '';
+            }
             const activeButton = sourceBtn || tabButtons.find((btn) => btn.getAttribute('data-tab') === tab);
             tabButtons.forEach((btn) => btn.classList.toggle('active', btn === activeButton));
             Object.keys(views).forEach((name) => {
@@ -3433,7 +3437,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.65"}
+    {"version":"ce-web-0.6.66"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3454,7 +3458,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.65
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.66
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
