@@ -382,6 +382,11 @@ data:
           .project-meta { color: var(--muted); font-size: var(--fs-13); margin-bottom: 10px; }
           .project-actions { display: flex; gap: 8px; }
           .project-list table { margin-top: 8px; }
+          .env-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+          .env-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+          .env-active-rev { font-size: 12px; color: #49617f; }
+          .env-rev-active { background: #e8f3ff; }
+          .env-rev-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
@@ -786,7 +791,15 @@ data:
                   </article>
 
                   <article class="card span-5">
-                    <h3>Environment Detail</h3>
+                    <div class="env-header">
+                      <h3>Environment Detail</h3>
+                      <div class="env-header-actions">
+                        <button id="envReloadDockerfile" class="btn">Reload</button>
+                        <button id="envEditDockerfile" class="btn">Edit</button>
+                        <button id="envCancelDockerfile" class="btn" style="display:none;">Cancel</button>
+                        <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Build Revision</button>
+                      </div>
+                    </div>
                     <div class="hint">Vue claire de l'environnement sélectionné et de sa définition Dockerfile.</div>
                     <table>
                       <tbody>
@@ -797,17 +810,12 @@ data:
                         <tr><th>Build ID</th><td id="envSelectedBuildId">-</td></tr>
                       </tbody>
                     </table>
+                    <div id="envActiveRevision" class="env-active-rev">Active revision: -</div>
                     <h3>Revisions</h3>
                     <table>
-                      <thead><tr><th>Revision</th><th>Status</th><th>Git Ref</th></tr></thead>
+                      <thead><tr><th>Revision</th><th>Status</th><th>Git Ref</th><th>Dockerfile</th><th>Created</th></tr></thead>
                       <tbody id="envRevisionRows"></tbody>
                     </table>
-                    <div class="row" style="margin-top:10px;">
-                      <button id="envReloadDockerfile" class="btn">Reload Dockerfile</button>
-                      <button id="envEditDockerfile" class="btn">Edit</button>
-                      <button id="envCancelDockerfile" class="btn" style="display:none;">Cancel</button>
-                      <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Build Revision</button>
-                    </div>
                     <h3>Dockerfile</h3>
                     <pre id="dockerfileOut">-</pre>
                     <textarea id="dockerfileEditor" style="display:none;width:100%;min-height:260px;border:1px solid #8ea6bf;border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12px;"></textarea>
@@ -1004,6 +1012,7 @@ data:
           const envSelectedStatus = document.getElementById('envSelectedStatus');
           const envSelectedRef = document.getElementById('envSelectedRef');
           const envSelectedBuildId = document.getElementById('envSelectedBuildId');
+          const envActiveRevision = document.getElementById('envActiveRevision');
           const envRevisionRows = document.getElementById('envRevisionRows');
           const envReloadDockerfileBtn = document.getElementById('envReloadDockerfile');
           const envEditDockerfileBtn = document.getElementById('envEditDockerfile');
@@ -1735,6 +1744,13 @@ data:
             return idx === -1 ? s : s.slice(0, idx) + '?...';
           }
 
+          function formatDateTime(raw) {
+            if (!raw) return '-';
+            const d = new Date(raw);
+            if (Number.isNaN(d.getTime())) return String(raw);
+            return d.toLocaleString();
+          }
+
           function switchTab(tab, sourceBtn) {
             state.activeTab = tab;
             const viewTab = tab.startsWith('data-') ? 'data' : tab;
@@ -2262,7 +2278,8 @@ data:
               envSelectedStatus.textContent = '-';
               envSelectedRef.textContent = '-';
               envSelectedBuildId.textContent = '-';
-              envRevisionRows.innerHTML = '<tr><td colspan="3">-</td></tr>';
+              envActiveRevision.textContent = 'Active revision: -';
+              envRevisionRows.innerHTML = '<tr><td colspan="5">-</td></tr>';
               buildOut.textContent = '-';
               dockerfileOut.textContent = '-';
               selectedEnvironmentID = '';
@@ -2297,20 +2314,28 @@ data:
             envSelectedStatus.innerHTML = badge(env.latestStatus || 'submitted');
             envSelectedRef.textContent = env.latestGitRef || '-';
             envSelectedBuildId.textContent = env.latestBuildId || '-';
-            selectedEnvironmentBuildID = env.latestBuildId || '';
+            envActiveRevision.textContent = 'Active revision: ' + (selectedEnvironmentBuildID || '-');
             const revisions = Array.isArray(env.revisions) ? env.revisions : [];
+            if (!selectedEnvironmentBuildID || !revisions.some((r) => (r.buildId || r.id || '') === selectedEnvironmentBuildID)) {
+              selectedEnvironmentBuildID = env.latestBuildId || '';
+            }
+            envActiveRevision.textContent = 'Active revision: ' + (selectedEnvironmentBuildID || '-');
             envRevisionRows.innerHTML = '';
             if (revisions.length === 0) {
-              envRevisionRows.innerHTML = '<tr><td colspan="3">-</td></tr>';
+              envRevisionRows.innerHTML = '<tr><td colspan="5">-</td></tr>';
             } else {
               revisions.slice(0, 10).forEach((rev) => {
                 const revBuildID = rev.buildId || rev.id || '';
                 const revID = encodeURIComponent(revBuildID);
+                const isActive = revBuildID === selectedEnvironmentBuildID;
                 const tr = document.createElement('tr');
+                if (isActive) tr.className = 'env-rev-active';
                 tr.innerHTML =
-                  '<td><button type="button" class="btn" data-select-revision="' + revID + '"><code>' + (revBuildID || '-') + '</code></button></td>' +
+                  '<td><button type="button" class="btn env-rev-id" data-select-revision="' + revID + '">' + (revBuildID || '-') + '</button></td>' +
                   '<td>' + badge(rev.status || 'submitted') + '</td>' +
-                  '<td>' + (rev.gitRef || '-') + '</td>';
+                  '<td>' + (rev.gitRef || '-') + '</td>' +
+                  '<td><code>' + (rev.dockerfilePath || '-') + '</code></td>' +
+                  '<td>' + formatDateTime(rev.createdAt) + '</td>';
                 envRevisionRows.appendChild(tr);
               });
             }
@@ -3213,6 +3238,7 @@ data:
             event.stopPropagation();
             selectedEnvironmentBuildID = decodeURIComponent(revisionID);
             setDockerfileEditMode(false);
+            renderEnvironmentsTable();
             await loadSelectedDockerfile();
           };
 
@@ -3526,7 +3552,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.67"}
+    {"version":"ce-web-0.6.68"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3547,7 +3573,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.67
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.68
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
