@@ -28,6 +28,7 @@ func main() {
 	var podStore store.PodStore = memory.NewPodStore()
 	var workspaceStore store.WorkspaceStore = memory.NewWorkspaceStore()
 	var sessionStore store.SessionStore = memory.NewSessionStore()
+	var auditStore store.AuditStore = memory.NewAuditStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
@@ -58,6 +59,7 @@ func main() {
 			podStore = &postgres.PodStore{Store: pg}
 			workspaceStore = &postgres.WorkspaceStore{Store: pg}
 			sessionStore = &postgres.SessionStore{Store: pg}
+			auditStore = &postgres.AuditStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
@@ -124,6 +126,7 @@ func main() {
 		podStore,
 		workspaceStore,
 		sessionStore,
+		auditStore,
 		accessStore,
 		secretStore,
 		datasetStore,

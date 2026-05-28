@@ -117,6 +117,10 @@ func (h Handlers) UpsertSecret(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update secret"})
 			return
 		}
+		h.emitAudit(r, userID, "secret.update", "secret", existing.Name, "", "success", "", map[string]any{
+			"type":      existing.Type,
+			"expiresAt": existing.ExpiresAt,
+		})
 		writeJSON(w, http.StatusOK, secretView{ID: existing.ID, Name: existing.Name, Type: existing.Type, ExpiresAt: existing.ExpiresAt, IsExpired: existing.ExpiresAt != nil && time.Now().UTC().After(*existing.ExpiresAt), CreatedAt: existing.CreatedAt, UpdatedAt: existing.UpdatedAt})
 		return
 	}
@@ -126,6 +130,10 @@ func (h Handlers) UpsertSecret(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create secret"})
 		return
 	}
+	h.emitAudit(r, userID, "secret.create", "secret", item.Name, "", "success", "", map[string]any{
+		"type":      item.Type,
+		"expiresAt": item.ExpiresAt,
+	})
 	writeJSON(w, http.StatusCreated, secretView{ID: item.ID, Name: item.Name, Type: item.Type, ExpiresAt: item.ExpiresAt, IsExpired: item.ExpiresAt != nil && time.Now().UTC().After(*item.ExpiresAt), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt})
 }
 
@@ -184,4 +192,5 @@ func (h Handlers) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	h.emitAudit(r, userID, "secret.delete", "secret", name, "", "success", "", nil)
 }

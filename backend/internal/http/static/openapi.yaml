@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.74
+  version: 0.5.75
   description: |
     Noryx CE backend API contract.
 
@@ -494,6 +494,35 @@ components:
           items:
             type: object
             additionalProperties: true
+
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: string }
+        occurredAt:
+          type: string
+          format: date-time
+        actorUserId: { type: string }
+        actorIp: { type: string }
+        actorUserAgent: { type: string }
+        action: { type: string }
+        resourceType: { type: string }
+        resourceId: { type: string }
+        projectId: { type: string }
+        outcome: { type: string }
+        errorCode: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+    AdminAuditResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
         services:
           type: array
           items:
@@ -1458,3 +1487,43 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           $ref: '#/components/responses/UpstreamError'
+
+  /api/v1/admin/audit:
+    get:
+      tags: [Admin]
+      summary: List audit events
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+        - in: query
+          name: until
+          schema: { type: string, format: date-time }
+        - in: query
+          name: action
+          schema: { type: string }
+        - in: query
+          name: actorUserId
+          schema: { type: string }
+        - in: query
+          name: projectId
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        '200':
+          description: Audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'

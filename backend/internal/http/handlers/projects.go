@@ -96,6 +96,9 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 	h.accessStore.SetRole(p.ID, userID, access.RoleAdmin)
 
+	h.emitAudit(r, userID, "project.create", "project", p.ID, p.ID, "success", "", map[string]any{
+		"name": p.Name,
+	})
 	writeJSON(w, http.StatusCreated, p)
 }
 
@@ -136,6 +139,7 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+	h.emitAudit(r, userID, "project.delete", "project", projectID, projectID, "success", "", nil)
 }
 
 func (h Handlers) deleteProjectWorkspaces(projectID string) error {

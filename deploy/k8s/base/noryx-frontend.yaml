@@ -522,6 +522,7 @@ data:
                 <button id="logout" class="btn" data-i18n="logout">Se deconnecter</button>
                 <button id="loadModules" class="btn good admin-only" data-i18n="platform_status">Etat plateforme</button>
                 <button id="loadUsers" class="btn good admin-only" data-i18n="users">Utilisateurs</button>
+                <button id="loadAudit" class="btn good admin-only">Audit</button>
               </div>
             </section>
 
@@ -939,6 +940,10 @@ data:
                     <h3>Users</h3>
                     <pre id="usersOut">-</pre>
                   </article>
+                  <article class="card span-12">
+                    <h3>Audit Events</h3>
+                    <pre id="auditOut">-</pre>
+                  </article>
                 </div>
               </section>
             </section>
@@ -1003,6 +1008,7 @@ data:
           const layoutNode = document.querySelector('.layout');
           const reduceNavBtn = document.getElementById('reduceNav');
           const usersOut = document.getElementById('usersOut');
+          const auditOut = document.getElementById('auditOut');
           const modulesOut = document.getElementById('modulesOut');
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
@@ -1025,6 +1031,7 @@ data:
           const logoutBtn = document.getElementById('logout');
           const usersBtn = document.getElementById('loadUsers');
           const modulesBtn = document.getElementById('loadModules');
+          const auditBtn = document.getElementById('loadAudit');
 
           const projectSelect = document.getElementById('projectSelect');
           const projectNameInput = document.getElementById('projectName');
@@ -1691,6 +1698,7 @@ data:
             logoutBtn.disabled = !enabled;
             usersBtn.disabled = !enabled || !isAdminUser();
             modulesBtn.disabled = !enabled || !isAdminUser();
+            auditBtn.disabled = !enabled || !isAdminUser();
             loadProjectsBtn.disabled = !enabled;
             createProjectBtn.disabled = !enabled;
             loadWorkspacesBtn.disabled = !enabled;
@@ -2749,6 +2757,11 @@ data:
             catch (e) { pretty(modulesOut, e); }
           };
 
+          auditBtn.onclick = async () => {
+            try { pretty(auditOut, await callJSON('/api/v1/admin/audit?limit=200')); }
+            catch (e) { pretty(auditOut, e); }
+          };
+
           loadProjectsBtn.onclick = async () => {
             try { await refreshProjects(); }
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
@@ -3552,7 +3565,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.68"}
+    {"version":"ce-web-0.6.69"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3573,7 +3586,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.68
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.69
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

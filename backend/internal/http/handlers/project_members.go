@@ -59,6 +59,9 @@ func (h Handlers) SetProjectMemberRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.accessStore.SetRole(projectID, userID, role)
+	h.emitAudit(r, callerID, "rbac.role.set", "project_member", userID, projectID, "success", "", map[string]any{
+		"role": string(role),
+	})
 	writeJSON(w, http.StatusOK, map[string]string{
 		"projectId": projectID,
 		"userId":    userID,
@@ -115,6 +118,9 @@ func (h Handlers) InviteProjectMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.accessStore.SetRole(projectID, req.UserID, role)
+	h.emitAudit(r, callerID, "rbac.invite", "project_member", req.UserID, projectID, "success", "", map[string]any{
+		"role": string(role),
+	})
 	writeJSON(w, http.StatusCreated, map[string]string{
 		"projectId": projectID,
 		"userId":    req.UserID,

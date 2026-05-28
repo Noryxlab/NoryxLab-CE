@@ -77,6 +77,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	}
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
+	mux.HandleFunc("GET /api/v1/admin/audit", h.ListAuditEvents)
 
 	mux.HandleFunc("GET /swagger", GetSwaggerUI)
 	mux.HandleFunc("GET /swagger/", GetSwaggerUI)

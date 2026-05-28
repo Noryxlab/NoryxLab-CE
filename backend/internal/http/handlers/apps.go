@@ -226,6 +226,16 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save app"})
 		return
 	}
+	action := "app.launch"
+	if record.Kind == "dashboard" {
+		action = "dashboard.launch"
+	}
+	h.emitAudit(r, userID, action, record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":  record.Name,
+		"slug":  record.Slug,
+		"image": record.Image,
+		"port":  record.Port,
+	})
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -274,6 +284,14 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	action := "app.delete"
+	if record.Kind == "dashboard" {
+		action = "dashboard.delete"
+	}
+	h.emitAudit(r, userID, action, record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
+		"name": record.Name,
+		"slug": record.Slug,
+	})
 }
 
 func normalizeAppSlug(raw string) string {

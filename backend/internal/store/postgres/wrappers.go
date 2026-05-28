@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
@@ -12,6 +13,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
 
 type ProjectStore struct{ *Store }
@@ -69,6 +71,13 @@ func (s *SessionStore) Get(token string) (session.Session, bool, error) {
 }
 func (s *SessionStore) Delete(token string) error { return s.Store.DeleteSession(token) }
 
+type AuditStore struct{ *Store }
+
+func (s *AuditStore) Create(event audit.Event) error { return s.Store.CreateAuditEvent(event) }
+func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
+	return s.Store.ListAuditEvents(filter)
+}
+
 type SecretStore struct{ *Store }
 
 func (s *SecretStore) ListByUser(userID string) ([]secret.Secret, error) {
@@ -99,8 +108,10 @@ func (s *DatasourceStore) ListByUser(userID string) ([]datasource.Datasource, er
 func (s *DatasourceStore) GetByID(id string) (datasource.Datasource, bool, error) {
 	return s.Store.GetDatasourceByID(id)
 }
-func (s *DatasourceStore) Create(item datasource.Datasource) error { return s.Store.CreateDatasource(item) }
-func (s *DatasourceStore) Delete(id string) error                  { return s.Store.DeleteDatasource(id) }
+func (s *DatasourceStore) Create(item datasource.Datasource) error {
+	return s.Store.CreateDatasource(item)
+}
+func (s *DatasourceStore) Delete(id string) error { return s.Store.DeleteDatasource(id) }
 
 type RepositoryStore struct{ *Store }
 

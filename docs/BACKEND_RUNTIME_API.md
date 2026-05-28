@@ -48,6 +48,7 @@ This module adds:
 - `/workspaces/{workspaceID}/...` (reverse-proxied Jupyter)
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
+- `GET /api/v1/admin/audit`
 
 User preferences:
 
@@ -80,6 +81,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - `POST /api/v1/projects/{projectID}/invitations` invites one user with role (`editor` by default)
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch/delete/access workspaces
+- key actions are audited (auth session, project, RBAC, secret, build, workspace, job, app/dashboard)
 - first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
 - CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
 

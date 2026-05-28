@@ -51,12 +51,22 @@ func (h Handlers) CreateWebSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"expiresAt": expiresAt,
 	})
+	h.emitAudit(r, userID, "auth.login", "session", token, "", "success", "", map[string]any{
+		"expiresAt": expiresAt,
+	})
 }
 
 func (h Handlers) DeleteWebSession(w http.ResponseWriter, r *http.Request) {
+	actorUserID, _ := h.userIDFromSessionOrBearerNoWrite(r)
 	cookie, err := r.Cookie(sessionCookie)
+	sessionToken := ""
+	sessionIdentity := ""
 	if err == nil && strings.TrimSpace(cookie.Value) != "" && h.sessionStore != nil {
-		_ = h.sessionStore.Delete(strings.TrimSpace(cookie.Value))
+		sessionToken = strings.TrimSpace(cookie.Value)
+		if existing, ok, getErr := h.sessionStore.Get(sessionToken); getErr == nil && ok {
+			sessionIdentity = strings.TrimSpace(existing.Identity)
+		}
+		_ = h.sessionStore.Delete(sessionToken)
 	}
 
 	http.SetCookie(w, &http.Cookie{
@@ -71,4 +81,8 @@ func (h Handlers) DeleteWebSession(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+	if actorUserID == "" {
+		actorUserID = sessionIdentity
+	}
+	h.emitAudit(r, actorUserID, "auth.logout", "session", sessionToken, "", "success", "", nil)
 }
