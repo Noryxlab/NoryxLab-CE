@@ -263,9 +263,14 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 		contextArg = fmt.Sprintf("%s#%s", spec.ContextGitURL, spec.GitRef)
 	}
 
+	dockerfileArg := spec.DockerfilePath
+	if strings.TrimSpace(spec.DockerfileContent) != "" {
+		dockerfileArg = "/workspace/Dockerfile"
+	}
+
 	args := []string{
 		"--context=" + contextArg,
-		"--dockerfile=" + spec.DockerfilePath,
+		"--dockerfile=" + dockerfileArg,
 		"--destination=" + spec.DestinationImage,
 		"--insecure",
 		"--skip-tls-verify",
@@ -309,6 +314,46 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 				"name":      "docker-config",
 				"mountPath": "/kaniko/.docker",
 			},
+		}
+	}
+
+	if strings.TrimSpace(spec.DockerfileContent) != "" {
+		volumes, _ := podSpec["volumes"].([]map[string]any)
+		volumes = append(volumes, map[string]any{
+			"name": "dockerfile-inline",
+			"configMap": map[string]any{
+				"name": spec.JobName + "-dockerfile",
+				"items": []map[string]string{
+					{"key": "Dockerfile", "path": "Dockerfile"},
+				},
+			},
+		})
+		podSpec["volumes"] = volumes
+
+		volumeMounts, _ := container["volumeMounts"].([]map[string]any)
+		volumeMounts = append(volumeMounts, map[string]any{
+			"name":      "dockerfile-inline",
+			"mountPath": "/workspace/Dockerfile",
+			"subPath":   "Dockerfile",
+			"readOnly":  true,
+		})
+		container["volumeMounts"] = volumeMounts
+
+		cmPayload := map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name": spec.JobName + "-dockerfile",
+				"labels": map[string]string{
+					"noryx.io/build-id": spec.Labels["noryx.io/build-id"],
+				},
+			},
+			"data": map[string]string{
+				"Dockerfile": spec.DockerfileContent,
+			},
+		}
+		if _, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/configmaps", r.workloadNamespace), cmPayload); err != nil {
+			return err
 		}
 	}
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
@@ -124,12 +124,14 @@ func (s *Store) migrate(ctx context.Context) error {
 			git_repository TEXT NOT NULL,
 			git_ref TEXT NOT NULL,
 			dockerfile_path TEXT NOT NULL,
+			dockerfile_content TEXT NOT NULL DEFAULT '',
 			context_path TEXT NOT NULL,
 			destination_image TEXT NOT NULL,
 			job_name TEXT NOT NULL,
 			status TEXT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS dockerfile_content TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -350,7 +352,7 @@ func (s *Store) GetRole(projectID, userID string) (access.Role, bool) {
 }
 
 func (s *Store) ListBuilds() ([]build.Build, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, context_path, destination_image, job_name, status, created_at FROM builds ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at FROM builds ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +360,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 	out := []build.Build{}
 	for rows.Next() {
 		var b build.Build
-		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.DockerfileContent, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -525,12 +527,13 @@ func (s *Store) DeleteApp(id string) error {
 
 func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 	var b build.Build
-	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, context_path, destination_image, job_name, status, created_at FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&b.ID,
 		&b.ProjectID,
 		&b.GitRepository,
 		&b.GitRef,
 		&b.DockerfilePath,
+		&b.DockerfileContent,
 		&b.ContextPath,
 		&b.DestinationImage,
 		&b.JobName,
@@ -547,12 +550,13 @@ func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 }
 
 func (s *Store) CreateBuild(b build.Build) error {
-	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, context_path, destination_image, job_name, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		b.ID,
 		b.ProjectID,
 		b.GitRepository,
 		b.GitRef,
 		b.DockerfilePath,
+		b.DockerfileContent,
 		b.ContextPath,
 		b.DestinationImage,
 		b.JobName,
@@ -564,13 +568,14 @@ func (s *Store) CreateBuild(b build.Build) error {
 
 func (s *Store) UpsertBuild(b build.Build) error {
 	_, err := s.db.Exec(`
-		INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, context_path, destination_image, job_name, status, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			git_repository=EXCLUDED.git_repository,
 			git_ref=EXCLUDED.git_ref,
 			dockerfile_path=EXCLUDED.dockerfile_path,
+			dockerfile_content=EXCLUDED.dockerfile_content,
 			context_path=EXCLUDED.context_path,
 			destination_image=EXCLUDED.destination_image,
 			job_name=EXCLUDED.job_name,
@@ -581,6 +586,7 @@ func (s *Store) UpsertBuild(b build.Build) error {
 		b.GitRepository,
 		b.GitRef,
 		b.DockerfilePath,
+		b.DockerfileContent,
 		b.ContextPath,
 		b.DestinationImage,
 		b.JobName,

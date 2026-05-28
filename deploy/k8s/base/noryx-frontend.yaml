@@ -804,9 +804,13 @@ data:
                     </table>
                     <div class="row" style="margin-top:10px;">
                       <button id="envReloadDockerfile" class="btn">Reload Dockerfile</button>
+                      <button id="envEditDockerfile" class="btn">Edit</button>
+                      <button id="envCancelDockerfile" class="btn" style="display:none;">Cancel</button>
+                      <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Build Revision</button>
                     </div>
                     <h3>Dockerfile</h3>
                     <pre id="dockerfileOut">-</pre>
+                    <textarea id="dockerfileEditor" style="display:none;width:100%;min-height:260px;border:1px solid #8ea6bf;border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12px;"></textarea>
                     <pre id="buildOut">-</pre>
                   </article>
                 </div>
@@ -1002,6 +1006,10 @@ data:
           const envSelectedBuildId = document.getElementById('envSelectedBuildId');
           const envRevisionRows = document.getElementById('envRevisionRows');
           const envReloadDockerfileBtn = document.getElementById('envReloadDockerfile');
+          const envEditDockerfileBtn = document.getElementById('envEditDockerfile');
+          const envCancelDockerfileBtn = document.getElementById('envCancelDockerfile');
+          const envBuildFromDockerfileBtn = document.getElementById('envBuildFromDockerfile');
+          const dockerfileEditor = document.getElementById('dockerfileEditor');
           const secretOut = document.getElementById('secretOut');
 
           const loginBtn = document.getElementById('login');
@@ -1219,6 +1227,8 @@ data:
             datasourceChecks: {}
           };
           let selectedEnvironmentID = '';
+          let selectedEnvironmentBuildID = '';
+          let dockerfileEditMode = false;
           let openingWorkspaceId = null;
           let currentTheme = normalizeTheme((() => {
             try { return localStorage.getItem(THEME_KEY) || ''; } catch (_) { return ''; }
@@ -2287,35 +2297,59 @@ data:
             envSelectedStatus.innerHTML = badge(env.latestStatus || 'submitted');
             envSelectedRef.textContent = env.latestGitRef || '-';
             envSelectedBuildId.textContent = env.latestBuildId || '-';
+            selectedEnvironmentBuildID = env.latestBuildId || '';
             const revisions = Array.isArray(env.revisions) ? env.revisions : [];
             envRevisionRows.innerHTML = '';
             if (revisions.length === 0) {
               envRevisionRows.innerHTML = '<tr><td colspan="3">-</td></tr>';
             } else {
-              revisions.slice(-10).reverse().forEach((rev) => {
+              revisions.slice(0, 10).forEach((rev) => {
+                const revBuildID = rev.buildId || rev.id || '';
+                const revID = encodeURIComponent(revBuildID);
                 const tr = document.createElement('tr');
                 tr.innerHTML =
-                  '<td><code>' + (rev.id || '-') + '</code></td>' +
+                  '<td><button type="button" class="btn" data-select-revision="' + revID + '"><code>' + (revBuildID || '-') + '</code></button></td>' +
                   '<td>' + badge(rev.status || 'submitted') + '</td>' +
                   '<td>' + (rev.gitRef || '-') + '</td>';
                 envRevisionRows.appendChild(tr);
               });
             }
+            envGitRepo.value = env.latestGitRepository || envGitRepo.value;
+            envGitRef.value = env.latestGitRef || envGitRef.value;
+            envDockerfile.value = env.latestDockerfilePath || envDockerfile.value;
+            envDestination.value = env.destinationImage || envDestination.value;
             buildOut.textContent = JSON.stringify(env, null, 2);
             loadSelectedDockerfile();
           }
 
+          function setDockerfileEditMode(enabled) {
+            dockerfileEditMode = enabled;
+            dockerfileOut.style.display = enabled ? 'none' : 'block';
+            dockerfileEditor.style.display = enabled ? 'block' : 'none';
+            envEditDockerfileBtn.style.display = enabled ? 'none' : '';
+            envCancelDockerfileBtn.style.display = enabled ? '' : 'none';
+            envBuildFromDockerfileBtn.style.display = enabled ? '' : 'none';
+          }
+
           async function loadSelectedDockerfile() {
-            const env = state.environments.find((e) => e.id === selectedEnvironmentID);
-            if (!env || !env.latestBuildId) {
+            const buildID = selectedEnvironmentBuildID || ((state.environments.find((e) => e.id === selectedEnvironmentID) || {}).latestBuildId || '');
+            if (!buildID) {
               dockerfileOut.textContent = '-';
+              dockerfileEditor.value = '';
               return;
             }
             try {
-              const body = await callJSON('/api/v1/builds/' + encodeURIComponent(env.latestBuildId) + '/dockerfile');
-              dockerfileOut.textContent = String(body.content || '-');
+              const body = await callJSON('/api/v1/builds/' + encodeURIComponent(buildID) + '/dockerfile');
+              const content = String(body.content || '-');
+              dockerfileOut.textContent = content;
+              dockerfileEditor.value = content === '-' ? '' : content;
+              if (body.gitRepository) envGitRepo.value = String(body.gitRepository);
+              if (body.gitRef) envGitRef.value = String(body.gitRef);
+              if (body.dockerfilePath) envDockerfile.value = String(body.dockerfilePath);
+              if (body.contextPath) envContext.value = String(body.contextPath);
             } catch (_) {
               dockerfileOut.textContent = '-';
+              dockerfileEditor.value = '';
             }
           }
 
@@ -3164,14 +3198,69 @@ data:
               event.preventDefault();
               event.stopPropagation();
               selectedEnvironmentID = decodeURIComponent(selectID);
+              selectedEnvironmentBuildID = '';
+              setDockerfileEditMode(false);
               renderEnvironmentsTable();
               return;
             }
           };
 
+          envRevisionRows.onclick = async (event) => {
+            const revisionID = (event.target && event.target.getAttribute('data-select-revision')) ||
+              (event.target && event.target.parentElement && event.target.parentElement.getAttribute && event.target.parentElement.getAttribute('data-select-revision'));
+            if (!revisionID) return;
+            event.preventDefault();
+            event.stopPropagation();
+            selectedEnvironmentBuildID = decodeURIComponent(revisionID);
+            setDockerfileEditMode(false);
+            await loadSelectedDockerfile();
+          };
+
           if (envReloadDockerfileBtn) {
             envReloadDockerfileBtn.onclick = async () => {
               await loadSelectedDockerfile();
+            };
+          }
+          if (envEditDockerfileBtn) {
+            envEditDockerfileBtn.onclick = async () => {
+              await loadSelectedDockerfile();
+              setDockerfileEditMode(true);
+            };
+          }
+          if (envCancelDockerfileBtn) {
+            envCancelDockerfileBtn.onclick = async () => {
+              setDockerfileEditMode(false);
+              await loadSelectedDockerfile();
+            };
+          }
+          if (envBuildFromDockerfileBtn) {
+            envBuildFromDockerfileBtn.onclick = async () => {
+              try {
+                const projectId = selectedProjectId();
+                if (!projectId) throw { error: tui('err_select_project_first') };
+                const payload = {
+                  projectId,
+                  gitRepository: envGitRepo.value.trim(),
+                  gitRef: envGitRef.value.trim() || 'main',
+                  dockerfilePath: envDockerfile.value.trim() || 'Dockerfile',
+                  dockerfileContent: dockerfileEditor.value,
+                  contextPath: envContext.value.trim(),
+                  destinationImage: envDestination.value.trim()
+                };
+                if (!payload.gitRepository || !payload.destinationImage) throw { error: tui('err_build_required') };
+                await callJSON('/api/v1/builds', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+                setDockerfileEditMode(false);
+                selectedEnvironmentBuildID = '';
+                await Promise.all([refreshBuilds(), refreshEnvironments()]);
+                switchTab('environments');
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
             };
           }
 
@@ -3437,7 +3526,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.66"}
+    {"version":"ce-web-0.6.67"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3458,7 +3547,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.66
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.67
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
