@@ -50,6 +50,9 @@ func (h Handlers) ListSecrets(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]secretView, 0, len(items))
 	for _, item := range items {
+		if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") {
+			continue
+		}
 		out = append(out, secretView{
 			ID:        item.ID,
 			Name:      item.Name,
@@ -78,6 +81,10 @@ func (h Handlers) UpsertSecret(w http.ResponseWriter, r *http.Request) {
 	req.Value = strings.TrimSpace(req.Value)
 	if req.Name == "" || req.Value == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and value are required"})
+		return
+	}
+	if strings.HasPrefix(req.Name, "dataset-s3-") || req.Type == "dataset-s3" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials are managed by the dataset lifecycle"})
 		return
 	}
 	if strings.TrimSpace(h.secretsMasterKey) == "" {
@@ -160,6 +167,10 @@ func (h Handlers) GetSecret(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
 		return
 	}
+	if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials cannot be revealed"})
+		return
+	}
 	decrypted, err := security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to decrypt secret"})
@@ -185,6 +196,10 @@ func (h Handlers) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.PathValue("name"))
 	if name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "secret name is required"})
+		return
+	}
+	if strings.HasPrefix(name, "dataset-s3-") {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials are managed by the dataset lifecycle"})
 		return
 	}
 	if err := h.secretStore.Delete(userID, name); err != nil {

@@ -146,6 +146,7 @@ func main() {
 			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
 			WorkspaceNamespace:               cfg.WorkloadNamespace,
 			WorkspaceCPU:                     cfg.WorkspaceCPU,
+			WorkspaceCPURequest:              cfg.WorkspaceCPURequest,
 			WorkspaceMemory:                  cfg.WorkspaceMemory,
 			WorkspaceEphemeralStorageRequest: cfg.WorkspaceEphemeralStorageRequest,
 			WorkspaceEphemeralStorageLimit:   cfg.WorkspaceEphemeralStorageLimit,
@@ -168,6 +169,10 @@ func main() {
 			MinIOSecretKey:                   cfg.MinIOSecretKey,
 			MinIOUseSSL:                      cfg.MinIOUseSSL,
 			MinIORegion:                      cfg.MinIORegion,
+			HarborURL:                        cfg.HarborURL,
+			HarborUsername:                   cfg.HarborUsername,
+			HarborPassword:                   cfg.HarborPassword,
+			HarborInsecureSkipVerify:         cfg.HarborInsecureSkipVerify,
 		},
 	)
 

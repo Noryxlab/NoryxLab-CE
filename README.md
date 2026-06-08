@@ -59,6 +59,12 @@ API endpoints:
 - `GET /api/v1/workspaces`
 - `POST /api/v1/workspaces`
 - `DELETE /api/v1/workspaces/{workspaceID}`
+- `GET /api/v1/datasets`
+- `POST /api/v1/datasets`
+- `GET /api/v1/datasets/{datasetID}/objects`
+- `GET|PUT /api/v1/datasets/{datasetID}/objects/{path...}`
+- `POST /api/v1/datasets/{datasetID}/download`
+- `GET|PUT|DELETE /api/v1/datasets/{datasetID}/access/...`
 - `POST /api/v1/auth/session`
 - `DELETE /api/v1/auth/session`
 - `/workspaces/{workspaceID}/...` (Jupyter reverse proxy via back)

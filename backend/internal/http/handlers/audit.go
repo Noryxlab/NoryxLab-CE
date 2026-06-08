@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -72,7 +74,7 @@ func parseRFC3339Param(raw string) (*time.Time, error) {
 }
 
 func (h Handlers) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
-	_, ok := h.requireAdminModule(w, r, "audit")
+	_, ok := h.requireAdminModuleFromSessionOrBearer(w, r, "audit")
 	if !ok {
 		return
 	}
@@ -112,4 +114,29 @@ func (h Handlers) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h Handlers) ExportAuditCSV(w http.ResponseWriter, r *http.Request) {
+	_, ok := h.requireAdminModuleFromSessionOrBearer(w, r, "audit")
+	if !ok {
+		return
+	}
+	if h.auditStore == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "audit store is not configured"})
+		return
+	}
+	items, err := h.auditStore.List(store.AuditFilter{Limit: 10000})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to export audit events"})
+		return
+	}
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="noryx-audit.csv"`)
+	writer := csv.NewWriter(w)
+	_ = writer.Write([]string{"occurred_at", "actor_user_id", "actor_ip", "action", "resource_type", "resource_id", "project_id", "outcome", "error_code", "details"})
+	for _, item := range items {
+		details, _ := json.Marshal(item.Details)
+		_ = writer.Write([]string{item.OccurredAt.Format(time.RFC3339), item.ActorUserID, item.ActorIP, item.Action, item.ResourceType, item.ResourceID, item.ProjectID, item.Outcome, item.ErrorCode, string(details)})
+	}
+	writer.Flush()
 }

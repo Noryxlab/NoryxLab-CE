@@ -29,6 +29,7 @@ func (s *BuildStore) List() ([]build.Build, error)                 { return s.St
 func (s *BuildStore) GetByID(id string) (build.Build, bool, error) { return s.Store.GetBuildByID(id) }
 func (s *BuildStore) Create(b build.Build) error                   { return s.Store.CreateBuild(b) }
 func (s *BuildStore) Upsert(b build.Build) error                   { return s.Store.UpsertBuild(b) }
+func (s *BuildStore) Delete(id string) error                       { return s.Store.DeleteBuild(id) }
 
 type AppStore struct{ *Store }
 
@@ -94,11 +95,22 @@ type DatasetStore struct{ *Store }
 func (s *DatasetStore) ListByUser(userID string) ([]dataset.Dataset, error) {
 	return s.Store.ListDatasetsByUser(userID)
 }
+func (s *DatasetStore) ListAll() ([]dataset.Dataset, error) { return s.Store.ListAllDatasets() }
 func (s *DatasetStore) GetByID(id string) (dataset.Dataset, bool, error) {
 	return s.Store.GetDatasetByID(id)
 }
 func (s *DatasetStore) Create(item dataset.Dataset) error { return s.Store.CreateDataset(item) }
 func (s *DatasetStore) Delete(id string) error            { return s.Store.DeleteDataset(id) }
+func (s *DatasetStore) ListAccess(datasetID string) ([]dataset.Access, error) {
+	return s.Store.ListDatasetAccess(datasetID)
+}
+func (s *DatasetStore) GetAccess(datasetID, userID string) (dataset.Access, bool, error) {
+	return s.Store.GetDatasetAccess(datasetID, userID)
+}
+func (s *DatasetStore) SetAccess(item dataset.Access) error { return s.Store.SetDatasetAccess(item) }
+func (s *DatasetStore) DeleteAccess(datasetID, userID string) error {
+	return s.Store.DeleteDatasetAccess(datasetID, userID)
+}
 
 type DatasourceStore struct{ *Store }
 

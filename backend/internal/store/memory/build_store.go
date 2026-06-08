@@ -57,3 +57,15 @@ func (s *BuildStore) Upsert(b build.Build) error {
 	s.items = append(s.items, b)
 	return nil
 }
+
+func (s *BuildStore) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, item := range s.items {
+		if item.ID == id {
+			s.items = append(s.items[:i], s.items[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}

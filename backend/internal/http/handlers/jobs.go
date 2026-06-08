@@ -79,7 +79,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	jobName := "job-" + shortID()
 	record := job.New(req.ProjectID, req.Name, req.Image, jobName, req.Command, req.Args)
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID, false)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return

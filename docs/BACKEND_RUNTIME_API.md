@@ -34,7 +34,13 @@ This module adds:
 - `DELETE /api/v1/secrets/{name}`
 - `GET /api/v1/datasets`
 - `POST /api/v1/datasets`
+- `GET /api/v1/datasets/{datasetID}/objects`
+- `GET /api/v1/datasets/{datasetID}/objects/{path...}`
 - `PUT /api/v1/datasets/{datasetID}/objects/{path...}`
+- `POST /api/v1/datasets/{datasetID}/download`
+- `GET /api/v1/datasets/{datasetID}/access`
+- `PUT /api/v1/datasets/{datasetID}/access/{userID}`
+- `DELETE /api/v1/datasets/{datasetID}/access/{userID}`
 - `GET /api/v1/repositories`
 - `POST /api/v1/repositories`
 - `GET /api/v1/projects/{projectID}/datasets`
@@ -85,6 +91,14 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - audit retention: no purge policy is applied by default in CE (append-only audit table)
 - first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
 - CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
+- HDS datasets can only be attached to or detached from projects by the global admin
+- non-HDS datasets can be attached to or detached from projects by their owner or the global admin
+- Clever Cloud datasets are registered by an admin; external object access requires platform-injected service credentials
+- external S3 credentials are encrypted per dataset; HDS has no shared credential or storage fallback
+- dataset ACL roles are `owner`, `writer`, and `reader`
+- owner manages non-HDS ACLs; HDS ACL management requires the global admin
+- non-HDS supports direct download, multi-file ZIP download, preview, and text/CSV editing
+- HDS direct download, ZIP, preview, and browser editing are intentionally disabled
 
 ## Workspace baseline (current)
 

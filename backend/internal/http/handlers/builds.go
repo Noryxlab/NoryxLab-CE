@@ -147,12 +147,14 @@ func (h Handlers) syncBuildsFromRuntime() {
 		return
 	}
 
+	seen := make(map[string]struct{}, len(runtimeItems))
 	for _, item := range runtimeItems {
 		buildID := strings.TrimSpace(item.BuildID)
 		projectID := strings.TrimSpace(item.ProjectID)
 		if buildID == "" || projectID == "" {
 			continue
 		}
+		seen[buildID] = struct{}{}
 		h.ensureProjectInStore(projectID)
 
 		existing, found, err := h.buildStore.GetByID(buildID)
@@ -205,5 +207,26 @@ func (h Handlers) syncBuildsFromRuntime() {
 		}
 
 		_ = h.buildStore.Upsert(record)
+	}
+
+	// Reconcile stale in-store builds that disappeared from runtime jobs.
+	// Typical case: jobs manually deleted from Kubernetes while DB still says running.
+	existing, err := h.buildStore.List()
+	if err != nil {
+		return
+	}
+	for _, item := range existing {
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		status := strings.ToLower(strings.TrimSpace(item.Status))
+		if status == "running" || status == "submitted" {
+			item.Status = "canceled"
+			_ = h.buildStore.Upsert(item)
+		}
 	}
 }

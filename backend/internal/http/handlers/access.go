@@ -274,6 +274,22 @@ func (h Handlers) requireAdminModule(w http.ResponseWriter, r *http.Request, mod
 	return auth.Identity{}, false
 }
 
+func (h Handlers) requireAdminModuleFromSessionOrBearer(w http.ResponseWriter, r *http.Request, module string) (auth.Identity, bool) {
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	if !ok {
+		return auth.Identity{}, false
+	}
+	fallback := h.isGlobalAdmin(identity)
+	if h.editionHooks.RBAC != nil && h.editionHooks.RBAC.CanAccessAdminModule(identity, module, fallback) {
+		return identity, true
+	}
+	if fallback {
+		return identity, true
+	}
+	writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required"})
+	return auth.Identity{}, false
+}
+
 func (h Handlers) isGlobalAdmin(identity auth.Identity) bool {
 	fallbackFn := func(id auth.Identity) bool {
 		return h.defaultIsGlobalAdmin(id)

@@ -57,9 +57,13 @@ type workspaceAttachedRepo struct {
 }
 
 type workspaceAttachedDataset struct {
-	Name   string
-	Bucket string
-	Prefix string
+	Name      string
+	Bucket    string
+	Prefix    string
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	UseSSL    bool
 }
 
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +108,7 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
 }
 
-func (h Handlers) syncWorkspacesFromRuntime(userID string) {
+func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 	discovery, ok := h.runtime.(noryxruntime.WorkspaceDiscovery)
 	if !ok {
 		return
@@ -118,12 +122,6 @@ func (h Handlers) syncWorkspacesFromRuntime(userID string) {
 			continue
 		}
 		h.ensureProjectInStore(item.ProjectID)
-		// After back restart, in-memory RBAC is empty.
-		// Re-grant current user admin on discovered runtime projects.
-		if strings.TrimSpace(userID) != "" {
-			h.accessStore.SetRole(item.ProjectID, userID, access.RoleAdmin)
-		}
-
 		existingRecord, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
 		if err != nil {
 			continue
@@ -292,7 +290,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if req.IDE == "vscode" {
 		workspaceImage = h.workspaceVSCodeImage
 	}
-	workspaceCommand := []string{"/bin/sh", "-lc"}
+	workspaceCommand := []string{"/bin/sh", "/var/run/noryx/bootstrap/bootstrap.sh"}
 	workspaceArgs := []string{}
 	pvcSize := h.workspacePVCSize
 	if h.workspacePVCEnabled {
@@ -331,7 +329,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	record.PVCSize = pvcSize
 	record.PVCMountPath = projectMountPath
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID, true)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
@@ -412,7 +410,20 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			h.minioSecretKey,
 			h.minioUseSSL,
 		)
-		workspaceArgs = []string{bootstrapScript}
+		workspaceArgs = nil
+		bootstrapSecretName := podName + "-bootstrap"
+		err = h.runtime.CreateSecret(noryxruntime.SecretSpec{
+			Name: bootstrapSecretName,
+			Data: map[string]string{"bootstrap.sh": bootstrapScript},
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "noryx-workspace-bootstrap",
+				"noryx.io/workspace-id":  record.ID,
+			},
+		})
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace bootstrap secret create failed: " + err.Error()})
+			return
+		}
 
 		envVars := []noryxruntime.EnvVar{
 			{Name: "HOME", Value: "/home/noryx"},
@@ -424,13 +435,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		envVars = append(envVars, datasourceEnv...)
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
-			PodName: podName,
-			Image:   record.Image,
-			Command: workspaceCommand,
-			Args:    workspaceArgs,
-			Env:     envVars,
+			PodName:                 podName,
+			Image:                   record.Image,
+			Command:                 workspaceCommand,
+			Args:                    workspaceArgs,
+			Env:                     envVars,
 			Ports:                   []int{8888},
-			CPURequest:              h.workspaceCPU,
+			ReadinessPort:           8888,
+			CPURequest:              h.workspaceCPURequest,
 			CPULimit:                h.workspaceCPU,
 			MemRequest:              h.workspaceMemory,
 			MemLimit:                h.workspaceMemory,
@@ -438,6 +450,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
+			Secrets: []noryxruntime.SecretMount{{
+				SecretName: bootstrapSecretName,
+				MountPath:  "/var/run/noryx/bootstrap",
+				ReadOnly:   true,
+			}},
 			Labels: map[string]string{
 				"app.kubernetes.io/name":  "noryx-workspace",
 				"noryx.io/project-id":     req.ProjectID,
@@ -447,6 +464,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
+			_ = h.runtime.DeleteSecret(bootstrapSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod launch failed: " + err.Error()})
 			return
 		}
@@ -543,7 +561,7 @@ func sanitizeK8sName(raw string) string {
 	return strings.Trim(out, "-")
 }
 
-func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {
+func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string, includeExternalDatasets bool) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {
 	repoIDs, err := h.projectResourceStore.ListProjectRepositoryIDs(projectID)
 	if err != nil {
 		return nil, nil, err
@@ -586,14 +604,48 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string) ([]
 		if err != nil {
 			return nil, nil, err
 		}
-		if !found || item.OwnerUserID != userID {
+		if !found || item.OwnerUserID != userID || item.Classification == "hds" {
 			continue
 		}
-		attachedDatasets = append(attachedDatasets, workspaceAttachedDataset{
+		if item.Provider != "minio" && !includeExternalDatasets {
+			continue
+		}
+		attached := workspaceAttachedDataset{
 			Name:   fallbackResourceName(item.Name, item.ID),
 			Bucket: strings.TrimSpace(item.Bucket),
 			Prefix: strings.Trim(strings.TrimSpace(item.Prefix), "/"),
-		})
+		}
+		if item.Provider == "minio" {
+			attached.Endpoint = h.minioEndpoint
+			attached.AccessKey = h.minioAccessKey
+			attached.SecretKey = h.minioSecretKey
+			attached.UseSSL = h.minioUseSSL
+		} else {
+			credentialItem, found, err := h.secretStore.GetByName(item.OwnerUserID, item.CredentialName)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !found {
+				return nil, nil, fmt.Errorf("dataset S3 credentials not found: %s", item.Name)
+			}
+			decrypted, err := security.DecryptString(h.secretsMasterKey, credentialItem.ValueEncrypted)
+			if err != nil {
+				return nil, nil, err
+			}
+			var credential datasetS3Credential
+			if err := json.Unmarshal([]byte(decrypted), &credential); err != nil {
+				return nil, nil, err
+			}
+			endpoint, err := url.Parse(item.Endpoint)
+			if err != nil || endpoint.Host == "" {
+				return nil, nil, fmt.Errorf("invalid dataset endpoint: %s", item.Name)
+			}
+			attached.Endpoint = endpoint.Host
+			attached.AccessKey = credential.AccessKey
+			attached.SecretKey = credential.SecretKey
+			attached.UseSSL = strings.EqualFold(endpoint.Scheme, "https")
+		}
+		attachedDatasets = append(attachedDatasets, attached)
 	}
 
 	return attachedRepos, attachedDatasets, nil
@@ -743,11 +795,7 @@ func workspaceBootstrapScript(
 		}
 	}
 
-	if len(attachedDatasets) > 0 && strings.TrimSpace(minioEndpoint) != "" && strings.TrimSpace(minioAccessKey) != "" && strings.TrimSpace(minioSecretKey) != "" {
-		pythonSecure := "False"
-		if minioUseSSL {
-			pythonSecure = "True"
-		}
+	if len(attachedDatasets) > 0 {
 		lines = append(lines,
 			"python3 - <<'PY' || true",
 			"import importlib.util",
@@ -771,48 +819,70 @@ func workspaceBootstrapScript(
 			"        fh.write(str(exc))",
 			"    raise SystemExit(0)",
 			"",
-			fmt.Sprintf("client = Minio(%s, access_key=%s, secret_key=%s, secure=%s)", strconv.Quote(minioEndpoint), strconv.Quote(minioAccessKey), strconv.Quote(minioSecretKey), pythonSecure),
 			"datasets = [",
 		)
 		for _, ds := range attachedDatasets {
+			pythonSecure := "False"
+			if ds.UseSSL {
+				pythonSecure = "True"
+			}
 			lines = append(lines, fmt.Sprintf(
-				"    {'name': %s, 'bucket': %s, 'prefix': %s},",
+				"    {'name': %s, 'bucket': %s, 'prefix': %s, 'endpoint': %s, 'access_key': %s, 'secret_key': %s, 'secure': %s},",
 				strconv.Quote(sanitizeWorkspacePathName(ds.Name)),
 				strconv.Quote(strings.TrimSpace(ds.Bucket)),
 				strconv.Quote(strings.Trim(strings.TrimSpace(ds.Prefix), "/")),
+				strconv.Quote(strings.TrimSpace(ds.Endpoint)),
+				strconv.Quote(ds.AccessKey),
+				strconv.Quote(ds.SecretKey),
+				pythonSecure,
 			))
 		}
 		lines = append(lines,
 			"]",
 			"",
-			"for ds in datasets:",
-			"    target = os.path.join('/datasets', ds['name'])",
-			"    os.makedirs(target, exist_ok=True)",
-			"    prefix = ds.get('prefix', '').strip('/')",
-			"    prefix_with_slash = (prefix + '/') if prefix else ''",
-			"    try:",
-			"        for obj in client.list_objects(ds['bucket'], prefix=prefix_with_slash, recursive=True):",
-			"            object_name = obj.object_name",
-			"            rel = object_name[len(prefix_with_slash):] if prefix_with_slash and object_name.startswith(prefix_with_slash) else object_name",
-			"            if not rel or rel.endswith('/'):",
-			"                continue",
-			"            dst = os.path.join(target, rel)",
-			"            os.makedirs(os.path.dirname(dst), exist_ok=True)",
-			"            client.fget_object(ds['bucket'], object_name, dst)",
-			"    except Exception as exc:",
-			"        err_file = os.path.join(target, '.noryx_sync_error')",
-			"        with open(err_file, 'w', encoding='utf-8') as fh:",
-			"            fh.write(str(exc))",
+			"def initial_sync():",
+			"    for ds in datasets:",
+			"        client = Minio(ds['endpoint'], access_key=ds['access_key'], secret_key=ds['secret_key'], secure=ds['secure'])",
+			"        target = os.path.join('/datasets', ds['name'])",
+			"        os.makedirs(target, exist_ok=True)",
+			"        prefix = ds.get('prefix', '').strip('/')",
+			"        prefix_with_slash = (prefix + '/') if prefix else ''",
+			"        try:",
+			"            for obj in client.list_objects(ds['bucket'], prefix=prefix_with_slash, recursive=True):",
+			"                object_name = obj.object_name",
+			"                rel = object_name[len(prefix_with_slash):] if prefix_with_slash and object_name.startswith(prefix_with_slash) else object_name",
+			"                if not rel or rel.endswith('/'):",
+			"                    continue",
+			"                dst = os.path.join(target, rel)",
+			"                os.makedirs(os.path.dirname(dst), exist_ok=True)",
+			"                client.fget_object(ds['bucket'], object_name, dst)",
+			"        except Exception as exc:",
+			"            err_file = os.path.join(target, '.noryx_sync_error')",
+			"            with open(err_file, 'w', encoding='utf-8') as fh:",
+			"                fh.write(str(exc))",
 			"",
-			"import threading",
 			"import time",
 			"",
 			"state = {}",
+			"",
+			"def initialize_state():",
+			"    for ds in datasets:",
+			"        base = os.path.join('/datasets', ds['name'])",
+			"        prefix = ds.get('prefix', '').strip('/')",
+			"        for root, _, files in os.walk(base):",
+			"            for fn in files:",
+			"                if fn == '.noryx_sync_error':",
+			"                    continue",
+			"                local_path = os.path.join(root, fn)",
+			"                rel = os.path.relpath(local_path, base).replace('\\\\', '/')",
+			"                object_name = ((prefix + '/') if prefix else '') + rel",
+			"                state[(ds['bucket'], object_name)] = (int(os.path.getmtime(local_path)), int(os.path.getsize(local_path)))",
 			"",
 			"def sync_loop():",
 			"    while True:",
 			"        try:",
 			"            for ds in datasets:",
+			"                client = Minio(ds['endpoint'], access_key=ds['access_key'], secret_key=ds['secret_key'], secure=ds['secure'])",
 			"                base = os.path.join('/datasets', ds['name'])",
 			"                if not os.path.isdir(base):",
 			"                    continue",
@@ -841,15 +911,32 @@ func workspaceBootstrapScript(
 			"            pass",
 			"        time.sleep(10)",
 			"",
-			"threading.Thread(target=sync_loop, daemon=True).start()",
-			"time.sleep(1)",
+			"if os.fork() == 0:",
+			"    with open('/tmp/noryx-dataset-sync.pid', 'w', encoding='utf-8') as fh:",
+			"        fh.write(str(os.getpid()))",
+			"    initial_sync()",
+			"    initialize_state()",
+			"    sync_loop()",
+			"    os._exit(0)",
 			"PY",
+			"cleanup_workspace() {",
+			"  if [ -f /tmp/noryx-dataset-sync.pid ]; then kill \"$(cat /tmp/noryx-dataset-sync.pid)\" 2>/dev/null || true; fi",
+			"  if [ -n \"${IDE_PID:-}\" ]; then kill \"$IDE_PID\" 2>/dev/null || true; wait \"$IDE_PID\" 2>/dev/null || true; fi",
+			"}",
+			"trap cleanup_workspace TERM INT EXIT",
 		)
+	}
+
+	ideCommandPrefix := "exec "
+	ideCommandSuffix := ""
+	if len(attachedDatasets) > 0 {
+		ideCommandPrefix = ""
+		ideCommandSuffix = " &"
 	}
 
 	if kind == "vscode" {
 		lines = append(lines,
-		fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
+			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 			"{",
 			"  \"folders\": [",
 			"    { \"path\": \"/mnt\" },",
@@ -868,15 +955,18 @@ func workspaceBootstrapScript(
 			"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 			"fi",
 			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
-			"exec openvscode-server \\",
+			ideCommandPrefix+"openvscode-server \\",
 			"  --host 0.0.0.0 \\",
 			"  --port 8888 \\",
 			"  --without-connection-token \\",
 			fmt.Sprintf("  --server-base-path /workspaces/%s \\", workspaceID),
 			fmt.Sprintf("  --default-workspace %s \\", profileMountPath+"/vscode/noryx.code-workspace"),
 			"  --telemetry-level off \\",
-			fmt.Sprintf("  %s", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
+			fmt.Sprintf("  %s%s", shellQuote(profileMountPath+"/vscode/noryx.code-workspace"), ideCommandSuffix),
 		)
+		if len(attachedDatasets) > 0 {
+			lines = append(lines, "IDE_PID=$!", "wait \"$IDE_PID\"")
+		}
 		return strings.Join(lines, "\n")
 	}
 
@@ -885,7 +975,7 @@ func workspaceBootstrapScript(
 		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 		"fi",
 		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
-		"exec python3 -m jupyterlab \\",
+		ideCommandPrefix+"python3 -m jupyterlab \\",
 		"  --ip=0.0.0.0 \\",
 		"  --port=8888 \\",
 		"  --no-browser \\",
@@ -895,8 +985,11 @@ func workspaceBootstrapScript(
 		"  --ServerApp.default_url=/lab/tree/home/noryx \\",
 		fmt.Sprintf("  --ServerApp.base_url=/workspaces/%s/ \\", workspaceID),
 		fmt.Sprintf("  --ServerApp.token=%s \\", accessToken),
-		"  --ServerApp.password=",
+		"  --ServerApp.password="+ideCommandSuffix,
 	)
+	if len(attachedDatasets) > 0 {
+		lines = append(lines, "IDE_PID=$!", "wait \"$IDE_PID\"")
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -1025,6 +1118,12 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		if err := h.runtime.DeletePod(record.PodName); err != nil {
 			if !isNotFoundError(err) {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
+				return
+			}
+		}
+		if err := h.runtime.DeleteSecret(record.PodName + "-bootstrap"); err != nil {
+			if !isNotFoundError(err) {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace bootstrap secret delete failed: " + err.Error()})
 				return
 			}
 		}
