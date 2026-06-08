@@ -75,6 +75,18 @@ type PersistentVolumeClaimMount struct {
 	ReadOnly  bool
 }
 
+type S3VolumeSpec struct {
+	Name         string
+	Bucket       string
+	Prefix       string
+	Endpoint     string
+	Region       string
+	AccessKey    string
+	SecretKey    string
+	MountOptions string
+	Labels       map[string]string
+}
+
 type SecretSpec struct {
 	Name   string
 	Data   map[string]string
@@ -90,6 +102,8 @@ type SecretMount struct {
 type Runner interface {
 	CreatePersistentVolumeClaim(spec PersistentVolumeClaimSpec) error
 	DeletePersistentVolumeClaim(name string) error
+	EnsureS3Volume(spec S3VolumeSpec) error
+	DeleteS3Volume(name string) error
 	CreatePod(spec PodSpec) error
 	DeletePod(name string) error
 	CreateService(spec ServiceSpec) error
