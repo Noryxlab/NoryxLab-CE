@@ -458,7 +458,9 @@ data:
           .dataset-preview { margin: 0 14px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
           .dataset-preview-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
           .dataset-preview-body { min-height: 180px; max-height: 620px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; padding: 12px; }
-          .dataset-preview-body img, .dataset-preview-body iframe { width: 100%; max-height: 580px; border: 0; object-fit: contain; }
+          .dataset-preview-body img { width: 100%; max-height: 580px; border: 0; object-fit: contain; }
+          .dataset-preview-body.is-pdf { min-height: 760px; max-height: none; overflow: visible; padding: 0; background: #eef2f6; }
+          .dataset-preview-body.is-pdf iframe { display: block; width: 100%; height: max(760px, calc(100vh - 180px)); border: 0; border-radius: 10px; }
           .dataset-preview-body table { background: #fff; font-size: 12px; }
           .dataset-preview-body table th { position: sticky; top: 0; background: #edf2f7; z-index: 1; }
           .dataset-preview-body textarea { width: 100%; min-height: 500px; resize: vertical; border: 0; outline: 0; background: #fff; padding: 12px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -583,6 +585,8 @@ data:
             .dataset-explorer-location { text-align: left; }
           }
           @media (max-width: 720px) {
+            .dataset-preview-body.is-pdf { min-height: 70vh; }
+            .dataset-preview-body.is-pdf iframe { height: 70vh; min-height: 520px; }
             .stats { grid-template-columns: 1fr; }
             .platform-pulse-grid { grid-template-columns: 1fr; }
           }
@@ -4777,6 +4781,7 @@ data:
               datasetPreview.style.display = '';
               datasetPreviewTitle.textContent = 'Apercu · ' + filePath;
               datasetPreviewBody.innerHTML = '';
+              datasetPreviewBody.classList.remove('is-pdf');
               const lower = filePath.toLowerCase();
               const visual = datasetFileVisual(filePath, blob.type);
               const selected = state.datasets.find((d) => d.id === selectedDatasetID);
@@ -4793,6 +4798,7 @@ data:
               if (blob.type.startsWith('image/')) {
                 datasetPreviewBody.innerHTML = '<img src="' + url + '" alt="" />';
               } else if (blob.type === 'application/pdf' || lower.endsWith('.pdf')) {
+                datasetPreviewBody.classList.add('is-pdf');
                 datasetPreviewBody.innerHTML = '<iframe src="' + url + '"></iframe>';
               } else if (visual.kind === 'csv') {
                 datasetPreviewText = await blob.text(); renderCSVPreview(datasetPreviewText); URL.revokeObjectURL(url);
@@ -5061,7 +5067,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.128"}
+    {"version":"ce-web-0.6.129"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5082,7 +5088,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.128
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.129
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
