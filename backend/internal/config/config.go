@@ -31,6 +31,7 @@ type Config struct {
 	KeycloakAdminRealm               string
 	KeycloakAdminUser                string
 	KeycloakAdminPass                string
+	OrganizationRequired             bool
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceCPU                     string
@@ -63,7 +64,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.103"
+		backendVersion = "0.5.104"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
@@ -246,6 +247,7 @@ func Load() Config {
 		KeycloakAdminRealm:               keycloakAdminRealm,
 		KeycloakAdminUser:                keycloakAdminUser,
 		KeycloakAdminPass:                os.Getenv("NORYX_KEYCLOAK_ADMIN_PASSWORD"),
+		OrganizationRequired:             os.Getenv("NORYX_ORGANIZATION_REQUIRED") == "true",
 		WorkspaceJupyterImage:            workspaceJupyterImage,
 		WorkspaceVSCodeImage:             workspaceVSCodeImage,
 		WorkspaceCPU:                     workspaceCPU,

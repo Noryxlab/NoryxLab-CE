@@ -50,6 +50,8 @@ data:
             --lh-base: 1.45;
           }
           * { box-sizing: border-box; }
+          .ee-only { display: none !important; }
+          body.is-enterprise .ee-only { display: block !important; }
           body {
             margin: 0;
             min-height: 100vh;
@@ -62,6 +64,10 @@ data:
               radial-gradient(1100px 760px at 94% 110%, #f7e8d0 0%, transparent 62%),
               var(--bg);
           }
+          .access-blocker { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(15,31,45,.92); }
+          .access-blocker[hidden] { display: none; }
+          .access-blocker-card { max-width: 620px; padding: 34px; border-radius: 20px; background: #fff; box-shadow: 0 24px 80px rgba(0,0,0,.28); text-align: center; }
+          .access-blocker-card h2 { margin-top: 0; }
           .layout {
             min-height: 100vh;
             display: grid;
@@ -1218,6 +1224,31 @@ data:
                     <h3>Utilisateurs <span id="adminUsersCount" class="badge">0</span></h3>
                     <table><thead><tr><th>Utilisateur</th><th>Email</th><th>Etat</th></tr></thead><tbody id="adminUserRows"></tbody></table>
                   </article>
+                  <article class="card span-8 ee-only">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Organisations <span id="adminOrganizationsCount" class="badge">0</span></h3>
+                        <div class="hint">Les utilisateurs sans organisation ne peuvent pas accéder à la plateforme.</div>
+                      </div>
+                      <div class="row">
+                        <input id="organizationName" placeholder="Nom (ex. Imt)" />
+                        <input id="organizationAlias" placeholder="Alias (ex. imt)" />
+                        <button id="createOrganization" type="button" class="btn primary">Créer</button>
+                      </div>
+                    </div>
+                    <div class="grid">
+                      <div class="span-5">
+                        <table><thead><tr><th>Organisation</th><th>Action</th></tr></thead><tbody id="adminOrganizationRows"></tbody></table>
+                      </div>
+                      <div class="span-7">
+                        <div class="row">
+                          <select id="organizationMemberUser"></select>
+                          <button id="addOrganizationMember" type="button" class="btn">Ajouter le membre</button>
+                        </div>
+                        <table><thead><tr><th>Membres de <span id="selectedOrganizationName">-</span></th><th>Action</th></tr></thead><tbody id="adminOrganizationMemberRows"></tbody></table>
+                      </div>
+                    </div>
+                  </article>
                   <article class="card span-4">
                     <h3>Projets <span id="adminProjectsCount" class="badge">0</span></h3>
                     <table><thead><tr><th>Nom</th><th>Cree</th></tr></thead><tbody id="adminProjectRows"></tbody></table>
@@ -1236,6 +1267,14 @@ data:
               </section>
             </section>
           </main>
+        </div>
+        <div id="organizationRequired" class="access-blocker" hidden>
+          <div class="access-blocker-card">
+            <div class="section-kicker">Accès suspendu</div>
+            <h2>Une organisation est requise</h2>
+            <p>Votre compte est authentifié, mais il n’est rattaché à aucune organisation. Contactez un administrateur de la plateforme.</p>
+            <button id="organizationRequiredLogout" type="button" class="btn primary">Se déconnecter</button>
+          </div>
         </div>
 
     <script>
@@ -1393,9 +1432,20 @@ data:
           const adminProjectsCount = document.getElementById('adminProjectsCount');
           const adminDatasetsCount = document.getElementById('adminDatasetsCount');
           const adminUserRows = document.getElementById('adminUserRows');
+          const adminOrganizationsCount = document.getElementById('adminOrganizationsCount');
+          const adminOrganizationRows = document.getElementById('adminOrganizationRows');
+          const adminOrganizationMemberRows = document.getElementById('adminOrganizationMemberRows');
+          const selectedOrganizationName = document.getElementById('selectedOrganizationName');
+          const organizationNameInput = document.getElementById('organizationName');
+          const organizationAliasInput = document.getElementById('organizationAlias');
+          const organizationMemberUser = document.getElementById('organizationMemberUser');
+          const createOrganizationBtn = document.getElementById('createOrganization');
+          const addOrganizationMemberBtn = document.getElementById('addOrganizationMember');
           const adminProjectRows = document.getElementById('adminProjectRows');
           const adminDatasetRows = document.getElementById('adminDatasetRows');
           const downloadAuditBtn = document.getElementById('downloadAudit');
+          const organizationRequired = document.getElementById('organizationRequired');
+          const organizationRequiredLogout = document.getElementById('organizationRequiredLogout');
           const platformPulseTime = document.getElementById('platformPulseTime');
           const pulseUsers = document.getElementById('pulseUsers');
           const pulseProjects = document.getElementById('pulseProjects');
@@ -1579,6 +1629,8 @@ data:
             adminExecutions: [],
             adminOverview: {},
             adminInventory: {},
+            organizations: [],
+            organizationMembers: [],
             platformOverview: {},
             platformHistory: { users: [], projects: [], load: [], storage: [] },
             activeTab: 'intro',
@@ -1586,6 +1638,7 @@ data:
             datasourceChecks: {}
           };
           let selectedEnvironmentID = '';
+          let selectedOrganizationID = '';
           let selectedEnvironmentBuildID = '';
           let dockerfileEditMode = false;
           let creatingEnvironment = false;
@@ -2232,7 +2285,7 @@ data:
               refreshAdminExecutions().catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations()]).catch((e) => pretty(usersOut, e));
             }
             const labels = {
               intro: 'tab_label_intro',
@@ -2418,6 +2471,9 @@ data:
             const headers = { ...(options.headers || {}), ...authHeader() };
             const res = await fetch(url, { ...options, headers });
             const body = await res.json().catch(() => ({}));
+            if (res.status === 403 && body && body.code === 'organization_required') {
+              organizationRequired.hidden = false;
+            }
             if (!res.ok) throw body;
             return body;
           }
@@ -2478,6 +2534,7 @@ data:
               }
               if (backRes.ok) {
                 const b = await backRes.json();
+                document.body.classList.toggle('is-enterprise', String((b && b.edition) || '').toLowerCase() === 'enterprise');
                 if (b && b.backendVersion) backVersion = String(b.backendVersion);
                 if (backVersion === 'unknown' && b && b.version) backVersion = String(b.version);
                 if (b && b.defaultTheme) {
@@ -3354,6 +3411,28 @@ data:
             adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + (d.ownerUserId || '-') + '</td><td>' + badge('standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
+          function renderOrganizations() {
+            const organizations = ensureArray(state.organizations);
+            const users = ensureArray(state.adminInventory.users);
+            const members = ensureArray(state.organizationMembers);
+            adminOrganizationsCount.textContent = String(organizations.length);
+            adminOrganizationRows.innerHTML = organizations.map((organization) =>
+              '<tr><td><button type="button" class="link-button" data-select-organization="' + organization.id + '"><strong>' + (organization.name || organization.alias || '-') + '</strong></button><br/><code>' + (organization.alias || '-') + '</code></td>' +
+              '<td><button type="button" class="btn danger" data-delete-organization="' + organization.id + '">Supprimer</button></td></tr>'
+            ).join('') || '<tr><td colspan="2">Aucune organisation.</td></tr>';
+            const selected = organizations.find((organization) => organization.id === selectedOrganizationID);
+            selectedOrganizationName.textContent = selected ? (selected.name || selected.alias) : '-';
+            adminOrganizationMemberRows.innerHTML = members.map((member) =>
+              '<tr><td><strong>' + (member.username || member.email || member.id) + '</strong><br/><span class="hint">' + (member.email || '') + '</span></td>' +
+              '<td><button type="button" class="btn danger" data-remove-organization-member="' + member.id + '">Retirer</button></td></tr>'
+            ).join('') || '<tr><td colspan="2">Aucun membre sélectionné.</td></tr>';
+            const memberIDs = new Set(members.map((member) => member.id));
+            organizationMemberUser.innerHTML = users.filter((user) => !memberIDs.has(user.id)).map((user) =>
+              '<option value="' + user.id + '">' + (user.username || user.email || user.id) + '</option>'
+            ).join('');
+            addOrganizationMemberBtn.disabled = !selectedOrganizationID || !organizationMemberUser.value;
+          }
+
           function renderProjectContext() {
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
@@ -3563,7 +3642,29 @@ data:
           async function refreshAdminInventory() {
             state.adminInventory = await callJSON('/api/v1/admin/inventory');
             renderAdminInventory();
+            renderOrganizations();
             return state.adminInventory;
+          }
+
+          async function refreshOrganizations() {
+            const body = await callJSON('/api/v1/admin/organizations');
+            state.organizations = ensureArray(body.items);
+            if (!state.organizations.some((organization) => organization.id === selectedOrganizationID)) {
+              selectedOrganizationID = state.organizations[0] ? state.organizations[0].id : '';
+            }
+            await refreshOrganizationMembers();
+            return body;
+          }
+
+          async function refreshOrganizationMembers() {
+            if (!selectedOrganizationID) {
+              state.organizationMembers = [];
+              renderOrganizations();
+              return;
+            }
+            const body = await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(selectedOrganizationID) + '/members');
+            state.organizationMembers = ensureArray(body.items);
+            renderOrganizations();
           }
 
           async function refreshJobs() {
@@ -3752,6 +3853,7 @@ data:
             }
             setIdentityDisplayMode('signed-out');
           };
+          organizationRequiredLogout.onclick = () => logoutBtn.click();
 
           downloadAuditBtn.onclick = async () => {
             try {
@@ -3781,6 +3883,58 @@ data:
             } finally {
               downloadAuditBtn.disabled = false;
             }
+          };
+
+          createOrganizationBtn.onclick = async () => {
+            try {
+              const name = organizationNameInput.value.trim();
+              const alias = organizationAliasInput.value.trim().toLowerCase();
+              if (!name || !alias) throw { error:'Nom et alias obligatoires.' };
+              const created = await callJSON('/api/v1/admin/organizations', {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json' },
+                body:JSON.stringify({ name, alias })
+              });
+              selectedOrganizationID = created.id || '';
+              organizationNameInput.value = '';
+              organizationAliasInput.value = '';
+              await refreshOrganizations();
+            } catch (e) { pretty(usersOut, e); }
+          };
+
+          addOrganizationMemberBtn.onclick = async () => {
+            try {
+              const userID = organizationMemberUser.value;
+              if (!selectedOrganizationID || !userID) return;
+              await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(selectedOrganizationID) + '/members/' + encodeURIComponent(userID), { method:'PUT' });
+              await refreshOrganizationMembers();
+            } catch (e) { pretty(usersOut, e); }
+          };
+
+          adminOrganizationRows.onclick = async (event) => {
+            const selectID = event.target.closest && event.target.closest('[data-select-organization]') && event.target.closest('[data-select-organization]').getAttribute('data-select-organization');
+            const deleteID = event.target.getAttribute && event.target.getAttribute('data-delete-organization');
+            if (selectID) {
+              selectedOrganizationID = selectID;
+              await refreshOrganizationMembers();
+            }
+            if (deleteID && window.confirm('Supprimer cette organisation ? Les utilisateurs sans autre organisation seront bloqués.')) {
+              try {
+                await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(deleteID), { method:'DELETE' });
+                selectedOrganizationID = '';
+                await refreshOrganizations();
+              } catch (e) { pretty(usersOut, e); }
+            }
+          };
+
+          adminOrganizationMemberRows.onclick = async (event) => {
+            const userID = event.target.getAttribute && event.target.getAttribute('data-remove-organization-member');
+            if (!userID || !selectedOrganizationID) return;
+            if (!window.confirm('Retirer cet utilisateur de l’organisation ? Il sera bloqué s’il ne possède aucune autre organisation.')) return;
+            try {
+              await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(selectedOrganizationID) + '/members/' + encodeURIComponent(userID), { method:'DELETE' });
+              await refreshOrganizationMembers();
+            } catch (e) { pretty(usersOut, e); }
           };
 
           loadProjectsBtn.onclick = async () => {
@@ -4325,7 +4479,7 @@ data:
                 }
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
-                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory()]);
+                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations()]);
               } catch (e) {
                 pretty(usersOut, e);
                 switchTab('ops');
@@ -5067,7 +5221,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.130"}
+    {"version":"ce-web-0.6.131"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5088,7 +5242,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.130
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.131
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

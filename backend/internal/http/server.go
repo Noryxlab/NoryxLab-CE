@@ -94,6 +94,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/admin/executions/{kind}/{executionID}", h.StopAdminExecution)
 	mux.HandleFunc("GET /api/v1/admin/overview", h.GetAdminOverview)
 	mux.HandleFunc("GET /api/v1/admin/inventory", h.GetAdminInventory)
+	mux.HandleFunc("GET /api/v1/admin/organizations", h.ListOrganizations)
+	mux.HandleFunc("POST /api/v1/admin/organizations", h.CreateOrganization)
+	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}", h.DeleteOrganization)
+	mux.HandleFunc("GET /api/v1/admin/organizations/{organizationID}/members", h.ListOrganizationMembers)
+	mux.HandleFunc("PUT /api/v1/admin/organizations/{organizationID}/members/{userID}", h.AddOrganizationMember)
+	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}/members/{userID}", h.RemoveOrganizationMember)
 	mux.HandleFunc("GET /api/v1/admin/audit.csv", h.ExportAuditCSV)
 
 	mux.HandleFunc("GET /swagger", GetSwaggerUI)
