@@ -873,6 +873,13 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to delete an HDS dataset"})
 		return
 	}
+	if h.runtime != nil && strings.TrimSpace(item.Endpoint) != "" && strings.TrimSpace(item.Bucket) != "" {
+		volumeName := "dataset-" + sanitizeK8sName(item.ID)
+		if err := h.runtime.DeleteS3Volume(volumeName); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete direct S3 dataset mount: " + err.Error()})
+			return
+		}
+	}
 	if err := h.datasetStore.Delete(datasetID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete dataset"})
 		return

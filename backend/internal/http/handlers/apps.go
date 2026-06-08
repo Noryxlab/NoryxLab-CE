@@ -156,7 +156,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		accessURL = "/dashboards/" + req.Slug + "/"
 	}
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, false)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
@@ -169,7 +169,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 
 	command := []string{"/bin/sh", "-lc"}
 	userLaunch := strings.TrimSpace(strings.Join(append(req.Command, req.Args...), " "))
-	bootstrapScript := appBootstrapScript(req.Port, userLaunch, attachedRepos, attachedDatasets, h.minioEndpoint, h.minioAccessKey, h.minioSecretKey, h.minioUseSSL)
+	bootstrapScript := appBootstrapScript(req.Port, userLaunch, attachedRepos)
 	args := []string{bootstrapScript}
 
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
@@ -182,6 +182,12 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 				MountPath: workspaceProjectMountPath,
 			})
 		}
+		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
+			return
+		}
+		volumes = append(volumes, datasetVolumes...)
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
 			PodName:                 podName,
 			Image:                   record.Image,
@@ -318,7 +324,7 @@ func normalizeAppSlug(raw string) string {
 	return out
 }
 
-func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAttachedRepo, attachedDatasets []workspaceAttachedDataset, minioEndpoint, minioAccessKey, minioSecretKey string, minioUseSSL bool) string {
+func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAttachedRepo) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -348,9 +354,6 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 			fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
 			"fi",
 		)
-	}
-	if len(attachedDatasets) > 0 && strings.TrimSpace(minioEndpoint) != "" && strings.TrimSpace(minioAccessKey) != "" && strings.TrimSpace(minioSecretKey) != "" {
-		lines = append(lines, workspaceDatasetBootstrapLines(attachedDatasets, minioEndpoint, minioAccessKey, minioSecretKey, minioUseSSL)...)
 	}
 	userLaunch = strings.TrimSpace(userLaunch)
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)

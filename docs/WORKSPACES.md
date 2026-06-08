@@ -58,6 +58,7 @@ Configurable with env var:
 
 Current implementation baseline:
 
+- the cluster requires the GeeseFS-based S3 CSI driver, installed with `scripts/ops/install-s3-csi.sh`
 - workspace PVC mount path is `/mnt` (project persistent)
 - project PVC is created as `project-<projectId>` and reused across workspaces
 - `/mnt/requirements.txt` is auto-applied at workspace startup (project venv: `/mnt/.venv`)
@@ -69,9 +70,10 @@ Current implementation baseline:
 - `/repos` is ephemeral (workspace-local, non-persistent)
 - `/datasets` is reserved for datasets mounts
 - attached datasets are resolved through dataset RBAC, including organization ownership and ACLs
-- datasets granted through the `reader` role are synchronized into the workspace without write-back to S3
-- Enterprise workspaces can access attached HDS datasets when the HDS feature is enabled; synchronized files remain in the workspace ephemeral filesystem and are not copied into the project PVC
-- attached dataset directories are prepared immediately and initial S3 synchronization runs concurrently per dataset
+- every attached S3 bucket is mounted directly with the cluster S3 CSI driver under `/datasets/<dataset-name>`
+- dataset contents are never pre-copied into the workspace ephemeral filesystem or project PVC
+- datasets granted through the `reader` role are mounted read-only
+- Enterprise workspaces can mount attached HDS datasets when the HDS feature is enabled
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
 - runtime user is `noryx` with `sudo` enabled in `noryx-python` image
 

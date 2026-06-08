@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +57,7 @@ type workspaceAttachedRepo struct {
 }
 
 type workspaceAttachedDataset struct {
+	ID        string
 	Name      string
 	Bucket    string
 	Prefix    string
@@ -398,6 +398,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				MountPath: profileMountPath,
 			})
 		}
+		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
+			return
+		}
+		volumes = append(volumes, datasetVolumes...)
 
 		bootstrapScript := workspaceBootstrapScript(
 			req.IDE,
@@ -407,11 +413,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			profileMountPath,
 			projectMountPath,
 			attachedRepos,
-			attachedDatasets,
-			h.minioEndpoint,
-			h.minioAccessKey,
-			h.minioSecretKey,
-			h.minioUseSSL,
+			len(attachedDatasets),
 		)
 		workspaceArgs = nil
 		bootstrapSecretName := podName + "-bootstrap"
@@ -615,6 +617,7 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 			continue
 		}
 		attached := workspaceAttachedDataset{
+			ID:       item.ID,
 			Name:     fallbackResourceName(item.Name, item.ID),
 			Bucket:   strings.TrimSpace(item.Bucket),
 			Prefix:   strings.Trim(strings.TrimSpace(item.Prefix), "/"),
@@ -658,6 +661,41 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 	}
 
 	return attachedRepos, attachedDatasets, nil
+}
+
+func (h Handlers) ensureDatasetVolumeMounts(attachedDatasets []workspaceAttachedDataset) ([]noryxruntime.PersistentVolumeClaimMount, error) {
+	mounts := make([]noryxruntime.PersistentVolumeClaimMount, 0, len(attachedDatasets))
+	for _, item := range attachedDatasets {
+		volumeName := "dataset-" + sanitizeK8sName(item.ID)
+		endpoint := strings.TrimSpace(item.Endpoint)
+		if !strings.Contains(endpoint, "://") {
+			scheme := "http://"
+			if item.UseSSL {
+				scheme = "https://"
+			}
+			endpoint = scheme + endpoint
+		}
+		if err := h.runtime.EnsureS3Volume(noryxruntime.S3VolumeSpec{
+			Name:      volumeName,
+			Bucket:    item.Bucket,
+			Prefix:    item.Prefix,
+			Endpoint:  endpoint,
+			AccessKey: item.AccessKey,
+			SecretKey: item.SecretKey,
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "noryx-dataset-volume",
+				"noryx.io/dataset-id":    item.ID,
+			},
+		}); err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, noryxruntime.PersistentVolumeClaimMount{
+			ClaimName: volumeName,
+			MountPath: workspaceDatasetsPath + "/" + sanitizeWorkspacePathName(item.Name),
+			ReadOnly:  item.ReadOnly,
+		})
+	}
+	return mounts, nil
 }
 
 func (h Handlers) resolveRepositorySecretValueForWorkspace(userID, secretName string) (string, error) {
@@ -737,17 +775,13 @@ func workspaceBootstrapScript(
 	profileMountPath,
 	projectMountPath string,
 	attachedRepos []workspaceAttachedRepo,
-	attachedDatasets []workspaceAttachedDataset,
-	minioEndpoint,
-	minioAccessKey,
-	minioSecretKey string,
-	minioUseSSL bool,
+	datasetMountCount int,
 ) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, workspaceReposPath, workspaceDatasetsPath),
 		"echo NORYX_WS_BOOTSTRAP_V2 >/tmp/noryx-bootstrap-version || true",
-		fmt.Sprintf("echo repos=%d datasets=%d >/tmp/noryx-resource-count || true", len(attachedRepos), len(attachedDatasets)),
+		fmt.Sprintf("echo repos=%d datasets=%d >/tmp/noryx-resource-count || true", len(attachedRepos), datasetMountCount),
 		fmt.Sprintf("mkdir -p %s %s %s %s %s",
 			profileMountPath,
 			profileMountPath+"/vscode",
@@ -804,156 +838,8 @@ func workspaceBootstrapScript(
 		}
 	}
 
-	if len(attachedDatasets) > 0 {
-		lines = append(lines,
-			"python3 - <<'PY' || true",
-			"import importlib.util",
-			"import os",
-			"import site",
-			"import subprocess",
-			"import sys",
-			"",
-			"if importlib.util.find_spec('minio') is None:",
-			"    subprocess.run([sys.executable, '-m', 'pip', 'install', '--disable-pip-version-check', '--user', 'minio'], check=False)",
-			"",
-			"user_site = site.getusersitepackages()",
-			"if user_site and user_site not in sys.path:",
-			"    sys.path.append(user_site)",
-			"",
-			"try:",
-			"    from minio import Minio  # type: ignore",
-			"except Exception as exc:",
-			"    os.makedirs('/datasets', exist_ok=True)",
-			"    with open('/datasets/.noryx_sync_error', 'w', encoding='utf-8') as fh:",
-			"        fh.write(str(exc))",
-			"    raise SystemExit(0)",
-			"",
-			"datasets = [",
-		)
-		for _, ds := range attachedDatasets {
-			pythonSecure := "False"
-			if ds.UseSSL {
-				pythonSecure = "True"
-			}
-			pythonReadOnly := "False"
-			if ds.ReadOnly {
-				pythonReadOnly = "True"
-			}
-			lines = append(lines, fmt.Sprintf(
-				"    {'name': %s, 'bucket': %s, 'prefix': %s, 'endpoint': %s, 'access_key': %s, 'secret_key': %s, 'secure': %s, 'read_only': %s},",
-				strconv.Quote(sanitizeWorkspacePathName(ds.Name)),
-				strconv.Quote(strings.TrimSpace(ds.Bucket)),
-				strconv.Quote(strings.Trim(strings.TrimSpace(ds.Prefix), "/")),
-				strconv.Quote(strings.TrimSpace(ds.Endpoint)),
-				strconv.Quote(ds.AccessKey),
-				strconv.Quote(ds.SecretKey),
-				pythonSecure,
-				pythonReadOnly,
-			))
-		}
-		lines = append(lines,
-			"]",
-			"",
-			"def initial_sync_dataset(ds):",
-			"    client = Minio(ds['endpoint'], access_key=ds['access_key'], secret_key=ds['secret_key'], secure=ds['secure'])",
-			"    target = os.path.join('/datasets', ds['name'])",
-			"    prefix = ds.get('prefix', '').strip('/')",
-			"    prefix_with_slash = (prefix + '/') if prefix else ''",
-			"    try:",
-			"        for obj in client.list_objects(ds['bucket'], prefix=prefix_with_slash, recursive=True):",
-			"            object_name = obj.object_name",
-			"            rel = object_name[len(prefix_with_slash):] if prefix_with_slash and object_name.startswith(prefix_with_slash) else object_name",
-			"            if not rel or rel.endswith('/'):",
-			"                continue",
-			"            dst = os.path.join(target, rel)",
-			"            os.makedirs(os.path.dirname(dst), exist_ok=True)",
-			"            client.fget_object(ds['bucket'], object_name, dst)",
-			"    except Exception as exc:",
-			"        err_file = os.path.join(target, '.noryx_sync_error')",
-			"        with open(err_file, 'w', encoding='utf-8') as fh:",
-			"            fh.write(str(exc))",
-			"",
-			"def initial_sync():",
-			"    import concurrent.futures",
-			"    for ds in datasets:",
-			"        os.makedirs(os.path.join('/datasets', ds['name']), exist_ok=True)",
-			"    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(8, len(datasets)))) as executor:",
-			"        list(executor.map(initial_sync_dataset, datasets))",
-			"",
-			"import time",
-			"",
-			"state = {}",
-			"",
-			"def initialize_state():",
-			"    for ds in datasets:",
-			"        base = os.path.join('/datasets', ds['name'])",
-			"        prefix = ds.get('prefix', '').strip('/')",
-			"        for root, _, files in os.walk(base):",
-			"            for fn in files:",
-			"                if fn == '.noryx_sync_error':",
-			"                    continue",
-			"                local_path = os.path.join(root, fn)",
-			"                rel = os.path.relpath(local_path, base).replace('\\\\', '/')",
-			"                object_name = ((prefix + '/') if prefix else '') + rel",
-			"                state[(ds['bucket'], object_name)] = (int(os.path.getmtime(local_path)), int(os.path.getsize(local_path)))",
-			"",
-			"def sync_loop():",
-			"    while True:",
-			"        try:",
-			"            for ds in datasets:",
-			"                if ds.get('read_only', False):",
-			"                    continue",
-			"                client = Minio(ds['endpoint'], access_key=ds['access_key'], secret_key=ds['secret_key'], secure=ds['secure'])",
-			"                base = os.path.join('/datasets', ds['name'])",
-			"                if not os.path.isdir(base):",
-			"                    continue",
-			"                prefix = ds.get('prefix', '').strip('/')",
-			"                for root, _, files in os.walk(base):",
-			"                    for fn in files:",
-			"                        if fn == '.noryx_sync_error':",
-			"                            continue",
-			"                        local_path = os.path.join(root, fn)",
-			"                        rel = os.path.relpath(local_path, base).replace('\\\\', '/')",
-			"                        object_name = ((prefix + '/') if prefix else '') + rel",
-			"                        try:",
-			"                            mtime = int(os.path.getmtime(local_path))",
-			"                            size = int(os.path.getsize(local_path))",
-			"                            key = (ds['bucket'], object_name)",
-			"                            sig = (mtime, size)",
-			"                            if state.get(key) == sig:",
-			"                                continue",
-			"                            client.fput_object(ds['bucket'], object_name, local_path)",
-			"                            state[key] = sig",
-			"                        except Exception as exc:",
-			"                            err_file = os.path.join(base, '.noryx_sync_error')",
-			"                            with open(err_file, 'w', encoding='utf-8') as fh:",
-			"                                fh.write(str(exc))",
-			"        except Exception:",
-			"            pass",
-			"        time.sleep(10)",
-			"",
-			"if os.fork() == 0:",
-			"    with open('/tmp/noryx-dataset-sync.pid', 'w', encoding='utf-8') as fh:",
-			"        fh.write(str(os.getpid()))",
-			"    initial_sync()",
-			"    initialize_state()",
-			"    sync_loop()",
-			"    os._exit(0)",
-			"PY",
-			"cleanup_workspace() {",
-			"  if [ -f /tmp/noryx-dataset-sync.pid ]; then kill \"$(cat /tmp/noryx-dataset-sync.pid)\" 2>/dev/null || true; fi",
-			"  if [ -n \"${IDE_PID:-}\" ]; then kill \"$IDE_PID\" 2>/dev/null || true; wait \"$IDE_PID\" 2>/dev/null || true; fi",
-			"}",
-			"trap cleanup_workspace TERM INT EXIT",
-		)
-	}
-
 	ideCommandPrefix := "exec "
 	ideCommandSuffix := ""
-	if len(attachedDatasets) > 0 {
-		ideCommandPrefix = ""
-		ideCommandSuffix = " &"
-	}
 
 	if kind == "vscode" {
 		lines = append(lines,
@@ -985,9 +871,6 @@ func workspaceBootstrapScript(
 			"  --telemetry-level off \\",
 			fmt.Sprintf("  %s%s", shellQuote(profileMountPath+"/vscode/noryx.code-workspace"), ideCommandSuffix),
 		)
-		if len(attachedDatasets) > 0 {
-			lines = append(lines, "IDE_PID=$!", "wait \"$IDE_PID\"")
-		}
 		return strings.Join(lines, "\n")
 	}
 
@@ -1008,9 +891,6 @@ func workspaceBootstrapScript(
 		fmt.Sprintf("  --ServerApp.token=%s \\", accessToken),
 		"  --ServerApp.password="+ideCommandSuffix,
 	)
-	if len(attachedDatasets) > 0 {
-		lines = append(lines, "IDE_PID=$!", "wait \"$IDE_PID\"")
-	}
 	return strings.Join(lines, "\n")
 }
 

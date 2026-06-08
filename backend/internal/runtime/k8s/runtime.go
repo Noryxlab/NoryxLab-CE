@@ -218,6 +218,102 @@ func (r *Runtime) CreateSecret(spec noryxruntime.SecretSpec) error {
 	return err
 }
 
+func (r *Runtime) EnsureS3Volume(spec noryxruntime.S3VolumeSpec) error {
+	name := strings.TrimSpace(spec.Name)
+	if name == "" || strings.TrimSpace(spec.Bucket) == "" || strings.TrimSpace(spec.Endpoint) == "" {
+		return fmt.Errorf("S3 volume name, bucket and endpoint are required")
+	}
+	secretName := name + "-s3"
+	if err := r.CreateSecret(noryxruntime.SecretSpec{
+		Name: secretName,
+		Data: map[string]string{
+			"accessKeyID":     spec.AccessKey,
+			"secretAccessKey": spec.SecretKey,
+			"endpoint":        spec.Endpoint,
+			"region":          spec.Region,
+		},
+		Labels: spec.Labels,
+	}); err != nil {
+		return err
+	}
+
+	volumeHandle := strings.Trim(strings.TrimSpace(spec.Bucket)+"/"+strings.Trim(strings.TrimSpace(spec.Prefix), "/"), "/")
+	options := strings.TrimSpace(spec.MountOptions)
+	if options == "" {
+		options = "--memory-limit 256 --dir-mode 0770 --file-mode 0660 --uid 1000 --gid 1000"
+	}
+	secretRef := map[string]any{"name": secretName, "namespace": r.workloadNamespace}
+	pv := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "PersistentVolume",
+		"metadata": map[string]any{
+			"name":   name,
+			"labels": spec.Labels,
+		},
+		"spec": map[string]any{
+			"capacity":                      map[string]string{"storage": "1Gi"},
+			"accessModes":                   []string{"ReadWriteMany"},
+			"persistentVolumeReclaimPolicy": "Retain",
+			"storageClassName":              "",
+			"claimRef": map[string]string{
+				"namespace": r.workloadNamespace,
+				"name":      name,
+			},
+			"csi": map[string]any{
+				"driver":                     "ru.yandex.s3.csi",
+				"volumeHandle":               volumeHandle,
+				"controllerPublishSecretRef": secretRef,
+				"nodePublishSecretRef":       secretRef,
+				"nodeStageSecretRef":         secretRef,
+				"volumeAttributes": map[string]string{
+					"capacity": "1Gi",
+					"mounter":  "geesefs",
+					"options":  options,
+				},
+			},
+		},
+	}
+	if _, err := r.post("/api/v1/persistentvolumes", pv); err != nil && !strings.Contains(err.Error(), "status=409") {
+		return err
+	}
+
+	pvc := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "PersistentVolumeClaim",
+		"metadata": map[string]any{
+			"name":      name,
+			"namespace": r.workloadNamespace,
+			"labels":    spec.Labels,
+		},
+		"spec": map[string]any{
+			"storageClassName": "",
+			"volumeName":       name,
+			"accessModes":      []string{"ReadWriteMany"},
+			"resources": map[string]any{
+				"requests": map[string]string{"storage": "1Gi"},
+			},
+		},
+	}
+	if _, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/persistentvolumeclaims", r.workloadNamespace), pvc); err != nil && !strings.Contains(err.Error(), "status=409") {
+		return err
+	}
+	return nil
+}
+
+func (r *Runtime) DeleteS3Volume(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("S3 volume name is required")
+	}
+	if err := r.DeletePersistentVolumeClaim(name); err != nil {
+		return err
+	}
+	if err := r.delete("/api/v1/persistentvolumes/" + name); err != nil {
+		return err
+	}
+	return r.DeleteSecret(name + "-s3")
+}
+
 func (r *Runtime) DeleteSecret(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("secret name is required")

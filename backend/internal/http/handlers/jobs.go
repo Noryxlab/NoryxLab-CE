@@ -80,7 +80,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	jobName := "job-" + shortID()
 	record := job.New(req.ProjectID, req.Name, req.Image, jobName, req.Command, req.Args)
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, false)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
@@ -94,10 +94,19 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	args := req.Args
 	if len(command) == 0 {
 		command = []string{"/bin/sh", "-lc"}
-		args = []string{jobBootstrapScript(req.Args, attachedRepos, attachedDatasets, h.minioEndpoint, h.minioAccessKey, h.minioSecretKey, h.minioUseSSL)}
+		args = []string{jobBootstrapScript(req.Args, attachedRepos)}
 	}
 
 	if h.runtime != nil {
+		volumes := []noryxruntime.PersistentVolumeClaimMount{
+			{ClaimName: "project-" + sanitizeK8sName(req.ProjectID), MountPath: workspaceProjectMountPath},
+		}
+		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
+			return
+		}
+		volumes = append(volumes, datasetVolumes...)
 		err = h.runtime.CreateJob(noryxruntime.JobSpec{
 			JobName:                 jobName,
 			Image:                   req.Image,
@@ -111,9 +120,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageRequest: h.workspaceEphemeralStorageRequest,
 			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
-			Volumes: []noryxruntime.PersistentVolumeClaimMount{
-				{ClaimName: "project-" + sanitizeK8sName(req.ProjectID), MountPath: workspaceProjectMountPath},
-			},
+			Volumes:                 volumes,
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "noryx-job",
 				"noryx.io/project-id":    req.ProjectID,
@@ -254,7 +261,7 @@ func (h Handlers) syncJobsFromRuntime() {
 	}
 }
 
-func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo, attachedDatasets []workspaceAttachedDataset, minioEndpoint, minioAccessKey, minioSecretKey string, minioUseSSL bool) string {
+func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -285,51 +292,10 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 			"fi",
 		)
 	}
-	if len(attachedDatasets) > 0 && strings.TrimSpace(minioEndpoint) != "" && strings.TrimSpace(minioAccessKey) != "" && strings.TrimSpace(minioSecretKey) != "" {
-		lines = append(lines, workspaceDatasetBootstrapLines(attachedDatasets, minioEndpoint, minioAccessKey, minioSecretKey, minioUseSSL)...)
-	}
 	if len(userArgs) > 0 {
 		lines = append(lines, strings.Join(userArgs, " "))
 	} else {
 		lines = append(lines, "echo 'job finished: no command provided'")
 	}
 	return strings.Join(lines, "\n")
-}
-
-func workspaceDatasetBootstrapLines(attachedDatasets []workspaceAttachedDataset, minioEndpoint, minioAccessKey, minioSecretKey string, minioUseSSL bool) []string {
-	pythonSecure := "False"
-	if minioUseSSL {
-		pythonSecure = "True"
-	}
-	lines := []string{
-		"python3 - <<'PY' || true",
-		"import importlib.util, os, site, subprocess, sys",
-		"if importlib.util.find_spec('minio') is None:",
-		"    subprocess.run([sys.executable, '-m', 'pip', 'install', '--disable-pip-version-check', '--user', 'minio'], check=False)",
-		"user_site = site.getusersitepackages()",
-		"if user_site and user_site not in sys.path: sys.path.append(user_site)",
-		"from minio import Minio",
-		fmt.Sprintf("client = Minio(%q, access_key=%q, secret_key=%q, secure=%s)", minioEndpoint, minioAccessKey, minioSecretKey, pythonSecure),
-		"datasets = [",
-	}
-	for _, ds := range attachedDatasets {
-		lines = append(lines, fmt.Sprintf("    {'name': %q, 'bucket': %q, 'prefix': %q},", sanitizeWorkspacePathName(ds.Name), strings.TrimSpace(ds.Bucket), strings.Trim(strings.TrimSpace(ds.Prefix), "/")))
-	}
-	lines = append(lines,
-		"]",
-		"for ds in datasets:",
-		"    target = os.path.join('/datasets', ds['name'])",
-		"    os.makedirs(target, exist_ok=True)",
-		"    prefix = ds.get('prefix', '').strip('/')",
-		"    p = (prefix + '/') if prefix else ''",
-		"    for obj in client.list_objects(ds['bucket'], prefix=p, recursive=True):",
-		"        o = obj.object_name",
-		"        rel = o[len(p):] if p and o.startswith(p) else o",
-		"        if not rel or rel.endswith('/'): continue",
-		"        dst = os.path.join(target, rel)",
-		"        os.makedirs(os.path.dirname(dst), exist_ok=True)",
-		"        client.fget_object(ds['bucket'], o, dst)",
-		"PY",
-	)
-	return lines
 }
