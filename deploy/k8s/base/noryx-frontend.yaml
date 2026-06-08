@@ -430,6 +430,12 @@ data:
           .dataset-explorer-stat .v { margin-top: 3px; font-size: 16px; font-weight: 700; }
           .dataset-upload-panel { margin: 12px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
           .dataset-upload-panel h4 { margin: 0 0 10px; font-size: 14px; }
+          .dataset-transfer { display: none; margin-top: 10px; padding: 10px 12px; border: 1px solid #c8d5e2; border-radius: 10px; background: #f4f8fb; }
+          .dataset-transfer-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: #334b61; font-size: 12px; font-weight: 700; }
+          .dataset-transfer-track { height: 9px; overflow: hidden; border-radius: 999px; background: #dbe5ed; }
+          .dataset-transfer-bar { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--brand), var(--brand-2)); transition: width .15s ease; }
+          .dataset-transfer.is-indeterminate .dataset-transfer-bar { width: 35%; animation: dataset-transfer-slide 1.15s ease-in-out infinite; }
+          @keyframes dataset-transfer-slide { from { transform: translateX(-110%); } to { transform: translateX(310%); } }
           .dataset-access-panel { margin: 12px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
           .dataset-access-panel h4 { margin: 0 0 4px; font-size: 14px; }
           .dataset-access-panel .access-copy { margin-bottom: 10px; color: var(--muted); font-size: 12px; }
@@ -893,6 +899,10 @@ data:
                           <button id="uploadDatasetObject" type="button" class="btn primary">Televerser</button>
                         </div>
                         <div id="datasetUploadStatus" class="hint" style="display:none"></div>
+                        <div id="datasetTransfer" class="dataset-transfer">
+                          <div class="dataset-transfer-head"><span id="datasetTransferLabel">Transfert</span><span id="datasetTransferValue">0%</span></div>
+                          <div class="dataset-transfer-track"><div id="datasetTransferBar" class="dataset-transfer-bar"></div></div>
+                        </div>
                       </div>
                       <div class="dataset-files">
                         <div class="dataset-file-toolbar">
@@ -1424,6 +1434,10 @@ data:
           const datasetUploadFileInput = document.getElementById('datasetUploadFile');
           const uploadDatasetObjectBtn = document.getElementById('uploadDatasetObject');
           const datasetUploadStatus = document.getElementById('datasetUploadStatus');
+          const datasetTransfer = document.getElementById('datasetTransfer');
+          const datasetTransferLabel = document.getElementById('datasetTransferLabel');
+          const datasetTransferValue = document.getElementById('datasetTransferValue');
+          const datasetTransferBar = document.getElementById('datasetTransferBar');
           const datasetFolderUp = document.getElementById('datasetFolderUp');
           const datasetCreateFolder = document.getElementById('datasetCreateFolder');
           const datasetDeleteSelected = document.getElementById('datasetDeleteSelected');
@@ -2624,6 +2638,29 @@ data:
               idx += 1;
             }
             return (idx === 0 ? String(Math.round(size)) : size.toFixed(size >= 10 ? 1 : 2)) + ' ' + units[idx];
+          }
+          function setDatasetTransfer(label, loaded, total, indeterminate) {
+            datasetTransfer.style.display = '';
+            datasetTransfer.classList.toggle('is-indeterminate', !!indeterminate);
+            datasetTransferLabel.textContent = label || 'Transfert';
+            if (indeterminate || !total) {
+              datasetTransferValue.textContent = loaded ? formatBytes(loaded) : 'Preparation...';
+              datasetTransferBar.style.width = '';
+              return;
+            }
+            const percent = Math.min(100, Math.round((loaded / total) * 100));
+            datasetTransferValue.textContent = percent + '% · ' + formatBytes(loaded) + ' / ' + formatBytes(total);
+            datasetTransferBar.style.width = percent + '%';
+          }
+          function finishDatasetTransfer(label) {
+            datasetTransfer.classList.remove('is-indeterminate');
+            datasetTransferLabel.textContent = label || 'Transfert termine';
+            datasetTransferValue.textContent = '100%';
+            datasetTransferBar.style.width = '100%';
+          }
+          function failDatasetTransfer() {
+            datasetTransfer.classList.remove('is-indeterminate');
+            datasetTransferLabel.textContent = 'Echec du transfert';
           }
 
           function escapeHTML(value) {
@@ -4001,24 +4038,31 @@ data:
               if ((keycloak && keycloak.authenticated)) {
                 try { await keycloak.updateToken(30); } catch (_) {}
               }
-              const res = await fetch('/api/v1/datasets/' + encodeURIComponent(datasetID) + '/objects/' + encodeURIComponent(objectPath), {
-                method: 'PUT',
-                headers: {
-                  ...authHeader(),
-                  'Content-Type': file.type || 'application/octet-stream'
-                },
-                body: file
+              setDatasetTransfer('Televersement · ' + file.name, 0, file.size, false);
+              const body = await new Promise((resolve, reject) => {
+                const request = new XMLHttpRequest();
+                request.open('PUT', '/api/v1/datasets/' + encodeURIComponent(datasetID) + '/objects/' + encodeURIComponent(objectPath));
+                Object.entries({ ...authHeader(), 'Content-Type':file.type || 'application/octet-stream' }).forEach(([name, value]) => request.setRequestHeader(name, value));
+                request.upload.onprogress = (event) => setDatasetTransfer('Televersement · ' + file.name, event.loaded, event.lengthComputable ? event.total : file.size, !event.lengthComputable);
+                request.onerror = () => reject({ error:'network upload failed' });
+                request.onload = () => {
+                  let responseBody = {};
+                  try { responseBody = JSON.parse(request.responseText || '{}'); } catch (_) {}
+                  if (request.status >= 200 && request.status < 300) resolve(responseBody);
+                  else reject(responseBody.error ? responseBody : { error:'upload failed' });
+                };
+                request.send(file);
               });
-              const body = await res.json().catch(() => ({}));
-              if (!res.ok) throw body;
               datasetUploadPathInput.value = '';
               datasetUploadFileInput.value = '';
               selectedDatasetID = datasetID;
               await refreshDatasetObjects(datasetID);
               datasetUploadStatus.textContent = file.name + ' a ete televerse avec succes.';
+              finishDatasetTransfer('Televersement termine · ' + file.name);
             } catch (e) {
               datasetUploadStatus.style.display = '';
               datasetUploadStatus.textContent = 'Echec du televersement : ' + String((e && e.error) || e || 'erreur inconnue');
+              failDatasetTransfer();
             } finally {
               const selected = state.datasets.find((d) => d.id === selectedDatasetID);
               uploadDatasetObjectBtn.disabled = !(selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser()));
@@ -4635,9 +4679,39 @@ data:
             if (!response.ok) throw await response.json().catch(() => ({ error: 'file request failed' }));
             return response;
           }
+          async function streamDatasetDownload(response, fileHandle, label) {
+            if (!response.ok) throw await response.json().catch(() => ({ error:'download failed' }));
+            const total = Number(response.headers.get('Content-Length') || 0);
+            const writable = await fileHandle.createWritable();
+            const reader = response.body.getReader();
+            let loaded = 0;
+            setDatasetTransfer(label, loaded, total, !total);
+            try {
+              while (true) {
+                const chunk = await reader.read();
+                if (chunk.done) break;
+                await writable.write(chunk.value);
+                loaded += chunk.value.byteLength;
+                setDatasetTransfer(label, loaded, total, !total);
+              }
+              await writable.close();
+            } catch (error) {
+              await writable.abort();
+              throw error;
+            }
+            finishDatasetTransfer(label + ' termine');
+          }
           async function downloadDatasetFile(filePath) {
             datasetUploadStatus.style.display = '';
             datasetUploadStatus.textContent = 'Preparation du telechargement...';
+            const filename = filePath.split('/').pop();
+            const fileHandle = window.showSaveFilePicker ? await window.showSaveFilePicker({ suggestedName:filename }) : null;
+            if (fileHandle) {
+              const response = await fetchDatasetFile(encodeURIComponent(filePath));
+              await streamDatasetDownload(response, fileHandle, 'Telechargement · ' + filename);
+              datasetUploadStatus.textContent = filename + ' a ete telecharge.';
+              return;
+            }
             const selected = state.datasets.find((d) => d.id === selectedDatasetID);
             if (selected && selected.provider === 'minio') {
               const response = await fetchDatasetFile(encodeURIComponent(filePath));
@@ -4657,13 +4731,14 @@ data:
               headers:{ 'Content-Type':'application/json' },
               body:JSON.stringify({ path:filePath })
             });
+            setDatasetTransfer('Telechargement direct · ' + filename, 0, 0, true);
             const link = document.createElement('a');
             link.href = result.url;
             link.download = result.filename || filePath.split('/').pop();
             document.body.appendChild(link);
             link.click();
             link.remove();
-            datasetUploadStatus.textContent = 'Telechargement lance directement depuis le stockage.';
+            datasetUploadStatus.textContent = 'Telechargement lance directement depuis le stockage. Progression disponible dans le navigateur.';
           }
 
           datasetObjectRows.onclick = async (event) => {
@@ -4735,7 +4810,12 @@ data:
               }
               datasetPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
               if (editPath && canEdit) datasetPreviewEdit.click();
-            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+            } catch (e) {
+              if (e && e.name === 'AbortError') return;
+              if (downloadPath) failDatasetTransfer();
+              datasetUploadStatus.style.display = '';
+              datasetUploadStatus.textContent = String((e && e.error) || e);
+            }
           };
 
           datasetBreadcrumbs.onclick = (event) => {
@@ -4793,11 +4873,24 @@ data:
               }
               datasetUploadStatus.style.display = '';
               datasetUploadStatus.textContent = 'Preparation de l archive ZIP...';
+              const fileHandle = window.showSaveFilePicker ? await window.showSaveFilePicker({ suggestedName:'dataset-files.zip' }) : null;
+              setDatasetTransfer('Preparation de l archive ZIP', 0, 0, true);
               const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/download', { method:'POST', headers:{ ...authHeader(), 'Content-Type':'application/json' }, body:JSON.stringify({ paths }) });
               if (!response.ok) throw await response.json().catch(() => ({ error:'download failed' }));
+              if (fileHandle) {
+                await streamDatasetDownload(response, fileHandle, 'Telechargement · dataset-files.zip');
+                datasetUploadStatus.textContent = 'Archive ZIP telechargee.';
+                return;
+              }
               const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href=url; link.download='dataset-files.zip'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
               datasetUploadStatus.textContent = 'Archive ZIP telechargee.';
-            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+              finishDatasetTransfer('Archive ZIP telechargee');
+            } catch (e) {
+              if (e && e.name === 'AbortError') return;
+              failDatasetTransfer();
+              datasetUploadStatus.style.display = '';
+              datasetUploadStatus.textContent = String((e && e.error) || e);
+            }
           };
           datasetPreviewEdit.onclick = () => {
             if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'spreadsheet') {
@@ -4968,7 +5061,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.127"}
+    {"version":"ce-web-0.6.128"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4989,7 +5082,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.127
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.128
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
