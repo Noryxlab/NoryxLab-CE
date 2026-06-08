@@ -290,6 +290,7 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	payload, err := io.ReadAll(io.LimitReader(r.Body, 512*1024*1024))
 	if err != nil {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "payload_read_failed", datasetTransferAuditDetails(item, objectPath, 0))
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read payload"})
 		return
 	}
@@ -301,9 +302,11 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	_, err = client.PutObject(ctx, item.Bucket, fullKey, bytes.NewReader(payload), int64(len(payload)), minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "s3_upload_failed", datasetTransferAuditDetails(item, objectPath, int64(len(payload))))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset upload failed: " + err.Error()})
 		return
 	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, objectPath, int64(len(payload))))
 	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": len(payload)})
 }
 
@@ -484,6 +487,7 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	defer obj.Close()
 	info, err := obj.Stat()
 	if err != nil {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "failure", "object_not_found", datasetTransferAuditDetails(item, rel, 0))
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset object not found"})
 		return
 	}
@@ -494,7 +498,12 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	w.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
-	_, _ = io.Copy(w, obj)
+	written, copyErr := io.Copy(w, obj)
+	if copyErr != nil {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "failure", "stream_interrupted", datasetTransferAuditDetails(item, rel, written))
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, written))
 }
 
 func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {
@@ -524,9 +533,11 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+sanitizeK8sName(item.Name)+`-files.zip"`)
 	zw := zip.NewWriter(w)
-	defer zw.Close()
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
 	defer cancel()
+	var downloadedBytes int64
+	downloadedObjects := 0
+	failedObjects := 0
 	for _, requested := range req.Paths {
 		rel, key := datasetObjectKey(item, requested)
 		if rel == "" {
@@ -534,14 +545,39 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 		}
 		obj, err := client.GetObject(ctx, item.Bucket, key, minio.GetObjectOptions{})
 		if err != nil {
+			failedObjects++
 			continue
 		}
 		entry, err := zw.Create(rel)
 		if err == nil {
-			_, _ = io.Copy(entry, obj)
+			written, copyErr := io.Copy(entry, obj)
+			downloadedBytes += written
+			if copyErr == nil {
+				downloadedObjects++
+			} else {
+				failedObjects++
+			}
+		} else {
+			failedObjects++
 		}
 		obj.Close()
 	}
+	closeErr := zw.Close()
+	outcome := "success"
+	errorCode := ""
+	if failedObjects > 0 || closeErr != nil {
+		outcome = "failure"
+		errorCode = "zip_partial_failure"
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.objects.download_zip", "dataset", item.ID, "", outcome, errorCode, map[string]any{
+		"datasetName":     item.Name,
+		"provider":        item.Provider,
+		"classification":  item.Classification,
+		"requestedCount":  len(req.Paths),
+		"downloadedCount": downloadedObjects,
+		"failedCount":     failedObjects,
+		"bytes":           downloadedBytes,
+	})
 }
 
 func (h Handlers) CreateDatasetObjectDownloadURL(w http.ResponseWriter, r *http.Request) {
@@ -578,14 +614,28 @@ func (h Handlers) CreateDatasetObjectDownloadURL(w http.ResponseWriter, r *http.
 	params.Set("response-content-disposition", `attachment; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
 	presignedURL, err := client.PresignedGetObject(r.Context(), item.Bucket, key, expiry, params)
 	if err != nil {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download_authorize", "dataset", item.ID, "", "failure", "presign_failed", datasetTransferAuditDetails(item, rel, 0))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare dataset download"})
 		return
 	}
+	details := datasetTransferAuditDetails(item, rel, 0)
+	details["expiresInSeconds"] = int(expiry.Seconds())
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download_authorize", "dataset", item.ID, "", "success", "", details)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"url":       presignedURL.String(),
 		"filename":  filepath.Base(rel),
 		"expiresAt": time.Now().UTC().Add(expiry),
 	})
+}
+
+func datasetTransferAuditDetails(item dataset.Dataset, objectPath string, size int64) map[string]any {
+	return map[string]any{
+		"datasetName":    item.Name,
+		"objectPath":     objectPath,
+		"provider":       item.Provider,
+		"classification": item.Classification,
+		"bytes":          size,
+	}
 }
 
 func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
