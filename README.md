@@ -70,6 +70,8 @@ API endpoints:
 - `/workspaces/{workspaceID}/...` (Jupyter reverse proxy via back)
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
+- `GET|POST /api/v1/admin/organizations`
+- `GET|PUT|DELETE /api/v1/admin/organizations/{organizationID}/members/...`
 
 Auth:
 
@@ -122,6 +124,7 @@ Workspace module: `docs/WORKSPACES.md`.
 Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
 RBAC baseline: `docs/RBAC_MODEL.md`.
+Organizations and mandatory membership: `docs/ORGANIZATIONS.md`.
 EE extension hooks in CE: `docs/EE_EXTENSION_POINTS.md`.
 Image mirroring:
 - control-plane catalog: `deploy/images/essential-images.txt`
