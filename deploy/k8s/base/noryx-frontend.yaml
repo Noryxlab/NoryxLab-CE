@@ -313,7 +313,7 @@ data:
           .stats {
             margin-top: 16px;
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 14px;
           }
           .stat {
@@ -682,7 +682,6 @@ data:
               <article class="stat"><div class="k" data-i18n="stat_projects">Projets</div><div id="statProjects" class="v">0</div></article>
               <article class="stat"><div class="k" data-i18n="stat_activity">Activites</div><div id="statWorkspaces" class="v">0</div></article>
               <article class="stat"><div class="k" data-i18n="stat_env">Environnements</div><div id="statBuilds" class="v">0</div></article>
-              <article class="stat"><div class="k" data-i18n="stat_active">Section active</div><div id="statTab" class="v" style="font-size:18px">Home</div></article>
             </section>
 
             <section class="views">
@@ -1564,7 +1563,6 @@ data:
           const statProjects = document.getElementById('statProjects');
           const statWorkspaces = document.getElementById('statWorkspaces');
           const statBuilds = document.getElementById('statBuilds');
-          const statTab = document.getElementById('statTab');
           const statsBar = document.getElementById('statsBar');
           const versionsNode = document.getElementById('versions');
           const langSelect = document.getElementById('langSelect');
@@ -1723,7 +1721,6 @@ data:
               stat_projects: 'Projets',
               stat_activity: 'Activites',
               stat_env: 'Environnements',
-              stat_active: 'Section active',
               hero_title: 'Votre plateforme de collaboration data et IA',
               hero_subtitle: "Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.",
               home_notice_title: 'Informations equipe',
@@ -1879,7 +1876,6 @@ data:
               stat_projects: 'Projects',
               stat_activity: 'Activity',
               stat_env: 'Environments',
-              stat_active: 'Active section',
               hero_title: 'Your collaborative data hub',
               hero_subtitle: 'A simple business-oriented platform for Python and data science teams, from idea to production.',
               home_notice_title: 'Team information',
@@ -2026,23 +2022,6 @@ data:
               if (!key) return;
               node.textContent = tui(key);
             });
-            if (state && state.activeTab) {
-              const tab = state.activeTab;
-              const map = {
-                intro: 'tab_label_intro',
-                projects: 'tab_label_projects',
-                data: 'tab_label_data',
-                workspaces: 'tab_label_workspaces',
-                'project-jobs': 'tab_label_project_jobs',
-                'project-apps': 'tab_label_project_apps',
-                'project-dashboards': 'tab_label_project_dashboards',
-                'project-apis': 'tab_label_project_apis',
-                environments: 'tab_label_environments',
-                workloads: 'tab_label_workloads',
-                ops: 'tab_label_ops'
-              };
-              statTab.textContent = tui(map[tab] || 'tab_label_intro');
-            }
             const txtById = {
               createProject: 'btn_create_project',
               loadProjects: 'btn_refresh_projects',
@@ -2316,24 +2295,6 @@ data:
             if (viewTab === 'ops' && isAdminUser()) {
               Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations()]).catch((e) => pretty(usersOut, e));
             }
-            const labels = {
-              intro: 'tab_label_intro',
-              projects: 'tab_label_projects',
-              data: 'tab_label_data',
-              'data-datasets': 'tab_label_data',
-              'data-datasources': 'tab_label_data',
-              'data-git': 'tab_label_data',
-              'data-secrets': 'tab_label_data',
-              workspaces: 'tab_label_workspaces',
-              'project-jobs': 'tab_label_project_jobs',
-              'project-apps': 'tab_label_project_apps',
-              'project-dashboards': 'tab_label_project_dashboards',
-              'project-apis': 'tab_label_project_apis',
-              environments: 'tab_label_environments',
-              workloads: 'tab_label_workloads',
-              ops: 'tab_label_ops'
-            };
-            statTab.textContent = tui(labels[tab] || 'tab_label_intro');
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
               projects: ['section_title_projects', 'section_subtitle_projects'],
@@ -5292,7 +5253,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.135"}
+    {"version":"ce-web-0.6.136"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5313,7 +5274,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.135
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.136
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
