@@ -1633,6 +1633,7 @@ data:
             organizationMembers: [],
             platformOverview: {},
             platformHistory: { users: [], projects: [], load: [], storage: [] },
+            currentOrganizations: [],
             activeTab: 'intro',
             repositoryChecks: {},
             datasourceChecks: {}
@@ -2194,7 +2195,10 @@ data:
           function refreshIdentityMeta() {
             const role = isAdminUser() ? tui('role_admin') : tui('role_user');
             if (identityDisplayMode === 'oidc') {
-              setMeta((identityName() || tui('role_user')) + ' (' + role + ')');
+              const organizations = ensureArray(state.currentOrganizations);
+              const organization = organizations[0] ? String(organizations[0].name || organizations[0].alias || '').trim() : '';
+              const organizationLabel = organization ? (', ' + organization + (organizations.length > 1 ? ' +' + String(organizations.length - 1) : '')) : '';
+              setMeta((identityName() || tui('role_user')) + organizationLabel + ' (' + role + ')');
               return;
             }
             if (identityDisplayMode === 'local') {
@@ -2483,6 +2487,7 @@ data:
               const body = await callJSON('/api/v1/user/preferences');
               const serverLang = String((body && body.language) || '').trim().toLowerCase();
               const serverTheme = normalizeTheme((body && body.theme) || '');
+              state.currentOrganizations = ensureArray(body && body.organizations);
               if (serverLang === 'fr' || serverLang === 'en') {
                 currentLang = serverLang;
                 if (langSelect) langSelect.value = currentLang;
@@ -5221,7 +5226,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.131"}
+    {"version":"ce-web-0.6.132"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5242,7 +5247,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.131
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.132
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

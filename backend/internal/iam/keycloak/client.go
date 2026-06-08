@@ -154,25 +154,15 @@ func (c *Client) HasOrganization(identifier string) (bool, error) {
 		return cached.hasOrganization, nil
 	}
 
-	userID := identifier
-	if !looksLikeUUID(userID) {
-		users, err := c.ListUsers()
-		if err != nil {
-			return false, err
-		}
-		userID = ""
-		for _, user := range users {
-			if strings.EqualFold(user.Username, identifier) || strings.EqualFold(user.Email, identifier) {
-				userID = user.ID
-				break
-			}
-		}
+	userID, err := c.resolveUserID(identifier)
+	if err != nil {
+		return false, err
 	}
 	if userID == "" {
 		return false, nil
 	}
-	var organizations []Organization
-	if err := c.adminJSON(http.MethodGet, "organizations/members/"+url.PathEscape(userID)+"/organizations", nil, &organizations); err != nil {
+	organizations, err := c.ListUserOrganizations(userID)
+	if err != nil {
 		return false, err
 	}
 	hasOrganization := len(organizations) > 0
@@ -181,6 +171,38 @@ func (c *Client) HasOrganization(identifier string) (bool, error) {
 	c.memberships[userID] = cachedMembership{hasOrganization: hasOrganization, expiresAt: time.Now().Add(30 * time.Second)}
 	c.membershipMu.Unlock()
 	return hasOrganization, nil
+}
+
+func (c *Client) ListUserOrganizations(identifier string) ([]Organization, error) {
+	userID, err := c.resolveUserID(identifier)
+	if err != nil {
+		return nil, err
+	}
+	if userID == "" {
+		return []Organization{}, nil
+	}
+	var organizations []Organization
+	if err := c.adminJSON(http.MethodGet, "organizations/members/"+url.PathEscape(userID)+"/organizations", nil, &organizations); err != nil {
+		return nil, err
+	}
+	return organizations, nil
+}
+
+func (c *Client) resolveUserID(identifier string) (string, error) {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" || looksLikeUUID(identifier) {
+		return identifier, nil
+	}
+	users, err := c.ListUsers()
+	if err != nil {
+		return "", err
+	}
+	for _, user := range users {
+		if strings.EqualFold(user.Username, identifier) || strings.EqualFold(user.Email, identifier) {
+			return user.ID, nil
+		}
+	}
+	return "", nil
 }
 
 func (c *Client) invalidateMembership(identifier string) {

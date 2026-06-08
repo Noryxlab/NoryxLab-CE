@@ -37,10 +37,11 @@ func normalizeTheme(raw string) string {
 }
 
 func (h Handlers) GetUserPreferences(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	langValue, langFound, err := h.userPreferenceStore.Get(userID, userPrefLanguageKey)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read user preferences"})
@@ -60,6 +61,15 @@ func (h Handlers) GetUserPreferences(w http.ResponseWriter, r *http.Request) {
 	if themeFound {
 		if theme := normalizeTheme(themeValue); theme != "" {
 			out["theme"] = theme
+		}
+	}
+	if h.keycloak != nil {
+		identifier := strings.TrimSpace(identity.Subject)
+		if identifier == "" {
+			identifier = userID
+		}
+		if organizations, err := h.keycloak.ListUserOrganizations(identifier); err == nil {
+			out["organizations"] = organizations
 		}
 	}
 	if len(out) == 0 {
