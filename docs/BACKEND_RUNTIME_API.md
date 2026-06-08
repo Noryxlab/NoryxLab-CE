@@ -15,7 +15,7 @@ This module adds:
 
 ## Endpoints
 
-- `GET /api/v1/platform/overview`: aggregate home-page activity metrics; storage volume only includes non-HDS datasets whose S3 buckets can be measured by the backend
+- `GET /api/v1/platform/overview`: aggregate home-page activity metrics; storage volume only includes CE datasets whose S3 buckets can be measured by the backend
 
 - `GET /swagger`
 - `GET /swagger/openapi.yaml`
@@ -93,14 +93,13 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - audit retention: no purge policy is applied by default in CE (append-only audit table)
 - first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
 - CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
-- HDS datasets can only be attached to or detached from projects by the global admin
-- non-HDS datasets can be attached to or detached from projects by their owner or the global admin
+- datasets can be attached to or detached from projects by their owner or the global admin
 - Clever Cloud datasets are registered by an admin; external object access requires platform-injected service credentials
-- external S3 credentials are encrypted per dataset; HDS has no shared credential or storage fallback
+- external S3 credentials are encrypted per dataset with no shared credential fallback
 - dataset ACL roles are `owner`, `writer`, and `reader`
-- owner manages non-HDS ACLs; HDS ACL management requires the global admin
-- non-HDS supports direct download, multi-file ZIP download, preview, and text/CSV editing
-- HDS direct download, ZIP, preview, and browser editing are intentionally disabled
+- owner manages dataset ACLs
+- datasets support direct download, multi-file ZIP download, preview, and text/CSV editing
+- regulated HDS dataset management is an Enterprise Edition extension and is rejected by CE
 
 ## Workspace baseline (current)
 

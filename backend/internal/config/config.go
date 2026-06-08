@@ -61,7 +61,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.99"
+		backendVersion = "0.5.100"
 	}
 	defaultTheme := os.Getenv("NORYX_UI_DEFAULT_THEME")
 	if defaultTheme == "" {

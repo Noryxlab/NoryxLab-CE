@@ -9,6 +9,7 @@ const (
 	FeatureCustomRBACMatrix = "custom_rbac_matrix"
 	FeatureAdvancedAudit    = "advanced_audit"
 	FeaturePolicyEngine     = "policy_engine"
+	FeatureHDSDatasets      = "hds_datasets"
 )
 
 type RBACProvider interface {

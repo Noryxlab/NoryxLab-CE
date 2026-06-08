@@ -17,6 +17,15 @@ func TestHDSS3ClientHasNoFallback(t *testing.T) {
 	}
 }
 
+func TestHDSDatasetIsUnavailableInCE(t *testing.T) {
+	h := Handlers{}
+	item := dataset.New("admin", "health", "", "health-bucket", "", "s3", "hds", "https://hds.example.com", "custom")
+
+	if h.datasetAvailableInEdition(item) {
+		t.Fatal("expected HDS dataset to be unavailable with CE hooks")
+	}
+}
+
 func TestExternalS3ClientHasNoSharedProfileFallback(t *testing.T) {
 	h := Handlers{}
 	item := dataset.New("admin", "health", "", "health-bucket", "", "s3", "hds", "https://standard.example.com", "custom")

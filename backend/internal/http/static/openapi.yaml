@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.99
+  version: 0.5.100
   description: |
     Noryx CE backend API contract.
 
@@ -381,7 +381,8 @@ components:
           enum: [minio, s3, clever-cloud]
         classification:
           type: string
-          enum: [non-hds, hds]
+          enum: [non-hds]
+          description: CE supports standard non-HDS datasets. Regulated HDS dataset management is an Enterprise Edition extension.
         endpoint:
           type: string
           description: External S3 endpoint. Empty for platform-managed MinIO datasets.
@@ -464,7 +465,7 @@ components:
           default: minio
         classification:
           type: string
-          enum: [non-hds, hds]
+          enum: [non-hds]
           default: non-hds
         endpoint:
           type: string
@@ -1243,7 +1244,7 @@ paths:
   /api/v1/datasets/{datasetID}/objects/{path}:
     get:
       tags: [Datasets]
-      summary: Download or preview one non-HDS dataset object
+      summary: Download or preview one dataset object
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -1347,7 +1348,7 @@ paths:
   /api/v1/datasets/{datasetID}/download:
     post:
       tags: [Datasets]
-      summary: Download selected non-HDS dataset objects as ZIP
+      summary: Download selected dataset objects as ZIP
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -1586,7 +1587,7 @@ paths:
     put:
       tags: [Datasets]
       summary: Attach dataset to project
-      description: HDS datasets require a global admin. Non-HDS datasets require their owner or a global admin.
+      description: Datasets require their owner or a global admin. Regulated HDS policies are provided by Enterprise Edition.
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -1615,7 +1616,7 @@ paths:
     delete:
       tags: [Datasets]
       summary: Detach dataset from project
-      description: HDS datasets require a global admin. Non-HDS datasets require their owner or a global admin.
+      description: Datasets require their owner or a global admin. Regulated HDS policies are provided by Enterprise Edition.
       security:
         - bearerAuth: []
         - xNoryxUser: []

@@ -87,6 +87,7 @@ func (h Handlers) GetAdminOverview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to build admin overview"})
 		return
 	}
+	datasets = h.filterDatasetsForEdition(datasets)
 	userCount := 0
 	if h.keycloak != nil {
 		if users, err := h.keycloak.ListUsers(); err == nil {
@@ -149,6 +150,7 @@ func (h Handlers) GetAdminInventory(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return
 	}
+	datasets = h.filterDatasetsForEdition(datasets)
 	users := any([]any{})
 	if h.keycloak != nil {
 		if keycloakUsers, err := h.keycloak.ListUsers(); err == nil {
