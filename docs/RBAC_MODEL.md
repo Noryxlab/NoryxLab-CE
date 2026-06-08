@@ -44,6 +44,12 @@ EE extends CE with a custom role matrix:
 - built-in roles: `admin`, `user`
 - custom roles: defined by administrators
 
+EE can also require every authenticated user to belong to an organization.
+Keycloak owns organization membership; NoryxLab owns authorization decisions.
+The current delivered organization scope covers mandatory membership and
+administrative membership management. Organization-owned resources and
+organization ACL evaluation remain part of the EE authorization roadmap.
+
 ### EE matrix model
 
 Each role is configured using:

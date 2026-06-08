@@ -58,6 +58,10 @@ This module adds:
 - `GET /api/v1/admin/users`
 - `GET /api/v1/admin/modules`
 - `GET /api/v1/admin/audit`
+- `GET|POST /api/v1/admin/organizations`
+- `DELETE /api/v1/admin/organizations/{organizationID}`
+- `GET /api/v1/admin/organizations/{organizationID}/members`
+- `PUT|DELETE /api/v1/admin/organizations/{organizationID}/members/{userID}`
 
 User preferences:
 
@@ -71,6 +75,10 @@ User preferences:
 Mutating and admin routes require:
 
 - `Authorization: Bearer <access_token>`
+
+When `NORYX_ORGANIZATION_REQUIRED=true`, every authenticated request also
+requires at least one Keycloak organization membership. See
+`docs/ORGANIZATIONS.md`.
 
 Compatibility fallback:
 
