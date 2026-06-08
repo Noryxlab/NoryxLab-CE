@@ -6,6 +6,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/config"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	nhttp "github.com/Noryxlab/NoryxLab-CE/backend/internal/http"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/http/handlers"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
@@ -161,18 +162,22 @@ func main() {
 			WorkspaceProfilePVCAccessMode:    cfg.WorkspaceProfilePVCAccessMode,
 			WorkspaceProfilePVCMountPath:     cfg.WorkspaceProfilePVCMountPath,
 			BackendVersion:                   cfg.BackendVersion,
+			Edition:                          cfg.Edition,
 			DefaultTheme:                     cfg.DefaultTheme,
-			SecretsMasterKey:                 cfg.SecretsMasterKey,
-			MinIOClient:                      minioClient,
-			MinIOEndpoint:                    cfg.MinIOEndpoint,
-			MinIOAccessKey:                   cfg.MinIOAccessKey,
-			MinIOSecretKey:                   cfg.MinIOSecretKey,
-			MinIOUseSSL:                      cfg.MinIOUseSSL,
-			MinIORegion:                      cfg.MinIORegion,
-			HarborURL:                        cfg.HarborURL,
-			HarborUsername:                   cfg.HarborUsername,
-			HarborPassword:                   cfg.HarborPassword,
-			HarborInsecureSkipVerify:         cfg.HarborInsecureSkipVerify,
+			EditionHooks: &edition.Hooks{
+				Feature: edition.FeatureGateFromCSV(cfg.EnabledFeatures),
+			},
+			SecretsMasterKey:         cfg.SecretsMasterKey,
+			MinIOClient:              minioClient,
+			MinIOEndpoint:            cfg.MinIOEndpoint,
+			MinIOAccessKey:           cfg.MinIOAccessKey,
+			MinIOSecretKey:           cfg.MinIOSecretKey,
+			MinIOUseSSL:              cfg.MinIOUseSSL,
+			MinIORegion:              cfg.MinIORegion,
+			HarborURL:                cfg.HarborURL,
+			HarborUsername:           cfg.HarborUsername,
+			HarborPassword:           cfg.HarborPassword,
+			HarborInsecureSkipVerify: cfg.HarborInsecureSkipVerify,
 		},
 	)
 

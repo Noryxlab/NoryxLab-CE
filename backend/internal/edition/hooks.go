@@ -1,6 +1,8 @@
 package edition
 
 import (
+	"strings"
+
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
@@ -52,6 +54,22 @@ func (defaultRBACProvider) CanAccessProjectAction(_ auth.Identity, _ string, _ a
 type defaultFeatureGate struct{}
 
 func (defaultFeatureGate) Enabled(string) bool { return false }
+
+type staticFeatureGate map[string]bool
+
+func (g staticFeatureGate) Enabled(feature string) bool {
+	return g[strings.ToLower(strings.TrimSpace(feature))]
+}
+
+func FeatureGateFromCSV(raw string) FeatureGate {
+	features := staticFeatureGate{}
+	for _, feature := range strings.Split(raw, ",") {
+		if normalized := strings.ToLower(strings.TrimSpace(feature)); normalized != "" {
+			features[normalized] = true
+		}
+	}
+	return features
+}
 
 type noopAuditSink struct{}
 
