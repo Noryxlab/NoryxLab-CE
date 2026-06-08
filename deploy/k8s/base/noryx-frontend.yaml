@@ -2278,7 +2278,7 @@ data:
             state.activeTab = tab;
             const viewTab = tab.startsWith('data-') ? 'data' : tab;
             if (statsBar) {
-              statsBar.style.display = (viewTab === 'environments') ? 'none' : '';
+              statsBar.style.display = (viewTab === 'intro') ? '' : 'none';
             }
             const activeButton = sourceBtn || tabButtons.find((btn) => btn.getAttribute('data-tab') === tab);
             tabButtons.forEach((btn) => btn.classList.toggle('active', btn === activeButton));
@@ -5253,7 +5253,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.136"}
+    {"version":"ce-web-0.6.137"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5274,7 +5274,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.136
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.137
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
