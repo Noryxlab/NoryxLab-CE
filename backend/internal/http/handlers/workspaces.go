@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
@@ -64,6 +65,7 @@ type workspaceAttachedDataset struct {
 	AccessKey string
 	SecretKey string
 	UseSSL    bool
+	ReadOnly  bool
 }
 
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -218,10 +220,11 @@ func (h Handlers) ensureProjectInStore(projectID string) {
 }
 
 func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 
 	var req createWorkspaceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -329,7 +332,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	record.PVCSize = pvcSize
 	record.PVCMountPath = projectMountPath
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID, true)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
@@ -561,7 +564,8 @@ func sanitizeK8sName(raw string) string {
 	return strings.Trim(out, "-")
 }
 
-func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string, includeExternalDatasets bool) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {
+func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity auth.Identity, includeExternalDatasets bool) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {
+	userID := identity.UserID()
 	repoIDs, err := h.projectResourceStore.ListProjectRepositoryIDs(projectID)
 	if err != nil {
 		return nil, nil, err
@@ -604,16 +608,17 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string, inc
 		if err != nil {
 			return nil, nil, err
 		}
-		if !found || item.OwnerUserID != userID || item.Classification == "hds" {
+		if !found || !h.canReadDataset(item, identity) {
 			continue
 		}
 		if item.Provider != "minio" && !includeExternalDatasets {
 			continue
 		}
 		attached := workspaceAttachedDataset{
-			Name:   fallbackResourceName(item.Name, item.ID),
-			Bucket: strings.TrimSpace(item.Bucket),
-			Prefix: strings.Trim(strings.TrimSpace(item.Prefix), "/"),
+			Name:     fallbackResourceName(item.Name, item.ID),
+			Bucket:   strings.TrimSpace(item.Bucket),
+			Prefix:   strings.Trim(strings.TrimSpace(item.Prefix), "/"),
+			ReadOnly: !h.canWriteDataset(item, identity),
 		}
 		if item.Provider == "minio" {
 			attached.Endpoint = h.minioEndpoint
@@ -830,8 +835,12 @@ func workspaceBootstrapScript(
 			if ds.UseSSL {
 				pythonSecure = "True"
 			}
+			pythonReadOnly := "False"
+			if ds.ReadOnly {
+				pythonReadOnly = "True"
+			}
 			lines = append(lines, fmt.Sprintf(
-				"    {'name': %s, 'bucket': %s, 'prefix': %s, 'endpoint': %s, 'access_key': %s, 'secret_key': %s, 'secure': %s},",
+				"    {'name': %s, 'bucket': %s, 'prefix': %s, 'endpoint': %s, 'access_key': %s, 'secret_key': %s, 'secure': %s, 'read_only': %s},",
 				strconv.Quote(sanitizeWorkspacePathName(ds.Name)),
 				strconv.Quote(strings.TrimSpace(ds.Bucket)),
 				strconv.Quote(strings.Trim(strings.TrimSpace(ds.Prefix), "/")),
@@ -839,6 +848,7 @@ func workspaceBootstrapScript(
 				strconv.Quote(ds.AccessKey),
 				strconv.Quote(ds.SecretKey),
 				pythonSecure,
+				pythonReadOnly,
 			))
 		}
 		lines = append(lines,
@@ -886,6 +896,8 @@ func workspaceBootstrapScript(
 			"    while True:",
 			"        try:",
 			"            for ds in datasets:",
+			"                if ds.get('read_only', False):",
+			"                    continue",
 			"                client = Minio(ds['endpoint'], access_key=ds['access_key'], secret_key=ds['secret_key'], secure=ds['secure'])",
 			"                base = os.path.join('/datasets', ds['name'])",
 			"                if not os.path.isdir(base):",
