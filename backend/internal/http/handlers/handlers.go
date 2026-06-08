@@ -60,6 +60,7 @@ type Handlers struct {
 	workspaceProfilePVCAccessMode    string
 	workspaceProfilePVCMountPath     string
 	backendVersion                   string
+	edition                          string
 	defaultTheme                     string
 	editionHooks                     edition.Hooks
 	harborURL                        string
@@ -92,6 +93,7 @@ type Options struct {
 	WorkspaceProfilePVCAccessMode    string
 	WorkspaceProfilePVCMountPath     string
 	BackendVersion                   string
+	Edition                          string
 	DefaultTheme                     string
 	SecretsMasterKey                 string
 	MinIOClient                      *minio.Client
@@ -190,6 +192,7 @@ func New(
 		workspaceProfilePVCAccessMode:    options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
 		backendVersion:                   options.BackendVersion,
+		edition:                          strings.TrimSpace(options.Edition),
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),
 		editionHooks:                     hooks,
 		harborURL:                        strings.TrimSpace(options.HarborURL),

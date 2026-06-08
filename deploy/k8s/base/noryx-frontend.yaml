@@ -675,10 +675,6 @@ data:
                   <option value="fr">FR</option>
                   <option value="en">EN</option>
                 </select>
-                <select id="themeSelect" class="lang-min" aria-label="Theme">
-                  <option value="noryx">Noryx</option>
-                  <option value="premyom-dark">Premyom</option>
-                </select>
               </div>
             </section>
 
@@ -1535,28 +1531,11 @@ data:
               '--brand': '#006d77',
               '--brand-2': '#0f93a0',
               '--brand-soft': '#d8f0f3'
-            },
-            'premyom-dark': {
-              '--bg': '#f6f8fb',
-              '--surface': '#ffffff',
-              '--surface-soft': '#f1f4f9',
-              '--line': '#d7dfea',
-              '--line-strong': '#b8c4d7',
-              '--text': '#1f2b3f',
-              '--muted': '#62728d',
-              '--nav-bg': '#ffffff',
-              '--nav-bg-2': '#f5f7fb',
-              '--nav-text': '#1f2b3f',
-              '--nav-muted': '#6f7f98',
-              '--brand': '#ff6434',
-              '--brand-2': '#ff4b1f',
-              '--brand-soft': '#ffe6dd'
             }
           };
 
           function normalizeTheme(raw) {
             const v = String(raw || '').trim().toLowerCase();
-            if (v === 'premyom-dark' || v === 'premyom') return 'premyom-dark';
             return 'noryx';
           }
           function applyTheme(themeID) {
@@ -1564,7 +1543,7 @@ data:
             const theme = THEMES[normalized] || THEMES.noryx;
             const root = document.documentElement;
             Object.keys(theme).forEach((k) => root.style.setProperty(k, theme[k]));
-            const productName = normalized === 'premyom-dark' ? 'Premyom' : 'NoryxLab';
+            const productName = 'NoryxLab';
             if (brandNameNode) brandNameNode.textContent = productName;
             document.title = productName + ' CE';
             if (themeSelect) themeSelect.value = normalized;
@@ -1668,7 +1647,7 @@ data:
               tab_activity: 'Activites',
               tab_admin: 'Administration',
               api_reference: 'Reference API',
-              title: 'Premyom',
+              title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
               login: 'Se connecter',
               logout: 'Se deconnecter',
@@ -1831,7 +1810,7 @@ data:
               tab_activity: 'Activity',
               tab_admin: 'Administration',
               api_reference: 'API Reference',
-              title: 'Premyom',
+              title: 'NoryxLab',
               subtitle: 'Collaborative platform for data teams, from exploration to production.',
               login: 'Sign in',
               logout: 'Sign out',
@@ -4915,7 +4894,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.120"}
+    {"version":"ce-web-0.6.121"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4936,7 +4915,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.120
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.121
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

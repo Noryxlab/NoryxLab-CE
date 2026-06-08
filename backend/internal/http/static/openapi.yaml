@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.100
+  version: 0.5.101
   description: |
     Noryx CE backend API contract.
 
@@ -67,7 +67,7 @@ components:
       properties:
         name:
           type: string
-          example: Premyom Fraud
+          example: Fraud Analysis
 
     SetRoleRequest:
       type: object
@@ -455,7 +455,7 @@ components:
           type: string
         bucket:
           type: string
-          example: premyom-fraud-ds
+          example: fraud-analysis-ds
         prefix:
           type: string
           example: raw/2026

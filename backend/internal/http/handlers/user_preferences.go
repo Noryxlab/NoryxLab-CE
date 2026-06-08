@@ -31,8 +31,6 @@ func normalizeTheme(raw string) string {
 	switch theme {
 	case "noryx", "noryx-default", "default":
 		return "noryx"
-	case "premyom", "premyom-dark":
-		return "premyom-dark"
 	default:
 		return ""
 	}
@@ -103,7 +101,7 @@ func (h Handlers) UpdateUserPreferences(w http.ResponseWriter, r *http.Request) 
 	if hasTheme {
 		theme := normalizeTheme(req.Theme)
 		if theme == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "theme must be noryx or premyom-dark"})
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "theme must be noryx"})
 			return
 		}
 		if err := h.userPreferenceStore.Set(userID, userPrefThemeKey, theme); err != nil {

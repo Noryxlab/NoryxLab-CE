@@ -4,6 +4,10 @@ NoryxLab CE contains the standard data platform capabilities. Enterprise-only
 behavior is activated through `backend/internal/edition` hooks and must remain
 disabled by the default CE hooks.
 
+An Enterprise composition sets `NORYX_EDITION=enterprise` and explicitly lists
+its enabled feature gates in `NORYX_ENABLED_FEATURES`. A plain CE deployment
+leaves this list empty.
+
 ## Dataset boundary
 
 CE supports:
