@@ -71,6 +71,7 @@ Current implementation baseline:
 - attached datasets are resolved through dataset RBAC, including organization ownership and ACLs
 - datasets granted through the `reader` role are synchronized into the workspace without write-back to S3
 - Enterprise workspaces can access attached HDS datasets when the HDS feature is enabled; synchronized files remain in the workspace ephemeral filesystem and are not copied into the project PVC
+- attached dataset directories are prepared immediately and initial S3 synchronization runs concurrently per dataset
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
 - runtime user is `noryx` with `sudo` enabled in `noryx-python` image
 

@@ -33,4 +33,7 @@ func TestWorkspaceBootstrapMarksReaderDatasetsReadOnly(t *testing.T) {
 	if !strings.Contains(script, "if ds.get('read_only', False):") {
 		t.Fatal("workspace dataset write-back does not skip read-only datasets")
 	}
+	if !strings.Contains(script, "ThreadPoolExecutor") {
+		t.Fatal("workspace initial dataset synchronization is not concurrent")
+	}
 }
