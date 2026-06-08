@@ -14,7 +14,7 @@ Control-plane images expected in Harbor project `noryx-ce`:
 - `noryx-backend:<tag>`
 - `noryx-frontend:<tag>`
 - `postgres:16`
-- `keycloak:24.0`
+- `keycloak:26.6.2`
 - `minio:RELEASE.2025-02-18T16-25-55Z`
 
 Environment/workload images expected in Harbor project `noryx-environments`:

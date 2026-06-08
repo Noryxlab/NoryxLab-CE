@@ -27,9 +27,9 @@ When enabled:
 - the frontend displays an access-suspended screen with a logout action
 - membership results are cached by the backend for 30 seconds
 
-The CE manifest defaults this setting to `false`. The Premyom EE overlay enables
-it. Ensure the bootstrap administrator belongs to an organization before
-enabling it.
+The CE manifest defaults this setting to `false` and does not activate the
+Keycloak Organizations feature. The Premyom EE installer activates the feature,
+bootstraps the first membership, and enables enforcement.
 
 ## Administration API
 
@@ -60,15 +60,9 @@ advanced audit sink when that EE feature is enabled.
 
 ## Bootstrap
 
-`scripts/keycloak/bootstrap-realm.sh` creates the initial organization and adds
-the bootstrap administrator. Defaults:
-
-```text
-BOOTSTRAP_ORGANIZATION=Imt
-BOOTSTRAP_ORGANIZATION_ALIAS=imt
-```
-
-The operation is idempotent.
+Organization bootstrap is an EE installation responsibility. The CE
+`scripts/keycloak/bootstrap-realm.sh` only creates the realm, API client,
+initial user, and global admin role.
 
 ## Verification
 
@@ -103,4 +97,3 @@ The second request must return:
 - Membership change not immediately visible: wait up to 30 seconds for the
   backend membership cache.
 - Organization deletion returns `409`: remove all members first.
-

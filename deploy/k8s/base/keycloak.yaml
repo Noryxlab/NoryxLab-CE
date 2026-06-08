@@ -21,7 +21,6 @@ spec:
           args:
             - "start-dev"
             - "--http-relative-path=/auth"
-            - "--features=organization"
             - "--proxy-headers=xforwarded"
             - "--hostname=datalab.noryxlab.ai"
             - "--hostname-strict=false"

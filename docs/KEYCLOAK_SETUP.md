@@ -19,8 +19,6 @@ ADMIN_PASS='<KEYCLOAK_ADMIN_PASSWORD>' \
 BOOTSTRAP_USER=stef \
 BOOTSTRAP_PASS='<SET_A_PASSWORD>' \
 BOOTSTRAP_EMAIL='stef@noryxlab.ai' \
-BOOTSTRAP_ORGANIZATION='Imt' \
-BOOTSTRAP_ORGANIZATION_ALIAS='imt' \
 scripts/keycloak/bootstrap-realm.sh
 ```
 
@@ -30,23 +28,20 @@ This script ensures:
 - realm role `noryx-admin`
 - public client `noryx-api`
 - user `stef` with role `noryx-admin`
-- organization `Imt` with user `stef` as a member
 
 ## Version and organizations
 
-The platform baseline uses Keycloak `26.6.2` with the `organization` feature
-enabled. Keycloak remains the source of truth for identities, organization
-membership, and organization groups. NoryxLab EE owns resource permissions and
-the organization/role permission matrix.
+The platform baseline uses Keycloak `26.6.2`. The `organization` feature,
+mandatory membership, and organization bootstrap are installed by the
+Enterprise Edition overlay. Keycloak remains the source of truth for identities
+when that extension is enabled.
 
 The frontend image bundles `keycloak-js` because Keycloak 26 no longer serves
 the legacy `/auth/js/keycloak.js` UMD adapter.
 
-Set `NORYX_ORGANIZATION_REQUIRED=true` on deployments where every authenticated
-user must belong to at least one Keycloak organization. The API then rejects
-users without an organization with `403 organization_required`. Organization
-creation and membership administration are exposed under
-`/api/v1/admin/organizations`.
+The common backend supports `NORYX_ORGANIZATION_REQUIRED=true`, but CE leaves it
+disabled. The EE installation and recovery procedure is maintained in the EE
+repository.
 
 Operational details, API examples, guards, and troubleshooting are documented
 in `docs/ORGANIZATIONS.md`.
