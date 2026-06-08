@@ -33,10 +33,9 @@ Dataset permissions are independent from project roles:
 - `writer`: read and object upload/update
 - `reader`: read only
 
-Non-HDS ACLs are managed by the dataset owner or a global admin. HDS ACLs and
-project assignment are managed only by a global admin. Attaching a dataset to a
-project remains a separate operation because it exposes the dataset to project
-workloads.
+Dataset ACLs are managed by the dataset owner or a global admin. Attaching a
+dataset to a project remains a separate operation because it exposes the dataset
+to project workloads. Regulated HDS policies are an Enterprise Edition concern.
 
 ## EE (Enterprise Edition)
 

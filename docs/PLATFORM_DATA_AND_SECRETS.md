@@ -67,24 +67,19 @@ Storage:
 - object upload target is MinIO (`NORYX_MINIO_*`)
 - bucket is created automatically at dataset creation if missing
 - object listing returns files below the dataset prefix
-- datasets are classified as `non-hds` or `hds`
+- CE manages standard datasets (`classification=non-hds`); regulated HDS datasets require Enterprise Edition
 - Clever Cloud Cellar datasets are registered with `provider=clever-cloud`, an existing bucket, and an endpoint
-- HDS datasets can only be attached to or detached from projects by a global admin
-- non-HDS datasets can be attached to or detached from projects by their owner or a global admin
+- datasets can be attached to or detached from projects by their owner or a global admin
 - external S3 credentials are provided at dataset creation, encrypted with the platform master key, and never exposed in dataset records or secret APIs
 - each external dataset uses its own dedicated credentials; there is no shared-profile fallback
-- HDS S3 never falls back to another dataset credential, standard S3, or internal MinIO
-- external and HDS endpoints must use HTTPS
-- HDS credentials are not injected into user workspaces until a dedicated workload-identity or secret-injection flow is implemented
+- external endpoints must use HTTPS
 - dataset permissions are persisted per user:
   - `owner`: paternity, read/write, delete, and permission management
   - `writer`: read and object upload/update
   - `reader`: read only
-- only the owner or a global admin can manage non-HDS permissions
-- only a global admin can manage HDS permissions
-- direct file download, multi-file ZIP download, preview, and browser editing are disabled for HDS datasets
-- non-HDS browser preview supports PDF, images, CSV, and text formats
-- non-HDS browser editing supports CSV and text formats for owners and writers
+- only the owner or a global admin can manage permissions
+- browser preview supports PDF, images, CSV, and text formats
+- browser editing supports CSV and text formats for owners and writers
 - the dataset explorer exposes S3 prefixes as familiar folders; owners and writers can create folders and delete files or folders recursively
 - XLSX/ODS files are download-only until a dedicated spreadsheet engine is integrated
 
@@ -92,7 +87,7 @@ External dataset creation:
 
 - provide endpoint, region, existing bucket, optional prefix, access key, and secret key
 - the backend validates bucket access before encrypting credentials and creating the dataset
-- use distinct service accounts and IAM policies for every HDS bucket
+- use distinct service accounts and least-privilege IAM policies for external buckets
 
 ## Repositories
 

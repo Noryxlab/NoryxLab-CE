@@ -24,6 +24,7 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to build platform overview"})
 		return
 	}
+	datasets = h.filterDatasetsForEdition(datasets)
 
 	userCount := 0
 	if h.keycloak != nil {

@@ -19,6 +19,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -81,16 +82,40 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 	return ""
 }
 
+func (h Handlers) datasetAvailableInEdition(item dataset.Dataset) bool {
+	return item.Classification != "hds" || h.featureEnabled(edition.FeatureHDSDatasets)
+}
+
+func (h Handlers) featureEnabled(feature string) bool {
+	return h.editionHooks.Feature != nil && h.editionHooks.Feature.Enabled(feature)
+}
+
+func (h Handlers) filterDatasetsForEdition(items []dataset.Dataset) []dataset.Dataset {
+	out := make([]dataset.Dataset, 0, len(items))
+	for _, item := range items {
+		if h.datasetAvailableInEdition(item) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 func (h Handlers) canReadDataset(item dataset.Dataset, identity auth.Identity) bool {
-	return h.isGlobalAdmin(identity) || h.datasetRole(item, identity) != ""
+	return h.datasetAvailableInEdition(item) && (h.isGlobalAdmin(identity) || h.datasetRole(item, identity) != "")
 }
 
 func (h Handlers) canWriteDataset(item dataset.Dataset, identity auth.Identity) bool {
+	if !h.datasetAvailableInEdition(item) {
+		return false
+	}
 	role := h.datasetRole(item, identity)
 	return h.isGlobalAdmin(identity) || role == "owner" || role == "writer"
 }
 
 func (h Handlers) canManageDatasetAccess(item dataset.Dataset, identity auth.Identity) bool {
+	if !h.datasetAvailableInEdition(item) {
+		return false
+	}
 	if item.Classification == "hds" {
 		return h.isGlobalAdmin(identity)
 	}
@@ -109,7 +134,7 @@ func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	writeJSON(w, http.StatusOK, map[string]any{"items": h.filterDatasetsForEdition(items)})
 }
 
 func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
@@ -139,6 +164,10 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Classification != "hds" {
 		req.Classification = "non-hds"
+	}
+	if req.Classification == "hds" && !h.featureEnabled(edition.FeatureHDSDatasets) {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "HDS dataset management requires NoryxLab Enterprise Edition"})
+		return
 	}
 	if req.Classification == "hds" && !h.isGlobalAdmin(identity) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to register an HDS dataset"})
@@ -624,7 +653,7 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	if !found || !h.datasetAvailableInEdition(item) || item.OwnerUserID != userID {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
@@ -664,7 +693,9 @@ func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if found {
-			items = append(items, item)
+			if h.datasetAvailableInEdition(item) {
+				items = append(items, item)
+			}
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -737,6 +768,9 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset) bool {
+	if !h.datasetAvailableInEdition(item) {
+		return false
+	}
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
@@ -745,12 +779,15 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset)
 
 func datasetAssignmentError(item dataset.Dataset) string {
 	if item.Classification == "hds" {
-		return "global admin role required to assign an HDS dataset"
+		return "HDS dataset management requires NoryxLab Enterprise Edition"
 	}
 	return "dataset owner or global admin role required to assign this dataset"
 }
 
 func (h Handlers) datasetS3Client(item dataset.Dataset) (*minio.Client, string, error) {
+	if !h.datasetAvailableInEdition(item) {
+		return nil, "", errors.New("HDS dataset management requires NoryxLab Enterprise Edition")
+	}
 	if item.Provider == "minio" {
 		if item.Classification == "hds" {
 			return nil, "", errors.New("HDS datasets cannot use the internal MinIO profile")
