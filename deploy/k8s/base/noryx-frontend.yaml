@@ -901,16 +901,16 @@ data:
                         <div class="access-copy">Owner utilisateur ou organisation: lecture, écriture et gestion. Writer: lecture/écriture. Reader: lecture seule.</div>
                         <div id="datasetOwnerForm" class="row" style="display:none">
                           <select id="datasetOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
-                          <input id="datasetOwnerID" list="datasetOrganizationOptions" placeholder="Utilisateur ou organisation" />
+                          <input id="datasetOwnerID" list="datasetSubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
                           <button id="datasetOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
                         </div>
                         <div id="datasetAccessForm" class="row" style="display:none">
                           <select id="datasetAccessSubjectType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
-                          <input id="datasetAccessUser" list="datasetOrganizationOptions" placeholder="Utilisateur ou organisation" />
+                          <input id="datasetAccessUser" list="datasetSubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
                           <select id="datasetAccessRole"><option value="reader">Reader</option><option value="writer">Writer</option></select>
                           <button id="datasetAccessSave" type="button" class="btn primary">Ajouter / modifier</button>
                         </div>
-                        <datalist id="datasetOrganizationOptions"></datalist>
+                        <datalist id="datasetSubjectOptions"></datalist>
                         <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
                       </div>
                       <div class="dataset-upload-panel">
@@ -1503,7 +1503,7 @@ data:
           const datasetAccessRole = document.getElementById('datasetAccessRole');
           const datasetAccessSave = document.getElementById('datasetAccessSave');
           const datasetAccessRows = document.getElementById('datasetAccessRows');
-          const datasetOrganizationOptions = document.getElementById('datasetOrganizationOptions');
+          const datasetSubjectOptions = document.getElementById('datasetSubjectOptions');
           const datasetUploadTarget = document.getElementById('datasetUploadTarget');
           const datasetUploadPathInput = document.getElementById('datasetUploadPath');
           const datasetUploadFileInput = document.getElementById('datasetUploadFile');
@@ -2286,7 +2286,7 @@ data:
             uniqueViews.forEach((view) => view.classList.toggle('active', view === views[viewTab]));
             applyDataTab(tab);
             if (viewTab === 'data') {
-              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations()])
+              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshAvailableDatasetUsers()])
                 .catch(() => {});
             }
             if (viewTab === 'workloads' && isAdminUser()) {
@@ -2668,7 +2668,7 @@ data:
             if (!datasetAccessRows) return;
             datasetAccessForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
             datasetOwnerForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
-            datasetOrganizationOptions.innerHTML = ensureArray(state.availableOrganizations).map((organization) => '<option value="' + organization.id + '">' + (organization.name || organization.alias || organization.id) + '</option>').join('');
+            datasetSubjectOptions.innerHTML = '';
             datasetAccessRows.innerHTML = '';
             const items = ensureArray(state.datasetAccess);
             if (!selectedDatasetID || items.length === 0) {
@@ -2685,6 +2685,64 @@ data:
                 ((state.datasetCanManageAccess && access.role !== 'owner') ? '<button type="button" class="btn danger" data-del-dataset-access="' + encodeURIComponent(subjectType) + '" data-dataset-access-subject="' + encodeURIComponent(subjectID) + '">Retirer</button>' : '-') + '</td>';
               datasetAccessRows.appendChild(tr);
             });
+          }
+
+          function datasetSubjectCandidates(subjectType) {
+            const candidates = [];
+            const seen = new Set();
+            const add = (id, label, searchValues) => {
+              const normalizedID = String(id || '').trim();
+              if (!normalizedID || seen.has(normalizedID)) return;
+              seen.add(normalizedID);
+              candidates.push({
+                id: normalizedID,
+                label: String(label || normalizedID).trim(),
+                search: ensureArray(searchValues).map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+              });
+            };
+            if (subjectType === 'organization') {
+              ensureArray(state.availableOrganizations).forEach((organization) => add(
+                organization.id,
+                organization.name || organization.alias || organization.id,
+                [organization.id, organization.name, organization.alias]
+              ));
+            } else {
+              ensureArray(state.adminInventory.users).forEach((user) => add(
+                user.id || user.username || user.email,
+                user.username || user.email || user.id,
+                [user.id, user.username, user.email, user.firstName, user.lastName]
+              ));
+              ensureArray(state.datasetAccess).filter((access) => (access.subjectType || 'user') === 'user').forEach((access) => add(
+                access.subjectId || access.userId,
+                access.subjectId || access.userId,
+                [access.subjectId, access.userId]
+              ));
+            }
+            return candidates;
+          }
+
+          function updateDatasetSubjectOptions(input, subjectType) {
+            datasetSubjectOptions.innerHTML = '';
+            const query = String(input && input.value || '').trim().toLowerCase();
+            if (!query) return;
+            datasetSubjectCandidates(subjectType)
+              .filter((candidate) => candidate.search.some((value) => value.startsWith(query)))
+              .slice(0, 20)
+              .forEach((candidate) => {
+                const option = document.createElement('option');
+                option.value = candidate.label;
+                option.label = candidate.id;
+                datasetSubjectOptions.appendChild(option);
+              });
+          }
+
+          function resolveDatasetSubjectID(value, subjectType) {
+            const raw = String(value || '').trim();
+            const normalized = raw.toLowerCase();
+            const match = datasetSubjectCandidates(subjectType).find((candidate) =>
+              candidate.id.toLowerCase() === normalized || candidate.label.toLowerCase() === normalized
+            );
+            return match ? match.id : raw;
           }
 
           function formatBytes(value) {
@@ -3738,6 +3796,12 @@ data:
             const body = await callJSON('/api/v1/organizations');
             state.availableOrganizations = ensureArray(body.items);
             renderDatasetAccessTable();
+            return body;
+          }
+
+          async function refreshAvailableDatasetUsers() {
+            const body = await callJSON('/api/v1/admin/users');
+            state.adminInventory.users = ensureArray(body.items);
             return body;
           }
 
@@ -4830,8 +4894,8 @@ data:
 
           datasetAccessSave.onclick = async () => {
             try {
-              const subjectID = datasetAccessUser.value.trim();
               const subjectType = datasetAccessSubjectType.value;
+              const subjectID = resolveDatasetSubjectID(datasetAccessUser.value, subjectType);
               if (!selectedDatasetID || !subjectID) return;
               await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + encodeURIComponent(subjectType) + '/' + encodeURIComponent(subjectID), {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: datasetAccessRole.value })
@@ -4854,7 +4918,7 @@ data:
           datasetOwnerSave.onclick = async () => {
             try {
               const ownerType = datasetOwnerType.value;
-              const ownerId = datasetOwnerID.value.trim();
+              const ownerId = resolveDatasetSubjectID(datasetOwnerID.value, ownerType);
               if (!selectedDatasetID || !ownerId) return;
               if (!window.confirm('Transférer définitivement l ownership de ce dataset ?')) return;
               await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/ownership', {
@@ -4863,6 +4927,19 @@ data:
               datasetOwnerID.value = '';
               await Promise.all([refreshDatasets(), refreshDatasetAccess(selectedDatasetID)]);
             } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
+          datasetOwnerID.oninput = () => updateDatasetSubjectOptions(datasetOwnerID, datasetOwnerType.value);
+          datasetAccessUser.oninput = () => updateDatasetSubjectOptions(datasetAccessUser, datasetAccessSubjectType.value);
+          datasetOwnerID.onfocus = () => updateDatasetSubjectOptions(datasetOwnerID, datasetOwnerType.value);
+          datasetAccessUser.onfocus = () => updateDatasetSubjectOptions(datasetAccessUser, datasetAccessSubjectType.value);
+          datasetOwnerType.onchange = () => {
+            datasetOwnerID.value = '';
+            datasetSubjectOptions.innerHTML = '';
+          };
+          datasetAccessSubjectType.onchange = () => {
+            datasetAccessUser.value = '';
+            datasetSubjectOptions.innerHTML = '';
           };
 
           async function fetchDatasetFile(pathValue) {
@@ -5254,7 +5331,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.140"}
+    {"version":"ce-web-0.6.141"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5275,7 +5352,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.140
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.141
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
