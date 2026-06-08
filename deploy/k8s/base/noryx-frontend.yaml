@@ -678,7 +678,7 @@ data:
               <section class="view active" id="view-intro">
                 <div class="stack">
                   <article class="hero">
-                    <h2 data-i18n="hero_title">Votre hub de collaboration data</h2>
+                    <h2 data-i18n="hero_title">Votre plateforme de collaboration data et IA</h2>
                     <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
                     <div class="hero-meta" data-i18n="home_notice_badge">Home personnalisable</div>
                   </article>
@@ -1647,7 +1647,7 @@ data:
               stat_activity: 'Activites',
               stat_env: 'Environnements',
               stat_active: 'Section active',
-              hero_title: 'Votre hub de collaboration data',
+              hero_title: 'Votre plateforme de collaboration data et IA',
               hero_subtitle: "Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.",
               home_notice_badge: 'Home personnalisable',
               home_notice_title: 'Informations equipe',
@@ -4820,7 +4820,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.117"}
+    {"version":"ce-web-0.6.118"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4841,7 +4841,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.117
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.118
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
