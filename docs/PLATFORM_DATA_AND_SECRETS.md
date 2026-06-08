@@ -58,6 +58,7 @@ Endpoints:
 - `GET /api/v1/datasets/{datasetID}/objects/{path...}`
 - `PUT /api/v1/datasets/{datasetID}/objects/{path...}`
 - `POST /api/v1/datasets/{datasetID}/download`
+- `POST /api/v1/datasets/{datasetID}/download-url`
 - `GET /api/v1/datasets/{datasetID}/access`
 - `PUT /api/v1/datasets/{datasetID}/access/{userID}`
 - `DELETE /api/v1/datasets/{datasetID}/access/{userID}`
