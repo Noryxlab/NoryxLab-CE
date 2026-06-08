@@ -360,6 +360,8 @@ data:
           }
           .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           .stack { display: grid; gap: 12px; }
+          .home-stack { width: 100%; grid-template-columns: minmax(0, 1fr); }
+          .home-stack > * { width: 100%; min-width: 0; }
           .hero {
             background:
               radial-gradient(800px 280px at 5% 0%, rgba(245, 189, 73, .22), transparent 68%),
@@ -371,7 +373,7 @@ data:
             border: 1px solid #3e4b69;
           }
           .hero h2 { margin: 0 0 8px; font-size: var(--fs-36); line-height: var(--lh-tight); font-weight: 700; letter-spacing: .01em; }
-          .hero p { margin: 0; color: #d6e0f4; max-width: 760px; line-height: var(--lh-base); font-size: var(--fs-16); font-weight: 500; }
+          .hero p { margin: 0; color: #d6e0f4; line-height: var(--lh-base); font-size: var(--fs-16); font-weight: 500; }
           .platform-pulse { overflow: hidden; border: 1px solid #cad7e2; border-radius: 16px; background: linear-gradient(120deg, #f8fbfc 0%, #eef6f7 58%, #f5f3ea 100%); box-shadow: var(--shadow-sm); }
           .platform-pulse-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px 10px; }
           .platform-pulse-head h3 { margin: 0; font-size: 16px; }
@@ -685,7 +687,7 @@ data:
 
             <section class="views">
               <section class="view active" id="view-intro">
-                <div class="stack">
+                <div class="stack home-stack">
                   <article class="hero">
                     <h2 data-i18n="hero_title">Votre plateforme de collaboration data et IA</h2>
                     <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
@@ -5290,7 +5292,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.134"}
+    {"version":"ce-web-0.6.135"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5311,7 +5313,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.134
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.135
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
