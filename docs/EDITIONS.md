@@ -23,6 +23,7 @@ HDS dataset management is an Enterprise Edition capability:
 - CE hides historical HDS records from user and administration inventories
 - CE blocks access, assignment, ACL management, and S3 operations for HDS records
 - EE enables `edition.FeatureHDSDatasets` and supplies the regulated policies,
+- EE administrators can register HDS datasets from the dataset creation form; the form requires a dedicated external S3 bucket and service credentials
   deployment controls, audit requirements, and user interface
 
 ## Advanced audit boundary

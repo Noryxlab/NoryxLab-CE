@@ -842,6 +842,10 @@ data:
                           <option value="local">Dataset local Noryx</option>
                           <option value="external">Bucket S3 externe</option>
                         </select>
+                        <select id="datasetClassification" style="display:none">
+                          <option value="non-hds">Standard</option>
+                          <option value="hds">HDS réglementé</option>
+                        </select>
                         <input id="datasetName" placeholder="Nom du dataset" />
                         <input id="datasetDescription" placeholder="Description (optionnelle)" />
                       </div>
@@ -861,6 +865,7 @@ data:
                           <input id="datasetSecretKey" autocomplete="new-password" type="password" placeholder="S3 secret key" />
                         </div>
                         <div class="hint">Les credentials sont chiffres et ne seront jamais reaffiches. Utilisez des credentials dedies avec les permissions minimales necessaires.</div>
+                        <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu, téléchargement direct et export ZIP désactivés.</div>
                       </div>
                     </div>
 
@@ -1469,6 +1474,8 @@ data:
           const datasetNameInput = document.getElementById('datasetName');
           const datasetDescriptionInput = document.getElementById('datasetDescription');
           const datasetModeInput = document.getElementById('datasetMode');
+          const datasetClassificationInput = document.getElementById('datasetClassification');
+          const datasetHDSWarning = document.getElementById('datasetHDSWarning');
           const datasetExternalFields = document.getElementById('datasetExternalFields');
           const datasetProviderInput = document.getElementById('datasetProvider');
           const datasetBucketInput = document.getElementById('datasetBucket');
@@ -1653,6 +1660,7 @@ data:
             datasourceChecks: {}
           };
           let selectedEnvironmentID = '';
+          let platformEdition = 'community';
           let selectedOrganizationID = '';
           let selectedEnvironmentBuildID = '';
           let dockerfileEditMode = false;
@@ -2249,6 +2257,7 @@ data:
             if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops')) {
               switchTab('intro');
             }
+            if (datasetClassificationInput) datasetClassificationInput.style.display = admin && platformEdition === 'enterprise' ? '' : 'none';
           }
 
           function badge(status) {
@@ -2553,7 +2562,9 @@ data:
               }
               if (backRes.ok) {
                 const b = await backRes.json();
-                document.body.classList.toggle('is-enterprise', String((b && b.edition) || '').toLowerCase() === 'enterprise');
+                platformEdition = String((b && b.edition) || '').toLowerCase() || 'community';
+                document.body.classList.toggle('is-enterprise', platformEdition === 'enterprise');
+                applyRoleVisibility();
                 if (b && b.backendVersion) backVersion = String(b.backendVersion);
                 if (backVersion === 'unknown' && b && b.version) backVersion = String(b.version);
                 if (b && b.defaultTheme) {
@@ -2674,11 +2685,11 @@ data:
               if (d.id === selectedDatasetID) tr.classList.add('dataset-row-active');
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
-                '<td><span class="badge b-ok">STANDARD</span></td>' +
+                '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'STANDARD') + '</td>' +
                 '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
                 '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
                 '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
-                '<td>' + ((d.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
+                '<td>' + (((d.classification || 'non-hds') !== 'hds' && d.accessRole === 'owner') || isAdminUser() ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
               datasetRows.appendChild(tr);
 
               const opt = document.createElement('option');
@@ -3433,7 +3444,7 @@ data:
             adminDatasetsCount.textContent = String(datasets.length);
             adminUserRows.innerHTML = users.map((u) => '<tr><td><strong>' + (u.username || u.id || '-') + '</strong></td><td>' + (u.email || '-') + '</td><td>' + badge(u.enabled === false ? 'disabled' : 'enabled') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun utilisateur.</td></tr>';
             adminProjectRows.innerHTML = projects.map((p) => '<tr><td><strong>' + (p.name || p.id || '-') + '</strong></td><td>' + formatDateTime(p.createdAt) + '</td></tr>').join('') || '<tr><td colspan="2">Aucun projet.</td></tr>';
-            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + badge(d.ownerType || 'user') + ' ' + (d.ownerId || d.ownerUserId || '-') + '</td><td>' + badge('standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
+            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + badge(d.ownerType || 'user') + ' ' + (d.ownerId || d.ownerUserId || '-') + '</td><td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
           function renderOrganizations() {
@@ -3551,7 +3562,7 @@ data:
                 const tr = document.createElement('tr');
                 tr.innerHTML =
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
-                  '<td>' + badge('standard') + '</td>' +
+                  '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td>' +
                   '<td><code>' + (d.provider || 'minio') + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
                   '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
@@ -4161,11 +4172,12 @@ data:
 
           createDatasetBtn.onclick = async () => {
             try {
-              const external = datasetModeInput && datasetModeInput.value === 'external';
+              const classification = (datasetClassificationInput && datasetClassificationInput.value) || 'non-hds';
+              const external = classification === 'hds' || (datasetModeInput && datasetModeInput.value === 'external');
               const payload = {
                 name: datasetNameInput.value.trim(),
                 description: datasetDescriptionInput.value.trim(),
-                classification: 'non-hds',
+                classification,
                 provider: external ? ((datasetProviderInput && datasetProviderInput.value) || 's3') : 'minio',
                 bucket: external ? ((datasetBucketInput && datasetBucketInput.value.trim()) || '') : '',
                 endpoint: external ? ((datasetEndpointInput && datasetEndpointInput.value.trim()) || '') : '',
@@ -4201,6 +4213,15 @@ data:
             datasetModeInput.onchange = () => {
               const external = datasetModeInput.value === 'external';
               if (datasetExternalFields) datasetExternalFields.style.display = external ? '' : 'none';
+            };
+          }
+          if (datasetClassificationInput) {
+            datasetClassificationInput.onchange = () => {
+              const hds = datasetClassificationInput.value === 'hds';
+              if (hds) datasetModeInput.value = 'external';
+              datasetModeInput.disabled = hds;
+              if (datasetExternalFields) datasetExternalFields.style.display = (hds || datasetModeInput.value === 'external') ? '' : 'none';
+              if (datasetHDSWarning) datasetHDSWarning.style.display = hds ? '' : 'none';
             };
           }
 
@@ -5269,7 +5290,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.133"}
+    {"version":"ce-web-0.6.134"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5290,7 +5311,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.133
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.134
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
