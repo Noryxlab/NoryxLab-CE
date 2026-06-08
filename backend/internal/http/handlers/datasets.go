@@ -285,6 +285,9 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create dataset"})
 		return
 	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.create", "dataset", item.ID, "", "success", "", map[string]any{
+		"name": item.Name, "provider": item.Provider, "classification": item.Classification, "bucket": item.Bucket,
+	})
 	writeJSON(w, http.StatusCreated, item)
 }
 
@@ -864,6 +867,10 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 	}
 	if !found || !h.datasetAvailableInEdition(item) || (!h.isGlobalAdmin(identity) && h.datasetRole(item, identity) != "owner") {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if item.Classification == "hds" && !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to delete an HDS dataset"})
 		return
 	}
 	if err := h.datasetStore.Delete(datasetID); err != nil {
