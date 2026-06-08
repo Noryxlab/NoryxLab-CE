@@ -69,6 +69,7 @@ User preferences:
 - `theme` (`noryx`) is persisted server-side per user; branded themes are supplied by Enterprise Edition overlays
 - frontend uses browser language by default, then applies stored preference when present
 - frontend theme falls back to admin default from backend (`NORYX_UI_DEFAULT_THEME`) when user preference is not set
+- the response includes the current user's Keycloak organizations so the UI can display identity context
 
 ## Auth
 
