@@ -58,7 +58,7 @@ At app startup:
 
 - project mounts are prepared (`/mnt`, `/repos`, `/datasets`)
 - repos attached to the project are cloned/pulled
-- datasets attached to the project are synced (initial sync)
+- datasets attached to the project are mounted directly through S3 CSI under `/datasets`
 - if `/mnt/requirements.txt` exists, dependencies are installed (venv + user)
 
 Bootstrap logs include:

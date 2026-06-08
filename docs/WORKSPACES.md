@@ -80,6 +80,7 @@ Current implementation baseline:
 Reference:
 
 - `docs/WORKSPACE_FILESYSTEM_LAYOUT.md`
+- `docs/S3_DATASET_MOUNTS.md`
 
 ## Build base images with Noryx
 
