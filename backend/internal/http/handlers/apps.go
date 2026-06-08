@@ -82,10 +82,11 @@ func (h Handlers) CreateDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	var req createAppRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
@@ -155,7 +156,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		accessURL = "/dashboards/" + req.Slug + "/"
 	}
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID, false)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, false)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
