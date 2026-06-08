@@ -57,6 +57,10 @@ type downloadDatasetObjectsRequest struct {
 	Paths []string `json:"paths"`
 }
 
+type createDatasetFolderRequest struct {
+	Path string `json:"path"`
+}
+
 func datasetObjectKey(item dataset.Dataset, objectPath string) (string, string) {
 	rel := strings.TrimPrefix(path.Clean("/"+strings.TrimSpace(objectPath)), "/")
 	key := rel
@@ -268,6 +272,94 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": len(payload)})
+}
+
+func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canWriteDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	var req createDatasetFolderRequest
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64*1024)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	rel := strings.TrimPrefix(path.Clean("/"+strings.TrimSpace(req.Path)), "/")
+	if rel == "" || rel == "." {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "folder path is required"})
+		return
+	}
+	key := rel + "/"
+	if item.Prefix != "" {
+		key = strings.Trim(item.Prefix, "/") + "/" + key
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	if _, err := client.PutObject(ctx, item.Bucket, key, bytes.NewReader(nil), 0, minio.PutObjectOptions{ContentType: "application/x-directory"}); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder creation failed: " + err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]string{"path": rel + "/"})
+}
+
+func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canWriteDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	rel, key := datasetObjectKey(item, r.PathValue("path"))
+	if rel == "" || rel == "." {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	if r.URL.Query().Get("recursive") != "true" {
+		if err := client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{}); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object deletion failed: " + err.Error()})
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	prefix := strings.TrimSuffix(key, "/") + "/"
+	objects := make(chan minio.ObjectInfo)
+	go func() {
+		defer close(objects)
+		for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+			if object.Err == nil {
+				objects <- object
+			}
+		}
+	}()
+	for removeErr := range client.RemoveObjects(ctx, item.Bucket, objects, minio.RemoveObjectsOptions{}) {
+		if removeErr.Err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder deletion failed: " + removeErr.Err.Error()})
+			return
+		}
+	}
+	_ = client.RemoveObject(ctx, item.Bucket, prefix, minio.RemoveObjectOptions{})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {

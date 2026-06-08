@@ -85,6 +85,7 @@ Storage:
 - direct file download, multi-file ZIP download, preview, and browser editing are disabled for HDS datasets
 - non-HDS browser preview supports PDF, images, CSV, and text formats
 - non-HDS browser editing supports CSV and text formats for owners and writers
+- the dataset explorer exposes S3 prefixes as familiar folders; owners and writers can create folders and delete files or folders recursively
 - XLSX/ODS files are download-only until a dedicated spreadsheet engine is integrated
 
 External dataset creation:
