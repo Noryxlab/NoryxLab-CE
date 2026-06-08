@@ -42,6 +42,12 @@ the organization/role permission matrix.
 The frontend image bundles `keycloak-js` because Keycloak 26 no longer serves
 the legacy `/auth/js/keycloak.js` UMD adapter.
 
+Set `NORYX_ORGANIZATION_REQUIRED=true` on deployments where every authenticated
+user must belong to at least one Keycloak organization. The API then rejects
+users without an organization with `403 organization_required`. Organization
+creation and membership administration are exposed under
+`/api/v1/admin/organizations`.
+
 Major Keycloak upgrades require a full database backup and all old Keycloak
 nodes to be stopped before the new version migrates the schema. The schema is
 not backward compatible after migration.

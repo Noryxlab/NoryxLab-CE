@@ -41,6 +41,7 @@ type Handlers struct {
 	registryPushSecret               string
 	bootstrapAdminUser               string
 	bootstrapAdminEmail              string
+	organizationRequired             bool
 	workspaceJupyterImage            string
 	workspaceVSCodeImage             string
 	workspaceNamespace               string
@@ -74,6 +75,7 @@ type Options struct {
 	RegistryPushSecret               string
 	BootstrapAdminUser               string
 	BootstrapAdminEmail              string
+	OrganizationRequired             bool
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceNamespace               string
@@ -173,6 +175,7 @@ func New(
 		registryPushSecret:               options.RegistryPushSecret,
 		bootstrapAdminUser:               options.BootstrapAdminUser,
 		bootstrapAdminEmail:              options.BootstrapAdminEmail,
+		organizationRequired:             options.OrganizationRequired,
 		workspaceJupyterImage:            options.WorkspaceJupyterImage,
 		workspaceVSCodeImage:             options.WorkspaceVSCodeImage,
 		workspaceNamespace:               options.WorkspaceNamespace,

@@ -143,6 +143,7 @@ func main() {
 			RegistryPushSecret:               cfg.RegistryPushSecret,
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
+			OrganizationRequired:             cfg.OrganizationRequired,
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
 			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
 			WorkspaceNamespace:               cfg.WorkloadNamespace,

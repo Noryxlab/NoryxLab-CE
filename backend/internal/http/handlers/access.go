@@ -33,6 +33,9 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid bearer token"})
 			return auth.Identity{}, false
 		}
+		if !h.requireOrganizationMembership(w, identity) {
+			return auth.Identity{}, false
+		}
 		return identity, true
 	}
 
@@ -41,10 +44,14 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
 		return auth.Identity{}, false
 	}
-	return auth.Identity{
+	identity := auth.Identity{
 		Username: userID,
 		Roles:    map[string]struct{}{},
-	}, true
+	}
+	if !h.requireOrganizationMembership(w, identity) {
+		return auth.Identity{}, false
+	}
+	return identity, true
 }
 
 func (h Handlers) requireUserID(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -148,10 +155,41 @@ func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *h
 		return auth.Identity{}, false
 	}
 
-	return auth.Identity{
+	identity := auth.Identity{
 		Username: item.Identity,
 		Roles:    map[string]struct{}{},
-	}, true
+	}
+	if !h.requireOrganizationMembership(w, identity) {
+		return auth.Identity{}, false
+	}
+	return identity, true
+}
+
+func (h Handlers) requireOrganizationMembership(w http.ResponseWriter, identity auth.Identity) bool {
+	if !h.organizationRequired {
+		return true
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "organization membership verification is unavailable"})
+		return false
+	}
+	identifier := strings.TrimSpace(identity.Subject)
+	if identifier == "" {
+		identifier = strings.TrimSpace(identity.UserID())
+	}
+	hasOrganization, err := h.keycloak.HasOrganization(identifier)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to verify organization membership"})
+		return false
+	}
+	if !hasOrganization {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "organization membership required",
+			"code":  "organization_required",
+		})
+		return false
+	}
+	return true
 }
 
 func (h Handlers) requireProjectRole(
