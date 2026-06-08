@@ -674,18 +674,6 @@ data:
                     <h2 data-i18n="hero_title">Votre plateforme de collaboration data et IA</h2>
                     <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
                   </article>
-                  <article class="platform-pulse">
-                    <div class="platform-pulse-head">
-                      <h3>Activite de la plateforme</h3>
-                      <span id="platformPulseTime" class="platform-pulse-live">Mise a jour en direct</span>
-                    </div>
-                    <div class="platform-pulse-grid">
-                      <div class="pulse-metric"><div class="k">Utilisateurs</div><div id="pulseUsers" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseUsersLine" points=""></polyline></svg><div class="meta">Comptes actifs sur la plateforme</div></div>
-                      <div class="pulse-metric"><div class="k">Projets</div><div id="pulseProjects" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseProjectsLine" points=""></polyline></svg><div class="meta">Espaces collaboratifs</div></div>
-                      <div class="pulse-metric"><div class="k">Charge</div><div id="pulseLoad" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseLoadLine" points=""></polyline></svg><div id="pulseLoadMeta" class="meta">Workloads actifs</div></div>
-                      <div class="pulse-metric"><div class="k">Datalake mesure</div><div id="pulseStorage" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseStorageLine" points=""></polyline></svg><div id="pulseStorageMeta" class="meta">Buckets S3 accessibles</div></div>
-                    </div>
-                  </article>
                   <article class="card span-12">
                     <h3 data-i18n="home_notice_title">Informations equipe</h3>
                     <div class="hint" data-i18n="home_notice_text">Ajoutez ici vos consignes internes, vos liens de formation et vos actualites data.</div>
@@ -701,6 +689,18 @@ data:
                       <button class="btn primary" data-tab-jump="projects" data-i18n="go_projects">Aller aux projets</button>
                       <button class="btn" data-tab-jump="data" data-i18n="go_data">Aller aux donnees</button>
                       <button class="btn" data-tab-jump="environments" data-i18n="go_env">Aller aux environnements</button>
+                    </div>
+                  </article>
+                  <article class="platform-pulse">
+                    <div class="platform-pulse-head">
+                      <h3>Activite de la plateforme</h3>
+                      <span id="platformPulseTime" class="platform-pulse-live">Mise a jour en direct</span>
+                    </div>
+                    <div class="platform-pulse-grid">
+                      <div class="pulse-metric"><div class="k">Utilisateurs</div><div id="pulseUsers" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseUsersLine" points=""></polyline></svg><div class="meta">Comptes actifs sur la plateforme</div></div>
+                      <div class="pulse-metric"><div class="k">Projets</div><div id="pulseProjects" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseProjectsLine" points=""></polyline></svg><div class="meta">Espaces collaboratifs</div></div>
+                      <div class="pulse-metric"><div class="k">Charge</div><div id="pulseLoad" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseLoadLine" points=""></polyline></svg><div id="pulseLoadMeta" class="meta">Workloads actifs</div></div>
+                      <div class="pulse-metric"><div class="k">Datalake mesure</div><div id="pulseStorage" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseStorageLine" points=""></polyline></svg><div id="pulseStorageMeta" class="meta">Buckets S3 accessibles</div></div>
                     </div>
                   </article>
                 </div>
@@ -4932,7 +4932,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.124"}
+    {"version":"ce-web-0.6.125"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4953,7 +4953,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.124
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.125
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
