@@ -12,6 +12,7 @@ type PodSpec struct {
 	Args                    []string
 	Env                     []EnvVar
 	Ports                   []int
+	ReadinessPort           int
 	CPURequest              string
 	CPULimit                string
 	MemRequest              string
@@ -21,6 +22,7 @@ type PodSpec struct {
 	Labels                  map[string]string
 	PullSecret              string
 	Volumes                 []PersistentVolumeClaimMount
+	Secrets                 []SecretMount
 }
 
 type ServiceSpec struct {
@@ -73,6 +75,18 @@ type PersistentVolumeClaimMount struct {
 	ReadOnly  bool
 }
 
+type SecretSpec struct {
+	Name   string
+	Data   map[string]string
+	Labels map[string]string
+}
+
+type SecretMount struct {
+	SecretName string
+	MountPath  string
+	ReadOnly   bool
+}
+
 type Runner interface {
 	CreatePersistentVolumeClaim(spec PersistentVolumeClaimSpec) error
 	DeletePersistentVolumeClaim(name string) error
@@ -83,6 +97,8 @@ type Runner interface {
 	CreateBuild(spec BuildSpec) error
 	CreateJob(spec JobSpec) error
 	DeleteJob(name string) error
+	CreateSecret(spec SecretSpec) error
+	DeleteSecret(name string) error
 }
 
 type DeploymentStatus struct {
@@ -101,6 +117,18 @@ type ServiceStatus struct {
 type Inspector interface {
 	ListDeployments() ([]DeploymentStatus, error)
 	ListServices() ([]ServiceStatus, error)
+}
+
+type WorkloadMetrics struct {
+	Pods                 int   `json:"pods"`
+	Running              int   `json:"running"`
+	Pending              int   `json:"pending"`
+	CPURequestMillicores int64 `json:"cpuRequestMillicores"`
+	MemoryRequestBytes   int64 `json:"memoryRequestBytes"`
+}
+
+type WorkloadMetricsInspector interface {
+	GetWorkloadMetrics() (WorkloadMetrics, error)
 }
 
 type WorkspaceReadiness interface {

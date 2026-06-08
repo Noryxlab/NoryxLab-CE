@@ -7,4 +7,5 @@ type BuildStore interface {
 	GetByID(id string) (build.Build, bool, error)
 	Create(b build.Build) error
 	Upsert(b build.Build) error
+	Delete(id string) error
 }

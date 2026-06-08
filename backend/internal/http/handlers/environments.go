@@ -1,8 +1,13 @@
 package handlers
 
 import (
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,12 +28,14 @@ type environmentItem struct {
 	ID               string                `json:"id"`
 	ProjectID        string                `json:"projectId"`
 	Name             string                `json:"name"`
+	Category         string                `json:"category"`
 	DestinationImage string                `json:"destinationImage"`
 	LatestBuildID    string                `json:"latestBuildId"`
 	LatestStatus     string                `json:"latestStatus"`
 	LatestGitRepo    string                `json:"latestGitRepository"`
 	LatestGitRef     string                `json:"latestGitRef"`
 	LatestDockerfile string                `json:"latestDockerfilePath"`
+	LatestImageSize  string                `json:"latestImageSizeGiB,omitempty"`
 	UpdatedAt        time.Time             `json:"updatedAt"`
 	Revisions        []environmentRevision `json:"revisions"`
 }
@@ -49,6 +56,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	itemsByKey := map[string]*environmentItem{}
+	sizeCache := map[string]string{}
 	for _, b := range builds {
 		if projectFilter != "" && b.ProjectID != projectFilter {
 			continue
@@ -67,6 +75,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 				ID:               key,
 				ProjectID:        b.ProjectID,
 				Name:             deriveEnvironmentName(destination),
+				Category:         deriveEnvironmentCategory(destination),
 				DestinationImage: destination,
 				Revisions:        []environmentRevision{},
 			}
@@ -101,6 +110,15 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 			item.LatestDockerfile = latest.DockerfilePath
 			item.UpdatedAt = latest.CreatedAt
 		}
+		if item.DestinationImage != "" {
+			if cached, ok := sizeCache[item.DestinationImage]; ok {
+				item.LatestImageSize = cached
+			} else {
+				size := h.lookupImageSizeGiB(item.DestinationImage)
+				sizeCache[item.DestinationImage] = size
+				item.LatestImageSize = size
+			}
+		}
 		items = append(items, *item)
 	}
 
@@ -108,6 +126,159 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		return items[i].UpdatedAt.After(items[j].UpdatedAt)
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+type harborArtifact struct {
+	Size int64 `json:"size"`
+}
+
+func (h Handlers) lookupImageSizeGiB(destinationImage string) string {
+	base := strings.TrimSpace(h.harborURL)
+	if base == "" {
+		return ""
+	}
+	user := strings.TrimSpace(h.harborUsername)
+	pass := strings.TrimSpace(h.harborPassword)
+
+	_, project, repository, reference, ok := splitHarborImageRef(destinationImage)
+	if !ok {
+		return ""
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil || baseURL.Host == "" {
+		return ""
+	}
+
+	artPath := fmt.Sprintf(
+		"%s/api/v2.0/projects/%s/repositories/%s/artifacts/%s",
+		strings.TrimRight(base, "/"),
+		url.PathEscape(project),
+		url.PathEscape(repository),
+		url.PathEscape(reference),
+	)
+	req, err := http.NewRequest(http.MethodGet, artPath, nil)
+	if err != nil {
+		return ""
+	}
+	if user != "" && pass != "" {
+		req.SetBasicAuth(user, pass)
+	}
+
+	client := &http.Client{Timeout: 4 * time.Second}
+	if h.harborInsecureSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ""
+	}
+
+	var artifact harborArtifact
+	if err := json.NewDecoder(resp.Body).Decode(&artifact); err != nil {
+		return ""
+	}
+	if artifact.Size <= 0 {
+		return ""
+	}
+	const gib = 1024 * 1024 * 1024
+	value := float64(artifact.Size) / float64(gib)
+	return strconv.FormatFloat(value, 'f', 2, 64)
+}
+
+func (h Handlers) deleteImageFromHarbor(destinationImage string) error {
+	base := strings.TrimSpace(h.harborURL)
+	if base == "" {
+		return fmt.Errorf("harbor url is not configured")
+	}
+	_, project, repository, reference, ok := splitHarborImageRef(destinationImage)
+	if !ok {
+		return fmt.Errorf("invalid image reference: %s", destinationImage)
+	}
+
+	apiPath := fmt.Sprintf(
+		"%s/api/v2.0/projects/%s/repositories/%s/artifacts/%s",
+		strings.TrimRight(base, "/"),
+		url.PathEscape(project),
+		url.PathEscape(repository),
+		url.PathEscape(reference),
+	)
+	req, err := http.NewRequest(http.MethodDelete, apiPath, nil)
+	if err != nil {
+		return err
+	}
+	user := strings.TrimSpace(h.harborUsername)
+	pass := strings.TrimSpace(h.harborPassword)
+	if user != "" && pass != "" {
+		req.SetBasicAuth(user, pass)
+	}
+
+	client := &http.Client{Timeout: 6 * time.Second}
+	if h.harborInsecureSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("harbor api returned status=%d", resp.StatusCode)
+	}
+	return nil
+}
+
+func splitHarborImageRef(image string) (host, project, repository, reference string, ok bool) {
+	raw := strings.TrimSpace(image)
+	if raw == "" {
+		return "", "", "", "", false
+	}
+	firstSlash := strings.Index(raw, "/")
+	if firstSlash <= 0 {
+		return "", "", "", "", false
+	}
+	host = strings.TrimSpace(raw[:firstSlash])
+	pathRef := strings.TrimSpace(raw[firstSlash+1:])
+	if host == "" || pathRef == "" {
+		return "", "", "", "", false
+	}
+
+	lastColon := strings.LastIndex(pathRef, ":")
+	lastAt := strings.LastIndex(pathRef, "@")
+	switch {
+	case lastAt > 0:
+		reference = strings.TrimSpace(pathRef[lastAt+1:])
+		pathRef = strings.TrimSpace(pathRef[:lastAt])
+	case lastColon > strings.LastIndex(pathRef, "/"):
+		reference = strings.TrimSpace(pathRef[lastColon+1:])
+		pathRef = strings.TrimSpace(pathRef[:lastColon])
+	default:
+		return "", "", "", "", false
+	}
+	if reference == "" {
+		return "", "", "", "", false
+	}
+
+	parts := strings.Split(pathRef, "/")
+	if len(parts) < 2 {
+		return "", "", "", "", false
+	}
+	project = strings.TrimSpace(parts[0])
+	repository = strings.TrimSpace(strings.Join(parts[1:], "/"))
+	if project == "" || repository == "" {
+		return "", "", "", "", false
+	}
+	return host, project, repository, reference, true
 }
 
 func deriveEnvironmentName(destination string) string {
@@ -121,4 +292,13 @@ func deriveEnvironmentName(destination string) string {
 		return destination
 	}
 	return last
+}
+
+func deriveEnvironmentCategory(destination string) string {
+	d := strings.ToLower(strings.TrimSpace(destination))
+	// CE-managed baseline images are published under noryx-environments/noryx-*
+	if strings.Contains(d, "/noryx-environments/noryx-") {
+		return "system"
+	}
+	return "custom"
 }

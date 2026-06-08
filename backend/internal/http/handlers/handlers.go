@@ -45,6 +45,7 @@ type Handlers struct {
 	workspaceVSCodeImage             string
 	workspaceNamespace               string
 	workspaceCPU                     string
+	workspaceCPURequest              string
 	workspaceMemory                  string
 	workspaceEphemeralStorageRequest string
 	workspaceEphemeralStorageLimit   string
@@ -61,6 +62,10 @@ type Handlers struct {
 	backendVersion                   string
 	defaultTheme                     string
 	editionHooks                     edition.Hooks
+	harborURL                        string
+	harborUsername                   string
+	harborPassword                   string
+	harborInsecureSkipVerify         bool
 }
 
 type Options struct {
@@ -72,6 +77,7 @@ type Options struct {
 	WorkspaceVSCodeImage             string
 	WorkspaceNamespace               string
 	WorkspaceCPU                     string
+	WorkspaceCPURequest              string
 	WorkspaceMemory                  string
 	WorkspaceEphemeralStorageRequest string
 	WorkspaceEphemeralStorageLimit   string
@@ -95,6 +101,10 @@ type Options struct {
 	MinIOUseSSL                      bool
 	MinIORegion                      string
 	EditionHooks                     *edition.Hooks
+	HarborURL                        string
+	HarborUsername                   string
+	HarborPassword                   string
+	HarborInsecureSkipVerify         bool
 }
 
 func New(
@@ -165,6 +175,7 @@ func New(
 		workspaceVSCodeImage:             options.WorkspaceVSCodeImage,
 		workspaceNamespace:               options.WorkspaceNamespace,
 		workspaceCPU:                     options.WorkspaceCPU,
+		workspaceCPURequest:              options.WorkspaceCPURequest,
 		workspaceMemory:                  options.WorkspaceMemory,
 		workspaceEphemeralStorageRequest: options.WorkspaceEphemeralStorageRequest,
 		workspaceEphemeralStorageLimit:   options.WorkspaceEphemeralStorageLimit,
@@ -181,5 +192,9 @@ func New(
 		backendVersion:                   options.BackendVersion,
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),
 		editionHooks:                     hooks,
+		harborURL:                        strings.TrimSpace(options.HarborURL),
+		harborUsername:                   strings.TrimSpace(options.HarborUsername),
+		harborPassword:                   options.HarborPassword,
+		harborInsecureSkipVerify:         options.HarborInsecureSkipVerify,
 	}
 }

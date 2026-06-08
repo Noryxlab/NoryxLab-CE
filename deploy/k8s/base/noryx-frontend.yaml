@@ -12,17 +12,17 @@ data:
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>NoryxLab CE</title>
+        <title>CE</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
           :root {
-            --bg: #eef2f4;
+            --bg: #f3f5f8;
             --surface: #ffffff;
-            --surface-soft: #f4f7f9;
-            --line: #dde5eb;
-            --line-strong: #bcc8d3;
-            --text: #122031;
-            --muted: #5e6f83;
+            --surface-soft: #f8fafc;
+            --line: #dfe4ec;
+            --line-strong: #c7d0dc;
+            --text: #1e2b45;
+            --muted: #5c6c86;
             --nav-bg: #0f1f2d;
             --nav-bg-2: #163346;
             --nav-text: #d8e8f4;
@@ -30,11 +30,13 @@ data:
             --brand: #006d77;
             --brand-2: #0f93a0;
             --brand-soft: #d8f0f3;
+            --accent: #4f46e5;
+            --accent-soft: #eeedff;
             --ok: #1f8b4c;
             --warn: #a9690f;
             --bad: #af2c36;
-            --shadow-sm: 0 8px 22px rgba(21, 35, 49, .07);
-            --shadow-md: 0 18px 44px rgba(11, 25, 36, .12);
+            --shadow-sm: 0 1px 2px rgba(30, 43, 69, .05);
+            --shadow-md: 0 2px 8px rgba(30, 43, 69, .08);
             --font: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
             --fs-11: 11px;
             --fs-12: 12px;
@@ -164,6 +166,21 @@ data:
             font-size: 13px;
             margin-bottom: 20px;
           }
+          .who-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+          }
+          .who .btn {
+            background: rgba(255,255,255,.12);
+            border-color: rgba(255,255,255,.2);
+            color: #e8f2fc;
+          }
+          .who .btn.primary {
+            background: linear-gradient(90deg, #007989 0%, #13a1b1 100%);
+            border-color: #46bdca;
+          }
           .menu-title {
             margin: 14px 0 8px;
             color: var(--nav-muted);
@@ -211,7 +228,7 @@ data:
           }
           .sidebar a:hover { text-decoration: underline; }
           .content {
-            padding: 26px;
+            padding: 30px 34px;
           }
           .topbar-meta {
             font-size: 11px;
@@ -231,8 +248,8 @@ data:
           .topbar {
             background: var(--surface);
             border: 1px solid #d8e2e8;
-            border-radius: 20px;
-            padding: 18px;
+            border-radius: 10px;
+            padding: 12px 16px;
             display: flex;
             gap: 14px;
             flex-wrap: wrap;
@@ -247,12 +264,8 @@ data:
             font-weight: 700;
             letter-spacing: .015em;
           }
-          .subtitle {
-            margin: 5px 0 0;
-            color: var(--muted);
-            font-size: var(--fs-14);
-            font-weight: 500;
-          }
+          .subtitle { display: none; }
+          .topbar-main { min-width: 280px; }
           .actions {
             display: flex;
             flex-wrap: wrap;
@@ -260,20 +273,21 @@ data:
           }
           .btn {
             border: 1px solid var(--line-strong);
-            background: #f2f6f8;
-            color: #102039;
-            border-radius: 12px;
-            padding: 9px 13px;
+            background: #f7f9fc;
+            color: #1f2b45;
+            border-radius: 8px;
+            padding: 9px 12px;
             font-weight: 600;
             cursor: pointer;
             transition: transform .12s ease, box-shadow .16s ease, background .16s ease;
           }
-          .btn:hover { background: #e7eef2; transform: translateY(-1px); box-shadow: 0 8px 16px rgba(16, 35, 62, .09); }
+          .btn:hover { background: #eef2f8; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(16, 35, 62, .08); }
           .btn.primary {
-            background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
-            border-color: #1a9fac;
+            background: var(--accent);
+            border-color: var(--accent);
             color: #fff;
           }
+          .btn.primary:hover { background: #4338ca; border-color: #4338ca; }
           .btn.good {
             background: #e9fbf2;
             color: var(--ok);
@@ -312,8 +326,8 @@ data:
           .card {
             background: var(--surface);
             border: 1px solid #dbe4ea;
-            border-radius: 18px;
-            padding: 15px;
+            border-radius: 10px;
+            padding: 18px;
             box-shadow: var(--shadow-sm);
           }
           .card h3 {
@@ -376,17 +390,125 @@ data:
           .quick .q-text { margin: 0; color: var(--muted); font-size: var(--fs-13); line-height: var(--lh-base); font-weight: 500; }
           .projects-toolbar { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           .projects-toolbar input { min-width: 240px; flex: 1 1 240px; }
+          .project-create-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; padding: 18px; border: 1px solid #bfc9ff; border-radius: 14px; background: linear-gradient(110deg, #f0efff 0%, #f8f9ff 70%, #eef8fa 100%); }
+          .project-create-copy { min-width: 220px; }
+          .project-create-copy h4 { margin: 0 0 4px; color: #31377a; font-size: 17px; }
+          .project-create-copy p { margin: 0; color: var(--muted); font-size: 12px; }
+          .project-create-form { display: flex; flex: 1 1 520px; justify-content: flex-end; gap: 9px; }
+          .project-create-form input { flex: 1 1 360px; max-width: 560px; background: #fff; }
+          .project-catalog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+          .project-catalog-header h4 { margin: 0; font-size: 16px; }
           .projects-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-          .project-card { border: 1px solid #d7e3eb; border-radius: 14px; background: #fff; padding: 13px; }
+          .project-card { border: 1px solid #d7e3eb; border-radius: 14px; background: #fff; padding: 13px; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+          .project-card.is-active { border: 2px solid var(--accent); background: var(--accent-soft); box-shadow: 0 8px 24px rgba(79, 70, 229, .14); }
           .project-card h4 { margin: 0 0 6px; font-size: var(--fs-20); }
           .project-meta { color: var(--muted); font-size: var(--fs-13); margin-bottom: 10px; }
           .project-actions { display: flex; gap: 8px; }
+          .project-active-marker { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 9px; color: #3730a3; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+          .project-active-marker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(79, 70, 229, .14); }
+          .project-row-active { background: var(--accent-soft); }
+          .project-scope { grid-column: span 12; border: 1px solid #c9d2df; border-radius: 16px; padding: 0; overflow: hidden; background: #edf1f7; box-shadow: var(--shadow-md); }
+          .project-scope-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; color: #fff; background: linear-gradient(115deg, #293653 0%, #354366 65%, #414f75 100%); }
+          .project-scope-kicker { color: #cbd5ff; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+          .project-scope-name { margin-top: 3px; font-size: 22px; font-weight: 700; }
+          .project-scope-id { color: #dbe4f6; font-size: 12px; }
+          .project-resources { display: grid; gap: 14px; padding: 14px; }
+          .project-resource-card { border-left: 4px solid var(--accent); box-shadow: none; }
+          .project-resource-card h3 { display: flex; align-items: center; gap: 8px; }
+          .project-resource-card h3::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
           .project-list table { margin-top: 8px; }
+          .dataset-create-panel { margin-bottom: 20px; padding: 18px; border: 1px solid #b8dfe5; border-radius: 14px; background: linear-gradient(110deg, #e9f7f8 0%, #f8fbfc 65%, #f0efff 100%); }
+          .dataset-create-header, .dataset-catalog-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+          .dataset-create-header h4, .dataset-catalog-header h4 { margin: 0; font-size: 16px; }
+          .dataset-create-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+          .dataset-create-fields { display: grid; grid-template-columns: 180px minmax(220px, 1fr) minmax(220px, 1fr) 150px auto; gap: 9px; align-items: center; }
+          .dataset-external-fields { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c8dde2; }
+          .dataset-catalog { margin-bottom: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
+          .dataset-catalog table { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+          .dataset-row-active { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+          .dataset-active-marker { display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; color: #3730a3; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+          .dataset-active-marker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+          .dataset-explorer { overflow: hidden; border: 1px solid #c9d2df; border-radius: 16px; background: #edf1f7; }
+          .dataset-explorer-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 20px; color: #fff; background: linear-gradient(115deg, #173e4b 0%, #225766 60%, #306b76 100%); }
+          .dataset-explorer-kicker { color: #bde8ed; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+          .dataset-explorer-name { margin-top: 3px; font-size: 22px; font-weight: 700; }
+          .dataset-explorer-location { color: #d5eef1; font-size: 12px; text-align: right; }
+          .dataset-explorer-stats { display: flex; gap: 10px; padding: 12px 14px 0; }
+          .dataset-explorer-stat { min-width: 130px; padding: 9px 11px; border: 1px solid #d6dfe8; border-radius: 10px; background: #fff; }
+          .dataset-explorer-stat .k { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+          .dataset-explorer-stat .v { margin-top: 3px; font-size: 16px; font-weight: 700; }
+          .dataset-upload-panel { margin: 12px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
+          .dataset-upload-panel h4 { margin: 0 0 10px; font-size: 14px; }
+          .dataset-access-panel { margin: 12px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
+          .dataset-access-panel h4 { margin: 0 0 4px; font-size: 14px; }
+          .dataset-access-panel .access-copy { margin-bottom: 10px; color: var(--muted); font-size: 12px; }
+          .dataset-files { margin: 0 14px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
+          .dataset-files h4 { margin: 0 0 10px; font-size: 14px; }
+          .file-path { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+          .file-path::before { content: "▤"; color: var(--brand); font-size: 16px; }
+          .dataset-preview { margin: 0 14px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
+          .dataset-preview-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+          .dataset-preview-body { min-height: 180px; max-height: 620px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; padding: 12px; }
+          .dataset-preview-body img, .dataset-preview-body iframe { width: 100%; max-height: 580px; border: 0; object-fit: contain; }
+          .dataset-preview-body table { background: #fff; font-size: 12px; }
+          .dataset-preview-body table th { position: sticky; top: 0; background: #edf2f7; z-index: 1; }
+          .dataset-preview-body textarea { width: 100%; min-height: 500px; resize: vertical; border: 0; outline: 0; background: #fff; padding: 12px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .preview-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
+          .preview-dot.supported { background: #22c55e; }
           .env-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
           .env-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+          .env-header-actions .btn {
+            background: #fff;
+            border-color: #d4d9e3;
+            color: #354562;
+          }
+          .env-header-actions .btn.warn {
+            background: var(--accent-soft);
+            border-color: #c8c5ff;
+            color: #4338ca;
+          }
           .env-active-rev { font-size: 12px; color: #49617f; }
-          .env-rev-active { background: #e8f3ff; }
+          .env-rev-active { background: #f0efff; }
           .env-rev-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+          .env-layout { gap: 18px; }
+          .env-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+          }
+          .env-toolbar-right { display: flex; gap: 10px; align-items: center; }
+          .env-count { font-size: 13px; color: var(--muted); }
+          .env-filter {
+            min-width: 240px;
+            border-radius: 8px;
+            padding: 9px 11px;
+          }
+          .table-flat {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+          }
+          .table-flat tbody tr:hover { background: #f9faff; }
+          .table-flat tbody tr.is-selected { background: #f0efff; }
+          .env-section-title {
+            margin: 0 0 8px;
+            font-size: 12px;
+            letter-spacing: .09em;
+            color: #4f6279;
+            text-transform: uppercase;
+            font-weight: 700;
+          }
+          .env-detail-table th { width: 120px; }
+          .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .env-name {
+            color: #4338ca;
+            font-weight: 600;
+            text-decoration: none;
+          }
+          .env-name:hover { text-decoration: underline; }
           input, select {
             border: 1px solid var(--line-strong);
             border-radius: 12px;
@@ -404,10 +526,10 @@ data:
           th, td {
             text-align: left;
             border-bottom: 1px solid #e6edf2;
-            padding: 9px 6px;
+            padding: 12px 8px;
             vertical-align: top;
           }
-          th { color: #4f6279; font-weight: 700; font-size: var(--fs-12); letter-spacing: .06em; text-transform: uppercase; }
+          th { color: #61718a; font-weight: 700; font-size: var(--fs-12); letter-spacing: .04em; text-transform: uppercase; }
           .badge {
             display: inline-block;
             border-radius: 999px;
@@ -420,6 +542,8 @@ data:
           .b-ok { background: #d8fae8; color: #17603f; }
           .b-mid { background: #fff0d7; color: #8f520d; }
           .b-info { background: #ddebff; color: #1b4698; }
+          .b-sys { background: #efeefe; color: #4338ca; }
+          .b-custom { background: #e9fbf2; color: #17603f; }
           pre {
             margin: 0;
             border: 1px solid #123042;
@@ -439,6 +563,11 @@ data:
             .content { padding: 14px; }
             .quick-grid { grid-template-columns: 1fr; }
             .projects-grid { grid-template-columns: 1fr; }
+            .project-create-panel, .project-create-form { align-items: stretch; flex-direction: column; }
+            .project-create-form input { max-width: none; }
+            .dataset-create-fields { grid-template-columns: 1fr; }
+            .dataset-create-header, .dataset-catalog-header, .dataset-explorer-header { align-items: stretch; flex-direction: column; }
+            .dataset-explorer-location { text-align: left; }
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
@@ -450,12 +579,18 @@ data:
         <div class="layout">
           <aside class="sidebar">
             <div class="reduce-row">
-              <div class="brand">NoryxLab</div>
+              <div id="brandName" class="brand">NoryxLab</div>
               <button id="reduceNav" class="reduce-btn" type="button"><span class="ico">◀</span> <span class="txt">Reduce</span></button>
             </div>
             <div class="edition" data-i18n="edition">Community Edition</div>
             <div id="versions" class="versions">front: loading | back: loading</div>
-            <div id="meta" class="who">Not authenticated</div>
+            <div id="meta" class="who">
+              <div id="metaText">Non connecte</div>
+              <div class="who-actions">
+                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
+                <button id="logout" class="btn" style="display:none;" data-i18n="logout">Se deconnecter</button>
+              </div>
+            </div>
 
             <div class="menu-title" data-i18n="menu_home">Home</div>
             <div class="menu">
@@ -492,7 +627,7 @@ data:
             <div class="menu">
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
-              <button class="tab-btn" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
+              <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
             <hr class="side-sep" />
 
@@ -504,10 +639,9 @@ data:
 
           <main class="content">
             <section class="topbar">
-              <div>
-                <h1 class="title" data-i18n="title">NoryxLab</h1>
-                <p class="subtitle" data-i18n="subtitle">Plateforme collaborative pour les equipes data, de l'exploration au passage en production.</p>
-                <div id="topMeta" class="topbar-meta">-</div>
+              <div class="topbar-main">
+                <h1 id="sectionTitle" class="title">Accueil</h1>
+                <p id="sectionSubtitle" class="subtitle">Vue d'ensemble de la plateforme et actions rapides.</p>
               </div>
               <div class="actions">
                 <select id="langSelect" class="lang-min" aria-label="Language">
@@ -518,11 +652,6 @@ data:
                   <option value="noryx">Noryx</option>
                   <option value="premyom-dark">Premyom</option>
                 </select>
-                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
-                <button id="logout" class="btn" data-i18n="logout">Se deconnecter</button>
-                <button id="loadModules" class="btn good admin-only" data-i18n="platform_status">Etat plateforme</button>
-                <button id="loadUsers" class="btn good admin-only" data-i18n="users">Utilisateurs</button>
-                <button id="loadAudit" class="btn good admin-only">Audit</button>
               </div>
             </section>
 
@@ -578,17 +707,27 @@ data:
                 <div class="grid">
                   <article class="card span-12">
                     <h3>Projects</h3>
-                    <div class="hint">Vue claire des projets: créez, recherchez, puis gérez votre contexte de travail.</div>
+                    <div class="project-create-panel">
+                      <div class="project-create-copy">
+                        <h4>Nouveau projet</h4>
+                        <p>Creez un espace de travail puis rattachez ses ressources.</p>
+                      </div>
+                      <div class="project-create-form">
+                        <input id="projectName" placeholder="Nom du nouveau projet" />
+                        <button id="createProject" type="button" class="btn primary">Creer le projet</button>
+                      </div>
+                    </div>
+                    <div class="project-catalog-header">
+                      <h4>Mes projets</h4>
+                      <button id="loadProjects" type="button" class="btn">Actualiser</button>
+                    </div>
                     <div class="projects-toolbar">
                       <input id="projectSearch" placeholder="Find project" />
                       <select id="projectViewMode">
                         <option value="grid">Grid</option>
                         <option value="list">List</option>
                       </select>
-                      <select id="projectSelect"></select>
-                      <input id="projectName" placeholder="New project name" />
-                      <button id="createProject" class="btn primary">Create Project</button>
-                      <button id="loadProjects" class="btn">Refresh Projects</button>
+                      <select id="projectSelect" aria-label="Projet actif" style="display:none"></select>
                     </div>
                     <div id="projectCards" class="projects-grid"></div>
                     <div id="projectList" class="project-list" style="display:none;">
@@ -598,44 +737,55 @@ data:
                       </table>
                     </div>
                   </article>
-                  <article class="card span-6">
-                    <h3>Project Datasets</h3>
-                    <div class="hint">Attach one or more datasets to the selected project.</div>
-                    <div class="row">
-                      <select id="attachDatasetSelect"></select>
-                      <button id="attachDatasetBtn" class="btn primary">Attach Dataset</button>
-                    </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>Bucket</th><th>Prefix</th><th>Actions</th></tr></thead>
-                      <tbody id="projectDatasetRows"></tbody>
-                    </table>
-                  </article>
+                  <section id="projectScope" class="project-scope">
+                    <header class="project-scope-header">
+                      <div>
+                        <div class="project-scope-kicker">Projet actif · ressources rattachees</div>
+                        <div id="projectActiveName" class="project-scope-name">Aucun projet selectionne</div>
+                      </div>
+                      <code id="projectActiveId" class="project-scope-id">-</code>
+                    </header>
+                    <div class="project-resources">
+                      <article class="card project-resource-card">
+                        <h3>Datasets du projet</h3>
+                        <div class="hint">Datasets disponibles dans les executions de ce projet.</div>
+                        <div class="row">
+                          <select id="attachDatasetSelect"></select>
+                          <button id="attachDatasetBtn" class="btn primary">Rattacher un dataset</button>
+                        </div>
+                        <table>
+                          <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Actions</th></tr></thead>
+                          <tbody id="projectDatasetRows"></tbody>
+                        </table>
+                      </article>
 
-                  <article class="card span-6">
-                    <h3>Project Repositories</h3>
-                    <div class="hint">Attach one or more Git repositories to the selected project.</div>
-                    <div class="row">
-                      <select id="attachRepoSelect"></select>
-                      <button id="attachRepoBtn" class="btn primary">Attach Repository</button>
-                    </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
-                      <tbody id="projectRepoRows"></tbody>
-                    </table>
-                  </article>
+                      <article class="card project-resource-card">
+                        <h3>Depots Git du projet</h3>
+                        <div class="hint">Depots accessibles depuis les executions de ce projet.</div>
+                        <div class="row">
+                          <select id="attachRepoSelect"></select>
+                          <button id="attachRepoBtn" class="btn primary">Rattacher un depot</button>
+                        </div>
+                        <table>
+                          <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
+                          <tbody id="projectRepoRows"></tbody>
+                        </table>
+                      </article>
 
-                  <article class="card span-6">
-                    <h3>Project Datasources</h3>
-                    <div class="hint">Attach one or more datasources to the selected project.</div>
-                    <div class="row">
-                      <select id="attachDatasourceSelect"></select>
-                      <button id="attachDatasourceBtn" class="btn primary">Attach Datasource</button>
+                      <article class="card project-resource-card">
+                        <h3>Sources de donnees du projet</h3>
+                        <div class="hint">Connexions de donnees accessibles aux membres de ce projet.</div>
+                        <div class="row">
+                          <select id="attachDatasourceSelect"></select>
+                          <button id="attachDatasourceBtn" class="btn primary">Rattacher une source</button>
+                        </div>
+                        <table>
+                          <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
+                          <tbody id="projectDatasourceRows"></tbody>
+                        </table>
+                      </article>
                     </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
-                      <tbody id="projectDatasourceRows"></tbody>
-                    </table>
-                  </article>
+                  </section>
                 </div>
               </section>
 
@@ -661,27 +811,114 @@ data:
 
                   <article id="card-datasets" class="card span-12">
                     <h3>Datasets</h3>
-                    <div class="hint">Catalog datasets + optional object upload to MinIO. Prefix = subpath in bucket (e.g. raw/2026).</div>
-                    <div class="row">
-                      <input id="datasetName" placeholder="Dataset name" />
-                      <input id="datasetDescription" placeholder="Description (optional)" />
+                    <div class="dataset-create-panel">
+                      <div class="dataset-create-header">
+                        <div>
+                          <h4>Nouveau dataset</h4>
+                          <p>Creez un stockage local ou branchez un bucket S3 externe.</p>
+                        </div>
+                        <button id="createDataset" type="button" class="btn primary">Creer le dataset</button>
+                      </div>
+                      <div class="dataset-create-fields">
+                        <select id="datasetMode">
+                          <option value="local">Dataset local Noryx</option>
+                          <option value="external">Bucket S3 externe</option>
+                        </select>
+                        <input id="datasetName" placeholder="Nom du dataset" />
+                        <input id="datasetDescription" placeholder="Description (optionnelle)" />
+                        <select id="datasetClassification">
+                          <option value="non-hds">Non-HDS</option>
+                          <option value="hds" class="admin-only">HDS</option>
+                        </select>
+                      </div>
+                      <div id="datasetExternalFields" class="dataset-external-fields" style="display:none;">
+                        <div class="row">
+                          <select id="datasetProvider">
+                            <option value="s3">S3 standard externe</option>
+                            <option value="clever-cloud">Clever Cloud Cellar</option>
+                          </select>
+                          <input id="datasetEndpoint" placeholder="https://s3.example.com" />
+                          <input id="datasetRegion" placeholder="Region, ex. eu-west-3" />
+                          <input id="datasetBucket" placeholder="Nom du bucket existant" />
+                          <input id="datasetPrefix" placeholder="Prefixe (optionnel)" />
+                        </div>
+                        <div class="row">
+                          <input id="datasetAccessKey" autocomplete="off" placeholder="S3 access key" />
+                          <input id="datasetSecretKey" autocomplete="new-password" type="password" placeholder="S3 secret key" />
+                        </div>
+                        <div class="hint">Les credentials sont chiffres et ne seront jamais reaffiches. Un dataset HDS doit utiliser un bucket et des credentials exclusivement dedies.</div>
+                      </div>
                     </div>
-                    <div class="row">
-                      <button id="createDataset" class="btn primary">Create Dataset</button>
-                      <button id="refreshData" class="btn">Refresh Data</button>
-                    </div>
-                    <div class="row">
-                      <select id="datasetUploadTarget"></select>
-                      <input id="datasetUploadPath" placeholder="Object path inside prefix (e.g. train.csv)" />
-                    </div>
-                    <div class="row">
-                      <input id="datasetUploadFile" type="file" />
-                      <button id="uploadDatasetObject" class="btn">Upload Object</button>
-                    </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>Bucket</th><th>Prefix</th><th>Actions</th></tr></thead>
-                      <tbody id="datasetRows"></tbody>
-                    </table>
+
+                    <section class="dataset-catalog">
+                      <div class="dataset-catalog-header">
+                        <div>
+                          <h4>Mes datasets</h4>
+                          <span class="project-meta">Selectionnez un dataset pour explorer ses fichiers.</span>
+                        </div>
+                        <button id="refreshData" type="button" class="btn">Actualiser</button>
+                      </div>
+                      <table>
+                        <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Updated</th><th>Actions</th></tr></thead>
+                        <tbody id="datasetRows"></tbody>
+                      </table>
+                    </section>
+
+                    <section class="dataset-explorer">
+                      <header class="dataset-explorer-header">
+                        <div>
+                          <div class="dataset-explorer-kicker">Explorateur de fichiers · dataset actif</div>
+                          <div id="datasetSelectedTitle" class="dataset-explorer-name">Aucun dataset selectionne</div>
+                        </div>
+                        <code id="datasetSelectedLocation" class="dataset-explorer-location">-</code>
+                      </header>
+                      <div class="dataset-explorer-stats">
+                        <div class="dataset-explorer-stat"><div class="k">Fichiers</div><div id="datasetFileCount" class="v">0</div></div>
+                        <div class="dataset-explorer-stat"><div class="k">Volume total</div><div id="datasetTotalSize" class="v">0 B</div></div>
+                      </div>
+                      <div class="dataset-access-panel">
+                        <h4>Permissions</h4>
+                        <div class="access-copy">Owner: lecture, ecriture et gestion. Writer: lecture/ecriture. Reader: lecture seule.</div>
+                        <div id="datasetAccessForm" class="row" style="display:none">
+                          <input id="datasetAccessUser" placeholder="Utilisateur ou email" />
+                          <select id="datasetAccessRole"><option value="reader">Reader</option><option value="writer">Writer</option></select>
+                          <button id="datasetAccessSave" type="button" class="btn primary">Ajouter / modifier</button>
+                        </div>
+                        <table><thead><tr><th>Utilisateur</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
+                      </div>
+                      <div class="dataset-upload-panel">
+                        <h4>Ajouter un fichier</h4>
+                        <div class="row">
+                          <select id="datasetUploadTarget" style="display:none"></select>
+                          <input id="datasetUploadPath" placeholder="Chemin destination, ex. raw/ventes.csv" />
+                          <input id="datasetUploadFile" type="file" />
+                          <button id="uploadDatasetObject" type="button" class="btn primary">Televerser</button>
+                        </div>
+                        <div id="datasetUploadStatus" class="hint" style="display:none"></div>
+                      </div>
+                      <div class="dataset-files">
+                        <div class="dataset-catalog-header">
+                          <h4>Contenu du dataset</h4>
+                          <button id="datasetDownloadSelected" type="button" class="btn">Telecharger la selection (ZIP)</button>
+                        </div>
+                        <table>
+                          <thead><tr><th></th><th>Fichier</th><th>Taille</th><th>Derniere modification</th><th>Type</th><th>Actions</th></tr></thead>
+                          <tbody id="datasetObjectRows"></tbody>
+                        </table>
+                      </div>
+                      <div id="datasetPreview" class="dataset-preview" style="display:none">
+                        <div class="dataset-preview-head">
+                          <h4 id="datasetPreviewTitle">Apercu</h4>
+                          <div class="row" style="margin:0">
+                            <button id="datasetPreviewEdit" type="button" class="btn" style="display:none">Modifier</button>
+                            <button id="datasetPreviewSave" type="button" class="btn primary" style="display:none">Enregistrer</button>
+                            <button id="datasetPreviewCancel" type="button" class="btn" style="display:none">Annuler</button>
+                            <button id="datasetPreviewClose" type="button" class="btn">Fermer</button>
+                          </div>
+                        </div>
+                        <div id="datasetPreviewBody" class="dataset-preview-body"></div>
+                      </div>
+                    </section>
                   </article>
 
                   <article id="card-repositories" class="card span-12">
@@ -739,7 +976,7 @@ data:
 
               <section class="view" id="view-workspaces">
                 <div class="grid">
-                  <article class="card span-7">
+                  <article class="card span-12">
                     <h3>Workspace Launcher</h3>
                     <div class="hint">IDE: Jupyter or VSCode, fixed profile: 500m CPU / 512Mi RAM. Storage default: 10Gi.</div>
                     <div class="row">
@@ -769,59 +1006,78 @@ data:
               </section>
 
               <section class="view" id="view-environments">
-                <div class="grid">
-                  <article class="card span-7">
+                <div class="grid env-layout">
+                  <article class="card span-12">
                     <h3>Environments</h3>
-                    <div class="hint">Crée une nouvelle révision d'environnement à partir d'un Dockerfile versionné.</div>
-                    <table>
-                      <thead><tr><th>Name</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Last Build</th></tr></thead>
-                      <tbody id="environmentRows"></tbody>
-                    </table>
+                    <div class="hint">Catalogue des images d'environnement par projet avec état de la dernière révision.</div>
+                    <div class="env-toolbar">
+                      <div id="envCount" class="env-count">0 environments</div>
+                      <div class="env-toolbar-right">
+                        <button id="envCreateImage" class="btn primary" type="button">Create Image</button>
+                        <input id="envFilter" class="env-filter" placeholder="Filter environments..." />
+                      </div>
+                    </div>
+                    <div class="table-flat">
+                      <table>
+                        <thead><tr><th>Name</th><th>Type</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Image Size</th><th>Last Build</th><th>Actions</th></tr></thead>
+                        <tbody id="environmentRows"></tbody>
+                      </table>
+                    </div>
                   </article>
 
-                  <article class="card span-5" id="envDetailCard">
+                  <article class="card span-12" id="envDetailCard">
                     <div class="env-header">
                       <h3>Environment Detail</h3>
                       <div class="env-header-actions">
+                        <button id="envCleanupCanceled" class="btn">Cleanup canceled builds</button>
+                        <button id="envDeleteImage" class="btn danger">Delete Image</button>
                         <button id="envReloadDockerfile" class="btn">Reload</button>
                         <button id="envEditDockerfile" class="btn">Edit</button>
                         <button id="envCancelDockerfile" class="btn" style="display:none;">Cancel</button>
                         <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Build Revision</button>
                       </div>
                     </div>
-                    <div class="hint">Vue claire de l'environnement sélectionné et de sa définition Dockerfile.</div>
-                    <table>
+                    <div class="hint">Fiche de l'environnement sélectionné, révisions et Dockerfile éditable.</div>
+                    <div class="env-section-title">Résumé</div>
+                    <div class="table-flat" style="margin-bottom:12px;">
+                    <table class="env-detail-table">
                       <tbody>
-                        <tr><th>Name</th><td id="envSelectedName">-</td></tr>
-                        <tr><th>Image</th><td id="envSelectedImage">-</td></tr>
+                        <tr><th>Name</th><td id="envSelectedName" class="mono">-</td></tr>
+                        <tr><th>Image</th><td id="envSelectedImage" class="mono">-</td></tr>
                         <tr><th>Status</th><td id="envSelectedStatus">-</td></tr>
-                        <tr><th>Git Ref</th><td id="envSelectedRef">-</td></tr>
-                        <tr><th>Build ID</th><td id="envSelectedBuildId">-</td></tr>
+                        <tr><th>Git Ref</th><td id="envSelectedRef" class="mono">-</td></tr>
+                        <tr><th>Build ID</th><td id="envSelectedBuildId" class="mono">-</td></tr>
                       </tbody>
                     </table>
-                    <h3>Build Configuration</h3>
+                    </div>
+                    <div class="env-section-title">New Environment</div>
                     <div class="row">
-                      <input id="envGitRepo" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
-                      <input id="envGitRef" value="main" />
+                      <input id="envNameInput" placeholder="Environment name (ex: my-python)" />
+                      <select id="envForkSource">
+                        <option value="">Start from scratch</option>
+                      </select>
+                      <button id="envForkLoad" class="btn" type="button">Fork</button>
                     </div>
                     <div class="row">
-                      <input id="envDockerfile" value="environments/noryx-python/Dockerfile" />
-                      <input id="envContext" value="." />
+                      <button id="buildEnv" class="btn warn">Create Environment</button>
                     </div>
-                    <div class="row">
-                      <input id="envDestination" value="harbor.lan/noryx-environments/noryx-python:0.2.3" />
-                      <button id="buildEnv" class="btn warn">Build from Git</button>
-                    </div>
+                    <input id="envDestination" type="hidden" value="" />
+                    <input id="envGitRepo" type="hidden" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
+                    <input id="envGitRef" type="hidden" value="main" />
+                    <input id="envDockerfile" type="hidden" value="Dockerfile" />
+                    <input id="envContext" type="hidden" value="." />
                     <div id="envActiveRevision" class="env-active-rev">Active revision: -</div>
-                    <h3>Revisions</h3>
+                    <div class="env-section-title">Revisions</div>
+                    <div class="table-flat" style="margin-bottom:12px;">
                     <table>
                       <thead><tr><th>Revision</th><th>Status</th><th>Git Ref</th><th>Dockerfile</th><th>Created</th></tr></thead>
                       <tbody id="envRevisionRows"></tbody>
                     </table>
-                    <h3>Dockerfile</h3>
+                    </div>
+                    <div class="env-section-title">Dockerfile</div>
                     <pre id="dockerfileOut">-</pre>
                     <textarea id="dockerfileEditor" style="display:none;width:100%;min-height:260px;border:1px solid #8ea6bf;border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12px;"></textarea>
-                    <pre id="buildOut">-</pre>
+                    <pre id="buildOut" style="display:none;">-</pre>
                   </article>
                 </div>
               </section>
@@ -916,11 +1172,11 @@ data:
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Workloads</h3>
-                    <div class="hint">Agrégation des workspaces actifs et jobs de build récents.</div>
-                    <table>
-                      <thead><tr><th>Type</th><th>Name</th><th>Status</th></tr></thead>
-                      <tbody id="workloadRows"></tbody>
-                    </table>
+                <div class="hint">Toutes les executions de la plateforme. Un administrateur peut les arreter.</div>
+                <table>
+                  <thead><tr><th>Type</th><th>Projet</th><th>Nom</th><th>Ressource</th><th>Statut</th><th>Depuis</th><th>Action</th></tr></thead>
+                  <tbody id="workloadRows"></tbody>
+                </table>
                   </article>
 
                   <article class="card span-4">
@@ -933,17 +1189,32 @@ data:
 
               <section class="view" id="view-ops">
                 <div class="grid">
-                  <article class="card span-6">
-                    <h3>Modules</h3>
-                    <pre id="modulesOut">-</pre>
+                  <article class="card span-12">
+                    <h3>Charge plateforme</h3>
+                    <div class="stats">
+                      <article class="stat"><div class="k">Executions actives</div><div id="adminActiveCount" class="v">0</div></article>
+                      <article class="stat"><div class="k">Pods runtime</div><div id="adminPodCount" class="v">0</div></article>
+                      <article class="stat"><div class="k">CPU reserve</div><div id="adminCPUCount" class="v">0m</div></article>
+                      <article class="stat"><div class="k">Memoire reservee</div><div id="adminMemoryCount" class="v">0 B</div></article>
+                    </div>
                   </article>
-                  <article class="card span-6">
-                    <h3>Users</h3>
-                    <pre id="usersOut">-</pre>
+                  <article class="card span-4">
+                    <h3>Utilisateurs <span id="adminUsersCount" class="badge">0</span></h3>
+                    <table><thead><tr><th>Utilisateur</th><th>Email</th><th>Etat</th></tr></thead><tbody id="adminUserRows"></tbody></table>
+                  </article>
+                  <article class="card span-4">
+                    <h3>Projets <span id="adminProjectsCount" class="badge">0</span></h3>
+                    <table><thead><tr><th>Nom</th><th>Cree</th></tr></thead><tbody id="adminProjectRows"></tbody></table>
+                  </article>
+                  <article class="card span-4">
+                    <h3>Datasets <span id="adminDatasetsCount" class="badge">0</span></h3>
+                    <table><thead><tr><th>Nom</th><th>Owner</th><th>Classe</th></tr></thead><tbody id="adminDatasetRows"></tbody></table>
                   </article>
                   <article class="card span-12">
-                    <h3>Audit Events</h3>
+                    <h3>Audit</h3>
+                    <div class="row"><button id="downloadAudit" type="button" class="btn primary">Telecharger le rapport CSV</button></div>
                     <pre id="auditOut">-</pre>
+                    <pre id="usersOut" style="display:none">-</pre>
                   </article>
                 </div>
               </section>
@@ -954,12 +1225,10 @@ data:
     <script>
       (function () {
         var node = document.getElementById('versions');
-        var topMeta = document.getElementById('topMeta');
         if (!node) return;
         var front = 'unknown';
         var back = 'unknown';
         node.textContent = 'front: ' + front + ' | back: ' + back;
-        if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         var bust = String(Date.now());
         Promise.all([
           fetch('/version.json?nocache=' + bust, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
@@ -970,10 +1239,8 @@ data:
           if (f && f.version) front = String(f.version);
           if (b && (b.backendVersion || b.version)) back = String(b.backendVersion || b.version);
           node.textContent = 'front: ' + front + ' | back: ' + back;
-          if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         }).catch(function () {
           node.textContent = 'front: ' + front + ' | back: ' + back;
-          if (topMeta) topMeta.textContent = 'front ' + front + ' · back ' + back;
         });
       })();
     </script>
@@ -1005,12 +1272,13 @@ data:
             }
           }
 
-          const meta = document.getElementById('meta');
+          const meta = document.getElementById('metaText');
+          const sectionTitle = document.getElementById('sectionTitle');
+          const sectionSubtitle = document.getElementById('sectionSubtitle');
           const layoutNode = document.querySelector('.layout');
           const reduceNavBtn = document.getElementById('reduceNav');
           const usersOut = document.getElementById('usersOut');
           const auditOut = document.getElementById('auditOut');
-          const modulesOut = document.getElementById('modulesOut');
           const workspaceOut = document.getElementById('workspaceOut');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
@@ -1022,6 +1290,8 @@ data:
           const envActiveRevision = document.getElementById('envActiveRevision');
           const envRevisionRows = document.getElementById('envRevisionRows');
           const envReloadDockerfileBtn = document.getElementById('envReloadDockerfile');
+          const envDeleteImageBtn = document.getElementById('envDeleteImage');
+          const envCleanupCanceledBtn = document.getElementById('envCleanupCanceled');
           const envEditDockerfileBtn = document.getElementById('envEditDockerfile');
           const envCancelDockerfileBtn = document.getElementById('envCancelDockerfile');
           const envBuildFromDockerfileBtn = document.getElementById('envBuildFromDockerfile');
@@ -1030,9 +1300,6 @@ data:
 
           const loginBtn = document.getElementById('login');
           const logoutBtn = document.getElementById('logout');
-          const usersBtn = document.getElementById('loadUsers');
-          const modulesBtn = document.getElementById('loadModules');
-          const auditBtn = document.getElementById('loadAudit');
 
           const projectSelect = document.getElementById('projectSelect');
           const projectNameInput = document.getElementById('projectName');
@@ -1043,6 +1310,9 @@ data:
           const projectCards = document.getElementById('projectCards');
           const projectList = document.getElementById('projectList');
           const projectRows = document.getElementById('projectRows');
+          const projectScope = document.getElementById('projectScope');
+          const projectActiveName = document.getElementById('projectActiveName');
+          const projectActiveId = document.getElementById('projectActiveId');
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
@@ -1087,12 +1357,29 @@ data:
           const envGitRef = document.getElementById('envGitRef');
           const envDockerfile = document.getElementById('envDockerfile');
           const envContext = document.getElementById('envContext');
+          const envNameInput = document.getElementById('envNameInput');
+          const envForkSource = document.getElementById('envForkSource');
+          const envForkLoadBtn = document.getElementById('envForkLoad');
           const envDestination = document.getElementById('envDestination');
           const buildEnvBtn = document.getElementById('buildEnv');
           const environmentRows = document.getElementById('environmentRows');
+          const envFilterInput = document.getElementById('envFilter');
+          const envCreateImageBtn = document.getElementById('envCreateImage');
+          const envCount = document.getElementById('envCount');
           const envDetailCard = document.getElementById('envDetailCard');
 
           const workloadRows = document.getElementById('workloadRows');
+          const adminActiveCount = document.getElementById('adminActiveCount');
+          const adminPodCount = document.getElementById('adminPodCount');
+          const adminCPUCount = document.getElementById('adminCPUCount');
+          const adminMemoryCount = document.getElementById('adminMemoryCount');
+          const adminUsersCount = document.getElementById('adminUsersCount');
+          const adminProjectsCount = document.getElementById('adminProjectsCount');
+          const adminDatasetsCount = document.getElementById('adminDatasetsCount');
+          const adminUserRows = document.getElementById('adminUserRows');
+          const adminProjectRows = document.getElementById('adminProjectRows');
+          const adminDatasetRows = document.getElementById('adminDatasetRows');
+          const downloadAuditBtn = document.getElementById('downloadAudit');
           const secretNameInput = document.getElementById('secretName');
           const secretExpiresAtInput = document.getElementById('secretExpiresAt');
           const secretValueInput = document.getElementById('secretValue');
@@ -1101,13 +1388,42 @@ data:
 
           const datasetNameInput = document.getElementById('datasetName');
           const datasetDescriptionInput = document.getElementById('datasetDescription');
+          const datasetModeInput = document.getElementById('datasetMode');
+          const datasetClassificationInput = document.getElementById('datasetClassification');
+          const datasetExternalFields = document.getElementById('datasetExternalFields');
+          const datasetProviderInput = document.getElementById('datasetProvider');
+          const datasetBucketInput = document.getElementById('datasetBucket');
+          const datasetEndpointInput = document.getElementById('datasetEndpoint');
+          const datasetRegionInput = document.getElementById('datasetRegion');
+          const datasetPrefixInput = document.getElementById('datasetPrefix');
+          const datasetAccessKeyInput = document.getElementById('datasetAccessKey');
+          const datasetSecretKeyInput = document.getElementById('datasetSecretKey');
           const createDatasetBtn = document.getElementById('createDataset');
           const refreshDataBtn = document.getElementById('refreshData');
           const datasetRows = document.getElementById('datasetRows');
+          const datasetObjectRows = document.getElementById('datasetObjectRows');
+          const datasetSelectedTitle = document.getElementById('datasetSelectedTitle');
+          const datasetSelectedLocation = document.getElementById('datasetSelectedLocation');
+          const datasetFileCount = document.getElementById('datasetFileCount');
+          const datasetTotalSize = document.getElementById('datasetTotalSize');
+          const datasetAccessForm = document.getElementById('datasetAccessForm');
+          const datasetAccessUser = document.getElementById('datasetAccessUser');
+          const datasetAccessRole = document.getElementById('datasetAccessRole');
+          const datasetAccessSave = document.getElementById('datasetAccessSave');
+          const datasetAccessRows = document.getElementById('datasetAccessRows');
           const datasetUploadTarget = document.getElementById('datasetUploadTarget');
           const datasetUploadPathInput = document.getElementById('datasetUploadPath');
           const datasetUploadFileInput = document.getElementById('datasetUploadFile');
           const uploadDatasetObjectBtn = document.getElementById('uploadDatasetObject');
+          const datasetUploadStatus = document.getElementById('datasetUploadStatus');
+          const datasetDownloadSelected = document.getElementById('datasetDownloadSelected');
+          const datasetPreview = document.getElementById('datasetPreview');
+          const datasetPreviewTitle = document.getElementById('datasetPreviewTitle');
+          const datasetPreviewBody = document.getElementById('datasetPreviewBody');
+          const datasetPreviewClose = document.getElementById('datasetPreviewClose');
+          const datasetPreviewEdit = document.getElementById('datasetPreviewEdit');
+          const datasetPreviewSave = document.getElementById('datasetPreviewSave');
+          const datasetPreviewCancel = document.getElementById('datasetPreviewCancel');
 
           const repoNameInput = document.getElementById('repoName');
           const repoUrlInput = document.getElementById('repoUrl');
@@ -1151,6 +1467,7 @@ data:
           const versionsNode = document.getElementById('versions');
           const langSelect = document.getElementById('langSelect');
           const themeSelect = document.getElementById('themeSelect');
+          const brandNameNode = document.getElementById('brandName');
           const THEME_KEY = 'noryx.ui.theme';
           let adminDefaultTheme = 'noryx';
           const THEMES = {
@@ -1171,20 +1488,20 @@ data:
               '--brand-soft': '#d8f0f3'
             },
             'premyom-dark': {
-              '--bg': '#262f43',
-              '--surface': '#34405a',
-              '--surface-soft': '#3a4660',
-              '--line': '#4a5a79',
-              '--line-strong': '#62739a',
-              '--text': '#ecf1fb',
-              '--muted': '#b8c7e1',
-              '--nav-bg': '#30384f',
-              '--nav-bg-2': '#3a435f',
-              '--nav-text': '#eef3ff',
-              '--nav-muted': '#b4c1da',
+              '--bg': '#f6f8fb',
+              '--surface': '#ffffff',
+              '--surface-soft': '#f1f4f9',
+              '--line': '#d7dfea',
+              '--line-strong': '#b8c4d7',
+              '--text': '#1f2b3f',
+              '--muted': '#62728d',
+              '--nav-bg': '#ffffff',
+              '--nav-bg-2': '#f5f7fb',
+              '--nav-text': '#1f2b3f',
+              '--nav-muted': '#6f7f98',
               '--brand': '#ff6434',
               '--brand-2': '#ff4b1f',
-              '--brand-soft': '#453f4b'
+              '--brand-soft': '#ffe6dd'
             }
           };
 
@@ -1198,6 +1515,9 @@ data:
             const theme = THEMES[normalized] || THEMES.noryx;
             const root = document.documentElement;
             Object.keys(theme).forEach((k) => root.style.setProperty(k, theme[k]));
+            const productName = normalized === 'premyom-dark' ? 'Premyom' : 'NoryxLab';
+            if (brandNameNode) brandNameNode.textContent = productName;
+            document.title = productName + ' CE';
             if (themeSelect) themeSelect.value = normalized;
             try { localStorage.setItem(THEME_KEY, normalized); } catch (_) {}
             return normalized;
@@ -1229,6 +1549,9 @@ data:
             projects: [],
             secrets: [],
             datasets: [],
+            datasetObjects: [],
+            datasetAccess: [],
+            datasetCanManageAccess: false,
             repositories: [],
             datasources: [],
             projectDatasets: [],
@@ -1240,6 +1563,9 @@ data:
             dashboards: [],
             builds: [],
             environments: [],
+            adminExecutions: [],
+            adminOverview: {},
+            adminInventory: {},
             activeTab: 'intro',
             repositoryChecks: {},
             datasourceChecks: {}
@@ -1247,6 +1573,11 @@ data:
           let selectedEnvironmentID = '';
           let selectedEnvironmentBuildID = '';
           let dockerfileEditMode = false;
+          let creatingEnvironment = false;
+          let selectedDatasetID = '';
+          let datasetPreviewPath = '';
+          let datasetPreviewText = '';
+          let datasetPreviewContentType = 'text/plain';
           let openingWorkspaceId = null;
           let currentTheme = normalizeTheme((() => {
             try { return localStorage.getItem(THEME_KEY) || ''; } catch (_) { return ''; }
@@ -1285,7 +1616,7 @@ data:
               tab_activity: 'Activites',
               tab_admin: 'Administration',
               api_reference: 'Reference API',
-              title: 'NoryxLab',
+              title: 'Premyom',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
               login: 'Se connecter',
               logout: 'Se deconnecter',
@@ -1356,6 +1687,9 @@ data:
               ph_dash_port: 'Port (defaut 9000)',
               ph_dash_cmd: 'Commande de lancement',
               msg_not_authenticated: 'Non connecte',
+              identity_local_session: 'Session locale',
+              role_admin: 'Administrateur',
+              role_user: 'Utilisateur',
               msg_no_project: 'Aucun projet pour le moment.',
               msg_no_secret: 'Aucun secret.',
               msg_no_dataset: 'Aucun dataset.',
@@ -1403,7 +1737,29 @@ data:
               tab_label_project_apis: 'Services API',
               tab_label_environments: 'Environnements',
               tab_label_workloads: 'Activites',
-              tab_label_ops: 'Administration'
+              tab_label_ops: 'Administration',
+              section_title_intro: 'Accueil',
+              section_subtitle_intro: "Vue d'ensemble de la plateforme et actions rapides.",
+              section_title_projects: 'Projets',
+              section_subtitle_projects: 'Gestion des projets et rattachement des ressources.',
+              section_title_data: 'Data',
+              section_subtitle_data: 'Catalogues de datasets, depots, connexions et secrets.',
+              section_title_workspaces: 'Espaces de travail',
+              section_subtitle_workspaces: 'Lancement et suivi des IDE collaboratifs.',
+              section_title_jobs: 'Traitements',
+              section_subtitle_jobs: 'Execution batch sur environnement selectionne.',
+              section_title_apps: 'Applications',
+              section_subtitle_apps: 'Deploiement d applications web longues durees.',
+              section_title_dashboards: 'Dashboards',
+              section_subtitle_dashboards: 'Publication de dashboards dans le projet actif.',
+              section_title_apis: 'Services API',
+              section_subtitle_apis: 'Exposition des services applicatifs du projet.',
+              section_title_environments: 'Environnements',
+              section_subtitle_environments: 'Revisions d images et edition Dockerfile.',
+              section_title_workloads: 'Activites',
+              section_subtitle_workloads: 'Suivi des workspaces, builds et charges actives.',
+              section_title_ops: 'Administration',
+              section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
             en: {
               edition: 'Community Edition',
@@ -1423,7 +1779,7 @@ data:
               tab_activity: 'Activity',
               tab_admin: 'Administration',
               api_reference: 'API Reference',
-              title: 'NoryxLab',
+              title: 'Premyom',
               subtitle: 'Collaborative platform for data teams, from exploration to production.',
               login: 'Sign in',
               logout: 'Sign out',
@@ -1494,6 +1850,9 @@ data:
               ph_dash_port: 'Port (default 9000)',
               ph_dash_cmd: 'Launch command',
               msg_not_authenticated: 'Not authenticated',
+              identity_local_session: 'Local session',
+              role_admin: 'Administrator',
+              role_user: 'User',
               msg_no_project: 'No project yet.',
               msg_no_secret: 'No secret yet.',
               msg_no_dataset: 'No dataset yet.',
@@ -1541,7 +1900,29 @@ data:
               tab_label_project_apis: 'API Services',
               tab_label_environments: 'Environments',
               tab_label_workloads: 'Activity',
-              tab_label_ops: 'Administration'
+              tab_label_ops: 'Administration',
+              section_title_intro: 'Home',
+              section_subtitle_intro: 'Platform overview and quick actions.',
+              section_title_projects: 'Projects',
+              section_subtitle_projects: 'Project management and resource attachments.',
+              section_title_data: 'Data',
+              section_subtitle_data: 'Catalogs for datasets, repositories, datasources and secrets.',
+              section_title_workspaces: 'Workspaces',
+              section_subtitle_workspaces: 'Launch and monitor collaborative IDE sessions.',
+              section_title_jobs: 'Jobs',
+              section_subtitle_jobs: 'Batch execution on the selected environment.',
+              section_title_apps: 'Applications',
+              section_subtitle_apps: 'Deploy long-running web applications.',
+              section_title_dashboards: 'Dashboards',
+              section_subtitle_dashboards: 'Publish dashboards in the active project.',
+              section_title_apis: 'API Services',
+              section_subtitle_apis: 'Expose application services for the project.',
+              section_title_environments: 'Environments',
+              section_subtitle_environments: 'Image revisions and Dockerfile editing.',
+              section_title_workloads: 'Activity',
+              section_subtitle_workloads: 'Track active workspaces, builds and workloads.',
+              section_title_ops: 'Administration',
+              section_subtitle_ops: 'Observability, modules and users.'
             }
           };
           const savedLang = (() => { try { return String(localStorage.getItem('noryx.ui.lang') || '').trim(); } catch (_) { return ''; } })();
@@ -1646,6 +2027,7 @@ data:
                 });
               } catch (_) {}
               applyI18n();
+              refreshIdentityMeta();
             };
           }
           if (themeSelect) {
@@ -1662,7 +2044,9 @@ data:
             };
           }
           let workspacesAutoRefreshTimer = null;
-          function setMeta(text) { meta.textContent = text; }
+          let adminAccessGranted = false;
+          let identityDisplayMode = 'signed-out';
+          function setMeta(text) { if (meta) meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
           function authHeader() {
             if (authMode === 'oidc' && (keycloak && keycloak.token)) {
@@ -1698,9 +2082,6 @@ data:
 
           function setButtons(enabled) {
             logoutBtn.disabled = !enabled;
-            usersBtn.disabled = !enabled || !isAdminUser();
-            modulesBtn.disabled = !enabled || !isAdminUser();
-            auditBtn.disabled = !enabled || !isAdminUser();
             loadProjectsBtn.disabled = !enabled;
             createProjectBtn.disabled = !enabled;
             loadWorkspacesBtn.disabled = !enabled;
@@ -1722,12 +2103,64 @@ data:
             attachDatasourceBtn.disabled = !enabled;
           }
 
+          function syncAuthButtons(authenticated) {
+            if (!loginBtn || !logoutBtn) return;
+            if (authenticated) {
+              loginBtn.style.display = 'none';
+              logoutBtn.style.display = '';
+            } else {
+              loginBtn.style.display = '';
+              logoutBtn.style.display = 'none';
+            }
+          }
+
           function isAdminUser() {
-            if (authMode === 'lab') return true;
+            if (adminAccessGranted || authMode === 'lab') return true;
             const realmRoles = ensureArray((keycloak && keycloak.tokenParsed && keycloak.tokenParsed.realm_access && keycloak.tokenParsed.realm_access.roles));
             const clientRoles = ensureArray((keycloak && keycloak.tokenParsed && keycloak.tokenParsed.resource_access && keycloak.tokenParsed.resource_access['noryx-api'] && keycloak.tokenParsed.resource_access['noryx-api'].roles));
             const roles = new Set([...realmRoles, ...clientRoles].map((r) => String(r || '').toLowerCase()));
-            return roles.has('admin') || roles.has('platform_admin');
+            return roles.has('noryx-admin') || roles.has('admin') || roles.has('platform_admin');
+          }
+
+          function identityName() {
+            const claims = (keycloak && keycloak.tokenParsed) || {};
+            const givenName = String(claims.given_name || '').trim();
+            if (givenName) return givenName;
+            const fullName = String(claims.name || '').trim();
+            if (fullName) return fullName.split(/\s+/)[0];
+            return String(claims.preferred_username || claims.email || claims.sub || '').trim();
+          }
+
+          function refreshIdentityMeta() {
+            const role = isAdminUser() ? tui('role_admin') : tui('role_user');
+            if (identityDisplayMode === 'oidc') {
+              setMeta((identityName() || tui('role_user')) + ' (' + role + ')');
+              return;
+            }
+            if (identityDisplayMode === 'local') {
+              setMeta(tui('identity_local_session') + ' (' + role + ')');
+              return;
+            }
+            setMeta(tui('msg_not_authenticated'));
+          }
+
+          function setIdentityDisplayMode(mode) {
+            identityDisplayMode = mode;
+            refreshIdentityMeta();
+          }
+
+          async function probeAdminAccess() {
+            try {
+              state.adminOverview = await callJSON('/api/v1/admin/overview');
+              adminAccessGranted = true;
+              applyRoleVisibility();
+              refreshIdentityMeta();
+              renderAdminOverview();
+            } catch (_) {
+              adminAccessGranted = false;
+              applyRoleVisibility();
+              refreshIdentityMeta();
+            }
           }
 
           function applyRoleVisibility() {
@@ -1735,9 +2168,10 @@ data:
             document.querySelectorAll('.admin-only').forEach((el) => {
               el.style.display = admin ? '' : 'none';
             });
-            if (!admin && state.activeTab === 'workloads') {
+            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops')) {
               switchTab('intro');
             }
+            if (!admin && datasetClassificationInput) datasetClassificationInput.value = 'non-hds';
           }
 
           function badge(status) {
@@ -1761,6 +2195,18 @@ data:
             return d.toLocaleString();
           }
 
+          function formatDuration(raw) {
+            const started = new Date(raw).getTime();
+            if (!Number.isFinite(started)) return '-';
+            let seconds = Math.max(0, Math.floor((Date.now() - started) / 1000));
+            const days = Math.floor(seconds / 86400); seconds %= 86400;
+            const hours = Math.floor(seconds / 3600); seconds %= 3600;
+            const minutes = Math.floor(seconds / 60);
+            if (days) return days + 'j ' + hours + 'h';
+            if (hours) return hours + 'h ' + minutes + 'm';
+            return minutes + 'm';
+          }
+
           function switchTab(tab, sourceBtn) {
             state.activeTab = tab;
             const viewTab = tab.startsWith('data-') ? 'data' : tab;
@@ -1769,14 +2215,18 @@ data:
             }
             const activeButton = sourceBtn || tabButtons.find((btn) => btn.getAttribute('data-tab') === tab);
             tabButtons.forEach((btn) => btn.classList.toggle('active', btn === activeButton));
-            Object.keys(views).forEach((name) => {
-              if (name === 'data-datasets' || name === 'data-git' || name === 'data-secrets') return;
-              views[name].classList.toggle('active', name === viewTab);
-            });
+            const uniqueViews = new Set(Object.values(views).filter(Boolean));
+            uniqueViews.forEach((view) => view.classList.toggle('active', view === views[viewTab]));
             applyDataTab(tab);
             if (viewTab === 'data') {
               Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources()])
                 .catch(() => {});
+            }
+            if (viewTab === 'workloads' && isAdminUser()) {
+              refreshAdminExecutions().catch((e) => pretty(usersOut, e));
+            }
+            if (viewTab === 'ops' && isAdminUser()) {
+              Promise.all([refreshAdminOverview(), refreshAdminInventory()]).catch((e) => pretty(usersOut, e));
             }
             const labels = {
               intro: 'tab_label_intro',
@@ -1796,6 +2246,26 @@ data:
               ops: 'tab_label_ops'
             };
             statTab.textContent = tui(labels[tab] || 'tab_label_intro');
+            const sectionI18n = {
+              intro: ['section_title_intro', 'section_subtitle_intro'],
+              projects: ['section_title_projects', 'section_subtitle_projects'],
+              data: ['section_title_data', 'section_subtitle_data'],
+              'data-datasets': ['section_title_data', 'section_subtitle_data'],
+              'data-datasources': ['section_title_data', 'section_subtitle_data'],
+              'data-git': ['section_title_data', 'section_subtitle_data'],
+              'data-secrets': ['section_title_data', 'section_subtitle_data'],
+              workspaces: ['section_title_workspaces', 'section_subtitle_workspaces'],
+              'project-jobs': ['section_title_jobs', 'section_subtitle_jobs'],
+              'project-apps': ['section_title_apps', 'section_subtitle_apps'],
+              'project-dashboards': ['section_title_dashboards', 'section_subtitle_dashboards'],
+              'project-apis': ['section_title_apis', 'section_subtitle_apis'],
+              environments: ['section_title_environments', 'section_subtitle_environments'],
+              workloads: ['section_title_workloads', 'section_subtitle_workloads'],
+              ops: ['section_title_ops', 'section_subtitle_ops']
+            };
+            const section = sectionI18n[tab] || sectionI18n.intro;
+            if (sectionTitle) sectionTitle.textContent = tui(section[0]);
+            if (sectionSubtitle) sectionSubtitle.textContent = tui(section[1]);
           }
 
           function applyDataTab(tab) {
@@ -1852,6 +2322,87 @@ data:
               switchTab(jumpTab, src || null);
             };
           });
+          if (envFilterInput) {
+            envFilterInput.oninput = () => {
+              if (state.activeTab === 'environments') renderEnvironmentsTable();
+            };
+          }
+          if (envCreateImageBtn) {
+            envCreateImageBtn.onclick = async () => {
+              if (state.activeTab !== 'environments') switchTab('environments');
+              if (!selectedProjectId()) {
+                pretty(usersOut, { error: tui('err_select_project_first') });
+                switchTab('ops');
+                return;
+              }
+              creatingEnvironment = true;
+              selectedEnvironmentID = '';
+              selectedEnvironmentBuildID = '';
+              if (envNameInput) {
+                envNameInput.disabled = false;
+                envNameInput.readOnly = false;
+                envNameInput.value = '';
+              }
+              envGitRepo.value = envGitRepo.value.trim() || 'git://github.com/Noryxlab/NoryxLab-CE.git';
+              envGitRef.value = 'main';
+              envDockerfile.value = 'Dockerfile';
+              envContext.value = '.';
+              envDestination.value = '';
+              dockerfileOut.textContent = '-';
+              dockerfileEditor.value =
+                'FROM python:3.12-slim\n' +
+                '\n' +
+                '# Add your dependencies here\n' +
+                'RUN pip install --no-cache-dir numpy pandas\n';
+              setDockerfileEditMode(true);
+              renderEnvironmentsTable();
+              if (envNameInput && envNameInput.focus) envNameInput.focus();
+            };
+          }
+          if (envNameInput) {
+            envNameInput.oninput = () => {
+              const raw = String(envNameInput.value || '');
+              const normalized = raw.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+              if (!creatingEnvironment) return;
+              const currentDest = String(envDestination.value || '').trim();
+              if (currentDest === '' || /^harbor\.lan\/noryx-environments\/[^:]+:0\.1\.0$/i.test(currentDest)) {
+                envDestination.value = 'harbor.lan/noryx-environments/' + (normalized || 'custom-env') + ':0.1.0';
+              }
+            };
+          }
+          if (envForkLoadBtn) {
+            envForkLoadBtn.onclick = async () => {
+              try {
+                if (!creatingEnvironment) return;
+                const sourceID = decodeURIComponent(String((envForkSource && envForkSource.value) || ''));
+                if (!sourceID) {
+                  dockerfileEditor.value =
+                    'FROM python:3.12-slim\n\n# Add your dependencies here\nRUN pip install --no-cache-dir numpy pandas\n';
+                  return;
+                }
+                const env = state.environments.find((e) => String(e.id || '') === sourceID);
+                if (!env) return;
+                const sourceImage = String(env.destinationImage || '').trim();
+                if (!sourceImage) return;
+                dockerfileEditor.value = 'FROM ' + sourceImage + '\n';
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+            };
+          }
+          if (datasetUploadTarget) {
+            datasetUploadTarget.onchange = async () => {
+              selectedDatasetID = String(datasetUploadTarget.value || '').trim();
+              renderDatasetsTable();
+              try {
+                await refreshDatasetObjects(selectedDatasetID);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+            };
+          }
 
           async function callJSON(url, options = {}) {
             if ((keycloak && keycloak.authenticated)) {
@@ -1881,6 +2432,7 @@ data:
               }
             } catch (_) {}
             applyI18n();
+            refreshIdentityMeta();
           }
 
           async function ensureWebSession() {
@@ -1964,20 +2516,24 @@ data:
             for (const p of filtered) {
               const isSelected = selectedProjectId() === p.id;
               const card = document.createElement('article');
-              card.className = 'project-card';
+              card.className = 'project-card' + (isSelected ? ' is-active' : '');
               card.innerHTML =
+                (isSelected ? '<div class="project-active-marker">Projet actif</div>' : '') +
                 '<h4>' + (p.name || '-') + '</h4>' +
-                '<div class="project-meta"><code>' + (p.id || '-') + '</code>' + (isSelected ? ' · Selected' : '') + '</div>' +
+                '<div class="project-meta"><code>' + (p.id || '-') + '</code></div>' +
                 '<div class="project-actions">' +
-                '<button type="button" class="btn primary" data-select-project="' + (p.id || '') + '">Open</button>' +
+                (isSelected
+                  ? '<button type="button" class="btn primary" disabled>Actif</button>'
+                  : '<button type="button" class="btn primary" data-select-project="' + (p.id || '') + '">Activer</button>') +
                 '<button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button>' +
                 '</div>';
               projectCards.appendChild(card);
               const tr = document.createElement('tr');
+              if (isSelected) tr.classList.add('project-row-active');
               tr.innerHTML =
-                '<td><strong>' + p.name + '</strong></td>' +
+                '<td><strong>' + p.name + '</strong>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
                 '<td><code>' + p.id + '</code></td>' +
-                '<td><button type="button" class="btn" data-select-project="' + (p.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
+                '<td>' + (isSelected ? '<button type="button" class="btn primary" disabled>Actif</button>' : '<button type="button" class="btn" data-select-project="' + (p.id || '') + '">Activer</button>') + ' <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
               projectRows.appendChild(tr);
             }
             const showList = mode === 'list';
@@ -2011,30 +2567,165 @@ data:
           }
 
           function renderDatasetsTable() {
+            if (!datasetRows || !datasetUploadTarget) return;
             datasetRows.innerHTML = '';
             datasetUploadTarget.innerHTML = '';
             if (state.datasets.length === 0) {
-              datasetRows.innerHTML = '<tr><td colspan="4">' + tui('msg_no_dataset') + '</td></tr>';
+              datasetRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_dataset') + '</td></tr>';
+              selectedDatasetID = '';
+              state.datasetObjects = [];
+              renderDatasetObjectsTable();
               const opt = document.createElement('option');
               opt.value = '';
               opt.textContent = tui('msg_no_dataset');
               datasetUploadTarget.appendChild(opt);
               return;
             }
+            if (!selectedDatasetID || !state.datasets.some((d) => d.id === selectedDatasetID)) {
+              selectedDatasetID = state.datasets[0].id || '';
+            }
             state.datasets.forEach((d) => {
               const tr = document.createElement('tr');
+              tr.setAttribute('data-select-dataset', d.id || '');
+              tr.style.cursor = 'pointer';
+              if (d.id === selectedDatasetID) tr.classList.add('dataset-row-active');
               tr.innerHTML =
-                '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span></td>' +
-                '<td><code>' + (d.bucket || '-') + '</code></td>' +
-                '<td><code>' + (d.prefix || '-') + '</code></td>' +
-                '<td><button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button></td>';
+                '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
+                '<td><span class="badge ' + (d.classification === 'hds' ? 'b-mid' : 'b-ok') + '">' + (d.classification || 'non-hds').toUpperCase() + '</span></td>' +
+                '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
+                '<td>' + (d.ownerUserId || '-') + '</td>' +
+                '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
+                '<td>' + ((d.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
               datasetRows.appendChild(tr);
 
               const opt = document.createElement('option');
               opt.value = d.id || '';
               opt.textContent = (d.name || d.id) + ' (' + (d.bucket || '-') + ')';
+              if (d.id === selectedDatasetID) opt.selected = true;
               datasetUploadTarget.appendChild(opt);
             });
+            renderDatasetObjectsTable();
+          }
+
+          function renderDatasetAccessTable() {
+            if (!datasetAccessRows) return;
+            datasetAccessForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
+            datasetAccessRows.innerHTML = '';
+            const items = ensureArray(state.datasetAccess);
+            if (!selectedDatasetID || items.length === 0) {
+              datasetAccessRows.innerHTML = '<tr><td colspan="3">Aucune permission.</td></tr>';
+              return;
+            }
+            items.forEach((access) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = '<td><strong>' + (access.userId || '-') + '</strong></td><td>' + badge(access.role || '-') + '</td><td>' +
+                ((state.datasetCanManageAccess && access.role !== 'owner') ? '<button type="button" class="btn danger" data-del-dataset-access="' + encodeURIComponent(access.userId || '') + '">Retirer</button>' : '-') + '</td>';
+              datasetAccessRows.appendChild(tr);
+            });
+          }
+
+          function formatBytes(value) {
+            const n = Number(value || 0);
+            if (!Number.isFinite(n) || n <= 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let size = n;
+            let idx = 0;
+            while (size >= 1024 && idx < units.length - 1) {
+              size /= 1024;
+              idx += 1;
+            }
+            return (idx === 0 ? String(Math.round(size)) : size.toFixed(size >= 10 ? 1 : 2)) + ' ' + units[idx];
+          }
+
+          function renderDatasetObjectsTable() {
+            if (!datasetObjectRows) return;
+            const selected = state.datasets.find((d) => d.id === selectedDatasetID);
+            const canWrite = !!selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser());
+            uploadDatasetObjectBtn.disabled = !canWrite;
+            datasetUploadPathInput.disabled = !canWrite;
+            datasetUploadFileInput.disabled = !canWrite;
+            if (datasetSelectedTitle) {
+              datasetSelectedTitle.textContent = selected ? (selected.name || selected.id) : 'Aucun dataset selectionne';
+            }
+            if (datasetSelectedLocation) {
+              datasetSelectedLocation.textContent = selected
+                ? ((selected.provider || 'minio') + ' / ' + (selected.bucket || '-') + (selected.prefix ? '/' + selected.prefix : ''))
+                : '-';
+            }
+            datasetObjectRows.innerHTML = '';
+            if (!selected) {
+              if (datasetFileCount) datasetFileCount.textContent = '0';
+              if (datasetTotalSize) datasetTotalSize.textContent = '0 B';
+              datasetObjectRows.innerHTML = '<tr><td colspan="6">-</td></tr>';
+              datasetDownloadSelected.disabled = true;
+              return;
+            }
+            datasetDownloadSelected.disabled = selected.classification === 'hds';
+            const objects = ensureArray(state.datasetObjects);
+            const totalSize = objects.reduce((sum, obj) => sum + Number(obj.size || 0), 0);
+            if (datasetFileCount) datasetFileCount.textContent = String(objects.length);
+            if (datasetTotalSize) datasetTotalSize.textContent = formatBytes(totalSize);
+            if (objects.length === 0) {
+              datasetObjectRows.innerHTML = '<tr><td colspan="6">Aucun fichier dans ce dataset.</td></tr>';
+              return;
+            }
+            objects.forEach((obj) => {
+              const visual = datasetFileVisual(obj.path || obj.key || '', obj.contentType || '');
+              const editable = canWrite && visual.editable;
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><input type="checkbox" data-dataset-file-select="' + encodeURIComponent(obj.path || obj.key || '') + '" /></td>' +
+                '<td><span class="file-path">' + (visual.supported ? '<span class="preview-dot supported" title="Apercu disponible"></span>' : '') + '<code>' + (obj.path || obj.key || '-') + '</code></span></td>' +
+                '<td>' + formatBytes(obj.size) + '</td>' +
+                '<td>' + formatDateTime(obj.lastModified) + '</td>' +
+                '<td>' + (obj.contentType || '-') + '</td>' +
+                '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Voir</button> ' +
+                (editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Modifier</button> ' : '') +
+                '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Telecharger</button></td>';
+              datasetObjectRows.appendChild(tr);
+            });
+          }
+
+          function datasetFileVisual(filePath, contentType) {
+            const lower = String(filePath || '').toLowerCase();
+            const type = String(contentType || '').toLowerCase();
+            if (type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(lower)) return { kind:'image', supported:true, editable:false };
+            if (type === 'application/pdf' || lower.endsWith('.pdf')) return { kind:'pdf', supported:true, editable:false };
+            if (lower.endsWith('.csv') || type.includes('csv')) return { kind:'csv', supported:true, editable:true };
+            if (type.startsWith('text/') || /\.(txt|json|md|log|yaml|yml)$/i.test(lower)) return { kind:'text', supported:true, editable:true };
+            return { kind:'other', supported:false, editable:false };
+          }
+
+          function parseCSV(text) {
+            const firstLine = String(text || '').split(/\r?\n/, 1)[0] || '';
+            const separators = [',', ';', '\t'];
+            const delimiter = separators.sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0];
+            const rows = []; let row = []; let cell = ''; let quoted = false;
+            for (let i = 0; i < text.length; i += 1) {
+              const c = text[i];
+              if (c === '"') {
+                if (quoted && text[i + 1] === '"') { cell += '"'; i += 1; } else quoted = !quoted;
+              } else if (c === delimiter && !quoted) { row.push(cell); cell = ''; }
+              else if ((c === '\n' || c === '\r') && !quoted) {
+                if (c === '\r' && text[i + 1] === '\n') i += 1;
+                row.push(cell); rows.push(row); row = []; cell = '';
+              } else cell += c;
+            }
+            if (cell || row.length) { row.push(cell); rows.push(row); }
+            return rows.filter((r) => r.some((v) => v !== ''));
+          }
+
+          function renderCSVPreview(text) {
+            const rows = parseCSV(text);
+            if (rows.length === 0) { datasetPreviewBody.textContent = 'CSV vide.'; return; }
+            const table = document.createElement('table');
+            const head = document.createElement('thead'); const headRow = document.createElement('tr');
+            rows[0].forEach((value) => { const th = document.createElement('th'); th.textContent = value; headRow.appendChild(th); });
+            head.appendChild(headRow); table.appendChild(head);
+            const body = document.createElement('tbody');
+            rows.slice(1, 501).forEach((values) => { const tr = document.createElement('tr'); values.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }); body.appendChild(tr); });
+            table.appendChild(body); datasetPreviewBody.appendChild(table);
+            if (rows.length > 501) { const note = document.createElement('p'); note.textContent = 'Apercu limite aux 500 premieres lignes.'; datasetPreviewBody.appendChild(note); }
           }
 
           function renderRepositoriesTable() {
@@ -2279,10 +2970,23 @@ data:
 
           function renderEnvironmentsTable() {
             const pid = selectedProjectId();
-            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            const q = String((envFilterInput && envFilterInput.value) || '').trim().toLowerCase();
+            const items = state.environments
+              .filter((env) => !pid || env.projectId === pid)
+              .filter((env) => {
+                if (!q) return true;
+                const haystack = [
+                  env.name || '',
+                  env.destinationImage || '',
+                  env.latestGitRef || '',
+                  env.latestStatus || ''
+                ].join(' ').toLowerCase();
+                return haystack.includes(q);
+              });
+            if (envCount) envCount.textContent = String(items.length) + ' environments';
             environmentRows.innerHTML = '';
             if (items.length === 0) {
-              environmentRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_env_project') + '</td></tr>';
+              environmentRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_env_project') + '</td></tr>';
               envSelectedName.textContent = '-';
               envSelectedImage.textContent = '-';
               envSelectedStatus.textContent = '-';
@@ -2290,32 +2994,62 @@ data:
               envSelectedBuildId.textContent = '-';
               envActiveRevision.textContent = 'Active revision: -';
               envRevisionRows.innerHTML = '<tr><td colspan="5">-</td></tr>';
-              buildOut.textContent = '-';
               dockerfileOut.textContent = '-';
               selectedEnvironmentID = '';
               return;
             }
-            if (!selectedEnvironmentID || !items.some((env) => env.id === selectedEnvironmentID)) {
-              selectedEnvironmentID = items[0].id;
+            if (!creatingEnvironment) {
+              if (!selectedEnvironmentID || !items.some((env) => env.id === selectedEnvironmentID)) {
+                selectedEnvironmentID = items[0].id;
+              }
+              const selected = items.find((env) => env.id === selectedEnvironmentID) || items[0];
+              renderEnvironmentDetail(selected);
+            } else {
+              renderCreateEnvironmentDetail(items);
             }
-            const selected = items.find((env) => env.id === selectedEnvironmentID) || items[0];
-            renderEnvironmentDetail(selected);
 
             for (const env of items.slice(0, 20)) {
               const tr = document.createElement('tr');
               tr.setAttribute('data-select', encodeURIComponent(env.id || ''));
               tr.style.cursor = 'pointer';
-              const selectedClass = env.id === selectedEnvironmentID ? ' style="outline:1px solid #4ea6ff"' : '';
+              if (!creatingEnvironment && env.id === selectedEnvironmentID) tr.classList.add('is-selected');
               const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
               const latestRef = env.latestGitRef || '-';
               const lastBuild = formatDateTime(env.updatedAt);
+              const rawSize = env.latestImageSizeGiB ?? env.imageSizeGiB ?? env.latestImageSize ?? env.imageSize ?? '';
+              const imageSize = String(rawSize || '').trim() || 'N/A';
+              const category = String(env.category || 'custom').toLowerCase() === 'system' ? 'system' : 'custom';
+              const categoryLabel = category === 'system' ? 'System' : 'Custom';
+              const categoryBadge = '<span class="badge ' + (category === 'system' ? 'b-sys' : 'b-custom') + '">' + categoryLabel + '</span>';
               tr.innerHTML =
-                '<td' + selectedClass + '><strong>' + (env.name || 'environment') + '</strong></td>' +
-                '<td' + selectedClass + '><code>' + (env.destinationImage || '-') + '</code></td>' +
-                '<td' + selectedClass + '>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
-                '<td' + selectedClass + '>' + String(revCount) + '</td>' +
-                '<td' + selectedClass + '>' + lastBuild + '</td>';
+                '<td><span class="env-name">' + (env.name || 'environment') + '</span></td>' +
+                '<td>' + categoryBadge + '</td>' +
+                '<td><code>' + (env.destinationImage || '-') + '</code></td>' +
+                '<td>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
+                '<td>' + String(revCount) + '</td>' +
+                '<td>' + imageSize + '</td>' +
+                '<td>' + lastBuild + '</td>' +
+                '<td><button type="button" class="btn danger" data-del-env="' + encodeURIComponent(env.id || '') + '">Delete</button></td>';
               environmentRows.appendChild(tr);
+            }
+          }
+
+          function renderCreateEnvironmentDetail(currentItems) {
+            envSelectedName.textContent = '(new environment)';
+            envSelectedImage.textContent = '-';
+            envSelectedStatus.textContent = '-';
+            envSelectedRef.textContent = '-';
+            envSelectedBuildId.textContent = '-';
+            envActiveRevision.textContent = 'Active revision: new';
+            envRevisionRows.innerHTML = '<tr><td colspan="5">No revision yet</td></tr>';
+            if (envForkSource) {
+              const all = Array.isArray(currentItems) ? currentItems : [];
+              const previous = envForkSource.value;
+              envForkSource.innerHTML = '<option value="">Start from scratch</option>' +
+                all.map((e) => '<option value="' + encodeURIComponent(String(e.id || '')) + '">' + (e.name || e.destinationImage || 'environment') + '</option>').join('');
+              if (previous && all.some((e) => encodeURIComponent(String(e.id || '')) === previous)) {
+                envForkSource.value = previous;
+              }
             }
           }
 
@@ -2347,7 +3081,7 @@ data:
                   '<td>' + badge(rev.status || 'submitted') + '</td>' +
                   '<td>' + (rev.gitRef || '-') + '</td>' +
                   '<td><code>' + (rev.dockerfilePath || '-') + '</code></td>' +
-                  '<td>' + formatDateTime(rev.createdAt) + '</td>';
+                  '<td>' + formatDateTime(rev.createdAt) + '<br/><button type="button" class="btn danger" data-del-build="' + revID + '">Delete build</button></td>';
                 envRevisionRows.appendChild(tr);
               });
             }
@@ -2355,8 +3089,15 @@ data:
             envGitRef.value = env.latestGitRef || envGitRef.value;
             envDockerfile.value = env.latestDockerfilePath || envDockerfile.value;
             envDestination.value = env.destinationImage || envDestination.value;
-            buildOut.textContent = JSON.stringify(env, null, 2);
+            if (envNameInput) {
+              envNameInput.value = String(env.name || '').replace(/:[^:]+$/, '');
+            }
             loadSelectedDockerfile();
+          }
+
+          function getSelectedEnvironment() {
+            if (!selectedEnvironmentID) return null;
+            return state.environments.find((e) => e.id === selectedEnvironmentID) || null;
           }
 
           function setDockerfileEditMode(enabled) {
@@ -2366,6 +3107,7 @@ data:
             envEditDockerfileBtn.style.display = enabled ? 'none' : '';
             envCancelDockerfileBtn.style.display = enabled ? '' : 'none';
             envBuildFromDockerfileBtn.style.display = enabled ? '' : 'none';
+            envBuildFromDockerfileBtn.textContent = creatingEnvironment ? 'Create Environment' : 'Build Revision';
           }
 
           async function loadSelectedDockerfile() {
@@ -2389,36 +3131,67 @@ data:
               dockerfileEditor.value = '';
             }
           }
+          async function loadDockerfileByBuildID(buildID) {
+            const bid = String(buildID || '').trim();
+            if (!bid) return;
+            const body = await callJSON('/api/v1/builds/' + encodeURIComponent(bid) + '/dockerfile');
+            const content = String(body.content || '');
+            dockerfileOut.textContent = content || '-';
+            dockerfileEditor.value = content;
+            if (body.gitRepository) envGitRepo.value = String(body.gitRepository);
+            if (body.gitRef) envGitRef.value = String(body.gitRef);
+            if (body.dockerfilePath) envDockerfile.value = String(body.dockerfilePath);
+            if (body.contextPath) envContext.value = String(body.contextPath);
+          }
 
           function renderWorkloadsTable() {
-            const pid = selectedProjectId();
-            const ws = state.workspaces.filter(w => !pid || w.projectId === pid);
-            const js = state.jobs.filter(j => !pid || j.projectId === pid);
-            const aps = state.apps.filter(a => !pid || a.projectId === pid);
-            const dsh = state.dashboards.filter(a => !pid || a.projectId === pid);
-            const bs = state.builds.filter(b => !pid || b.projectId === pid);
-            const rows = [];
-            ws.forEach(w => rows.push({ type: 'Workspace', name: w.name || w.id, status: w.status || 'submitted' }));
-            js.forEach(j => rows.push({ type: 'Job', name: j.name || j.jobName || j.id, status: j.status || 'submitted' }));
-            aps.forEach(a => rows.push({ type: 'App', name: a.name || a.slug || a.id, status: a.status || 'submitted' }));
-            dsh.forEach(a => rows.push({ type: 'Dashboard', name: a.name || a.slug || a.id, status: a.status || 'submitted' }));
-            bs.forEach(b => rows.push({ type: 'Build', name: b.jobName || b.destinationImage || 'build', status: b.status || 'submitted' }));
+            const rows = state.adminExecutions;
             workloadRows.innerHTML = '';
             if (rows.length === 0) {
-              workloadRows.innerHTML = '<tr><td colspan="3">' + tui('msg_no_activity_project') + '</td></tr>';
+              workloadRows.innerHTML = '<tr><td colspan="7">Aucune execution trouvee.</td></tr>';
               return;
             }
-            rows.slice(0, 24).forEach((r) => {
+            rows.forEach((r) => {
               const tr = document.createElement('tr');
-              tr.innerHTML = '<td>' + r.type + '</td><td>' + r.name + '</td><td>' + badge(r.status) + '</td>';
+              tr.innerHTML =
+                '<td><strong>' + (r.kind || '-') + '</strong></td>' +
+                '<td>' + (r.projectName || r.projectId || '-') + '</td>' +
+                '<td>' + (r.name || r.id || '-') + '</td>' +
+                '<td><code>' + (r.runtimeName || '-') + '</code></td>' +
+                '<td>' + badge(r.status || 'unknown') + '</td>' +
+                '<td><strong>' + formatDuration(r.createdAt) + '</strong><br/><span style="color:#667a98">' + formatDateTime(r.createdAt) + '</span></td>' +
+                '<td><button type="button" class="btn danger" data-stop-execution="' + (r.kind || '') + '" data-execution-id="' + (r.id || '') + '">Arreter</button></td>';
               workloadRows.appendChild(tr);
             });
+          }
+
+          function renderAdminOverview() {
+            const counts = state.adminOverview.counts || {};
+            const metrics = state.adminOverview.workloadMetrics || {};
+            adminActiveCount.textContent = String(counts.active || 0);
+            adminPodCount.textContent = String(metrics.pods || 0) + ' (' + String(metrics.pending || 0) + ' pending)';
+            adminCPUCount.textContent = String(metrics.cpuRequestMillicores || 0) + 'm';
+            adminMemoryCount.textContent = formatBytes(metrics.memoryRequestBytes || 0);
+          }
+
+          function renderAdminInventory() {
+            const users = ensureArray(state.adminInventory.users);
+            const projects = ensureArray(state.adminInventory.projects);
+            const datasets = ensureArray(state.adminInventory.datasets);
+            adminUsersCount.textContent = String(users.length);
+            adminProjectsCount.textContent = String(projects.length);
+            adminDatasetsCount.textContent = String(datasets.length);
+            adminUserRows.innerHTML = users.map((u) => '<tr><td><strong>' + (u.username || u.id || '-') + '</strong></td><td>' + (u.email || '-') + '</td><td>' + badge(u.enabled === false ? 'disabled' : 'enabled') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun utilisateur.</td></tr>';
+            adminProjectRows.innerHTML = projects.map((p) => '<tr><td><strong>' + (p.name || p.id || '-') + '</strong></td><td>' + formatDateTime(p.createdAt) + '</td></tr>').join('') || '<tr><td colspan="2">Aucun projet.</td></tr>';
+            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + (d.ownerUserId || '-') + '</td><td>' + badge(d.classification || 'non-hds') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
           function renderProjectContext() {
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
-            // project detail is now shown in card/list context only
+            projectActiveName.textContent = p ? (p.name || p.id || '-') : 'Aucun projet selectionne';
+            projectActiveId.textContent = p ? (p.id || '-') : '-';
+            projectScope.classList.toggle('is-empty', !p);
           }
 
           function renderProjectResourceSelectors() {
@@ -2460,7 +3233,7 @@ data:
               availableDatasets.forEach((d) => {
                 const opt = document.createElement('option');
                 opt.value = d.id || '';
-                opt.textContent = (d.name || d.id) + ' (' + (d.bucket || '-') + ')';
+                opt.textContent = (d.name || d.id) + ' [' + (d.classification || 'non-hds') + '] (' + (d.provider || 'minio') + ')';
                 attachDatasetSelect.appendChild(opt);
               });
             }
@@ -2500,14 +3273,16 @@ data:
             projectDatasourceRows.innerHTML = '';
 
             if (state.projectDatasets.length === 0) {
-              projectDatasetRows.innerHTML = '<tr><td colspan="4">' + tui('msg_dataset_attached_none') + '</td></tr>';
+              projectDatasetRows.innerHTML = '<tr><td colspan="5">' + tui('msg_dataset_attached_none') + '</td></tr>';
             } else {
               state.projectDatasets.forEach((d) => {
+                const classification = String(d.classification || 'non-hds').toLowerCase();
                 const tr = document.createElement('tr');
                 tr.innerHTML =
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
-                  '<td><code>' + (d.bucket || '-') + '</code></td>' +
-                  '<td><code>' + (d.prefix || '-') + '</code></td>' +
+                  '<td>' + badge(classification) + '</td>' +
+                  '<td><code>' + (d.provider || 'minio') + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
+                  '<td>' + (d.ownerUserId || '-') + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
                 projectDatasetRows.appendChild(tr);
               });
@@ -2550,6 +3325,7 @@ data:
             renderProjectResourcesTable();
             renderSecretsTable();
             renderDatasetsTable();
+            renderDatasetAccessTable();
             renderRepositoriesTable();
             renderDatasourcesTable();
             renderSecretOptions();
@@ -2591,6 +3367,25 @@ data:
             return body;
           }
 
+          async function refreshAdminExecutions() {
+            const body = await callJSON('/api/v1/admin/executions');
+            state.adminExecutions = ensureArray(body.items);
+            renderWorkloadsTable();
+            return body;
+          }
+
+          async function refreshAdminOverview() {
+            state.adminOverview = await callJSON('/api/v1/admin/overview');
+            renderAdminOverview();
+            return state.adminOverview;
+          }
+
+          async function refreshAdminInventory() {
+            state.adminInventory = await callJSON('/api/v1/admin/inventory');
+            renderAdminInventory();
+            return state.adminInventory;
+          }
+
           async function refreshJobs() {
             const pid = selectedProjectId();
             const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
@@ -2630,6 +3425,33 @@ data:
             state.datasets = ensureArray(body.items);
             renderAll();
             return body;
+          }
+
+          async function refreshDatasetObjects(datasetID) {
+            const id = String(datasetID || selectedDatasetID || '').trim();
+            if (!id) {
+              state.datasetObjects = [];
+              renderDatasetObjectsTable();
+              return { items: [] };
+            }
+            const body = await callJSON('/api/v1/datasets/' + encodeURIComponent(id) + '/objects');
+            state.datasetObjects = ensureArray(body.items);
+            renderDatasetObjectsTable();
+            return body;
+          }
+
+          async function refreshDatasetAccess(datasetID) {
+            const id = String(datasetID || selectedDatasetID || '').trim();
+            if (!id) {
+              state.datasetAccess = [];
+              state.datasetCanManageAccess = false;
+              renderDatasetAccessTable();
+              return;
+            }
+            const body = await callJSON('/api/v1/datasets/' + encodeURIComponent(id) + '/access');
+            state.datasetAccess = ensureArray(body.items);
+            state.datasetCanManageAccess = !!body.canManage;
+            renderDatasetAccessTable();
           }
 
           async function refreshRepositories() {
@@ -2713,10 +3535,9 @@ data:
           return false;
         } catch (err) {
           pretty(usersOut, { loginError: String(err) });
-          setMeta('Keycloak login error');
+          setIdentityDisplayMode('signed-out');
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
-        setMeta('Lab mode active as ' + currentLabUser());
         return false;
       }
 
@@ -2730,15 +3551,6 @@ data:
         if (target && target.closest && target.closest('#login')) {
           event.preventDefault();
           await triggerLogin();
-          return;
-        }
-        if (!loginBtn) return;
-        const r = loginBtn.getBoundingClientRect();
-        const x = event.clientX;
-        const y = event.clientY;
-        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-          event.preventDefault();
-          await triggerLogin();
         }
       }, true);
           logoutBtn.onclick = async () => {
@@ -2748,22 +3560,37 @@ data:
               keycloak.logout({ redirectUri: window.location.origin + '/' });
               return;
             }
-            setMeta('Lab mode');
+            setIdentityDisplayMode('signed-out');
           };
 
-          usersBtn.onclick = async () => {
-            try { pretty(usersOut, await callJSON('/api/v1/admin/users')); }
-            catch (e) { pretty(usersOut, e); }
-          };
-
-          modulesBtn.onclick = async () => {
-            try { pretty(modulesOut, await callJSON('/api/v1/admin/modules')); }
-            catch (e) { pretty(modulesOut, e); }
-          };
-
-          auditBtn.onclick = async () => {
-            try { pretty(auditOut, await callJSON('/api/v1/admin/audit?limit=200')); }
-            catch (e) { pretty(auditOut, e); }
+          downloadAuditBtn.onclick = async () => {
+            try {
+              downloadAuditBtn.disabled = true;
+              await ensureWebSession();
+              const response = await fetch('/api/v1/admin/audit.csv', {
+                method: 'GET',
+                headers: authHeader(),
+                credentials: 'same-origin',
+                cache: 'no-store'
+              });
+              if (!response.ok) {
+                const error = await response.json().catch(() => ({ error: 'audit export failed: HTTP ' + response.status }));
+                throw error;
+              }
+              const blob = await response.blob();
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'noryx-audit.csv';
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) {
+              pretty(auditOut, e);
+            } finally {
+              downloadAuditBtn.disabled = false;
+            }
           };
 
           loadProjectsBtn.onclick = async () => {
@@ -2958,24 +3785,50 @@ data:
 
           createDatasetBtn.onclick = async () => {
             try {
+              const external = datasetModeInput && datasetModeInput.value === 'external';
               const payload = {
                 name: datasetNameInput.value.trim(),
-                description: datasetDescriptionInput.value.trim()
+                description: datasetDescriptionInput.value.trim(),
+                classification: (datasetClassificationInput && datasetClassificationInput.value) || 'non-hds',
+                provider: external ? ((datasetProviderInput && datasetProviderInput.value) || 's3') : 'minio',
+                bucket: external ? ((datasetBucketInput && datasetBucketInput.value.trim()) || '') : '',
+                endpoint: external ? ((datasetEndpointInput && datasetEndpointInput.value.trim()) || '') : '',
+                region: external ? ((datasetRegionInput && datasetRegionInput.value.trim()) || '') : '',
+                prefix: external ? ((datasetPrefixInput && datasetPrefixInput.value.trim()) || '') : '',
+                accessKey: external ? ((datasetAccessKeyInput && datasetAccessKeyInput.value.trim()) || '') : '',
+                secretKey: external ? ((datasetSecretKeyInput && datasetSecretKeyInput.value) || '') : ''
               };
               if (!payload.name) throw { error: tui('err_dataset_required') };
-              await callJSON('/api/v1/datasets', {
+              if (!external && payload.classification === 'hds') throw { error: 'Un dataset HDS doit utiliser un bucket S3 externe dédié.' };
+              if (external && (!payload.endpoint || !payload.bucket || !payload.accessKey || !payload.secretKey)) throw { error: 'Endpoint, bucket, access key et secret key sont obligatoires.' };
+              const created = await callJSON('/api/v1/datasets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
+              selectedDatasetID = created.id || selectedDatasetID;
               datasetNameInput.value = '';
               datasetDescriptionInput.value = '';
+              if (datasetBucketInput) datasetBucketInput.value = '';
+              if (datasetEndpointInput) datasetEndpointInput.value = '';
+              if (datasetRegionInput) datasetRegionInput.value = '';
+              if (datasetPrefixInput) datasetPrefixInput.value = '';
+              if (datasetAccessKeyInput) datasetAccessKeyInput.value = '';
+              if (datasetSecretKeyInput) datasetSecretKeyInput.value = '';
               await refreshDatasets();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
             }
           };
+
+          if (datasetModeInput) {
+            datasetModeInput.onchange = () => {
+              const external = datasetModeInput.value === 'external';
+              if (datasetExternalFields) datasetExternalFields.style.display = external ? '' : 'none';
+              if (!external && datasetClassificationInput) datasetClassificationInput.value = 'non-hds';
+            };
+          }
 
           refreshDataBtn.onclick = async () => {
             try {
@@ -2989,9 +3842,12 @@ data:
           uploadDatasetObjectBtn.onclick = async () => {
             try {
               const datasetID = (datasetUploadTarget.value || '').trim();
-              const objectPath = (datasetUploadPathInput.value || '').trim();
               const file = datasetUploadFileInput.files && datasetUploadFileInput.files[0];
-              if (!datasetID || !objectPath || !file) throw { error: tui('err_dataset_upload_required') };
+              const objectPath = (datasetUploadPathInput.value || '').trim() || (file && file.name) || '';
+              if (!datasetID || !objectPath || !file) throw { error: 'Selectionnez un fichier a televerser.' };
+              uploadDatasetObjectBtn.disabled = true;
+              datasetUploadStatus.style.display = '';
+              datasetUploadStatus.textContent = 'Televersement de ' + file.name + ' en cours...';
               if ((keycloak && keycloak.authenticated)) {
                 try { await keycloak.updateToken(30); } catch (_) {}
               }
@@ -3005,12 +3861,17 @@ data:
               });
               const body = await res.json().catch(() => ({}));
               if (!res.ok) throw body;
-              pretty(usersOut, body);
               datasetUploadPathInput.value = '';
               datasetUploadFileInput.value = '';
+              selectedDatasetID = datasetID;
+              await refreshDatasetObjects(datasetID);
+              datasetUploadStatus.textContent = file.name + ' a ete televerse avec succes.';
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              datasetUploadStatus.style.display = '';
+              datasetUploadStatus.textContent = 'Echec du televersement : ' + String((e && e.error) || e || 'erreur inconnue');
+            } finally {
+              const selected = state.datasets.find((d) => d.id === selectedDatasetID);
+              uploadDatasetObjectBtn.disabled = !(selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser()));
             }
           };
 
@@ -3208,11 +4069,20 @@ data:
             try {
               const projectId = selectedProjectId();
               if (!projectId) throw { error: tui('err_select_project_first') };
+              if (creatingEnvironment) {
+                const rawName = String((envNameInput && envNameInput.value) || '').trim();
+                const normalized = rawName.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+                if (!normalized) throw { error: 'environment name required' };
+                if (!String(envDestination.value || '').trim()) {
+                  envDestination.value = 'harbor.lan/noryx-environments/' + normalized + ':0.1.0';
+                }
+              }
               const payload = {
                 projectId,
                 gitRepository: envGitRepo.value.trim(),
                 gitRef: envGitRef.value.trim() || 'main',
                 dockerfilePath: envDockerfile.value.trim() || 'Dockerfile',
+                dockerfileContent: dockerfileEditor.value,
                 contextPath: envContext.value.trim(),
                 destinationImage: envDestination.value.trim()
               };
@@ -3234,24 +4104,69 @@ data:
           };
 
           environmentRows.onclick = async (event) => {
+            const deleteEnvID = (event.target && event.target.getAttribute && event.target.getAttribute('data-del-env')) || '';
+            if (deleteEnvID) {
+              event.preventDefault();
+              event.stopPropagation();
+              const env = state.environments.find((e) => String(e.id || '') === decodeURIComponent(deleteEnvID));
+              const image = String((env && env.destinationImage) || '');
+              const name = String((env && env.name) || '');
+              const looksSystem = String((env && env.category) || '').toLowerCase() === 'system' ||
+                /(^|\/)(system|base|core)(\/|:|$)/i.test(image) || /^system[-_]/i.test(name);
+              if (looksSystem) {
+                const token = prompt('System environment detected. Type DELETE to confirm permanent removal:');
+                if (token !== 'DELETE') return;
+              } else {
+                if (!confirm('Delete this environment image and all related builds?')) return;
+              }
+              try {
+                await callJSON('/api/v1/environments/' + deleteEnvID, { method: 'DELETE' });
+                if (decodeURIComponent(deleteEnvID) === selectedEnvironmentID) {
+                  selectedEnvironmentID = '';
+                  selectedEnvironmentBuildID = '';
+                }
+                await Promise.all([refreshBuilds(), refreshEnvironments()]);
+                if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
+                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory()]);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+              return;
+            }
             const selectNode = event.target && event.target.closest ? event.target.closest('[data-select]') : null;
             const selectID = selectNode ? selectNode.getAttribute('data-select') : '';
 
             if (selectID) {
               event.preventDefault();
               event.stopPropagation();
+              creatingEnvironment = false;
               selectedEnvironmentID = decodeURIComponent(selectID);
               selectedEnvironmentBuildID = '';
               setDockerfileEditMode(false);
               renderEnvironmentsTable();
-              if (envDetailCard && envDetailCard.scrollIntoView) {
-                envDetailCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
               return;
             }
           };
 
           envRevisionRows.onclick = async (event) => {
+            const deleteBuildID = (event.target && event.target.getAttribute('data-del-build')) || '';
+            if (deleteBuildID) {
+              event.preventDefault();
+              event.stopPropagation();
+              if (!confirm('Delete this build revision?')) return;
+              try {
+                await callJSON('/api/v1/builds/' + deleteBuildID, { method: 'DELETE' });
+                if (decodeURIComponent(deleteBuildID) === selectedEnvironmentBuildID) {
+                  selectedEnvironmentBuildID = '';
+                }
+                await Promise.all([refreshBuilds(), refreshEnvironments()]);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+              return;
+            }
             const revisionID = (event.target && event.target.getAttribute('data-select-revision')) ||
               (event.target && event.target.parentElement && event.target.parentElement.getAttribute && event.target.parentElement.getAttribute('data-select-revision'));
             if (!revisionID) return;
@@ -3268,14 +4183,58 @@ data:
               await loadSelectedDockerfile();
             };
           }
+          if (envDeleteImageBtn) {
+            envDeleteImageBtn.onclick = async () => {
+              if (!selectedEnvironmentID) return;
+              if (!confirm('Delete this environment image from registry and remove related builds?')) return;
+              try {
+                await callJSON('/api/v1/environments/' + encodeURIComponent(selectedEnvironmentID), { method: 'DELETE' });
+                selectedEnvironmentID = '';
+                selectedEnvironmentBuildID = '';
+                await Promise.all([refreshBuilds(), refreshEnvironments()]);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              }
+            };
+          }
+          if (envCleanupCanceledBtn) {
+            envCleanupCanceledBtn.onclick = async () => {
+              const env = getSelectedEnvironment();
+              if (!env || !Array.isArray(env.revisions)) return;
+              const canceled = env.revisions.filter((r) => String(r.status || '').toLowerCase() === 'canceled');
+              if (canceled.length === 0) return;
+              if (!confirm('Delete ' + canceled.length + ' canceled build(s)?')) return;
+              const initialLabel = envCleanupCanceledBtn.textContent;
+              envCleanupCanceledBtn.disabled = true;
+              envCleanupCanceledBtn.textContent = 'Cleaning...';
+              try {
+                for (const rev of canceled) {
+                  const bid = String(rev.buildId || rev.id || '').trim();
+                  if (!bid) continue;
+                  await callJSON('/api/v1/builds/' + encodeURIComponent(bid), { method: 'DELETE' });
+                }
+                selectedEnvironmentBuildID = '';
+                await Promise.all([refreshBuilds(), refreshEnvironments()]);
+              } catch (e) {
+                pretty(usersOut, e);
+                switchTab('ops');
+              } finally {
+                envCleanupCanceledBtn.disabled = false;
+                envCleanupCanceledBtn.textContent = initialLabel;
+              }
+            };
+          }
           if (envEditDockerfileBtn) {
             envEditDockerfileBtn.onclick = async () => {
+              creatingEnvironment = false;
               await loadSelectedDockerfile();
               setDockerfileEditMode(true);
             };
           }
           if (envCancelDockerfileBtn) {
             envCancelDockerfileBtn.onclick = async () => {
+              creatingEnvironment = false;
               setDockerfileEditMode(false);
               await loadSelectedDockerfile();
             };
@@ -3300,6 +4259,7 @@ data:
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload)
                 });
+                creatingEnvironment = false;
                 setDockerfileEditMode(false);
                 selectedEnvironmentBuildID = '';
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
@@ -3364,6 +4324,20 @@ data:
                 pretty(usersOut, e);
                 switchTab('ops');
               }
+            }
+          };
+
+          workloadRows.onclick = async (event) => {
+            const kind = event.target && event.target.getAttribute('data-stop-execution');
+            const executionID = event.target && event.target.getAttribute('data-execution-id');
+            if (!kind || !executionID) return;
+            if (!window.confirm('Arreter cette execution ?')) return;
+            try {
+              await callJSON('/api/v1/admin/executions/' + encodeURIComponent(kind) + '/' + encodeURIComponent(executionID), { method: 'DELETE' });
+              await refreshAdminExecutions();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
             }
           };
 
@@ -3458,16 +4432,141 @@ data:
           };
 
           datasetRows.onclick = async (event) => {
+            if (!datasetRows) return;
             const datasetID = (event.target && event.target.getAttribute('data-del-dataset'));
-            if (!datasetID) return;
+            const selectNode = event.target && event.target.closest ? event.target.closest('[data-select-dataset]') : null;
+            const selectID = selectNode ? selectNode.getAttribute('data-select-dataset') : '';
+            if (!datasetID && !selectID) return;
             try {
-              await callJSON('/api/v1/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
-              await refreshDatasets();
+              if (datasetID) {
+                event.preventDefault();
+                event.stopPropagation();
+                await callJSON('/api/v1/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
+                if (selectedDatasetID === datasetID) {
+                  selectedDatasetID = '';
+                  state.datasetObjects = [];
+                }
+                await refreshDatasets();
+                return;
+              }
+              selectedDatasetID = selectID;
+              renderDatasetsTable();
+              await Promise.all([refreshDatasetObjects(selectID), refreshDatasetAccess(selectID)]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
             }
           };
+
+          datasetAccessSave.onclick = async () => {
+            try {
+              const userID = datasetAccessUser.value.trim();
+              if (!selectedDatasetID || !userID) return;
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + encodeURIComponent(userID), {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: datasetAccessRole.value })
+              });
+              datasetAccessUser.value = '';
+              await refreshDatasetAccess(selectedDatasetID);
+            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
+          datasetAccessRows.onclick = async (event) => {
+            const userID = event.target && event.target.getAttribute('data-del-dataset-access');
+            if (!userID || !selectedDatasetID) return;
+            try {
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + userID, { method: 'DELETE' });
+              await refreshDatasetAccess(selectedDatasetID);
+            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
+          async function fetchDatasetFile(pathValue) {
+            const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + pathValue, { headers: authHeader(), cache: 'no-store' });
+            if (!response.ok) throw await response.json().catch(() => ({ error: 'file request failed' }));
+            return response;
+          }
+
+          datasetObjectRows.onclick = async (event) => {
+            const previewPath = event.target && event.target.getAttribute('data-preview-dataset-file');
+            const downloadPath = event.target && event.target.getAttribute('data-download-dataset-file');
+            const editPath = event.target && event.target.getAttribute('data-edit-dataset-file');
+            if (!previewPath && !downloadPath && !editPath) return;
+            try {
+              const encodedPath = previewPath || downloadPath || editPath;
+              const filePath = decodeURIComponent(encodedPath);
+              const response = await fetchDatasetFile(encodedPath);
+              const blob = await response.blob();
+              const url = URL.createObjectURL(blob);
+              if (downloadPath) {
+                const link = document.createElement('a'); link.href = url; link.download = filePath.split('/').pop(); link.click();
+                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                return;
+              }
+              datasetPreview.style.display = '';
+              datasetPreviewTitle.textContent = 'Apercu · ' + filePath;
+              datasetPreviewBody.innerHTML = '';
+              const lower = filePath.toLowerCase();
+              const visual = datasetFileVisual(filePath, blob.type);
+              const selected = state.datasets.find((d) => d.id === selectedDatasetID);
+              const canEdit = visual.editable && !!selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser());
+              datasetPreviewPath = filePath;
+              datasetPreviewContentType = blob.type || (visual.kind === 'csv' ? 'text/csv' : 'text/plain');
+              datasetPreviewEdit.style.display = canEdit ? '' : 'none';
+              datasetPreviewSave.style.display = 'none';
+              datasetPreviewCancel.style.display = 'none';
+              if (blob.type.startsWith('image/')) {
+                datasetPreviewBody.innerHTML = '<img src="' + url + '" alt="" />';
+              } else if (blob.type === 'application/pdf' || lower.endsWith('.pdf')) {
+                datasetPreviewBody.innerHTML = '<iframe src="' + url + '"></iframe>';
+              } else if (visual.kind === 'csv') {
+                datasetPreviewText = await blob.text(); renderCSVPreview(datasetPreviewText); URL.revokeObjectURL(url);
+              } else if (visual.kind === 'text') {
+                datasetPreviewText = await blob.text(); const pre = document.createElement('pre'); pre.textContent = datasetPreviewText; datasetPreviewBody.appendChild(pre); URL.revokeObjectURL(url);
+              } else {
+                URL.revokeObjectURL(url);
+                datasetPreviewBody.textContent = /\.(xlsx?|ods)$/i.test(lower)
+                  ? 'Apercu et edition XLSX/ODS non disponibles actuellement. Utilisez Telecharger.'
+                  : 'Apercu non disponible pour ce format. Utilisez Telecharger.';
+              }
+              datasetPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              if (editPath && canEdit) datasetPreviewEdit.click();
+            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+          };
+
+          datasetDownloadSelected.onclick = async () => {
+            try {
+              const paths = Array.from(datasetObjectRows.querySelectorAll('[data-dataset-file-select]:checked')).map((node) => decodeURIComponent(node.getAttribute('data-dataset-file-select')));
+              if (paths.length === 0) throw { error: 'Selectionnez au moins un fichier.' };
+              const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/download', { method:'POST', headers:{ ...authHeader(), 'Content-Type':'application/json' }, body:JSON.stringify({ paths }) });
+              if (!response.ok) throw await response.json().catch(() => ({ error:'download failed' }));
+              const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href=url; link.download='dataset-files.zip'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+          };
+          datasetPreviewEdit.onclick = () => {
+            const area = document.createElement('textarea'); area.value = datasetPreviewText; datasetPreviewBody.innerHTML = ''; datasetPreviewBody.appendChild(area);
+            datasetPreviewEdit.style.display = 'none'; datasetPreviewSave.style.display = ''; datasetPreviewCancel.style.display = '';
+          };
+          datasetPreviewSave.onclick = async () => {
+            try {
+              const area = datasetPreviewBody.querySelector('textarea'); if (!area || !datasetPreviewPath) return;
+              const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(datasetPreviewPath), {
+                method:'PUT', headers:{ ...authHeader(), 'Content-Type':datasetPreviewContentType }, body:area.value
+              });
+              if (!response.ok) throw await response.json().catch(() => ({ error:'save failed' }));
+              datasetPreviewText = area.value; datasetPreviewBody.innerHTML = '';
+              if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'csv') renderCSVPreview(datasetPreviewText);
+              else { const pre=document.createElement('pre'); pre.textContent=datasetPreviewText; datasetPreviewBody.appendChild(pre); }
+              datasetPreviewEdit.style.display = ''; datasetPreviewSave.style.display = 'none'; datasetPreviewCancel.style.display = 'none';
+              datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = datasetPreviewPath + ' a ete enregistre.';
+              await refreshDatasetObjects(selectedDatasetID);
+            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = 'Echec de l edition : ' + String((e && e.error) || e); }
+          };
+          datasetPreviewCancel.onclick = () => {
+            datasetPreviewBody.innerHTML = '';
+            if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'csv') renderCSVPreview(datasetPreviewText);
+            else { const pre=document.createElement('pre'); pre.textContent=datasetPreviewText; datasetPreviewBody.appendChild(pre); }
+            datasetPreviewEdit.style.display = ''; datasetPreviewSave.style.display = 'none'; datasetPreviewCancel.style.display = 'none';
+          };
+          datasetPreviewClose.onclick = () => { datasetPreview.style.display = 'none'; datasetPreviewBody.innerHTML = ''; datasetPreviewPath = ''; };
 
           repoRows.onclick = async (event) => {
             const repositoryIDToTest = (event.target && event.target.getAttribute('data-test-repo'));
@@ -3515,10 +4614,12 @@ data:
         keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
               if (!authenticated) {
                 stopWorkspacesAutoRefresh();
-                setMeta('Not authenticated (lab mode active as ' + currentLabUser() + ')');
+                setIdentityDisplayMode('signed-out');
+                syncAuthButtons(false);
                 applyRoleVisibility();
                 setButtons(true);
                 loadUserPreferences();
+                probeAdminAccess();
                 startWorkspacesAutoRefresh();
                 refreshProjects()
                   .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3529,10 +4630,12 @@ data:
                 switchTab('intro');
                 return;
               }
-              setMeta('Authenticated as ' + ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || (keycloak.tokenParsed && keycloak.tokenParsed.sub)));
+              setIdentityDisplayMode('oidc');
+              syncAuthButtons(true);
               applyRoleVisibility();
               setButtons(true);
               loadUserPreferences();
+              probeAdminAccess();
               startWorkspacesAutoRefresh();
               ensureWebSession()
                 .then(() => refreshProjects())
@@ -3543,12 +4646,14 @@ data:
                 });
             }).catch((err) => {
               stopWorkspacesAutoRefresh();
-              setMeta('Keycloak init error - fallback to lab mode');
+              syncAuthButtons(true);
               pretty(usersOut, { error: String(err) });
               authMode = 'lab';
+              setIdentityDisplayMode('local');
               applyRoleVisibility();
               setButtons(true);
               loadUserPreferences();
+              probeAdminAccess();
               startWorkspacesAutoRefresh();
               refreshProjects()
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3556,10 +4661,12 @@ data:
               switchTab('intro');
             });
           } else {
-            setMeta('Lab mode as ' + currentLabUser());
+            setIdentityDisplayMode('local');
+            syncAuthButtons(true);
             applyRoleVisibility();
             setButtons(true);
             loadUserPreferences();
+            probeAdminAccess();
             startWorkspacesAutoRefresh();
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -3573,7 +4680,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.70"}
+    {"version":"ce-web-0.6.116"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -3594,7 +4701,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.70
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.116
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

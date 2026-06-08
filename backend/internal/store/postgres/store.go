@@ -233,8 +233,26 @@ func (s *Store) migrate(ctx context.Context) error {
 			description TEXT NOT NULL,
 			bucket TEXT NOT NULL,
 			prefix TEXT NOT NULL,
+			provider TEXT NOT NULL DEFAULT 'minio',
+			classification TEXT NOT NULL DEFAULT 'non-hds',
+			endpoint TEXT NOT NULL DEFAULT '',
+			region TEXT NOT NULL DEFAULT '',
+			credential_name TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'minio'`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS classification TEXT NOT NULL DEFAULT 'non-hds'`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS endpoint TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS region TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_name TEXT NOT NULL DEFAULT ''`,
+		`CREATE TABLE IF NOT EXISTS dataset_access (
+			dataset_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (dataset_id, user_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS datasources (
 			id TEXT PRIMARY KEY,
@@ -613,6 +631,11 @@ func (s *Store) UpsertBuild(b build.Build) error {
 		b.Status,
 		b.CreatedAt,
 	)
+	return err
+}
+
+func (s *Store) DeleteBuild(id string) error {
+	_, err := s.db.Exec(`DELETE FROM builds WHERE id=$1`, strings.TrimSpace(id))
 	return err
 }
 
@@ -1010,7 +1033,7 @@ func (s *Store) Delete(userID, name string) error {
 }
 
 func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, description, bucket, prefix, created_at, updated_at FROM datasets WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	rows, err := s.db.Query(`SELECT d.id, d.owner_user_id, d.name, d.description, d.bucket, d.prefix, d.provider, d.classification, d.endpoint, d.region, d.credential_name, d.created_at, d.updated_at, CASE WHEN d.owner_user_id=$1 THEN 'owner' ELSE a.role END FROM datasets d LEFT JOIN dataset_access a ON a.dataset_id=d.id AND a.user_id=$1 WHERE d.owner_user_id=$1 OR a.user_id=$1 ORDER BY d.updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -1018,7 +1041,24 @@ func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []dataset.Dataset{}
+	for rows.Next() {
+		var item dataset.Dataset
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -1028,13 +1068,18 @@ func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	err := s.db.QueryRow(`SELECT id, owner_user_id, name, description, bucket, prefix, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.Name,
 		&item.Description,
 		&item.Bucket,
 		&item.Prefix,
+		&item.Provider,
+		&item.Classification,
+		&item.Endpoint,
+		&item.Region,
+		&item.CredentialName,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -1048,13 +1093,18 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 }
 
 func (s *Store) CreateDataset(item dataset.Dataset) error {
-	_, err := s.db.Exec(`INSERT INTO datasets (id, owner_user_id, name, description, bucket, prefix, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+	_, err := s.db.Exec(`INSERT INTO datasets (id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		item.ID,
 		item.OwnerUserID,
 		item.Name,
 		item.Description,
 		item.Bucket,
 		item.Prefix,
+		item.Provider,
+		item.Classification,
+		item.Endpoint,
+		item.Region,
+		item.CredentialName,
 		item.CreatedAt,
 		item.UpdatedAt,
 	)
@@ -1071,10 +1121,49 @@ func (s *Store) DeleteDataset(id string) error {
 	if _, err := tx.Exec(`DELETE FROM project_datasets WHERE dataset_id=$1`, strings.TrimSpace(id)); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`DELETE FROM datasets WHERE id=$1`, strings.TrimSpace(id)); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (s *Store) ListDatasetAccess(datasetID string) ([]dataset.Access, error) {
+	rows, err := s.db.Query(`SELECT dataset_id, user_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 ORDER BY user_id`, strings.TrimSpace(datasetID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []dataset.Access{}
+	for rows.Next() {
+		var item dataset.Access
+		if err := rows.Scan(&item.DatasetID, &item.UserID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetDatasetAccess(datasetID, userID string) (dataset.Access, bool, error) {
+	var item dataset.Access
+	err := s.db.QueryRow(`SELECT dataset_id, user_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 AND user_id=$2`, strings.TrimSpace(datasetID), strings.TrimSpace(userID)).Scan(&item.DatasetID, &item.UserID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return dataset.Access{}, false, nil
+	}
+	return item, err == nil, err
+}
+
+func (s *Store) SetDatasetAccess(item dataset.Access) error {
+	_, err := s.db.Exec(`INSERT INTO dataset_access (dataset_id,user_id,role,created_at,updated_at) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (dataset_id,user_id) DO UPDATE SET role=EXCLUDED.role,updated_at=EXCLUDED.updated_at`, item.DatasetID, item.UserID, item.Role, item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) DeleteDatasetAccess(datasetID, userID string) error {
+	_, err := s.db.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1 AND user_id=$2`, strings.TrimSpace(datasetID), strings.TrimSpace(userID))
+	return err
 }
 
 func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, error) {

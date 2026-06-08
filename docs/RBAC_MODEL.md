@@ -25,6 +25,19 @@ CE keeps the model intentionally minimal:
   - can create and use project-scoped workloads (workspaces, jobs, apps, dashboards)
   - cannot access platform admin modules
 
+### Dataset permissions
+
+Dataset permissions are independent from project roles:
+
+- `owner`: dataset paternity, read/write, delete, project assignment, and ACL management
+- `writer`: read and object upload/update
+- `reader`: read only
+
+Non-HDS ACLs are managed by the dataset owner or a global admin. HDS ACLs and
+project assignment are managed only by a global admin. Attaching a dataset to a
+project remains a separate operation because it exposes the dataset to project
+workloads.
+
 ## EE (Enterprise Edition)
 
 EE extends CE with a custom role matrix:

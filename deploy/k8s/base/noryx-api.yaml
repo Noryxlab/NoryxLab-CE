@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.75-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.97-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -26,7 +26,21 @@ spec:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
             - name: NORYX_BACKEND_VERSION
-              value: "0.5.75"
+              value: "0.5.97"
+            - name: NORYX_HARBOR_URL
+              value: "https://harbor.lan"
+            - name: NORYX_HARBOR_INSECURE_SKIP_VERIFY
+              value: "true"
+            - name: NORYX_HARBOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-api-credentials
+                  key: username
+            - name: NORYX_HARBOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: harbor-api-credentials
+                  key: password
             - name: NORYX_UI_DEFAULT_THEME
               value: "noryx"
             - name: NORYX_STORE_BACKEND
@@ -105,6 +119,8 @@ spec:
               value: "harbor.lan/noryx-environments/noryx-python:0.2.3"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
+            - name: NORYX_WORKSPACE_CPU_REQUEST
+              value: "250m"
             - name: NORYX_WORKSPACE_MEMORY
               value: "512Mi"
             - name: NORYX_WORKSPACE_EPHEMERAL_STORAGE_REQUEST

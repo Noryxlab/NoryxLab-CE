@@ -32,6 +32,7 @@ type Config struct {
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceCPU                     string
+	WorkspaceCPURequest              string
 	WorkspaceMemory                  string
 	WorkspaceEphemeralStorageRequest string
 	WorkspaceEphemeralStorageLimit   string
@@ -51,12 +52,16 @@ type Config struct {
 	MinIOSecretKey                   string
 	MinIOUseSSL                      bool
 	MinIORegion                      string
+	HarborURL                        string
+	HarborUsername                   string
+	HarborPassword                   string
+	HarborInsecureSkipVerify         bool
 }
 
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.67"
+		backendVersion = "0.5.97"
 	}
 	defaultTheme := os.Getenv("NORYX_UI_DEFAULT_THEME")
 	if defaultTheme == "" {
@@ -133,6 +138,10 @@ func Load() Config {
 	if workspaceCPU == "" {
 		workspaceCPU = "500m"
 	}
+	workspaceCPURequest := os.Getenv("NORYX_WORKSPACE_CPU_REQUEST")
+	if workspaceCPURequest == "" {
+		workspaceCPURequest = "250m"
+	}
 	workspaceMemory := os.Getenv("NORYX_WORKSPACE_MEMORY")
 	if workspaceMemory == "" {
 		workspaceMemory = "512Mi"
@@ -197,6 +206,10 @@ func Load() Config {
 	if minioRegion == "" {
 		minioRegion = "us-east-1"
 	}
+	harborURL := os.Getenv("NORYX_HARBOR_URL")
+	if harborURL == "" {
+		harborURL = "https://harbor.lan"
+	}
 
 	return Config{
 		BackendVersion:                   backendVersion,
@@ -228,6 +241,7 @@ func Load() Config {
 		WorkspaceJupyterImage:            workspaceJupyterImage,
 		WorkspaceVSCodeImage:             workspaceVSCodeImage,
 		WorkspaceCPU:                     workspaceCPU,
+		WorkspaceCPURequest:              workspaceCPURequest,
 		WorkspaceMemory:                  workspaceMemory,
 		WorkspaceEphemeralStorageRequest: workspaceEphemeralStorageRequest,
 		WorkspaceEphemeralStorageLimit:   workspaceEphemeralStorageLimit,
@@ -247,5 +261,9 @@ func Load() Config {
 		MinIOSecretKey:                   os.Getenv("NORYX_MINIO_SECRET_KEY"),
 		MinIOUseSSL:                      os.Getenv("NORYX_MINIO_USE_SSL") == "true",
 		MinIORegion:                      minioRegion,
+		HarborURL:                        harborURL,
+		HarborUsername:                   os.Getenv("NORYX_HARBOR_USERNAME"),
+		HarborPassword:                   os.Getenv("NORYX_HARBOR_PASSWORD"),
+		HarborInsecureSkipVerify:         os.Getenv("NORYX_HARBOR_INSECURE_SKIP_VERIFY") == "true",
 	}
 }

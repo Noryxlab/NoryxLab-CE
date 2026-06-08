@@ -1,36 +1,106 @@
 package handlers
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type createDatasetRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Bucket      string `json:"bucket"`
-	Prefix      string `json:"prefix"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Bucket         string `json:"bucket"`
+	Prefix         string `json:"prefix"`
+	Provider       string `json:"provider"`
+	Classification string `json:"classification"`
+	Endpoint       string `json:"endpoint"`
+	Region         string `json:"region"`
+	AccessKey      string `json:"accessKey"`
+	SecretKey      string `json:"secretKey"`
+}
+
+type datasetS3Credential struct {
+	AccessKey string `json:"accessKey"`
+	SecretKey string `json:"secretKey"`
+}
+
+type datasetObjectItem struct {
+	Path         string    `json:"path"`
+	Key          string    `json:"key"`
+	Size         int64     `json:"size"`
+	LastModified time.Time `json:"lastModified"`
+	ContentType  string    `json:"contentType,omitempty"`
+}
+
+type setDatasetAccessRequest struct {
+	Role string `json:"role"`
+}
+type downloadDatasetObjectsRequest struct {
+	Paths []string `json:"paths"`
+}
+
+func datasetObjectKey(item dataset.Dataset, objectPath string) (string, string) {
+	rel := strings.TrimPrefix(path.Clean("/"+strings.TrimSpace(objectPath)), "/")
+	key := rel
+	if item.Prefix != "" {
+		key = strings.Trim(item.Prefix, "/") + "/" + rel
+	}
+	return rel, key
+}
+
+func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) string {
+	if strings.EqualFold(item.OwnerUserID, identity.UserID()) {
+		return "owner"
+	}
+	access, found, err := h.datasetStore.GetAccess(item.ID, identity.UserID())
+	if err == nil && found {
+		return access.Role
+	}
+	return ""
+}
+
+func (h Handlers) canReadDataset(item dataset.Dataset, identity auth.Identity) bool {
+	return h.isGlobalAdmin(identity) || h.datasetRole(item, identity) != ""
+}
+
+func (h Handlers) canWriteDataset(item dataset.Dataset, identity auth.Identity) bool {
+	role := h.datasetRole(item, identity)
+	return h.isGlobalAdmin(identity) || role == "owner" || role == "writer"
+}
+
+func (h Handlers) canManageDatasetAccess(item dataset.Dataset, identity auth.Identity) bool {
+	if item.Classification == "hds" {
+		return h.isGlobalAdmin(identity)
+	}
+	return h.isGlobalAdmin(identity) || strings.EqualFold(item.OwnerUserID, identity.UserID())
 }
 
 var bucketNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
 
 func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	items, err := h.datasetStore.ListByUser(userID)
+	items, err := h.datasetStore.ListByUser(identity.UserID())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return
@@ -39,10 +109,11 @@ func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	var req createDatasetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
@@ -53,7 +124,37 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
 		return
 	}
-	item := dataset.New(userID, req.Name, req.Description, req.Bucket, req.Prefix)
+	req.Provider = strings.ToLower(strings.TrimSpace(req.Provider))
+	req.Classification = strings.ToLower(strings.TrimSpace(req.Classification))
+	if req.Provider == "" {
+		req.Provider = "minio"
+	}
+	if req.Provider != "minio" && req.Provider != "s3" && req.Provider != "clever-cloud" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "provider must be minio, s3, or clever-cloud"})
+		return
+	}
+	if req.Classification != "hds" {
+		req.Classification = "non-hds"
+	}
+	if req.Classification == "hds" && !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to register an HDS dataset"})
+		return
+	}
+	if req.Provider == "minio" && req.Classification == "hds" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "HDS datasets must use a dedicated external S3 connection"})
+		return
+	}
+	if req.Provider != "minio" {
+		if strings.TrimSpace(req.Bucket) == "" || strings.TrimSpace(req.Endpoint) == "" || strings.TrimSpace(req.AccessKey) == "" || strings.TrimSpace(req.SecretKey) == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "endpoint, bucket, accessKey, and secretKey are required for external S3 datasets"})
+			return
+		}
+		if strings.TrimSpace(h.secretsMasterKey) == "" {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "secrets encryption key is not configured"})
+			return
+		}
+	}
+	item := dataset.New(userID, req.Name, req.Description, req.Bucket, req.Prefix, req.Provider, req.Classification, req.Endpoint, req.Region)
 	if item.Bucket == "" {
 		item.Bucket = "noryx-ds-" + sanitizeK8sName(item.ID)
 	}
@@ -61,23 +162,59 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid bucket name"})
 		return
 	}
-	if h.minioClient != nil {
+	client := h.minioClient
+	region := h.minioRegion
+	var err error
+	var credentialItem secret.Secret
+	if item.Provider != "minio" {
+		client, err = newDedicatedDatasetS3Client(item.Endpoint, item.Region, req.AccessKey, req.SecretKey)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		region = item.Region
+	}
+	if client != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
-		exists, err := h.minioClient.BucketExists(ctx, item.Bucket)
+		exists, err := client.BucketExists(ctx, item.Bucket)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset bucket check failed: " + err.Error()})
 			return
 		}
-		if !exists {
-			err = h.minioClient.MakeBucket(ctx, item.Bucket, minio.MakeBucketOptions{Region: h.minioRegion})
+		if !exists && item.Provider == "minio" {
+			err = client.MakeBucket(ctx, item.Bucket, minio.MakeBucketOptions{Region: region})
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset bucket creation failed: " + err.Error()})
 				return
 			}
+		} else if !exists {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "external S3 bucket does not exist or is not accessible with the configured service profile"})
+			return
+		}
+	}
+	if item.Provider != "minio" {
+		credentialPayload, err := json.Marshal(datasetS3Credential{AccessKey: req.AccessKey, SecretKey: req.SecretKey})
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to prepare S3 credentials"})
+			return
+		}
+		encrypted, err := security.EncryptString(h.secretsMasterKey, string(credentialPayload))
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt S3 credentials"})
+			return
+		}
+		item.CredentialName = "dataset-s3-" + item.ID
+		credentialItem = secret.New(userID, item.CredentialName, "dataset-s3", encrypted)
+		if err := h.secretStore.Upsert(credentialItem); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store encrypted S3 credentials"})
+			return
 		}
 	}
 	if err := h.datasetStore.Create(item); err != nil {
+		if item.CredentialName != "" {
+			_ = h.secretStore.Delete(userID, item.CredentialName)
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create dataset"})
 		return
 	}
@@ -85,12 +222,8 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
-		return
-	}
-	if h.minioClient == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "object storage is not configured"})
 		return
 	}
 	datasetID := strings.TrimSpace(r.PathValue("datasetID"))
@@ -105,8 +238,13 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	if !found || !h.canWriteDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
 	fullKey := objectPath
@@ -124,12 +262,259 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	_, err = h.minioClient.PutObject(ctx, item.Bucket, fullKey, bytes.NewReader(payload), int64(len(payload)), minio.PutObjectOptions{ContentType: contentType})
+	_, err = client.PutObject(ctx, item.Bucket, fullKey, bytes.NewReader(payload), int64(len(payload)), minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset upload failed: " + err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": len(payload)})
+}
+
+func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	datasetID := strings.TrimSpace(r.PathValue("datasetID"))
+	if datasetID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasetID is required"})
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(datasetID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+
+	prefix := strings.Trim(item.Prefix, "/")
+	if prefix != "" {
+		prefix += "/"
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	objects := []datasetObjectItem{}
+	for obj := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+		if obj.Err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object listing failed: " + obj.Err.Error()})
+			return
+		}
+		relPath := obj.Key
+		if prefix != "" && strings.HasPrefix(relPath, prefix) {
+			relPath = strings.TrimPrefix(relPath, prefix)
+		}
+		if relPath == "" {
+			continue
+		}
+		objects = append(objects, datasetObjectItem{
+			Path:         relPath,
+			Key:          obj.Key,
+			Size:         obj.Size,
+			LastModified: obj.LastModified,
+			ContentType:  obj.ContentType,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": objects})
+}
+
+func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if item.Classification == "hds" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
+		return
+	}
+	rel, key := datasetObjectKey(item, r.PathValue("path"))
+	if rel == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+	obj, err := client.GetObject(ctx, item.Bucket, key, minio.GetObjectOptions{})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset download failed"})
+		return
+	}
+	defer obj.Close()
+	info, err := obj.Stat()
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset object not found"})
+		return
+	}
+	contentType := info.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
+	w.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
+	_, _ = io.Copy(w, obj)
+}
+
+func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if item.Classification == "hds" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "HDS dataset ZIP download is disabled"})
+		return
+	}
+	var req downloadDatasetObjectsRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil || len(req.Paths) == 0 || len(req.Paths) > 100 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "between 1 and 100 paths are required"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+sanitizeK8sName(item.Name)+`-files.zip"`)
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
+	defer cancel()
+	for _, requested := range req.Paths {
+		rel, key := datasetObjectKey(item, requested)
+		if rel == "" {
+			continue
+		}
+		obj, err := client.GetObject(ctx, item.Bucket, key, minio.GetObjectOptions{})
+		if err != nil {
+			continue
+		}
+		entry, err := zw.Create(rel)
+		if err == nil {
+			_, _ = io.Copy(entry, obj)
+		}
+		obj.Close()
+	}
+}
+
+func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, 404, map[string]string{"error": "dataset not found"})
+		return
+	}
+	items, err := h.datasetStore.ListAccess(item.ID)
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to list dataset permissions"})
+		return
+	}
+	owner := dataset.Access{DatasetID: item.ID, UserID: item.OwnerUserID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	writeJSON(w, 200, map[string]any{"items": append([]dataset.Access{owner}, items...), "canManage": h.canManageDatasetAccess(item, identity)})
+}
+
+func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found {
+		writeJSON(w, 404, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canManageDatasetAccess(item, identity) {
+		writeJSON(w, 403, map[string]string{"error": "dataset owner or global admin required"})
+		return
+	}
+	userID := strings.TrimSpace(r.PathValue("userID"))
+	var req setDatasetAccessRequest
+	if userID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, 400, map[string]string{"error": "userID and valid role are required"})
+		return
+	}
+	req.Role = strings.ToLower(strings.TrimSpace(req.Role))
+	if req.Role != "reader" && req.Role != "writer" {
+		writeJSON(w, 400, map[string]string{"error": "role must be reader or writer"})
+		return
+	}
+	if strings.EqualFold(userID, item.OwnerUserID) {
+		writeJSON(w, 400, map[string]string{"error": "owner role cannot be changed"})
+		return
+	}
+	now := time.Now().UTC()
+	access := dataset.Access{DatasetID: item.ID, UserID: userID, Role: req.Role, CreatedAt: now, UpdatedAt: now}
+	if existing, exists, _ := h.datasetStore.GetAccess(item.ID, userID); exists {
+		access.CreatedAt = existing.CreatedAt
+	}
+	if err := h.datasetStore.SetAccess(access); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to set dataset permission"})
+		return
+	}
+	writeJSON(w, 200, access)
+}
+
+func (h Handlers) DeleteDatasetAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found {
+		writeJSON(w, 404, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canManageDatasetAccess(item, identity) {
+		writeJSON(w, 403, map[string]string{"error": "dataset owner or global admin required"})
+		return
+	}
+	userID := strings.TrimSpace(r.PathValue("userID"))
+	if strings.EqualFold(userID, item.OwnerUserID) {
+		writeJSON(w, 400, map[string]string{"error": "owner permission cannot be removed"})
+		return
+	}
+	if err := h.datasetStore.DeleteAccess(item.ID, userID); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "failed to delete dataset permission"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +539,9 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 	if err := h.datasetStore.Delete(datasetID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete dataset"})
 		return
+	}
+	if item.CredentialName != "" {
+		_ = h.secretStore.Delete(item.OwnerUserID, item.CredentialName)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -191,7 +579,7 @@ func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
@@ -201,16 +589,21 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "dataset attach") {
-		return
-	}
 	item, found, err := h.datasetStore.GetByID(datasetID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	if !found {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canAssignDataset(identity, item) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": datasetAssignmentError(item)})
+		return
+	}
+	if exists, err := h.projectExists(projectID); err != nil || !exists {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
 		return
 	}
 	if err := h.projectResourceStore.AttachDataset(projectID, datasetID); err != nil {
@@ -221,7 +614,7 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
@@ -231,7 +624,17 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "dataset detach") {
+	item, found, err := h.datasetStore.GetByID(datasetID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canAssignDataset(identity, item) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": datasetAssignmentError(item)})
 		return
 	}
 	if err := h.projectResourceStore.DetachDataset(projectID, datasetID); err != nil {
@@ -239,4 +642,66 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset) bool {
+	if h.isGlobalAdmin(identity) {
+		return true
+	}
+	return item.Classification != "hds" && strings.EqualFold(strings.TrimSpace(item.OwnerUserID), strings.TrimSpace(identity.UserID()))
+}
+
+func datasetAssignmentError(item dataset.Dataset) string {
+	if item.Classification == "hds" {
+		return "global admin role required to assign an HDS dataset"
+	}
+	return "dataset owner or global admin role required to assign this dataset"
+}
+
+func (h Handlers) datasetS3Client(item dataset.Dataset) (*minio.Client, string, error) {
+	if item.Provider == "minio" {
+		if item.Classification == "hds" {
+			return nil, "", errors.New("HDS datasets cannot use the internal MinIO profile")
+		}
+		return h.minioClient, h.minioRegion, nil
+	}
+	if item.CredentialName != "" {
+		credentialItem, found, err := h.secretStore.GetByName(item.OwnerUserID, item.CredentialName)
+		if err != nil {
+			return nil, "", errors.New("failed to read dataset S3 credentials")
+		}
+		if !found {
+			return nil, "", errors.New("dataset S3 credentials are missing")
+		}
+		decrypted, err := security.DecryptString(h.secretsMasterKey, credentialItem.ValueEncrypted)
+		if err != nil {
+			return nil, "", errors.New("failed to decrypt dataset S3 credentials")
+		}
+		var credential datasetS3Credential
+		if err := json.Unmarshal([]byte(decrypted), &credential); err != nil {
+			return nil, "", errors.New("invalid dataset S3 credentials")
+		}
+		client, err := newDedicatedDatasetS3Client(item.Endpoint, item.Region, credential.AccessKey, credential.SecretKey)
+		return client, item.Region, err
+	}
+	return nil, "", errors.New("dataset-dedicated S3 credentials are not configured")
+}
+
+func newDedicatedDatasetS3Client(endpoint, region, accessKey, secretKey string) (*minio.Client, error) {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+		return nil, errors.New("external S3 endpoint must be a valid HTTPS URL")
+	}
+	return minio.New(parsed.Host, &minio.Options{
+		Creds:  credentials.NewStaticV4(strings.TrimSpace(accessKey), strings.TrimSpace(secretKey), ""),
+		Secure: true,
+		Region: strings.TrimSpace(region),
+	})
+}
+
+func datasetS3Error(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return "object storage service profile is not configured"
 }

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.75
+  version: 0.5.97
   description: |
     Noryx CE backend API contract.
 
@@ -368,7 +368,7 @@ components:
 
     Dataset:
       type: object
-      required: [id, ownerUserId, name, bucket, prefix, createdAt, updatedAt]
+      required: [id, ownerUserId, name, bucket, prefix, provider, classification, createdAt, updatedAt]
       properties:
         id: { type: string }
         ownerUserId: { type: string }
@@ -376,6 +376,22 @@ components:
         description: { type: string }
         bucket: { type: string }
         prefix: { type: string }
+        provider:
+          type: string
+          enum: [minio, s3, clever-cloud]
+        classification:
+          type: string
+          enum: [non-hds, hds]
+        endpoint:
+          type: string
+          description: External S3 endpoint. Empty for platform-managed MinIO datasets.
+        region:
+          type: string
+          description: External S3 region.
+        accessRole:
+          type: string
+          enum: [owner, writer, reader]
+          description: Effective permission of the current user.
         createdAt:
           type: string
           format: date-time
@@ -392,6 +408,41 @@ components:
           items:
             $ref: '#/components/schemas/Dataset'
 
+    DatasetObject:
+      type: object
+      required: [path, key, size, lastModified]
+      properties:
+        path: { type: string }
+        key: { type: string }
+        size:
+          type: integer
+          format: int64
+        lastModified:
+          type: string
+          format: date-time
+        contentType: { type: string }
+
+    DatasetObjectListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DatasetObject'
+
+    DatasetAccess:
+      type: object
+      required: [datasetId, userId, role, createdAt, updatedAt]
+      properties:
+        datasetId: { type: string }
+        userId: { type: string }
+        role:
+          type: string
+          enum: [owner, writer, reader]
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
     CreateDatasetRequest:
       type: object
       required: [name]
@@ -407,6 +458,26 @@ components:
         prefix:
           type: string
           example: raw/2026
+        provider:
+          type: string
+          enum: [minio, s3, clever-cloud]
+          default: minio
+        classification:
+          type: string
+          enum: [non-hds, hds]
+          default: non-hds
+        endpoint:
+          type: string
+          example: https://cellar-c2.services.clever-cloud.com
+        region:
+          type: string
+          example: custom
+        accessKey:
+          type: string
+          writeOnly: true
+        secretKey:
+          type: string
+          writeOnly: true
 
     DatasetUploadResponse:
       type: object
@@ -1092,7 +1163,64 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/v1/datasets/{datasetID}/objects:
+    get:
+      tags: [Datasets]
+      summary: List objects stored in one dataset
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dataset object list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetObjectListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '501':
+          description: Object storage not configured
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
   /api/v1/datasets/{datasetID}/objects/{path}:
+    get:
+      tags: [Datasets]
+      summary: Download or preview one non-HDS dataset object
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Object bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
     put:
       tags: [Datasets]
       summary: Upload bytes to one dataset object
@@ -1141,6 +1269,116 @@ paths:
           $ref: '#/components/responses/UpstreamError'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /api/v1/datasets/{datasetID}/download:
+    post:
+      tags: [Datasets]
+      summary: Download selected non-HDS dataset objects as ZIP
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paths]
+              properties:
+                paths:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: string }
+      responses:
+        '200':
+          description: ZIP archive
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/datasets/{datasetID}/access:
+    get:
+      tags: [Datasets]
+      summary: List effective dataset permissions
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dataset permissions
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/datasets/{datasetID}/access/{userID}:
+    put:
+      tags: [Datasets]
+      summary: Set reader or writer permission
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: userID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [reader, writer] }
+      responses:
+        '200':
+          description: Dataset permission
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DatasetAccess' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Datasets]
+      summary: Remove reader or writer permission
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: userID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Permission removed
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/v1/repositories:
     get:
@@ -1274,6 +1512,7 @@ paths:
     put:
       tags: [Datasets]
       summary: Attach dataset to project
+      description: HDS datasets require a global admin. Non-HDS datasets require their owner or a global admin.
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -1302,6 +1541,7 @@ paths:
     delete:
       tags: [Datasets]
       summary: Detach dataset from project
+      description: HDS datasets require a global admin. Non-HDS datasets require their owner or a global admin.
       security:
         - bearerAuth: []
         - xNoryxUser: []

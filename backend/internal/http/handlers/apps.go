@@ -155,7 +155,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		accessURL = "/dashboards/" + req.Slug + "/"
 	}
 
-	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID)
+	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, userID, false)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return

@@ -115,6 +115,15 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 	if len(ports) > 0 {
 		container["ports"] = ports
 	}
+	if spec.ReadinessPort > 0 {
+		container["readinessProbe"] = map[string]any{
+			"tcpSocket": map[string]any{
+				"port": spec.ReadinessPort,
+			},
+			"periodSeconds":    2,
+			"failureThreshold": 30,
+		}
+	}
 	if len(resources) > 0 {
 		container["resources"] = resources
 	}
@@ -138,6 +147,26 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			"name":      volumeName,
 			"mountPath": mountPath,
 			"readOnly":  vol.ReadOnly,
+		})
+	}
+	for i, secret := range spec.Secrets {
+		secretName := strings.TrimSpace(secret.SecretName)
+		mountPath := strings.TrimSpace(secret.MountPath)
+		if secretName == "" || mountPath == "" {
+			continue
+		}
+		volumeName := fmt.Sprintf("secret-%d", i)
+		volumes = append(volumes, map[string]any{
+			"name": volumeName,
+			"secret": map[string]any{
+				"secretName":  secretName,
+				"defaultMode": int64(0444),
+			},
+		})
+		volumeMounts = append(volumeMounts, map[string]any{
+			"name":      volumeName,
+			"mountPath": mountPath,
+			"readOnly":  true,
 		})
 	}
 	if len(volumeMounts) > 0 {
@@ -166,6 +195,34 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), payload)
 	return err
+}
+
+func (r *Runtime) CreateSecret(spec noryxruntime.SecretSpec) error {
+	if strings.TrimSpace(spec.Name) == "" {
+		return fmt.Errorf("secret name is required")
+	}
+	payload := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata": map[string]any{
+			"name":   spec.Name,
+			"labels": spec.Labels,
+		},
+		"type":       "Opaque",
+		"stringData": spec.Data,
+	}
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/secrets", r.workloadNamespace), payload)
+	if err != nil && strings.Contains(err.Error(), "status=409") {
+		return nil
+	}
+	return err
+}
+
+func (r *Runtime) DeleteSecret(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("secret name is required")
+	}
+	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/secrets/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) CreatePersistentVolumeClaim(spec noryxruntime.PersistentVolumeClaimSpec) error {
@@ -482,7 +539,7 @@ func (r *Runtime) DeleteJob(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("job name is required")
 	}
-	return r.delete(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", r.workloadNamespace, name))
+	return r.deleteWithPropagation(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
@@ -551,6 +608,67 @@ func (r *Runtime) ListServices() ([]noryxruntime.ServiceStatus, error) {
 		})
 	}
 	return out, nil
+}
+
+func (r *Runtime) GetWorkloadMetrics() (noryxruntime.WorkloadMetrics, error) {
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace))
+	if err != nil {
+		return noryxruntime.WorkloadMetrics{}, err
+	}
+	var response struct {
+		Items []struct {
+			Spec struct {
+				Containers []struct {
+					Resources struct {
+						Requests map[string]string `json:"requests"`
+					} `json:"resources"`
+				} `json:"containers"`
+			} `json:"spec"`
+			Status struct {
+				Phase string `json:"phase"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return noryxruntime.WorkloadMetrics{}, err
+	}
+	out := noryxruntime.WorkloadMetrics{Pods: len(response.Items)}
+	for _, item := range response.Items {
+		switch strings.ToLower(strings.TrimSpace(item.Status.Phase)) {
+		case "running":
+			out.Running++
+		case "pending":
+			out.Pending++
+		}
+		for _, container := range item.Spec.Containers {
+			out.CPURequestMillicores += parseCPUMillicores(container.Resources.Requests["cpu"])
+			out.MemoryRequestBytes += parseMemoryBytes(container.Resources.Requests["memory"])
+		}
+	}
+	return out, nil
+}
+
+func parseCPUMillicores(raw string) int64 {
+	raw = strings.TrimSpace(raw)
+	if strings.HasSuffix(raw, "m") {
+		value, _ := strconv.ParseInt(strings.TrimSuffix(raw, "m"), 10, 64)
+		return value
+	}
+	value, _ := strconv.ParseFloat(raw, 64)
+	return int64(value * 1000)
+}
+
+func parseMemoryBytes(raw string) int64 {
+	raw = strings.TrimSpace(raw)
+	units := map[string]float64{"Ki": 1024, "Mi": 1024 * 1024, "Gi": 1024 * 1024 * 1024, "K": 1000, "M": 1000 * 1000, "G": 1000 * 1000 * 1000}
+	for unit, multiplier := range units {
+		if strings.HasSuffix(raw, unit) {
+			value, _ := strconv.ParseFloat(strings.TrimSuffix(raw, unit), 64)
+			return int64(value * multiplier)
+		}
+	}
+	value, _ := strconv.ParseInt(raw, 10, 64)
+	return value
 }
 
 func (r *Runtime) IsServiceReady(serviceName string) (bool, error) {
@@ -935,6 +1053,30 @@ func (r *Runtime) delete(path string) error {
 	}
 	defer resp.Body.Close()
 
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+func (r *Runtime) deleteWithPropagation(path string) error {
+	body := bytes.NewBufferString(`{"apiVersion":"v1","kind":"DeleteOptions","propagationPolicy":"Background"}`)
+	req, err := http.NewRequest(http.MethodDelete, r.apiURL+path, body)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusNotFound {
 		return nil
