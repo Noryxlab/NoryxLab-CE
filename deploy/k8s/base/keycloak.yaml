@@ -17,19 +17,32 @@ spec:
         - name: harbor-regcred
       containers:
         - name: keycloak
-          image: harbor.lan/noryx-ce/keycloak:24.0
+          image: harbor.lan/noryx-ce/keycloak:26.6.2
           args:
             - "start-dev"
             - "--http-relative-path=/auth"
+            - "--features=organization"
             - "--proxy-headers=xforwarded"
             - "--hostname=datalab.noryxlab.ai"
             - "--hostname-strict=false"
           ports:
             - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /auth/realms/master
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /auth/realms/master
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 6
           env:
-            - name: KEYCLOAK_ADMIN
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: admin
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: noryx-secrets

@@ -19,7 +19,9 @@ exec_kc() {
 exec_kc config credentials --server http://127.0.0.1:8080/auth --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" >/dev/null
 
 if ! exec_kc get "realms/$REALM" >/dev/null 2>&1; then
-  exec_kc create realms -s realm="$REALM" -s enabled=true >/dev/null
+  exec_kc create realms -s realm="$REALM" -s enabled=true -s organizationsEnabled=true >/dev/null
+else
+  exec_kc update "realms/$REALM" -s organizationsEnabled=true >/dev/null
 fi
 
 if ! exec_kc get "realms/$REALM/roles/noryx-admin" >/dev/null 2>&1; then
