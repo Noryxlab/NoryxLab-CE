@@ -456,6 +456,10 @@ data:
           .dataset-preview-body table { background: #fff; font-size: 12px; }
           .dataset-preview-body table th { position: sticky; top: 0; background: #edf2f7; z-index: 1; }
           .dataset-preview-body textarea { width: 100%; min-height: 500px; resize: vertical; border: 0; outline: 0; background: #fff; padding: 12px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .spreadsheet-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+          .spreadsheet-toolbar select { min-width: 220px; }
+          .spreadsheet-note { color: #8a520b; font-size: 11px; }
+          .spreadsheet-table td[contenteditable="true"] { min-width: 100px; background: #fffdf2; outline: 1px solid #f0c36b; }
           .preview-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
           .preview-dot.supported { background: #22c55e; }
           .env-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -578,6 +582,7 @@ data:
           }
         </style>
         <script src="/auth/js/keycloak.js"></script>
+        <script src="/vendor/xlsx.full.min.js"></script>
       </head>
       <body>
         <div class="layout">
@@ -1571,6 +1576,10 @@ data:
           let datasetPreviewPath = '';
           let datasetPreviewText = '';
           let datasetPreviewContentType = 'text/plain';
+          let datasetPreviewWorkbook = null;
+          let datasetPreviewSheetName = '';
+          let datasetPreviewSpreadsheetEditing = false;
+          let datasetPreviewSpreadsheetBytes = null;
           let openingWorkspaceId = null;
           let currentTheme = normalizeTheme((() => {
             try { return localStorage.getItem(THEME_KEY) || ''; } catch (_) { return ''; }
@@ -2723,6 +2732,7 @@ data:
             if (type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(lower)) return { kind:'image', supported:true, editable:false };
             if (type === 'application/pdf' || lower.endsWith('.pdf')) return { kind:'pdf', supported:true, editable:false };
             if (lower.endsWith('.csv') || type.includes('csv')) return { kind:'csv', supported:true, editable:true };
+            if (/\.(xlsx|ods)$/i.test(lower)) return { kind:'spreadsheet', supported:true, editable:true };
             if (type.startsWith('text/') || /\.(txt|json|md|log|yaml|yml)$/i.test(lower)) return { kind:'text', supported:true, editable:true };
             return { kind:'other', supported:false, editable:false };
           }
@@ -2757,6 +2767,52 @@ data:
             rows.slice(1, 501).forEach((values) => { const tr = document.createElement('tr'); values.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }); body.appendChild(tr); });
             table.appendChild(body); datasetPreviewBody.appendChild(table);
             if (rows.length > 501) { const note = document.createElement('p'); note.textContent = 'Apercu limite aux 500 premieres lignes.'; datasetPreviewBody.appendChild(note); }
+          }
+
+          function spreadsheetBookType(filePath) {
+            return String(filePath || '').toLowerCase().endsWith('.ods') ? 'ods' : 'xlsx';
+          }
+
+          function updateSpreadsheetSheetFromTable() {
+            if (!datasetPreviewWorkbook || !datasetPreviewSheetName || !window.XLSX) return;
+            const table = datasetPreviewBody.querySelector('.spreadsheet-table');
+            if (!table) return;
+            datasetPreviewWorkbook.Sheets[datasetPreviewSheetName] = XLSX.utils.table_to_sheet(table, { raw:false });
+          }
+
+          function renderSpreadsheetPreview() {
+            datasetPreviewBody.innerHTML = '';
+            if (!datasetPreviewWorkbook || !window.XLSX) {
+              datasetPreviewBody.textContent = 'Le composant tableur ne peut pas etre charge.';
+              return;
+            }
+            const toolbar = document.createElement('div'); toolbar.className = 'spreadsheet-toolbar';
+            const select = document.createElement('select');
+            datasetPreviewWorkbook.SheetNames.forEach((name) => {
+              const option = document.createElement('option'); option.value = name; option.textContent = name; option.selected = name === datasetPreviewSheetName; select.appendChild(option);
+            });
+            const note = document.createElement('span'); note.className = 'spreadsheet-note';
+            note.textContent = datasetPreviewSpreadsheetEditing ? 'Edition des valeurs uniquement. La sauvegarde peut modifier styles et formules complexes.' : 'Apercu des 500 premieres lignes.';
+            toolbar.appendChild(select); toolbar.appendChild(note); datasetPreviewBody.appendChild(toolbar);
+            const sheet = datasetPreviewWorkbook.Sheets[datasetPreviewSheetName];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'', raw:false }).slice(0, 500);
+            const table = document.createElement('table'); table.className = 'spreadsheet-table';
+            rows.forEach((values, rowIndex) => {
+              const tr = document.createElement('tr');
+              values.forEach((value) => {
+                const cell = document.createElement('td');
+                cell.textContent = value;
+                if (datasetPreviewSpreadsheetEditing) cell.contentEditable = 'true';
+                tr.appendChild(cell);
+              });
+              table.appendChild(tr);
+            });
+            datasetPreviewBody.appendChild(table);
+            select.onchange = () => {
+              if (datasetPreviewSpreadsheetEditing) updateSpreadsheetSheetFromTable();
+              datasetPreviewSheetName = select.value;
+              renderSpreadsheetPreview();
+            };
           }
 
           function renderRepositoriesTable() {
@@ -4623,6 +4679,10 @@ data:
               const canEdit = visual.editable && !!selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser());
               datasetPreviewPath = filePath;
               datasetPreviewContentType = blob.type || (visual.kind === 'csv' ? 'text/csv' : 'text/plain');
+              datasetPreviewWorkbook = null;
+              datasetPreviewSheetName = '';
+              datasetPreviewSpreadsheetEditing = false;
+              datasetPreviewSpreadsheetBytes = null;
               datasetPreviewEdit.style.display = canEdit ? '' : 'none';
               datasetPreviewSave.style.display = 'none';
               datasetPreviewCancel.style.display = 'none';
@@ -4634,11 +4694,15 @@ data:
                 datasetPreviewText = await blob.text(); renderCSVPreview(datasetPreviewText); URL.revokeObjectURL(url);
               } else if (visual.kind === 'text') {
                 datasetPreviewText = await blob.text(); const pre = document.createElement('pre'); pre.textContent = datasetPreviewText; datasetPreviewBody.appendChild(pre); URL.revokeObjectURL(url);
+              } else if (visual.kind === 'spreadsheet') {
+                if (!window.XLSX) throw { error:'Le composant XLSX/ODS ne peut pas etre charge.' };
+                datasetPreviewSpreadsheetBytes = await blob.arrayBuffer();
+                datasetPreviewWorkbook = XLSX.read(datasetPreviewSpreadsheetBytes, { type:'array', cellFormula:true, cellStyles:true });
+                datasetPreviewSheetName = datasetPreviewWorkbook.SheetNames[0] || '';
+                renderSpreadsheetPreview(); URL.revokeObjectURL(url);
               } else {
                 URL.revokeObjectURL(url);
-                datasetPreviewBody.textContent = /\.(xlsx?|ods)$/i.test(lower)
-                  ? 'Apercu et edition XLSX/ODS non disponibles actuellement. Utilisez Telecharger.'
-                  : 'Apercu non disponible pour ce format. Utilisez Telecharger.';
+                datasetPreviewBody.textContent = 'Apercu non disponible pour ce format. Utilisez Telecharger.';
               }
               datasetPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
               if (editPath && canEdit) datasetPreviewEdit.click();
@@ -4700,11 +4764,30 @@ data:
             } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
           };
           datasetPreviewEdit.onclick = () => {
+            if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'spreadsheet') {
+              if (!window.confirm('L edition XLSX/ODS est limitee aux valeurs. Styles, formules complexes et graphiques peuvent etre modifies. Continuer ?')) return;
+              datasetPreviewSpreadsheetEditing = true; renderSpreadsheetPreview();
+              datasetPreviewEdit.style.display = 'none'; datasetPreviewSave.style.display = ''; datasetPreviewCancel.style.display = '';
+              return;
+            }
             const area = document.createElement('textarea'); area.value = datasetPreviewText; datasetPreviewBody.innerHTML = ''; datasetPreviewBody.appendChild(area);
             datasetPreviewEdit.style.display = 'none'; datasetPreviewSave.style.display = ''; datasetPreviewCancel.style.display = '';
           };
           datasetPreviewSave.onclick = async () => {
             try {
+              if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'spreadsheet') {
+                updateSpreadsheetSheetFromTable();
+                const bytes = XLSX.write(datasetPreviewWorkbook, { bookType:spreadsheetBookType(datasetPreviewPath), type:'array', cellStyles:true });
+                const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(datasetPreviewPath), {
+                  method:'PUT', headers:{ ...authHeader(), 'Content-Type':datasetPreviewContentType || 'application/octet-stream' }, body:new Blob([bytes], { type:datasetPreviewContentType || 'application/octet-stream' })
+                });
+                if (!response.ok) throw await response.json().catch(() => ({ error:'save failed' }));
+                datasetPreviewSpreadsheetEditing = false; renderSpreadsheetPreview();
+                datasetPreviewEdit.style.display = ''; datasetPreviewSave.style.display = 'none'; datasetPreviewCancel.style.display = 'none';
+                datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = datasetPreviewPath + ' a ete enregistre.';
+                await refreshDatasetObjects(selectedDatasetID);
+                return;
+              }
               const area = datasetPreviewBody.querySelector('textarea'); if (!area || !datasetPreviewPath) return;
               const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(datasetPreviewPath), {
                 method:'PUT', headers:{ ...authHeader(), 'Content-Type':datasetPreviewContentType }, body:area.value
@@ -4719,12 +4802,19 @@ data:
             } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = 'Echec de l edition : ' + String((e && e.error) || e); }
           };
           datasetPreviewCancel.onclick = () => {
+            if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'spreadsheet') {
+              datasetPreviewWorkbook = XLSX.read(datasetPreviewSpreadsheetBytes, { type:'array', cellFormula:true, cellStyles:true });
+              datasetPreviewSheetName = datasetPreviewWorkbook.SheetNames[0] || '';
+              datasetPreviewSpreadsheetEditing = false; renderSpreadsheetPreview();
+              datasetPreviewEdit.style.display = ''; datasetPreviewSave.style.display = 'none'; datasetPreviewCancel.style.display = 'none';
+              return;
+            }
             datasetPreviewBody.innerHTML = '';
             if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'csv') renderCSVPreview(datasetPreviewText);
             else { const pre=document.createElement('pre'); pre.textContent=datasetPreviewText; datasetPreviewBody.appendChild(pre); }
             datasetPreviewEdit.style.display = ''; datasetPreviewSave.style.display = 'none'; datasetPreviewCancel.style.display = 'none';
           };
-          datasetPreviewClose.onclick = () => { datasetPreview.style.display = 'none'; datasetPreviewBody.innerHTML = ''; datasetPreviewPath = ''; };
+          datasetPreviewClose.onclick = () => { datasetPreview.style.display = 'none'; datasetPreviewBody.innerHTML = ''; datasetPreviewPath = ''; datasetPreviewWorkbook = null; datasetPreviewSheetName = ''; datasetPreviewSpreadsheetEditing = false; datasetPreviewSpreadsheetBytes = null; };
 
           repoRows.onclick = async (event) => {
             const repositoryIDToTest = (event.target && event.target.getAttribute('data-test-repo'));
@@ -4842,7 +4932,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.122"}
+    {"version":"ce-web-0.6.124"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4863,7 +4953,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.122
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.124
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -81,7 +81,7 @@ Storage:
 - browser preview supports PDF, images, CSV, and text formats
 - browser editing supports CSV and text formats for owners and writers
 - the dataset explorer exposes S3 prefixes as familiar folders; owners and writers can create folders and delete files or folders recursively
-- XLSX/ODS files are download-only until a dedicated spreadsheet engine is integrated
+- XLSX/ODS files share one SheetJS-based browser viewer/editor for simple tabular values; saving can alter complex formulas, styles, macros, charts, and layouts
 
 External dataset creation:
 
