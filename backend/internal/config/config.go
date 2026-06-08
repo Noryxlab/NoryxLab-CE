@@ -63,7 +63,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.102"
+		backendVersion = "0.5.103"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
