@@ -99,6 +99,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - dataset ACL roles are `owner`, `writer`, and `reader`
 - owner manages dataset ACLs
 - datasets support direct download, multi-file ZIP download, preview, and text/CSV editing
+- XLSX and ODS use the same browser spreadsheet viewer/editor; editing is limited to simple cell values and may alter advanced workbook features
 - regulated HDS dataset management is an Enterprise Edition extension and is rejected by CE
 
 ## Workspace baseline (current)
