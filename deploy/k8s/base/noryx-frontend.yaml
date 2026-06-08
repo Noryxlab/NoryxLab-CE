@@ -840,7 +840,7 @@ data:
                       </div>
                       <div class="dataset-create-fields">
                         <select id="datasetMode">
-                          <option value="local">Dataset local Noryx</option>
+                          <option value="local">Dataset local</option>
                           <option value="external">Bucket S3 externe</option>
                         </select>
                         <select id="datasetClassification" style="display:none">
@@ -5253,7 +5253,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.138"}
+    {"version":"ce-web-0.6.139"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5274,7 +5274,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.138
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.139
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
