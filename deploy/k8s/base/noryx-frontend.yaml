@@ -366,19 +366,6 @@ data:
           }
           .hero h2 { margin: 0 0 8px; font-size: var(--fs-36); line-height: var(--lh-tight); font-weight: 700; letter-spacing: .01em; }
           .hero p { margin: 0; color: #d6e0f4; max-width: 760px; line-height: var(--lh-base); font-size: var(--fs-16); font-weight: 500; }
-          .hero-meta {
-            margin-top: 15px;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 7px 11px;
-            border-radius: 999px;
-            background: rgba(255,255,255,.08);
-            border: 1px solid rgba(255,255,255,.2);
-            font-size: 12px;
-            letter-spacing: .09em;
-            text-transform: uppercase;
-          }
           .platform-pulse { overflow: hidden; border: 1px solid #cad7e2; border-radius: 16px; background: linear-gradient(120deg, #f8fbfc 0%, #eef6f7 58%, #f5f3ea 100%); box-shadow: var(--shadow-sm); }
           .platform-pulse-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px 10px; }
           .platform-pulse-head h3 { margin: 0; font-size: 16px; }
@@ -392,15 +379,6 @@ data:
           .pulse-metric .meta { min-height: 16px; color: #718096; font-size: 11px; }
           .pulse-spark { width: 100%; height: 34px; overflow: visible; }
           .pulse-spark polyline { fill: none; stroke: #25869a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-          .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-          .quick {
-            border: 1px solid #d7e3eb;
-            border-radius: 14px;
-            background: #fff;
-            padding: 14px;
-          }
-          .quick .q-title { margin: 0 0 5px; font-size: var(--fs-14); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #2d425d; }
-          .quick .q-text { margin: 0; color: var(--muted); font-size: var(--fs-13); line-height: var(--lh-base); font-weight: 500; }
           .projects-toolbar { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           .projects-toolbar input { min-width: 240px; flex: 1 1 240px; }
           .project-create-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; padding: 18px; border: 1px solid #bfc9ff; border-radius: 14px; background: linear-gradient(110deg, #f0efff 0%, #f8f9ff 70%, #eef8fa 100%); }
@@ -586,7 +564,6 @@ data:
             .span-8, .span-7, .span-6, .span-5, .span-4 { grid-column: span 12; }
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .content { padding: 14px; }
-            .quick-grid { grid-template-columns: 1fr; }
             .platform-pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .projects-grid { grid-template-columns: 1fr; }
             .project-create-panel, .project-create-form { align-items: stretch; flex-direction: column; }
@@ -691,7 +668,6 @@ data:
                   <article class="hero">
                     <h2 data-i18n="hero_title">Votre plateforme de collaboration data et IA</h2>
                     <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
-                    <div class="hero-meta" data-i18n="home_notice_badge">Home personnalisable</div>
                   </article>
                   <article class="platform-pulse">
                     <div class="platform-pulse-head">
@@ -714,20 +690,6 @@ data:
                       <a class="btn" href="https://status.noryxlab.ai" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_status">Etat plateforme</a>
                     </div>
                   </article>
-                  <div class="quick-grid">
-                    <article class="quick">
-                      <h3 class="q-title" data-i18n="quick1_title">1. Ressources</h3>
-                      <p class="q-text" data-i18n="quick1_text">Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.</p>
-                    </article>
-                    <article class="quick">
-                      <h3 class="q-title" data-i18n="quick2_title">2. Projet</h3>
-                      <p class="q-text" data-i18n="quick2_text">Creez un projet, rattachez les ressources et invitez les collaborateurs.</p>
-                    </article>
-                    <article class="quick">
-                      <h3 class="q-title" data-i18n="quick3_title">3. Usages</h3>
-                      <p class="q-text" data-i18n="quick3_text">Lancez espaces de travail, traitements, applications, dashboards et APIs.</p>
-                    </article>
-                  </div>
                   <article class="card span-12">
                     <h3 data-i18n="quickstart">Demarrage rapide</h3>
                     <div class="row">
@@ -1659,18 +1621,11 @@ data:
               stat_active: 'Section active',
               hero_title: 'Votre plateforme de collaboration data et IA',
               hero_subtitle: "Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.",
-              home_notice_badge: 'Home personnalisable',
               home_notice_title: 'Informations equipe',
               home_notice_text: 'Ajoutez ici vos consignes internes, vos liens de formation et vos actualites data.',
               home_notice_cta_api: 'Documentation API',
               home_notice_cta_docs: 'Documentation utilisateur',
               home_notice_cta_status: 'Etat plateforme',
-              quick1_title: '1. Ressources',
-              quick1_text: 'Referencez vos jeux de donnees, depots Git, connexions de donnees et secrets.',
-              quick2_title: '2. Projet',
-              quick2_text: 'Creez un projet, rattachez les ressources et invitez les collaborateurs.',
-              quick3_title: '3. Usages',
-              quick3_text: 'Lancez espaces de travail, traitements, applications, dashboards et APIs.',
               quickstart: 'Demarrage rapide',
               go_projects: 'Aller aux projets',
               go_data: 'Aller aux donnees',
@@ -1822,18 +1777,11 @@ data:
               stat_active: 'Active section',
               hero_title: 'Your collaborative data hub',
               hero_subtitle: 'A simple business-oriented platform for Python and data science teams, from idea to production.',
-              home_notice_badge: 'Customizable home',
               home_notice_title: 'Team information',
               home_notice_text: 'Add your internal guidelines, training links and data announcements here.',
               home_notice_cta_api: 'API documentation',
               home_notice_cta_docs: 'User documentation',
               home_notice_cta_status: 'Platform status',
-              quick1_title: '1. Resources',
-              quick1_text: 'Register datasets, Git repositories, data connections and secrets.',
-              quick2_title: '2. Project',
-              quick2_text: 'Create a project, attach resources, and invite collaborators.',
-              quick3_title: '3. Usage',
-              quick3_text: 'Launch workspaces, jobs, applications, dashboards and APIs.',
               quickstart: 'Quick start',
               go_projects: 'Go to projects',
               go_data: 'Go to data',
@@ -4894,7 +4842,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.121"}
+    {"version":"ce-web-0.6.122"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4915,7 +4863,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.121
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.122
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
