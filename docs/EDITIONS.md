@@ -24,3 +24,16 @@ HDS dataset management is an Enterprise Edition capability:
 - CE blocks access, assignment, ACL management, and S3 operations for HDS records
 - EE enables `edition.FeatureHDSDatasets` and supplies the regulated policies,
   deployment controls, audit requirements, and user interface
+
+## Advanced audit boundary
+
+Detailed dataset transfer events are emitted only when
+`edition.FeatureAdvancedAudit` is enabled:
+
+- object upload success and failure
+- streamed object download success, interruption, and transferred bytes
+- multi-object ZIP download result and object counts
+- temporary external S3 download authorization
+
+Audit details never include S3 credentials, endpoints, buckets, or pre-signed
+URLs.

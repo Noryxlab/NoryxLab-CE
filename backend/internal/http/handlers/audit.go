@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
 
@@ -30,6 +31,13 @@ func (h Handlers) emitAudit(r *http.Request, actorUserID, action, resourceType, 
 		details,
 	)
 	_ = h.auditStore.Create(event)
+}
+
+func (h Handlers) emitAdvancedAudit(r *http.Request, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode string, details map[string]any) {
+	if !h.featureEnabled(edition.FeatureAdvancedAudit) {
+		return
+	}
+	h.emitAudit(r, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode, details)
 }
 
 func requestIP(r *http.Request) string {
