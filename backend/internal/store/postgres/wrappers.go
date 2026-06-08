@@ -92,8 +92,8 @@ func (s *SecretStore) Delete(userID, name string) error { return s.Store.Delete(
 
 type DatasetStore struct{ *Store }
 
-func (s *DatasetStore) ListByUser(userID string) ([]dataset.Dataset, error) {
-	return s.Store.ListDatasetsByUser(userID)
+func (s *DatasetStore) ListBySubjects(subjects []dataset.Subject) ([]dataset.Dataset, error) {
+	return s.Store.ListDatasetsBySubjects(subjects)
 }
 func (s *DatasetStore) ListAll() ([]dataset.Dataset, error) { return s.Store.ListAllDatasets() }
 func (s *DatasetStore) GetByID(id string) (dataset.Dataset, bool, error) {
@@ -104,12 +104,15 @@ func (s *DatasetStore) Delete(id string) error            { return s.Store.Delet
 func (s *DatasetStore) ListAccess(datasetID string) ([]dataset.Access, error) {
 	return s.Store.ListDatasetAccess(datasetID)
 }
-func (s *DatasetStore) GetAccess(datasetID, userID string) (dataset.Access, bool, error) {
-	return s.Store.GetDatasetAccess(datasetID, userID)
+func (s *DatasetStore) UpdateOwner(datasetID, ownerType, ownerID string) error {
+	return s.Store.UpdateDatasetOwner(datasetID, ownerType, ownerID)
+}
+func (s *DatasetStore) GetAccess(datasetID, subjectType, subjectID string) (dataset.Access, bool, error) {
+	return s.Store.GetDatasetAccess(datasetID, subjectType, subjectID)
 }
 func (s *DatasetStore) SetAccess(item dataset.Access) error { return s.Store.SetDatasetAccess(item) }
-func (s *DatasetStore) DeleteAccess(datasetID, userID string) error {
-	return s.Store.DeleteDatasetAccess(datasetID, userID)
+func (s *DatasetStore) DeleteAccess(datasetID, subjectType, subjectID string) error {
+	return s.Store.DeleteDatasetAccess(datasetID, subjectType, subjectID)
 }
 
 type DatasourceStore struct{ *Store }

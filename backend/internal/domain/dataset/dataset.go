@@ -8,28 +8,38 @@ import (
 )
 
 type Dataset struct {
-	ID             string    `json:"id"`
-	OwnerUserID    string    `json:"ownerUserId"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Bucket         string    `json:"bucket"`
-	Prefix         string    `json:"prefix"`
-	Provider       string    `json:"provider"`
-	Classification string    `json:"classification"`
-	Endpoint       string    `json:"endpoint,omitempty"`
-	Region         string    `json:"region,omitempty"`
-	AccessRole     string    `json:"accessRole,omitempty"`
-	CredentialName string    `json:"-"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID               string    `json:"id"`
+	OwnerUserID      string    `json:"ownerUserId"`
+	OwnerType        string    `json:"ownerType"`
+	OwnerID          string    `json:"ownerId"`
+	Name             string    `json:"name"`
+	Description      string    `json:"description"`
+	Bucket           string    `json:"bucket"`
+	Prefix           string    `json:"prefix"`
+	Provider         string    `json:"provider"`
+	Classification   string    `json:"classification"`
+	Endpoint         string    `json:"endpoint,omitempty"`
+	Region           string    `json:"region,omitempty"`
+	AccessRole       string    `json:"accessRole,omitempty"`
+	CredentialName   string    `json:"-"`
+	CredentialUserID string    `json:"-"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 type Access struct {
-	DatasetID string    `json:"datasetId"`
-	UserID    string    `json:"userId"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	DatasetID   string    `json:"datasetId"`
+	UserID      string    `json:"userId,omitempty"`
+	SubjectType string    `json:"subjectType"`
+	SubjectID   string    `json:"subjectId"`
+	Role        string    `json:"role"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type Subject struct {
+	Type string
+	ID   string
 }
 
 func New(ownerUserID, name, description, bucket, prefix, provider, classification, endpoint, region string) Dataset {
@@ -43,17 +53,20 @@ func New(ownerUserID, name, description, bucket, prefix, provider, classificatio
 		classification = "non-hds"
 	}
 	return Dataset{
-		ID:             uuid.NewString(),
-		OwnerUserID:    strings.TrimSpace(ownerUserID),
-		Name:           strings.TrimSpace(name),
-		Description:    strings.TrimSpace(description),
-		Bucket:         strings.TrimSpace(bucket),
-		Prefix:         strings.Trim(strings.TrimSpace(prefix), "/"),
-		Provider:       provider,
-		Classification: classification,
-		Endpoint:       strings.TrimSpace(endpoint),
-		Region:         strings.TrimSpace(region),
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ID:               uuid.NewString(),
+		OwnerUserID:      strings.TrimSpace(ownerUserID),
+		OwnerType:        "user",
+		OwnerID:          strings.TrimSpace(ownerUserID),
+		CredentialUserID: strings.TrimSpace(ownerUserID),
+		Name:             strings.TrimSpace(name),
+		Description:      strings.TrimSpace(description),
+		Bucket:           strings.TrimSpace(bucket),
+		Prefix:           strings.Trim(strings.TrimSpace(prefix), "/"),
+		Provider:         provider,
+		Classification:   classification,
+		Endpoint:         strings.TrimSpace(endpoint),
+		Region:           strings.TrimSpace(region),
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 }
