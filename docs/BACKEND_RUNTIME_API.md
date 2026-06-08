@@ -40,6 +40,7 @@ This module adds:
 - `GET /api/v1/datasets/{datasetID}/objects/{path...}`
 - `PUT /api/v1/datasets/{datasetID}/objects/{path...}`
 - `POST /api/v1/datasets/{datasetID}/download`
+- `POST /api/v1/datasets/{datasetID}/download-url`
 - `GET /api/v1/datasets/{datasetID}/access`
 - `PUT /api/v1/datasets/{datasetID}/access/{userID}`
 - `DELETE /api/v1/datasets/{datasetID}/access/{userID}`
@@ -98,7 +99,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - external S3 credentials are encrypted per dataset with no shared credential fallback
 - dataset ACL roles are `owner`, `writer`, and `reader`
 - owner manages dataset ACLs
-- datasets support direct download, multi-file ZIP download, preview, and text/CSV editing
+- external datasets use temporary S3 download URLs for large single files; datasets also support multi-file ZIP download, preview, and text/CSV editing
 - XLSX and ODS use the same browser spreadsheet viewer/editor; editing is limited to simple cell values and may alter advanced workbook features
 - regulated HDS dataset management is an Enterprise Edition extension and is rejected by CE
 

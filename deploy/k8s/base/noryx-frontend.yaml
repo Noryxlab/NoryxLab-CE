@@ -4635,6 +4635,36 @@ data:
             if (!response.ok) throw await response.json().catch(() => ({ error: 'file request failed' }));
             return response;
           }
+          async function downloadDatasetFile(filePath) {
+            datasetUploadStatus.style.display = '';
+            datasetUploadStatus.textContent = 'Preparation du telechargement...';
+            const selected = state.datasets.find((d) => d.id === selectedDatasetID);
+            if (selected && selected.provider === 'minio') {
+              const response = await fetchDatasetFile(encodeURIComponent(filePath));
+              const url = URL.createObjectURL(await response.blob());
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = filePath.split('/').pop();
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+              datasetUploadStatus.textContent = 'Telechargement lance.';
+              return;
+            }
+            const result = await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/download-url', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body:JSON.stringify({ path:filePath })
+            });
+            const link = document.createElement('a');
+            link.href = result.url;
+            link.download = result.filename || filePath.split('/').pop();
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            datasetUploadStatus.textContent = 'Telechargement lance directement depuis le stockage.';
+          }
 
           datasetObjectRows.onclick = async (event) => {
             const folderPath = event.target && event.target.getAttribute('data-dataset-folder');
@@ -4662,14 +4692,13 @@ data:
             try {
               const encodedPath = previewPath || downloadPath || editPath;
               const filePath = decodeURIComponent(encodedPath);
+              if (downloadPath) {
+                await downloadDatasetFile(filePath);
+                return;
+              }
               const response = await fetchDatasetFile(encodedPath);
               const blob = await response.blob();
               const url = URL.createObjectURL(blob);
-              if (downloadPath) {
-                const link = document.createElement('a'); link.href = url; link.download = filePath.split('/').pop(); link.click();
-                window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-                return;
-              }
               datasetPreview.style.display = '';
               datasetPreviewTitle.textContent = 'Apercu · ' + filePath;
               datasetPreviewBody.innerHTML = '';
@@ -4758,9 +4787,16 @@ data:
             try {
               const paths = Array.from(datasetObjectRows.querySelectorAll('[data-dataset-file-select]:checked')).map((node) => decodeURIComponent(node.getAttribute('data-dataset-file-select')));
               if (paths.length === 0) throw { error: 'Selectionnez au moins un fichier.' };
+              if (paths.length === 1) {
+                await downloadDatasetFile(paths[0]);
+                return;
+              }
+              datasetUploadStatus.style.display = '';
+              datasetUploadStatus.textContent = 'Preparation de l archive ZIP...';
               const response = await fetch('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/download', { method:'POST', headers:{ ...authHeader(), 'Content-Type':'application/json' }, body:JSON.stringify({ paths }) });
               if (!response.ok) throw await response.json().catch(() => ({ error:'download failed' }));
-              const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href=url; link.download='dataset-files.zip'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+              const url = URL.createObjectURL(await response.blob()); const link = document.createElement('a'); link.href=url; link.download='dataset-files.zip'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+              datasetUploadStatus.textContent = 'Archive ZIP telechargee.';
             } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
           };
           datasetPreviewEdit.onclick = () => {
@@ -4932,7 +4968,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.125"}
+    {"version":"ce-web-0.6.127"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4953,7 +4989,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.125
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.127
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

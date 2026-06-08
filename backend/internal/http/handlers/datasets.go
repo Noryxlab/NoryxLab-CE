@@ -58,6 +58,10 @@ type downloadDatasetObjectsRequest struct {
 	Paths []string `json:"paths"`
 }
 
+type downloadDatasetObjectURLRequest struct {
+	Path string `json:"path"`
+}
+
 type createDatasetFolderRequest struct {
 	Path string `json:"path"`
 }
@@ -538,6 +542,50 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 		}
 		obj.Close()
 	}
+}
+
+func (h Handlers) CreateDatasetObjectDownloadURL(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if item.Classification == "hds" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
+		return
+	}
+	var req downloadDatasetObjectURLRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
+		return
+	}
+	rel, key := datasetObjectKey(item, req.Path)
+	if rel == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+	expiry := 15 * time.Minute
+	params := url.Values{}
+	params.Set("response-content-disposition", `attachment; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
+	presignedURL, err := client.PresignedGetObject(r.Context(), item.Bucket, key, expiry, params)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare dataset download"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"url":       presignedURL.String(),
+		"filename":  filepath.Base(rel),
+		"expiresAt": time.Now().UTC().Add(expiry),
+	})
 }
 
 func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
