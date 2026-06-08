@@ -615,7 +615,7 @@ data:
               <div id="metaText">Non connecte</div>
               <div class="who-actions">
                 <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
-                <button id="logout" class="btn" style="display:none;" data-i18n="logout">Se deconnecter</button>
+                <button id="logout" class="btn" style="display:none;" data-i18n="logout">Se déconnecter</button>
               </div>
             </div>
 
@@ -1715,7 +1715,7 @@ data:
               title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
               login: 'Se connecter',
-              logout: 'Se deconnecter',
+              logout: 'Se déconnecter',
               platform_status: 'Etat plateforme',
               users: 'Utilisateurs',
               stat_projects: 'Projets',
@@ -3854,10 +3854,11 @@ data:
             stopWorkspacesAutoRefresh();
             try { await fetch('/api/v1/auth/session', { method: 'DELETE' }); } catch (_) {}
             if (authMode === 'oidc') {
-              keycloak.logout({ redirectUri: window.location.origin + '/' });
+              await keycloak.logout({ redirectUri: window.location.origin + '/' });
               return;
             }
             setIdentityDisplayMode('signed-out');
+            syncAuthButtons(false);
           };
           organizationRequiredLogout.onclick = () => logoutBtn.click();
 
@@ -5253,7 +5254,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.139"}
+    {"version":"ce-web-0.6.140"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5274,7 +5275,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.139
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.140
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
