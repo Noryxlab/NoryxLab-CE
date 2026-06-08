@@ -48,6 +48,9 @@ users without an organization with `403 organization_required`. Organization
 creation and membership administration are exposed under
 `/api/v1/admin/organizations`.
 
+Operational details, API examples, guards, and troubleshooting are documented
+in `docs/ORGANIZATIONS.md`.
+
 Major Keycloak upgrades require a full database backup and all old Keycloak
 nodes to be stopped before the new version migrates the schema. The schema is
 not backward compatible after migration.
