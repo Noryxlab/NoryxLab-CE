@@ -621,7 +621,11 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID, userID string, inc
 			attached.SecretKey = h.minioSecretKey
 			attached.UseSSL = h.minioUseSSL
 		} else {
-			credentialItem, found, err := h.secretStore.GetByName(item.OwnerUserID, item.CredentialName)
+			credentialUserID := item.CredentialUserID
+			if credentialUserID == "" {
+				credentialUserID = item.OwnerUserID
+			}
+			credentialItem, found, err := h.secretStore.GetByName(credentialUserID, item.CredentialName)
 			if err != nil {
 				return nil, nil, err
 			}

@@ -54,6 +54,10 @@ type datasetObjectItem struct {
 type setDatasetAccessRequest struct {
 	Role string `json:"role"`
 }
+type setDatasetOwnerRequest struct {
+	OwnerType string `json:"ownerType"`
+	OwnerID   string `json:"ownerId"`
+}
 type downloadDatasetObjectsRequest struct {
 	Paths []string `json:"paths"`
 }
@@ -76,14 +80,40 @@ func datasetObjectKey(item dataset.Dataset, objectPath string) (string, string) 
 }
 
 func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) string {
-	if strings.EqualFold(item.OwnerUserID, identity.UserID()) {
-		return "owner"
+	if item.OwnerType == "" {
+		item.OwnerType = "user"
+		item.OwnerID = item.OwnerUserID
 	}
-	access, found, err := h.datasetStore.GetAccess(item.ID, identity.UserID())
-	if err == nil && found {
-		return access.Role
+	best := ""
+	for _, subject := range h.datasetSubjects(identity) {
+		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
+			return "owner"
+		}
+		access, found, err := h.datasetStore.GetAccess(item.ID, subject.Type, subject.ID)
+		if err == nil && found && (access.Role == "writer" || best == "") {
+			best = access.Role
+		}
 	}
-	return ""
+	return best
+}
+
+func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
+	subjects := []dataset.Subject{{Type: "user", ID: identity.UserID()}}
+	if h.keycloak == nil {
+		return subjects
+	}
+	identifier := strings.TrimSpace(identity.Subject)
+	if identifier == "" {
+		identifier = identity.UserID()
+	}
+	organizations, err := h.keycloak.ListUserOrganizations(identifier)
+	if err != nil {
+		return subjects
+	}
+	for _, organization := range organizations {
+		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organization.ID})
+	}
+	return subjects
 }
 
 func (h Handlers) datasetAvailableInEdition(item dataset.Dataset) bool {
@@ -123,7 +153,7 @@ func (h Handlers) canManageDatasetAccess(item dataset.Dataset, identity auth.Ide
 	if item.Classification == "hds" {
 		return h.isGlobalAdmin(identity)
 	}
-	return h.isGlobalAdmin(identity) || strings.EqualFold(item.OwnerUserID, identity.UserID())
+	return h.isGlobalAdmin(identity) || h.datasetRole(item, identity) == "owner"
 }
 
 var bucketNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
@@ -133,7 +163,7 @@ func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := h.datasetStore.ListByUser(identity.UserID())
+	items, err := h.datasetStore.ListBySubjects(h.datasetSubjects(identity))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return
@@ -657,7 +687,7 @@ func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 500, map[string]string{"error": "failed to list dataset permissions"})
 		return
 	}
-	owner := dataset.Access{DatasetID: item.ID, UserID: item.OwnerUserID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	owner := dataset.Access{DatasetID: item.ID, UserID: item.OwnerID, SubjectType: item.OwnerType, SubjectID: item.OwnerID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 	writeJSON(w, 200, map[string]any{"items": append([]dataset.Access{owner}, items...), "canManage": h.canManageDatasetAccess(item, identity)})
 }
 
@@ -679,10 +709,15 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "dataset owner or global admin required"})
 		return
 	}
-	userID := strings.TrimSpace(r.PathValue("userID"))
+	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
+	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	if subjectType == "" {
+		subjectType = "user"
+		subjectID = strings.TrimSpace(r.PathValue("userID"))
+	}
 	var req setDatasetAccessRequest
-	if userID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
-		writeJSON(w, 400, map[string]string{"error": "userID and valid role are required"})
+	if (subjectType != "user" && subjectType != "organization") || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, 400, map[string]string{"error": "valid subjectType, subjectID, and role are required"})
 		return
 	}
 	req.Role = strings.ToLower(strings.TrimSpace(req.Role))
@@ -690,13 +725,17 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "role must be reader or writer"})
 		return
 	}
-	if strings.EqualFold(userID, item.OwnerUserID) {
+	if subjectType == "organization" && !h.organizationExists(subjectID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
+		return
+	}
+	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, 400, map[string]string{"error": "owner role cannot be changed"})
 		return
 	}
 	now := time.Now().UTC()
-	access := dataset.Access{DatasetID: item.ID, UserID: userID, Role: req.Role, CreatedAt: now, UpdatedAt: now}
-	if existing, exists, _ := h.datasetStore.GetAccess(item.ID, userID); exists {
+	access := dataset.Access{DatasetID: item.ID, UserID: subjectID, SubjectType: subjectType, SubjectID: subjectID, Role: req.Role, CreatedAt: now, UpdatedAt: now}
+	if existing, exists, _ := h.datasetStore.GetAccess(item.ID, subjectType, subjectID); exists {
 		access.CreatedAt = existing.CreatedAt
 	}
 	if err := h.datasetStore.SetAccess(access); err != nil {
@@ -724,20 +763,92 @@ func (h Handlers) DeleteDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "dataset owner or global admin required"})
 		return
 	}
-	userID := strings.TrimSpace(r.PathValue("userID"))
-	if strings.EqualFold(userID, item.OwnerUserID) {
+	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
+	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	if subjectType == "" {
+		subjectType = "user"
+		subjectID = strings.TrimSpace(r.PathValue("userID"))
+	}
+	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, 400, map[string]string{"error": "owner permission cannot be removed"})
 		return
 	}
-	if err := h.datasetStore.DeleteAccess(item.ID, userID); err != nil {
+	if err := h.datasetStore.DeleteAccess(item.ID, subjectType, subjectID); err != nil {
 		writeJSON(w, 500, map[string]string{"error": "failed to delete dataset permission"})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canManageDatasetAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset owner or global admin required"})
+		return
+	}
+	var req setDatasetOwnerRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
+		return
+	}
+	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
+	req.OwnerID = strings.TrimSpace(req.OwnerID)
+	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
+		isMember := false
+		for _, subject := range h.datasetSubjects(identity) {
+			if subject.Type == "organization" && subject.ID == req.OwnerID {
+				isMember = true
+				break
+			}
+		}
+		if !isMember {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
+			return
+		}
+	}
+	if err := h.datasetStore.UpdateOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update dataset owner"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.owner.transfer", "dataset", item.ID, "", "success", "", map[string]any{"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID, "ownerType": req.OwnerType, "ownerId": req.OwnerID})
+	updated, _, _ := h.datasetStore.GetByID(item.ID)
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h Handlers) organizationExists(organizationID string) bool {
+	if h.keycloak == nil {
+		return false
+	}
+	organizations, err := h.keycloak.ListOrganizations()
+	if err != nil {
+		return false
+	}
+	for _, organization := range organizations {
+		if organization.ID == strings.TrimSpace(organizationID) && organization.Enabled {
+			return true
+		}
+	}
+	return false
+}
+
 func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
@@ -751,7 +862,7 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || !h.datasetAvailableInEdition(item) || item.OwnerUserID != userID {
+	if !found || !h.datasetAvailableInEdition(item) || (!h.isGlobalAdmin(identity) && h.datasetRole(item, identity) != "owner") {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
@@ -760,7 +871,11 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if item.CredentialName != "" {
-		_ = h.secretStore.Delete(item.OwnerUserID, item.CredentialName)
+		credentialUserID := item.CredentialUserID
+		if credentialUserID == "" {
+			credentialUserID = item.OwnerUserID
+		}
+		_ = h.secretStore.Delete(credentialUserID, item.CredentialName)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -872,7 +987,7 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset)
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	return item.Classification != "hds" && strings.EqualFold(strings.TrimSpace(item.OwnerUserID), strings.TrimSpace(identity.UserID()))
+	return item.Classification != "hds" && h.datasetRole(item, identity) == "owner"
 }
 
 func datasetAssignmentError(item dataset.Dataset) string {
@@ -893,7 +1008,11 @@ func (h Handlers) datasetS3Client(item dataset.Dataset) (*minio.Client, string, 
 		return h.minioClient, h.minioRegion, nil
 	}
 	if item.CredentialName != "" {
-		credentialItem, found, err := h.secretStore.GetByName(item.OwnerUserID, item.CredentialName)
+		credentialUserID := item.CredentialUserID
+		if credentialUserID == "" {
+			credentialUserID = item.OwnerUserID
+		}
+		credentialItem, found, err := h.secretStore.GetByName(credentialUserID, item.CredentialName)
 		if err != nil {
 			return nil, "", errors.New("failed to read dataset S3 credentials")
 		}
