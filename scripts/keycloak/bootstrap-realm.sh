@@ -8,6 +8,8 @@ ADMIN_PASS="${ADMIN_PASS:-change-me}"
 BOOTSTRAP_USER="${BOOTSTRAP_USER:-stef}"
 BOOTSTRAP_PASS="${BOOTSTRAP_PASS:-change-me-stef}"
 BOOTSTRAP_EMAIL="${BOOTSTRAP_EMAIL:-stef@noryxlab.ai}"
+BOOTSTRAP_ORGANIZATION="${BOOTSTRAP_ORGANIZATION:-Imt}"
+BOOTSTRAP_ORGANIZATION_ALIAS="${BOOTSTRAP_ORGANIZATION_ALIAS:-imt}"
 API_CLIENT_ID="${API_CLIENT_ID:-noryx-api}"
 
 pod="$(kubectl -n "$NS" get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')"
@@ -49,4 +51,29 @@ fi
 exec_kc set-password -r "$REALM" --username "$BOOTSTRAP_USER" --new-password "$BOOTSTRAP_PASS" --temporary=false >/dev/null
 exec_kc add-roles -r "$REALM" --uusername "$BOOTSTRAP_USER" --rolename noryx-admin >/dev/null
 
-echo "Realm $REALM ready. User $BOOTSTRAP_USER is noryx-admin."
+organization_id="$(
+  exec_kc get "organizations?search=$BOOTSTRAP_ORGANIZATION_ALIAS" -r "$REALM" --fields id,alias |
+    sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' |
+    head -n 1
+)"
+if [[ -z "$organization_id" ]]; then
+  organization_id="$(
+    exec_kc create organizations -r "$REALM" \
+      -s name="$BOOTSTRAP_ORGANIZATION" \
+      -s alias="$BOOTSTRAP_ORGANIZATION_ALIAS" \
+      -s enabled=true \
+      -i
+  )"
+fi
+
+user_id="$(
+  exec_kc get "users?username=$BOOTSTRAP_USER&exact=true" -r "$REALM" --fields id |
+    sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' |
+    head -n 1
+)"
+if ! exec_kc get "organizations/$organization_id/members" -r "$REALM" --fields username |
+  grep -q "\"username\" : \"$BOOTSTRAP_USER\""; then
+  exec_kc create "organizations/$organization_id/members" -r "$REALM" -b "\"$user_id\"" >/dev/null
+fi
+
+echo "Realm $REALM ready. User $BOOTSTRAP_USER is noryx-admin and belongs to $BOOTSTRAP_ORGANIZATION."

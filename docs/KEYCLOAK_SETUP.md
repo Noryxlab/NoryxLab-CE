@@ -19,6 +19,8 @@ ADMIN_PASS='<KEYCLOAK_ADMIN_PASSWORD>' \
 BOOTSTRAP_USER=stef \
 BOOTSTRAP_PASS='<SET_A_PASSWORD>' \
 BOOTSTRAP_EMAIL='stef@noryxlab.ai' \
+BOOTSTRAP_ORGANIZATION='Imt' \
+BOOTSTRAP_ORGANIZATION_ALIAS='imt' \
 scripts/keycloak/bootstrap-realm.sh
 ```
 
@@ -28,6 +30,7 @@ This script ensures:
 - realm role `noryx-admin`
 - public client `noryx-api`
 - user `stef` with role `noryx-admin`
+- organization `Imt` with user `stef` as a member
 
 ## Version and organizations
 
