@@ -379,6 +379,19 @@ data:
             letter-spacing: .09em;
             text-transform: uppercase;
           }
+          .platform-pulse { overflow: hidden; border: 1px solid #cad7e2; border-radius: 16px; background: linear-gradient(120deg, #f8fbfc 0%, #eef6f7 58%, #f5f3ea 100%); box-shadow: var(--shadow-sm); }
+          .platform-pulse-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px 10px; }
+          .platform-pulse-head h3 { margin: 0; font-size: 16px; }
+          .platform-pulse-live { display: inline-flex; align-items: center; gap: 7px; color: #37616a; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+          .platform-pulse-live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #2fbf71; box-shadow: 0 0 0 0 rgba(47,191,113,.35); animation: live-pulse 2s infinite; }
+          @keyframes live-pulse { 70% { box-shadow: 0 0 0 8px rgba(47,191,113,0); } 100% { box-shadow: 0 0 0 0 rgba(47,191,113,0); } }
+          .platform-pulse-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-top: 1px solid #d9e3e9; background: #d9e3e9; }
+          .pulse-metric { min-width: 0; padding: 15px 17px 13px; background: rgba(255,255,255,.88); }
+          .pulse-metric .k { color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+          .pulse-metric .v { margin: 5px 0 7px; color: #183149; font-size: 25px; font-weight: 750; }
+          .pulse-metric .meta { min-height: 16px; color: #718096; font-size: 11px; }
+          .pulse-spark { width: 100%; height: 34px; overflow: visible; }
+          .pulse-spark polyline { fill: none; stroke: #25869a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
           .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
           .quick {
             border: 1px solid #d7e3eb;
@@ -574,6 +587,7 @@ data:
             .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .content { padding: 14px; }
             .quick-grid { grid-template-columns: 1fr; }
+            .platform-pulse-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .projects-grid { grid-template-columns: 1fr; }
             .project-create-panel, .project-create-form { align-items: stretch; flex-direction: column; }
             .project-create-form input { max-width: none; }
@@ -583,6 +597,7 @@ data:
           }
           @media (max-width: 720px) {
             .stats { grid-template-columns: 1fr; }
+            .platform-pulse-grid { grid-template-columns: 1fr; }
           }
         </style>
         <script src="/auth/js/keycloak.js"></script>
@@ -681,6 +696,18 @@ data:
                     <h2 data-i18n="hero_title">Votre plateforme de collaboration data et IA</h2>
                     <p data-i18n="hero_subtitle">Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.</p>
                     <div class="hero-meta" data-i18n="home_notice_badge">Home personnalisable</div>
+                  </article>
+                  <article class="platform-pulse">
+                    <div class="platform-pulse-head">
+                      <h3>Activite de la plateforme</h3>
+                      <span id="platformPulseTime" class="platform-pulse-live">Mise a jour en direct</span>
+                    </div>
+                    <div class="platform-pulse-grid">
+                      <div class="pulse-metric"><div class="k">Utilisateurs</div><div id="pulseUsers" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseUsersLine" points=""></polyline></svg><div class="meta">Comptes actifs sur la plateforme</div></div>
+                      <div class="pulse-metric"><div class="k">Projets</div><div id="pulseProjects" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseProjectsLine" points=""></polyline></svg><div class="meta">Espaces collaboratifs</div></div>
+                      <div class="pulse-metric"><div class="k">Charge</div><div id="pulseLoad" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseLoadLine" points=""></polyline></svg><div id="pulseLoadMeta" class="meta">Workloads actifs</div></div>
+                      <div class="pulse-metric"><div class="k">Datalake mesure</div><div id="pulseStorage" class="v">-</div><svg class="pulse-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline id="pulseStorageLine" points=""></polyline></svg><div id="pulseStorageMeta" class="meta">Buckets S3 accessibles</div></div>
+                    </div>
                   </article>
                   <article class="card span-12">
                     <h3 data-i18n="home_notice_title">Informations equipe</h3>
@@ -1396,6 +1423,13 @@ data:
           const adminProjectRows = document.getElementById('adminProjectRows');
           const adminDatasetRows = document.getElementById('adminDatasetRows');
           const downloadAuditBtn = document.getElementById('downloadAudit');
+          const platformPulseTime = document.getElementById('platformPulseTime');
+          const pulseUsers = document.getElementById('pulseUsers');
+          const pulseProjects = document.getElementById('pulseProjects');
+          const pulseLoad = document.getElementById('pulseLoad');
+          const pulseStorage = document.getElementById('pulseStorage');
+          const pulseLoadMeta = document.getElementById('pulseLoadMeta');
+          const pulseStorageMeta = document.getElementById('pulseStorageMeta');
           const secretNameInput = document.getElementById('secretName');
           const secretExpiresAtInput = document.getElementById('secretExpiresAt');
           const secretValueInput = document.getElementById('secretValue');
@@ -1586,6 +1620,8 @@ data:
             adminExecutions: [],
             adminOverview: {},
             adminInventory: {},
+            platformOverview: {},
+            platformHistory: { users: [], projects: [], load: [], storage: [] },
             activeTab: 'intro',
             repositoryChecks: {},
             datasourceChecks: {}
@@ -2065,6 +2101,7 @@ data:
             };
           }
           let workspacesAutoRefreshTimer = null;
+          let platformPulseTimer = null;
           let adminAccessGranted = false;
           let identityDisplayMode = 'signed-out';
           function setMeta(text) { if (meta) meta.textContent = text; }
@@ -3247,6 +3284,46 @@ data:
             adminMemoryCount.textContent = formatBytes(metrics.memoryRequestBytes || 0);
           }
 
+          function pushPlatformSample(key, value) {
+            const values = state.platformHistory[key] || [];
+            values.push(Number(value || 0));
+            state.platformHistory[key] = values.slice(-24);
+          }
+
+          function renderSparkline(id, values) {
+            const line = document.getElementById(id);
+            if (!line) return;
+            const samples = ensureArray(values);
+            if (samples.length === 0) { line.setAttribute('points', ''); return; }
+            const min = Math.min(...samples);
+            const max = Math.max(...samples);
+            const range = Math.max(1, max - min);
+            const points = samples.map((value, index) => {
+              const x = samples.length === 1 ? 0 : (index * 120 / (samples.length - 1));
+              const y = 30 - ((value - min) * 24 / range);
+              return x.toFixed(1) + ',' + y.toFixed(1);
+            });
+            line.setAttribute('points', points.join(' '));
+          }
+
+          function renderPlatformPulse() {
+            const overview = state.platformOverview || {};
+            const counts = overview.counts || {};
+            const metrics = overview.workloadMetrics || {};
+            const storage = overview.storage || {};
+            pulseUsers.textContent = String(counts.users || 0);
+            pulseProjects.textContent = String(counts.projects || 0);
+            pulseLoad.textContent = String(counts.active || 0);
+            pulseStorage.textContent = formatBytes(storage.bytes || 0);
+            pulseLoadMeta.textContent = String(metrics.running || 0) + ' pods actifs · ' + String(metrics.pending || 0) + ' en attente';
+            pulseStorageMeta.textContent = String(storage.datasetsMeasured || 0) + '/' + String(storage.datasetsTotal || 0) + ' datasets mesurables';
+            platformPulseTime.textContent = overview.sampledAt ? ('Actualise ' + formatDateTime(overview.sampledAt)) : 'Mise a jour en direct';
+            renderSparkline('pulseUsersLine', state.platformHistory.users);
+            renderSparkline('pulseProjectsLine', state.platformHistory.projects);
+            renderSparkline('pulseLoadLine', state.platformHistory.load);
+            renderSparkline('pulseStorageLine', state.platformHistory.storage);
+          }
+
           function renderAdminInventory() {
             const users = ensureArray(state.adminInventory.users);
             const projects = ensureArray(state.adminInventory.projects);
@@ -3453,6 +3530,19 @@ data:
             return state.adminOverview;
           }
 
+          async function refreshPlatformOverview() {
+            const body = await callJSON('/api/v1/platform/overview');
+            state.platformOverview = body || {};
+            const counts = state.platformOverview.counts || {};
+            const storage = state.platformOverview.storage || {};
+            pushPlatformSample('users', counts.users);
+            pushPlatformSample('projects', counts.projects);
+            pushPlatformSample('load', counts.active);
+            pushPlatformSample('storage', storage.bytes);
+            renderPlatformPulse();
+            return body;
+          }
+
           async function refreshAdminInventory() {
             state.adminInventory = await callJSON('/api/v1/admin/inventory');
             renderAdminInventory();
@@ -3582,6 +3672,16 @@ data:
               clearInterval(workspacesAutoRefreshTimer);
               workspacesAutoRefreshTimer = null;
             }
+            if (platformPulseTimer) {
+              clearInterval(platformPulseTimer);
+              platformPulseTimer = null;
+            }
+          }
+
+          function startPlatformPulse() {
+            if (platformPulseTimer) return;
+            refreshPlatformOverview().catch(() => {});
+            platformPulseTimer = setInterval(() => refreshPlatformOverview().catch(() => {}), 30000);
           }
 
           function startWorkspacesAutoRefresh() {
@@ -4761,6 +4861,7 @@ data:
                 loadUserPreferences();
                 probeAdminAccess();
                 startWorkspacesAutoRefresh();
+              startPlatformPulse();
                 refreshProjects()
                   .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                   .catch((err) => {
@@ -4777,6 +4878,7 @@ data:
               loadUserPreferences();
               probeAdminAccess();
               startWorkspacesAutoRefresh();
+              startPlatformPulse();
               ensureWebSession()
                 .then(() => refreshProjects())
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
@@ -4795,6 +4897,7 @@ data:
               loadUserPreferences();
               probeAdminAccess();
               startWorkspacesAutoRefresh();
+              startPlatformPulse();
               refreshProjects()
                 .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
                 .catch(() => {});
@@ -4808,6 +4911,7 @@ data:
             loadUserPreferences();
             probeAdminAccess();
             startWorkspacesAutoRefresh();
+              startPlatformPulse();
             refreshProjects()
               .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
               .catch(() => {});
@@ -4820,7 +4924,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.118"}
+    {"version":"ce-web-0.6.119"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4841,7 +4945,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.118
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.119
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

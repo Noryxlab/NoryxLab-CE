@@ -15,6 +15,8 @@ This module adds:
 
 ## Endpoints
 
+- `GET /api/v1/platform/overview`: aggregate home-page activity metrics; storage volume only includes non-HDS datasets whose S3 buckets can be measured by the backend
+
 - `GET /swagger`
 - `GET /swagger/openapi.yaml`
 - `GET /api/v1/user/preferences`

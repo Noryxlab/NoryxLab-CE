@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.98
+  version: 0.5.99
   description: |
     Noryx CE backend API contract.
 
@@ -639,6 +639,22 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
 paths:
+  /api/v1/platform/overview:
+    get:
+      tags: [Platform]
+      summary: Return aggregate platform activity metrics for the home page
+      description: Returns aggregate counts, workload requests and measurable non-HDS S3 storage without exposing resource details.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Aggregate platform overview
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /healthz:
     get:
       tags: [Health]
