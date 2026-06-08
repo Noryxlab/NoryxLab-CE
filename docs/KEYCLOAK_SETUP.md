@@ -29,6 +29,20 @@ This script ensures:
 - public client `noryx-api`
 - user `stef` with role `noryx-admin`
 
+## Version and organizations
+
+The platform baseline uses Keycloak `26.6.2` with the `organization` feature
+enabled. Keycloak remains the source of truth for identities, organization
+membership, and organization groups. NoryxLab EE owns resource permissions and
+the organization/role permission matrix.
+
+The frontend image bundles `keycloak-js` because Keycloak 26 no longer serves
+the legacy `/auth/js/keycloak.js` UMD adapter.
+
+Major Keycloak upgrades require a full database backup and all old Keycloak
+nodes to be stopped before the new version migrates the schema. The schema is
+not backward compatible after migration.
+
 ## API auth config
 
 `noryx-api` expects:
