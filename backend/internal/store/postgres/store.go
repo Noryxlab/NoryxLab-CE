@@ -246,6 +246,11 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS endpoint TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS region TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_user_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE datasets SET owner_id=owner_user_id WHERE owner_id=''`,
+		`UPDATE datasets SET credential_user_id=owner_user_id WHERE credential_user_id=''`,
 		`CREATE TABLE IF NOT EXISTS dataset_access (
 			dataset_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -254,6 +259,10 @@ func (s *Store) migrate(ctx context.Context) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (dataset_id, user_id)
 		)`,
+		`ALTER TABLE dataset_access ADD COLUMN IF NOT EXISTS subject_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE dataset_access ADD COLUMN IF NOT EXISTS subject_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE dataset_access SET subject_id=user_id WHERE subject_id=''`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_dataset_access_subject ON dataset_access (dataset_id, subject_type, subject_id)`,
 		`CREATE TABLE IF NOT EXISTS datasources (
 			id TEXT PRIMARY KEY,
 			owner_user_id TEXT NOT NULL,
@@ -1032,8 +1041,31 @@ func (s *Store) Delete(userID, name string) error {
 	return err
 }
 
-func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT d.id, d.owner_user_id, d.name, d.description, d.bucket, d.prefix, d.provider, d.classification, d.endpoint, d.region, d.credential_name, d.created_at, d.updated_at, CASE WHEN d.owner_user_id=$1 THEN 'owner' ELSE a.role END FROM datasets d LEFT JOIN dataset_access a ON a.dataset_id=d.id AND a.user_id=$1 WHERE d.owner_user_id=$1 OR a.user_id=$1 ORDER BY d.updated_at DESC`, strings.TrimSpace(userID))
+func (s *Store) ListDatasetsBySubjects(subjects []dataset.Subject) ([]dataset.Dataset, error) {
+	conditions := []string{}
+	args := []any{}
+	for _, subject := range subjects {
+		if strings.TrimSpace(subject.ID) == "" {
+			continue
+		}
+		args = append(args, strings.TrimSpace(subject.Type), strings.TrimSpace(subject.ID))
+		n := len(args)
+		conditions = append(conditions, fmt.Sprintf("(d.owner_type=$%d AND d.owner_id=$%d) OR EXISTS (SELECT 1 FROM dataset_access a WHERE a.dataset_id=d.id AND a.subject_type=$%d AND a.subject_id=$%d)", n-1, n, n-1, n))
+	}
+	if len(conditions) == 0 {
+		return []dataset.Dataset{}, nil
+	}
+	ownerConditions := []string{}
+	writerConditions := []string{}
+	for i := 0; i < len(args); i += 2 {
+		ownerConditions = append(ownerConditions, fmt.Sprintf("(d.owner_type=$%d AND d.owner_id=$%d)", i+1, i+2))
+		writerConditions = append(writerConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM dataset_access a WHERE a.dataset_id=d.id AND a.subject_type=$%d AND a.subject_id=$%d AND a.role='writer')", i+1, i+2))
+	}
+	query := `SELECT d.id, d.owner_user_id, d.owner_type, d.owner_id, d.name, d.description, d.bucket, d.prefix, d.provider, d.classification, d.endpoint, d.region, d.credential_name, d.credential_user_id, d.created_at, d.updated_at,
+		CASE WHEN ` + strings.Join(ownerConditions, " OR ") + ` THEN 'owner' WHEN ` + strings.Join(writerConditions, " OR ") + ` THEN 'writer' ELSE 'reader' END
+		FROM datasets d
+		WHERE ` + strings.Join(conditions, " OR ") + ` ORDER BY d.updated_at DESC`
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1041,7 +1073,7 @@ func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -1050,7 +1082,7 @@ func (s *Store) ListDatasetsByUser(userID string) ([]dataset.Dataset, error) {
 }
 
 func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1058,7 +1090,7 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -1068,9 +1100,11 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	err := s.db.QueryRow(`SELECT id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
+		&item.OwnerType,
+		&item.OwnerID,
 		&item.Name,
 		&item.Description,
 		&item.Bucket,
@@ -1080,6 +1114,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		&item.Endpoint,
 		&item.Region,
 		&item.CredentialName,
+		&item.CredentialUserID,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -1093,9 +1128,11 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 }
 
 func (s *Store) CreateDataset(item dataset.Dataset) error {
-	_, err := s.db.Exec(`INSERT INTO datasets (id, owner_user_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+	_, err := s.db.Exec(`INSERT INTO datasets (id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
 		item.ID,
 		item.OwnerUserID,
+		item.OwnerType,
+		item.OwnerID,
 		item.Name,
 		item.Description,
 		item.Bucket,
@@ -1105,9 +1142,15 @@ func (s *Store) CreateDataset(item dataset.Dataset) error {
 		item.Endpoint,
 		item.Region,
 		item.CredentialName,
+		item.CredentialUserID,
 		item.CreatedAt,
 		item.UpdatedAt,
 	)
+	return err
+}
+
+func (s *Store) UpdateDatasetOwner(datasetID, ownerType, ownerID string) error {
+	_, err := s.db.Exec(`UPDATE datasets SET owner_type=$2, owner_id=$3, owner_user_id=CASE WHEN $2='user' THEN $3 ELSE owner_user_id END, updated_at=$4 WHERE id=$1`, strings.TrimSpace(datasetID), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID), time.Now().UTC())
 	return err
 }
 
@@ -1131,7 +1174,7 @@ func (s *Store) DeleteDataset(id string) error {
 }
 
 func (s *Store) ListDatasetAccess(datasetID string) ([]dataset.Access, error) {
-	rows, err := s.db.Query(`SELECT dataset_id, user_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 ORDER BY user_id`, strings.TrimSpace(datasetID))
+	rows, err := s.db.Query(`SELECT dataset_id, user_id, subject_type, subject_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 ORDER BY subject_type, subject_id`, strings.TrimSpace(datasetID))
 	if err != nil {
 		return nil, err
 	}
@@ -1139,7 +1182,7 @@ func (s *Store) ListDatasetAccess(datasetID string) ([]dataset.Access, error) {
 	out := []dataset.Access{}
 	for rows.Next() {
 		var item dataset.Access
-		if err := rows.Scan(&item.DatasetID, &item.UserID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.DatasetID, &item.UserID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -1147,9 +1190,9 @@ func (s *Store) ListDatasetAccess(datasetID string) ([]dataset.Access, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) GetDatasetAccess(datasetID, userID string) (dataset.Access, bool, error) {
+func (s *Store) GetDatasetAccess(datasetID, subjectType, subjectID string) (dataset.Access, bool, error) {
 	var item dataset.Access
-	err := s.db.QueryRow(`SELECT dataset_id, user_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 AND user_id=$2`, strings.TrimSpace(datasetID), strings.TrimSpace(userID)).Scan(&item.DatasetID, &item.UserID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
+	err := s.db.QueryRow(`SELECT dataset_id, user_id, subject_type, subject_id, role, created_at, updated_at FROM dataset_access WHERE dataset_id=$1 AND subject_type=$2 AND subject_id=$3`, strings.TrimSpace(datasetID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID)).Scan(&item.DatasetID, &item.UserID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return dataset.Access{}, false, nil
 	}
@@ -1157,12 +1200,12 @@ func (s *Store) GetDatasetAccess(datasetID, userID string) (dataset.Access, bool
 }
 
 func (s *Store) SetDatasetAccess(item dataset.Access) error {
-	_, err := s.db.Exec(`INSERT INTO dataset_access (dataset_id,user_id,role,created_at,updated_at) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (dataset_id,user_id) DO UPDATE SET role=EXCLUDED.role,updated_at=EXCLUDED.updated_at`, item.DatasetID, item.UserID, item.Role, item.CreatedAt, item.UpdatedAt)
+	_, err := s.db.Exec(`INSERT INTO dataset_access (dataset_id,user_id,subject_type,subject_id,role,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (dataset_id,subject_type,subject_id) DO UPDATE SET role=EXCLUDED.role,updated_at=EXCLUDED.updated_at`, item.DatasetID, item.SubjectID, item.SubjectType, item.SubjectID, item.Role, item.CreatedAt, item.UpdatedAt)
 	return err
 }
 
-func (s *Store) DeleteDatasetAccess(datasetID, userID string) error {
-	_, err := s.db.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1 AND user_id=$2`, strings.TrimSpace(datasetID), strings.TrimSpace(userID))
+func (s *Store) DeleteDatasetAccess(datasetID, subjectType, subjectID string) error {
+	_, err := s.db.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1 AND subject_type=$2 AND subject_id=$3`, strings.TrimSpace(datasetID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
 	return err
 }
 

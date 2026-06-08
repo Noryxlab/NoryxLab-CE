@@ -79,6 +79,9 @@ Storage:
   - `writer`: read and object upload/update
   - `reader`: read only
 - only the owner or a global admin can manage permissions
+- dataset owners and ACL subjects can be users or Keycloak organizations
+- organization members receive the dataset permissions granted to their organization
+- ownership can be transferred between a user and an organization; technical S3 credentials remain attached to their original encrypted secret
 - browser preview supports PDF, images, CSV, and text formats
 - browser editing supports CSV and text formats for owners and writers
 - the dataset explorer exposes S3 prefixes as familiar folders; owners and writers can create folders and delete files or folders recursively

@@ -892,13 +892,20 @@ data:
                       </div>
                       <div class="dataset-access-panel">
                         <h4>Permissions</h4>
-                        <div class="access-copy">Owner: lecture, ecriture et gestion. Writer: lecture/ecriture. Reader: lecture seule.</div>
+                        <div class="access-copy">Owner utilisateur ou organisation: lecture, écriture et gestion. Writer: lecture/écriture. Reader: lecture seule.</div>
+                        <div id="datasetOwnerForm" class="row" style="display:none">
+                          <select id="datasetOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
+                          <input id="datasetOwnerID" list="datasetOrganizationOptions" placeholder="Utilisateur ou organisation" />
+                          <button id="datasetOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                        </div>
                         <div id="datasetAccessForm" class="row" style="display:none">
-                          <input id="datasetAccessUser" placeholder="Utilisateur ou email" />
+                          <select id="datasetAccessSubjectType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
+                          <input id="datasetAccessUser" list="datasetOrganizationOptions" placeholder="Utilisateur ou organisation" />
                           <select id="datasetAccessRole"><option value="reader">Reader</option><option value="writer">Writer</option></select>
                           <button id="datasetAccessSave" type="button" class="btn primary">Ajouter / modifier</button>
                         </div>
-                        <table><thead><tr><th>Utilisateur</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
+                        <datalist id="datasetOrganizationOptions"></datalist>
+                        <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
                       </div>
                       <div class="dataset-upload-panel">
                         <h4>Ajouter un fichier</h4>
@@ -1479,10 +1486,16 @@ data:
           const datasetFileCount = document.getElementById('datasetFileCount');
           const datasetTotalSize = document.getElementById('datasetTotalSize');
           const datasetAccessForm = document.getElementById('datasetAccessForm');
+          const datasetOwnerForm = document.getElementById('datasetOwnerForm');
+          const datasetOwnerType = document.getElementById('datasetOwnerType');
+          const datasetOwnerID = document.getElementById('datasetOwnerID');
+          const datasetOwnerSave = document.getElementById('datasetOwnerSave');
+          const datasetAccessSubjectType = document.getElementById('datasetAccessSubjectType');
           const datasetAccessUser = document.getElementById('datasetAccessUser');
           const datasetAccessRole = document.getElementById('datasetAccessRole');
           const datasetAccessSave = document.getElementById('datasetAccessSave');
           const datasetAccessRows = document.getElementById('datasetAccessRows');
+          const datasetOrganizationOptions = document.getElementById('datasetOrganizationOptions');
           const datasetUploadTarget = document.getElementById('datasetUploadTarget');
           const datasetUploadPathInput = document.getElementById('datasetUploadPath');
           const datasetUploadFileInput = document.getElementById('datasetUploadFile');
@@ -1614,6 +1627,7 @@ data:
             datasets: [],
             datasetObjects: [],
             datasetAccess: [],
+            availableOrganizations: [],
             datasetCanManageAccess: false,
             repositories: [],
             datasources: [],
@@ -2282,7 +2296,7 @@ data:
             uniqueViews.forEach((view) => view.classList.toggle('active', view === views[viewTab]));
             applyDataTab(tab);
             if (viewTab === 'data') {
-              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources()])
+              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations()])
                 .catch(() => {});
             }
             if (viewTab === 'workloads' && isAdminUser()) {
@@ -2662,7 +2676,7 @@ data:
                 '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
                 '<td><span class="badge b-ok">STANDARD</span></td>' +
                 '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
-                '<td>' + (d.ownerUserId || '-') + '</td>' +
+                '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
                 '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
                 '<td>' + ((d.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
               datasetRows.appendChild(tr);
@@ -2679,16 +2693,22 @@ data:
           function renderDatasetAccessTable() {
             if (!datasetAccessRows) return;
             datasetAccessForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
+            datasetOwnerForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
+            datasetOrganizationOptions.innerHTML = ensureArray(state.availableOrganizations).map((organization) => '<option value="' + organization.id + '">' + (organization.name || organization.alias || organization.id) + '</option>').join('');
             datasetAccessRows.innerHTML = '';
             const items = ensureArray(state.datasetAccess);
             if (!selectedDatasetID || items.length === 0) {
-              datasetAccessRows.innerHTML = '<tr><td colspan="3">Aucune permission.</td></tr>';
+              datasetAccessRows.innerHTML = '<tr><td colspan="4">Aucune permission.</td></tr>';
               return;
             }
             items.forEach((access) => {
               const tr = document.createElement('tr');
-              tr.innerHTML = '<td><strong>' + (access.userId || '-') + '</strong></td><td>' + badge(access.role || '-') + '</td><td>' +
-                ((state.datasetCanManageAccess && access.role !== 'owner') ? '<button type="button" class="btn danger" data-del-dataset-access="' + encodeURIComponent(access.userId || '') + '">Retirer</button>' : '-') + '</td>';
+              const subjectType = access.subjectType || 'user';
+              const subjectID = access.subjectId || access.userId || '';
+              const organization = ensureArray(state.availableOrganizations).find((item) => item.id === subjectID);
+              const subjectLabel = organization ? (organization.name || organization.alias || subjectID) : subjectID;
+              tr.innerHTML = '<td><strong>' + escapeHTML(subjectLabel || '-') + '</strong><br/><code>' + escapeHTML(subjectID) + '</code></td><td>' + badge(subjectType) + '</td><td>' + badge(access.role || '-') + '</td><td>' +
+                ((state.datasetCanManageAccess && access.role !== 'owner') ? '<button type="button" class="btn danger" data-del-dataset-access="' + encodeURIComponent(subjectType) + '" data-dataset-access-subject="' + encodeURIComponent(subjectID) + '">Retirer</button>' : '-') + '</td>';
               datasetAccessRows.appendChild(tr);
             });
           }
@@ -3413,7 +3433,7 @@ data:
             adminDatasetsCount.textContent = String(datasets.length);
             adminUserRows.innerHTML = users.map((u) => '<tr><td><strong>' + (u.username || u.id || '-') + '</strong></td><td>' + (u.email || '-') + '</td><td>' + badge(u.enabled === false ? 'disabled' : 'enabled') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun utilisateur.</td></tr>';
             adminProjectRows.innerHTML = projects.map((p) => '<tr><td><strong>' + (p.name || p.id || '-') + '</strong></td><td>' + formatDateTime(p.createdAt) + '</td></tr>').join('') || '<tr><td colspan="2">Aucun projet.</td></tr>';
-            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + (d.ownerUserId || '-') + '</td><td>' + badge('standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
+            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + badge(d.ownerType || 'user') + ' ' + (d.ownerId || d.ownerUserId || '-') + '</td><td>' + badge('standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
           function renderOrganizations() {
@@ -3533,7 +3553,7 @@ data:
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                   '<td>' + badge('standard') + '</td>' +
                   '<td><code>' + (d.provider || 'minio') + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
-                  '<td>' + (d.ownerUserId || '-') + '</td>' +
+                  '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
                 projectDatasetRows.appendChild(tr);
               });
@@ -3738,6 +3758,13 @@ data:
             state.datasetAccess = ensureArray(body.items);
             state.datasetCanManageAccess = !!body.canManage;
             renderDatasetAccessTable();
+          }
+
+          async function refreshAvailableOrganizations() {
+            const body = await callJSON('/api/v1/organizations');
+            state.availableOrganizations = ensureArray(body.items);
+            renderDatasetAccessTable();
+            return body;
           }
 
           async function refreshRepositories() {
@@ -4179,7 +4206,7 @@ data:
 
           refreshDataBtn.onclick = async () => {
             try {
-              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources()]);
+              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -4818,9 +4845,10 @@ data:
 
           datasetAccessSave.onclick = async () => {
             try {
-              const userID = datasetAccessUser.value.trim();
-              if (!selectedDatasetID || !userID) return;
-              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + encodeURIComponent(userID), {
+              const subjectID = datasetAccessUser.value.trim();
+              const subjectType = datasetAccessSubjectType.value;
+              if (!selectedDatasetID || !subjectID) return;
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + encodeURIComponent(subjectType) + '/' + encodeURIComponent(subjectID), {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: datasetAccessRole.value })
               });
               datasetAccessUser.value = '';
@@ -4829,11 +4857,26 @@ data:
           };
 
           datasetAccessRows.onclick = async (event) => {
-            const userID = event.target && event.target.getAttribute('data-del-dataset-access');
-            if (!userID || !selectedDatasetID) return;
+            const subjectType = event.target && event.target.getAttribute('data-del-dataset-access');
+            const subjectID = event.target && event.target.getAttribute('data-dataset-access-subject');
+            if (!subjectType || !subjectID || !selectedDatasetID) return;
             try {
-              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + userID, { method: 'DELETE' });
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + subjectType + '/' + subjectID, { method: 'DELETE' });
               await refreshDatasetAccess(selectedDatasetID);
+            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+
+          datasetOwnerSave.onclick = async () => {
+            try {
+              const ownerType = datasetOwnerType.value;
+              const ownerId = datasetOwnerID.value.trim();
+              if (!selectedDatasetID || !ownerId) return;
+              if (!window.confirm('Transférer définitivement l ownership de ce dataset ?')) return;
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/ownership', {
+                method:'PUT', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ ownerType, ownerId })
+              });
+              datasetOwnerID.value = '';
+              await Promise.all([refreshDatasets(), refreshDatasetAccess(selectedDatasetID)]);
             } catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
@@ -5165,7 +5208,7 @@ data:
                 startWorkspacesAutoRefresh();
               startPlatformPulse();
                 refreshProjects()
-                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                   .catch((err) => {
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
@@ -5183,7 +5226,7 @@ data:
               startPlatformPulse();
               ensureWebSession()
                 .then(() => refreshProjects())
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch((err) => {
                   pretty(usersOut, { sessionError: String(err) });
                   switchTab('ops');
@@ -5201,7 +5244,7 @@ data:
               startWorkspacesAutoRefresh();
               startPlatformPulse();
               refreshProjects()
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch(() => {});
               switchTab('intro');
             });
@@ -5215,7 +5258,7 @@ data:
             startWorkspacesAutoRefresh();
               startPlatformPulse();
             refreshProjects()
-              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
               .catch(() => {});
             switchTab('intro');
           }
@@ -5226,7 +5269,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.132"}
+    {"version":"ce-web-0.6.133"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5247,7 +5290,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.132
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.133
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

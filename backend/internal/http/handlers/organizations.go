@@ -22,6 +22,22 @@ func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h Handlers) ListAvailableOrganizations(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireIdentity(w, r); !ok {
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		return
+	}
+	items, err := h.keycloak.ListOrganizations()
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to fetch organizations from keycloak"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func (h Handlers) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireAdminModule(w, r, "organizations")
 	if !ok {
