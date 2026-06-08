@@ -87,7 +87,7 @@ Project RBAC:
 ## Kubernetes bootstrap
 
 ```bash
-kubectl apply -k deploy/k8s/base
+kubectl apply --server-side --force-conflicts -k deploy/k8s/base
 ```
 
 Runtime mode in cluster:

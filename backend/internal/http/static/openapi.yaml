@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.97
+  version: 0.5.98
   description: |
     Noryx CE backend API contract.
 
@@ -1193,6 +1193,37 @@ paths:
         '502':
           $ref: '#/components/responses/UpstreamError'
 
+  /api/v1/datasets/{datasetID}/folders:
+    post:
+      tags: [Datasets]
+      summary: Create a folder marker in one dataset
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string }
+      responses:
+        '201':
+          description: Folder created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
   /api/v1/datasets/{datasetID}/objects/{path}:
     get:
       tags: [Datasets]
@@ -1269,6 +1300,33 @@ paths:
           $ref: '#/components/responses/UpstreamError'
         '500':
           $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Datasets]
+      summary: Delete one object or a folder recursively
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+        - in: query
+          name: recursive
+          schema: { type: boolean, default: false }
+      responses:
+        '204':
+          description: Object or folder deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
 
   /api/v1/datasets/{datasetID}/download:
     post:

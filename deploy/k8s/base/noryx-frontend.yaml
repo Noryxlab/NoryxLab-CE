@@ -442,10 +442,22 @@ data:
           .dataset-access-panel { margin: 12px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
           .dataset-access-panel h4 { margin: 0 0 4px; font-size: 14px; }
           .dataset-access-panel .access-copy { margin-bottom: 10px; color: var(--muted); font-size: 12px; }
-          .dataset-files { margin: 0 14px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
-          .dataset-files h4 { margin: 0 0 10px; font-size: 14px; }
+          .dataset-files { margin: 0 14px 14px; border: 1px solid #bfcbd8; border-radius: 12px; overflow: hidden; background: #fff; }
+          .dataset-files h4 { margin: 0; font-size: 14px; }
+          .dataset-file-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #d6dfe8; background: #f4f7fa; }
+          .dataset-file-toolbar .spacer { flex: 1; }
+          .dataset-breadcrumbs { display: flex; align-items: center; gap: 3px; min-height: 38px; padding: 6px 12px; border-bottom: 1px solid #d6dfe8; background: #fff; }
+          .dataset-breadcrumbs button { border: 0; border-radius: 5px; padding: 5px 7px; color: #24506b; background: transparent; cursor: pointer; font-weight: 600; }
+          .dataset-breadcrumbs button:hover { background: #e8f1f5; }
+          .dataset-breadcrumbs span { color: #8a98a8; }
+          .dataset-files table { margin: 0; border: 0; border-radius: 0; }
+          .dataset-files tbody tr { cursor: default; }
+          .dataset-files tbody tr:hover { background: #edf6fa; }
           .file-path { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-          .file-path::before { content: "▤"; color: var(--brand); font-size: 16px; }
+          .file-icon { width: 22px; color: #2f6078; font-size: 18px; text-align: center; }
+          .file-icon.folder { color: #d39a24; }
+          .file-name-button { border: 0; padding: 2px; color: #183149; background: transparent; cursor: pointer; font: inherit; font-weight: 600; text-align: left; }
+          .file-name-button:hover { color: #075985; text-decoration: underline; }
           .dataset-preview { margin: 0 14px 14px; padding: 14px; border: 1px solid #d6dfe8; border-radius: 12px; background: #fff; }
           .dataset-preview-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
           .dataset-preview-body { min-height: 180px; max-height: 620px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #f8fafc; padding: 12px; }
@@ -897,12 +909,16 @@ data:
                         <div id="datasetUploadStatus" class="hint" style="display:none"></div>
                       </div>
                       <div class="dataset-files">
-                        <div class="dataset-catalog-header">
-                          <h4>Contenu du dataset</h4>
+                        <div class="dataset-file-toolbar">
+                          <button id="datasetFolderUp" type="button" class="btn">← Retour</button>
+                          <button id="datasetCreateFolder" type="button" class="btn primary">Nouveau dossier</button>
+                          <span class="spacer"></span>
+                          <button id="datasetDeleteSelected" type="button" class="btn danger">Supprimer la selection</button>
                           <button id="datasetDownloadSelected" type="button" class="btn">Telecharger la selection (ZIP)</button>
                         </div>
+                        <div id="datasetBreadcrumbs" class="dataset-breadcrumbs"></div>
                         <table>
-                          <thead><tr><th></th><th>Fichier</th><th>Taille</th><th>Derniere modification</th><th>Type</th><th>Actions</th></tr></thead>
+                          <thead><tr><th></th><th>Nom</th><th>Taille</th><th>Derniere modification</th><th>Type</th><th>Actions</th></tr></thead>
                           <tbody id="datasetObjectRows"></tbody>
                         </table>
                       </div>
@@ -1416,7 +1432,11 @@ data:
           const datasetUploadFileInput = document.getElementById('datasetUploadFile');
           const uploadDatasetObjectBtn = document.getElementById('uploadDatasetObject');
           const datasetUploadStatus = document.getElementById('datasetUploadStatus');
+          const datasetFolderUp = document.getElementById('datasetFolderUp');
+          const datasetCreateFolder = document.getElementById('datasetCreateFolder');
+          const datasetDeleteSelected = document.getElementById('datasetDeleteSelected');
           const datasetDownloadSelected = document.getElementById('datasetDownloadSelected');
+          const datasetBreadcrumbs = document.getElementById('datasetBreadcrumbs');
           const datasetPreview = document.getElementById('datasetPreview');
           const datasetPreviewTitle = document.getElementById('datasetPreviewTitle');
           const datasetPreviewBody = document.getElementById('datasetPreviewBody');
@@ -1575,6 +1595,7 @@ data:
           let dockerfileEditMode = false;
           let creatingEnvironment = false;
           let selectedDatasetID = '';
+          let datasetCurrentPath = '';
           let datasetPreviewPath = '';
           let datasetPreviewText = '';
           let datasetPreviewContentType = 'text/plain';
@@ -2394,6 +2415,7 @@ data:
           if (datasetUploadTarget) {
             datasetUploadTarget.onchange = async () => {
               selectedDatasetID = String(datasetUploadTarget.value || '').trim();
+              datasetCurrentPath = '';
               renderDatasetsTable();
               try {
                 await refreshDatasetObjects(selectedDatasetID);
@@ -2637,6 +2659,12 @@ data:
             return (idx === 0 ? String(Math.round(size)) : size.toFixed(size >= 10 ? 1 : 2)) + ' ' + units[idx];
           }
 
+          function escapeHTML(value) {
+            return String(value == null ? '' : value)
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          }
+
           function renderDatasetObjectsTable() {
             if (!datasetObjectRows) return;
             const selected = state.datasets.find((d) => d.id === selectedDatasetID);
@@ -2644,6 +2672,9 @@ data:
             uploadDatasetObjectBtn.disabled = !canWrite;
             datasetUploadPathInput.disabled = !canWrite;
             datasetUploadFileInput.disabled = !canWrite;
+            datasetCreateFolder.disabled = !canWrite;
+            datasetDeleteSelected.disabled = !canWrite;
+            datasetFolderUp.disabled = !datasetCurrentPath;
             if (datasetSelectedTitle) {
               datasetSelectedTitle.textContent = selected ? (selected.name || selected.id) : 'Aucun dataset selectionne';
             }
@@ -2653,6 +2684,7 @@ data:
                 : '-';
             }
             datasetObjectRows.innerHTML = '';
+            datasetBreadcrumbs.innerHTML = '';
             if (!selected) {
               if (datasetFileCount) datasetFileCount.textContent = '0';
               if (datasetTotalSize) datasetTotalSize.textContent = '0 B';
@@ -2660,28 +2692,69 @@ data:
               datasetDownloadSelected.disabled = true;
               return;
             }
+            const crumbs = datasetCurrentPath ? datasetCurrentPath.split('/').filter(Boolean) : [];
+            let crumbPath = '';
+            const rootButton = document.createElement('button');
+            rootButton.type = 'button'; rootButton.textContent = selected.name || 'Dataset'; rootButton.setAttribute('data-dataset-folder', '');
+            datasetBreadcrumbs.appendChild(rootButton);
+            crumbs.forEach((part) => {
+              const separator = document.createElement('span'); separator.textContent = '›'; datasetBreadcrumbs.appendChild(separator);
+              crumbPath = crumbPath ? crumbPath + '/' + part : part;
+              const button = document.createElement('button'); button.type = 'button'; button.textContent = part; button.setAttribute('data-dataset-folder', encodeURIComponent(crumbPath));
+              datasetBreadcrumbs.appendChild(button);
+            });
             datasetDownloadSelected.disabled = selected.classification === 'hds';
             const objects = ensureArray(state.datasetObjects);
-            const totalSize = objects.reduce((sum, obj) => sum + Number(obj.size || 0), 0);
-            if (datasetFileCount) datasetFileCount.textContent = String(objects.length);
+            const files = objects.filter((obj) => !String(obj.path || '').endsWith('/'));
+            const totalSize = files.reduce((sum, obj) => sum + Number(obj.size || 0), 0);
+            if (datasetFileCount) datasetFileCount.textContent = String(files.length);
             if (datasetTotalSize) datasetTotalSize.textContent = formatBytes(totalSize);
-            if (objects.length === 0) {
-              datasetObjectRows.innerHTML = '<tr><td colspan="6">Aucun fichier dans ce dataset.</td></tr>';
+            const prefix = datasetCurrentPath ? datasetCurrentPath.replace(/\/+$/, '') + '/' : '';
+            const folders = new Map();
+            const visibleFiles = [];
+            objects.forEach((obj) => {
+              const objectPath = String(obj.path || obj.key || '');
+              if (!objectPath.startsWith(prefix)) return;
+              const remainder = objectPath.slice(prefix.length);
+              if (!remainder) return;
+              const slash = remainder.indexOf('/');
+              if (slash >= 0) {
+                const name = remainder.slice(0, slash);
+                if (name) folders.set(name, prefix + name);
+                return;
+              }
+              visibleFiles.push(obj);
+            });
+            if (folders.size === 0 && visibleFiles.length === 0) {
+              datasetObjectRows.innerHTML = '<tr><td colspan="6">Ce dossier est vide.</td></tr>';
               return;
             }
-            objects.forEach((obj) => {
-              const visual = datasetFileVisual(obj.path || obj.key || '', obj.contentType || '');
-              const editable = canWrite && visual.editable;
+            Array.from(folders.entries()).sort((a, b) => a[0].localeCompare(b[0])).forEach(([name, folderPath]) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><input type="checkbox" data-dataset-file-select="' + encodeURIComponent(obj.path || obj.key || '') + '" /></td>' +
-                '<td><span class="file-path">' + (visual.supported ? '<span class="preview-dot supported" title="Apercu disponible"></span>' : '') + '<code>' + (obj.path || obj.key || '-') + '</code></span></td>' +
+                '<td><input type="checkbox" data-dataset-folder-select="' + encodeURIComponent(folderPath) + '" /></td>' +
+                '<td><span class="file-path"><span class="file-icon folder">📁</span><button type="button" class="file-name-button" data-dataset-folder="' + encodeURIComponent(folderPath) + '">' + escapeHTML(name) + '</button></span></td>' +
+                '<td>-</td><td>-</td><td>Dossier</td>' +
+                '<td><button type="button" class="btn" data-dataset-folder="' + encodeURIComponent(folderPath) + '">Ouvrir</button> ' +
+                (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-folder="' + encodeURIComponent(folderPath) + '">Supprimer</button>' : '') + '</td>';
+              datasetObjectRows.appendChild(tr);
+            });
+            visibleFiles.sort((a, b) => String(a.path || '').localeCompare(String(b.path || ''))).forEach((obj) => {
+              const visual = datasetFileVisual(obj.path || obj.key || '', obj.contentType || '');
+              const editable = canWrite && visual.editable;
+              const fullPath = obj.path || obj.key || '';
+              const name = fullPath.slice(prefix.length);
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><input type="checkbox" data-dataset-file-select="' + encodeURIComponent(fullPath) + '" /></td>' +
+                '<td><span class="file-path"><span class="file-icon">▤</span>' + (visual.supported ? '<span class="preview-dot supported" title="Apercu disponible"></span>' : '') + '<button type="button" class="file-name-button" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">' + escapeHTML(name || '-') + '</button></span></td>' +
                 '<td>' + formatBytes(obj.size) + '</td>' +
                 '<td>' + formatDateTime(obj.lastModified) + '</td>' +
                 '<td>' + (obj.contentType || '-') + '</td>' +
-                '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Voir</button> ' +
-                (editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Modifier</button> ' : '') +
-                '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(obj.path || obj.key || '') + '">Telecharger</button></td>';
+                '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">Voir</button> ' +
+                (editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(fullPath) + '">Modifier</button> ' : '') +
+                '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(fullPath) + '">Telecharger</button> ' +
+                (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-file="' + encodeURIComponent(fullPath) + '">Supprimer</button>' : '') + '</td>';
               datasetObjectRows.appendChild(tr);
             });
           }
@@ -3843,7 +3916,10 @@ data:
             try {
               const datasetID = (datasetUploadTarget.value || '').trim();
               const file = datasetUploadFileInput.files && datasetUploadFileInput.files[0];
-              const objectPath = (datasetUploadPathInput.value || '').trim() || (file && file.name) || '';
+              const requestedPath = (datasetUploadPathInput.value || '').trim() || (file && file.name) || '';
+              const objectPath = datasetCurrentPath && requestedPath && !requestedPath.startsWith(datasetCurrentPath + '/')
+                ? datasetCurrentPath + '/' + requestedPath
+                : requestedPath;
               if (!datasetID || !objectPath || !file) throw { error: 'Selectionnez un fichier a televerser.' };
               uploadDatasetObjectBtn.disabled = true;
               datasetUploadStatus.style.display = '';
@@ -4450,6 +4526,7 @@ data:
                 return;
               }
               selectedDatasetID = selectID;
+              datasetCurrentPath = '';
               renderDatasetsTable();
               await Promise.all([refreshDatasetObjects(selectID), refreshDatasetAccess(selectID)]);
             } catch (e) {
@@ -4486,6 +4563,24 @@ data:
           }
 
           datasetObjectRows.onclick = async (event) => {
+            const folderPath = event.target && event.target.getAttribute('data-dataset-folder');
+            const deleteFilePath = event.target && event.target.getAttribute('data-delete-dataset-file');
+            const deleteFolderPath = event.target && event.target.getAttribute('data-delete-dataset-folder');
+            if (folderPath !== null && folderPath !== undefined) {
+              datasetCurrentPath = decodeURIComponent(folderPath);
+              renderDatasetObjectsTable();
+              return;
+            }
+            if (deleteFilePath || deleteFolderPath) {
+              const encodedPath = deleteFilePath || deleteFolderPath;
+              const targetPath = decodeURIComponent(encodedPath);
+              if (!window.confirm('Supprimer ' + targetPath + (deleteFolderPath ? ' et tout son contenu ?' : ' ?'))) return;
+              try {
+                await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodedPath + (deleteFolderPath ? '?recursive=true' : ''), { method:'DELETE' });
+                await refreshDatasetObjects(selectedDatasetID);
+              } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+              return;
+            }
             const previewPath = event.target && event.target.getAttribute('data-preview-dataset-file');
             const downloadPath = event.target && event.target.getAttribute('data-download-dataset-file');
             const editPath = event.target && event.target.getAttribute('data-edit-dataset-file');
@@ -4529,6 +4624,51 @@ data:
               }
               datasetPreview.scrollIntoView({ behavior: 'smooth', block: 'start' });
               if (editPath && canEdit) datasetPreviewEdit.click();
+            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+          };
+
+          datasetBreadcrumbs.onclick = (event) => {
+            const folderPath = event.target && event.target.getAttribute('data-dataset-folder');
+            if (folderPath === null || folderPath === undefined) return;
+            datasetCurrentPath = decodeURIComponent(folderPath);
+            renderDatasetObjectsTable();
+          };
+          datasetFolderUp.onclick = () => {
+            datasetCurrentPath = datasetCurrentPath.split('/').filter(Boolean).slice(0, -1).join('/');
+            renderDatasetObjectsTable();
+          };
+          datasetCreateFolder.onclick = async () => {
+            const name = window.prompt('Nom du nouveau dossier');
+            if (!name) return;
+            const cleanName = name.trim().replace(/^\/+|\/+$/g, '');
+            if (!cleanName || cleanName.includes('/')) {
+              datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = 'Le nom du dossier ne doit pas contenir de slash.';
+              return;
+            }
+            const folderPath = datasetCurrentPath ? datasetCurrentPath + '/' + cleanName : cleanName;
+            try {
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/folders', {
+                method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ path:folderPath })
+              });
+              await refreshDatasetObjects(selectedDatasetID);
+            } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
+          };
+          datasetDeleteSelected.onclick = async () => {
+            const files = Array.from(datasetObjectRows.querySelectorAll('[data-dataset-file-select]:checked')).map((node) => decodeURIComponent(node.getAttribute('data-dataset-file-select')));
+            const folders = Array.from(datasetObjectRows.querySelectorAll('[data-dataset-folder-select]:checked')).map((node) => decodeURIComponent(node.getAttribute('data-dataset-folder-select')));
+            if (files.length + folders.length === 0) {
+              datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = 'Selectionnez au moins un fichier ou dossier.';
+              return;
+            }
+            if (!window.confirm('Supprimer la selection ? Les dossiers seront supprimes avec tout leur contenu.')) return;
+            try {
+              for (const filePath of files) {
+                await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(filePath), { method:'DELETE' });
+              }
+              for (const folderPath of folders) {
+                await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(folderPath) + '?recursive=true', { method:'DELETE' });
+              }
+              await refreshDatasetObjects(selectedDatasetID);
             } catch (e) { datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = String((e && e.error) || e); }
           };
 
@@ -4680,7 +4820,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.116"}
+    {"version":"ce-web-0.6.117"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -4701,7 +4841,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.116
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.117
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
