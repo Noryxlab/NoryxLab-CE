@@ -73,6 +73,9 @@ If using split namespaces (`noryx-ce` + `noryx-loads`):
 
 - create `harbor-regcred` in both namespaces
 - builds/workspaces run in `noryx-loads`, so missing secret there breaks runtime launches
+- ensure the cluster CNI enforces Kubernetes NetworkPolicy for user workload isolation
+
+Workload isolation is documented in `docs/WORKLOAD_NETWORK_ISOLATION.md`.
 
 ## DNS note for in-cluster Kaniko builds
 
