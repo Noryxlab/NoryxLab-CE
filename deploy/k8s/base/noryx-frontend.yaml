@@ -1021,12 +1021,13 @@ data:
                       <div><div class="k">Projet actif</div><div id="workspaceProjectName" class="v">Aucun projet sélectionné</div></div>
                       <code id="workspaceProjectId">-</code>
                     </div>
-                    <div class="hint">IDE: Jupyter or VSCode, fixed profile: 500m CPU / 512Mi RAM. Storage default: 10Gi.</div>
+                    <div class="hint">Choisissez un profil matériel. Seules les limites disponibles sont affichées; le profil Standard est utilisé par défaut.</div>
                     <div class="row">
                       <select id="workspaceIde">
                         <option value="jupyter">jupyter</option>
                         <option value="vscode">vscode</option>
                       </select>
+                      <select id="workspaceHardwareTier"></select>
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
                       <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
                       <button id="createWorkspace" class="btn primary">Launch Workspace</button>
@@ -1132,6 +1133,7 @@ data:
                     <div class="row">
                       <input id="jobName" placeholder="job name (optional)" />
                       <select id="jobEnv"></select>
+                      <select id="jobHardwareTier"></select>
                     </div>
                     <div class="row">
                       <input id="jobCommand" value="python -V" placeholder="shell command" />
@@ -1159,6 +1161,7 @@ data:
                     </div>
                     <div class="row">
                       <select id="appEnv"></select>
+                      <select id="appHardwareTier"></select>
                       <input id="appPort" value="9000" placeholder="port (default 9000)" />
                     </div>
                     <div class="row">
@@ -1185,6 +1188,7 @@ data:
                     </div>
                     <div class="row">
                       <select id="dashboardEnv"></select>
+                      <select id="dashboardHardwareTier"></select>
                       <input id="dashboardPort" value="9000" placeholder="port (default 9000)" />
                     </div>
                     <div class="row">
@@ -1403,12 +1407,14 @@ data:
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const workspaceIdeInput = document.getElementById('workspaceIde');
+          const workspaceHardwareTierInput = document.getElementById('workspaceHardwareTier');
           const workspaceStorageSizeInput = document.getElementById('workspaceStorageSize');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
           const loadWorkspacesBtn = document.getElementById('loadWorkspaces');
           const workspaceRows = document.getElementById('workspaceRows');
           const jobNameInput = document.getElementById('jobName');
           const jobEnvInput = document.getElementById('jobEnv');
+          const jobHardwareTierInput = document.getElementById('jobHardwareTier');
           const jobCommandInput = document.getElementById('jobCommand');
           const createJobBtn = document.getElementById('createJob');
           const loadJobsBtn = document.getElementById('loadJobs');
@@ -1417,6 +1423,7 @@ data:
           const appNameInput = document.getElementById('appName');
           const appSlugInput = document.getElementById('appSlug');
           const appEnvInput = document.getElementById('appEnv');
+          const appHardwareTierInput = document.getElementById('appHardwareTier');
           const appPortInput = document.getElementById('appPort');
           const appCommandInput = document.getElementById('appCommand');
           const createAppBtn = document.getElementById('createApp');
@@ -1425,6 +1432,7 @@ data:
           const dashboardNameInput = document.getElementById('dashboardName');
           const dashboardSlugInput = document.getElementById('dashboardSlug');
           const dashboardEnvInput = document.getElementById('dashboardEnv');
+          const dashboardHardwareTierInput = document.getElementById('dashboardHardwareTier');
           const dashboardPortInput = document.getElementById('dashboardPort');
           const dashboardCommandInput = document.getElementById('dashboardCommand');
           const createDashboardBtn = document.getElementById('createDashboard');
@@ -1652,6 +1660,7 @@ data:
             projectRepositories: [],
             projectDatasources: [],
             workspaces: [],
+            hardwareTiers: [],
             jobs: [],
             apps: [],
             dashboards: [],
@@ -3098,6 +3107,27 @@ data:
             }
           }
 
+          function renderHardwareTierOptions() {
+            [workspaceHardwareTierInput, jobHardwareTierInput, appHardwareTierInput, dashboardHardwareTierInput].forEach((select) => {
+              if (!select) return;
+              const current = select.value;
+              select.innerHTML = '';
+              state.hardwareTiers.forEach((tier) => {
+                const opt = document.createElement('option');
+                opt.value = tier.id || '';
+                opt.textContent = (tier.name || tier.id) + ' · ' + (tier.cpuLimit || '-') + ' CPU · ' + (tier.memoryLimit || '-') + ' RAM' + (tier.default ? ' · défaut' : '');
+                opt.title = tier.description || '';
+                select.appendChild(opt);
+              });
+              if (current && state.hardwareTiers.some((tier) => tier.id === current)) {
+                select.value = current;
+              } else {
+                const defaultTier = state.hardwareTiers.find((tier) => tier.default);
+                if (defaultTier) select.value = defaultTier.id;
+              }
+            });
+          }
+
           function renderJobEnvOptions() {
             const current = jobEnvInput.value || '';
             jobEnvInput.innerHTML = '';
@@ -3658,6 +3688,7 @@ data:
             renderSecretOptions();
             renderDatasourceSecretOptions();
             renderWorkspacesTable();
+            renderHardwareTierOptions();
             renderJobEnvOptions();
             renderJobsTable();
             renderAppEnvOptions();
@@ -3691,6 +3722,13 @@ data:
             const body = await callJSON('/api/v1/workspaces');
             state.workspaces = ensureArray(body.items);
             renderAll();
+            return body;
+          }
+
+          async function refreshHardwareTiers() {
+            const body = await callJSON('/api/v1/hardware-tiers');
+            state.hardwareTiers = ensureArray(body.items);
+            renderHardwareTierOptions();
             return body;
           }
 
@@ -3900,7 +3938,7 @@ data:
             if (workspacesAutoRefreshTimer) return;
             workspacesAutoRefreshTimer = setInterval(async () => {
               try {
-                await Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards()]);
+                await Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards()]);
                 if (state.activeTab === 'environments' || state.activeTab === 'workloads') {
                   await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 }
@@ -4422,6 +4460,8 @@ data:
               if (name) payload.name = name;
               const storageSize = workspaceStorageSizeInput.value.trim();
               if (storageSize) payload.storageSize = storageSize;
+              const hardwareTier = workspaceHardwareTierInput.value.trim();
+              if (hardwareTier) payload.hardwareTier = hardwareTier;
               const created = await callJSON('/api/v1/workspaces', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -4449,6 +4489,8 @@ data:
               const image = (jobEnvInput.value || '').trim();
               if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
+              const hardwareTier = jobHardwareTierInput.value.trim();
+              if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = jobNameInput.value.trim();
               if (name) payload.name = name;
               const rawCommand = (jobCommandInput.value || '').trim();
@@ -4473,6 +4515,8 @@ data:
               const image = (appEnvInput.value || '').trim();
               if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
+              const hardwareTier = appHardwareTierInput.value.trim();
+              if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = appNameInput.value.trim();
               const slug = appSlugInput.value.trim();
               const cmd = appCommandInput.value.trim();
@@ -4501,6 +4545,8 @@ data:
               const image = (dashboardEnvInput.value || '').trim();
               if (!image) throw { error: tui('err_select_env_first') };
               const payload = { projectId, image };
+              const hardwareTier = dashboardHardwareTierInput.value.trim();
+              if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = dashboardNameInput.value.trim();
               const slug = dashboardSlugInput.value.trim();
               const cmd = dashboardCommandInput.value.trim();
@@ -5294,7 +5340,7 @@ data:
                 startWorkspacesAutoRefresh();
               startPlatformPulse();
                 refreshProjects()
-                  .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                  .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                   .catch((err) => {
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
@@ -5312,7 +5358,7 @@ data:
               startPlatformPulse();
               ensureWebSession()
                 .then(() => refreshProjects())
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch((err) => {
                   pretty(usersOut, { sessionError: String(err) });
                   switchTab('ops');
@@ -5330,7 +5376,7 @@ data:
               startWorkspacesAutoRefresh();
               startPlatformPulse();
               refreshProjects()
-                .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch(() => {});
               switchTab('intro');
             });
@@ -5344,7 +5390,7 @@ data:
             startWorkspacesAutoRefresh();
               startPlatformPulse();
             refreshProjects()
-              .then(() => Promise.all([refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
               .catch(() => {});
             switchTab('intro');
           }
@@ -5355,7 +5401,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.142"}
+    {"version":"ce-web-0.6.143"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5376,7 +5422,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.142
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.143
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

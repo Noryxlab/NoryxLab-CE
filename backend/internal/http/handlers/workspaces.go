@@ -18,10 +18,11 @@ import (
 )
 
 type createWorkspaceRequest struct {
-	ProjectID   string `json:"projectId"`
-	Name        string `json:"name"`
-	IDE         string `json:"ide"`
-	StorageSize string `json:"storageSize"`
+	ProjectID    string `json:"projectId"`
+	Name         string `json:"name"`
+	IDE          string `json:"ide"`
+	StorageSize  string `json:"storageSize"`
+	HardwareTier string `json:"hardwareTier"`
 }
 
 var (
@@ -228,6 +229,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
+	req.HardwareTier = strings.TrimSpace(req.HardwareTier)
+	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
+	if !tierFound {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
+		return
+	}
 	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
 	if rawIDE == "" {
 		req.IDE = "jupyter"
@@ -314,8 +321,8 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		workspaceImage,
 		podName,
 		serviceName,
-		h.workspaceCPU,
-		h.workspaceMemory,
+		tier.CPULimit,
+		tier.MemoryLimit,
 		"",
 		accessToken,
 	)
@@ -440,12 +447,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			Env:                     envVars,
 			Ports:                   []int{8888},
 			ReadinessPort:           8888,
-			CPURequest:              h.workspaceCPURequest,
-			CPULimit:                h.workspaceCPU,
-			MemRequest:              h.workspaceMemory,
-			MemLimit:                h.workspaceMemory,
-			EphemeralStorageRequest: h.workspaceEphemeralStorageRequest,
-			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
+			CPURequest:              tier.CPURequest,
+			CPULimit:                tier.CPULimit,
+			MemRequest:              tier.MemoryRequest,
+			MemLimit:                tier.MemoryLimit,
+			EphemeralStorageRequest: tier.EphemeralRequest,
+			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
 			Secrets: []noryxruntime.SecretMount{{
@@ -459,6 +466,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				"noryx.io/workspace-id":   record.ID,
 				"noryx.io/workspace-pod":  podName,
 				"noryx.io/workspace-kind": req.IDE,
+				"noryx.io/hardware-tier":  tier.ID,
 			},
 		})
 		if err != nil {
@@ -487,11 +495,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.emitAudit(r, userID, "workspace.launch", "workspace", record.ID, record.ProjectID, "success", "", map[string]any{
-		"name":        record.Name,
-		"ide":         record.Kind,
-		"podName":     record.PodName,
-		"serviceName": record.ServiceName,
-		"image":       record.Image,
+		"name":         record.Name,
+		"ide":          record.Kind,
+		"podName":      record.PodName,
+		"serviceName":  record.ServiceName,
+		"image":        record.Image,
+		"hardwareTier": tier.ID,
 	})
 	writeJSON(w, http.StatusCreated, record)
 }

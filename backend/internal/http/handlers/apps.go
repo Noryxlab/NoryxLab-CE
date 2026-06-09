@@ -13,13 +13,14 @@ import (
 )
 
 type createAppRequest struct {
-	ProjectID string   `json:"projectId"`
-	Name      string   `json:"name"`
-	Slug      string   `json:"slug"`
-	Image     string   `json:"image"`
-	Command   []string `json:"command"`
-	Args      []string `json:"args"`
-	Port      int      `json:"port"`
+	ProjectID    string   `json:"projectId"`
+	Name         string   `json:"name"`
+	Slug         string   `json:"slug"`
+	Image        string   `json:"image"`
+	Command      []string `json:"command"`
+	Args         []string `json:"args"`
+	Port         int      `json:"port"`
+	HardwareTier string   `json:"hardwareTier"`
 }
 
 var appSlugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`)
@@ -96,6 +97,11 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	req.Name = strings.TrimSpace(req.Name)
 	req.Slug = normalizeAppSlug(req.Slug)
 	req.Image = strings.TrimSpace(req.Image)
+	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
+	if !tierFound {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
+		return
+	}
 	if req.ProjectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
 		return
@@ -195,12 +201,12 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			Args:                    args,
 			Env:                     datasourceEnv,
 			Ports:                   []int{record.Port},
-			CPURequest:              h.workspaceCPU,
-			CPULimit:                h.workspaceCPU,
-			MemRequest:              h.workspaceMemory,
-			MemLimit:                h.workspaceMemory,
-			EphemeralStorageRequest: h.workspaceEphemeralStorageRequest,
-			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
+			CPURequest:              tier.CPURequest,
+			CPULimit:                tier.CPULimit,
+			MemRequest:              tier.MemoryRequest,
+			MemLimit:                tier.MemoryLimit,
+			EphemeralStorageRequest: tier.EphemeralRequest,
+			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
 			Labels: map[string]string{
@@ -210,6 +216,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 				"noryx.io/app-kind":      kind,
 				"noryx.io/app-slug":      req.Slug,
 				"noryx.io/app-pod":       podName,
+				"noryx.io/hardware-tier": tier.ID,
 			},
 		})
 		if err != nil {
@@ -238,10 +245,11 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		action = "dashboard.launch"
 	}
 	h.emitAudit(r, userID, action, record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
-		"name":  record.Name,
-		"slug":  record.Slug,
-		"image": record.Image,
-		"port":  record.Port,
+		"name":         record.Name,
+		"slug":         record.Slug,
+		"image":        record.Image,
+		"port":         record.Port,
+		"hardwareTier": tier.ID,
 	})
 	writeJSON(w, http.StatusCreated, record)
 }
