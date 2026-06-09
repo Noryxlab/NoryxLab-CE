@@ -5,12 +5,9 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
-
-const workspaceTokenCookiePrefix = "noryx_ws_token_"
 
 func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceID := strings.TrimSpace(r.PathValue("workspaceID"))
@@ -29,35 +26,12 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, hasUser := h.userIDFromSessionOrBearerNoWrite(r)
-	queryToken := strings.TrimSpace(r.URL.Query().Get("token"))
-	wsCookieName := workspaceTokenCookiePrefix + workspaceID
-	wsCookieToken := ""
-	if cookie, err := r.Cookie(wsCookieName); err == nil {
-		wsCookieToken = strings.TrimSpace(cookie.Value)
-	}
-
-	tokenAuth := queryToken != "" && queryToken == record.AccessToken
-	cookieAuth := wsCookieToken != "" && wsCookieToken == record.AccessToken
-	if hasUser {
-		if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "workspace access") {
-			return
-		}
-	} else if !(tokenAuth || cookieAuth) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	if !ok {
 		return
 	}
-
-	if tokenAuth && !cookieAuth {
-		http.SetCookie(w, &http.Cookie{
-			Name:     wsCookieName,
-			Value:    record.AccessToken,
-			Path:     "/workspaces/" + workspaceID + "/",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteLaxMode,
-			Expires:  time.Now().UTC().Add(8 * time.Hour),
-		})
+	if !h.requireProjectRole(w, record.ProjectID, identity.UserID(), access.Role.CanLaunchPod, "workspace access") {
+		return
 	}
 
 	targetHost := strings.TrimSpace(record.ServiceName)
@@ -94,9 +68,8 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		req.Host = r.Host
 
 		q := req.URL.Query()
-		if q.Get("token") == "" {
-			q.Set("token", record.AccessToken)
-		}
+		// The workspace token is internal to the Noryx-to-workspace hop.
+		q.Set("token", record.AccessToken)
 		req.URL.RawQuery = q.Encode()
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
