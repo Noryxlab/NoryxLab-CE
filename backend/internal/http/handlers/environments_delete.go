@@ -21,6 +21,10 @@ func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProjectRole(w, projectID, userID, access.Role.CanRunBuild, "environment deletion") {
 		return
 	}
+	if destinationImage == strings.TrimSpace(h.workspaceJupyterImage) || destinationImage == strings.TrimSpace(h.workspaceVSCodeImage) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "system workspace environments cannot be deleted"})
+		return
+	}
 
 	builds, err := h.buildStore.List()
 	if err != nil {
