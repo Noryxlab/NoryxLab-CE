@@ -11,3 +11,4 @@ resources:
   - noryx-api-rbac.yaml
   - noryx-api.yaml
   - noryx-api-ingressroute.yaml
+  - noryx-loads-network-policies.yaml
