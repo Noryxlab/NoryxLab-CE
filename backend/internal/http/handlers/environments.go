@@ -29,6 +29,7 @@ type environmentItem struct {
 	ProjectID        string                `json:"projectId"`
 	Name             string                `json:"name"`
 	Category         string                `json:"category"`
+	WorkspaceIDEs    []string              `json:"workspaceIdes"`
 	DestinationImage string                `json:"destinationImage"`
 	LatestBuildID    string                `json:"latestBuildId"`
 	LatestStatus     string                `json:"latestStatus"`
@@ -76,10 +77,13 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 				ProjectID:        b.ProjectID,
 				Name:             deriveEnvironmentName(destination),
 				Category:         deriveEnvironmentCategory(destination),
+				WorkspaceIDEs:    deriveWorkspaceIDEs(destination, b.DockerfilePath, b.DockerfileContent),
 				DestinationImage: destination,
 				Revisions:        []environmentRevision{},
 			}
 			itemsByKey[key] = item
+		} else {
+			item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, deriveWorkspaceIDEs(destination, b.DockerfilePath, b.DockerfileContent))
 		}
 
 		rev := environmentRevision{
@@ -94,6 +98,11 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:        b.CreatedAt,
 		}
 		item.Revisions = append(item.Revisions, rev)
+	}
+
+	if projectFilter != "" && h.hasProjectMembership(userID, projectFilter) {
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, []string{"jupyter"})
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, []string{"vscode"})
 	}
 
 	items := make([]environmentItem, 0, len(itemsByKey))
@@ -301,4 +310,82 @@ func deriveEnvironmentCategory(destination string) string {
 		return "system"
 	}
 	return "custom"
+}
+
+func addSystemEnvironment(items map[string]*environmentItem, projectID, image string, workspaceIDEs []string) {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return
+	}
+	key := projectID + "|" + image
+	if item, ok := items[key]; ok {
+		item.Category = "system"
+		item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, workspaceIDEs)
+		return
+	}
+	items[key] = &environmentItem{
+		ID:               key,
+		ProjectID:        projectID,
+		Name:             deriveEnvironmentName(image),
+		Category:         "system",
+		WorkspaceIDEs:    workspaceIDEs,
+		DestinationImage: image,
+		Revisions:        []environmentRevision{},
+	}
+}
+
+func deriveWorkspaceIDEs(values ...string) []string {
+	joined := strings.ToLower(strings.Join(values, "\n"))
+	ides := []string{}
+	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "jupyter") {
+		ides = append(ides, "jupyter")
+	}
+	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "vscode") || strings.Contains(joined, "openvscode") {
+		ides = append(ides, "vscode")
+	}
+	return ides
+}
+
+func mergeWorkspaceIDEs(current, extra []string) []string {
+	seen := map[string]bool{}
+	for _, ide := range append(current, extra...) {
+		ide = strings.ToLower(strings.TrimSpace(ide))
+		if allowedWorkspaceIDEs[ide] {
+			seen[ide] = true
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for _, ide := range []string{"jupyter", "vscode"} {
+		if seen[ide] {
+			result = append(result, ide)
+		}
+	}
+	return result
+}
+
+func (h Handlers) workspaceEnvironmentAllowed(projectID, image, ide string) bool {
+	image = strings.TrimSpace(image)
+	ide = strings.ToLower(strings.TrimSpace(ide))
+	if image == "" || !allowedWorkspaceIDEs[ide] {
+		return false
+	}
+	if (ide == "jupyter" && image == strings.TrimSpace(h.workspaceJupyterImage)) ||
+		(ide == "vscode" && image == strings.TrimSpace(h.workspaceVSCodeImage)) {
+		return true
+	}
+	builds, err := h.buildStore.List()
+	if err != nil {
+		return false
+	}
+	for _, b := range builds {
+		if b.ProjectID != projectID || strings.TrimSpace(b.DestinationImage) != image || strings.ToLower(strings.TrimSpace(b.Status)) != "succeeded" {
+			continue
+		}
+		for _, supportedIDE := range deriveWorkspaceIDEs(b.DestinationImage, b.DockerfilePath, b.DockerfileContent) {
+			if supportedIDE == ide {
+				return true
+			}
+		}
+	}
+	return false
 }
