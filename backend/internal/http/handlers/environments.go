@@ -101,8 +101,8 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if projectFilter != "" && h.hasProjectMembership(userID, projectFilter) {
-		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, []string{"jupyter"})
-		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, []string{"vscode"})
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, systemEnvironmentDefinitions["system-jupyter"])
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, systemEnvironmentDefinitions["system-vscode"])
 	}
 
 	items := make([]environmentItem, 0, len(itemsByKey))
@@ -312,15 +312,55 @@ func deriveEnvironmentCategory(destination string) string {
 	return "custom"
 }
 
-func addSystemEnvironment(items map[string]*environmentItem, projectID, image string, workspaceIDEs []string) {
+type systemEnvironmentDefinition struct {
+	BuildID        string
+	GitRepository  string
+	GitRef         string
+	DockerfilePath string
+	WorkspaceIDEs  []string
+}
+
+var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
+	"system-jupyter": {
+		BuildID:        "system-jupyter",
+		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
+		GitRef:         "main",
+		DockerfilePath: "environments/noryx-jupyter/Dockerfile",
+		WorkspaceIDEs:  []string{"jupyter"},
+	},
+	"system-vscode": {
+		BuildID:        "system-vscode",
+		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
+		GitRef:         "main",
+		DockerfilePath: "environments/noryx-vscode/Dockerfile",
+		WorkspaceIDEs:  []string{"vscode"},
+	},
+}
+
+func addSystemEnvironment(items map[string]*environmentItem, projectID, image string, definition systemEnvironmentDefinition) {
 	image = strings.TrimSpace(image)
 	if image == "" {
 		return
 	}
 	key := projectID + "|" + image
+	revision := environmentRevision{
+		BuildID:          definition.BuildID,
+		Status:           "succeeded",
+		GitRepository:    definition.GitRepository,
+		GitRef:           definition.GitRef,
+		DockerfilePath:   definition.DockerfilePath,
+		ContextPath:      ".",
+		DestinationImage: image,
+	}
 	if item, ok := items[key]; ok {
 		item.Category = "system"
-		item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, workspaceIDEs)
+		item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, definition.WorkspaceIDEs)
+		item.LatestBuildID = definition.BuildID
+		item.LatestStatus = "succeeded"
+		item.LatestGitRepo = definition.GitRepository
+		item.LatestGitRef = definition.GitRef
+		item.LatestDockerfile = definition.DockerfilePath
+		item.Revisions = append([]environmentRevision{revision}, item.Revisions...)
 		return
 	}
 	items[key] = &environmentItem{
@@ -328,10 +368,20 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 		ProjectID:        projectID,
 		Name:             deriveEnvironmentName(image),
 		Category:         "system",
-		WorkspaceIDEs:    workspaceIDEs,
+		WorkspaceIDEs:    definition.WorkspaceIDEs,
 		DestinationImage: image,
-		Revisions:        []environmentRevision{},
+		LatestBuildID:    definition.BuildID,
+		LatestStatus:     "succeeded",
+		LatestGitRepo:    definition.GitRepository,
+		LatestGitRef:     definition.GitRef,
+		LatestDockerfile: definition.DockerfilePath,
+		Revisions:        []environmentRevision{revision},
 	}
+}
+
+func getSystemEnvironmentDefinition(buildID string) (systemEnvironmentDefinition, bool) {
+	definition, ok := systemEnvironmentDefinitions[strings.TrimSpace(buildID)]
+	return definition, ok
 }
 
 func deriveWorkspaceIDEs(values ...string) []string {
