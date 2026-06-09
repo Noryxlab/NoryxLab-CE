@@ -256,7 +256,7 @@ components:
         projectId: { type: string }
         kind:
           type: string
-          enum: [jupyter, vscode]
+          enum: [jupyter, vscode, rstudio]
         name: { type: string }
         image: { type: string }
         podName: { type: string }
@@ -302,7 +302,7 @@ components:
         name: { type: string }
         ide:
           type: string
-          enum: [jupyter, vscode]
+          enum: [jupyter, vscode, rstudio]
           example: jupyter
         storageSize:
           type: string
@@ -971,7 +971,7 @@ paths:
           $ref: '#/components/responses/InternalError'
     post:
       tags: [Workloads]
-      summary: Launch workspace (jupyter/vscode)
+      summary: Launch workspace (jupyter/vscode/rstudio)
       security:
         - bearerAuth: []
         - xNoryxUser: []

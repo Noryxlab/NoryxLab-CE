@@ -120,6 +120,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - kind: `jupyter` or `vscode`
 - Jupyter base image: `harbor.lan/noryx-environments/noryx-jupyter:0.1.0`
 - VSCode base image: `harbor.lan/noryx-environments/noryx-vscode:0.1.0`
+- RStudio base image: `harbor.lan/noryx-environments/noryx-rstudio:0.1.0`
 - runtime pod naming: `wks-<shortid>`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - project volume: shared `PersistentVolumeClaim` per project (`longhorn`, `ReadWriteMany`, `10Gi`, mount `/mnt`)

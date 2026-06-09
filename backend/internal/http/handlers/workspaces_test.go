@@ -31,7 +31,7 @@ func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 }
 
 func TestWorkspaceAccessURLNeverContainsInternalToken(t *testing.T) {
-	for _, kind := range []string{"jupyter", "vscode"} {
+	for _, kind := range []string{"jupyter", "vscode", "rstudio"} {
 		accessURL := workspaceAccessURL(kind, "workspace-id")
 		if strings.Contains(accessURL, "token=") {
 			t.Fatalf("%s access URL exposes internal workspace token: %s", kind, accessURL)
@@ -47,6 +47,7 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 	}{
 		{name: "jupyter system", values: []string{"harbor.lan/noryx-environments/noryx-jupyter:0.1.0"}, expected: "jupyter"},
 		{name: "vscode fork", values: []string{"harbor.lan/project/custom:1", "FROM harbor.lan/noryx-environments/noryx-vscode:0.1.0"}, expected: "vscode"},
+		{name: "rstudio fork", values: []string{"harbor.lan/project/custom-r:1", "FROM harbor.lan/noryx-environments/noryx-rstudio:0.1.0"}, expected: "rstudio"},
 		{name: "generic job image", values: []string{"harbor.lan/project/batch:1"}, expected: ""},
 	}
 	for _, tt := range tests {
@@ -56,6 +57,15 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 				t.Fatalf("expected %q, got %q", tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
+	script := workspaceBootstrapScript("rstudio", "workspace-id", "", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
+	for _, expected := range []string{"rserver", "--www-root-path=/workspaces/workspace-id", "--server-user=noryx"} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("RStudio bootstrap missing %s", expected)
+		}
 	}
 }
 
@@ -92,5 +102,23 @@ func TestWorkspaceProxyRejectsSharedTokenWithoutSSO(t *testing.T) {
 
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("shared workspace URL must require SSO, got HTTP %d", response.Code)
+	}
+}
+
+func TestWorkspaceProxyTargetPath(t *testing.T) {
+	tests := []struct {
+		kind     string
+		rest     string
+		expected string
+	}{
+		{kind: "jupyter", rest: "lab", expected: "/workspaces/workspace-id/lab"},
+		{kind: "vscode", rest: "", expected: "/workspaces/workspace-id"},
+		{kind: "rstudio", rest: "", expected: "/"},
+		{kind: "rstudio", rest: "auth-sign-in", expected: "/auth-sign-in"},
+	}
+	for _, test := range tests {
+		if actual := workspaceProxyTargetPath(test.kind, "workspace-id", test.rest); actual != test.expected {
+			t.Fatalf("%s proxy target: got %q, want %q", test.kind, actual, test.expected)
+		}
 	}
 }

@@ -34,6 +34,7 @@ type Config struct {
 	OrganizationRequired             bool
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
+	WorkspaceRStudioImage            string
 	WorkspaceCPU                     string
 	WorkspaceCPURequest              string
 	WorkspaceMemory                  string
@@ -64,7 +65,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.118"
+		backendVersion = "0.5.120"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
@@ -140,6 +141,10 @@ func Load() Config {
 	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
 	if workspaceVSCodeImage == "" {
 		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-vscode:0.1.0"
+	}
+	workspaceRStudioImage := os.Getenv("NORYX_WORKSPACE_RSTUDIO_IMAGE")
+	if workspaceRStudioImage == "" {
+		workspaceRStudioImage = "harbor.lan/noryx-environments/noryx-rstudio:0.1.0"
 	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {
@@ -250,6 +255,7 @@ func Load() Config {
 		OrganizationRequired:             os.Getenv("NORYX_ORGANIZATION_REQUIRED") == "true",
 		WorkspaceJupyterImage:            workspaceJupyterImage,
 		WorkspaceVSCodeImage:             workspaceVSCodeImage,
+		WorkspaceRStudioImage:            workspaceRStudioImage,
 		WorkspaceCPU:                     workspaceCPU,
 		WorkspaceCPURequest:              workspaceCPURequest,
 		WorkspaceMemory:                  workspaceMemory,

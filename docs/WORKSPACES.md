@@ -39,6 +39,7 @@ Default workspace base images:
 
 - `harbor.lan/noryx-environments/noryx-jupyter:0.1.0`
 - `harbor.lan/noryx-environments/noryx-vscode:0.1.0`
+- `harbor.lan/noryx-environments/noryx-rstudio:0.1.0`
 
 Configurable with env var:
 
@@ -94,6 +95,7 @@ Dockerfile paths in this repo:
 
 - `environments/noryx-jupyter/Dockerfile`
 - `environments/noryx-vscode/Dockerfile`
+- `environments/noryx-rstudio/Dockerfile`
 
 Use `POST /api/v1/builds` with:
 

@@ -39,6 +39,7 @@ var (
 	allowedWorkspaceIDEs = map[string]bool{
 		"jupyter": true,
 		"vscode":  true,
+		"rstudio": true,
 	}
 )
 
@@ -185,6 +186,9 @@ func workspaceAccessURL(kind, workspaceID string) string {
 		workspaceQuery := url.QueryEscape(workspaceVSCodeFilePath)
 		return fmt.Sprintf("/workspaces/%s/?workspace=%s", workspaceID, workspaceQuery)
 	}
+	if kind == "rstudio" {
+		return fmt.Sprintf("/workspaces/%s/", workspaceID)
+	}
 
 	return fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
 }
@@ -241,7 +245,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if rawIDE == "" {
 		req.IDE = "jupyter"
 	} else if !allowedWorkspaceIDEs[rawIDE] {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ide must be one of: jupyter, vscode"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ide must be one of: jupyter, vscode, rstudio"})
 		return
 	} else {
 		req.IDE = rawIDE
@@ -294,6 +298,8 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceImage := h.workspaceJupyterImage
 	if req.IDE == "vscode" {
 		workspaceImage = h.workspaceVSCodeImage
+	} else if req.IDE == "rstudio" {
+		workspaceImage = h.workspaceRStudioImage
 	}
 	if req.Image != "" {
 		workspaceImage = req.Image
@@ -906,6 +912,25 @@ func workspaceBootstrapScript(
 			fmt.Sprintf("  --default-workspace %s \\", profileMountPath+"/vscode/noryx.code-workspace"),
 			"  --telemetry-level off \\",
 			fmt.Sprintf("  %s%s", shellQuote(profileMountPath+"/vscode/noryx.code-workspace"), ideCommandSuffix),
+		)
+		return strings.Join(lines, "\n")
+	}
+	if kind == "rstudio" {
+		lines = append(lines,
+			"mkdir -p /var/lib/rstudio-server /home/noryx/.config/rstudio",
+			"rm -f /var/lib/rstudio-server/rstudio-os.sqlite /var/lib/rstudio-server/rstudio-os.sqlite-shm /var/lib/rstudio-server/rstudio-os.sqlite-wal || true",
+			"for key_file in secure-cookie-key session-rpc-key; do head -c 32 /dev/urandom > /var/lib/rstudio-server/${key_file}; chown noryx:noryx /var/lib/rstudio-server/${key_file}; chmod 600 /var/lib/rstudio-server/${key_file}; done",
+			ideCommandPrefix+"/usr/lib/rstudio-server/bin/rserver \\",
+			"  --server-daemonize=0 \\",
+			"  --www-address=0.0.0.0 \\",
+			"  --www-port=8888 \\",
+			"  --auth-none=1 \\",
+			"  --server-user=noryx \\",
+			"  --server-working-dir=/mnt \\",
+			fmt.Sprintf("  --www-root-path=/workspaces/%s \\", workspaceID),
+			"  --www-same-site=none \\",
+			"  --auth-cookies-force-secure=1 \\",
+			"  --www-verify-user-agent=0",
 		)
 		return strings.Join(lines, "\n")
 	}

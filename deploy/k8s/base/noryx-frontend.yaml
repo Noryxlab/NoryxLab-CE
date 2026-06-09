@@ -1026,6 +1026,7 @@ data:
                       <select id="workspaceIde">
                         <option value="jupyter">jupyter</option>
                         <option value="vscode">vscode</option>
+                        <option value="rstudio">rstudio</option>
                       </select>
                       <select id="workspaceEnv"></select>
                       <select id="workspaceHardwareTier"></select>
@@ -5441,7 +5442,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.148"}
+    {"version":"ce-web-0.6.149"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5462,7 +5463,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.148
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.149
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -53,12 +53,7 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
 
-		rest := strings.TrimSpace(r.PathValue("path"))
-		targetPath := "/workspaces/" + workspaceID
-		if rest != "" {
-			targetPath = "/workspaces/" + workspaceID + "/" + strings.TrimPrefix(rest, "/")
-		}
-		req.URL.Path = targetPath
+		req.URL.Path = workspaceProxyTargetPath(record.Kind, workspaceID, r.PathValue("path"))
 		req.Header.Set("X-Forwarded-Proto", "https")
 		req.Header.Set("X-Forwarded-Host", r.Host)
 		req.Header.Set("X-Forwarded-Port", "443")
@@ -67,14 +62,34 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		// Keep public host so Jupyter builds browser-facing URLs under datalab.noryxlab.ai.
 		req.Host = r.Host
 
-		q := req.URL.Query()
-		// The workspace token is internal to the Noryx-to-workspace hop.
-		q.Set("token", record.AccessToken)
-		req.URL.RawQuery = q.Encode()
+		if normalizeWorkspaceKind(record.Kind) == "jupyter" {
+			q := req.URL.Query()
+			// The Jupyter token is internal to the Noryx-to-workspace hop.
+			q.Set("token", record.AccessToken)
+			req.URL.RawQuery = q.Encode()
+		}
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
 		writeJSON(rw, http.StatusBadGateway, map[string]string{"error": "workspace proxy failed: " + err.Error()})
 	}
 
 	proxy.ServeHTTP(w, r)
+}
+
+func workspaceProxyTargetPath(kind, workspaceID, rest string) string {
+	rest = strings.TrimSpace(rest)
+	// RStudio uses www-root-path to generate browser-facing URLs, but expects
+	// the reverse proxy to strip that public prefix before forwarding.
+	if normalizeWorkspaceKind(kind) == "rstudio" {
+		if rest == "" {
+			return "/"
+		}
+		return "/" + strings.TrimPrefix(rest, "/")
+	}
+
+	targetPath := "/workspaces/" + workspaceID
+	if rest != "" {
+		targetPath += "/" + strings.TrimPrefix(rest, "/")
+	}
+	return targetPath
 }

@@ -4,3 +4,5 @@
 #   docker push harbor.lan/noryx-environments/noryx-jupyter:0.1.0
 #   docker build -t harbor.lan/noryx-environments/noryx-vscode:0.1.0 -f environments/noryx-vscode/Dockerfile .
 #   docker push harbor.lan/noryx-environments/noryx-vscode:0.1.0
+#   docker build -t harbor.lan/noryx-environments/noryx-rstudio:0.1.0 -f environments/noryx-rstudio/Dockerfile .
+#   docker push harbor.lan/noryx-environments/noryx-rstudio:0.1.0

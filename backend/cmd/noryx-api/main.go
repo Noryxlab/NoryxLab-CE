@@ -146,6 +146,7 @@ func main() {
 			OrganizationRequired:             cfg.OrganizationRequired,
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
 			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
+			WorkspaceRStudioImage:            cfg.WorkspaceRStudioImage,
 			WorkspaceNamespace:               cfg.WorkloadNamespace,
 			WorkspaceCPU:                     cfg.WorkspaceCPU,
 			WorkspaceCPURequest:              cfg.WorkspaceCPURequest,
