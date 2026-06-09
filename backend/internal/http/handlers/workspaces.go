@@ -351,6 +351,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
 		return
 	}
+	userSecretData, err := h.resolveUserSecretEnv(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
+		return
+	}
 
 	if h.runtime != nil {
 		if h.workspacePVCEnabled {
@@ -438,6 +443,22 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace bootstrap secret create failed: " + err.Error()})
 			return
 		}
+		userSecretName := podName + "-user-secrets"
+		if len(userSecretData) > 0 {
+			err = h.runtime.CreateSecret(noryxruntime.SecretSpec{
+				Name: userSecretName,
+				Data: userSecretData,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workload-user-secrets",
+					"noryx.io/workspace-id":  record.ID,
+				},
+			})
+			if err != nil {
+				_ = h.runtime.DeleteSecret(bootstrapSecretName)
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace user secret create failed: " + err.Error()})
+				return
+			}
+		}
 
 		envVars := []noryxruntime.EnvVar{
 			{Name: "HOME", Value: "/home/noryx"},
@@ -447,6 +468,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
 		}
 		envVars = append(envVars, datasourceEnv...)
+		envVars = append(envVars, secretEnvRefs(userSecretName, userSecretData)...)
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
 			PodName:                 podName,
@@ -480,6 +502,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			_ = h.runtime.DeleteSecret(bootstrapSecretName)
+			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod launch failed: " + err.Error()})
 			return
 		}
@@ -493,6 +516,8 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			_ = h.runtime.DeletePod(podName)
+			_ = h.runtime.DeleteSecret(bootstrapSecretName)
+			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service creation failed: " + err.Error()})
 			return
 		}
@@ -1038,6 +1063,10 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace bootstrap secret delete failed: " + err.Error()})
 				return
 			}
+		}
+		if err := h.runtime.DeleteSecret(record.PodName + "-user-secrets"); err != nil && !isNotFoundError(err) {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace user secret delete failed: " + err.Error()})
+			return
 		}
 	}
 

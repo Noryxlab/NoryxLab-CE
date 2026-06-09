@@ -76,6 +76,8 @@ Current implementation baseline:
 - datasets granted through the `reader` role are mounted read-only
 - Enterprise workspaces can mount attached HDS datasets when the HDS feature is enabled
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
+- active user secrets are exposed through Kubernetes `secretKeyRef` variables named
+  `NORYX_SECRET_<NORMALIZED_NAME>`; dataset credentials and expired secrets are excluded
 - runtime user is `noryx` with `sudo` enabled in both system workspace images
 - workload pods have no mounted Kubernetes ServiceAccount token and use the
   network isolation baseline from `docs/WORKLOAD_NETWORK_ISOLATION.md`

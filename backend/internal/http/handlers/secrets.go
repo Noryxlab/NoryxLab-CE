@@ -2,11 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
+	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
 
@@ -15,6 +18,60 @@ type upsertSecretRequest struct {
 	Type      string `json:"type"`
 	Value     string `json:"value"`
 	ExpiresAt string `json:"expiresAt"`
+}
+
+func (h Handlers) resolveUserSecretEnv(userID string) (map[string]string, error) {
+	items, err := h.secretStore.ListByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	data := map[string]string{}
+	now := time.Now().UTC()
+	for _, item := range items {
+		if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") || (item.ExpiresAt != nil && now.After(*item.ExpiresAt)) {
+			continue
+		}
+		envName := userSecretEnvName(item.Name)
+		if _, exists := data[envName]; exists {
+			return nil, fmt.Errorf("secret names collide after environment normalization: %s", envName)
+		}
+		value, err := security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt secret %s: %w", item.Name, err)
+		}
+		data[envName] = value
+	}
+	return data, nil
+}
+
+func userSecretEnvName(name string) string {
+	base := strings.ToUpper(strings.TrimSpace(name))
+	base = strings.NewReplacer("-", "_", " ", "_", ".", "_", "/", "_").Replace(base)
+	base = strings.Map(func(r rune) rune {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			return r
+		}
+		return -1
+	}, base)
+	base = strings.Trim(base, "_")
+	if base == "" {
+		base = "SECRET"
+	}
+	return "NORYX_SECRET_" + base
+}
+
+func secretEnvRefs(secretName string, data map[string]string) []noryxruntime.EnvVar {
+	names := make([]string, 0, len(data))
+	for name := range data {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]noryxruntime.EnvVar, 0, len(names))
+	for _, name := range names {
+		out = append(out, noryxruntime.EnvVar{Name: name, SecretName: secretName, SecretKey: name})
+	}
+	return out
 }
 
 type secretView struct {
