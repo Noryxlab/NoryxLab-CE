@@ -10,14 +10,14 @@ requests remain an internal scheduling detail.
 
 | Tier | CPU limit | Memory limit | Ephemeral storage limit | Default |
 |---|---:|---:|---:|---|
-| Small | 500m | 1Gi | 4Gi | no |
-| Standard | 1 | 2Gi | 8Gi | yes |
-| Medium | 2 | 4Gi | 16Gi | no |
-| Large | 4 | 8Gi | 32Gi | no |
+| 0.5x2 | 0.5 | 2Gi | 4Gi | no |
+| 1x4 | 1 | 4Gi | 8Gi | yes |
+| 2x8 | 2 | 8Gi | 16Gi | no |
+| 4x16 | 4 | 16Gi | 32Gi | no |
 
 All tiers currently use hidden requests of:
 
-- CPU: `10m`
+- CPU: `100m`
 - memory: `64Mi`
 - ephemeral storage: `64Mi`
 
@@ -33,7 +33,7 @@ Hardware tiers apply to:
 - applications;
 - dashboards.
 
-If no tier is supplied, the platform selects `Standard`.
+If no tier is supplied, the platform selects `1x4`.
 
 ## API
 
@@ -50,7 +50,7 @@ Select a tier when creating a workload:
 ```json
 {
   "projectId": "<project-id>",
-  "hardwareTier": "medium"
+  "hardwareTier": "2x8"
 }
 ```
 

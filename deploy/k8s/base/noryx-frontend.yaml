@@ -1021,7 +1021,7 @@ data:
                       <div><div class="k">Projet actif</div><div id="workspaceProjectName" class="v">Aucun projet sélectionné</div></div>
                       <code id="workspaceProjectId">-</code>
                     </div>
-                    <div class="hint">Choisissez un profil matériel. Seules les limites disponibles sont affichées; le profil Standard est utilisé par défaut.</div>
+                    <div class="hint">Choisissez un profil matériel nommé CPUxRAM. Seules les limites sont affichées; 1x4 signifie 1 vCPU et 4 Gi RAM.</div>
                     <div class="row">
                       <select id="workspaceIde">
                         <option value="jupyter">jupyter</option>
@@ -5401,7 +5401,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.143"}
+    {"version":"ce-web-0.6.144"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5422,7 +5422,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.143
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.144
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -20,10 +20,10 @@ type hardwareTier struct {
 
 func defaultHardwareTiers() []hardwareTier {
 	return []hardwareTier{
-		{ID: "small", Name: "Small", Description: "Exploration légère", CPULimit: "500m", MemoryLimit: "1Gi", EphemeralStorageLimit: "4Gi", CPURequest: "10m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
-		{ID: "standard", Name: "Standard", Description: "Usage data science courant", CPULimit: "1", MemoryLimit: "2Gi", EphemeralStorageLimit: "8Gi", CPURequest: "10m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi", Default: true},
-		{ID: "medium", Name: "Medium", Description: "Calcul et mémoire intermédiaires", CPULimit: "2", MemoryLimit: "4Gi", EphemeralStorageLimit: "16Gi", CPURequest: "10m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
-		{ID: "large", Name: "Large", Description: "Charges intensives", CPULimit: "4", MemoryLimit: "8Gi", EphemeralStorageLimit: "32Gi", CPURequest: "10m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
+		{ID: "0.5x2", Name: "0.5x2", Description: "0.5 vCPU · 2 Gi RAM", CPULimit: "500m", MemoryLimit: "2Gi", EphemeralStorageLimit: "4Gi", CPURequest: "100m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
+		{ID: "1x4", Name: "1x4", Description: "1 vCPU · 4 Gi RAM", CPULimit: "1", MemoryLimit: "4Gi", EphemeralStorageLimit: "8Gi", CPURequest: "100m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi", Default: true},
+		{ID: "2x8", Name: "2x8", Description: "2 vCPU · 8 Gi RAM", CPULimit: "2", MemoryLimit: "8Gi", EphemeralStorageLimit: "16Gi", CPURequest: "100m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
+		{ID: "4x16", Name: "4x16", Description: "4 vCPU · 16 Gi RAM", CPULimit: "4", MemoryLimit: "16Gi", EphemeralStorageLimit: "32Gi", CPURequest: "100m", MemoryRequest: "64Mi", EphemeralRequest: "64Mi"},
 	}
 }
 
