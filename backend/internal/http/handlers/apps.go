@@ -172,6 +172,11 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
 		return
 	}
+	userSecretData, err := h.resolveUserSecretEnv(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
+		return
+	}
 
 	command := []string{"/bin/sh", "-lc"}
 	userLaunch := strings.TrimSpace(strings.Join(append(req.Command, req.Args...), " "))
@@ -181,6 +186,20 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
 
 	if h.runtime != nil {
+		userSecretName := podName + "-user-secrets"
+		if len(userSecretData) > 0 {
+			if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+				Name: userSecretName,
+				Data: userSecretData,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workload-user-secrets",
+					"noryx.io/app-id":        record.ID,
+				},
+			}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes app user secret create failed: " + err.Error()})
+				return
+			}
+		}
 		volumes := []noryxruntime.PersistentVolumeClaimMount{}
 		if h.workspacePVCEnabled {
 			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
@@ -199,7 +218,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			Image:                   record.Image,
 			Command:                 command,
 			Args:                    args,
-			Env:                     datasourceEnv,
+			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			Ports:                   []int{record.Port},
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,
@@ -220,6 +239,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			},
 		})
 		if err != nil {
+			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes app pod launch failed: " + err.Error()})
 			return
 		}
@@ -232,6 +252,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		})
 		if err != nil {
 			_ = h.runtime.DeletePod(podName)
+			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes app service creation failed: " + err.Error()})
 			return
 		}
@@ -293,6 +314,7 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	if h.runtime != nil {
 		_ = h.runtime.DeleteService(record.ServiceName)
 		_ = h.runtime.DeletePod(record.PodName)
+		_ = h.runtime.DeleteSecret(record.PodName + "-user-secrets")
 	}
 	if err := h.appStore.Delete(record.ID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete app"})
