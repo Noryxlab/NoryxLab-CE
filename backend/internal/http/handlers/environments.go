@@ -103,6 +103,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	if projectFilter != "" && h.hasProjectMembership(userID, projectFilter) {
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, systemEnvironmentDefinitions["system-jupyter"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, systemEnvironmentDefinitions["system-vscode"])
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceRStudioImage, systemEnvironmentDefinitions["system-rstudio"])
 	}
 
 	items := make([]environmentItem, 0, len(itemsByKey))
@@ -335,6 +336,13 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 		DockerfilePath: "environments/noryx-vscode/Dockerfile",
 		WorkspaceIDEs:  []string{"vscode"},
 	},
+	"system-rstudio": {
+		BuildID:        "system-rstudio",
+		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
+		GitRef:         "main",
+		DockerfilePath: "environments/noryx-rstudio/Dockerfile",
+		WorkspaceIDEs:  []string{"rstudio"},
+	},
 }
 
 func addSystemEnvironment(items map[string]*environmentItem, projectID, image string, definition systemEnvironmentDefinition) {
@@ -393,6 +401,9 @@ func deriveWorkspaceIDEs(values ...string) []string {
 	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "vscode") || strings.Contains(joined, "openvscode") {
 		ides = append(ides, "vscode")
 	}
+	if strings.Contains(joined, "rstudio") || strings.Contains(joined, "rocker/") {
+		ides = append(ides, "rstudio")
+	}
 	return ides
 }
 
@@ -405,7 +416,7 @@ func mergeWorkspaceIDEs(current, extra []string) []string {
 		}
 	}
 	result := make([]string, 0, len(seen))
-	for _, ide := range []string{"jupyter", "vscode"} {
+	for _, ide := range []string{"jupyter", "vscode", "rstudio"} {
 		if seen[ide] {
 			result = append(result, ide)
 		}
@@ -420,7 +431,8 @@ func (h Handlers) workspaceEnvironmentAllowed(projectID, image, ide string) bool
 		return false
 	}
 	if (ide == "jupyter" && image == strings.TrimSpace(h.workspaceJupyterImage)) ||
-		(ide == "vscode" && image == strings.TrimSpace(h.workspaceVSCodeImage)) {
+		(ide == "vscode" && image == strings.TrimSpace(h.workspaceVSCodeImage)) ||
+		(ide == "rstudio" && image == strings.TrimSpace(h.workspaceRStudioImage)) {
 		return true
 	}
 	builds, err := h.buildStore.List()
