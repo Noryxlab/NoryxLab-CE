@@ -14,11 +14,12 @@ import (
 )
 
 type createJobRequest struct {
-	ProjectID string   `json:"projectId"`
-	Name      string   `json:"name"`
-	Image     string   `json:"image"`
-	Command   []string `json:"command"`
-	Args      []string `json:"args"`
+	ProjectID    string   `json:"projectId"`
+	Name         string   `json:"name"`
+	Image        string   `json:"image"`
+	Command      []string `json:"command"`
+	Args         []string `json:"args"`
+	HardwareTier string   `json:"hardwareTier"`
 }
 
 func (h Handlers) ListJobs(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +61,11 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
 	req.Image = strings.TrimSpace(req.Image)
+	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
+	if !tierFound {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
+		return
+	}
 	if req.ProjectID == "" || req.Image == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId and image are required"})
 		return
@@ -113,18 +119,19 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			Command:                 command,
 			Args:                    args,
 			Env:                     datasourceEnv,
-			CPURequest:              h.workspaceCPU,
-			CPULimit:                h.workspaceCPU,
-			MemRequest:              h.workspaceMemory,
-			MemLimit:                h.workspaceMemory,
-			EphemeralStorageRequest: h.workspaceEphemeralStorageRequest,
-			EphemeralStorageLimit:   h.workspaceEphemeralStorageLimit,
+			CPURequest:              tier.CPURequest,
+			CPULimit:                tier.CPULimit,
+			MemRequest:              tier.MemoryRequest,
+			MemLimit:                tier.MemoryLimit,
+			EphemeralStorageRequest: tier.EphemeralRequest,
+			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "noryx-job",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/job-id":        record.ID,
+				"noryx.io/hardware-tier": tier.ID,
 			},
 		})
 		if err != nil {
@@ -137,9 +144,10 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitAudit(r, userID, "job.launch", "job", record.ID, record.ProjectID, "success", "", map[string]any{
-		"name":    record.Name,
-		"jobName": record.JobName,
-		"image":   record.Image,
+		"name":         record.Name,
+		"jobName":      record.JobName,
+		"image":        record.Image,
+		"hardwareTier": tier.ID,
 	})
 	writeJSON(w, http.StatusCreated, record)
 }

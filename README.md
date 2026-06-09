@@ -122,6 +122,7 @@ scripts/keycloak/bootstrap-realm.sh
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Direct S3 dataset mounts: `docs/S3_DATASET_MOUNTS.md`.
+Hardware tiers: `docs/HARDWARE_TIERS.md`.
 Environment module: `docs/ENVIRONMENTS.md`.
 Workspace runbook: `docs/WORKSPACE_TROUBLESHOOTING.md`.
 RBAC baseline: `docs/RBAC_MODEL.md`.
