@@ -78,6 +78,7 @@ Current implementation baseline:
 - runtime user is `noryx` with `sudo` enabled in `noryx-python` image
 - workload pods have no mounted Kubernetes ServiceAccount token and use the
   network isolation baseline from `docs/WORKLOAD_NETWORK_ISOLATION.md`
+- workloads use named resource profiles documented in `docs/HARDWARE_TIERS.md`
 
 Reference:
 

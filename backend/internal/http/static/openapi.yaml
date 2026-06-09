@@ -273,6 +273,18 @@ components:
           type: string
           format: date-time
 
+    HardwareTier:
+      type: object
+      required: [id, name, cpuLimit, memoryLimit, ephemeralStorageLimit, default]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        cpuLimit: { type: string }
+        memoryLimit: { type: string }
+        ephemeralStorageLimit: { type: string }
+        default: { type: boolean }
+
     WorkspaceListResponse:
       type: object
       required: [items]
@@ -296,6 +308,9 @@ components:
           type: string
           description: PVC size override, e.g. `20Gi`.
           example: 20Gi
+        hardwareTier:
+          type: string
+          description: Hardware tier identifier. Defaults to the platform default tier.
 
     Secret:
       type: object
@@ -640,6 +655,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
 paths:
+  /api/v1/hardware-tiers:
+    get:
+      summary: List available hardware tiers
+      responses:
+        '200':
+          description: Hardware tier catalog
   /api/v1/platform/overview:
     get:
       tags: [Platform]
