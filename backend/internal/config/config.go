@@ -64,7 +64,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.115"
+		backendVersion = "0.5.116"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
@@ -135,11 +135,11 @@ func Load() Config {
 
 	workspaceJupyterImage := os.Getenv("NORYX_WORKSPACE_JUPYTER_IMAGE")
 	if workspaceJupyterImage == "" {
-		workspaceJupyterImage = "harbor.lan/noryx-environments/noryx-python:0.2.2"
+		workspaceJupyterImage = "harbor.lan/noryx-environments/noryx-jupyter:0.1.0"
 	}
 	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
 	if workspaceVSCodeImage == "" {
-		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-python:0.2.2"
+		workspaceVSCodeImage = "harbor.lan/noryx-environments/noryx-vscode:0.1.0"
 	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {

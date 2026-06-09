@@ -39,6 +39,26 @@ func TestWorkspaceAccessURLNeverContainsInternalToken(t *testing.T) {
 	}
 }
 
+func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   []string
+		expected string
+	}{
+		{name: "jupyter system", values: []string{"harbor.lan/noryx-environments/noryx-jupyter:0.1.0"}, expected: "jupyter"},
+		{name: "vscode fork", values: []string{"harbor.lan/project/custom:1", "FROM harbor.lan/noryx-environments/noryx-vscode:0.1.0"}, expected: "vscode"},
+		{name: "generic job image", values: []string{"harbor.lan/project/batch:1"}, expected: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := strings.Join(deriveWorkspaceIDEs(tt.values...), ",")
+			if got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
 func TestWorkspaceProxyRejectsSharedTokenWithoutSSO(t *testing.T) {
 	workspaces := memory.NewWorkspaceStore()
 	record := workspace.New(

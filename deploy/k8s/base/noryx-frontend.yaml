@@ -1027,6 +1027,7 @@ data:
                         <option value="jupyter">jupyter</option>
                         <option value="vscode">vscode</option>
                       </select>
+                      <select id="workspaceEnv"></select>
                       <select id="workspaceHardwareTier"></select>
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
                       <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
@@ -1035,7 +1036,7 @@ data:
                     </div>
                     <table>
                       <thead>
-                        <tr><th>Name</th><th>Projet</th><th>IDE</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                        <tr><th>Name</th><th>Projet</th><th>IDE / environnement</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
                       </thead>
                       <tbody id="workspaceRows"></tbody>
                     </table>
@@ -1407,6 +1408,7 @@ data:
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const workspaceIdeInput = document.getElementById('workspaceIde');
+          const workspaceEnvInput = document.getElementById('workspaceEnv');
           const workspaceHardwareTierInput = document.getElementById('workspaceHardwareTier');
           const workspaceStorageSizeInput = document.getElementById('workspaceStorageSize');
           const createWorkspaceBtn = document.getElementById('createWorkspace');
@@ -3097,7 +3099,7 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
                 '<td><strong>' + escapeHTML(projectName(w.projectId)) + '</strong><br/><code>' + escapeHTML(w.projectId || '-') + '</code></td>' +
-                '<td><code>' + (w.kind || 'jupyter') + '</code></td>' +
+                '<td><code>' + (w.kind || 'jupyter') + '</code><br/><span style="color:#667a98">' + escapeHTML(w.image || '-') + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
@@ -3126,6 +3128,34 @@ data:
                 if (defaultTier) select.value = defaultTier.id;
               }
             });
+          }
+
+          function renderWorkspaceEnvOptions() {
+            const current = workspaceEnvInput.value || '';
+            const ide = workspaceIdeInput.value || 'jupyter';
+            const pid = selectedProjectId();
+            const items = state.environments.filter((env) => {
+              if (pid && env.projectId !== pid) return false;
+              return ensureArray(env.workspaceIdes).includes(ide);
+            });
+            workspaceEnvInput.innerHTML = '';
+            if (items.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'Aucun environnement compatible avec ' + ide;
+              workspaceEnvInput.appendChild(opt);
+              return;
+            }
+            items.forEach((env) => {
+              const opt = document.createElement('option');
+              opt.value = env.destinationImage || '';
+              opt.textContent = (env.name || 'environment') + (env.category === 'system' ? ' · système' : ' · custom');
+              opt.title = env.destinationImage || '';
+              workspaceEnvInput.appendChild(opt);
+            });
+            if (current && items.some((env) => env.destinationImage === current)) {
+              workspaceEnvInput.value = current;
+            }
           }
 
           function renderJobEnvOptions() {
@@ -3689,6 +3719,7 @@ data:
             renderDatasourceSecretOptions();
             renderWorkspacesTable();
             renderHardwareTierOptions();
+            renderWorkspaceEnvOptions();
             renderJobEnvOptions();
             renderJobsTable();
             renderAppEnvOptions();
@@ -4449,6 +4480,8 @@ data:
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
+          workspaceIdeInput.onchange = renderWorkspaceEnvOptions;
+
           createWorkspaceBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
@@ -4456,6 +4489,9 @@ data:
               const payload = { projectId };
               const ide = workspaceIdeInput.value.trim();
               if (ide) payload.ide = ide;
+              const image = workspaceEnvInput.value.trim();
+              if (!image) throw { error: 'Sélectionnez un environnement compatible avec ' + (ide || 'jupyter') };
+              payload.image = image;
               const name = workspaceNameInput.value.trim();
               if (name) payload.name = name;
               const storageSize = workspaceStorageSizeInput.value.trim();
@@ -5401,7 +5437,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.144"}
+    {"version":"ce-web-0.6.145"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5422,7 +5458,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.144
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.145
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

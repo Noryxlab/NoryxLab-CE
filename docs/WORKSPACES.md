@@ -35,9 +35,10 @@ Create payload:
 
 ## Image used
 
-Default workspace base image (shared by Jupyter + VSCode):
+Default workspace base images:
 
-- `harbor.lan/noryx-environments/noryx-python:0.2.3`
+- `harbor.lan/noryx-environments/noryx-jupyter:0.1.0`
+- `harbor.lan/noryx-environments/noryx-vscode:0.1.0`
 
 Configurable with env var:
 
@@ -75,7 +76,7 @@ Current implementation baseline:
 - datasets granted through the `reader` role are mounted read-only
 - Enterprise workspaces can mount attached HDS datasets when the HDS feature is enabled
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
-- runtime user is `noryx` with `sudo` enabled in `noryx-python` image
+- runtime user is `noryx` with `sudo` enabled in both system workspace images
 - workload pods have no mounted Kubernetes ServiceAccount token and use the
   network isolation baseline from `docs/WORKLOAD_NETWORK_ISOLATION.md`
 - workloads use named resource profiles documented in `docs/HARDWARE_TIERS.md`
@@ -87,14 +88,20 @@ Reference:
 
 ## Build base images with Noryx
 
-Dockerfile path in this repo:
+Dockerfile paths in this repo:
 
-- `environments/noryx-python/Dockerfile`
+- `environments/noryx-jupyter/Dockerfile`
+- `environments/noryx-vscode/Dockerfile`
 
 Use `POST /api/v1/builds` with:
 
-- `dockerfilePath`: `environments/noryx-python/Dockerfile`
-- `destinationImage`: `harbor.lan/noryx-environments/noryx-python:0.2.3`
+- a Dockerfile inheriting from the matching system image
+- a project-specific `destinationImage`
+
+The workspace launcher selects both an IDE and a compatible environment image.
+Jobs, applications and dashboards select an environment image without launching an IDE.
+Custom workspace images must inherit from the matching system image so the Noryx
+runtime user, paths and IDE binary remain available.
 
 ## Notes
 

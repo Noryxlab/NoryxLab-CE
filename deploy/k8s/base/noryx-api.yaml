@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.115-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.116-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -26,7 +26,7 @@ spec:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
             - name: NORYX_BACKEND_VERSION
-              value: "0.5.115"
+              value: "0.5.116"
             - name: NORYX_EDITION
               value: "community"
             - name: NORYX_ORGANIZATION_REQUIRED
@@ -120,9 +120,9 @@ spec:
             - name: NORYX_MINIO_REGION
               value: "us-east-1"
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.2.3"
+              value: "harbor.lan/noryx-environments/noryx-jupyter:0.1.0"
             - name: NORYX_WORKSPACE_VSCODE_IMAGE
-              value: "harbor.lan/noryx-environments/noryx-python:0.2.3"
+              value: "harbor.lan/noryx-environments/noryx-vscode:0.1.0"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_CPU_REQUEST
