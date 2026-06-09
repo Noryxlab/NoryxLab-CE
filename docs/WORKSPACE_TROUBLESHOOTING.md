@@ -42,27 +42,17 @@ curl -sk "<BASE><accessUrl>" | head -n 5
 
 Expected: HTML containing `JupyterLab` and `jupyter-config-data`.
 
-## 4) Validate token-to-cookie fallback
+## 4) Validate mandatory SSO protection
 
-First request with URL token should set workspace cookie:
-
-```bash
-curl -sk -c /tmp/ws.cookies "<BASE>/workspaces/<workspaceID>/lab?reset&token=<token>" -o /tmp/lab.html -w "%{http_code}\n"
-cat /tmp/ws.cookies | rg "noryx_ws_token_<workspaceID>"
-```
-
-Then load static asset with only that cookie:
+An anonymous request, including one with a legacy workspace token, must fail:
 
 ```bash
-SCRIPT_PATH=$(rg -o 'src="/workspaces/[^"]+/static/lab/[^"]+\\.js[^"]*"' /tmp/lab.html | head -n1 | sed 's#^src="##; s#"$##')
-curl -sk -b /tmp/ws.cookies "<BASE>${SCRIPT_PATH}" -w "%{http_code}\n" -o /tmp/main.js
-head -c 40 /tmp/main.js
+curl -sk "<BASE>/workspaces/<workspaceID>/lab?reset&token=<legacy-token>" \
+  -o /tmp/anonymous-response.json -w "%{http_code}\n"
 ```
 
-Expected:
-
-- HTTP `200`
-- JS payload starts with bundled script content (not JSON error)
+Expected: HTTP `401`. An authenticated project member with launch rights must
+receive HTTP `200`.
 
 ## 5) Typical symptoms and causes
 
@@ -71,7 +61,7 @@ Expected:
   - fixed in `ce-web-0.6.17+`
 - New tab opens but stays blank
   - session/cookie propagation issue in browser
-  - validate token-to-cookie flow (step 4)
+  - validate the authenticated session and project RBAC (step 4)
 - `workspace not found` on `/workspaces/<id>/...`
   - in-memory metadata reset after back restart
   - trigger `GET /api/v1/workspaces` authenticated to re-sync runtime records

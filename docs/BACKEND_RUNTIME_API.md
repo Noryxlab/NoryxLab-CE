@@ -89,10 +89,10 @@ Compatibility fallback:
 
 Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 
-- preferred: bearer or `noryx_session` + project RBAC (`editor|admin`)
-- compatibility fallback: `?token=<workspace-access-token>` on workspace URL
-- when URL token is valid, backend writes `noryx_ws_token_<workspaceID>` (HTTP-only, secure, path-scoped)
-- follow-up Jupyter static/API calls can authenticate via this workspace cookie
+- bearer or `noryx_session` is mandatory
+- project RBAC (`editor|admin`) is mandatory
+- workspace URLs never expose the internal Jupyter token
+- backend injects the internal token only when proxying an authorized request to the workspace
 
 ## RBAC model
 
@@ -127,7 +127,8 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-backend`
 - web access auth:
   - Keycloak bearer exchanged for secure HTTP-only session cookie (`noryx_session`)
-  - token fallback for workspace URL continuity (`noryx_ws_token_<workspaceID>`)
+  - project RBAC checked on every workspace proxy request
+  - internal Jupyter token never exposed in public workspace URLs
 - workloads are created in `NORYX_WORKLOAD_NAMESPACE` (current deployment: `noryx-loads`)
 - global admin for CE operations is controlled by `NORYX_BOOTSTRAP_ADMIN_USER`
 - workspace bootstrap:

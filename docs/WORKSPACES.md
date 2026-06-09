@@ -97,9 +97,8 @@ Use `POST /api/v1/builds` with:
 
 - project membership is enforced (`editor` or `admin` required)
 - `GET /api/v1/workspaces` returns only workspaces from projects where caller has a role
-- Jupyter access path supports two auth paths:
-  - preferred: Keycloak identity (`Authorization: Bearer ...` or `noryx_session`) + project RBAC check
-  - compatibility fallback: workspace URL token (`?token=...`) upgraded to a workspace-scoped cookie (`noryx_ws_token_<workspaceID>`)
+- workspace access always requires a Keycloak identity (`Authorization: Bearer ...` or `noryx_session`) and project RBAC authorization
+- sharing a workspace URL does not grant access to another user
 - workspace URL returned by API:
   - Jupyter: `/workspaces/<workspaceID>/lab?reset`
   - VSCode: `/workspaces/<workspaceID>/?folder=/mnt`
@@ -115,9 +114,9 @@ Current front behavior (`ce-web-0.6.17+`):
 1. user clicks `Open` in Workspaces tab
 2. front opens `about:blank` in a new tab
 3. front calls `POST /api/v1/auth/session` to ensure `noryx_session`
-4. tab is redirected to `/workspaces/<workspaceID>/lab?reset&token=<workspace-token>`
-5. backend sets workspace cookie `noryx_ws_token_<workspaceID>` (path: `/workspaces/<workspaceID>/`)
-6. Jupyter static/API calls continue using that workspace cookie
+4. tab is redirected to `/workspaces/<workspaceID>/lab?reset`
+5. backend validates the authenticated user and project RBAC on every proxied request
+6. backend injects the internal Jupyter token only on the private proxy-to-workspace request
 
 This avoids home-page replacement and reduces browser-specific blank-page issues.
 

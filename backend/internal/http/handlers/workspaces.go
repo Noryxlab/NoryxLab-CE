@@ -145,7 +145,7 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 			_ = h.workspaceStore.Delete(item.WorkspaceID)
 		}
 		kind := normalizeWorkspaceKind(item.Kind)
-		accessURL := workspaceAccessURL(kind, item.WorkspaceID, item.AccessToken)
+		accessURL := workspaceAccessURL(kind, item.WorkspaceID)
 
 		record := workspace.Workspace{
 			ID:           item.WorkspaceID,
@@ -178,20 +178,13 @@ func normalizeWorkspaceKind(raw string) string {
 	return "jupyter"
 }
 
-func workspaceAccessURL(kind, workspaceID, accessToken string) string {
+func workspaceAccessURL(kind, workspaceID string) string {
 	if kind == "vscode" {
 		workspaceQuery := url.QueryEscape(workspaceVSCodeFilePath)
-		if strings.TrimSpace(accessToken) != "" {
-			return fmt.Sprintf("/workspaces/%s/?workspace=%s&token=%s", workspaceID, workspaceQuery, accessToken)
-		}
 		return fmt.Sprintf("/workspaces/%s/?workspace=%s", workspaceID, workspaceQuery)
 	}
 
-	accessURL := fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
-	if strings.TrimSpace(accessToken) != "" {
-		accessURL = fmt.Sprintf("/workspaces/%s/lab?reset&token=%s", workspaceID, accessToken)
-	}
-	return accessURL
+	return fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
 }
 
 func (h Handlers) ensureProjectInStore(projectID string) {
@@ -326,7 +319,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"",
 		accessToken,
 	)
-	record.AccessURL = workspaceAccessURL(req.IDE, record.ID, accessToken)
+	record.AccessURL = workspaceAccessURL(req.IDE, record.ID)
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass
 	record.PVCSize = pvcSize
