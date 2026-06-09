@@ -76,6 +76,8 @@ Current implementation baseline:
 - Enterprise workspaces can mount attached HDS datasets when the HDS feature is enabled
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
 - runtime user is `noryx` with `sudo` enabled in `noryx-python` image
+- workload pods have no mounted Kubernetes ServiceAccount token and use the
+  network isolation baseline from `docs/WORKLOAD_NETWORK_ISOLATION.md`
 
 Reference:
 

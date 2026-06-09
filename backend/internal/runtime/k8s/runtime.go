@@ -72,6 +72,7 @@ func NewFromInCluster(controlNamespace, workloadNamespace string) (*Runtime, err
 }
 
 func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
+	spec.Labels = isolatedWorkloadLabels(spec.Labels)
 	ports := make([]map[string]any, 0, len(spec.Ports))
 	for _, p := range spec.Ports {
 		ports = append(ports, map[string]any{"containerPort": p})
@@ -181,8 +182,9 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			"labels": spec.Labels,
 		},
 		"spec": map[string]any{
-			"containers":    []map[string]any{container},
-			"restartPolicy": "Never",
+			"automountServiceAccountToken": false,
+			"containers":                   []map[string]any{container},
+			"restartPolicy":                "Never",
 		},
 	}
 	if len(volumes) > 0 {
@@ -534,6 +536,7 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 }
 
 func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
+	spec.Labels = isolatedWorkloadLabels(spec.Labels)
 	resources := map[string]any{}
 	requests := map[string]string{}
 	limits := map[string]string{}
@@ -574,8 +577,9 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 	}
 
 	podSpec := map[string]any{
-		"restartPolicy": "Never",
-		"containers":    []map[string]any{container},
+		"automountServiceAccountToken": false,
+		"restartPolicy":                "Never",
+		"containers":                   []map[string]any{container},
 	}
 	if spec.PullSecret != "" {
 		podSpec["imagePullSecrets"] = []map[string]string{{"name": spec.PullSecret}}
@@ -629,6 +633,15 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
 	return err
+}
+
+func isolatedWorkloadLabels(labels map[string]string) map[string]string {
+	isolated := make(map[string]string, len(labels)+1)
+	for key, value := range labels {
+		isolated[key] = value
+	}
+	isolated["noryx.io/network-isolation"] = "user-workload"
+	return isolated
 }
 
 func (r *Runtime) DeleteJob(name string) error {
