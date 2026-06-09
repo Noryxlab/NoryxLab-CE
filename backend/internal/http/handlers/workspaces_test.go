@@ -59,6 +59,12 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 	}
 }
 
+func TestUserSecretEnvName(t *testing.T) {
+	if got := userSecretEnvName("key-vastai-stephane"); got != "NORYX_SECRET_KEY_VASTAI_STEPHANE" {
+		t.Fatalf("unexpected secret env name: %s", got)
+	}
+}
+
 func TestWorkspaceProxyRejectsSharedTokenWithoutSSO(t *testing.T) {
 	workspaces := memory.NewWorkspaceStore()
 	record := workspace.New(

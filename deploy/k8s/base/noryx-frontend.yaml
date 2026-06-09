@@ -816,7 +816,7 @@ data:
                 <div class="grid">
                   <article id="card-secrets" class="card span-12">
                     <h3>Secrets</h3>
-                    <div class="hint">Secrets utilisateur (tokens, passwords, API keys). Expiration optionnelle.</div>
+                    <div class="hint">Secrets utilisateur injectés dans vos workspaces, jobs et apps sous la forme NORYX_SECRET_NOM_DU_SECRET. Expiration optionnelle.</div>
                     <div class="row">
                       <input id="secretName" placeholder="Secret name" />
                       <input id="secretExpiresAt" type="date" />
@@ -5437,7 +5437,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.145"}
+    {"version":"ce-web-0.6.146"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5458,7 +5458,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.145
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.146
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

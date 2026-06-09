@@ -111,7 +111,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		"image":   spec.Image,
 		"command": spec.Command,
 		"args":    spec.Args,
-		"env":     spec.Env,
+		"env":     kubernetesEnvVars(spec.Env),
 	}
 	if len(ports) > 0 {
 		container["ports"] = ports
@@ -570,7 +570,7 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 		"image":   spec.Image,
 		"command": spec.Command,
 		"args":    spec.Args,
-		"env":     spec.Env,
+		"env":     kubernetesEnvVars(spec.Env),
 	}
 	if len(resources) > 0 {
 		container["resources"] = resources
@@ -633,6 +633,29 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
 	return err
+}
+
+func kubernetesEnvVars(items []noryxruntime.EnvVar) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		name := strings.TrimSpace(item.Name)
+		if name == "" {
+			continue
+		}
+		env := map[string]any{"name": name}
+		if strings.TrimSpace(item.SecretName) != "" && strings.TrimSpace(item.SecretKey) != "" {
+			env["valueFrom"] = map[string]any{
+				"secretKeyRef": map[string]string{
+					"name": item.SecretName,
+					"key":  item.SecretKey,
+				},
+			}
+		} else {
+			env["value"] = item.Value
+		}
+		out = append(out, env)
+	}
+	return out
 }
 
 func isolatedWorkloadLabels(labels map[string]string) map[string]string {

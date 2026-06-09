@@ -96,6 +96,11 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
 		return
 	}
+	userSecretData, err := h.resolveUserSecretEnv(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
+		return
+	}
 	command := req.Command
 	args := req.Args
 	if len(command) == 0 {
@@ -104,6 +109,20 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.runtime != nil {
+		userSecretName := jobName + "-user-secrets"
+		if len(userSecretData) > 0 {
+			if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+				Name: userSecretName,
+				Data: userSecretData,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workload-user-secrets",
+					"noryx.io/job-id":        record.ID,
+				},
+			}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job user secret create failed: " + err.Error()})
+				return
+			}
+		}
 		volumes := []noryxruntime.PersistentVolumeClaimMount{
 			{ClaimName: "project-" + sanitizeK8sName(req.ProjectID), MountPath: workspaceProjectMountPath},
 		}
@@ -118,7 +137,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			Image:                   req.Image,
 			Command:                 command,
 			Args:                    args,
-			Env:                     datasourceEnv,
+			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,
 			MemRequest:              tier.MemoryRequest,
@@ -135,6 +154,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 		if err != nil {
+			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job launch failed: " + err.Error()})
 			return
 		}
@@ -173,6 +193,10 @@ func (h Handlers) DeleteJob(w http.ResponseWriter, r *http.Request) {
 	if h.runtime != nil {
 		if err := h.runtime.DeleteJob(record.JobName); err != nil && !isNotFoundError(err) {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job delete failed: " + err.Error()})
+			return
+		}
+		if err := h.runtime.DeleteSecret(record.JobName + "-user-secrets"); err != nil && !isNotFoundError(err) {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job user secret delete failed: " + err.Error()})
 			return
 		}
 	}

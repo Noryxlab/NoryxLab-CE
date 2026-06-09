@@ -1,8 +1,10 @@
 package runtime
 
 type EnvVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name       string
+	Value      string
+	SecretName string
+	SecretKey  string
 }
 
 type PodSpec struct {

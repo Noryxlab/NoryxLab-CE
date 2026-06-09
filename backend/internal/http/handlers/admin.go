@@ -281,7 +281,7 @@ func (h Handlers) stopAdminExecution(kind, id string) (string, string, error) {
 			return "", "", fmt.Errorf("workspace not found")
 		}
 		if h.runtime != nil {
-			for _, err := range []error{h.runtime.DeleteService(item.ServiceName), h.runtime.DeletePod(item.PodName), h.runtime.DeleteSecret(item.PodName + "-bootstrap")} {
+			for _, err := range []error{h.runtime.DeleteService(item.ServiceName), h.runtime.DeletePod(item.PodName), h.runtime.DeleteSecret(item.PodName + "-bootstrap"), h.runtime.DeleteSecret(item.PodName + "-user-secrets")} {
 				if err != nil && !isNotFoundError(err) {
 					return "", "", err
 				}
