@@ -30,7 +30,24 @@ func (h Handlers) GetBuildDockerfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "build not found"})
+		definition, systemFound := getSystemEnvironmentDefinition(buildID)
+		if !systemFound {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "build not found"})
+			return
+		}
+		content, sourceURL, err := fetchDockerfileContent(definition.GitRepository, definition.GitRef, definition.DockerfilePath)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dockerfile fetch failed: " + err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"buildId":        definition.BuildID,
+			"gitRepository":  definition.GitRepository,
+			"gitRef":         definition.GitRef,
+			"dockerfilePath": definition.DockerfilePath,
+			"sourceUrl":      sourceURL,
+			"content":        content,
+		})
 		return
 	}
 	if !h.hasProjectMembership(userID, record.ProjectID) {

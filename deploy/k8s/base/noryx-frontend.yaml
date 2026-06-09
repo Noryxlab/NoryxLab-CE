@@ -3341,7 +3341,7 @@ data:
               if (!creatingEnvironment && env.id === selectedEnvironmentID) tr.classList.add('is-selected');
               const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
               const latestRef = env.latestGitRef || '-';
-              const lastBuild = formatDateTime(env.updatedAt);
+              const lastBuild = env.category === 'system' && String(env.updatedAt || '').startsWith('0001-') ? 'Managed system image' : formatDateTime(env.updatedAt);
               const rawSize = env.latestImageSizeGiB ?? env.imageSizeGiB ?? env.latestImageSize ?? env.imageSize ?? '';
               const imageSize = String(rawSize || '').trim() || 'N/A';
               const category = String(env.category || 'custom').toLowerCase() === 'system' ? 'system' : 'custom';
@@ -3355,7 +3355,7 @@ data:
                 '<td>' + String(revCount) + '</td>' +
                 '<td>' + imageSize + '</td>' +
                 '<td>' + lastBuild + '</td>' +
-                '<td><button type="button" class="btn danger" data-del-env="' + encodeURIComponent(env.id || '') + '">Delete</button></td>';
+                '<td>' + (category === 'system' ? '<span style="color:#667a98">Managed</span>' : '<button type="button" class="btn danger" data-del-env="' + encodeURIComponent(env.id || '') + '">Delete</button>') + '</td>';
               environmentRows.appendChild(tr);
             }
           }
@@ -3381,6 +3381,10 @@ data:
 
           function renderEnvironmentDetail(env) {
             if (!env) return;
+            const isSystemEnvironment = String(env.category || '').toLowerCase() === 'system';
+            envDeleteImageBtn.style.display = isSystemEnvironment ? 'none' : '';
+            envCleanupCanceledBtn.style.display = isSystemEnvironment ? 'none' : '';
+            envEditDockerfileBtn.style.display = isSystemEnvironment ? 'none' : '';
             envSelectedName.textContent = env.name || '-';
             envSelectedImage.textContent = env.destinationImage || '-';
             envSelectedStatus.innerHTML = badge(env.latestStatus || 'submitted');
@@ -3407,7 +3411,7 @@ data:
                   '<td>' + badge(rev.status || 'submitted') + '</td>' +
                   '<td>' + (rev.gitRef || '-') + '</td>' +
                   '<td><code>' + (rev.dockerfilePath || '-') + '</code></td>' +
-                  '<td>' + formatDateTime(rev.createdAt) + '<br/><button type="button" class="btn danger" data-del-build="' + revID + '">Delete build</button></td>';
+                  '<td>' + (isSystemEnvironment ? 'Managed system revision' : formatDateTime(rev.createdAt) + '<br/><button type="button" class="btn danger" data-del-build="' + revID + '">Delete build</button>') + '</td>';
                 envRevisionRows.appendChild(tr);
               });
             }
@@ -5437,7 +5441,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.146"}
+    {"version":"ce-web-0.6.148"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5458,7 +5462,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.146
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.148
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

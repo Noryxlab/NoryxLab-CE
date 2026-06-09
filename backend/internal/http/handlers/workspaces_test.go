@@ -65,6 +65,13 @@ func TestUserSecretEnvName(t *testing.T) {
 	}
 }
 
+func TestSystemEnvironmentDefinitionIncludesDockerfile(t *testing.T) {
+	definition, ok := getSystemEnvironmentDefinition("system-vscode")
+	if !ok || definition.DockerfilePath != "environments/noryx-vscode/Dockerfile" || definition.GitRef == "" {
+		t.Fatalf("invalid system VSCode environment definition: %#v", definition)
+	}
+}
+
 func TestWorkspaceProxyRejectsSharedTokenWithoutSSO(t *testing.T) {
 	workspaces := memory.NewWorkspaceStore()
 	record := workspace.New(
