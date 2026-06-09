@@ -21,6 +21,7 @@ type createWorkspaceRequest struct {
 	ProjectID    string `json:"projectId"`
 	Name         string `json:"name"`
 	IDE          string `json:"ide"`
+	Image        string `json:"image"`
 	StorageSize  string `json:"storageSize"`
 	HardwareTier string `json:"hardwareTier"`
 }
@@ -228,6 +229,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
+	req.Image = strings.TrimSpace(req.Image)
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
 	req.HardwareTier = strings.TrimSpace(req.HardwareTier)
 	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
@@ -292,6 +294,13 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	workspaceImage := h.workspaceJupyterImage
 	if req.IDE == "vscode" {
 		workspaceImage = h.workspaceVSCodeImage
+	}
+	if req.Image != "" {
+		workspaceImage = req.Image
+	}
+	if !h.workspaceEnvironmentAllowed(req.ProjectID, workspaceImage, req.IDE) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selected environment is not accessible or compatible with " + req.IDE})
+		return
 	}
 	workspaceCommand := []string{"/bin/sh", "/var/run/noryx/bootstrap/bootstrap.sh"}
 	workspaceArgs := []string{}
