@@ -9,10 +9,10 @@ import (
 func TestDefaultHardwareTierUsesLowHiddenRequests(t *testing.T) {
 	h := Handlers{hardwareTiers: defaultHardwareTiers()}
 	tier, ok := h.resolveHardwareTier("")
-	if !ok || tier.ID != "standard" {
-		t.Fatal("expected standard default hardware tier")
+	if !ok || tier.ID != "1x4" {
+		t.Fatal("expected 1x4 default hardware tier")
 	}
-	if tier.CPURequest != "10m" || tier.MemoryRequest != "64Mi" {
+	if tier.CPURequest != "100m" || tier.MemoryRequest != "64Mi" {
 		t.Fatal("default tier must use very low internal requests")
 	}
 
