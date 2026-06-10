@@ -5270,6 +5270,9 @@ data:
               return;
             }
             if (!delId) return;
+            const target = state.jobs.find((job) => job.id === delId);
+            const label = (target && (target.name || target.jobName)) || 'ce job';
+            if (!window.confirm('Supprimer définitivement « ' + label + ' » et son historique ?')) return;
             try {
               await callJSON('/api/v1/jobs/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshJobs();
@@ -5824,7 +5827,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.165"}
+    {"version":"ce-web-0.6.166"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5845,7 +5848,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.165
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.166
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
