@@ -410,29 +410,7 @@ func (r *Runtime) DeleteService(name string) error {
 }
 
 func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
-	contextArg := spec.ContextGitURL
-	if spec.GitRef != "" {
-		contextArg = fmt.Sprintf("%s#refs/heads/%s", spec.ContextGitURL, spec.GitRef)
-	}
-	if strings.HasPrefix(spec.GitRef, "refs/") {
-		contextArg = fmt.Sprintf("%s#%s", spec.ContextGitURL, spec.GitRef)
-	}
-
-	dockerfileArg := spec.DockerfilePath
-	if strings.TrimSpace(spec.DockerfileContent) != "" {
-		dockerfileArg = "/workspace/Dockerfile"
-	}
-
-	args := []string{
-		"--context=" + contextArg,
-		"--dockerfile=" + dockerfileArg,
-		"--destination=" + spec.DestinationImage,
-		"--insecure",
-		"--skip-tls-verify",
-	}
-	if spec.ContextPath != "" {
-		args = append(args, "--context-sub-path="+spec.ContextPath)
-	}
+	args, dockerfileArg := kanikoBuildArgs(spec)
 
 	container := map[string]any{
 		"name":  "kaniko",
@@ -472,7 +450,7 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 		}
 	}
 
-	if strings.TrimSpace(spec.DockerfileContent) != "" {
+	if dockerfileArg == "/workspace/Dockerfile" {
 		volumes, _ := podSpec["volumes"].([]map[string]any)
 		volumes = append(volumes, map[string]any{
 			"name": "dockerfile-inline",
@@ -533,6 +511,34 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 
 	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
 	return err
+}
+
+func kanikoBuildArgs(spec noryxruntime.BuildSpec) ([]string, string) {
+	contextArg := spec.ContextGitURL
+	if spec.GitRef != "" {
+		contextArg = fmt.Sprintf("%s#refs/heads/%s", spec.ContextGitURL, spec.GitRef)
+	}
+	if strings.HasPrefix(spec.GitRef, "refs/") {
+		contextArg = fmt.Sprintf("%s#%s", spec.ContextGitURL, spec.GitRef)
+	}
+
+	dockerfileArg := spec.DockerfilePath
+	if strings.TrimSpace(spec.DockerfileContent) != "" {
+		contextArg = "dir:///workspace"
+		dockerfileArg = "/workspace/Dockerfile"
+	}
+
+	args := []string{
+		"--context=" + contextArg,
+		"--dockerfile=" + dockerfileArg,
+		"--destination=" + spec.DestinationImage,
+		"--insecure",
+		"--skip-tls-verify",
+	}
+	if spec.ContextPath != "" && strings.TrimSpace(spec.DockerfileContent) == "" {
+		args = append(args, "--context-sub-path="+spec.ContextPath)
+	}
+	return args, dockerfileArg
 }
 
 func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
