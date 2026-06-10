@@ -652,12 +652,12 @@ data:
               <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Projets</span></button>
               <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Workspaces</span></button>
               <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Jobs</span></button>
+              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
             </div>
             <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_deploy">Deploy</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
               <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
               <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
             </div>
@@ -5945,7 +5945,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.169"}
+    {"version":"ce-web-0.6.170"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5966,7 +5966,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.169
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.170
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
