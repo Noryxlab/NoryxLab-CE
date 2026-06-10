@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 )
 
 type createProjectRequest struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type setProjectOwnerRequest struct {
@@ -35,7 +37,7 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(items) == 0 {
-		seed := project.NewOwned(userID, defaultProjectName(userID))
+		seed := project.NewOwned(userID, defaultProjectName(userID), "")
 		if err := h.projectStore.Create(seed); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create default project"})
 			return
@@ -46,6 +48,10 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range items {
 		items[i].CanManageOwner = h.isGlobalAdminUserID(userID) || h.projectOwnedBy(items[i], userID)
+	}
+	if err := h.enrichProjectActivity(items); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project activity"})
+		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -87,12 +93,13 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.Name = strings.TrimSpace(req.Name)
+	req.Description = strings.TrimSpace(req.Description)
 	if req.Name == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
 		return
 	}
 
-	p := project.NewOwned(userID, req.Name)
+	p := project.NewOwned(userID, req.Name, req.Description)
 
 	if err := h.projectStore.Create(p); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create project"})
@@ -106,6 +113,112 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 		"name": p.Name,
 	})
 	writeJSON(w, http.StatusCreated, p)
+}
+
+func (h Handlers) UpdateProjectMetadata(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.projectByID(strings.TrimSpace(r.PathValue("projectID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
+		return
+	}
+	if !h.isGlobalAdminUserID(userID) && !h.projectOwnedBy(item, userID) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "project owner or global admin required"})
+		return
+	}
+	var req createProjectRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid project metadata is required"})
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Description = strings.TrimSpace(req.Description)
+	if req.Name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		return
+	}
+	if err := h.projectStore.UpdateMetadata(item.ID, req.Name, req.Description); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update project"})
+		return
+	}
+	updated, _, _ := h.projectByID(item.ID)
+	updated.CanManageOwner = true
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h Handlers) enrichProjectActivity(items []project.Project) error {
+	apps, err := h.appStore.List()
+	if err != nil {
+		return err
+	}
+	jobs, err := h.jobStore.List()
+	if err != nil {
+		return err
+	}
+	workspaces, err := h.workspaceStore.List()
+	if err != nil {
+		return err
+	}
+	byID := make(map[string]*project.Project, len(items))
+	for i := range items {
+		items[i].LastActivityAt = items[i].UpdatedAt
+		if items[i].LastActivityAt.IsZero() {
+			items[i].LastActivityAt = items[i].CreatedAt
+		}
+		byID[items[i].ID] = &items[i]
+	}
+	for _, item := range apps {
+		current := byID[item.ProjectID]
+		if current == nil {
+			continue
+		}
+		if item.Kind == "app" && projectStatusActive(item.Status) {
+			current.RunningApps++
+		}
+		projectLatestActivity(current, item.CreatedAt)
+	}
+	for _, item := range jobs {
+		current := byID[item.ProjectID]
+		if current == nil {
+			continue
+		}
+		if projectStatusActive(item.Status) {
+			current.RunningJobs++
+		}
+		projectLatestActivity(current, item.CreatedAt)
+		if item.CompletedAt != nil {
+			projectLatestActivity(current, *item.CompletedAt)
+		}
+	}
+	for _, item := range workspaces {
+		current := byID[item.ProjectID]
+		if current == nil {
+			continue
+		}
+		if projectStatusActive(item.Status) {
+			current.RunningWorkspaces++
+		}
+		projectLatestActivity(current, item.CreatedAt)
+	}
+	return nil
+}
+
+func projectStatusActive(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "running", "submitted", "pending", "starting", "ready":
+		return true
+	default:
+		return false
+	}
+}
+
+func projectLatestActivity(item *project.Project, candidate time.Time) {
+	if candidate.After(item.LastActivityAt) {
+		item.LastActivityAt = candidate
+	}
 }
 
 func (h Handlers) UpdateProjectOwner(w http.ResponseWriter, r *http.Request) {

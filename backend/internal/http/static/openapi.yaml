@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.132
+  version: 0.5.133
   description: |
     Noryx CE backend API contract.
 
@@ -48,6 +48,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
+        description: { type: string }
         ownerType:
           type: string
           enum: [user, organization]
@@ -56,6 +57,15 @@ components:
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastActivityAt:
+          type: string
+          format: date-time
+        runningApps: { type: integer }
+        runningJobs: { type: integer }
+        runningWorkspaces: { type: integer }
 
     ProjectListResponse:
       type: object
@@ -73,6 +83,9 @@ components:
         name:
           type: string
           example: Fraud Analysis
+        description:
+          type: string
+          example: Evaluation and deployment of fraud detection models.
 
     SetProjectOwnerRequest:
       type: object
@@ -761,6 +774,38 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectID}:
+    put:
+      tags: [Projects]
+      summary: Update project name and description
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Projects]
       summary: Delete project

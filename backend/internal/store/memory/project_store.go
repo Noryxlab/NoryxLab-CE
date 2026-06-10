@@ -2,6 +2,7 @@ package memory
 
 import (
 	"sync"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 )
@@ -29,6 +30,20 @@ func (s *ProjectStore) Create(p project.Project) error {
 	defer s.mu.Unlock()
 
 	s.items = append(s.items, p)
+	return nil
+}
+
+func (s *ProjectStore) UpdateMetadata(projectID, name, description string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == projectID {
+			s.items[i].Name = name
+			s.items[i].Description = description
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
 	return nil
 }
 
