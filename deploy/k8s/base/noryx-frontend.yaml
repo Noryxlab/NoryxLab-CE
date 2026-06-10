@@ -2703,8 +2703,12 @@ data:
           }
 
           function projectOwnerLabel(project) {
-            const ownerType = String(project && project.ownerType || 'user').toLowerCase();
-            const ownerID = String(project && project.ownerId || '').trim();
+            return ownerLabel(project && project.ownerType, project && project.ownerId);
+          }
+
+          function ownerLabel(ownerTypeValue, ownerIDValue) {
+            const ownerType = String(ownerTypeValue || 'user').toLowerCase();
+            const ownerID = String(ownerIDValue || '').trim();
             if (ownerType === 'organization') {
               const organization = ensureArray(state.availableOrganizations).find((item) => item.id === ownerID);
               return 'Organisation · ' + (organization ? (organization.name || organization.alias || ownerID) : ownerID || '-');
@@ -2779,7 +2783,7 @@ data:
                 '<td><strong>' + (d.name || d.id) + '</strong>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
                 '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'STANDARD') + '</td>' +
                 '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
-                '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
+                '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                 '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
                 '<td>' + (((d.classification || 'non-hds') !== 'hds' && d.accessRole === 'owner') || isAdminUser() ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
               datasetRows.appendChild(tr);
@@ -3708,7 +3712,7 @@ data:
             adminDatasetsCount.textContent = String(datasets.length);
             adminUserRows.innerHTML = users.map((u) => '<tr><td><strong>' + (u.username || u.id || '-') + '</strong></td><td>' + (u.email || '-') + '</td><td>' + badge(u.enabled === false ? 'disabled' : 'enabled') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun utilisateur.</td></tr>';
             adminProjectRows.innerHTML = projects.map((p) => '<tr><td><strong>' + (p.name || p.id || '-') + '</strong></td><td>' + formatDateTime(p.createdAt) + '</td></tr>').join('') || '<tr><td colspan="2">Aucun projet.</td></tr>';
-            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + badge(d.ownerType || 'user') + ' ' + (d.ownerId || d.ownerUserId || '-') + '</td><td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
+            adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td><td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
           function renderOrganizations() {
@@ -3829,7 +3833,7 @@ data:
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                   '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td>' +
                   '<td><code>' + (d.provider || 'minio') + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
-                  '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
+                  '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
                 projectDatasetRows.appendChild(tr);
               });
@@ -4094,7 +4098,8 @@ data:
           async function refreshAvailableOrganizations() {
             const body = await callJSON('/api/v1/organizations');
             state.availableOrganizations = ensureArray(body.items);
-            renderDatasetAccessTable();
+            renderAll();
+            renderAdminInventory();
             return body;
           }
 
@@ -5796,7 +5801,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.162"}
+    {"version":"ce-web-0.6.163"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5817,7 +5822,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.162
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.163
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
