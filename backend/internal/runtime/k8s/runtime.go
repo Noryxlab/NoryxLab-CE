@@ -113,6 +113,16 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		"args":    spec.Args,
 		"env":     kubernetesEnvVars(spec.Env),
 	}
+	if spec.RunAsUser > 0 || spec.RunAsGroup > 0 {
+		securityContext := map[string]any{}
+		if spec.RunAsUser > 0 {
+			securityContext["runAsUser"] = spec.RunAsUser
+		}
+		if spec.RunAsGroup > 0 {
+			securityContext["runAsGroup"] = spec.RunAsGroup
+		}
+		container["securityContext"] = securityContext
+	}
 	if len(ports) > 0 {
 		container["ports"] = ports
 	}
@@ -186,6 +196,9 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			"containers":                   []map[string]any{container},
 			"restartPolicy":                "Never",
 		},
+	}
+	if spec.FSGroup > 0 {
+		payload["spec"].(map[string]any)["securityContext"] = map[string]any{"fsGroup": spec.FSGroup}
 	}
 	if len(volumes) > 0 {
 		payload["spec"].(map[string]any)["volumes"] = volumes
@@ -755,6 +768,9 @@ func (r *Runtime) GetWorkloadMetrics() (noryxruntime.WorkloadMetrics, error) {
 	}
 	var response struct {
 		Items []struct {
+			Metadata struct {
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
 			Spec struct {
 				Containers []struct {
 					Resources struct {
@@ -770,8 +786,12 @@ func (r *Runtime) GetWorkloadMetrics() (noryxruntime.WorkloadMetrics, error) {
 	if err := json.Unmarshal(body, &response); err != nil {
 		return noryxruntime.WorkloadMetrics{}, err
 	}
-	out := noryxruntime.WorkloadMetrics{Pods: len(response.Items)}
+	out := noryxruntime.WorkloadMetrics{}
 	for _, item := range response.Items {
+		if item.Metadata.Labels["noryx.io/workload-class"] == "technical" {
+			continue
+		}
+		out.Pods++
 		switch strings.ToLower(strings.TrimSpace(item.Status.Phase)) {
 		case "running":
 			out.Running++

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.123
+  version: 0.5.126
   description: |
     Noryx CE backend API contract.
 
@@ -847,6 +847,81 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /api/v1/projects/{projectID}/files:
+    get:
+      tags: [Projects]
+      summary: List files at the root of the persistent project volume
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Project files
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/projects/{projectID}/files/{path}:
+    get:
+      tags: [Projects]
+      summary: List a project folder or download a project file
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Folder listing or file content
+    put:
+      tags: [Projects]
+      summary: Create or replace a project file
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: File saved
+    delete:
+      tags: [Projects]
+      summary: Delete a project file or folder
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+        - in: path
+          name: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: File or folder deleted
+
+  /api/v1/projects/{projectID}/folders:
+    post:
+      tags: [Projects]
+      summary: Create a folder in the persistent project volume
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Folder created
 
   /api/v1/builds:
     get:
