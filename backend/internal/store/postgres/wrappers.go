@@ -21,7 +21,10 @@ type AccessStore struct{ *Store }
 
 func (s *ProjectStore) List() ([]project.Project, error) { return s.Store.List() }
 func (s *ProjectStore) Create(p project.Project) error   { return s.Store.Create(p) }
-func (s *ProjectStore) DeleteProject(id string) error    { return s.Store.DeleteProject(id) }
+func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
+	return s.Store.UpdateProjectOwner(projectID, ownerType, ownerID)
+}
+func (s *ProjectStore) DeleteProject(id string) error { return s.Store.DeleteProject(id) }
 
 type BuildStore struct{ *Store }
 

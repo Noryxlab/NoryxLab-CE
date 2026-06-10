@@ -13,6 +13,11 @@ type createProjectRequest struct {
 	Name string `json:"name"`
 }
 
+type setProjectOwnerRequest struct {
+	OwnerType string `json:"ownerType"`
+	OwnerID   string `json:"ownerId"`
+}
+
 func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -30,13 +35,17 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(items) == 0 {
-		seed := project.New(defaultProjectName(userID))
+		seed := project.NewOwned(userID, defaultProjectName(userID))
 		if err := h.projectStore.Create(seed); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create default project"})
 			return
 		}
 		h.accessStore.SetRole(seed.ID, userID, access.RoleAdmin)
+		seed.CanManageOwner = true
 		items = append(items, seed)
+	}
+	for i := range items {
+		items[i].CanManageOwner = h.isGlobalAdminUserID(userID) || h.projectOwnedBy(items[i], userID)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -83,7 +92,7 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := project.New(req.Name)
+	p := project.NewOwned(userID, req.Name)
 
 	if err := h.projectStore.Create(p); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create project"})
@@ -91,11 +100,61 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.accessStore.SetRole(p.ID, userID, access.RoleAdmin)
+	p.CanManageOwner = true
 
 	h.emitAudit(r, userID, "project.create", "project", p.ID, p.ID, "success", "", map[string]any{
 		"name": p.Name,
 	})
 	writeJSON(w, http.StatusCreated, p)
+}
+
+func (h Handlers) UpdateProjectOwner(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.projectByID(strings.TrimSpace(r.PathValue("projectID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
+		return
+	}
+	if !h.isGlobalAdmin(identity) && !h.projectOwnedBy(item, identity.UserID()) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "project owner or global admin required"})
+		return
+	}
+
+	var req setProjectOwnerRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
+		return
+	}
+	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
+	req.OwnerID = strings.TrimSpace(req.OwnerID)
+	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) && !h.userBelongsToOrganization(identity.UserID(), req.OwnerID) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
+		return
+	}
+	if err := h.projectStore.UpdateOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update project owner"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "project.owner.transfer", "project", item.ID, item.ID, "success", "", map[string]any{
+		"previousOwnerType": item.OwnerType,
+		"previousOwnerId":   item.OwnerID,
+		"ownerType":         req.OwnerType,
+		"ownerId":           req.OwnerID,
+	})
+	updated, _, _ := h.projectByID(item.ID)
+	updated.CanManageOwner = true
+	writeJSON(w, http.StatusOK, updated)
 }
 
 func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {

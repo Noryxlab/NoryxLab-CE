@@ -32,6 +32,20 @@ func (s *ProjectStore) Create(p project.Project) error {
 	return nil
 }
 
+func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.items {
+		if s.items[i].ID == projectID {
+			s.items[i].OwnerType = ownerType
+			s.items[i].OwnerID = ownerID
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s *ProjectStore) DeleteProject(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

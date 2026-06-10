@@ -8,6 +8,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 )
 
 const (
@@ -202,6 +203,9 @@ func (h Handlers) requireProjectRole(
 	if h.isGlobalAdminUserID(userID) {
 		return true
 	}
+	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
+		return check(access.RoleAdmin)
+	}
 	role, ok := h.accessStore.GetRole(projectID, userID)
 	fallback := ok && check(role)
 	if !h.canProjectAction(userID, projectID, role, mapRoleCheckToAction(check, action), fallback) {
@@ -228,11 +232,42 @@ func (h Handlers) hasProjectMembership(userID, projectID string) bool {
 	if h.isGlobalAdminUserID(userID) {
 		return true
 	}
+	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
+		return true
+	}
 	role, ok := h.accessStore.GetRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
 	if !ok {
 		return false
 	}
 	return h.canProjectAction(userID, projectID, role, projectActionRead, true)
+}
+
+func (h Handlers) projectOwnedBy(item project.Project, userID string) bool {
+	ownerType := strings.ToLower(strings.TrimSpace(item.OwnerType))
+	ownerID := strings.TrimSpace(item.OwnerID)
+	if ownerType == "" {
+		ownerType = "user"
+	}
+	if ownerType == "user" {
+		return ownerID != "" && strings.EqualFold(ownerID, strings.TrimSpace(userID))
+	}
+	return ownerType == "organization" && h.userBelongsToOrganization(userID, ownerID)
+}
+
+func (h Handlers) userBelongsToOrganization(userID, organizationID string) bool {
+	if h.keycloak == nil || strings.TrimSpace(organizationID) == "" {
+		return false
+	}
+	organizations, err := h.keycloak.ListUserOrganizations(strings.TrimSpace(userID))
+	if err != nil {
+		return false
+	}
+	for _, organization := range organizations {
+		if organization.Enabled && strings.EqualFold(organization.ID, strings.TrimSpace(organizationID)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h Handlers) isGlobalAdminUserID(userID string) bool {
@@ -280,16 +315,21 @@ func mapRoleCheckToAction(check func(access.Role) bool, actionLabel string) stri
 }
 
 func (h Handlers) projectExists(projectID string) (bool, error) {
+	_, found, err := h.projectByID(projectID)
+	return found, err
+}
+
+func (h Handlers) projectByID(projectID string) (project.Project, bool, error) {
 	projects, err := h.projectStore.List()
 	if err != nil {
-		return false, err
+		return project.Project{}, false, err
 	}
 	for _, p := range projects {
 		if p.ID == projectID {
-			return true, nil
+			return p, true, nil
 		}
 	}
-	return false, nil
+	return project.Project{}, false, nil
 }
 
 func (h Handlers) requireGlobalAdmin(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {

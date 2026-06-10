@@ -37,6 +37,22 @@ Dataset ACLs are managed by the dataset owner or a global admin. Attaching a
 dataset to a project remains a separate operation because it exposes the dataset
 to project workloads. Regulated HDS policies are an Enterprise Edition concern.
 
+### Project ownership
+
+Every project has one owner:
+
+- a user, by default the user who created the project
+- an organization, after an ownership transfer
+
+The project owner has project-administrator permissions. When an organization
+owns a project, every current member of that Keycloak organization can see and
+administer the project. Individual project memberships remain valid in addition
+to ownership.
+
+Only the current owner or a global administrator can transfer project
+ownership. A non-admin user can only transfer ownership to an organization they
+belong to.
+
 ## EE (Enterprise Edition)
 
 EE extends CE with a custom role matrix:
@@ -46,9 +62,9 @@ EE extends CE with a custom role matrix:
 
 EE can also require every authenticated user to belong to an organization.
 Keycloak owns organization membership; NoryxLab owns authorization decisions.
-The current delivered organization scope covers mandatory membership and
-administrative membership management. Organization-owned resources and
-organization ACL evaluation remain part of the EE authorization roadmap.
+The delivered organization scope covers mandatory membership, administrative
+membership management, organization-owned projects and organization-owned
+datasets.
 
 ### EE matrix model
 

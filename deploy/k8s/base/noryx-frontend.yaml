@@ -765,8 +765,15 @@ data:
                       <div>
                         <div class="project-scope-kicker">Projet actif · ressources rattachees</div>
                         <div id="projectActiveName" class="project-scope-name">Aucun projet selectionne</div>
+                        <div id="projectActiveOwner" class="project-meta">Owner · -</div>
                       </div>
                     </header>
+                    <div id="projectOwnerForm" class="row" style="display:none">
+                      <select id="projectOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
+                      <input id="projectOwnerID" list="projectOwnerOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
+                      <button id="projectOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                      <datalist id="projectOwnerOptions"></datalist>
+                    </div>
                     <div class="project-resources">
                       <article class="card project-resource-card">
                         <h3>Datasets du projet</h3>
@@ -1395,6 +1402,12 @@ data:
           const projectRows = document.getElementById('projectRows');
           const projectScope = document.getElementById('projectScope');
           const projectActiveName = document.getElementById('projectActiveName');
+          const projectActiveOwner = document.getElementById('projectActiveOwner');
+          const projectOwnerForm = document.getElementById('projectOwnerForm');
+          const projectOwnerType = document.getElementById('projectOwnerType');
+          const projectOwnerID = document.getElementById('projectOwnerID');
+          const projectOwnerSave = document.getElementById('projectOwnerSave');
+          const projectOwnerOptions = document.getElementById('projectOwnerOptions');
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
@@ -2605,6 +2618,7 @@ data:
               card.innerHTML =
                 (isSelected ? '<div class="project-active-marker">Projet actif</div>' : '') +
                 '<h4>' + (p.name || '-') + '</h4>' +
+                '<div class="project-meta">Owner · ' + escapeHTML(projectOwnerLabel(p)) + '</div>' +
                 '<div class="project-actions">' +
                 (isSelected
                   ? '<button type="button" class="btn primary" disabled>Actif</button>'
@@ -2615,13 +2629,38 @@ data:
               const tr = document.createElement('tr');
               if (isSelected) tr.classList.add('project-row-active');
               tr.innerHTML =
-                '<td><strong>' + p.name + '</strong>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
+                '<td><strong>' + p.name + '</strong><br/><span class="project-meta">Owner · ' + escapeHTML(projectOwnerLabel(p)) + '</span>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
                 '<td>' + (isSelected ? '<button type="button" class="btn primary" disabled>Actif</button>' : '<button type="button" class="btn" data-select-project="' + (p.id || '') + '">Activer</button>') + ' <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
               projectRows.appendChild(tr);
             }
             const showList = mode === 'list';
             projectCards.style.display = showList ? 'none' : 'grid';
             projectList.style.display = showList ? 'block' : 'none';
+          }
+
+          function projectOwnerLabel(project) {
+            const ownerType = String(project && project.ownerType || 'user').toLowerCase();
+            const ownerID = String(project && project.ownerId || '').trim();
+            if (ownerType === 'organization') {
+              const organization = ensureArray(state.availableOrganizations).find((item) => item.id === ownerID);
+              return 'Organisation · ' + (organization ? (organization.name || organization.alias || ownerID) : ownerID || '-');
+            }
+            return 'Utilisateur · ' + (ownerID || '-');
+          }
+
+          function updateProjectOwnerOptions() {
+            projectOwnerOptions.innerHTML = '';
+            const query = String(projectOwnerID.value || '').trim().toLowerCase();
+            if (!query) return;
+            datasetSubjectCandidates(projectOwnerType.value || 'user')
+              .filter((candidate) => candidate.search.some((value) => value.startsWith(query)))
+              .slice(0, 20)
+              .forEach((candidate) => {
+                const option = document.createElement('option');
+                option.value = candidate.label;
+                option.label = candidate.id;
+                projectOwnerOptions.appendChild(option);
+              });
           }
 
           function renderSecretsTable() {
@@ -3592,6 +3631,8 @@ data:
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
             projectActiveName.textContent = p ? (p.name || p.id || '-') : 'Aucun projet selectionne';
+            projectActiveOwner.textContent = p ? ('Owner · ' + projectOwnerLabel(p)) : 'Owner · -';
+            projectOwnerForm.style.display = p && p.canManageOwner ? 'flex' : 'none';
             projectScope.classList.toggle('is-empty', !p);
           }
 
@@ -4129,6 +4170,31 @@ data:
                 body: JSON.stringify({ name })
               });
               projectNameInput.value = '';
+              await refreshProjects();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectOwnerType.onchange = () => {
+            projectOwnerID.value = '';
+            updateProjectOwnerOptions();
+          };
+          projectOwnerID.oninput = updateProjectOwnerOptions;
+          projectOwnerSave.onclick = async () => {
+            const projectID = selectedProjectId();
+            if (!projectID) return;
+            const ownerType = projectOwnerType.value || 'user';
+            const ownerId = resolveDatasetSubjectID(projectOwnerID.value, ownerType);
+            if (!ownerId) return;
+            try {
+              await callJSON('/api/v1/projects/' + encodeURIComponent(projectID) + '/ownership', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ownerType, ownerId })
+              });
+              projectOwnerID.value = '';
               await refreshProjects();
             } catch (e) {
               pretty(usersOut, e);
@@ -5450,7 +5516,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.153"}
+    {"version":"ce-web-0.6.154"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5471,7 +5537,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.153
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.154
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
