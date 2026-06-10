@@ -3261,10 +3261,7 @@ data:
           function renderWorkspaceEnvOptions() {
             const current = workspaceEnvInput.value || '';
             const pid = selectedProjectId();
-            const items = state.environments.filter((env) => {
-              if (pid && env.projectId !== pid) return false;
-              return ensureArray(env.workspaceIdes).length > 0;
-            });
+            const items = executionEnvironmentOptions(pid, true);
             workspaceEnvInput.innerHTML = '';
             if (items.length === 0) {
               const opt = document.createElement('option');
@@ -3303,7 +3300,7 @@ data:
             const current = jobEnvInput.value || '';
             jobEnvInput.innerHTML = '';
             const pid = selectedProjectId();
-            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            const items = executionEnvironmentOptions(pid, false);
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
@@ -3326,7 +3323,7 @@ data:
             const current = appEnvInput.value || '';
             appEnvInput.innerHTML = '';
             const pid = selectedProjectId();
-            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            const items = executionEnvironmentOptions(pid, false);
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
@@ -3349,7 +3346,7 @@ data:
             const current = dashboardEnvInput.value || '';
             dashboardEnvInput.innerHTML = '';
             const pid = selectedProjectId();
-            const items = state.environments.filter((env) => !pid || env.projectId === pid);
+            const items = executionEnvironmentOptions(pid, false);
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
@@ -3366,6 +3363,19 @@ data:
             if (current && items.some((env) => env.destinationImage === current)) {
               dashboardEnvInput.value = current;
             }
+          }
+
+          function executionEnvironmentOptions(projectID, requireWorkspaceIDE) {
+            const seenImages = new Set();
+            return state.environments.filter((env) => {
+              const image = String(env.destinationImage || '').trim();
+              if (!image || seenImages.has(image)) return false;
+              const category = String(env.category || 'custom').toLowerCase();
+              if (category === 'system' && projectID && env.projectId !== projectID) return false;
+              if (requireWorkspaceIDE && ensureArray(env.workspaceIdes).length === 0) return false;
+              seenImages.add(image);
+              return true;
+            });
           }
 
           function renderJobsTable() {
@@ -4133,10 +4143,17 @@ data:
           async function refreshEnvironments() {
             const pid = selectedProjectId();
             const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
-            const body = await callJSON('/api/v1/environments' + query);
-            state.environments = ensureArray(body.items);
+            const bodies = await Promise.all([
+              callJSON('/api/v1/environments' + query),
+              pid ? callJSON('/api/v1/environments') : Promise.resolve({ items: [] })
+            ]);
+            const byID = new Map();
+            ensureArray(bodies[0].items).concat(ensureArray(bodies[1].items)).forEach((env) => {
+              byID.set(env.id || env.destinationImage, env);
+            });
+            state.environments = Array.from(byID.values());
             renderAll();
-            return body;
+            return bodies[0];
           }
 
           async function refreshProjectResources() {
@@ -5801,7 +5818,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.163"}
+    {"version":"ce-web-0.6.164"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5822,7 +5839,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.163
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.164
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
