@@ -1237,7 +1237,7 @@ data:
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="appProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Deploy long-running apps with custom URL slug. Access is authenticated via Keycloak session.</div>
+                    <div class="hint">Point d'entree recommande : <code>/mnt/app.sh</code>. La commande manuelle ci-dessous est une surcharge optionnelle.</div>
                     <div class="row">
                       <input id="appName" placeholder="app name (optional)" />
                       <input id="appSlug" placeholder="url slug (example: fraud-ui)" />
@@ -1248,7 +1248,7 @@ data:
                       <input id="appPort" value="9000" placeholder="port (default 9000)" />
                     </div>
                     <div class="row">
-                      <input id="appCommand" value="python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt" placeholder="launch command" />
+                      <input id="appCommand" value="" placeholder="Commande optionnelle (sinon /mnt/app.sh)" />
                       <button id="createApp" class="btn warn">Launch App</button>
                       <button id="loadApps" class="btn">Refresh</button>
                     </div>
@@ -1909,7 +1909,7 @@ data:
               ph_app_name: 'Nom app (optionnel)',
               ph_app_slug: 'Slug URL (ex: fraude-ui)',
               ph_app_port: 'Port (defaut 9000)',
-              ph_app_cmd: 'Commande de lancement',
+              ph_app_cmd: 'Commande optionnelle (sinon /mnt/app.sh)',
               ph_dash_name: 'Nom dashboard (optionnel)',
               ph_dash_slug: 'Slug URL (ex: kpi-overview)',
               ph_dash_port: 'Port (defaut 9000)',
@@ -2064,7 +2064,7 @@ data:
               ph_app_name: 'App name (optional)',
               ph_app_slug: 'URL slug (e.g. fraud-ui)',
               ph_app_port: 'Port (default 9000)',
-              ph_app_cmd: 'Launch command',
+              ph_app_cmd: 'Optional command (defaults to /mnt/app.sh)',
               ph_dash_name: 'Dashboard name (optional)',
               ph_dash_slug: 'URL slug (e.g. kpi-overview)',
               ph_dash_port: 'Port (default 9000)',
@@ -5952,7 +5952,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.171"}
+    {"version":"ce-web-0.6.172"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5973,7 +5973,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.171
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.172
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

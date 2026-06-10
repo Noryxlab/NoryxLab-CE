@@ -388,13 +388,14 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 	userLaunch = strings.TrimSpace(userLaunch)
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
 	lines = append(lines,
+		fmt.Sprintf("export PORT=%d NORYX_APP_PORT=%d", port, port),
 		"if [ -n "+shellQuote(userLaunch)+" ]; then",
 		"  echo '[bootstrap] using UI command entrypoint'",
 		"  "+userLaunch,
 		"elif [ -f /mnt/app.sh ]; then",
 		"  echo '[bootstrap] using /mnt/app.sh entrypoint'",
 		"  chmod +x /mnt/app.sh || true",
-		"  /bin/sh /mnt/app.sh",
+		"  exec /mnt/app.sh",
 		"else",
 		"  echo '[bootstrap] no /mnt/app.sh found, using default static server'",
 		"  "+defaultHTTP,

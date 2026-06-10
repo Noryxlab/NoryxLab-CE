@@ -33,13 +33,14 @@ Create payload example:
   "slug": "fraud-ui",
   "image": "harbor.lan/my-project/my-app:1.0.0",
   "port": 9000,
-  "args": ["python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt"]
+  "args": []
 }
 ```
 
 Notes:
 
-- If `args` is empty, backend starts a default static server command.
+- If `args` is empty, the backend starts `/mnt/app.sh` when present, then falls
+  back to a static server.
 - Slug must match: lowercase `[a-z0-9-]` and stay unique cluster-wide in V1.
 
 ## App entrypoint resolution
@@ -50,7 +51,12 @@ App startup follows this order:
 2. `/mnt/app.sh` when present
 3. fallback static HTTP server on selected port
 
-Standard recommended format is `/mnt/app.sh` (single entrypoint style).
+Standard recommended format is `/mnt/app.sh` (single entrypoint style). Keep
+service preparation and launch logic in this script so workspace and app
+execution use the same project-owned entrypoint.
+
+The launcher exports `PORT` and `NORYX_APP_PORT` with the selected application
+port before executing the script.
 
 ## Bootstrap behavior
 
