@@ -1,5 +1,8 @@
 # Production
 
+The architectural decision is documented in
+[`ADR-001: Separate development lifecycle from production operations`](../adr/ADR-001-develop-production-lifecycle-boundary.md).
+
 Noryx separates project-scoped publication from production operations:
 
 - `Develop` contains project-scoped creation and lifecycle management for apps,
