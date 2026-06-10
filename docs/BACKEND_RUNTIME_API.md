@@ -101,11 +101,10 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - `POST /api/v1/projects/{projectID}/invitations` invites one user with role (`editor` by default)
 - `editor` and `admin` can submit builds and launch pods
 - `editor` and `admin` can launch/delete/access workspaces
-- every successful or failed `POST`, `PUT`, `PATCH`, and `DELETE` request under
-  `/api/v1` is audited without request payloads; detailed business events are
-  additionally emitted for sensitive operations
-- audit retention: no purge policy is applied by default in CE (append-only audit table)
-- first authenticated `GET /api/v1/projects` auto-provisions a default project for users without project membership
+- in EE, every successful or failed `POST`, `PUT`, `PATCH`, and `DELETE`
+  request under `/api/v1` is audited without request payloads; detailed
+  business events are additionally emitted for sensitive operations
+- persistent audit logs are disabled in CE
 - CE bootstrap admin (`NORYX_BOOTSTRAP_ADMIN_USER`) has cross-project visibility and bypasses project membership checks
 - datasets can be attached to or detached from projects by their owner or the global admin
 - Clever Cloud datasets are registered by an admin; external object access requires platform-injected service credentials

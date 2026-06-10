@@ -15,7 +15,7 @@ import (
 )
 
 func (h Handlers) emitAudit(r *http.Request, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode string, details map[string]any) {
-	if h.auditStore == nil {
+	if h.auditStore == nil || !h.featureEnabled(edition.FeatureAdvancedAudit) {
 		return
 	}
 	event := audit.New(
@@ -34,9 +34,6 @@ func (h Handlers) emitAudit(r *http.Request, actorUserID, action, resourceType, 
 }
 
 func (h Handlers) emitAdvancedAudit(r *http.Request, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode string, details map[string]any) {
-	if !h.featureEnabled(edition.FeatureAdvancedAudit) {
-		return
-	}
 	h.emitAudit(r, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode, details)
 }
 

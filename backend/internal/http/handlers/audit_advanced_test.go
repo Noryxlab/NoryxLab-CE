@@ -32,3 +32,27 @@ func TestAdvancedAuditIsEnterpriseGated(t *testing.T) {
 		t.Fatal("expected advanced audit event when the Enterprise feature is enabled")
 	}
 }
+
+func TestAllAuditIsEnterpriseGated(t *testing.T) {
+	audits := memory.NewAuditStore()
+	request := httptest.NewRequest("POST", "/api/v1/projects", nil)
+	ce := Handlers{auditStore: audits}
+	ce.emitAudit(request, "stef", "project.create", "project", "example", "example", "success", "", nil)
+
+	items, err := audits.List(store.AuditFilter{})
+	if err != nil || len(items) != 0 {
+		t.Fatal("expected audit event to remain disabled in CE")
+	}
+
+	ee := Handlers{
+		auditStore: audits,
+		editionHooks: edition.Hooks{
+			Feature: edition.FeatureGateFromCSV(edition.FeatureAdvancedAudit),
+		},
+	}
+	ee.emitAudit(request, "stef", "project.create", "project", "example", "example", "success", "", nil)
+	items, err = audits.List(store.AuditFilter{})
+	if err != nil || len(items) != 1 || items[0].Action != "project.create" {
+		t.Fatal("expected audit event when the Enterprise feature is enabled")
+	}
+}

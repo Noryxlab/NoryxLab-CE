@@ -28,8 +28,9 @@ HDS dataset management is an Enterprise Edition capability:
 
 ## Advanced audit boundary
 
-Detailed dataset transfer events are emitted only when
-`edition.FeatureAdvancedAudit` is enabled:
+Persistent audit logs are an Enterprise Edition capability and are emitted
+only when `edition.FeatureAdvancedAudit` is enabled. This includes every API
+mutation and detailed business events such as:
 
 - object upload success and failure
 - streamed object download success, interruption, and transferred bytes
