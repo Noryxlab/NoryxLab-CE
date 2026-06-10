@@ -1234,6 +1234,9 @@ data:
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Project Apps</h3>
+                    <div class="execution-project-context">
+                      <div><div class="k">Projet actif</div><div id="appProjectName" class="v">Aucun projet sélectionné</div></div>
+                    </div>
                     <div class="hint">Deploy long-running apps with custom URL slug. Access is authenticated via Keycloak session.</div>
                     <div class="row">
                       <input id="appName" placeholder="app name (optional)" />
@@ -1250,7 +1253,7 @@ data:
                       <button id="loadApps" class="btn">Refresh</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
                       <tbody id="appRows"></tbody>
                     </table>
                   </article>
@@ -1440,6 +1443,7 @@ data:
           const auditOut = document.getElementById('auditOut');
           const workspaceProjectName = document.getElementById('workspaceProjectName');
           const jobProjectName = document.getElementById('jobProjectName');
+          const appProjectName = document.getElementById('appProjectName');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
           const envSelectedName = document.getElementById('envSelectedName');
@@ -3492,16 +3496,19 @@ data:
 
           function renderAppsTable() {
             const pid = selectedProjectId();
+            const activeProject = selectedProject();
+            appProjectName.textContent = activeProject ? (activeProject.name || 'Projet') : 'Aucun projet sélectionné';
             const items = state.apps.filter((a) => !pid || a.projectId === pid);
             appRows.innerHTML = '';
             if (items.length === 0) {
-              appRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_apps_project') + '</td></tr>';
+              appRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_apps_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (a.name || a.id) + '</strong><br/><span style="color:#667a98">' + (a.id || '-') + '</span></td>' +
+                '<td><strong>' + escapeHTML(projectName(a.projectId)) + '</strong></td>' +
                 '<td><code>' + (a.slug || '-') + '</code></td>' +
                 '<td><code>' + (a.podName || '-') + '</code></td>' +
                 '<td>' + badge(a.status || 'submitted') + '</td>' +
@@ -5945,7 +5952,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.170"}
+    {"version":"ce-web-0.6.171"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5966,7 +5973,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.170
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.171
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
