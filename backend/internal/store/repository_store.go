@@ -6,5 +6,6 @@ type RepositoryStore interface {
 	ListByUser(userID string) ([]repository.Repository, error)
 	GetByID(id string) (repository.Repository, bool, error)
 	Create(item repository.Repository) error
+	Update(item repository.Repository) error
 	Delete(id string) error
 }

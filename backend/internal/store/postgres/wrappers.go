@@ -142,6 +142,9 @@ func (s *RepositoryStore) GetByID(id string) (repository.Repository, bool, error
 func (s *RepositoryStore) Create(item repository.Repository) error {
 	return s.Store.CreateRepository(item)
 }
+func (s *RepositoryStore) Update(item repository.Repository) error {
+	return s.Store.UpdateRepository(item)
+}
 func (s *RepositoryStore) Delete(id string) error { return s.Store.DeleteRepository(id) }
 
 type ProjectResourceStore struct{ *Store }

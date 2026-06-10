@@ -100,8 +100,15 @@ Endpoints:
 
 - `GET /api/v1/repositories`
 - `POST /api/v1/repositories`
+- `PUT /api/v1/repositories/{repositoryID}`
 
-Repository records can reference a user secret by name (`authSecretName`) for later git auth flows.
+Repository records separate:
+
+- author identity (`gitAuthorName`, `gitAuthorEmail`) used for commits
+- authentication type (`persat`, `prat`, or `none`)
+- the user secret reference (`authSecretName`) used for clone, pull, and push
+
+Tokens remain stored as encrypted secrets and are never returned in repository records.
 
 ## Project attachments
 

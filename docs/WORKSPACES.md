@@ -13,16 +13,20 @@ Current CE baseline for workspaces:
 
 ## Git identity
 
-At startup, a workspace configures the Git author identity from the authenticated
-Keycloak user:
+At startup, a workspace configures a fallback Git author identity from the
+authenticated Keycloak user:
 
 - `user.name` uses the Keycloak username.
 - `user.email` uses the Keycloak email, with a local fallback when unavailable.
 - The Git configuration is stored in the persistent user profile and reused by
   subsequent workspaces.
+- Each attached repository can override the fallback with its explicit
+  `gitAuthorName` and `gitAuthorEmail`. These values are configured locally in
+  that repository after clone.
 
 Repository authentication remains managed by the attached repository
-credentials. Git author identity and repository authentication are separate.
+credential and its `PersAT` or `PrAT` type. Git author identity and repository
+authentication are separate.
 
 ## API
 
