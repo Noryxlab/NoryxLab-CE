@@ -150,7 +150,7 @@ func (h Handlers) ensureProjectFileService(projectID string) (string, error) {
 	if !hasReadiness {
 		return name, nil
 	}
-	for range 40 {
+	for range 160 {
 		if ready, _ := readiness.IsServiceReady(name); ready {
 			return name, nil
 		}
