@@ -8,7 +8,7 @@ import (
 
 func TestProjectStoreUpdatesOwner(t *testing.T) {
 	items := NewProjectStore()
-	item := project.NewOwned("stef", "Owned project")
+	item := project.NewOwned("stef", "Owned project", "")
 	if err := items.Create(item); err != nil {
 		t.Fatal(err)
 	}

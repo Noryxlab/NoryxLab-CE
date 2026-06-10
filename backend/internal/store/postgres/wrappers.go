@@ -21,6 +21,9 @@ type AccessStore struct{ *Store }
 
 func (s *ProjectStore) List() ([]project.Project, error) { return s.Store.List() }
 func (s *ProjectStore) Create(p project.Project) error   { return s.Store.Create(p) }
+func (s *ProjectStore) UpdateMetadata(projectID, name, description string) error {
+	return s.Store.UpdateProjectMetadata(projectID, name, description)
+}
 func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
 	return s.Store.UpdateProjectOwner(projectID, ownerType, ownerID)
 }
