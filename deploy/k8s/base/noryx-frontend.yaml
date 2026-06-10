@@ -2677,7 +2677,7 @@ data:
               tr.style.cursor = 'pointer';
               if (d.id === selectedDatasetID) tr.classList.add('dataset-row-active');
               tr.innerHTML =
-                '<td><strong>' + (d.name || d.id) + '</strong><br/><span style="color:#667a98">' + (d.id || '') + '</span>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
+                '<td><strong>' + (d.name || d.id) + '</strong>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
                 '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'STANDARD') + '</td>' +
                 '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
                 '<td>' + ((d.ownerType || 'user') === 'organization' ? 'Organisation · ' : 'Utilisateur · ') + (d.ownerId || d.ownerUserId || '-') + '</td>' +
@@ -5442,7 +5442,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.149"}
+    {"version":"ce-web-0.6.150"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5463,7 +5463,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.149
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.150
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
