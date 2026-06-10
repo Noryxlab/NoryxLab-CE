@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,12 +25,29 @@ type fileItem struct {
 }
 
 type server struct {
-	root string
+	root         string
+	lastActivity atomic.Int64
+}
+
+func (s *server) touch() {
+	s.lastActivity.Store(time.Now().UnixNano())
+}
+
+func (s *server) idleFor(now time.Time) time.Duration {
+	return now.Sub(time.Unix(0, s.lastActivity.Load()))
+}
+
+func (s *server) withActivity(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.touch()
+		handler(w, r)
+	}
 }
 
 func main() {
 	root := flag.String("root", "/mnt", "project file root")
 	listen := flag.String("listen", ":8080", "listen address")
+	idleTimeout := flag.Duration("idle-timeout", 15*time.Minute, "exit after this duration without file operations")
 	flag.Parse()
 
 	absolute, err := filepath.Abs(*root)
@@ -43,20 +61,32 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	s := server{root: absolute}
+	s := &server{root: absolute}
+	s.touch()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	mux.HandleFunc("GET /files", s.get)
-	mux.HandleFunc("POST /folders", s.createFolder)
-	mux.HandleFunc("GET /files/{path...}", s.get)
-	mux.HandleFunc("PUT /files/{path...}", s.put)
-	mux.HandleFunc("DELETE /files/{path...}", s.delete)
+	mux.HandleFunc("GET /files", s.withActivity(s.get))
+	mux.HandleFunc("POST /folders", s.withActivity(s.createFolder))
+	mux.HandleFunc("GET /files/{path...}", s.withActivity(s.get))
+	mux.HandleFunc("PUT /files/{path...}", s.withActivity(s.put))
+	mux.HandleFunc("DELETE /files/{path...}", s.withActivity(s.delete))
+	if *idleTimeout > 0 {
+		go func() {
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for now := range ticker.C {
+				if s.idleFor(now) >= *idleTimeout {
+					os.Exit(0)
+				}
+			}
+		}()
+	}
 	if err := http.ListenAndServe(*listen, mux); err != nil {
 		panic(err)
 	}
 }
 
-func (s server) safePath(raw string) (string, string, error) {
+func (s *server) safePath(raw string) (string, string, error) {
 	rel := strings.Trim(strings.TrimSpace(raw), "/")
 	clean := filepath.Clean(filepath.FromSlash(rel))
 	if clean == "." {
@@ -79,7 +109,7 @@ func (s server) safePath(raw string) (string, string, error) {
 	return full, filepath.ToSlash(clean), nil
 }
 
-func (s server) get(w http.ResponseWriter, r *http.Request) {
+func (s *server) get(w http.ResponseWriter, r *http.Request) {
 	full, rel, err := s.safePath(r.PathValue("path"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -132,7 +162,7 @@ func (s server) get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"path": rel, "items": items})
 }
 
-func (s server) put(w http.ResponseWriter, r *http.Request) {
+func (s *server) put(w http.ResponseWriter, r *http.Request) {
 	full, rel, err := s.safePath(r.PathValue("path"))
 	if err != nil || rel == "" {
 		writeError(w, http.StatusBadRequest, errors.New("valid file path is required"))
@@ -170,7 +200,7 @@ func (s server) put(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"path": rel})
 }
 
-func (s server) createFolder(w http.ResponseWriter, r *http.Request) {
+func (s *server) createFolder(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Path string `json:"path"`
 	}
@@ -190,7 +220,7 @@ func (s server) createFolder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"path": rel})
 }
 
-func (s server) delete(w http.ResponseWriter, r *http.Request) {
+func (s *server) delete(w http.ResponseWriter, r *http.Request) {
 	full, rel, err := s.safePath(r.PathValue("path"))
 	if err != nil || rel == "" {
 		writeError(w, http.StatusBadRequest, errors.New("valid path is required"))

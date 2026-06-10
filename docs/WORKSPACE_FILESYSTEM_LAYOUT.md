@@ -46,3 +46,16 @@ S3 note:
 - Jupyter starts in `/mnt`
 - VSCode default folder is `/mnt`
 - optional dependency bootstrap checks `/mnt/requirements.txt` at startup
+
+## Project file explorer
+
+The UI file explorer accesses the project PVC through an on-demand technical
+`project-files-<project-id>` pod. It is intentionally separate from workspace
+pods so files remain accessible when no workspace is running and so multiple
+workspaces do not become ambiguous proxy targets.
+
+The technical pod:
+
+- is excluded from user workload metrics;
+- exits after 15 minutes without file operations;
+- is deleted and recreated automatically on the next file explorer request.

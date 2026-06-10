@@ -110,6 +110,11 @@ func (h Handlers) ensureProjectFileService(projectID string) (string, error) {
 			return name, nil
 		}
 	}
+	// Idle project file pods exit by design. Remove the completed/stale pod so
+	// the same stable service name can be recreated on demand.
+	if err := h.runtime.DeletePod(name); err != nil && !isNotFoundError(err) {
+		return "", err
+	}
 	labels := map[string]string{
 		"app.kubernetes.io/name":  "noryx-project-files",
 		"noryx.io/project-id":     projectID,
@@ -120,7 +125,7 @@ func (h Handlers) ensureProjectFileService(projectID string) (string, error) {
 		PodName:       name,
 		Image:         h.projectFilesImage,
 		Command:       []string{"/usr/local/bin/noryx-project-files"},
-		Args:          []string{"--root=/mnt", "--listen=:8080"},
+		Args:          []string{"--root=/mnt", "--listen=:8080", "--idle-timeout=15m"},
 		Ports:         []int{8080},
 		ReadinessPort: 8080,
 		CPURequest:    "25m",
