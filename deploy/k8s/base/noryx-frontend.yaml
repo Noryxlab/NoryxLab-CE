@@ -653,13 +653,14 @@ data:
               <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Workspaces</span></button>
               <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Jobs</span></button>
               <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
+              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
+              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
             </div>
             <hr class="side-sep" />
 
             <div class="menu-title" data-i18n="menu_deploy">Deploy</div>
             <div class="menu">
-              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
-              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
+              <button class="tab-btn" data-tab="production"><span class="menu-ico">●</span><span>Production</span></button>
             </div>
             <hr class="side-sep" />
 
@@ -1307,6 +1308,29 @@ data:
                 </div>
               </section>
 
+              <section class="view" id="view-production">
+                <div class="grid">
+                  <article class="card span-12">
+                    <div class="project-catalog-header">
+                      <div>
+                        <h3>Production</h3>
+                        <div class="hint">Inventaire opérationnel des services effectivement publiés sur la plateforme.</div>
+                      </div>
+                      <button id="loadProduction" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <div class="stats">
+                      <div class="stat"><div class="k">Services publiés</div><div id="productionTotal" class="v">0</div></div>
+                      <div class="stat"><div class="k">Running</div><div id="productionRunning" class="v">0</div></div>
+                      <div class="stat"><div class="k">Publics</div><div id="productionPublic" class="v">0</div></div>
+                    </div>
+                    <table>
+                      <thead><tr><th>Type</th><th>Nom</th><th>Projet</th><th>Statut</th><th>RBAC</th><th>URL</th><th>Publié le</th><th>Action</th></tr></thead>
+                      <tbody id="productionRows"></tbody>
+                    </table>
+                  </article>
+                </div>
+              </section>
+
               <section class="view" id="view-workloads">
                 <div class="grid">
                   <article class="card span-8">
@@ -1553,6 +1577,11 @@ data:
           const createAppBtn = document.getElementById('createApp');
           const loadAppsBtn = document.getElementById('loadApps');
           const appRows = document.getElementById('appRows');
+          const loadProductionBtn = document.getElementById('loadProduction');
+          const productionRows = document.getElementById('productionRows');
+          const productionTotal = document.getElementById('productionTotal');
+          const productionRunning = document.getElementById('productionRunning');
+          const productionPublic = document.getElementById('productionPublic');
           const dashboardNameInput = document.getElementById('dashboardName');
           const dashboardSlugInput = document.getElementById('dashboardSlug');
           const dashboardEnvInput = document.getElementById('dashboardEnv');
@@ -1703,6 +1732,7 @@ data:
             'project-apps': document.getElementById('view-project-apps'),
             'project-dashboards': document.getElementById('view-project-dashboards'),
             'project-apis': document.getElementById('view-project-apis'),
+            production: document.getElementById('view-production'),
             environments: document.getElementById('view-environments'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
@@ -1993,6 +2023,8 @@ data:
               section_subtitle_apps: 'Deploiement d applications web longues durees.',
               section_title_dashboards: 'Dashboards',
               section_subtitle_dashboards: 'Publication de dashboards dans le projet actif.',
+              section_title_production: 'Production',
+              section_subtitle_production: 'Services publiés et état opérationnel de la plateforme.',
               section_title_apis: 'Services API',
               section_subtitle_apis: 'Exposition des services applicatifs du projet.',
               section_title_environments: 'Environnements',
@@ -2148,6 +2180,8 @@ data:
               section_subtitle_apps: 'Deploy long-running web applications.',
               section_title_dashboards: 'Dashboards',
               section_subtitle_dashboards: 'Publish dashboards in the active project.',
+              section_title_production: 'Production',
+              section_subtitle_production: 'Published services and platform operational status.',
               section_title_apis: 'API Services',
               section_subtitle_apis: 'Expose application services for the project.',
               section_title_environments: 'Environments',
@@ -2469,6 +2503,7 @@ data:
               'project-apps': ['section_title_apps', 'section_subtitle_apps'],
               'project-dashboards': ['section_title_dashboards', 'section_subtitle_dashboards'],
               'project-apis': ['section_title_apis', 'section_subtitle_apis'],
+              production: ['section_title_production', 'section_subtitle_production'],
               environments: ['section_title_environments', 'section_subtitle_environments'],
               workloads: ['section_title_workloads', 'section_subtitle_workloads'],
               ops: ['section_title_ops', 'section_subtitle_ops']
@@ -3574,6 +3609,34 @@ data:
             });
           }
 
+          function renderProductionTable() {
+            const items = [
+              ...state.apps.map((item) => ({ ...item, productionType:'App' })),
+              ...state.dashboards.map((item) => ({ ...item, productionType:'Dashboard' }))
+            ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            productionTotal.textContent = String(items.length);
+            productionRunning.textContent = String(items.filter((item) => String(item.status || '').toLowerCase() === 'running').length);
+            productionPublic.textContent = String(items.filter((item) => String(item.accessMode || '').toLowerCase() === 'public').length);
+            productionRows.innerHTML = '';
+            if (items.length === 0) {
+              productionRows.innerHTML = '<tr><td colspan="8">Aucun service publié.</td></tr>';
+              return;
+            }
+            items.forEach((item) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td>' + badge(item.productionType) + '</td>' +
+                '<td><strong>' + escapeHTML(item.name || item.slug || '-') + '</strong></td>' +
+                '<td>' + escapeHTML(projectName(item.projectId)) + '</td>' +
+                '<td>' + badge(item.status || 'submitted') + '</td>' +
+                '<td>' + badge(item.accessMode || 'project') + '</td>' +
+                '<td><code>' + escapeHTML(displayAccessUrl(item.accessUrl)) + '</code></td>' +
+                '<td>' + formatDateTime(item.createdAt) + '</td>' +
+                '<td><button type="button" class="btn" data-open-production="' + escapeHTML(item.accessUrl || '') + '">Ouvrir</button></td>';
+              productionRows.appendChild(tr);
+            });
+          }
+
           function renderEnvironmentsTable() {
             const pid = selectedProjectId();
             const q = String((envFilterInput && envFilterInput.value) || '').trim().toLowerCase();
@@ -4063,6 +4126,7 @@ data:
             renderAppsTable();
             renderDashboardEnvOptions();
             renderDashboardsTable();
+            renderProductionTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
             updateStats();
@@ -4168,18 +4232,14 @@ data:
           }
 
           async function refreshApps() {
-            const pid = selectedProjectId();
-            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
-            const body = await callJSON('/api/v1/apps' + query);
+            const body = await callJSON('/api/v1/apps');
             state.apps = ensureArray(body.items);
             renderAll();
             return body;
           }
 
           async function refreshDashboards() {
-            const pid = selectedProjectId();
-            const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
-            const body = await callJSON('/api/v1/dashboards' + query);
+            const body = await callJSON('/api/v1/dashboards');
             state.dashboards = ensureArray(body.items);
             renderAll();
             return body;
@@ -5465,6 +5525,14 @@ data:
               switchTab('ops');
             }
           };
+          loadProductionBtn.onclick = async () => {
+            try { await Promise.all([refreshApps(), refreshDashboards()]); }
+            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+          productionRows.onclick = (event) => {
+            const accessURL = event.target && event.target.getAttribute('data-open-production');
+            if (accessURL) window.open(accessURL, '_blank', 'noopener');
+          };
 
           dashboardRows.onclick = async (event) => {
             const openId = (event.target && event.target.getAttribute('data-open-dashboard'));
@@ -5997,7 +6065,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.174"}
+    {"version":"ce-web-0.6.175"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6018,7 +6086,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.174
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.175
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
