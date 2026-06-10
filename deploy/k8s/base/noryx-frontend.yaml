@@ -4158,18 +4158,7 @@ data:
           }
 
           async function refreshProjects() {
-            let body = await callJSON('/api/v1/projects');
-            if (!Array.isArray((body && body.items)) || body.items.length === 0) {
-              const username = (authMode === 'oidc')
-                ? ((keycloak.tokenParsed && keycloak.tokenParsed.preferred_username) || (keycloak.tokenParsed && keycloak.tokenParsed.email) || 'user')
-                : currentLabUser();
-              await callJSON('/api/v1/projects', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: 'My First Project - ' + username })
-              });
-              body = await callJSON('/api/v1/projects');
-            }
+            const body = await callJSON('/api/v1/projects');
             state.projects = ensureArray(body.items);
             renderAll();
             return body;
@@ -6092,7 +6081,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.177"}
+    {"version":"ce-web-0.6.178"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6113,7 +6102,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.177
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.178
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
