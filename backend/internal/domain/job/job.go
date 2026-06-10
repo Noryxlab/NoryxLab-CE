@@ -7,15 +7,18 @@ import (
 )
 
 type Job struct {
-	ID        string    `json:"id"`
-	ProjectID string    `json:"projectId"`
-	Name      string    `json:"name"`
-	Image     string    `json:"image"`
-	Command   []string  `json:"command"`
-	Args      []string  `json:"args"`
-	JobName   string    `json:"jobName"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID              string     `json:"id"`
+	ProjectID       string     `json:"projectId"`
+	Name            string     `json:"name"`
+	Image           string     `json:"image"`
+	Command         []string   `json:"command"`
+	Args            []string   `json:"args"`
+	JobName         string     `json:"jobName"`
+	Status          string     `json:"status"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+	Result          string     `json:"-"`
+	ResultAvailable bool       `json:"resultAvailable"`
 }
 
 func New(projectID, name, image, jobName string, command, args []string) Job {

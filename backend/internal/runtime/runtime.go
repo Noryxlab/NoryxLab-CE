@@ -198,11 +198,13 @@ type BuildDiscovery interface {
 }
 
 type JobRuntimeInfo struct {
-	JobID     string `json:"jobId"`
-	ProjectID string `json:"projectId"`
-	JobName   string `json:"jobName"`
-	Status    string `json:"status"`
-	Image     string `json:"image"`
+	JobID       string     `json:"jobId"`
+	ProjectID   string     `json:"projectId"`
+	JobName     string     `json:"jobName"`
+	Status      string     `json:"status"`
+	Image       string     `json:"image"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	CompletedAt *time.Time `json:"completedAt,omitempty"`
 }
 
 type JobDiscovery interface {
