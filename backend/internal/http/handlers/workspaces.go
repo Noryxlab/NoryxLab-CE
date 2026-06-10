@@ -54,9 +54,11 @@ const (
 )
 
 type workspaceAttachedRepo struct {
-	Name       string
-	URL        string
-	DefaultRef string
+	Name           string
+	URL            string
+	DefaultRef     string
+	GitAuthorName  string
+	GitAuthorEmail string
 }
 
 type workspaceAttachedDataset struct {
@@ -647,9 +649,11 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 			cloneURL = authURL
 		}
 		attachedRepos = append(attachedRepos, workspaceAttachedRepo{
-			Name:       fallbackResourceName(item.Name, item.ID),
-			URL:        cloneURL,
-			DefaultRef: strings.TrimSpace(item.DefaultRef),
+			Name:           fallbackResourceName(item.Name, item.ID),
+			URL:            cloneURL,
+			DefaultRef:     strings.TrimSpace(item.DefaultRef),
+			GitAuthorName:  strings.TrimSpace(item.GitAuthorName),
+			GitAuthorEmail: strings.TrimSpace(item.GitAuthorEmail),
 		})
 	}
 
@@ -893,6 +897,12 @@ func workspaceBootstrapScript(
 				fmt.Sprintf("  git -C %s checkout %s || true", shellQuote(repoDir), shellQuote(repoRef)),
 				"fi",
 			)
+		}
+		if repo.GitAuthorName != "" {
+			lines = append(lines, fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config user.name %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote(repo.GitAuthorName)))
+		}
+		if repo.GitAuthorEmail != "" {
+			lines = append(lines, fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config user.email %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote(repo.GitAuthorEmail)))
 		}
 	}
 

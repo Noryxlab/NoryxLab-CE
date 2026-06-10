@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.131
+  version: 0.5.132
   description: |
     Noryx CE backend API contract.
 
@@ -529,6 +529,11 @@ components:
         url: { type: string }
         defaultRef: { type: string }
         authSecretName: { type: string }
+        authType:
+          type: string
+          enum: [none, persat, prat]
+        gitAuthorName: { type: string }
+        gitAuthorEmail: { type: string }
         createdAt:
           type: string
           format: date-time
@@ -555,9 +560,21 @@ components:
         url:
           type: string
           example: https://github.com/Noryxlab/NoryxLab-CE.git
+        defaultRef:
+          type: string
+          example: main
         authSecretName:
           type: string
           example: git-token
+        authType:
+          type: string
+          enum: [none, persat, prat]
+        gitAuthorName:
+          type: string
+          example: Stephane Renouard
+        gitAuthorEmail:
+          type: string
+          example: stephane@example.org
 
     RepositoryValidationResponse:
       type: object
@@ -743,7 +760,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
   /api/v1/projects/{projectID}:
     delete:
       tags: [Projects]
@@ -1737,58 +1753,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
-
-  /api/v1/repositories/{repositoryID}/validate:
-    post:
-      tags: [Repositories]
-      summary: Re-test repository connectivity
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      parameters:
-        - in: path
-          name: repositoryID
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Validation result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RepositoryValidationResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/v1/repositories/{repositoryID}:
-    delete:
-      tags: [Repositories]
-      summary: Delete one repository owned by current user
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      parameters:
-        - in: path
-          name: repositoryID
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Repository deleted
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
     post:
       tags: [Repositories]
       summary: Register one git repository (connectivity validated)
@@ -1819,6 +1783,89 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/v1/repositories/{repositoryID}/validate:
+    post:
+      tags: [Repositories]
+      summary: Re-test repository connectivity
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryValidationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/repositories/{repositoryID}:
+    put:
+      tags: [Repositories]
+      summary: Update one git repository and validate connectivity
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRepositoryRequest'
+      responses:
+        '200':
+          description: Repository updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Repositories]
+      summary: Delete one repository owned by current user
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: repositoryID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Repository deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectID}/datasets:
     get:
       tags: [Datasets]

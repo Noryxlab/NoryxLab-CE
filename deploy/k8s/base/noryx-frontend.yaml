@@ -998,19 +998,30 @@ data:
 
                   <article id="card-repositories" class="card span-12">
                     <h3>Repositories</h3>
-                    <div class="hint">Catalog only: name + URL + optional auth secret, with validation on save.</div>
+                    <div class="hint">L'identite auteur Git est distincte du jeton utilise pour acceder au depot.</div>
                     <div class="row">
-                      <input id="repoName" placeholder="Repository name" />
+                      <input id="repoName" placeholder="Nom du depot" />
                       <input id="repoUrl" placeholder="https://..." />
+                      <input id="repoDefaultRef" placeholder="Branche par defaut (optionnel)" />
                     </div>
                     <div class="row">
+                      <input id="repoGitAuthorName" placeholder="Nom auteur Git" />
+                      <input id="repoGitAuthorEmail" type="email" placeholder="Email auteur Git" />
+                    </div>
+                    <div class="row">
+                      <select id="repoAuthType">
+                        <option value="none">Aucune authentification</option>
+                        <option value="persat">PersAT utilisateur</option>
+                        <option value="prat">PrAT projet</option>
+                      </select>
                       <select id="repoSecretRef"></select>
                     </div>
                     <div class="row">
-                      <button id="createRepository" class="btn primary">Create Repository</button>
+                      <button id="createRepository" class="btn primary">Ajouter le depot</button>
+                      <button id="cancelRepositoryEdit" class="btn" style="display:none">Annuler</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Connection</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>URL</th><th>Identite Git</th><th>Authentification</th><th>Connexion</th><th>Actions</th></tr></thead>
                       <tbody id="repoRows"></tbody>
                     </table>
                   </article>
@@ -1620,9 +1631,15 @@ data:
 
           const repoNameInput = document.getElementById('repoName');
           const repoUrlInput = document.getElementById('repoUrl');
+          const repoDefaultRefInput = document.getElementById('repoDefaultRef');
+          const repoGitAuthorNameInput = document.getElementById('repoGitAuthorName');
+          const repoGitAuthorEmailInput = document.getElementById('repoGitAuthorEmail');
+          const repoAuthTypeInput = document.getElementById('repoAuthType');
           const repoSecretRefInput = document.getElementById('repoSecretRef');
           const createRepositoryBtn = document.getElementById('createRepository');
+          const cancelRepositoryEditBtn = document.getElementById('cancelRepositoryEdit');
           const repoRows = document.getElementById('repoRows');
+          let editingRepositoryID = '';
           const dsNameInput = document.getElementById('dsName');
           const dsHostInput = document.getElementById('dsHost');
           const dsPortInput = document.getElementById('dsPort');
@@ -3122,7 +3139,7 @@ data:
           function renderRepositoriesTable() {
             repoRows.innerHTML = '';
             if (state.repositories.length === 0) {
-              repoRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_repository') + '</td></tr>';
+              repoRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_repository') + '</td></tr>';
               return;
             }
             state.repositories.forEach((r) => {
@@ -3134,11 +3151,25 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (r.name || r.id) + '</strong></td>' +
                 '<td><code>' + (r.url || '-') + '</code></td>' +
-                '<td><code>' + (r.authSecretName || '-') + '</code></td>' +
+                '<td>' + ((r.gitAuthorName || r.gitAuthorEmail) ? ((r.gitAuthorName || '-') + '<br><small>' + (r.gitAuthorEmail || '-') + '</small>') : '-') + '</td>' +
+                '<td><strong>' + String(r.authType || (r.authSecretName ? 'persat' : 'none')).toUpperCase() + '</strong><br><small>' + (r.authSecretName || '-') + '</small></td>' +
                 '<td><code>' + checkLabel + '</code></td>' +
-                '<td><button type="button" class="btn" data-test-repo="' + (r.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-repo="' + (r.id || '') + '">Delete</button></td>';
+                '<td><button type="button" class="btn" data-edit-repo="' + (r.id || '') + '">Modifier</button> <button type="button" class="btn" data-test-repo="' + (r.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-repo="' + (r.id || '') + '">Delete</button></td>';
               repoRows.appendChild(tr);
             });
+          }
+
+          function resetRepositoryForm() {
+            editingRepositoryID = '';
+            repoNameInput.value = '';
+            repoUrlInput.value = '';
+            repoDefaultRefInput.value = '';
+            repoGitAuthorNameInput.value = '';
+            repoGitAuthorEmailInput.value = '';
+            repoAuthTypeInput.value = 'none';
+            repoSecretRefInput.value = '';
+            createRepositoryBtn.textContent = 'Ajouter le depot';
+            cancelRepositoryEditBtn.style.display = 'none';
           }
 
           function renderDatasourcesTable() {
@@ -4769,22 +4800,30 @@ data:
               const payload = {
                 name: repoNameInput.value.trim(),
                 url: repoUrlInput.value.trim(),
+                defaultRef: repoDefaultRefInput.value.trim(),
+                gitAuthorName: repoGitAuthorNameInput.value.trim(),
+                gitAuthorEmail: repoGitAuthorEmailInput.value.trim(),
+                authType: repoAuthTypeInput.value.trim(),
                 authSecretName: repoSecretRefInput.value.trim()
               };
               if (!payload.name || !payload.url) throw { error: tui('err_repo_required') };
-              await callJSON('/api/v1/repositories', {
-                method: 'POST',
+              if (payload.authType !== 'none' && !payload.authSecretName) throw { error:'Selectionnez le secret contenant le jeton Git.' };
+              await callJSON('/api/v1/repositories' + (editingRepositoryID ? '/' + encodeURIComponent(editingRepositoryID) : ''), {
+                method: editingRepositoryID ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-              repoNameInput.value = '';
-              repoUrlInput.value = '';
-              usersOut.textContent = 'Repository created and validated.';
+              usersOut.textContent = editingRepositoryID ? 'Depot modifie et valide.' : 'Depot ajoute et valide.';
+              resetRepositoryForm();
               await refreshRepositories();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
             }
+          };
+          cancelRepositoryEditBtn.onclick = resetRepositoryForm;
+          repoAuthTypeInput.onchange = () => {
+            if (repoAuthTypeInput.value === 'none') repoSecretRefInput.value = '';
           };
 
           createDatasourceBtn.onclick = async () => {
@@ -5714,8 +5753,25 @@ data:
           repoRows.onclick = async (event) => {
             const repositoryIDToTest = (event.target && event.target.getAttribute('data-test-repo'));
             const repositoryIDToDelete = (event.target && event.target.getAttribute('data-del-repo'));
-            if (!repositoryIDToTest && !repositoryIDToDelete) return;
+            const repositoryIDToEdit = (event.target && event.target.getAttribute('data-edit-repo'));
+            if (!repositoryIDToTest && !repositoryIDToDelete && !repositoryIDToEdit) return;
             try {
+              if (repositoryIDToEdit) {
+                const repository = state.repositories.find((item) => item.id === repositoryIDToEdit);
+                if (!repository) return;
+                editingRepositoryID = repository.id;
+                repoNameInput.value = repository.name || '';
+                repoUrlInput.value = repository.url || '';
+                repoDefaultRefInput.value = repository.defaultRef || '';
+                repoGitAuthorNameInput.value = repository.gitAuthorName || '';
+                repoGitAuthorEmailInput.value = repository.gitAuthorEmail || '';
+                repoAuthTypeInput.value = repository.authType || (repository.authSecretName ? 'persat' : 'none');
+                repoSecretRefInput.value = repository.authSecretName || '';
+                createRepositoryBtn.textContent = 'Enregistrer les modifications';
+                cancelRepositoryEditBtn.style.display = '';
+                repoNameInput.scrollIntoView({ behavior:'smooth', block:'center' });
+                return;
+              }
               if (repositoryIDToTest) {
                 const result = await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToTest) + '/validate', { method: 'POST' });
                 state.repositoryChecks[repositoryIDToTest] = result;
@@ -5827,7 +5883,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.166"}
+    {"version":"ce-web-0.6.167"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5848,7 +5904,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.166
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.167
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
