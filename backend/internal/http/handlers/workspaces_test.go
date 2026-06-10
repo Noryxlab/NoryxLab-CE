@@ -15,6 +15,8 @@ func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 		"vscode",
 		"workspace-id",
 		"token",
+		"stef",
+		"stef@noryxlab.ai",
 		false,
 		"/home/noryx/.noryx-profile",
 		"/mnt",
@@ -61,10 +63,23 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 }
 
 func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
-	script := workspaceBootstrapScript("rstudio", "workspace-id", "", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
+	script := workspaceBootstrapScript("rstudio", "workspace-id", "", "stef", "stef@noryxlab.ai", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
 	for _, expected := range []string{"rserver", "--www-root-path=/workspaces/workspace-id", "--server-user=noryx"} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("RStudio bootstrap missing %s", expected)
+		}
+	}
+}
+
+func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "stef@noryxlab.ai", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
+	for _, expected := range []string{
+		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.name 'stef'",
+		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.email 'stef@noryxlab.ai'",
+		"ln -sfn '/home/noryx/.noryx-profile/gitconfig' /home/noryx/.gitconfig",
+	} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("workspace bootstrap missing persistent Git identity command: %s", expected)
 		}
 	}
 }
