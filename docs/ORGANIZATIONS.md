@@ -6,6 +6,17 @@ Keycloak is the source of truth for organizations and memberships. NoryxLab
 uses stable Keycloak organization and user IDs; it does not duplicate the
 membership model in PostgreSQL.
 
+Projects and datasets can be owned by an organization. All current organization
+members inherit owner-level access to an organization-owned project. Project
+ownership transfer is available from the project page and through:
+
+```text
+PUT /api/v1/projects/{projectID}/ownership
+```
+
+An organization cannot be deleted while it owns projects or still contains
+members.
+
 The organization administration API requires a global administrator. Routine
 organization management can be performed from the EE administration UI without
 opening the Keycloak administration console.

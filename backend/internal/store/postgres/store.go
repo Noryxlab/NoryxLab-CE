@@ -112,8 +112,12 @@ func (s *Store) migrate(ctx context.Context) error {
 		`CREATE TABLE IF NOT EXISTS projects (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
+			owner_type TEXT NOT NULL DEFAULT 'user',
+			owner_id TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS access_roles (
 			project_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -318,6 +322,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			return err
 		}
 	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE projects p
+		SET owner_type='user',
+			owner_id=(SELECT a.user_id FROM access_roles a WHERE a.project_id=p.id AND a.role='admin' ORDER BY a.user_id LIMIT 1)
+		WHERE p.owner_id='' AND EXISTS (SELECT 1 FROM access_roles a WHERE a.project_id=p.id AND a.role='admin')`); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, `ALTER TABLE user_secrets ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ NULL`); err != nil {
 		return err
 	}
@@ -325,7 +335,7 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 func (s *Store) List() ([]project.Project, error) {
-	rows, err := s.db.Query(`SELECT id, name, created_at FROM projects ORDER BY created_at ASC`)
+	rows, err := s.db.Query(`SELECT id, name, owner_type, owner_id, created_at FROM projects ORDER BY created_at ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +343,7 @@ func (s *Store) List() ([]project.Project, error) {
 	out := []project.Project{}
 	for rows.Next() {
 		var p project.Project
-		if err := rows.Scan(&p.ID, &p.Name, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.OwnerType, &p.OwnerID, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -342,7 +352,12 @@ func (s *Store) List() ([]project.Project, error) {
 }
 
 func (s *Store) Create(p project.Project) error {
-	_, err := s.db.Exec(`INSERT INTO projects (id, name, created_at) VALUES ($1,$2,$3)`, p.ID, p.Name, p.CreatedAt)
+	_, err := s.db.Exec(`INSERT INTO projects (id, name, owner_type, owner_id, created_at) VALUES ($1,$2,$3,$4,$5)`, p.ID, p.Name, p.OwnerType, p.OwnerID, p.CreatedAt)
+	return err
+}
+
+func (s *Store) UpdateProjectOwner(projectID, ownerType, ownerID string) error {
+	_, err := s.db.Exec(`UPDATE projects SET owner_type=$2, owner_id=$3 WHERE id=$1`, strings.TrimSpace(projectID), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID))
 	return err
 }
 

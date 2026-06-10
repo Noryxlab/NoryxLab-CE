@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.103
+  version: 0.5.123
   description: |
     Noryx CE backend API contract.
 
@@ -44,10 +44,15 @@ components:
 
     Project:
       type: object
-      required: [id, name, createdAt]
+      required: [id, name, ownerType, ownerId, createdAt]
       properties:
         id: { type: string }
         name: { type: string }
+        ownerType:
+          type: string
+          enum: [user, organization]
+        ownerId: { type: string }
+        canManageOwner: { type: boolean }
         createdAt:
           type: string
           format: date-time
@@ -68,6 +73,16 @@ components:
         name:
           type: string
           example: Fraud Analysis
+
+    SetProjectOwnerRequest:
+      type: object
+      required: [ownerType, ownerId]
+      properties:
+        ownerType:
+          type: string
+          enum: [user, organization]
+        ownerId:
+          type: string
 
     SetRoleRequest:
       type: object
@@ -786,6 +801,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SetRoleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/projects/{projectID}/ownership:
+    put:
+      tags: [Projects]
+      summary: Transfer project ownership to a user or organization
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: projectID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetProjectOwnerRequest'
+      responses:
+        '200':
+          description: Project owner updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

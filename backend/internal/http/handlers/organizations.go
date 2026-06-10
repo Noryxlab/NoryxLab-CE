@@ -79,6 +79,17 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "organization must have no members before deletion"})
 		return
 	}
+	projects, err := h.projectStore.List()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to verify organization-owned projects"})
+		return
+	}
+	for _, item := range projects {
+		if strings.EqualFold(item.OwnerType, "organization") && strings.EqualFold(item.OwnerID, organizationID) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "organization must own no projects before deletion"})
+			return
+		}
+	}
 	if err := h.keycloak.DeleteOrganization(organizationID); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete organization: " + err.Error()})
 		return
