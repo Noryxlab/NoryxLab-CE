@@ -25,6 +25,9 @@ type PodSpec struct {
 	PullSecret              string
 	Volumes                 []PersistentVolumeClaimMount
 	Secrets                 []SecretMount
+	RunAsUser               int64
+	RunAsGroup              int64
+	FSGroup                 int64
 }
 
 type ServiceSpec struct {

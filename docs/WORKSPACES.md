@@ -63,6 +63,8 @@ Current implementation baseline:
 - the cluster requires the GeeseFS-based S3 CSI driver, installed with `scripts/ops/install-s3-csi.sh`
 - workspace PVC mount path is `/mnt` (project persistent)
 - project PVC is created as `project-<projectId>` and reused across workspaces
+- the project page exposes this PVC as a secured file explorer, without requiring an active workspace
+- project viewers can browse and download files; editors and owners can upload, edit and delete files
 - `/mnt/requirements.txt` is auto-applied at workspace startup (project venv: `/mnt/.venv`)
 - IDE tooling auto-update runs in background once/day by default:
   - VS Code extensions (Python/Jupyter/Data Science baseline)

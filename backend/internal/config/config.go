@@ -50,6 +50,7 @@ type Config struct {
 	WorkspaceProfilePVCSize          string
 	WorkspaceProfilePVCAccessMode    string
 	WorkspaceProfilePVCMountPath     string
+	ProjectFilesImage                string
 	SecretsMasterKey                 string
 	MinIOEndpoint                    string
 	MinIOAccessKey                   string
@@ -65,7 +66,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.123"
+		backendVersion = "0.5.126"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
@@ -206,6 +207,10 @@ func Load() Config {
 	if workspaceProfilePVCMountPath == "" {
 		workspaceProfilePVCMountPath = "/home/noryx/.noryx-profile"
 	}
+	projectFilesImage := os.Getenv("NORYX_PROJECT_FILES_IMAGE")
+	if projectFilesImage == "" {
+		projectFilesImage = "harbor.lan/noryx-ce/noryx-backend:0.5.126-dev"
+	}
 	minioEndpoint := os.Getenv("NORYX_MINIO_ENDPOINT")
 	if minioEndpoint == "" {
 		minioEndpoint = "minio:9000"
@@ -271,6 +276,7 @@ func Load() Config {
 		WorkspaceProfilePVCSize:          workspaceProfilePVCSize,
 		WorkspaceProfilePVCAccessMode:    workspaceProfilePVCAccessMode,
 		WorkspaceProfilePVCMountPath:     workspaceProfilePVCMountPath,
+		ProjectFilesImage:                projectFilesImage,
 		SecretsMasterKey:                 os.Getenv("NORYX_SECRETS_MASTER_KEY"),
 		MinIOEndpoint:                    minioEndpoint,
 		MinIOAccessKey:                   minioAccessKey,

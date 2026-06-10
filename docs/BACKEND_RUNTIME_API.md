@@ -124,6 +124,7 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - runtime pod naming: `wks-<shortid>`
 - resources: requests=limits=`500m` CPU, `512Mi` memory
 - project volume: shared `PersistentVolumeClaim` per project (`longhorn`, `ReadWriteMany`, `10Gi`, mount `/mnt`)
+- project file API: `GET|PUT|DELETE /api/v1/projects/{projectID}/files/{path}` and `POST /api/v1/projects/{projectID}/folders`
 - user profile volume: `PersistentVolumeClaim` per user (`longhorn`, `ReadWriteMany`, default `5Gi`, mount `/home/noryx/.noryx-profile`)
 - `POST /api/v1/workspaces` accepts optional `storageSize` to override default PVC size per workspace
 - ingress path: `/workspaces/{workspaceID}/...` routed to `noryx-backend`

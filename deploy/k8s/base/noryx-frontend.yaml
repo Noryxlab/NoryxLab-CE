@@ -776,6 +776,36 @@ data:
                     </div>
                     <div class="project-resources">
                       <article class="card project-resource-card">
+                        <h3>Fichiers du projet</h3>
+                        <div class="hint">Contenu persistant monte dans <code>/mnt</code> pour les workspaces, traitements et applications du projet.</div>
+                        <div class="dataset-files" style="margin:12px 0 0">
+                          <div class="dataset-file-toolbar">
+                            <button id="projectFilesUp" type="button" class="btn">← Retour</button>
+                            <button id="projectFilesNewFolder" type="button" class="btn">Nouveau dossier</button>
+                            <input id="projectFilesUpload" type="file" />
+                            <button id="projectFilesUploadBtn" type="button" class="btn primary">Televerser</button>
+                            <span class="spacer"></span>
+                            <button id="projectFilesRefresh" type="button" class="btn">Actualiser</button>
+                          </div>
+                          <div id="projectFilesBreadcrumbs" class="dataset-breadcrumbs"></div>
+                          <table>
+                            <thead><tr><th>Nom</th><th>Taille</th><th>Derniere modification</th><th>Actions</th></tr></thead>
+                            <tbody id="projectFilesRows"></tbody>
+                          </table>
+                        </div>
+                        <div id="projectFileEditor" class="dataset-preview" style="display:none;margin:12px 0 0">
+                          <div class="dataset-preview-head">
+                            <h4 id="projectFileEditorTitle">Fichier</h4>
+                            <div class="row" style="margin:0">
+                              <button id="projectFileEditorSave" type="button" class="btn primary">Enregistrer</button>
+                              <button id="projectFileEditorClose" type="button" class="btn">Fermer</button>
+                            </div>
+                          </div>
+                          <textarea id="projectFileEditorContent" style="width:100%;min-height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace"></textarea>
+                        </div>
+                      </article>
+
+                      <article class="card project-resource-card">
                         <h3>Datasets du projet</h3>
                         <div class="hint">Datasets disponibles dans les executions de ce projet.</div>
                         <div class="row">
@@ -1417,6 +1447,18 @@ data:
           const attachDatasourceSelect = document.getElementById('attachDatasourceSelect');
           const attachDatasourceBtn = document.getElementById('attachDatasourceBtn');
           const projectDatasourceRows = document.getElementById('projectDatasourceRows');
+          const projectFilesUp = document.getElementById('projectFilesUp');
+          const projectFilesNewFolder = document.getElementById('projectFilesNewFolder');
+          const projectFilesUpload = document.getElementById('projectFilesUpload');
+          const projectFilesUploadBtn = document.getElementById('projectFilesUploadBtn');
+          const projectFilesRefresh = document.getElementById('projectFilesRefresh');
+          const projectFilesBreadcrumbs = document.getElementById('projectFilesBreadcrumbs');
+          const projectFilesRows = document.getElementById('projectFilesRows');
+          const projectFileEditor = document.getElementById('projectFileEditor');
+          const projectFileEditorTitle = document.getElementById('projectFileEditorTitle');
+          const projectFileEditorContent = document.getElementById('projectFileEditorContent');
+          const projectFileEditorSave = document.getElementById('projectFileEditorSave');
+          const projectFileEditorClose = document.getElementById('projectFileEditorClose');
 
           const workspaceNameInput = document.getElementById('workspaceName');
           const workspaceIdeInput = document.getElementById('workspaceIde');
@@ -1673,6 +1715,7 @@ data:
             projectDatasets: [],
             projectRepositories: [],
             projectDatasources: [],
+            projectFiles: [],
             workspaces: [],
             hardwareTiers: [],
             jobs: [],
@@ -1699,6 +1742,8 @@ data:
           let dockerfileEditMode = false;
           let creatingEnvironment = false;
           let selectedDatasetID = '';
+          let projectFilesCurrentPath = '';
+          let projectFileEditorPath = '';
           let datasetCurrentPath = '';
           let datasetPreviewPath = '';
           let datasetPreviewText = '';
@@ -3758,12 +3803,54 @@ data:
             }
           }
 
+          function renderProjectFiles() {
+            projectFilesRows.innerHTML = '';
+            projectFilesBreadcrumbs.innerHTML = '';
+            const root = document.createElement('button');
+            root.type = 'button';
+            root.textContent = '/mnt';
+            root.onclick = async () => { projectFilesCurrentPath = ''; await refreshProjectFiles(); };
+            projectFilesBreadcrumbs.appendChild(root);
+            let built = '';
+            String(projectFilesCurrentPath || '').split('/').filter(Boolean).forEach((part) => {
+              built = built ? built + '/' + part : part;
+              const separator = document.createElement('span');
+              separator.textContent = '›';
+              projectFilesBreadcrumbs.appendChild(separator);
+              const button = document.createElement('button');
+              button.type = 'button';
+              button.textContent = part;
+              const target = built;
+              button.onclick = async () => { projectFilesCurrentPath = target; await refreshProjectFiles(); };
+              projectFilesBreadcrumbs.appendChild(button);
+            });
+            projectFilesUp.disabled = !projectFilesCurrentPath;
+            if (state.projectFiles.length === 0) {
+              projectFilesRows.innerHTML = '<tr><td colspan="4">Ce dossier est vide.</td></tr>';
+              return;
+            }
+            state.projectFiles.forEach((item) => {
+              const tr = document.createElement('tr');
+              const open = item.isDirectory
+                ? '<button type="button" class="file-name-button" data-project-folder="' + encodeURIComponent(item.path) + '">' + escapeHTML(item.name) + '</button>'
+                : '<button type="button" class="file-name-button" data-project-file="' + encodeURIComponent(item.path) + '">' + escapeHTML(item.name) + '</button>';
+              tr.innerHTML =
+                '<td><span class="file-path"><span class="file-icon ' + (item.isDirectory ? 'folder' : '') + '">' + (item.isDirectory ? '▰' : '▤') + '</span>' + open + '</span></td>' +
+                '<td>' + (item.isDirectory ? '-' : formatBytes(item.size)) + '</td>' +
+                '<td>' + formatDateTime(item.updatedAt) + '</td>' +
+                '<td>' + (item.isDirectory ? '' : '<button type="button" class="btn" data-project-download="' + encodeURIComponent(item.path) + '">Telecharger</button> ') +
+                '<button type="button" class="btn danger" data-project-file-delete="' + encodeURIComponent(item.path) + '">Supprimer</button></td>';
+              projectFilesRows.appendChild(tr);
+            });
+          }
+
           function renderAll() {
             renderProjectOptions();
             renderProjectsTable();
             renderProjectContext();
             renderProjectResourceSelectors();
             renderProjectResourcesTable();
+            renderProjectFiles();
             renderSecretsTable();
             renderDatasetsTable();
             renderDatasetAccessTable();
@@ -3988,18 +4075,33 @@ data:
               state.projectDatasets = [];
               state.projectRepositories = [];
               state.projectDatasources = [];
+              state.projectFiles = [];
               renderAll();
               return;
             }
-            const [datasetsBody, repositoriesBody] = await Promise.all([
+            const [datasetsBody, repositoriesBody, filesBody] = await Promise.all([
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories')
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] }))
             ]);
             const datasourcesBody = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources');
             state.projectDatasets = ensureArray(datasetsBody.items);
             state.projectRepositories = ensureArray(repositoriesBody.items);
             state.projectDatasources = ensureArray(datasourcesBody.items);
+            state.projectFiles = ensureArray(filesBody.items);
             renderAll();
+          }
+
+          async function refreshProjectFiles() {
+            const pid = selectedProjectId();
+            if (!pid) {
+              state.projectFiles = [];
+              renderProjectFiles();
+              return;
+            }
+            const body = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : ''));
+            state.projectFiles = ensureArray(body.items);
+            renderProjectFiles();
           }
 
           function stopWorkspacesAutoRefresh() {
@@ -4202,8 +4304,96 @@ data:
             }
           };
 
+          function projectFileURL(path) {
+            const value = String(path || '');
+            return '/api/v1/projects/' + encodeURIComponent(selectedProjectId()) + '/files' + (value ? '/' + encodeURIComponent(value) : '');
+          }
+          function isEditableProjectFile(path) {
+            return /\.(txt|md|csv|json|ya?ml|toml|ini|cfg|conf|py|r|js|ts|tsx|jsx|css|html|xml|sql|sh|dockerfile|gitignore|requirements)$/i.test(String(path || '')) ||
+              /(^|\/)(Dockerfile|Makefile|requirements\.txt)$/i.test(String(path || ''));
+          }
+          async function downloadProjectFile(path) {
+            const response = await fetch(projectFileURL(path), { headers: authHeader(), cache:'no-store' });
+            if (!response.ok) throw await response.json().catch(() => ({ error:'download failed' }));
+            const url = URL.createObjectURL(await response.blob());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = String(path).split('/').pop();
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+          }
+          async function editProjectFile(path) {
+            if (!isEditableProjectFile(path)) {
+              await downloadProjectFile(path);
+              return;
+            }
+            const response = await fetch(projectFileURL(path), { headers: authHeader(), cache:'no-store' });
+            if (!response.ok) throw await response.json().catch(() => ({ error:'file read failed' }));
+            projectFileEditorPath = path;
+            projectFileEditorTitle.textContent = path;
+            projectFileEditorContent.value = await response.text();
+            projectFileEditor.style.display = '';
+          }
+          projectFilesRefresh.onclick = refreshProjectFiles;
+          projectFilesUp.onclick = async () => {
+            projectFilesCurrentPath = String(projectFilesCurrentPath || '').split('/').slice(0, -1).join('/');
+            await refreshProjectFiles();
+          };
+          projectFilesNewFolder.onclick = async () => {
+            const name = prompt('Nom du nouveau dossier');
+            if (!name) return;
+            const path = [projectFilesCurrentPath, name.trim()].filter(Boolean).join('/');
+            await callJSON('/api/v1/projects/' + encodeURIComponent(selectedProjectId()) + '/folders', {
+              method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ path })
+            });
+            await refreshProjectFiles();
+          };
+          projectFilesUploadBtn.onclick = async () => {
+            const file = projectFilesUpload.files && projectFilesUpload.files[0];
+            if (!file) return;
+            const path = [projectFilesCurrentPath, file.name].filter(Boolean).join('/');
+            const response = await fetch(projectFileURL(path), { method:'PUT', headers:authHeader(), body:file });
+            if (!response.ok) throw await response.json().catch(() => ({ error:'upload failed' }));
+            projectFilesUpload.value = '';
+            await refreshProjectFiles();
+          };
+          projectFilesRows.onclick = async (event) => {
+            const folder = event.target && event.target.getAttribute('data-project-folder');
+            const file = event.target && event.target.getAttribute('data-project-file');
+            const download = event.target && event.target.getAttribute('data-project-download');
+            const remove = event.target && event.target.getAttribute('data-project-file-delete');
+            try {
+              if (folder) {
+                projectFilesCurrentPath = decodeURIComponent(folder);
+                await refreshProjectFiles();
+              } else if (file) {
+                await editProjectFile(decodeURIComponent(file));
+              } else if (download) {
+                await downloadProjectFile(decodeURIComponent(download));
+              } else if (remove && confirm('Supprimer ce fichier ou dossier ?')) {
+                await callJSON(projectFileURL(decodeURIComponent(remove)), { method:'DELETE' });
+                await refreshProjectFiles();
+              }
+            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+          projectFileEditorSave.onclick = async () => {
+            if (!projectFileEditorPath) return;
+            const response = await fetch(projectFileURL(projectFileEditorPath), {
+              method:'PUT', headers:{ ...authHeader(), 'Content-Type':'text/plain; charset=utf-8' }, body:projectFileEditorContent.value
+            });
+            if (!response.ok) throw await response.json().catch(() => ({ error:'save failed' }));
+            await refreshProjectFiles();
+          };
+          projectFileEditorClose.onclick = () => {
+            projectFileEditorPath = '';
+            projectFileEditor.style.display = 'none';
+          };
+
           async function selectProjectAndRefresh(projectID) {
             projectSelect.value = projectID;
+            projectFilesCurrentPath = '';
+            projectFileEditorPath = '';
+            projectFileEditor.style.display = 'none';
             await Promise.all([refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
             await refreshJobs();
             await refreshApps();
@@ -5516,7 +5706,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.154"}
+    {"version":"ce-web-0.6.155"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5537,7 +5727,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.154
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.155
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
