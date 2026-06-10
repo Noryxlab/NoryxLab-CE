@@ -149,6 +149,13 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 		}
 		kind := normalizeWorkspaceKind(item.Kind)
 		accessURL := workspaceAccessURL(kind, item.WorkspaceID)
+		createdAt := item.CreatedAt
+		if createdAt.IsZero() && found {
+			createdAt = existingRecord.CreatedAt
+		}
+		if createdAt.IsZero() {
+			createdAt = time.Now().UTC()
+		}
 
 		record := workspace.Workspace{
 			ID:           item.WorkspaceID,
@@ -167,7 +174,7 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 			Status:       "running",
 			AccessURL:    accessURL,
 			AccessToken:  item.AccessToken,
-			CreatedAt:    time.Now().UTC(),
+			CreatedAt:    createdAt,
 		}
 		_ = h.workspaceStore.Create(record)
 	}
