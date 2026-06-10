@@ -1024,8 +1024,8 @@ data:
                     <div class="row">
                       <select id="workspaceEnv"></select>
                       <select id="workspaceIde" disabled title="IDE déterminé automatiquement par l'environnement">
-                        <option value="jupyter">jupyter</option>
                         <option value="vscode">vscode</option>
+                        <option value="jupyter">jupyter</option>
                         <option value="rstudio">rstudio</option>
                       </select>
                       <select id="workspaceHardwareTier"></select>
@@ -3153,6 +3153,11 @@ data:
             });
             if (current && items.some((env) => env.destinationImage === current)) {
               workspaceEnvInput.value = current;
+            } else {
+              const defaultEnvironment = items.find((env) => env.category === 'system' && ensureArray(env.workspaceIdes).includes('vscode'))
+                || items.find((env) => ensureArray(env.workspaceIdes).includes('vscode'))
+                || items[0];
+              workspaceEnvInput.value = (defaultEnvironment && defaultEnvironment.destinationImage) || '';
             }
             syncWorkspaceIDEFromEnvironment();
           }
@@ -5445,7 +5450,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.152"}
+    {"version":"ce-web-0.6.153"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5466,7 +5471,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.152
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.153
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

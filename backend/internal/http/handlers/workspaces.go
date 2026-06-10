@@ -243,7 +243,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
 	if rawIDE == "" {
-		req.IDE = "jupyter"
+		req.IDE = "vscode"
 	} else if !allowedWorkspaceIDEs[rawIDE] {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ide must be one of: jupyter, vscode, rstudio"})
 		return
@@ -295,9 +295,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	projectMountPath := workspaceProjectMountPath
 	accessToken := shortID() + shortID()
-	workspaceImage := h.workspaceJupyterImage
+	workspaceImage := h.workspaceVSCodeImage
 	if req.IDE == "vscode" {
 		workspaceImage = h.workspaceVSCodeImage
+	} else if req.IDE == "jupyter" {
+		workspaceImage = h.workspaceJupyterImage
 	} else if req.IDE == "rstudio" {
 		workspaceImage = h.workspaceRStudioImage
 	}
