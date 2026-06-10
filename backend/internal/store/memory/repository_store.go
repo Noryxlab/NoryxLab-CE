@@ -46,6 +46,18 @@ func (s *RepositoryStore) Create(item repository.Repository) error {
 	return nil
 }
 
+func (s *RepositoryStore) Update(item repository.Repository) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == item.ID {
+			s.items[i] = item
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s *RepositoryStore) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

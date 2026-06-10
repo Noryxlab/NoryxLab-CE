@@ -32,6 +32,34 @@ func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 	}
 }
 
+func TestWorkspaceBootstrapConfiguresRepositoryGitIdentity(t *testing.T) {
+	script := workspaceBootstrapScript(
+		"vscode",
+		"workspace-id",
+		"token",
+		"keycloak-user",
+		"keycloak@example.org",
+		false,
+		"/home/noryx/.noryx-profile",
+		"/mnt",
+		[]workspaceAttachedRepo{{
+			Name:           "example",
+			URL:            "https://example.org/example.git",
+			GitAuthorName:  "Git Author",
+			GitAuthorEmail: "git-author@example.org",
+		}},
+		0,
+	)
+	for _, expected := range []string{
+		"git -C '/repos/example' config user.name 'Git Author'",
+		"git -C '/repos/example' config user.email 'git-author@example.org'",
+	} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("bootstrap does not contain repository identity command %q", expected)
+		}
+	}
+}
+
 func TestWorkspaceAccessURLNeverContainsInternalToken(t *testing.T) {
 	for _, kind := range []string{"jupyter", "vscode", "rstudio"} {
 		accessURL := workspaceAccessURL(kind, "workspace-id")
