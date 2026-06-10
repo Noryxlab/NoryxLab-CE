@@ -642,7 +642,7 @@ data:
             <div class="menu">
               <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Projets</span></button>
               <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Workspaces</span></button>
-              <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Traitements</span></button>
+              <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Jobs</span></button>
             </div>
             <hr class="side-sep" />
 
@@ -777,7 +777,7 @@ data:
                     <div class="project-resources">
                       <article class="card project-resource-card">
                         <h3>Fichiers du projet</h3>
-                        <div class="hint">Contenu persistant monte dans <code>/mnt</code> pour les workspaces, traitements et applications du projet.</div>
+                        <div class="hint">Contenu persistant monte dans <code>/mnt</code> pour les workspaces, jobs et applications du projet.</div>
                         <div class="dataset-files" style="margin:12px 0 0">
                           <div class="dataset-file-toolbar">
                             <button id="projectFilesUp" type="button" class="btn">← Retour</button>
@@ -1785,7 +1785,7 @@ data:
               tab_datasets: 'Datasets',
               tab_projects_overview: "Projets",
               tab_workspaces: 'Workspaces',
-              tab_jobs: 'Traitements',
+              tab_jobs: 'Jobs',
               tab_apis: 'Services API',
               tab_activity: 'Activites',
               tab_admin: 'Administration',
@@ -1842,7 +1842,7 @@ data:
               ph_ds_user: 'Utilisateur',
               ph_workspace_name: "Nom personnalisé (optionnel)",
               ph_workspace_size: 'Taille stockage (ex: 10Gi)',
-              ph_job_name: 'Nom du traitement (optionnel)',
+              ph_job_name: 'Nom personnalisé (optionnel)',
               ph_job_cmd: 'Commande shell',
               ph_app_name: 'Nom app (optionnel)',
               ph_app_slug: 'Slug URL (ex: fraude-ui)',
@@ -1862,7 +1862,7 @@ data:
               msg_no_repository: 'Aucun depot.',
               msg_no_datasource: 'Aucune connexion.',
               msg_no_workspace_project: 'Aucun workspace pour ce projet.',
-              msg_no_jobs_project: 'Aucun traitement pour ce projet.',
+              msg_no_jobs_project: 'Aucun job pour ce projet.',
               msg_no_apps_project: 'Aucune application pour ce projet.',
               msg_no_dashboards_project: 'Aucun dashboard pour ce projet.',
               msg_no_env_project: 'Aucun environnement pour ce projet.',
@@ -1897,7 +1897,7 @@ data:
               tab_label_projects: 'Projets',
               tab_label_data: 'Donnees',
               tab_label_workspaces: 'Workspaces',
-              tab_label_project_jobs: 'Traitements',
+              tab_label_project_jobs: 'Jobs',
               tab_label_project_apps: 'Applications',
               tab_label_project_dashboards: 'Dashboards',
               tab_label_project_apis: 'Services API',
@@ -1912,7 +1912,7 @@ data:
               section_subtitle_data: 'Catalogues de datasets, depots, connexions et secrets.',
               section_title_workspaces: 'Workspaces',
               section_subtitle_workspaces: 'Lancement et suivi des environnements de travail.',
-              section_title_jobs: 'Traitements',
+              section_title_jobs: 'Jobs',
               section_subtitle_jobs: 'Execution batch sur environnement selectionne.',
               section_title_apps: 'Applications',
               section_subtitle_apps: 'Deploiement d applications web longues durees.',
@@ -5731,7 +5731,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.159"}
+    {"version":"ce-web-0.6.160"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5752,7 +5752,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.159
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.160
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
