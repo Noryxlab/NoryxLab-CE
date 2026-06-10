@@ -3341,7 +3341,7 @@ data:
               const ides = ensureArray(env.workspaceIdes);
               const opt = document.createElement('option');
               opt.value = env.destinationImage || '';
-              opt.textContent = (env.name || 'environment') + ' · ' + ides.join(' / ') + (env.category === 'system' ? ' · système' : ' · custom');
+              opt.textContent = executionEnvironmentLabel(env, ides.join(' / '));
               opt.title = env.destinationImage || '';
               workspaceEnvInput.appendChild(opt);
             });
@@ -3377,7 +3377,8 @@ data:
             items.forEach((env) => {
               const opt = document.createElement('option');
               opt.value = env.destinationImage || '';
-              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              opt.textContent = executionEnvironmentLabel(env);
+              opt.title = env.destinationImage || '';
               jobEnvInput.appendChild(opt);
             });
             if (current && items.some((env) => env.destinationImage === current)) {
@@ -3400,7 +3401,8 @@ data:
             items.forEach((env) => {
               const opt = document.createElement('option');
               opt.value = env.destinationImage || '';
-              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              opt.textContent = executionEnvironmentLabel(env);
+              opt.title = env.destinationImage || '';
               appEnvInput.appendChild(opt);
             });
             if (current && items.some((env) => env.destinationImage === current)) {
@@ -3423,7 +3425,8 @@ data:
             items.forEach((env) => {
               const opt = document.createElement('option');
               opt.value = env.destinationImage || '';
-              opt.textContent = (env.name || 'environment') + ' -> ' + (env.destinationImage || '-');
+              opt.textContent = executionEnvironmentLabel(env);
+              opt.title = env.destinationImage || '';
               dashboardEnvInput.appendChild(opt);
             });
             if (current && items.some((env) => env.destinationImage === current)) {
@@ -3442,6 +3445,13 @@ data:
               seenImages.add(image);
               return true;
             });
+          }
+
+          function executionEnvironmentLabel(env, detail) {
+            const parts = [env.name || 'Environnement'];
+            if (detail) parts.push(detail);
+            parts.push(env.category === 'system' ? 'système' : 'custom');
+            return parts.join(' · ');
           }
 
           function renderJobsTable() {
@@ -5952,7 +5962,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.172"}
+    {"version":"ce-web-0.6.173"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5973,7 +5983,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.172
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.173
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
