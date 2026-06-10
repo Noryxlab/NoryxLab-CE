@@ -9,7 +9,7 @@ import (
 
 func TestProjectOwnerHasMembershipWithoutExplicitRole(t *testing.T) {
 	projects := memory.NewProjectStore()
-	item := project.NewOwned("stef", "Owned project")
+	item := project.NewOwned("stef", "Owned project", "")
 	if err := projects.Create(item); err != nil {
 		t.Fatal(err)
 	}
