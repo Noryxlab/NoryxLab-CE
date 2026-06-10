@@ -1055,7 +1055,6 @@ data:
                     <h3>Workspace Launcher</h3>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="workspaceProjectName" class="v">Aucun projet sélectionné</div></div>
-                      <code id="workspaceProjectId">-</code>
                     </div>
                     <div class="hint">Choisissez un profil matériel nommé CPUxRAM. Seules les limites sont affichées; 1x4 signifie 1 vCPU et 4 Gi RAM.</div>
                     <div class="row">
@@ -1165,7 +1164,6 @@ data:
                     <h3>Project Jobs</h3>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="jobProjectName" class="v">Aucun projet sélectionné</div></div>
-                      <code id="jobProjectId">-</code>
                     </div>
                     <div class="hint">Run one-shot jobs in selected project with selected environment image.</div>
                     <div class="row">
@@ -1397,9 +1395,7 @@ data:
           const usersOut = document.getElementById('usersOut');
           const auditOut = document.getElementById('auditOut');
           const workspaceProjectName = document.getElementById('workspaceProjectName');
-          const workspaceProjectId = document.getElementById('workspaceProjectId');
           const jobProjectName = document.getElementById('jobProjectName');
-          const jobProjectId = document.getElementById('jobProjectId');
           const buildOut = document.getElementById('buildOut');
           const dockerfileOut = document.getElementById('dockerfileOut');
           const envSelectedName = document.getElementById('envSelectedName');
@@ -3177,8 +3173,7 @@ data:
           function renderWorkspacesTable() {
             const pid = selectedProjectId();
             const activeProject = selectedProject();
-            workspaceProjectName.textContent = activeProject ? (activeProject.name || activeProject.id) : 'Aucun projet sélectionné';
-            workspaceProjectId.textContent = activeProject ? activeProject.id : '-';
+            workspaceProjectName.textContent = activeProject ? (activeProject.name || 'Projet') : 'Aucun projet sélectionné';
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
@@ -3349,8 +3344,7 @@ data:
           function renderJobsTable() {
             const pid = selectedProjectId();
             const activeProject = selectedProject();
-            jobProjectName.textContent = activeProject ? (activeProject.name || activeProject.id) : 'Aucun projet sélectionné';
-            jobProjectId.textContent = activeProject ? activeProject.id : '-';
+            jobProjectName.textContent = activeProject ? (activeProject.name || 'Projet') : 'Aucun projet sélectionné';
             const items = state.jobs.filter((j) => !pid || j.projectId === pid);
             jobRows.innerHTML = '';
             if (items.length === 0) {
@@ -5731,7 +5725,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.160"}
+    {"version":"ce-web-0.6.161"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5752,7 +5746,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.160
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.161
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
