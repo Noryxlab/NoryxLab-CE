@@ -100,7 +100,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		item.Revisions = append(item.Revisions, rev)
 	}
 
-	if projectFilter != "" && h.hasProjectMembership(userID, projectFilter) {
+	if projectFilter == "" || h.hasProjectMembership(userID, projectFilter) {
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, systemEnvironmentDefinitions["system-jupyter"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, systemEnvironmentDefinitions["system-vscode"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceRStudioImage, systemEnvironmentDefinitions["system-rstudio"])
