@@ -33,9 +33,10 @@ type PodSpec struct {
 }
 
 type ServiceSpec struct {
-	Name     string
-	Selector map[string]string
-	Port     int
+	Name         string
+	Selector     map[string]string
+	Port         int
+	OwnerPodName string
 }
 
 type BuildSpec struct {
