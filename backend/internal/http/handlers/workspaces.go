@@ -438,6 +438,8 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			req.IDE,
 			record.ID,
 			accessToken,
+			gitAuthorName(identity),
+			gitAuthorEmail(identity),
 			h.shouldSeedFirstProjectExamples(req.ProjectID, userID),
 			profileMountPath,
 			projectMountPath,
@@ -822,6 +824,8 @@ func workspaceBootstrapScript(
 	kind string,
 	workspaceID string,
 	accessToken string,
+	gitUserName string,
+	gitUserEmail string,
 	seedFirstProjectExamples bool,
 	profileMountPath,
 	projectMountPath string,
@@ -840,6 +844,9 @@ func workspaceBootstrapScript(
 			profileMountPath+"/jupyter/lab/user-settings",
 			profileMountPath+"/pip-cache",
 		),
+		fmt.Sprintf("git config --file %s user.name %s", shellQuote(profileMountPath+"/gitconfig"), shellQuote(gitUserName)),
+		fmt.Sprintf("git config --file %s user.email %s", shellQuote(profileMountPath+"/gitconfig"), shellQuote(gitUserEmail)),
+		fmt.Sprintf("ln -sfn %s /home/noryx/.gitconfig", shellQuote(profileMountPath+"/gitconfig")),
 		fmt.Sprintf("if [ -f %s ]; then", workspaceRequirementsFile),
 		fmt.Sprintf("  echo '[bootstrap] requirements detected at %s'", workspaceRequirementsFile),
 		"  echo '[bootstrap] installing requirements into project venv and user site packages'",
@@ -962,6 +969,29 @@ func workspaceBootstrapScript(
 		"  --ServerApp.password="+ideCommandSuffix,
 	)
 	return strings.Join(lines, "\n")
+}
+
+func gitAuthorName(identity auth.Identity) string {
+	name := strings.TrimSpace(identity.Username)
+	if name == "" {
+		name = strings.TrimSpace(identity.UserID())
+	}
+	if name == "" {
+		return "Noryx User"
+	}
+	return name
+}
+
+func gitAuthorEmail(identity auth.Identity) string {
+	email := strings.TrimSpace(identity.Email)
+	if email != "" {
+		return email
+	}
+	userID := strings.TrimSpace(identity.UserID())
+	if userID == "" {
+		userID = "user"
+	}
+	return sanitizeK8sName(userID) + "@users.noryx.local"
 }
 
 func (h Handlers) shouldSeedFirstProjectExamples(projectID, userID string) bool {
