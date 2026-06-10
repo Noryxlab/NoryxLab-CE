@@ -242,6 +242,20 @@ func (h Handlers) GetJobLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	logs, err := logReader.GetJobLogs(record.JobName, tailLines)
 	if err != nil {
+		if strings.TrimSpace(record.Result) != "" {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"jobId": record.ID, "jobName": record.JobName, "projectId": record.ProjectID,
+				"podName": "", "logs": record.Result, "persisted": true,
+			})
+			return
+		}
+		if record.Status == "running" || record.Status == "submitted" {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"jobId": record.ID, "jobName": record.JobName, "projectId": record.ProjectID,
+				"podName": "", "logs": "Le job est en cours. Les logs ne sont pas encore disponibles.", "pending": true,
+			})
+			return
+		}
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "job logs fetch failed: " + err.Error()})
 		return
 	}
@@ -272,13 +286,17 @@ func (h Handlers) syncJobsFromRuntime() {
 			continue
 		}
 		record := job.Job{
-			ID:        strings.TrimSpace(item.JobID),
-			ProjectID: strings.TrimSpace(item.ProjectID),
-			Name:      strings.TrimSpace(item.JobName),
-			Image:     strings.TrimSpace(item.Image),
-			JobName:   strings.TrimSpace(item.JobName),
-			Status:    strings.TrimSpace(item.Status),
-			CreatedAt: time.Now().UTC(),
+			ID:          strings.TrimSpace(item.JobID),
+			ProjectID:   strings.TrimSpace(item.ProjectID),
+			Name:        strings.TrimSpace(item.JobName),
+			Image:       strings.TrimSpace(item.Image),
+			JobName:     strings.TrimSpace(item.JobName),
+			Status:      strings.TrimSpace(item.Status),
+			CreatedAt:   item.CreatedAt,
+			CompletedAt: item.CompletedAt,
+		}
+		if record.CreatedAt.IsZero() {
+			record.CreatedAt = time.Now().UTC()
 		}
 		if found {
 			record = existing
@@ -288,7 +306,21 @@ func (h Handlers) syncJobsFromRuntime() {
 			if v := strings.TrimSpace(item.Image); v != "" {
 				record.Image = v
 			}
+			if item.CompletedAt != nil {
+				record.CompletedAt = item.CompletedAt
+			}
 		}
+		if (record.Status == "succeeded" || record.Status == "failed") && strings.TrimSpace(record.Result) == "" {
+			if logReader, ok := h.runtime.(noryxruntime.JobLogReader); ok {
+				if logs, logErr := logReader.GetJobLogs(record.JobName, 2000); logErr == nil {
+					record.Result = strings.TrimSpace(logs.Logs)
+				}
+			}
+			if strings.TrimSpace(record.Result) == "" {
+				record.Result = "[aucune sortie produite]"
+			}
+		}
+		record.ResultAvailable = strings.TrimSpace(record.Result) != ""
 		_ = h.jobStore.Upsert(record)
 	}
 }
