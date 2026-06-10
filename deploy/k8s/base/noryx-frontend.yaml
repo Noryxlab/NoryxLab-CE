@@ -558,6 +558,12 @@ data:
             border-color: #3ca5b2;
             box-shadow: 0 0 0 3px rgba(16, 138, 150, .15);
           }
+          .execution-env-select {
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: none;
+            cursor: pointer;
+          }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
           th, td {
             text-align: left;
@@ -1085,7 +1091,7 @@ data:
                     </div>
                     <div class="hint">Choisissez un profil matériel nommé CPUxRAM. Seules les limites sont affichées; 1x4 signifie 1 vCPU et 4 Gi RAM.</div>
                     <div class="row">
-                      <select id="workspaceEnv"></select>
+                      <select id="workspaceEnv" class="execution-env-select"></select>
                       <select id="workspaceIde" disabled title="IDE déterminé automatiquement par l'environnement">
                         <option value="vscode">vscode</option>
                         <option value="jupyter">jupyter</option>
@@ -1195,7 +1201,7 @@ data:
                     <div class="hint">Lancez un job immédiatement ou automatisez son exécution avec une planification cron.</div>
                     <div class="row">
                       <input id="jobName" placeholder="job name (optional)" />
-                      <select id="jobEnv"></select>
+                      <select id="jobEnv" class="execution-env-select"></select>
                       <select id="jobHardwareTier"></select>
                     </div>
                     <div class="row">
@@ -1244,7 +1250,7 @@ data:
                       <input id="appSlug" placeholder="url slug (example: fraud-ui)" />
                     </div>
                     <div class="row">
-                      <select id="appEnv"></select>
+                      <select id="appEnv" class="execution-env-select"></select>
                       <select id="appHardwareTier"></select>
                       <input id="appPort" value="9000" placeholder="port (default 9000)" />
                     </div>
@@ -1281,7 +1287,7 @@ data:
                       <input id="dashboardSlug" placeholder="url slug (example: kpi-overview)" />
                     </div>
                     <div class="row">
-                      <select id="dashboardEnv"></select>
+                      <select id="dashboardEnv" class="execution-env-select"></select>
                       <select id="dashboardHardwareTier"></select>
                       <input id="dashboardPort" value="9000" placeholder="port (default 9000)" />
                     </div>
@@ -6086,7 +6092,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.176"}
+    {"version":"ce-web-0.6.177"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6107,7 +6113,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.176
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.177
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
