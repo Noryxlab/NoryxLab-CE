@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -681,7 +682,10 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 			ReadOnly: !h.canWriteDataset(item, identity),
 		}
 		if item.Provider == "minio" {
-			attached.Endpoint = h.minioEndpoint
+			attached.Endpoint, err = nodeReachableKubernetesServiceEndpoint(h.minioEndpoint, net.LookupHost)
+			if err != nil {
+				return nil, nil, fmt.Errorf("resolve local dataset mount endpoint: %w", err)
+			}
 			attached.AccessKey = h.minioAccessKey
 			attached.SecretKey = h.minioSecretKey
 			attached.UseSSL = h.minioUseSSL
@@ -718,6 +722,39 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 	}
 
 	return attachedRepos, attachedDatasets, nil
+}
+
+func nodeReachableKubernetesServiceEndpoint(endpoint string, lookupHost func(string) ([]string, error)) (string, error) {
+	raw := strings.TrimSpace(endpoint)
+	if raw == "" {
+		return "", nil
+	}
+	scheme := ""
+	hostPort := raw
+	if parsed, err := url.Parse(raw); err == nil && parsed.Host != "" {
+		scheme = parsed.Scheme + "://"
+		hostPort = parsed.Host
+	}
+	parsed, err := url.Parse("//" + hostPort)
+	if err != nil || parsed.Hostname() == "" {
+		return "", fmt.Errorf("invalid endpoint %q", endpoint)
+	}
+	hostname := parsed.Hostname()
+	if !strings.Contains(hostname, ".svc.") && !strings.HasSuffix(hostname, ".svc") {
+		return raw, nil
+	}
+	addresses, err := lookupHost(hostname)
+	if err != nil || len(addresses) == 0 {
+		if err == nil {
+			err = fmt.Errorf("no address returned")
+		}
+		return "", fmt.Errorf("resolve %s: %w", hostname, err)
+	}
+	resolved := addresses[0]
+	if parsed.Port() != "" {
+		resolved = net.JoinHostPort(resolved, parsed.Port())
+	}
+	return scheme + resolved, nil
 }
 
 func (h Handlers) ensureDatasetVolumeMounts(attachedDatasets []workspaceAttachedDataset) ([]noryxruntime.PersistentVolumeClaimMount, error) {

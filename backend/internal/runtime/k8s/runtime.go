@@ -228,7 +228,7 @@ func (r *Runtime) CreateSecret(spec noryxruntime.SecretSpec) error {
 	}
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/secrets", r.workloadNamespace), payload)
 	if err != nil && strings.Contains(err.Error(), "status=409") {
-		return nil
+		_, err = r.patch(fmt.Sprintf("/api/v1/namespaces/%s/secrets/%s", r.workloadNamespace, spec.Name), payload)
 	}
 	return err
 }
@@ -1311,6 +1311,31 @@ func (r *Runtime) get(path string) ([]byte, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+r.token)
 	req.Header.Set("Accept", "application/json")
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
+	}
+	return respBody, nil
+}
+
+func (r *Runtime) patch(path string, payload any) ([]byte, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest(http.MethodPatch, r.apiURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Content-Type", "application/merge-patch+json")
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {

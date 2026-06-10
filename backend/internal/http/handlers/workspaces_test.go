@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +10,32 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
+
+func TestNodeReachableKubernetesServiceEndpoint(t *testing.T) {
+	resolved, err := nodeReachableKubernetesServiceEndpoint(
+		"minio.noryx-ce.svc.cluster.local:9000",
+		func(host string) ([]string, error) {
+			if host != "minio.noryx-ce.svc.cluster.local" {
+				t.Fatalf("unexpected host lookup: %s", host)
+			}
+			return []string{"10.43.249.104"}, nil
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != "10.43.249.104:9000" {
+		t.Fatalf("unexpected resolved endpoint: %s", resolved)
+	}
+
+	external, err := nodeReachableKubernetesServiceEndpoint(
+		"https://cellar-c2.services.clever-cloud.com",
+		func(string) ([]string, error) { return nil, errors.New("must not resolve external endpoint") },
+	)
+	if err != nil || external != "https://cellar-c2.services.clever-cloud.com" {
+		t.Fatalf("external endpoint changed: endpoint=%s err=%v", external, err)
+	}
+}
 
 func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 	script := workspaceBootstrapScript(

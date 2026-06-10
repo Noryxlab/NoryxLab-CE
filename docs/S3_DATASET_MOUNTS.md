@@ -133,7 +133,11 @@ kubectl -n kube-system logs -l app=csi-s3 -c csi-s3 --tail=200
 Common causes:
 
 - invalid endpoint, bucket, or credentials;
+- a Kubernetes service DNS endpoint passed directly to a node-level CSI mount;
 - bucket-side policy denying list/read/write operations;
 - CSI driver unavailable on the target node;
 - missing backend RBAC for Secrets, PVCs, or PVs;
 - a `reader` dataset used by a workload that attempts to write.
+
+For platform-managed MinIO datasets, the backend resolves Kubernetes service
+DNS to a node-reachable ClusterIP before creating or updating the CSI Secret.
