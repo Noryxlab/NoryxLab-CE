@@ -786,7 +786,7 @@ data:
                     </div>
                     <div id="projectMetadataForm" class="row" style="display:none">
                       <input id="projectEditName" placeholder="Nom du projet" />
-                      <input id="projectEditDescription" placeholder="Description courte du projet" />
+                      <textarea id="projectEditDescription" rows="2" placeholder="Description courte du projet"></textarea>
                       <button id="projectMetadataSave" type="button" class="btn">Enregistrer la fiche projet</button>
                     </div>
                     <div class="project-resources">
@@ -1483,6 +1483,8 @@ data:
           const projectEditName = document.getElementById('projectEditName');
           const projectEditDescription = document.getElementById('projectEditDescription');
           const projectMetadataSave = document.getElementById('projectMetadataSave');
+          let projectMetadataFormProjectID = '';
+          let projectMetadataFormDirty = false;
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
@@ -3821,8 +3823,15 @@ data:
             projectActiveOwner.textContent = p ? ('Owner · ' + projectOwnerLabel(p)) : 'Owner · -';
             projectOwnerForm.style.display = p && p.canManageOwner ? 'flex' : 'none';
             projectMetadataForm.style.display = p && p.canManageOwner ? 'flex' : 'none';
-            projectEditName.value = p ? (p.name || '') : '';
-            projectEditDescription.value = p ? (p.description || '') : '';
+            if (projectMetadataFormProjectID !== pid) {
+              projectMetadataFormProjectID = pid;
+              projectMetadataFormDirty = false;
+              projectEditName.value = p ? (p.name || '') : '';
+              projectEditDescription.value = p ? (p.description || '') : '';
+            } else if (!projectMetadataFormDirty) {
+              projectEditName.value = p ? (p.name || '') : '';
+              projectEditDescription.value = p ? (p.description || '') : '';
+            }
             projectScope.classList.toggle('is-empty', !p);
           }
 
@@ -4447,12 +4456,15 @@ data:
                 headers:{ 'Content-Type':'application/json' },
                 body:JSON.stringify({ name, description:projectEditDescription.value.trim() })
               });
+              projectMetadataFormDirty = false;
               await refreshProjects();
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
             }
           };
+          projectEditName.oninput = () => { projectMetadataFormDirty = true; };
+          projectEditDescription.oninput = () => { projectMetadataFormDirty = true; };
 
           projectOwnerType.onchange = () => {
             projectOwnerID.value = '';
@@ -5933,7 +5945,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.168"}
+    {"version":"ce-web-0.6.169"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5954,7 +5966,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.168
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.169
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
