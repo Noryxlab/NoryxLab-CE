@@ -1050,7 +1050,7 @@ func (r *Runtime) ListBuilds() ([]noryxruntime.BuildRuntimeInfo, error) {
 }
 
 func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
-	selector := url.QueryEscape("app.kubernetes.io/name=noryx-job")
+	selector := url.QueryEscape("noryx.io/project-id")
 	body, err := r.get(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs?labelSelector=%s", r.workloadNamespace, selector))
 	if err != nil {
 		return nil, err
@@ -1058,8 +1058,9 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 	var response struct {
 		Items []struct {
 			Metadata struct {
-				Name   string            `json:"name"`
-				Labels map[string]string `json:"labels"`
+				Name              string            `json:"name"`
+				Labels            map[string]string `json:"labels"`
+				CreationTimestamp time.Time         `json:"creationTimestamp"`
 			} `json:"metadata"`
 			Spec struct {
 				Template struct {
@@ -1071,9 +1072,10 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 				} `json:"template"`
 			} `json:"spec"`
 			Status struct {
-				Active    int `json:"active"`
-				Succeeded int `json:"succeeded"`
-				Failed    int `json:"failed"`
+				Active         int        `json:"active"`
+				Succeeded      int        `json:"succeeded"`
+				Failed         int        `json:"failed"`
+				CompletionTime *time.Time `json:"completionTime"`
 			} `json:"status"`
 		} `json:"items"`
 	}
@@ -1083,6 +1085,9 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 	out := make([]noryxruntime.JobRuntimeInfo, 0, len(response.Items))
 	for _, item := range response.Items {
 		jobID := strings.TrimSpace(item.Metadata.Labels["noryx.io/job-id"])
+		if jobID == "" && strings.TrimSpace(item.Metadata.Labels["noryx.io/cronjob-id"]) != "" {
+			jobID = strings.TrimSpace(item.Metadata.Name)
+		}
 		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
 		if jobID == "" || projectID == "" {
 			continue
@@ -1101,11 +1106,13 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 			image = strings.TrimSpace(item.Spec.Template.Spec.Containers[0].Image)
 		}
 		out = append(out, noryxruntime.JobRuntimeInfo{
-			JobID:     jobID,
-			ProjectID: projectID,
-			JobName:   strings.TrimSpace(item.Metadata.Name),
-			Status:    status,
-			Image:     image,
+			JobID:       jobID,
+			ProjectID:   projectID,
+			JobName:     strings.TrimSpace(item.Metadata.Name),
+			Status:      status,
+			Image:       image,
+			CreatedAt:   item.Metadata.CreationTimestamp.UTC(),
+			CompletedAt: item.Status.CompletionTime,
 		})
 	}
 	return out, nil

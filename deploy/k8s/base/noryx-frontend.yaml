@@ -1187,9 +1187,9 @@ data:
                       <button id="createJob" class="btn warn">Launch Job</button>
                       <button id="loadJobs" class="btn">Refresh</button>
                     </div>
-                    <h3>Jobs exécutés</h3>
+                    <h3>Historique des exécutions</h3>
                     <table>
-                      <thead><tr><th>Name</th><th>Projet</th><th>Pod/Job</th><th>Image</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Projet</th><th>Commande</th><th>Image</th><th>Résultat</th><th>Lancé</th><th>Terminé</th><th>Actions</th></tr></thead>
                       <tbody id="jobRows"></tbody>
                     </table>
                     <h3>Automatisations</h3>
@@ -3385,18 +3385,25 @@ data:
             const items = state.jobs.filter((j) => !pid || j.projectId === pid);
             jobRows.innerHTML = '';
             if (items.length === 0) {
-              jobRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_jobs_project') + '</td></tr>';
+              jobRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_jobs_project') + '</td></tr>';
             } else {
               items.forEach((j) => {
                 const tr = document.createElement('tr');
+                const status = String(j.status || 'submitted').toLowerCase();
+                const terminal = status === 'succeeded' || status === 'failed';
+                const command = ensureArray(j.args).join(' ') || ensureArray(j.command).join(' ') || '-';
+                const resultLabel = terminal
+                  ? (j.resultAvailable ? 'Résultat disponible' : 'Terminé sans résultat')
+                  : (status === 'running' ? 'En cours' : 'En attente');
                 tr.innerHTML =
                   '<td><strong>' + escapeHTML(j.name || j.jobName || 'Job') + '</strong></td>' +
                   '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong></td>' +
-                  '<td><code>' + (j.jobName || '-') + '</code></td>' +
-                  '<td><code>' + (j.image || '-') + '</code></td>' +
-                  '<td>' + badge(j.status || 'submitted') + '</td>' +
-                  '<td><code>' + (j.createdAt || '-') + '</code></td>' +
-                  '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">Logs</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Delete</button></td>';
+                  '<td><code>' + escapeHTML(command) + '</code></td>' +
+                  '<td><code>' + escapeHTML(j.image || '-') + '</code></td>' +
+                  '<td>' + badge(status) + '<br/><span style="color:#667a98">' + resultLabel + '</span></td>' +
+                  '<td>' + formatDateTime(j.createdAt) + '</td>' +
+                  '<td>' + (j.completedAt ? formatDateTime(j.completedAt) : '-') + '</td>' +
+                  '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">' + (terminal ? 'Résultat' : 'Logs') + '</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Supprimer</button></td>';
                 jobRows.appendChild(tr);
               });
             }
@@ -5254,11 +5261,11 @@ data:
             const delId = (event.target && event.target.getAttribute('data-del-job'));
             if (logsId) {
               try {
+                jobLogsOut.textContent = 'Chargement...';
                 const body = await callJSON('/api/v1/jobs/' + encodeURIComponent(logsId) + '/logs?tailLines=300');
                 jobLogsOut.textContent = '[job=' + (body.jobName || '-') + ' pod=' + (body.podName || '-') + ']\n' + (body.logs || '');
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                jobLogsOut.textContent = String((e && e.error) || e || 'Logs indisponibles.');
               }
               return;
             }
@@ -5267,8 +5274,7 @@ data:
               await callJSON('/api/v1/jobs/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshJobs();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              jobLogsOut.textContent = String((e && e.error) || e || 'Suppression impossible.');
             }
           };
 
@@ -5818,7 +5824,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.164"}
+    {"version":"ce-web-0.6.165"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5839,7 +5845,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.164
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.165
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
