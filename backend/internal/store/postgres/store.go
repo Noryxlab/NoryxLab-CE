@@ -145,6 +145,7 @@ func (s *Store) migrate(ctx context.Context) error {
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
+			owner_user_id TEXT NOT NULL DEFAULT '',
 			kind TEXT NOT NULL DEFAULT 'app',
 			name TEXT NOT NULL,
 			slug TEXT NOT NULL UNIQUE,
@@ -156,9 +157,17 @@ func (s *Store) migrate(ctx context.Context) error {
 			service_name TEXT NOT NULL,
 			status TEXT NOT NULL,
 			access_url TEXT NOT NULL,
+			access_mode TEXT NOT NULL DEFAULT 'project',
+			allowed_users_json JSONB NOT NULL DEFAULT '[]',
+			allowed_organizations_json JSONB NOT NULL DEFAULT '[]',
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'app'`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS owner_user_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'project'`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_users_json JSONB NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_organizations_json JSONB NOT NULL DEFAULT '[]'`,
+		`UPDATE apps a SET owner_user_id=(SELECT ar.user_id FROM access_roles ar WHERE ar.project_id=a.project_id AND ar.role='admin' ORDER BY ar.user_id LIMIT 1) WHERE a.owner_user_id=''`,
 		`CREATE TABLE IF NOT EXISTS pods (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -450,7 +459,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 }
 
 func (s *Store) ListApps() ([]app.App, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -458,8 +467,8 @@ func (s *Store) ListApps() ([]app.App, error) {
 	out := []app.App{}
 	for rows.Next() {
 		var item app.App
-		var commandJSON, argsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.CreatedAt); err != nil {
+		var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.OwnerUserID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.AccessMode, &usersJSON, &organizationsJSON, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -468,6 +477,8 @@ func (s *Store) ListApps() ([]app.App, error) {
 		if len(argsJSON) > 0 {
 			_ = json.Unmarshal(argsJSON, &item.Args)
 		}
+		_ = json.Unmarshal(usersJSON, &item.AllowedUsers)
+		_ = json.Unmarshal(organizationsJSON, &item.AllowedOrganizations)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -475,10 +486,11 @@ func (s *Store) ListApps() ([]app.App, error) {
 
 func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 	var item app.App
-	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
+		&item.OwnerUserID,
 		&item.Kind,
 		&item.Name,
 		&item.Slug,
@@ -490,6 +502,9 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 		&item.ServiceName,
 		&item.Status,
 		&item.AccessURL,
+		&item.AccessMode,
+		&usersJSON,
+		&organizationsJSON,
 		&item.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -504,15 +519,18 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 	if len(argsJSON) > 0 {
 		_ = json.Unmarshal(argsJSON, &item.Args)
 	}
+	_ = json.Unmarshal(usersJSON, &item.AllowedUsers)
+	_ = json.Unmarshal(organizationsJSON, &item.AllowedOrganizations)
 	return item, true, nil
 }
 
 func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 	var item app.App
-	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
+	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
 		&item.ID,
 		&item.ProjectID,
+		&item.OwnerUserID,
 		&item.Kind,
 		&item.Name,
 		&item.Slug,
@@ -524,6 +542,9 @@ func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 		&item.ServiceName,
 		&item.Status,
 		&item.AccessURL,
+		&item.AccessMode,
+		&usersJSON,
+		&organizationsJSON,
 		&item.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -538,15 +559,20 @@ func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 	if len(argsJSON) > 0 {
 		_ = json.Unmarshal(argsJSON, &item.Args)
 	}
+	_ = json.Unmarshal(usersJSON, &item.AllowedUsers)
+	_ = json.Unmarshal(organizationsJSON, &item.AllowedOrganizations)
 	return item, true, nil
 }
 
 func (s *Store) CreateApp(item app.App) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
-	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+	usersJSON, _ := json.Marshal(item.AllowedUsers)
+	organizationsJSON, _ := json.Marshal(item.AllowedOrganizations)
+	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
 		item.ID,
 		item.ProjectID,
+		item.OwnerUserID,
 		item.Kind,
 		item.Name,
 		item.Slug,
@@ -558,6 +584,9 @@ func (s *Store) CreateApp(item app.App) error {
 		item.ServiceName,
 		item.Status,
 		item.AccessURL,
+		item.AccessMode,
+		usersJSON,
+		organizationsJSON,
 		item.CreatedAt,
 	)
 	return err
@@ -566,9 +595,11 @@ func (s *Store) CreateApp(item app.App) error {
 func (s *Store) UpsertApp(item app.App) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
+	usersJSON, _ := json.Marshal(item.AllowedUsers)
+	organizationsJSON, _ := json.Marshal(item.AllowedOrganizations)
 	_, err := s.db.Exec(`
-		INSERT INTO apps (id, project_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			kind=EXCLUDED.kind,
@@ -585,6 +616,7 @@ func (s *Store) UpsertApp(item app.App) error {
 	`,
 		item.ID,
 		item.ProjectID,
+		item.OwnerUserID,
 		item.Kind,
 		item.Name,
 		item.Slug,
@@ -596,6 +628,9 @@ func (s *Store) UpsertApp(item app.App) error {
 		item.ServiceName,
 		item.Status,
 		item.AccessURL,
+		item.AccessMode,
+		usersJSON,
+		organizationsJSON,
 		item.CreatedAt,
 	)
 	return err

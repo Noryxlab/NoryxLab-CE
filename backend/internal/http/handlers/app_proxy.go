@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 )
 
 func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
@@ -40,11 +42,7 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
-	userID, ok := h.requireUserIDFromSessionOrBearer(w, r)
-	if !ok {
-		return
-	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "app access") {
+	if !h.requireAppAccess(w, r, record) {
 		return
 	}
 
@@ -82,4 +80,45 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(rw, http.StatusBadGateway, map[string]string{"error": "app proxy failed: " + err.Error()})
 	}
 	proxy.ServeHTTP(w, r)
+}
+
+func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, record app.App) bool {
+	mode := strings.ToLower(strings.TrimSpace(record.AccessMode))
+	if mode == "public" {
+		return true
+	}
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	if !ok {
+		return false
+	}
+	if h.isGlobalAdmin(identity) {
+		return true
+	}
+	switch mode {
+	case "private":
+		if appIdentityMatches(identity, record.OwnerUserID) {
+			return true
+		}
+	case "users":
+		for _, userID := range record.AllowedUsers {
+			if appIdentityMatches(identity, userID) {
+				return true
+			}
+		}
+	case "organization":
+		for _, organizationID := range record.AllowedOrganizations {
+			if h.userBelongsToOrganization(identity.Subject, organizationID) || h.userBelongsToOrganization(identity.UserID(), organizationID) {
+				return true
+			}
+		}
+	default:
+		return h.requireProjectRole(w, record.ProjectID, identity.UserID(), access.Role.CanLaunchPod, "app access")
+	}
+	writeJSON(w, http.StatusForbidden, map[string]string{"error": "app access denied"})
+	return false
+}
+
+func appIdentityMatches(identity auth.Identity, expected string) bool {
+	expected = strings.TrimSpace(expected)
+	return expected != "" && (strings.EqualFold(identity.UserID(), expected) || strings.EqualFold(identity.Subject, expected) || identity.MatchesUsername(expected) || identity.MatchesEmail(expected))
 }

@@ -13,14 +13,17 @@ import (
 )
 
 type createAppRequest struct {
-	ProjectID    string   `json:"projectId"`
-	Name         string   `json:"name"`
-	Slug         string   `json:"slug"`
-	Image        string   `json:"image"`
-	Command      []string `json:"command"`
-	Args         []string `json:"args"`
-	Port         int      `json:"port"`
-	HardwareTier string   `json:"hardwareTier"`
+	ProjectID            string   `json:"projectId"`
+	Name                 string   `json:"name"`
+	Slug                 string   `json:"slug"`
+	Image                string   `json:"image"`
+	Command              []string `json:"command"`
+	Args                 []string `json:"args"`
+	Port                 int      `json:"port"`
+	HardwareTier         string   `json:"hardwareTier"`
+	AccessMode           string   `json:"accessMode"`
+	AllowedUsers         []string `json:"allowedUsers"`
+	AllowedOrganizations []string `json:"allowedOrganizations"`
 }
 
 var appSlugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`)
@@ -97,6 +100,28 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	req.Name = strings.TrimSpace(req.Name)
 	req.Slug = normalizeAppSlug(req.Slug)
 	req.Image = strings.TrimSpace(req.Image)
+	req.AccessMode = strings.ToLower(strings.TrimSpace(req.AccessMode))
+	if req.AccessMode == "" {
+		req.AccessMode = "private"
+	}
+	if req.AccessMode != "public" && req.AccessMode != "organization" && req.AccessMode != "users" && req.AccessMode != "private" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "accessMode must be public, organization, users, or private"})
+		return
+	}
+	if req.AccessMode == "organization" && len(req.AllowedOrganizations) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedOrganizations is required for organization access"})
+		return
+	}
+	for _, organizationID := range req.AllowedOrganizations {
+		if !h.organizationExists(strings.TrimSpace(organizationID)) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowed organization does not exist: " + strings.TrimSpace(organizationID)})
+			return
+		}
+	}
+	if req.AccessMode == "users" && len(req.AllowedUsers) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedUsers is required for users access"})
+		return
+	}
 	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
 	if !tierFound {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
@@ -184,6 +209,13 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	args := []string{bootstrapScript}
 
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
+	record.OwnerUserID = userID
+	record.AccessMode = req.AccessMode
+	record.AllowedUsers = normalizeAppSubjects(req.AllowedUsers)
+	record.AllowedOrganizations = normalizeAppSubjects(req.AllowedOrganizations)
+	if kind == "dashboard" {
+		record.AccessMode = "project"
+	}
 
 	if h.runtime != nil {
 		userSecretName := podName + "-user-secrets"
@@ -271,8 +303,27 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		"image":        record.Image,
 		"port":         record.Port,
 		"hardwareTier": tier.ID,
+		"accessMode":   record.AccessMode,
 	})
 	writeJSON(w, http.StatusCreated, record)
+}
+
+func normalizeAppSubjects(values []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func (h Handlers) DeleteApp(w http.ResponseWriter, r *http.Request) {
@@ -326,8 +377,9 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		action = "dashboard.delete"
 	}
 	h.emitAudit(r, userID, action, record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
-		"name": record.Name,
-		"slug": record.Slug,
+		"name":       record.Name,
+		"slug":       record.Slug,
+		"accessMode": record.AccessMode,
 	})
 }
 

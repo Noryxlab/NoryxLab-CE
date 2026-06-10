@@ -1248,12 +1248,22 @@ data:
                       <input id="appPort" value="9000" placeholder="port (default 9000)" />
                     </div>
                     <div class="row">
+                      <select id="appAccessMode">
+                        <option value="private">Private · créateur uniquement</option>
+                        <option value="organization">Restricted · organisations</option>
+                        <option value="users">Restricted · utilisateurs</option>
+                        <option value="public">Public · sans authentification</option>
+                      </select>
+                      <select id="appAllowedOrganizations" style="display:none"></select>
+                      <input id="appAllowedUsers" placeholder="Utilisateurs séparés par des virgules" style="display:none" />
+                    </div>
+                    <div class="row">
                       <input id="appCommand" value="" placeholder="Commande optionnelle (sinon /mnt/app.sh)" />
                       <button id="createApp" class="btn warn">Launch App</button>
                       <button id="loadApps" class="btn">Refresh</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>RBAC</th><th>Access</th><th>Actions</th></tr></thead>
                       <tbody id="appRows"></tbody>
                     </table>
                   </article>
@@ -1537,6 +1547,9 @@ data:
           const appHardwareTierInput = document.getElementById('appHardwareTier');
           const appPortInput = document.getElementById('appPort');
           const appCommandInput = document.getElementById('appCommand');
+          const appAccessModeInput = document.getElementById('appAccessMode');
+          const appAllowedOrganizationsInput = document.getElementById('appAllowedOrganizations');
+          const appAllowedUsersInput = document.getElementById('appAllowedUsers');
           const createAppBtn = document.getElementById('createApp');
           const loadAppsBtn = document.getElementById('loadApps');
           const appRows = document.getElementById('appRows');
@@ -3408,6 +3421,17 @@ data:
             if (current && items.some((env) => env.destinationImage === current)) {
               appEnvInput.value = current;
             }
+            const currentOrganization = appAllowedOrganizationsInput.value;
+            appAllowedOrganizationsInput.innerHTML = '<option value="">Choisir une organisation</option>';
+            ensureArray(state.availableOrganizations).forEach((organization) => {
+              const option = document.createElement('option');
+              option.value = organization.id || '';
+              option.textContent = organization.name || organization.alias || organization.id || '-';
+              appAllowedOrganizationsInput.appendChild(option);
+            });
+            if (currentOrganization && ensureArray(state.availableOrganizations).some((organization) => organization.id === currentOrganization)) {
+              appAllowedOrganizationsInput.value = currentOrganization;
+            }
           }
 
           function renderDashboardEnvOptions() {
@@ -3511,7 +3535,7 @@ data:
             const items = state.apps.filter((a) => !pid || a.projectId === pid);
             appRows.innerHTML = '';
             if (items.length === 0) {
-              appRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_apps_project') + '</td></tr>';
+              appRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_apps_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
@@ -3522,6 +3546,7 @@ data:
                 '<td><code>' + (a.slug || '-') + '</code></td>' +
                 '<td><code>' + (a.podName || '-') + '</code></td>' +
                 '<td>' + badge(a.status || 'submitted') + '</td>' +
+                '<td>' + badge(a.accessMode || 'project') + '</td>' +
                 '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
                 '<td><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
@@ -5044,7 +5069,13 @@ data:
               if (!projectId) throw { error: tui('err_select_project_first') };
               const image = (appEnvInput.value || '').trim();
               if (!image) throw { error: tui('err_select_env_first') };
-              const payload = { projectId, image };
+              const payload = {
+                projectId,
+                image,
+                accessMode: appAccessModeInput.value,
+                allowedUsers: appAllowedUsersInput.value.split(',').map((value) => resolveDatasetSubjectID(value.trim(), 'user')).filter(Boolean),
+                allowedOrganizations: appAllowedOrganizationsInput.value ? [appAllowedOrganizationsInput.value] : []
+              };
               const hardwareTier = appHardwareTierInput.value.trim();
               if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = appNameInput.value.trim();
@@ -5066,6 +5097,10 @@ data:
               pretty(usersOut, e);
               switchTab('ops');
             }
+          };
+          appAccessModeInput.onchange = () => {
+            appAllowedOrganizationsInput.style.display = appAccessModeInput.value === 'organization' ? '' : 'none';
+            appAllowedUsersInput.style.display = appAccessModeInput.value === 'users' ? '' : 'none';
           };
 
           createDashboardBtn.onclick = async () => {
@@ -5962,7 +5997,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.173"}
+    {"version":"ce-web-0.6.174"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5983,7 +6018,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.173
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.174
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

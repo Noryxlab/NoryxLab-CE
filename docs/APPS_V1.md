@@ -7,8 +7,14 @@ Apps V1 allows project members to deploy long-running web services and expose th
 - App traffic is exposed through backend proxy routes:
   - `/apps/{slug}`
   - `/apps/{slug}/{path...}`
-- Access requires authenticated platform identity (Keycloak session cookie or Bearer token).
-- Project RBAC check is enforced on each proxied request (`CanLaunchPod` capability).
+- Deployment and deletion require project RBAC `CanLaunchPod`.
+- Visitor access is configured per app:
+  - `private`: creator only
+  - `users`: explicitly allowed Keycloak users
+  - `organization`: members of explicitly allowed Keycloak organizations
+  - `public`: no authentication
+- Global administrators retain access to non-public apps.
+- Existing apps created before app RBAC migration retain legacy project-member access.
 
 ## Runtime model
 
