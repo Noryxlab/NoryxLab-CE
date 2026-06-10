@@ -36,16 +36,6 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(items) == 0 {
-		seed := project.NewOwned(userID, defaultProjectName(userID), "")
-		if err := h.projectStore.Create(seed); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create default project"})
-			return
-		}
-		h.accessStore.SetRole(seed.ID, userID, access.RoleAdmin)
-		seed.CanManageOwner = true
-		items = append(items, seed)
-	}
 	for i := range items {
 		items[i].CanManageOwner = h.isGlobalAdminUserID(userID) || h.projectOwnedBy(items[i], userID)
 	}
