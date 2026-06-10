@@ -61,6 +61,7 @@ type Handlers struct {
 	workspaceProfilePVCSize          string
 	workspaceProfilePVCAccessMode    string
 	workspaceProfilePVCMountPath     string
+	projectFilesImage                string
 	hardwareTiers                    []hardwareTier
 	backendVersion                   string
 	edition                          string
@@ -97,6 +98,7 @@ type Options struct {
 	WorkspaceProfilePVCSize          string
 	WorkspaceProfilePVCAccessMode    string
 	WorkspaceProfilePVCMountPath     string
+	ProjectFilesImage                string
 	BackendVersion                   string
 	Edition                          string
 	DefaultTheme                     string
@@ -198,6 +200,7 @@ func New(
 		workspaceProfilePVCSize:          options.WorkspaceProfilePVCSize,
 		workspaceProfilePVCAccessMode:    options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
+		projectFilesImage:                strings.TrimSpace(options.ProjectFilesImage),
 		hardwareTiers:                    defaultHardwareTiers(),
 		backendVersion:                   options.BackendVersion,
 		edition:                          strings.TrimSpace(options.Edition),

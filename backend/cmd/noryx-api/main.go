@@ -163,6 +163,7 @@ func main() {
 			WorkspaceProfilePVCSize:          cfg.WorkspaceProfilePVCSize,
 			WorkspaceProfilePVCAccessMode:    cfg.WorkspaceProfilePVCAccessMode,
 			WorkspaceProfilePVCMountPath:     cfg.WorkspaceProfilePVCMountPath,
+			ProjectFilesImage:                cfg.ProjectFilesImage,
 			BackendVersion:                   cfg.BackendVersion,
 			Edition:                          cfg.Edition,
 			DefaultTheme:                     cfg.DefaultTheme,
