@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.127
+  version: 0.5.129
   description: |
     Noryx CE backend API contract.
 
@@ -1152,6 +1152,90 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /api/v1/cronjobs:
+    get:
+      tags: [Workloads]
+      summary: List accessible scheduled jobs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: query
+          name: projectId
+          schema: { type: string }
+      responses:
+        '200':
+          description: Scheduled job list
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+    post:
+      tags: [Workloads]
+      summary: Create a scheduled job
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectId, image, schedule]
+              properties:
+                projectId: { type: string }
+                name: { type: string }
+                image: { type: string }
+                hardwareTier: { type: string }
+                command:
+                  type: array
+                  items: { type: string }
+                args:
+                  type: array
+                  items: { type: string }
+                schedule:
+                  type: string
+                  example: "0 8 * * 1-5"
+                timeZone:
+                  type: string
+                  example: Europe/Paris
+      responses:
+        '201':
+          description: Scheduled job created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
+  /api/v1/cronjobs/{cronJobID}:
+    delete:
+      tags: [Workloads]
+      summary: Delete a scheduled job
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: cronJobID
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Scheduled job deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
 
   /api/v1/secrets:
     get:

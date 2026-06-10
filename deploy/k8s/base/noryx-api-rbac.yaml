@@ -34,7 +34,7 @@ rules:
     resources: ["endpoints"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["batch"]
-    resources: ["jobs"]
+    resources: ["jobs", "cronjobs"]
     verbs: ["create", "get", "list", "watch", "delete"]
   - apiGroups: ["apps"]
     resources: ["deployments"]

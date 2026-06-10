@@ -555,6 +555,32 @@ func kanikoBuildArgs(spec noryxruntime.BuildSpec) ([]string, string) {
 }
 
 func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
+	podSpec := jobPodSpec(spec)
+
+	payload := map[string]any{
+		"apiVersion": "batch/v1",
+		"kind":       "Job",
+		"metadata": map[string]any{
+			"name":   spec.JobName,
+			"labels": isolatedWorkloadLabels(spec.Labels),
+		},
+		"spec": map[string]any{
+			"ttlSecondsAfterFinished": int64(86400),
+			"backoffLimit":            int64(0),
+			"template": map[string]any{
+				"metadata": map[string]any{
+					"labels": isolatedWorkloadLabels(spec.Labels),
+				},
+				"spec": podSpec,
+			},
+		},
+	}
+
+	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
+	return err
+}
+
+func jobPodSpec(spec noryxruntime.JobSpec) map[string]any {
 	spec.Labels = isolatedWorkloadLabels(spec.Labels)
 	resources := map[string]any{}
 	requests := map[string]string{}
@@ -631,26 +657,43 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 		container["volumeMounts"] = volumeMounts
 	}
 
+	return podSpec
+}
+
+func (r *Runtime) CreateCronJob(spec noryxruntime.CronJobSpec) error {
+	labels := isolatedWorkloadLabels(spec.Labels)
+	jobSpec := spec.JobSpec
+	jobSpec.Labels = labels
 	payload := map[string]any{
 		"apiVersion": "batch/v1",
-		"kind":       "Job",
+		"kind":       "CronJob",
 		"metadata": map[string]any{
-			"name":   spec.JobName,
-			"labels": spec.Labels,
+			"name":   spec.CronJobName,
+			"labels": labels,
+			"annotations": map[string]string{
+				"noryx.io/display-name": spec.DisplayName,
+			},
 		},
 		"spec": map[string]any{
-			"ttlSecondsAfterFinished": int64(86400),
-			"backoffLimit":            int64(0),
-			"template": map[string]any{
-				"metadata": map[string]any{
-					"labels": spec.Labels,
+			"schedule":                   spec.Schedule,
+			"timeZone":                   spec.TimeZone,
+			"concurrencyPolicy":          "Forbid",
+			"startingDeadlineSeconds":    int64(300),
+			"successfulJobsHistoryLimit": int64(3),
+			"failedJobsHistoryLimit":     int64(1),
+			"jobTemplate": map[string]any{
+				"spec": map[string]any{
+					"ttlSecondsAfterFinished": int64(86400),
+					"backoffLimit":            int64(0),
+					"template": map[string]any{
+						"metadata": map[string]any{"labels": labels},
+						"spec":     jobPodSpec(jobSpec),
+					},
 				},
-				"spec": podSpec,
 			},
 		},
 	}
-
-	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
+	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs", r.workloadNamespace), payload)
 	return err
 }
 
@@ -691,6 +734,13 @@ func (r *Runtime) DeleteJob(name string) error {
 		return fmt.Errorf("job name is required")
 	}
 	return r.deleteWithPropagation(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs/%s", r.workloadNamespace, name))
+}
+
+func (r *Runtime) DeleteCronJob(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("cronjob name is required")
+	}
+	return r.deleteWithPropagation(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs/%s", r.workloadNamespace, name))
 }
 
 func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
@@ -1056,6 +1106,75 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 			JobName:   strings.TrimSpace(item.Metadata.Name),
 			Status:    status,
 			Image:     image,
+		})
+	}
+	return out, nil
+}
+
+func (r *Runtime) ListCronJobs() ([]noryxruntime.CronJobRuntimeInfo, error) {
+	selector := url.QueryEscape("app.kubernetes.io/name=noryx-cronjob")
+	body, err := r.get(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Name              string            `json:"name"`
+				Labels            map[string]string `json:"labels"`
+				Annotations       map[string]string `json:"annotations"`
+				CreationTimestamp time.Time         `json:"creationTimestamp"`
+			} `json:"metadata"`
+			Spec struct {
+				Schedule    string `json:"schedule"`
+				TimeZone    string `json:"timeZone"`
+				Suspend     bool   `json:"suspend"`
+				JobTemplate struct {
+					Spec struct {
+						Template struct {
+							Spec struct {
+								Containers []struct {
+									Image string `json:"image"`
+								} `json:"containers"`
+							} `json:"spec"`
+						} `json:"template"`
+					} `json:"spec"`
+				} `json:"jobTemplate"`
+			} `json:"spec"`
+			Status struct {
+				LastScheduleTime *time.Time `json:"lastScheduleTime"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+	out := make([]noryxruntime.CronJobRuntimeInfo, 0, len(response.Items))
+	for _, item := range response.Items {
+		cronJobID := strings.TrimSpace(item.Metadata.Labels["noryx.io/cronjob-id"])
+		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
+		if cronJobID == "" || projectID == "" {
+			continue
+		}
+		image := ""
+		if len(item.Spec.JobTemplate.Spec.Template.Spec.Containers) > 0 {
+			image = strings.TrimSpace(item.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image)
+		}
+		displayName := strings.TrimSpace(item.Metadata.Annotations["noryx.io/display-name"])
+		if displayName == "" {
+			displayName = strings.TrimSpace(item.Metadata.Name)
+		}
+		out = append(out, noryxruntime.CronJobRuntimeInfo{
+			CronJobID:      cronJobID,
+			ProjectID:      projectID,
+			Name:           displayName,
+			CronJobName:    strings.TrimSpace(item.Metadata.Name),
+			Schedule:       strings.TrimSpace(item.Spec.Schedule),
+			TimeZone:       strings.TrimSpace(item.Spec.TimeZone),
+			Suspended:      item.Spec.Suspend,
+			Image:          image,
+			LastScheduleAt: item.Status.LastScheduleTime,
+			CreatedAt:      item.Metadata.CreationTimestamp,
 		})
 	}
 	return out, nil
