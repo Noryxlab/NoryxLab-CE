@@ -2203,7 +2203,7 @@ data:
           }
           function projectName(projectID) {
             const project = state.projects.find((item) => item.id === projectID);
-            return project ? (project.name || project.id) : (projectID || '-');
+            return project ? (project.name || 'Projet') : 'Projet';
           }
           function ensureArray(v) { return Array.isArray(v) ? v : []; }
           function dateToRFC3339EndOfDay(dateValue) {
@@ -3194,8 +3194,8 @@ data:
                 ? '<button type="button" class="btn' + (ready ? '' : ' warn') + '" data-open="' + w.id + '"' + (ready ? '' : ' disabled') + '>' + openLabel + '</button>'
                 : '';
               tr.innerHTML =
-                '<td><strong>' + (w.name || w.id) + '</strong><br/><span style="color:#667a98">' + w.id + '</span></td>' +
-                '<td><strong>' + escapeHTML(projectName(w.projectId)) + '</strong><br/><code>' + escapeHTML(w.projectId || '-') + '</code></td>' +
+                '<td><strong>' + (w.name || 'Workspace') + '</strong></td>' +
+                '<td><strong>' + escapeHTML(projectName(w.projectId)) + '</strong></td>' +
                 '<td><code>' + (w.kind || 'jupyter') + '</code><br/><span style="color:#667a98">' + escapeHTML(w.image || '-') + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
@@ -5731,7 +5731,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.156"}
+    {"version":"ce-web-0.6.158"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5752,7 +5752,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.156
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.158
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
