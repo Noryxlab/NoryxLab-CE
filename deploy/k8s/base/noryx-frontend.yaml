@@ -1022,12 +1022,12 @@ data:
                     </div>
                     <div class="hint">Choisissez un profil matériel nommé CPUxRAM. Seules les limites sont affichées; 1x4 signifie 1 vCPU et 4 Gi RAM.</div>
                     <div class="row">
-                      <select id="workspaceIde">
+                      <select id="workspaceEnv"></select>
+                      <select id="workspaceIde" disabled title="IDE déterminé automatiquement par l'environnement">
                         <option value="jupyter">jupyter</option>
                         <option value="vscode">vscode</option>
                         <option value="rstudio">rstudio</option>
                       </select>
-                      <select id="workspaceEnv"></select>
                       <select id="workspaceHardwareTier"></select>
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
                       <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
@@ -3129,30 +3129,38 @@ data:
 
           function renderWorkspaceEnvOptions() {
             const current = workspaceEnvInput.value || '';
-            const ide = workspaceIdeInput.value || 'jupyter';
             const pid = selectedProjectId();
             const items = state.environments.filter((env) => {
               if (pid && env.projectId !== pid) return false;
-              return ensureArray(env.workspaceIdes).includes(ide);
+              return ensureArray(env.workspaceIdes).length > 0;
             });
             workspaceEnvInput.innerHTML = '';
             if (items.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'Aucun environnement compatible avec ' + ide;
+              opt.textContent = 'Aucun environnement compatible avec un workspace';
               workspaceEnvInput.appendChild(opt);
+              syncWorkspaceIDEFromEnvironment();
               return;
             }
             items.forEach((env) => {
+              const ides = ensureArray(env.workspaceIdes);
               const opt = document.createElement('option');
               opt.value = env.destinationImage || '';
-              opt.textContent = (env.name || 'environment') + (env.category === 'system' ? ' · système' : ' · custom');
+              opt.textContent = (env.name || 'environment') + ' · ' + ides.join(' / ') + (env.category === 'system' ? ' · système' : ' · custom');
               opt.title = env.destinationImage || '';
               workspaceEnvInput.appendChild(opt);
             });
             if (current && items.some((env) => env.destinationImage === current)) {
               workspaceEnvInput.value = current;
             }
+            syncWorkspaceIDEFromEnvironment();
+          }
+
+          function syncWorkspaceIDEFromEnvironment() {
+            const selected = state.environments.find((env) => env.destinationImage === workspaceEnvInput.value);
+            const ides = ensureArray(selected && selected.workspaceIdes);
+            workspaceIdeInput.value = ides[0] || '';
           }
 
           function renderJobEnvOptions() {
@@ -4480,7 +4488,7 @@ data:
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
 
-          workspaceIdeInput.onchange = renderWorkspaceEnvOptions;
+          workspaceEnvInput.onchange = syncWorkspaceIDEFromEnvironment;
 
           createWorkspaceBtn.onclick = async () => {
             try {
@@ -4490,7 +4498,7 @@ data:
               const ide = workspaceIdeInput.value.trim();
               if (ide) payload.ide = ide;
               const image = workspaceEnvInput.value.trim();
-              if (!image) throw { error: 'Sélectionnez un environnement compatible avec ' + (ide || 'jupyter') };
+              if (!image || !ide) throw { error: 'Sélectionnez un environnement compatible avec un workspace' };
               payload.image = image;
               const name = workspaceNameInput.value.trim();
               if (name) payload.name = name;
@@ -5437,7 +5445,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.151"}
+    {"version":"ce-web-0.6.152"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5458,7 +5466,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.151
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.152
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
