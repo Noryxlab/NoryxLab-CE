@@ -144,7 +144,7 @@ func (h Handlers) ensureProjectFileService(projectID string) (string, error) {
 	}); err != nil && !strings.Contains(err.Error(), "status=409") {
 		return "", err
 	}
-	if err := h.runtime.CreateService(noryxruntime.ServiceSpec{Name: name, Selector: map[string]string{"noryx.io/project-files": name}, Port: 8080}); err != nil && !strings.Contains(err.Error(), "status=409") {
+	if err := h.runtime.CreateService(noryxruntime.ServiceSpec{Name: name, Selector: map[string]string{"noryx.io/project-files": name}, Port: 8080, OwnerPodName: name}); err != nil && !strings.Contains(err.Error(), "status=409") {
 		return "", err
 	}
 	if !hasReadiness {

@@ -394,12 +394,18 @@ func (r *Runtime) DeletePod(name string) error {
 }
 
 func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
+	metadata := map[string]any{"name": spec.Name}
+	if strings.TrimSpace(spec.OwnerPodName) != "" {
+		uid, err := r.resourceUID(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, spec.OwnerPodName))
+		if err != nil {
+			return err
+		}
+		metadata["ownerReferences"] = ownerReferences("v1", "Pod", spec.OwnerPodName, uid)
+	}
 	payload := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "Service",
-		"metadata": map[string]any{
-			"name": spec.Name,
-		},
+		"metadata":   metadata,
 		"spec": map[string]any{
 			"selector": spec.Selector,
 			"ports": []map[string]any{
@@ -522,8 +528,18 @@ func (r *Runtime) CreateBuild(spec noryxruntime.BuildSpec) error {
 		},
 	}
 
-	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
-	return err
+	body, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
+	if err != nil {
+		return err
+	}
+	uid, err := responseUID(body)
+	if err != nil {
+		return err
+	}
+	if dockerfileArg == "/workspace/Dockerfile" {
+		return r.attachNamespacedOwner("configmaps", spec.JobName+"-dockerfile", "batch/v1", "Job", spec.JobName, uid)
+	}
+	return nil
 }
 
 func kanikoBuildArgs(spec noryxruntime.BuildSpec) ([]string, string) {
@@ -576,8 +592,15 @@ func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
 		},
 	}
 
-	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
-	return err
+	body, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/jobs", r.workloadNamespace), payload)
+	if err != nil {
+		return err
+	}
+	uid, err := responseUID(body)
+	if err != nil {
+		return err
+	}
+	return r.attachNamespacedOwner("secrets", spec.JobName+"-user-secrets", "batch/v1", "Job", spec.JobName, uid)
 }
 
 func jobPodSpec(spec noryxruntime.JobSpec) map[string]any {
@@ -693,8 +716,15 @@ func (r *Runtime) CreateCronJob(spec noryxruntime.CronJobSpec) error {
 			},
 		},
 	}
-	_, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs", r.workloadNamespace), payload)
-	return err
+	body, err := r.post(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs", r.workloadNamespace), payload)
+	if err != nil {
+		return err
+	}
+	uid, err := responseUID(body)
+	if err != nil {
+		return err
+	}
+	return r.attachNamespacedOwner("secrets", spec.CronJobName+"-user-secrets", "batch/v1", "CronJob", spec.CronJobName, uid)
 }
 
 func kubernetesEnvVars(items []noryxruntime.EnvVar) []map[string]any {
@@ -1348,6 +1378,52 @@ func (r *Runtime) patch(path string, payload any) ([]byte, error) {
 		return nil, fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
+}
+
+func (r *Runtime) resourceUID(path string) (string, error) {
+	body, err := r.get(path)
+	if err != nil {
+		return "", err
+	}
+	return responseUID(body)
+}
+
+func responseUID(body []byte) (string, error) {
+	var response struct {
+		Metadata struct {
+			UID string `json:"uid"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(response.Metadata.UID) == "" {
+		return "", fmt.Errorf("kubernetes resource UID is missing")
+	}
+	return response.Metadata.UID, nil
+}
+
+func ownerReferences(apiVersion, kind, name, uid string) []map[string]any {
+	return []map[string]any{{
+		"apiVersion": apiVersion,
+		"kind":       kind,
+		"name":       name,
+		"uid":        uid,
+	}}
+}
+
+func (r *Runtime) attachNamespacedOwner(resource, name, apiVersion, kind, ownerName, ownerUID string) error {
+	if strings.TrimSpace(name) == "" {
+		return nil
+	}
+	_, err := r.patch(
+		fmt.Sprintf("/api/v1/namespaces/%s/%s/%s", r.workloadNamespace, resource, name),
+		map[string]any{"metadata": map[string]any{"ownerReferences": ownerReferences(apiVersion, kind, ownerName, ownerUID)}},
+	)
+	if err != nil && strings.Contains(err.Error(), "status=404") {
+		return nil
+	}
+	return err
 }
 
 func (r *Runtime) delete(path string) error {

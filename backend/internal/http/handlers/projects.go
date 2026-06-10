@@ -331,5 +331,17 @@ func (h Handlers) deleteProjectWorkspaces(projectID string) error {
 			return err
 		}
 	}
+	if h.runtime != nil {
+		projectFilesName := "project-files-" + sanitizeK8sName(projectID)
+		for _, err := range []error{
+			h.runtime.DeleteService(projectFilesName),
+			h.runtime.DeletePod(projectFilesName),
+			h.runtime.DeletePersistentVolumeClaim("project-" + sanitizeK8sName(projectID)),
+		} {
+			if err != nil && !isNotFoundError(err) {
+				return err
+			}
+		}
+	}
 	return nil
 }
