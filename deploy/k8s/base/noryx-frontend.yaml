@@ -755,7 +755,7 @@ data:
                     <div id="projectCards" class="projects-grid"></div>
                     <div id="projectList" class="project-list" style="display:none;">
                       <table>
-                        <thead><tr><th>Name</th><th>ID</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Name</th><th>Actions</th></tr></thead>
                         <tbody id="projectRows"></tbody>
                       </table>
                     </div>
@@ -766,7 +766,6 @@ data:
                         <div class="project-scope-kicker">Projet actif · ressources rattachees</div>
                         <div id="projectActiveName" class="project-scope-name">Aucun projet selectionne</div>
                       </div>
-                      <code id="projectActiveId" class="project-scope-id">-</code>
                     </header>
                     <div class="project-resources">
                       <article class="card project-resource-card">
@@ -1396,7 +1395,6 @@ data:
           const projectRows = document.getElementById('projectRows');
           const projectScope = document.getElementById('projectScope');
           const projectActiveName = document.getElementById('projectActiveName');
-          const projectActiveId = document.getElementById('projectActiveId');
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
@@ -2597,7 +2595,7 @@ data:
             projectRows.innerHTML = '';
             if (filtered.length === 0) {
               projectCards.innerHTML = '<article class="project-card"><h4>No projects</h4><div class="project-meta">Create your first project to get started.</div></article>';
-              projectRows.innerHTML = '<tr><td colspan="3">' + tui('msg_no_project') + '</td></tr>';
+              projectRows.innerHTML = '<tr><td colspan="2">' + tui('msg_no_project') + '</td></tr>';
               return;
             }
             for (const p of filtered) {
@@ -2607,7 +2605,6 @@ data:
               card.innerHTML =
                 (isSelected ? '<div class="project-active-marker">Projet actif</div>' : '') +
                 '<h4>' + (p.name || '-') + '</h4>' +
-                '<div class="project-meta"><code>' + (p.id || '-') + '</code></div>' +
                 '<div class="project-actions">' +
                 (isSelected
                   ? '<button type="button" class="btn primary" disabled>Actif</button>'
@@ -2619,7 +2616,6 @@ data:
               if (isSelected) tr.classList.add('project-row-active');
               tr.innerHTML =
                 '<td><strong>' + p.name + '</strong>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
-                '<td><code>' + p.id + '</code></td>' +
                 '<td>' + (isSelected ? '<button type="button" class="btn primary" disabled>Actif</button>' : '<button type="button" class="btn" data-select-project="' + (p.id || '') + '">Activer</button>') + ' <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
               projectRows.appendChild(tr);
             }
@@ -3583,7 +3579,6 @@ data:
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
             projectActiveName.textContent = p ? (p.name || p.id || '-') : 'Aucun projet selectionne';
-            projectActiveId.textContent = p ? (p.id || '-') : '-';
             projectScope.classList.toggle('is-empty', !p);
           }
 
@@ -5442,7 +5437,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.150"}
+    {"version":"ce-web-0.6.151"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5463,7 +5458,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.150
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.151
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
