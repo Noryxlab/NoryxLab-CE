@@ -2310,6 +2310,21 @@ data:
             const projectID = selectedProjectId();
             return state.projects.find((project) => project.id === projectID) || null;
           }
+          function activeProjectStorageKey() {
+            const claims = (keycloak && keycloak.tokenParsed) || {};
+            const identity = String(claims.sub || claims.preferred_username || claims.email || currentLabUser() || 'anonymous').trim();
+            return 'noryx.activeProject.' + identity;
+          }
+          function savedActiveProjectId() {
+            try { return String(localStorage.getItem(activeProjectStorageKey()) || '').trim(); } catch (_) { return ''; }
+          }
+          function saveActiveProjectId(projectID) {
+            try {
+              const value = String(projectID || '').trim();
+              if (value) localStorage.setItem(activeProjectStorageKey(), value);
+              else localStorage.removeItem(activeProjectStorageKey());
+            } catch (_) {}
+          }
           function projectName(projectID) {
             const project = state.projects.find((item) => item.id === projectID);
             return project ? (project.name || 'Projet') : 'Projet';
@@ -2739,6 +2754,7 @@ data:
 
           function renderProjectOptions() {
             const current = selectedProjectId();
+            const saved = savedActiveProjectId();
             projectSelect.innerHTML = '';
             for (const p of state.projects) {
               const opt = document.createElement('option');
@@ -2748,7 +2764,10 @@ data:
             }
             if (current && state.projects.some(p => p.id === current)) {
               projectSelect.value = current;
+            } else if (saved && state.projects.some(p => p.id === saved)) {
+              projectSelect.value = saved;
             }
+            saveActiveProjectId(selectedProjectId());
           }
 
           function renderProjectsTable() {
@@ -4680,6 +4699,7 @@ data:
 
           async function selectProjectAndRefresh(projectID) {
             projectSelect.value = projectID;
+            saveActiveProjectId(projectID);
             projectFilesCurrentPath = '';
             projectFileEditorPath = '';
             projectFileEditor.style.display = 'none';
@@ -4731,6 +4751,7 @@ data:
 
           projectSelect.onchange = async () => {
             try {
+              saveActiveProjectId(selectedProjectId());
               await Promise.all([refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
               await refreshJobs();
               await refreshApps();
@@ -6065,7 +6086,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.175"}
+    {"version":"ce-web-0.6.176"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6086,7 +6107,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.175
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.176
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
