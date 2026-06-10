@@ -124,6 +124,6 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 
 	return &http.Server{
 		Addr:    cfg.ListenAddr,
-		Handler: mux,
+		Handler: h.AuditMutations(mux),
 	}
 }
