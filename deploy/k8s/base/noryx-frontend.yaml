@@ -641,7 +641,7 @@ data:
             <div class="menu-title" data-i18n="menu_develop">Develop</div>
             <div class="menu">
               <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Projets</span></button>
-              <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Espaces de travail</span></button>
+              <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Workspaces</span></button>
               <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Traitements</span></button>
             </div>
             <hr class="side-sep" />
@@ -1073,7 +1073,7 @@ data:
                     </div>
                     <table>
                       <thead>
-                        <tr><th>Name</th><th>Projet</th><th>IDE / environnement</th><th>Pod</th><th>Volume</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                        <tr><th>Name</th><th>Projet</th><th>IDE / environnement</th><th>Pod</th><th>Volume</th><th>Lancé le</th><th>Up depuis</th><th>Status</th><th>Access</th><th>Actions</th></tr>
                       </thead>
                       <tbody id="workspaceRows"></tbody>
                     </table>
@@ -1784,7 +1784,7 @@ data:
               tab_environments: 'Environnements',
               tab_datasets: 'Datasets',
               tab_projects_overview: "Projets",
-              tab_workspaces: 'Espaces de travail',
+              tab_workspaces: 'Workspaces',
               tab_jobs: 'Traitements',
               tab_apis: 'Services API',
               tab_activity: 'Activites',
@@ -1822,8 +1822,8 @@ data:
               btn_create_repo: 'Creer depot',
               btn_create_datasource: 'Creer connexion',
               btn_refresh_datasources: 'Actualiser connexions',
-              btn_launch_workspace: 'Lancer espace',
-              btn_refresh_workspaces: 'Actualiser espaces',
+              btn_launch_workspace: 'Lancer un workspace',
+              btn_refresh_workspaces: 'Actualiser les workspaces',
               btn_refresh_jobs: 'Actualiser',
               btn_refresh_apps: 'Actualiser',
               btn_refresh_dashboards: 'Actualiser',
@@ -1840,7 +1840,7 @@ data:
               ph_ds_port: 'Port',
               ph_ds_db: 'Base',
               ph_ds_user: 'Utilisateur',
-              ph_workspace_name: "Nom de l'espace (optionnel)",
+              ph_workspace_name: "Nom du workspace (optionnel)",
               ph_workspace_size: 'Taille stockage (ex: 10Gi)',
               ph_job_name: 'Nom du traitement (optionnel)',
               ph_job_cmd: 'Commande shell',
@@ -1861,7 +1861,7 @@ data:
               msg_no_dataset: 'Aucun dataset.',
               msg_no_repository: 'Aucun depot.',
               msg_no_datasource: 'Aucune connexion.',
-              msg_no_workspace_project: 'Aucun espace pour ce projet.',
+              msg_no_workspace_project: 'Aucun workspace pour ce projet.',
               msg_no_jobs_project: 'Aucun traitement pour ce projet.',
               msg_no_apps_project: 'Aucune application pour ce projet.',
               msg_no_dashboards_project: 'Aucun dashboard pour ce projet.',
@@ -1896,7 +1896,7 @@ data:
               tab_label_intro: 'Accueil',
               tab_label_projects: 'Projets',
               tab_label_data: 'Donnees',
-              tab_label_workspaces: 'Espaces',
+              tab_label_workspaces: 'Workspaces',
               tab_label_project_jobs: 'Traitements',
               tab_label_project_apps: 'Applications',
               tab_label_project_dashboards: 'Dashboards',
@@ -1910,8 +1910,8 @@ data:
               section_subtitle_projects: 'Gestion des projets et rattachement des ressources.',
               section_title_data: 'Data',
               section_subtitle_data: 'Catalogues de datasets, depots, connexions et secrets.',
-              section_title_workspaces: 'Espaces de travail',
-              section_subtitle_workspaces: 'Lancement et suivi des IDE collaboratifs.',
+              section_title_workspaces: 'Workspaces',
+              section_subtitle_workspaces: 'Lancement et suivi des environnements de travail.',
               section_title_jobs: 'Traitements',
               section_subtitle_jobs: 'Execution batch sur environnement selectionne.',
               section_title_apps: 'Applications',
@@ -2867,6 +2867,22 @@ data:
             }
             return (idx === 0 ? String(Math.round(size)) : size.toFixed(size >= 10 ? 1 : 2)) + ' ' + units[idx];
           }
+          function formatUptime(createdAt, status) {
+            if (!String(status || '').toLowerCase().includes('run')) return '-';
+            const started = new Date(createdAt || '').getTime();
+            if (!Number.isFinite(started)) return '-';
+            let seconds = Math.max(0, Math.floor((Date.now() - started) / 1000));
+            const days = Math.floor(seconds / 86400);
+            seconds %= 86400;
+            const hours = Math.floor(seconds / 3600);
+            seconds %= 3600;
+            const minutes = Math.floor(seconds / 60);
+            const parts = [];
+            if (days) parts.push(days + ' j');
+            if (hours || days) parts.push(hours + ' h');
+            parts.push(minutes + ' min');
+            return parts.join(' ');
+          }
           function setDatasetTransfer(label, loaded, total, indeterminate) {
             datasetTransfer.style.display = '';
             datasetTransfer.classList.toggle('is-indeterminate', !!indeterminate);
@@ -3166,7 +3182,7 @@ data:
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
-              workspaceRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_workspace_project') + '</td></tr>';
+              workspaceRows.innerHTML = '<tr><td colspan="10">' + tui('msg_no_workspace_project') + '</td></tr>';
               return;
             }
             for (const w of items) {
@@ -3183,12 +3199,21 @@ data:
                 '<td><code>' + (w.kind || 'jupyter') + '</code><br/><span style="color:#667a98">' + escapeHTML(w.image || '-') + '</span></td>' +
                 '<td><code>' + (w.podName || '-') + '</code></td>' +
                 '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
+                '<td>' + formatDateTime(w.createdAt) + '</td>' +
+                '<td data-workspace-up="' + escapeHTML(w.createdAt || '') + '" data-workspace-status="' + escapeHTML(w.status || '') + '">' + formatUptime(w.createdAt, w.status) + '</td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
                 '<td>' + displayAccessUrl(w.accessUrl) + '</td>' +
                 '<td>' + openBtn + ' <button type="button" class="btn danger" data-del="' + w.id + '">Delete</button></td>';
               workspaceRows.appendChild(tr);
             }
           }
+
+          function refreshWorkspaceUptimes() {
+            document.querySelectorAll('[data-workspace-up]').forEach((node) => {
+              node.textContent = formatUptime(node.getAttribute('data-workspace-up'), node.getAttribute('data-workspace-status'));
+            });
+          }
+          window.setInterval(refreshWorkspaceUptimes, 1000);
 
           function renderHardwareTierOptions() {
             [workspaceHardwareTierInput, jobHardwareTierInput, appHardwareTierInput, dashboardHardwareTierInput].forEach((select) => {
@@ -5706,7 +5731,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.155"}
+    {"version":"ce-web-0.6.156"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5727,7 +5752,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.155
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.156
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

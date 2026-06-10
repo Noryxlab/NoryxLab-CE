@@ -1,5 +1,7 @@
 package runtime
 
+import "time"
+
 type EnvVar struct {
 	Name       string
 	Value      string
@@ -155,13 +157,14 @@ type WorkspaceReadiness interface {
 }
 
 type WorkspaceRuntimeInfo struct {
-	WorkspaceID string `json:"workspaceId"`
-	ProjectID   string `json:"projectId"`
-	Kind        string `json:"kind"`
-	PodName     string `json:"podName"`
-	ServiceName string `json:"serviceName"`
-	Image       string `json:"image"`
-	AccessToken string `json:"accessToken"`
+	WorkspaceID string    `json:"workspaceId"`
+	ProjectID   string    `json:"projectId"`
+	Kind        string    `json:"kind"`
+	PodName     string    `json:"podName"`
+	ServiceName string    `json:"serviceName"`
+	Image       string    `json:"image"`
+	AccessToken string    `json:"accessToken"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type WorkspaceDiscovery interface {

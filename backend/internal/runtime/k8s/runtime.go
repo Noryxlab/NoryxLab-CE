@@ -868,8 +868,9 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 	var response struct {
 		Items []struct {
 			Metadata struct {
-				Name   string            `json:"name"`
-				Labels map[string]string `json:"labels"`
+				Name              string            `json:"name"`
+				Labels            map[string]string `json:"labels"`
+				CreationTimestamp time.Time         `json:"creationTimestamp"`
 			} `json:"metadata"`
 			Spec struct {
 				Containers []struct {
@@ -919,6 +920,7 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			ServiceName: podName,
 			Image:       image,
 			AccessToken: strings.TrimSpace(accessToken),
+			CreatedAt:   item.Metadata.CreationTimestamp.UTC(),
 		})
 	}
 
