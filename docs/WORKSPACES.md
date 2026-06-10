@@ -11,6 +11,19 @@ Current CE baseline for workspaces:
 - workload namespace: `noryx-loads` (via `NORYX_WORKLOAD_NAMESPACE`)
 - generated runtime pod name prefix: `wks-`
 
+## Git identity
+
+At startup, a workspace configures the Git author identity from the authenticated
+Keycloak user:
+
+- `user.name` uses the Keycloak username.
+- `user.email` uses the Keycloak email, with a local fallback when unavailable.
+- The Git configuration is stored in the persistent user profile and reused by
+  subsequent workspaces.
+
+Repository authentication remains managed by the attached repository
+credentials. Git author identity and repository authentication are separate.
+
 ## API
 
 - `GET /api/v1/workspaces`
