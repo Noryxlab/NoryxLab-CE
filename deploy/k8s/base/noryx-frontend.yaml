@@ -1165,7 +1165,7 @@ data:
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="jobProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Run one-shot jobs in selected project with selected environment image.</div>
+                    <div class="hint">Lancez un job immédiatement ou automatisez son exécution avec une planification cron.</div>
                     <div class="row">
                       <input id="jobName" placeholder="job name (optional)" />
                       <select id="jobEnv"></select>
@@ -1173,12 +1173,30 @@ data:
                     </div>
                     <div class="row">
                       <input id="jobCommand" value="python -V" placeholder="shell command" />
+                      <select id="jobMode">
+                        <option value="job">Job ponctuel</option>
+                        <option value="cron">Job planifié</option>
+                      </select>
+                    </div>
+                    <div class="row">
+                      <input id="jobSchedule" value="0 8 * * 1-5" placeholder="Cron: minute heure jour mois semaine" disabled />
+                      <select id="jobTimeZone" disabled>
+                        <option value="Europe/Paris">Europe/Paris</option>
+                        <option value="UTC">UTC</option>
+                      </select>
                       <button id="createJob" class="btn warn">Launch Job</button>
                       <button id="loadJobs" class="btn">Refresh</button>
                     </div>
+                    <h3>Jobs exécutés</h3>
                     <table>
                       <thead><tr><th>Name</th><th>Projet</th><th>Pod/Job</th><th>Image</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
                       <tbody id="jobRows"></tbody>
+                    </table>
+                    <h3>Automatisations</h3>
+                    <div class="hint">Format cron standard à 5 champs. Les exécutions simultanées d’une même planification sont interdites.</div>
+                    <table>
+                      <thead><tr><th>Nom</th><th>Projet</th><th>Planification</th><th>Fuseau</th><th>Image</th><th>Dernière exécution</th><th>Actions</th></tr></thead>
+                      <tbody id="cronJobRows"></tbody>
                     </table>
                     <h3>Job Logs</h3>
                     <pre id="jobLogsOut">-</pre>
@@ -1468,9 +1486,13 @@ data:
           const jobEnvInput = document.getElementById('jobEnv');
           const jobHardwareTierInput = document.getElementById('jobHardwareTier');
           const jobCommandInput = document.getElementById('jobCommand');
+          const jobModeInput = document.getElementById('jobMode');
+          const jobScheduleInput = document.getElementById('jobSchedule');
+          const jobTimeZoneInput = document.getElementById('jobTimeZone');
           const createJobBtn = document.getElementById('createJob');
           const loadJobsBtn = document.getElementById('loadJobs');
           const jobRows = document.getElementById('jobRows');
+          const cronJobRows = document.getElementById('cronJobRows');
           const jobLogsOut = document.getElementById('jobLogsOut');
           const appNameInput = document.getElementById('appName');
           const appSlugInput = document.getElementById('appSlug');
@@ -1715,6 +1737,7 @@ data:
             workspaces: [],
             hardwareTiers: [],
             jobs: [],
+            cronJobs: [],
             apps: [],
             dashboards: [],
             builds: [],
@@ -3349,19 +3372,38 @@ data:
             jobRows.innerHTML = '';
             if (items.length === 0) {
               jobRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_jobs_project') + '</td></tr>';
+            } else {
+              items.forEach((j) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + escapeHTML(j.name || j.jobName || 'Job') + '</strong></td>' +
+                  '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong></td>' +
+                  '<td><code>' + (j.jobName || '-') + '</code></td>' +
+                  '<td><code>' + (j.image || '-') + '</code></td>' +
+                  '<td>' + badge(j.status || 'submitted') + '</td>' +
+                  '<td><code>' + (j.createdAt || '-') + '</code></td>' +
+                  '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">Logs</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Delete</button></td>';
+                jobRows.appendChild(tr);
+              });
+            }
+
+            const cronItems = state.cronJobs.filter((j) => !pid || j.projectId === pid);
+            cronJobRows.innerHTML = '';
+            if (cronItems.length === 0) {
+              cronJobRows.innerHTML = '<tr><td colspan="7">Aucune automatisation pour ce projet.</td></tr>';
               return;
             }
-            items.forEach((j) => {
+            cronItems.forEach((j) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><strong>' + (j.name || j.id) + '</strong><br/><span style="color:#667a98">' + (j.id || '-') + '</span></td>' +
-                '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong><br/><code>' + escapeHTML(j.projectId || '-') + '</code></td>' +
-                '<td><code>' + (j.jobName || '-') + '</code></td>' +
-                '<td><code>' + (j.image || '-') + '</code></td>' +
-                '<td>' + badge(j.status || 'submitted') + '</td>' +
-                '<td><code>' + (j.createdAt || '-') + '</code></td>' +
-                '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">Logs</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Delete</button></td>';
-              jobRows.appendChild(tr);
+                '<td><strong>' + escapeHTML(j.name || j.cronJobName || 'Job planifié') + '</strong></td>' +
+                '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong></td>' +
+                '<td><code>' + escapeHTML(j.schedule || '-') + '</code></td>' +
+                '<td>' + escapeHTML(j.timeZone || 'UTC') + '</td>' +
+                '<td><code>' + escapeHTML(j.image || '-') + '</code></td>' +
+                '<td><code>' + escapeHTML(j.lastScheduleAt || 'Jamais') + '</code></td>' +
+                '<td><button type="button" class="btn danger" data-del-cronjob="' + escapeHTML(j.id || '') + '">Supprimer</button></td>';
+              cronJobRows.appendChild(tr);
             });
           }
 
@@ -3980,10 +4022,14 @@ data:
           async function refreshJobs() {
             const pid = selectedProjectId();
             const query = pid ? ('?projectId=' + encodeURIComponent(pid)) : '';
-            const body = await callJSON('/api/v1/jobs' + query);
-            state.jobs = ensureArray(body.items);
+            const bodies = await Promise.all([
+              callJSON('/api/v1/jobs' + query),
+              callJSON('/api/v1/cronjobs' + query)
+            ]);
+            state.jobs = ensureArray(bodies[0].items);
+            state.cronJobs = ensureArray(bodies[1].items);
             renderAll();
-            return body;
+            return bodies[0];
           }
 
           async function refreshApps() {
@@ -4819,7 +4865,13 @@ data:
               if (name) payload.name = name;
               const rawCommand = (jobCommandInput.value || '').trim();
               if (rawCommand) payload.args = [rawCommand];
-              await callJSON('/api/v1/jobs', {
+              const scheduled = jobModeInput.value === 'cron';
+              if (scheduled) {
+                payload.schedule = jobScheduleInput.value.trim();
+                payload.timeZone = jobTimeZoneInput.value;
+                if (!payload.schedule) throw { error: 'La planification cron est obligatoire.' };
+              }
+              await callJSON(scheduled ? '/api/v1/cronjobs' : '/api/v1/jobs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -4830,6 +4882,13 @@ data:
               pretty(usersOut, e);
               switchTab('ops');
             }
+          };
+
+          jobModeInput.onchange = () => {
+            const scheduled = jobModeInput.value === 'cron';
+            jobScheduleInput.disabled = !scheduled;
+            jobTimeZoneInput.disabled = !scheduled;
+            createJobBtn.textContent = scheduled ? 'Créer la planification' : 'Lancer le job';
           };
 
           createAppBtn.onclick = async () => {
@@ -5184,6 +5243,18 @@ data:
             if (!delId) return;
             try {
               await callJSON('/api/v1/jobs/' + encodeURIComponent(delId), { method: 'DELETE' });
+              await refreshJobs();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          cronJobRows.onclick = async (event) => {
+            const delId = event.target && event.target.getAttribute('data-del-cronjob');
+            if (!delId || !window.confirm('Supprimer cette planification ?')) return;
+            try {
+              await callJSON('/api/v1/cronjobs/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshJobs();
             } catch (e) {
               pretty(usersOut, e);
@@ -5725,7 +5796,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.161"}
+    {"version":"ce-web-0.6.162"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -5746,7 +5817,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.161
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.162
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

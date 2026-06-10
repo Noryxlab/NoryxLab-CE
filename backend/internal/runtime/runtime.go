@@ -68,6 +68,14 @@ type JobSpec struct {
 	Labels                  map[string]string
 }
 
+type CronJobSpec struct {
+	JobSpec
+	CronJobName string
+	DisplayName string
+	Schedule    string
+	TimeZone    string
+}
+
 type PersistentVolumeClaimSpec struct {
 	Name             string
 	StorageClassName string
@@ -118,6 +126,8 @@ type Runner interface {
 	CreateBuild(spec BuildSpec) error
 	CreateJob(spec JobSpec) error
 	DeleteJob(name string) error
+	CreateCronJob(spec CronJobSpec) error
+	DeleteCronJob(name string) error
 	CreateSecret(spec SecretSpec) error
 	DeleteSecret(name string) error
 }
@@ -197,6 +207,23 @@ type JobRuntimeInfo struct {
 
 type JobDiscovery interface {
 	ListJobs() ([]JobRuntimeInfo, error)
+}
+
+type CronJobRuntimeInfo struct {
+	CronJobID      string     `json:"id"`
+	ProjectID      string     `json:"projectId"`
+	Name           string     `json:"name"`
+	CronJobName    string     `json:"cronJobName"`
+	Schedule       string     `json:"schedule"`
+	TimeZone       string     `json:"timeZone"`
+	Suspended      bool       `json:"suspended"`
+	Image          string     `json:"image"`
+	LastScheduleAt *time.Time `json:"lastScheduleAt,omitempty"`
+	CreatedAt      time.Time  `json:"createdAt"`
+}
+
+type CronJobDiscovery interface {
+	ListCronJobs() ([]CronJobRuntimeInfo, error)
 }
 
 type JobLogs struct {
