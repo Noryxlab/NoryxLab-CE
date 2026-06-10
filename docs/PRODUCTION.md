@@ -1,13 +1,13 @@
 # Production
 
-The architectural decision is documented in
-[`ADR-001: Separate development lifecycle from production operations`](../adr/ADR-001-develop-production-lifecycle-boundary.md).
+The architectural decision is documented in NoryxProject:
+[`ADR-022: Separate development lifecycle from production operations`](https://github.com/Noryxlab/NoryxProject/blob/main/adr/ADR-022-development-and-production-lifecycle-boundary.md).
 
 Noryx separates project-scoped publication from production operations:
 
 - `Develop` contains project-scoped creation and lifecycle management for apps,
   dashboards, and future API services.
-- `Deploy > Production` is a transverse operational inventory of published
+- `Production` is a transverse operational inventory of published
   services across every project accessible to the current user.
 
 The production inventory exposes service type, project, runtime status, visitor
