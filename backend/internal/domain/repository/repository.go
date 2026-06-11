@@ -8,17 +8,20 @@ import (
 )
 
 type Repository struct {
-	ID             string    `json:"id"`
-	OwnerUserID    string    `json:"ownerUserId"`
-	Name           string    `json:"name"`
-	URL            string    `json:"url"`
-	DefaultRef     string    `json:"defaultRef"`
-	AuthSecretName string    `json:"authSecretName,omitempty"`
-	AuthType       string    `json:"authType"`
-	GitAuthorName  string    `json:"gitAuthorName,omitempty"`
-	GitAuthorEmail string    `json:"gitAuthorEmail,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID              string     `json:"id"`
+	OwnerUserID     string     `json:"ownerUserId"`
+	Name            string     `json:"name"`
+	URL             string     `json:"url"`
+	DefaultRef      string     `json:"defaultRef"`
+	AuthSecretName  string     `json:"authSecretName,omitempty"`
+	AuthType        string     `json:"authType"`
+	GitAuthorName   string     `json:"gitAuthorName,omitempty"`
+	GitAuthorEmail  string     `json:"gitAuthorEmail,omitempty"`
+	Reachable       bool       `json:"reachable"`
+	ValidationError string     `json:"validationError,omitempty"`
+	LastValidatedAt *time.Time `json:"lastValidatedAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 func New(ownerUserID, name, url, defaultRef, authSecretName, authType, gitAuthorName, gitAuthorEmail string) Repository {

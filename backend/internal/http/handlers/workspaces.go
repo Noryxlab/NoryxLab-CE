@@ -638,6 +638,11 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 		if !found || item.OwnerUserID != userID {
 			continue
 		}
+		if item.AuthSecretName != "" {
+			if _, err := h.resolveRepositorySecretValueForWorkspace(userID, item.AuthSecretName); err != nil {
+				return nil, nil, fmt.Errorf("repository %s credentials: %w", item.Name, err)
+			}
+		}
 		attachedRepos = append(attachedRepos, workspaceAttachedRepo{
 			Name:           fallbackResourceName(item.Name, item.ID),
 			URL:            strings.TrimSpace(item.URL),
@@ -816,6 +821,9 @@ func (h Handlers) resolveRepositorySecretValueForWorkspace(userID, secretName st
 	}
 	if !found {
 		return "", fmt.Errorf("repository auth secret not found: %s", secretName)
+	}
+	if item.ExpiresAt != nil && time.Now().UTC().After(*item.ExpiresAt) {
+		return "", fmt.Errorf("repository auth secret expired: %s", secretName)
 	}
 	if strings.TrimSpace(h.secretsMasterKey) == "" {
 		return "", fmt.Errorf("secrets encryption key is not configured")

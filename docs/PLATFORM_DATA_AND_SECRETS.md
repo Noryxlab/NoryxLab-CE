@@ -109,6 +109,10 @@ Repository records separate:
 - the user secret reference (`authSecretName`) used for clone, pull, and push
 
 Tokens remain stored as encrypted secrets and are never returned in repository records.
+Repository connectivity status is persisted after creation, update, manual
+validation, and project attachment. Attachment is rejected when the repository
+or its current credential is no longer accessible. Expired Git secrets are
+rejected before workload launch.
 
 ## Project attachments
 

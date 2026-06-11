@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -54,6 +56,10 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and url are required"})
 		return
 	}
+	if err := validateRepositoryGitIdentity(req.GitAuthorName, req.GitAuthorEmail); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	authType, ok := normalizeRepositoryAuthType(w, req.AuthType, req.AuthSecretName)
 	if !ok {
 		return
@@ -70,6 +76,7 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := repository.New(userID, req.Name, req.URL, req.DefaultRef, req.AuthSecretName, authType, req.GitAuthorName, req.GitAuthorEmail)
+	setRepositoryValidation(&item, nil)
 	if err := h.repositoryStore.Create(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create repository"})
 		return
@@ -107,6 +114,10 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and url are required"})
 		return
 	}
+	if err := validateRepositoryGitIdentity(req.GitAuthorName, req.GitAuthorEmail); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	authType, ok := normalizeRepositoryAuthType(w, req.AuthType, req.AuthSecretName)
 	if !ok {
 		return
@@ -126,12 +137,39 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	item.AuthType = authType
 	item.GitAuthorName = req.GitAuthorName
 	item.GitAuthorEmail = req.GitAuthorEmail
+	setRepositoryValidation(&item, nil)
 	item.UpdatedAt = time.Now().UTC()
 	if err := h.repositoryStore.Update(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update repository"})
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func validateRepositoryGitIdentity(name, email string) error {
+	name = strings.TrimSpace(name)
+	email = strings.TrimSpace(email)
+	if (name == "") != (email == "") {
+		return fmt.Errorf("gitAuthorName and gitAuthorEmail must be configured together")
+	}
+	if email == "" {
+		return nil
+	}
+	address, err := mail.ParseAddress(email)
+	if err != nil || !strings.EqualFold(strings.TrimSpace(address.Address), email) {
+		return fmt.Errorf("gitAuthorEmail must be a valid email address")
+	}
+	return nil
+}
+
+func setRepositoryValidation(item *repository.Repository, validationErr error) {
+	now := time.Now().UTC()
+	item.LastValidatedAt = &now
+	item.Reachable = validationErr == nil
+	item.ValidationError = ""
+	if validationErr != nil {
+		item.ValidationError = validationErr.Error()
+	}
 }
 
 func normalizeRepositoryAuthType(w http.ResponseWriter, authType, authSecretName string) (string, bool) {
@@ -174,19 +212,26 @@ func (h Handlers) ValidateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateRepositoryConnectivity(item.URL, secretValue); err != nil {
+	validationErr := validateRepositoryConnectivity(item.URL, secretValue)
+	setRepositoryValidation(&item, validationErr)
+	item.UpdatedAt = time.Now().UTC()
+	if err := h.repositoryStore.Update(item); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist repository validation"})
+		return
+	}
+	if validationErr != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"repositoryId": item.ID,
 			"reachable":    false,
-			"error":        err.Error(),
-			"checkedAt":    time.Now().UTC(),
+			"error":        validationErr.Error(),
+			"checkedAt":    item.LastValidatedAt,
 		})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"repositoryId": item.ID,
 		"reachable":    true,
-		"checkedAt":    time.Now().UTC(),
+		"checkedAt":    item.LastValidatedAt,
 	})
 }
 
@@ -228,6 +273,10 @@ func (h Handlers) resolveRepositorySecretValue(w http.ResponseWriter, userID, se
 	}
 	if !found {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authSecretName not found for current user"})
+		return "", false
+	}
+	if item.ExpiresAt != nil && time.Now().UTC().After(*item.ExpiresAt) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authSecretName is expired"})
 		return "", false
 	}
 	if strings.TrimSpace(h.secretsMasterKey) == "" {
@@ -295,6 +344,21 @@ func (h Handlers) AttachProjectRepository(w http.ResponseWriter, r *http.Request
 	}
 	if !found || item.OwnerUserID != userID {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "repository not found"})
+		return
+	}
+	secretValue, ok := h.resolveRepositorySecretValue(w, userID, item.AuthSecretName)
+	if !ok {
+		return
+	}
+	validationErr := validateRepositoryConnectivity(item.URL, secretValue)
+	setRepositoryValidation(&item, validationErr)
+	item.UpdatedAt = time.Now().UTC()
+	if err := h.repositoryStore.Update(item); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist repository validation"})
+		return
+	}
+	if validationErr != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository cannot be attached: " + validationErr.Error()})
 		return
 	}
 	if err := h.projectResourceStore.AttachRepository(projectID, repositoryID); err != nil {
