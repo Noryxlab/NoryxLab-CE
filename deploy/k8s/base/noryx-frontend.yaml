@@ -1573,6 +1573,7 @@ data:
           const jobLogsOut = document.getElementById('jobLogsOut');
           const appNameInput = document.getElementById('appName');
           const appSlugInput = document.getElementById('appSlug');
+          let appSlugCustomized = false;
           const appEnvInput = document.getElementById('appEnv');
           const appHardwareTierInput = document.getElementById('appHardwareTier');
           const appPortInput = document.getElementById('appPort');
@@ -1590,6 +1591,7 @@ data:
           const productionPublic = document.getElementById('productionPublic');
           const dashboardNameInput = document.getElementById('dashboardName');
           const dashboardSlugInput = document.getElementById('dashboardSlug');
+          let dashboardSlugCustomized = false;
           const dashboardEnvInput = document.getElementById('dashboardEnv');
           const dashboardHardwareTierInput = document.getElementById('dashboardHardwareTier');
           const dashboardPortInput = document.getElementById('dashboardPort');
@@ -3059,6 +3061,17 @@ data:
             return String(value == null ? '' : value)
               .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
               .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          }
+
+          function normalizeSlug(value) {
+            return String(value == null ? '' : value)
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-+|-+$/g, '')
+              .slice(0, 32)
+              .replace(/-+$/g, '');
           }
 
           function renderDatasetObjectsTable() {
@@ -5139,6 +5152,21 @@ data:
             createJobBtn.textContent = scheduled ? 'Créer la planification' : 'Lancer le job';
           };
 
+          appNameInput.oninput = () => {
+            if (!appSlugCustomized) appSlugInput.value = normalizeSlug(appNameInput.value);
+          };
+          appSlugInput.oninput = () => {
+            appSlugInput.value = normalizeSlug(appSlugInput.value);
+            appSlugCustomized = appSlugInput.value !== '';
+          };
+          dashboardNameInput.oninput = () => {
+            if (!dashboardSlugCustomized) dashboardSlugInput.value = normalizeSlug(dashboardNameInput.value);
+          };
+          dashboardSlugInput.oninput = () => {
+            dashboardSlugInput.value = normalizeSlug(dashboardSlugInput.value);
+            dashboardSlugCustomized = dashboardSlugInput.value !== '';
+          };
+
           createAppBtn.onclick = async () => {
             try {
               const projectId = selectedProjectId();
@@ -5155,7 +5183,8 @@ data:
               const hardwareTier = appHardwareTierInput.value.trim();
               if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = appNameInput.value.trim();
-              const slug = appSlugInput.value.trim();
+              const slug = normalizeSlug(appSlugInput.value);
+              appSlugInput.value = slug;
               const cmd = appCommandInput.value.trim();
               const portRaw = appPortInput.value.trim();
               if (name) payload.name = name;
@@ -5189,7 +5218,8 @@ data:
               const hardwareTier = dashboardHardwareTierInput.value.trim();
               if (hardwareTier) payload.hardwareTier = hardwareTier;
               const name = dashboardNameInput.value.trim();
-              const slug = dashboardSlugInput.value.trim();
+              const slug = normalizeSlug(dashboardSlugInput.value);
+              dashboardSlugInput.value = slug;
               const cmd = dashboardCommandInput.value.trim();
               const portRaw = dashboardPortInput.value.trim();
               if (name) payload.name = name;
@@ -6081,7 +6111,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.178"}
+    {"version":"ce-web-0.6.179"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6102,7 +6132,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.178
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.179
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
