@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.149
+  version: 0.5.150
   description: |
     Noryx CE backend API contract.
 
@@ -547,6 +547,11 @@ components:
           enum: [none, persat, prat]
         gitAuthorName: { type: string }
         gitAuthorEmail: { type: string }
+        reachable: { type: boolean }
+        validationError: { type: string }
+        lastValidatedAt:
+          type: string
+          format: date-time
         createdAt:
           type: string
           format: date-time
