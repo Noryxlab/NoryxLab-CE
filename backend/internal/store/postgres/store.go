@@ -1029,6 +1029,9 @@ func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, err
 	if v := strings.TrimSpace(filter.ActorUserID); v != "" {
 		clauses = append(clauses, "actor_user_id = "+nextArg(v))
 	}
+	if v := strings.TrimSpace(filter.ResourceID); v != "" {
+		clauses = append(clauses, "resource_id = "+nextArg(v))
+	}
 	if v := strings.TrimSpace(filter.ProjectID); v != "" {
 		clauses = append(clauses, "project_id = "+nextArg(v))
 	}
