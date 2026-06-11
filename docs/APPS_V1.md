@@ -28,7 +28,18 @@ Apps V1 allows project members to deploy long-running web services and expose th
 
 - `GET /api/v1/apps?projectId=<id>`
 - `POST /api/v1/apps`
+- `GET /api/v1/apps/{appID}/logs?tailLines=500`
+- `POST /api/v1/apps/{appID}/restart`
+- `POST /api/v1/apps/{appID}/stop`
 - `DELETE /api/v1/apps/{appID}`
+
+Lifecycle semantics:
+
+- `restart` recreates an active pod from its current Kubernetes specification;
+- `stop` removes the pod but keeps the application record and URL reservation;
+- `delete` permanently removes the record, pod, service and workload secrets;
+- a stopped application must be deployed again rather than restarted from a
+  potentially stale runtime specification.
 
 Create payload example:
 

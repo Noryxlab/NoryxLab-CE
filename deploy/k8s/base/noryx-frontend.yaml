@@ -1280,6 +1280,8 @@ data:
                         <tbody id="appRows"></tbody>
                       </table>
                     </div>
+                    <h4>Logs de l'application</h4>
+                    <pre id="appLogsOut">Sélectionnez Logs sur une application.</pre>
                   </article>
                 </div>
               </section>
@@ -1591,6 +1593,7 @@ data:
           const createAppBtn = document.getElementById('createApp');
           const loadAppsBtn = document.getElementById('loadApps');
           const appRows = document.getElementById('appRows');
+          const appLogsOut = document.getElementById('appLogsOut');
           const loadProductionBtn = document.getElementById('loadProduction');
           const productionRows = document.getElementById('productionRows');
           const productionTotal = document.getElementById('productionTotal');
@@ -3636,15 +3639,19 @@ data:
             }
             items.forEach((a) => {
               const tr = document.createElement('tr');
+              const health = [a.healthMessage || '', a.startedAt ? ('Démarrée : ' + a.startedAt) : '', a.restartCount ? ('Redémarrages conteneur : ' + a.restartCount) : ''].filter(Boolean).join(' · ');
+              const restartAction = a.status === 'stopped'
+                ? '<button type="button" class="btn" disabled title="Une application arrêtée doit être redéployée">Restart</button>'
+                : '<button type="button" class="btn" data-restart-app="' + (a.id || '') + '">Restart</button>';
               tr.innerHTML =
                 '<td><strong>' + escapeHTML(a.name || 'App') + '</strong></td>' +
                 '<td><strong>' + escapeHTML(projectName(a.projectId)) + '</strong></td>' +
                 '<td><code>' + escapeHTML(a.slug || '-') + '</code></td>' +
                 '<td><code>' + escapeHTML(a.podName || '-') + '</code></td>' +
-                '<td>' + badge(a.status || 'submitted') + '</td>' +
+                '<td title="' + escapeHTML(health) + '">' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + badge(a.accessMode || 'project') + '</td>' +
                 '<td>' + appAccessLink(a) + '</td>' +
-                '<td class="app-actions"><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
+                '<td class="app-actions"><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn" data-logs-app="' + (a.id || '') + '">Logs</button> ' + restartAction + ' <button type="button" class="btn" data-stop-app="' + (a.id || '') + '">Stop</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
             });
           }
@@ -5579,6 +5586,9 @@ data:
           appRows.onclick = async (event) => {
             const openId = (event.target && event.target.getAttribute('data-open-app'));
             const copyId = (event.target && event.target.getAttribute('data-copy-app'));
+            const logsId = (event.target && event.target.getAttribute('data-logs-app'));
+            const restartId = (event.target && event.target.getAttribute('data-restart-app'));
+            const stopId = (event.target && event.target.getAttribute('data-stop-app'));
             const delId = (event.target && event.target.getAttribute('data-del-app'));
             if (copyId) {
               const item = state.apps.find((a) => a.id === copyId);
@@ -5592,13 +5602,41 @@ data:
               }
               return;
             }
-            if (!delId) return;
+            if (logsId) {
+              try {
+                const body = await callJSON('/api/v1/apps/' + encodeURIComponent(logsId) + '/logs?tailLines=500');
+                appLogsOut.textContent = '[pod=' + (body.podName || '-') + ']\n' + (body.logs || '');
+              } catch (e) {
+                appLogsOut.textContent = String((e && e.error) || e || 'Logs indisponibles.');
+              }
+              return;
+            }
+            if (restartId) {
+              if (!window.confirm('Redémarrer cette application ?')) return;
+              try {
+                await callJSON('/api/v1/apps/' + encodeURIComponent(restartId) + '/restart', { method: 'POST' });
+                await refreshApps();
+              } catch (e) {
+                appLogsOut.textContent = String((e && e.error) || e || 'Redémarrage impossible.');
+              }
+              return;
+            }
+            if (stopId) {
+              if (!window.confirm('Arrêter cette application ? Elle devra ensuite être redéployée.')) return;
+              try {
+                await callJSON('/api/v1/apps/' + encodeURIComponent(stopId) + '/stop', { method: 'POST' });
+                await refreshApps();
+              } catch (e) {
+                appLogsOut.textContent = String((e && e.error) || e || 'Arrêt impossible.');
+              }
+              return;
+            }
+            if (!delId || !window.confirm('Supprimer définitivement cette application ?')) return;
             try {
               await callJSON('/api/v1/apps/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshApps();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              appLogsOut.textContent = String((e && e.error) || e || 'Suppression impossible.');
             }
           };
           loadProductionBtn.onclick = async () => {
@@ -6141,7 +6179,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.183"}
+    {"version":"ce-web-0.6.184"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6162,7 +6200,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.183
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.184
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
