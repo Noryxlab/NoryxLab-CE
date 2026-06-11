@@ -361,7 +361,7 @@ data:
           .row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 11px; }
           .stack { display: grid; gap: 12px; }
           .home-stack { width: 100%; grid-template-columns: minmax(0, 1fr); }
-          .home-stack > * { width: 100%; min-width: 0; }
+          .home-stack > * { width: 100%; min-width: 0; grid-column: 1 / -1; }
           .hero {
             background:
               radial-gradient(800px 280px at 5% 0%, rgba(245, 189, 73, .22), transparent 68%),
@@ -6141,7 +6141,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.182"}
+    {"version":"ce-web-0.6.183"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6162,7 +6162,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.182
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.183
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
