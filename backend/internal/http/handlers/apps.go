@@ -429,13 +429,7 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 	}
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
-		lines = append(lines,
-			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-			fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
-			"else",
-			fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
-			"fi",
-		)
+		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 	}
 	userLaunch = strings.TrimSpace(userLaunch)
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
