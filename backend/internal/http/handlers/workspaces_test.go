@@ -94,7 +94,7 @@ func TestRepositoryBootstrapUsesSecretEnvironmentWithoutEmbeddingToken(t *testin
 		AuthEnvName: "NORYX_SECRET_GITHUB_TOKEN",
 	}, "/repos/example"), "\n")
 
-	for _, expected := range []string{"GIT_ASKPASS=", "$NORYX_SECRET_GITHUB_TOKEN", "https://example.org/example.git"} {
+	for _, expected := range []string{"GIT_ASKPASS=", "$NORYX_SECRET_GITHUB_TOKEN", "https://example.org/example.git", "config core.askPass", "config credential.interactive never"} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("bootstrap does not contain %q", expected)
 		}

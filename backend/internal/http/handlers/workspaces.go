@@ -826,6 +826,8 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 			"else",
 			fmt.Sprintf("  %sgit clone --depth 1 %s %s || true", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
 			"fi",
+			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config core.askPass %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote(askPass)),
+			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config credential.interactive never; fi", shellQuote(repoDir), shellQuote(repoDir)),
 		}
 	}
 	return []string{
