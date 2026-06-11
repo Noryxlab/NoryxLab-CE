@@ -45,6 +45,16 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 	if !h.requireAppAccess(w, r, record) {
 		return
 	}
+	if r.Method == http.MethodGet && strings.TrimSpace(r.PathValue("path")) == "" {
+		actorUserID, ok := h.userIDFromSessionOrBearerNoWrite(r)
+		if !ok {
+			actorUserID = "anonymous"
+		}
+		h.emitAudit(r, actorUserID, "app.view", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
+			"slug":       record.Slug,
+			"accessMode": record.AccessMode,
+		})
+	}
 
 	targetHost := strings.TrimSpace(record.ServiceName)
 	if targetHost == "" {

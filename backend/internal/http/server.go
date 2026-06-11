@@ -36,6 +36,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/apps", h.ListApps)
 	mux.HandleFunc("POST /api/v1/apps", h.CreateApp)
 	mux.HandleFunc("GET /api/v1/apps/{appID}/logs", h.GetAppLogs)
+	mux.HandleFunc("GET /api/v1/apps/{appID}/usage", h.GetAppUsage)
 	mux.HandleFunc("POST /api/v1/apps/{appID}/restart", h.RestartApp)
 	mux.HandleFunc("POST /api/v1/apps/{appID}/stop", h.StopApp)
 	mux.HandleFunc("DELETE /api/v1/apps/{appID}", h.DeleteApp)

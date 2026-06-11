@@ -29,6 +29,7 @@ Apps V1 allows project members to deploy long-running web services and expose th
 - `GET /api/v1/apps?projectId=<id>`
 - `POST /api/v1/apps`
 - `GET /api/v1/apps/{appID}/logs?tailLines=500`
+- `GET /api/v1/apps/{appID}/usage`
 - `POST /api/v1/apps/{appID}/restart`
 - `POST /api/v1/apps/{appID}/stop`
 - `DELETE /api/v1/apps/{appID}`
@@ -40,6 +41,23 @@ Lifecycle semantics:
 - `delete` permanently removes the record, pod, service and workload secrets;
 - a stopped application must be deployed again rather than restarted from a
   potentially stale runtime specification.
+
+## Usage analytics
+
+Enterprise audit records one `app.view` event when the root document of an app
+is opened. Requests for assets, API paths and WebSockets are not counted as
+views.
+
+The usage endpoint aggregates the latest 30 days:
+
+- total document views;
+- identified visitors and their last visit;
+- anonymous views for public apps;
+- daily view counts.
+
+Public anonymous visitors are intentionally not fingerprinted. Their IP address
+remains restricted to the Enterprise audit log and is not exposed by the app
+usage endpoint.
 
 Create payload example:
 

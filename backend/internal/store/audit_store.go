@@ -11,6 +11,7 @@ type AuditFilter struct {
 	Until       *time.Time
 	Action      string
 	ActorUserID string
+	ResourceID  string
 	ProjectID   string
 	Limit       int
 }
