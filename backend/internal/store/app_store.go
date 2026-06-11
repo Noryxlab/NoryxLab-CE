@@ -9,4 +9,7 @@ type AppStore interface {
 	Create(item app.App) error
 	Upsert(item app.App) error
 	Delete(id string) error
+	ListRevisions(appID string) ([]app.Revision, error)
+	CreateRevision(item app.Revision) error
+	ActivateRevision(appID, revisionID string) error
 }

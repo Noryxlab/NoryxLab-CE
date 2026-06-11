@@ -167,6 +167,21 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'project'`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_users_json JSONB NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_organizations_json JSONB NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS published BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS active_revision INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`,
+		`CREATE TABLE IF NOT EXISTS app_revisions (
+			id TEXT PRIMARY KEY,
+			app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+			revision_number INTEGER NOT NULL,
+			snapshot_json JSONB NOT NULL,
+			runtime_manifest_json JSONB NOT NULL,
+			published_by TEXT NOT NULL,
+			published_at TIMESTAMPTZ NOT NULL,
+			active BOOLEAN NOT NULL DEFAULT FALSE,
+			UNIQUE(app_id, revision_number)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_app_revisions_app ON app_revisions (app_id, revision_number DESC)`,
 		`UPDATE apps a SET owner_user_id=(SELECT ar.user_id FROM access_roles ar WHERE ar.project_id=a.project_id AND ar.role='admin' ORDER BY ar.user_id LIMIT 1) WHERE a.owner_user_id=''`,
 		`CREATE TABLE IF NOT EXISTS pods (
 			id TEXT PRIMARY KEY,
@@ -465,7 +480,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 }
 
 func (s *Store) ListApps() ([]app.App, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +489,7 @@ func (s *Store) ListApps() ([]app.App, error) {
 	for rows.Next() {
 		var item app.App
 		var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.OwnerUserID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.AccessMode, &usersJSON, &organizationsJSON, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.OwnerUserID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.AccessMode, &usersJSON, &organizationsJSON, &item.CreatedAt, &item.Published, &item.ActiveRevision, &item.PublishedAt); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -493,7 +508,7 @@ func (s *Store) ListApps() ([]app.App, error) {
 func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.OwnerUserID,
@@ -512,6 +527,9 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 		&usersJSON,
 		&organizationsJSON,
 		&item.CreatedAt,
+		&item.Published,
+		&item.ActiveRevision,
+		&item.PublishedAt,
 	)
 	if err == sql.ErrNoRows {
 		return app.App{}, false, nil
@@ -533,7 +551,7 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.OwnerUserID,
@@ -552,6 +570,9 @@ func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 		&usersJSON,
 		&organizationsJSON,
 		&item.CreatedAt,
+		&item.Published,
+		&item.ActiveRevision,
+		&item.PublishedAt,
 	)
 	if err == sql.ErrNoRows {
 		return app.App{}, false, nil
@@ -604,8 +625,8 @@ func (s *Store) UpsertApp(item app.App) error {
 	usersJSON, _ := json.Marshal(item.AllowedUsers)
 	organizationsJSON, _ := json.Marshal(item.AllowedOrganizations)
 	_, err := s.db.Exec(`
-		INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+		INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			kind=EXCLUDED.kind,
@@ -618,7 +639,13 @@ func (s *Store) UpsertApp(item app.App) error {
 			pod_name=EXCLUDED.pod_name,
 			service_name=EXCLUDED.service_name,
 			status=EXCLUDED.status,
-			access_url=EXCLUDED.access_url
+			access_url=EXCLUDED.access_url,
+			access_mode=EXCLUDED.access_mode,
+			allowed_users_json=EXCLUDED.allowed_users_json,
+			allowed_organizations_json=EXCLUDED.allowed_organizations_json,
+			published=EXCLUDED.published,
+			active_revision=EXCLUDED.active_revision,
+			published_at=EXCLUDED.published_at
 	`,
 		item.ID,
 		item.ProjectID,
@@ -638,6 +665,9 @@ func (s *Store) UpsertApp(item app.App) error {
 		usersJSON,
 		organizationsJSON,
 		item.CreatedAt,
+		item.Published,
+		item.ActiveRevision,
+		item.PublishedAt,
 	)
 	return err
 }
@@ -645,6 +675,67 @@ func (s *Store) UpsertApp(item app.App) error {
 func (s *Store) DeleteApp(id string) error {
 	_, err := s.db.Exec(`DELETE FROM apps WHERE id=$1`, strings.TrimSpace(id))
 	return err
+}
+
+func (s *Store) ListAppRevisions(appID string) ([]app.Revision, error) {
+	rows, err := s.db.Query(`SELECT id, app_id, revision_number, snapshot_json, runtime_manifest_json, published_by, published_at, active FROM app_revisions WHERE app_id=$1 ORDER BY revision_number DESC`, strings.TrimSpace(appID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []app.Revision{}
+	for rows.Next() {
+		var item app.Revision
+		var snapshotJSON []byte
+		if err := rows.Scan(&item.ID, &item.AppID, &item.Number, &snapshotJSON, &item.RuntimeManifest, &item.PublishedBy, &item.PublishedAt, &item.Active); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(snapshotJSON, &item.Snapshot); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CreateAppRevision(item app.Revision) error {
+	snapshotJSON, _ := json.Marshal(item.Snapshot)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(`UPDATE app_revisions SET active=FALSE WHERE app_id=$1`, item.AppID); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`INSERT INTO app_revisions (id, app_id, revision_number, snapshot_json, runtime_manifest_json, published_by, published_at, active) VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
+		item.ID, item.AppID, item.Number, snapshotJSON, item.RuntimeManifest, item.PublishedBy, item.PublishedAt); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`UPDATE apps SET published=TRUE, active_revision=$2, published_at=$3 WHERE id=$1`, item.AppID, item.Number, item.PublishedAt); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ActivateAppRevision(appID, revisionID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var number int
+	var publishedAt time.Time
+	if err = tx.QueryRow(`SELECT revision_number, published_at FROM app_revisions WHERE app_id=$1 AND id=$2`, appID, revisionID).Scan(&number, &publishedAt); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`UPDATE app_revisions SET active=(id=$2) WHERE app_id=$1`, appID, revisionID); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`UPDATE apps SET published=TRUE, active_revision=$2, published_at=$3 WHERE id=$1`, appID, number, publishedAt); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {

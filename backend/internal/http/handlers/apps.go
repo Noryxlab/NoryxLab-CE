@@ -48,8 +48,6 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list apps"})
 		return
 	}
-	readiness, hasReadiness := h.runtime.(noryxruntime.WorkspaceReadiness)
-	podOperator, hasPodOperator := h.runtime.(noryxruntime.PodOperator)
 	projectFilter := strings.TrimSpace(r.URL.Query().Get("projectId"))
 	filtered := make([]app.App, 0, len(items))
 	for _, item := range items {
@@ -65,42 +63,47 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
-		if hasPodOperator && strings.TrimSpace(item.PodName) != "" {
-			status, err := podOperator.GetPodStatus(item.PodName)
-			if err == nil {
-				item.RestartCount = status.RestartCount
-				if !status.StartedAt.IsZero() {
-					startedAt := status.StartedAt
-					item.StartedAt = &startedAt
-				}
-				item.HealthMessage = strings.TrimSpace(status.Reason + " " + status.Message)
-				switch status.Phase {
-				case "failed":
-					item.Status = "failed"
-				case "succeeded":
-					item.Status = "stopped"
-				case "pending":
-					item.Status = "launching"
-				case "running":
-					item.Status = "unhealthy"
-				}
-			} else if isNotFoundError(err) {
-				item.Status = "stopped"
-			}
-		}
-		if hasReadiness && strings.TrimSpace(item.ServiceName) != "" && item.Status != "stopped" && item.Status != "failed" {
-			ready, err := readiness.IsServiceReady(item.ServiceName)
-			if err == nil {
-				if ready {
-					item.Status = "running"
-				} else {
-					item.Status = "launching"
-				}
-			}
-		}
+		item = h.enrichAppRuntimeStatus(item)
 		filtered = append(filtered, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
+}
+
+func (h Handlers) enrichAppRuntimeStatus(item app.App) app.App {
+	if podOperator, ok := h.runtime.(noryxruntime.PodOperator); ok && strings.TrimSpace(item.PodName) != "" {
+		status, err := podOperator.GetPodStatus(item.PodName)
+		if err == nil {
+			item.RestartCount = status.RestartCount
+			if !status.StartedAt.IsZero() {
+				startedAt := status.StartedAt
+				item.StartedAt = &startedAt
+			}
+			item.HealthMessage = strings.TrimSpace(status.Reason + " " + status.Message)
+			switch status.Phase {
+			case "failed":
+				item.Status = "failed"
+			case "succeeded":
+				item.Status = "stopped"
+			case "pending":
+				item.Status = "launching"
+			case "running":
+				item.Status = "unhealthy"
+			}
+		} else if isNotFoundError(err) {
+			item.Status = "stopped"
+		}
+	}
+	if readiness, ok := h.runtime.(noryxruntime.WorkspaceReadiness); ok && strings.TrimSpace(item.ServiceName) != "" && item.Status != "stopped" && item.Status != "failed" {
+		ready, err := readiness.IsServiceReady(item.ServiceName)
+		if err == nil {
+			if ready {
+				item.Status = "running"
+			} else {
+				item.Status = "launching"
+			}
+		}
+	}
+	return item
 }
 
 func (h Handlers) GetAppLogs(w http.ResponseWriter, r *http.Request) {

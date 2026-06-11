@@ -468,6 +468,40 @@ func (r *Runtime) RestartPod(name string) error {
 	if err != nil {
 		return err
 	}
+	return r.restorePod(name, pod)
+}
+
+func (r *Runtime) GetPodManifest(name string) (json.RawMessage, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("pod name is required")
+	}
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
+	if err != nil {
+		return nil, err
+	}
+	pod, err := restartablePod(body)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(pod)
+}
+
+func (r *Runtime) RestorePodManifest(name string, manifest json.RawMessage) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("pod name is required")
+	}
+	pod, err := restartablePod(manifest)
+	if err != nil {
+		return err
+	}
+	metadata, _ := pod["metadata"].(map[string]any)
+	metadata["name"] = name
+	return r.restorePod(name, pod)
+}
+
+func (r *Runtime) restorePod(name string, pod map[string]any) error {
 	if err := r.DeletePod(name); err != nil {
 		return err
 	}

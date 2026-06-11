@@ -47,6 +47,15 @@ func (s *AppStore) GetBySlug(slug string) (app.App, bool, error) {
 func (s *AppStore) Create(item app.App) error { return s.Store.CreateApp(item) }
 func (s *AppStore) Upsert(item app.App) error { return s.Store.UpsertApp(item) }
 func (s *AppStore) Delete(id string) error    { return s.Store.DeleteApp(id) }
+func (s *AppStore) ListRevisions(appID string) ([]app.Revision, error) {
+	return s.Store.ListAppRevisions(appID)
+}
+func (s *AppStore) CreateRevision(item app.Revision) error {
+	return s.Store.CreateAppRevision(item)
+}
+func (s *AppStore) ActivateRevision(appID, revisionID string) error {
+	return s.Store.ActivateAppRevision(appID, revisionID)
+}
 
 type JobStore struct{ *Store }
 

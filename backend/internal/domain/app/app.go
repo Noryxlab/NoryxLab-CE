@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,33 @@ type App struct {
 	HealthMessage        string     `json:"healthMessage,omitempty"`
 	RestartCount         int        `json:"restartCount"`
 	StartedAt            *time.Time `json:"startedAt,omitempty"`
+	Published            bool       `json:"published"`
+	ActiveRevision       int        `json:"activeRevision,omitempty"`
+	PublishedAt          *time.Time `json:"publishedAt,omitempty"`
+}
+
+type Revision struct {
+	ID              string          `json:"id"`
+	AppID           string          `json:"appId"`
+	Number          int             `json:"number"`
+	Snapshot        App             `json:"snapshot"`
+	RuntimeManifest json.RawMessage `json:"-"`
+	PublishedBy     string          `json:"publishedBy"`
+	PublishedAt     time.Time       `json:"publishedAt"`
+	Active          bool            `json:"active"`
+}
+
+func NewRevision(item App, number int, runtimeManifest json.RawMessage, publishedBy string) Revision {
+	return Revision{
+		ID:              uuid.NewString(),
+		AppID:           item.ID,
+		Number:          number,
+		Snapshot:        item,
+		RuntimeManifest: runtimeManifest,
+		PublishedBy:     publishedBy,
+		PublishedAt:     time.Now().UTC(),
+		Active:          true,
+	}
 }
 
 func New(projectID, name, slug, image string, command, args []string, port int, podName, serviceName, accessURL string) App {

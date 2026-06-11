@@ -10,9 +10,19 @@ Noryx separates project-scoped publication from production operations:
 - `Production` is a transverse operational inventory of published
   services across every project accessible to the current user.
 
-The production inventory exposes service type, project, runtime status, visitor
-RBAC, public URL, and publication date. It intentionally does not expose launch
-forms or destructive actions.
+The production inventory exposes project, active revision, runtime status,
+visitor RBAC, public URL, publication date, and immutable revision history. It
+intentionally does not expose launch forms.
+
+For applications:
+
+- `Develop > Apps` explicitly publishes the active runtime as a new immutable
+  revision;
+- publication captures both Noryx application metadata and the Kubernetes pod
+  manifest;
+- `Production` only lists explicitly published applications;
+- rollback restores the selected runtime manifest and marks its revision active;
+- publication and rollback emit dedicated audit events.
 
 ## Operational prerequisite
 
@@ -25,8 +35,8 @@ must be operable from the project:
 - stop removes the runtime pod while retaining the application record;
 - delete permanently removes the application runtime and record.
 
-These operations remain in `Develop`. The `Production` inventory stays
-read-only until revisions, promotion and rollback are implemented.
+These operations remain in `Develop`. Production rollback requires explicit
+confirmation and never creates or edits an application.
 
 A future promotion workflow can extend this boundary with revisions, approvals,
 rollbacks, and staged environments without mixing those concerns with project

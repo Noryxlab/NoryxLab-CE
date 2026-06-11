@@ -1355,9 +1355,16 @@ data:
                       <div class="stat"><div class="k">Publics</div><div id="productionPublic" class="v">0</div></div>
                     </div>
                     <table>
-                      <thead><tr><th>Type</th><th>Nom</th><th>Projet</th><th>Statut</th><th>RBAC</th><th>URL</th><th>Publié le</th><th>Action</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Projet</th><th>Révision</th><th>Statut</th><th>RBAC</th><th>URL</th><th>Publié le</th><th>Actions</th></tr></thead>
                       <tbody id="productionRows"></tbody>
                     </table>
+                    <div class="app-usage-panel">
+                      <h4 id="productionRevisionTitle">Historique des révisions</h4>
+                      <table>
+                        <thead><tr><th>Révision</th><th>Image</th><th>Publié par</th><th>Date</th><th>État</th><th>Action</th></tr></thead>
+                        <tbody id="productionRevisionRows"><tr><td colspan="6">Sélectionnez Historique sur une application publiée.</td></tr></tbody>
+                      </table>
+                    </div>
                   </article>
                 </div>
               </section>
@@ -1621,6 +1628,8 @@ data:
           const productionTotal = document.getElementById('productionTotal');
           const productionRunning = document.getElementById('productionRunning');
           const productionPublic = document.getElementById('productionPublic');
+          const productionRevisionTitle = document.getElementById('productionRevisionTitle');
+          const productionRevisionRows = document.getElementById('productionRevisionRows');
           const dashboardNameInput = document.getElementById('dashboardName');
           const dashboardSlugInput = document.getElementById('dashboardSlug');
           let dashboardSlugCustomized = false;
@@ -1865,6 +1874,7 @@ data:
             jobs: [],
             cronJobs: [],
             apps: [],
+            productionApps: [],
             dashboards: [],
             builds: [],
             environments: [],
@@ -3673,7 +3683,7 @@ data:
                 '<td title="' + escapeHTML(health) + '">' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + badge(a.accessMode || 'project') + '</td>' +
                 '<td>' + appAccessLink(a) + '</td>' +
-                '<td class="app-actions"><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn" data-usage-app="' + (a.id || '') + '">Usage</button> <button type="button" class="btn" data-logs-app="' + (a.id || '') + '">Logs</button> ' + restartAction + ' <button type="button" class="btn" data-stop-app="' + (a.id || '') + '">Stop</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
+                '<td class="app-actions"><button type="button" class="btn primary" data-publish-app="' + (a.id || '') + '">' + (a.published ? 'Publier une révision' : 'Publier en Production') + '</button> <button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn" data-usage-app="' + (a.id || '') + '">Usage</button> <button type="button" class="btn" data-logs-app="' + (a.id || '') + '">Logs</button> ' + restartAction + ' <button type="button" class="btn" data-stop-app="' + (a.id || '') + '">Stop</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
             });
           }
@@ -3716,10 +3726,7 @@ data:
           }
 
           function renderProductionTable() {
-            const items = [
-              ...state.apps.map((item) => ({ ...item, productionType:'App' })),
-              ...state.dashboards.map((item) => ({ ...item, productionType:'Dashboard' }))
-            ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            const items = state.productionApps.slice().sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0));
             productionTotal.textContent = String(items.length);
             productionRunning.textContent = String(items.filter((item) => String(item.status || '').toLowerCase() === 'running').length);
             productionPublic.textContent = String(items.filter((item) => String(item.accessMode || '').toLowerCase() === 'public').length);
@@ -3731,14 +3738,14 @@ data:
             items.forEach((item) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td>' + badge(item.productionType) + '</td>' +
                 '<td><strong>' + escapeHTML(item.name || item.slug || '-') + '</strong></td>' +
                 '<td>' + escapeHTML(projectName(item.projectId)) + '</td>' +
+                '<td>' + badge('v' + Number(item.activeRevision || 0)) + '</td>' +
                 '<td>' + badge(item.status || 'submitted') + '</td>' +
                 '<td>' + badge(item.accessMode || 'project') + '</td>' +
                 '<td><code>' + escapeHTML(displayAccessUrl(item.accessUrl)) + '</code></td>' +
-                '<td>' + formatDateTime(item.createdAt) + '</td>' +
-                '<td><button type="button" class="btn" data-open-production="' + escapeHTML(item.accessUrl || '') + '">Ouvrir</button></td>';
+                '<td>' + formatDateTime(item.publishedAt) + '</td>' +
+                '<td><button type="button" class="btn" data-open-production="' + escapeHTML(item.accessUrl || '') + '">Ouvrir</button> <button type="button" class="btn" data-history-production="' + escapeHTML(item.id || '') + '">Historique</button></td>';
               productionRows.appendChild(tr);
             });
           }
@@ -4333,6 +4340,13 @@ data:
             return body;
           }
 
+          async function refreshProduction() {
+            const body = await callJSON('/api/v1/production/apps');
+            state.productionApps = ensureArray(body.items);
+            renderProductionTable();
+            return body;
+          }
+
           async function refreshDashboards() {
             const body = await callJSON('/api/v1/dashboards');
             state.dashboards = ensureArray(body.items);
@@ -4488,7 +4502,7 @@ data:
             if (workspacesAutoRefreshTimer) return;
             workspacesAutoRefreshTimer = setInterval(async () => {
               try {
-                await Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards()]);
+                await Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards()]);
                 if (state.activeTab === 'environments' || state.activeTab === 'workloads') {
                   await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 }
@@ -5622,6 +5636,7 @@ data:
           };
 
           appRows.onclick = async (event) => {
+            const publishId = (event.target && event.target.getAttribute('data-publish-app'));
             const openId = (event.target && event.target.getAttribute('data-open-app'));
             const copyId = (event.target && event.target.getAttribute('data-copy-app'));
             const usageId = (event.target && event.target.getAttribute('data-usage-app'));
@@ -5629,6 +5644,17 @@ data:
             const restartId = (event.target && event.target.getAttribute('data-restart-app'));
             const stopId = (event.target && event.target.getAttribute('data-stop-app'));
             const delId = (event.target && event.target.getAttribute('data-del-app'));
+            if (publishId) {
+              if (!window.confirm('Publier la configuration active comme nouvelle révision de Production ?')) return;
+              try {
+                await callJSON('/api/v1/apps/' + encodeURIComponent(publishId) + '/publish', { method:'POST' });
+                await Promise.all([refreshApps(), refreshProduction()]);
+                switchTab('production');
+              } catch (e) {
+                appLogsOut.textContent = String((e && e.error) || e || 'Publication impossible.');
+              }
+              return;
+            }
             if (copyId) {
               const item = state.apps.find((a) => a.id === copyId);
               if (item && item.accessUrl) await copyText(absoluteAccessUrl(item.accessUrl));
@@ -5689,12 +5715,37 @@ data:
             }
           };
           loadProductionBtn.onclick = async () => {
-            try { await Promise.all([refreshApps(), refreshDashboards()]); }
+            try { await refreshProduction(); }
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
           };
-          productionRows.onclick = (event) => {
+          productionRows.onclick = async (event) => {
             const accessURL = event.target && event.target.getAttribute('data-open-production');
             if (accessURL) window.open(accessURL, '_blank', 'noopener');
+            const appId = event.target && event.target.getAttribute('data-history-production');
+            if (!appId) return;
+            const item = state.productionApps.find((app) => app.id === appId);
+            try {
+              const body = await callJSON('/api/v1/apps/' + encodeURIComponent(appId) + '/revisions');
+              productionRevisionTitle.textContent = 'Historique · ' + ((item && item.name) || 'Application');
+              const revisions = ensureArray(body.items);
+              productionRevisionRows.innerHTML = revisions.map((revision) =>
+                '<tr><td><strong>v' + Number(revision.number || 0) + '</strong></td><td><code>' + escapeHTML((revision.snapshot && revision.snapshot.image) || '-') + '</code></td><td>' + escapeHTML(revision.publishedBy || '-') + '</td><td>' + formatDateTime(revision.publishedAt) + '</td><td>' + badge(revision.active ? 'active' : 'inactive') + '</td><td>' + (revision.active ? '-' : '<button type="button" class="btn warn" data-rollback-app="' + escapeHTML(appId) + '" data-revision-id="' + escapeHTML(revision.id || '') + '">Rollback</button>') + '</td></tr>'
+              ).join('');
+            } catch (e) {
+              productionRevisionRows.innerHTML = '<tr><td colspan="6">' + escapeHTML(String((e && e.error) || e || 'Historique indisponible.')) + '</td></tr>';
+            }
+          };
+          productionRevisionRows.onclick = async (event) => {
+            const appId = event.target && event.target.getAttribute('data-rollback-app');
+            const revisionId = event.target && event.target.getAttribute('data-revision-id');
+            if (!appId || !revisionId || !window.confirm('Restaurer cette révision en Production ?')) return;
+            try {
+              await callJSON('/api/v1/apps/' + encodeURIComponent(appId) + '/revisions/' + encodeURIComponent(revisionId) + '/rollback', { method:'POST' });
+              await Promise.all([refreshApps(), refreshProduction()]);
+              event.target.closest('tr').querySelector('td:nth-child(5)').innerHTML = badge('active');
+            } catch (e) {
+              productionRevisionRows.innerHTML = '<tr><td colspan="6">' + escapeHTML(String((e && e.error) || e || 'Rollback impossible.')) + '</td></tr>';
+            }
           };
 
           dashboardRows.onclick = async (event) => {
@@ -6167,7 +6218,7 @@ data:
                 startWorkspacesAutoRefresh();
               startPlatformPulse();
                 refreshProjects()
-                  .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                  .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                   .catch((err) => {
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
@@ -6185,7 +6236,7 @@ data:
               startPlatformPulse();
               ensureWebSession()
                 .then(() => refreshProjects())
-                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch((err) => {
                   pretty(usersOut, { sessionError: String(err) });
                   switchTab('ops');
@@ -6203,7 +6254,7 @@ data:
               startWorkspacesAutoRefresh();
               startPlatformPulse();
               refreshProjects()
-                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch(() => {});
               switchTab('intro');
             });
@@ -6217,7 +6268,7 @@ data:
             startWorkspacesAutoRefresh();
               startPlatformPulse();
             refreshProjects()
-              .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
               .catch(() => {});
             switchTab('intro');
           }
@@ -6228,7 +6279,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.185"}
+    {"version":"ce-web-0.6.186"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6249,7 +6300,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.185
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.186
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

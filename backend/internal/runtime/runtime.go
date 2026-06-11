@@ -1,6 +1,9 @@
 package runtime
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type EnvVar struct {
 	Name       string
@@ -179,6 +182,11 @@ type PodOperator interface {
 	GetPodStatus(name string) (PodStatus, error)
 	GetPodLogs(name string, tailLines int) (string, error)
 	RestartPod(name string) error
+}
+
+type PodRevisionOperator interface {
+	GetPodManifest(name string) (json.RawMessage, error)
+	RestorePodManifest(name string, manifest json.RawMessage) error
 }
 
 type WorkspaceRuntimeInfo struct {
