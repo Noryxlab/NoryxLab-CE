@@ -45,6 +45,9 @@ func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 		if filter.ActorUserID != "" && item.ActorUserID != filter.ActorUserID {
 			continue
 		}
+		if filter.ResourceID != "" && item.ResourceID != filter.ResourceID {
+			continue
+		}
 		if filter.ProjectID != "" && item.ProjectID != filter.ProjectID {
 			continue
 		}
