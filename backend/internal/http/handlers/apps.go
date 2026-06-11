@@ -234,12 +234,11 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 				return
 			}
 		}
-		volumes := []noryxruntime.PersistentVolumeClaimMount{}
-		if h.workspacePVCEnabled {
-			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
-				ClaimName: "project-" + sanitizeK8sName(req.ProjectID),
-				MountPath: workspaceProjectMountPath,
-			})
+		volumes, err := h.ensureProjectVolume(req.ProjectID)
+		if err != nil {
+			_ = h.runtime.DeleteSecret(userSecretName)
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare project volume: " + err.Error()})
+			return
 		}
 		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
 		if err != nil {
