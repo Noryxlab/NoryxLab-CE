@@ -782,6 +782,33 @@ func (h Handlers) ensureDatasetVolumeMounts(attachedDatasets []workspaceAttached
 	return mounts, nil
 }
 
+func (h Handlers) ensureProjectVolume(projectID string) ([]noryxruntime.PersistentVolumeClaimMount, error) {
+	if !h.workspacePVCEnabled {
+		return nil, nil
+	}
+	accessMode := strings.TrimSpace(h.workspacePVCAccessMode)
+	if accessMode == "" {
+		accessMode = "ReadWriteMany"
+	}
+	pvcName := "project-" + sanitizeK8sName(projectID)
+	if err := h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
+		Name:             pvcName,
+		StorageClassName: h.workspacePVCClass,
+		Size:             h.workspacePVCSize,
+		AccessModes:      []string{accessMode},
+		Labels: map[string]string{
+			"app.kubernetes.io/name": "noryx-workspace-volume",
+			"noryx.io/project-id":    projectID,
+		},
+	}); err != nil {
+		return nil, err
+	}
+	return []noryxruntime.PersistentVolumeClaimMount{{
+		ClaimName: pvcName,
+		MountPath: workspaceProjectMountPath,
+	}}, nil
+}
+
 func (h Handlers) resolveRepositorySecretValueForWorkspace(userID, secretName string) (string, error) {
 	item, found, err := h.secretStore.GetByName(userID, strings.TrimSpace(secretName))
 	if err != nil {
