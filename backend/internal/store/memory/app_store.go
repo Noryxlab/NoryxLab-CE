@@ -8,8 +8,9 @@ import (
 )
 
 type AppStore struct {
-	mu    sync.RWMutex
-	items []app.App
+	mu        sync.RWMutex
+	items     []app.App
+	revisions []app.Revision
 }
 
 func NewAppStore() *AppStore {
@@ -83,5 +84,40 @@ func (s *AppStore) Delete(id string) error {
 		out = append(out, item)
 	}
 	s.items = out
+	return nil
+}
+
+func (s *AppStore) ListRevisions(appID string) ([]app.Revision, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []app.Revision{}
+	for _, item := range s.revisions {
+		if item.AppID == strings.TrimSpace(appID) {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (s *AppStore) CreateRevision(item app.Revision) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.revisions {
+		if s.revisions[i].AppID == item.AppID {
+			s.revisions[i].Active = false
+		}
+	}
+	s.revisions = append(s.revisions, item)
+	return nil
+}
+
+func (s *AppStore) ActivateRevision(appID, revisionID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.revisions {
+		if s.revisions[i].AppID == appID {
+			s.revisions[i].Active = s.revisions[i].ID == revisionID
+		}
+	}
 	return nil
 }

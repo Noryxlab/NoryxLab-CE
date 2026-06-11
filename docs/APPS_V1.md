@@ -30,6 +30,10 @@ Apps V1 allows project members to deploy long-running web services and expose th
 - `POST /api/v1/apps`
 - `GET /api/v1/apps/{appID}/logs?tailLines=500`
 - `GET /api/v1/apps/{appID}/usage`
+- `POST /api/v1/apps/{appID}/publish`
+- `GET /api/v1/apps/{appID}/revisions`
+- `POST /api/v1/apps/{appID}/revisions/{revisionID}/rollback`
+- `GET /api/v1/production/apps`
 - `POST /api/v1/apps/{appID}/restart`
 - `POST /api/v1/apps/{appID}/stop`
 - `DELETE /api/v1/apps/{appID}`
@@ -58,6 +62,18 @@ The usage endpoint aggregates the latest 30 days:
 Public anonymous visitors are intentionally not fingerprinted. Their IP address
 remains restricted to the Enterprise audit log and is not exposed by the app
 usage endpoint.
+
+## Production revisions
+
+Creating or running an app does not publish it. Publication is explicit and
+creates an immutable numbered revision containing:
+
+- the Noryx application configuration;
+- the complete sanitized Kubernetes pod manifest;
+- publisher and publication timestamp.
+
+Rollback restores the selected pod manifest and marks the selected revision as
+active. Existing applications remain development-only until first publication.
 
 Create payload example:
 
