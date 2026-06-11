@@ -12,6 +12,7 @@ data:
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23006d77'/%3E%3Cpath d='M17 47V17h8l14 19V17h8v30h-8L25 28v19z' fill='white'/%3E%3C/svg%3E" />
         <title>CE</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -6279,7 +6280,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.186"}
+    {"version":"ce-web-0.6.187"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6300,7 +6301,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.186
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.187
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
