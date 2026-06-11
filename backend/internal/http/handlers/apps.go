@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"golang.org/x/text/unicode/norm"
 )
 
 type createAppRequest struct {
@@ -384,10 +386,13 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 }
 
 func normalizeAppSlug(raw string) string {
-	raw = strings.ToLower(strings.TrimSpace(raw))
+	raw = strings.ToLower(strings.TrimSpace(norm.NFD.String(raw)))
 	var b strings.Builder
 	lastDash := false
 	for _, r := range raw {
+		if unicode.Is(unicode.Mn, r) {
+			continue
+		}
 		isAZ09 := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
 		if isAZ09 {
 			b.WriteRune(r)
