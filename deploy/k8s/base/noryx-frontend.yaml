@@ -2473,6 +2473,18 @@ data:
             return idx === -1 ? s : s.slice(0, idx) + '?...';
           }
 
+          function absoluteAccessUrl(raw) {
+            if (!raw) return '';
+            try { return new URL(String(raw), window.location.origin).href; } catch (_) { return String(raw); }
+          }
+
+          function appAccessLink(app) {
+            const url = absoluteAccessUrl(app && app.accessUrl);
+            if (!url) return '-';
+            return '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(url) + '</a>' +
+              '<br/><button type="button" class="btn" data-copy-app="' + escapeHTML((app && app.id) || '') + '">Copier le lien</button>';
+          }
+
           function formatDateTime(raw) {
             if (!raw) return '-';
             const d = new Date(raw);
@@ -3614,13 +3626,13 @@ data:
             items.forEach((a) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><strong>' + (a.name || a.id) + '</strong><br/><span style="color:#667a98">' + (a.id || '-') + '</span></td>' +
+                '<td><strong>' + escapeHTML(a.name || 'App') + '</strong></td>' +
                 '<td><strong>' + escapeHTML(projectName(a.projectId)) + '</strong></td>' +
-                '<td><code>' + (a.slug || '-') + '</code></td>' +
-                '<td><code>' + (a.podName || '-') + '</code></td>' +
+                '<td><code>' + escapeHTML(a.slug || '-') + '</code></td>' +
+                '<td><code>' + escapeHTML(a.podName || '-') + '</code></td>' +
                 '<td>' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + badge(a.accessMode || 'project') + '</td>' +
-                '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
+                '<td>' + appAccessLink(a) + '</td>' +
                 '<td><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
             });
@@ -5554,7 +5566,13 @@ data:
 
           appRows.onclick = async (event) => {
             const openId = (event.target && event.target.getAttribute('data-open-app'));
+            const copyId = (event.target && event.target.getAttribute('data-copy-app'));
             const delId = (event.target && event.target.getAttribute('data-del-app'));
+            if (copyId) {
+              const item = state.apps.find((a) => a.id === copyId);
+              if (item && item.accessUrl) await copyText(absoluteAccessUrl(item.accessUrl));
+              return;
+            }
             if (openId) {
               const item = state.apps.find((a) => a.id === openId);
               if (item && item.accessUrl) {
@@ -6111,7 +6129,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.179"}
+    {"version":"ce-web-0.6.180"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6132,7 +6150,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.179
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.180
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
