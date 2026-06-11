@@ -28,6 +28,18 @@ Repository authentication remains managed by the attached repository
 credential and its `PersAT` or `PrAT` type. Git author identity and repository
 authentication are separate.
 
+Repository safeguards:
+
+- an explicit repository author identity must provide both name and email;
+- repository connectivity is validated when the repository is created,
+  updated, manually re-tested, and attached to a project;
+- the latest validation result and timestamp are visible in the repository
+  catalog;
+- an expired or missing Git secret blocks repository attachment and workload
+  launch with an explicit error;
+- workload Git authentication is non-interactive and tokens are never embedded
+  in repository URLs.
+
 ## API
 
 - `GET /api/v1/workspaces`

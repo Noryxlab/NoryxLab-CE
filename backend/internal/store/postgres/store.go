@@ -308,12 +308,18 @@ func (s *Store) migrate(ctx context.Context) error {
 			auth_type TEXT NOT NULL DEFAULT 'none',
 			git_author_name TEXT NOT NULL DEFAULT '',
 			git_author_email TEXT NOT NULL DEFAULT '',
+			reachable BOOLEAN NOT NULL DEFAULT FALSE,
+			validation_error TEXT NOT NULL DEFAULT '',
+			last_validated_at TIMESTAMPTZ,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS auth_type TEXT NOT NULL DEFAULT 'none'`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS git_author_name TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS git_author_email TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS reachable BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS validation_error TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS last_validated_at TIMESTAMPTZ`,
 		`CREATE TABLE IF NOT EXISTS project_datasets (
 			project_id TEXT NOT NULL,
 			dataset_id TEXT NOT NULL,
@@ -1342,7 +1348,7 @@ func (s *Store) DeleteDatasource(id string) error {
 }
 
 func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, created_at, updated_at FROM repositories WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -1350,7 +1356,7 @@ func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, 
 	out := []repository.Repository{}
 	for rows.Next() {
 		var item repository.Repository
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -1360,7 +1366,7 @@ func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, 
 
 func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error) {
 	var item repository.Repository
-	err := s.db.QueryRow(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, created_at, updated_at FROM repositories WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.Name,
@@ -1370,6 +1376,9 @@ func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error
 		&item.AuthType,
 		&item.GitAuthorName,
 		&item.GitAuthorEmail,
+		&item.Reachable,
+		&item.ValidationError,
+		&item.LastValidatedAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -1383,7 +1392,7 @@ func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error
 }
 
 func (s *Store) CreateRepository(item repository.Repository) error {
-	_, err := s.db.Exec(`INSERT INTO repositories (id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+	_, err := s.db.Exec(`INSERT INTO repositories (id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		item.ID,
 		item.OwnerUserID,
 		item.Name,
@@ -1393,6 +1402,9 @@ func (s *Store) CreateRepository(item repository.Repository) error {
 		item.AuthType,
 		item.GitAuthorName,
 		item.GitAuthorEmail,
+		item.Reachable,
+		item.ValidationError,
+		item.LastValidatedAt,
 		item.CreatedAt,
 		item.UpdatedAt,
 	)
@@ -1400,7 +1412,7 @@ func (s *Store) CreateRepository(item repository.Repository) error {
 }
 
 func (s *Store) UpdateRepository(item repository.Repository) error {
-	_, err := s.db.Exec(`UPDATE repositories SET name=$2, url=$3, default_ref=$4, auth_secret_name=$5, auth_type=$6, git_author_name=$7, git_author_email=$8, updated_at=$9 WHERE id=$1`,
+	_, err := s.db.Exec(`UPDATE repositories SET name=$2, url=$3, default_ref=$4, auth_secret_name=$5, auth_type=$6, git_author_name=$7, git_author_email=$8, reachable=$9, validation_error=$10, last_validated_at=$11, updated_at=$12 WHERE id=$1`,
 		item.ID,
 		item.Name,
 		item.URL,
@@ -1409,6 +1421,9 @@ func (s *Store) UpdateRepository(item repository.Repository) error {
 		item.AuthType,
 		item.GitAuthorName,
 		item.GitAuthorEmail,
+		item.Reachable,
+		item.ValidationError,
+		item.LastValidatedAt,
 		item.UpdatedAt,
 	)
 	return err
