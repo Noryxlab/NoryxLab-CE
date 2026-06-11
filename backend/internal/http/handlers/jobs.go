@@ -348,13 +348,7 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 	}
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
-		lines = append(lines,
-			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-			fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
-			"else",
-			fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
-			"fi",
-		)
+		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 	}
 	if len(userArgs) > 0 {
 		lines = append(lines, strings.Join(userArgs, " "))

@@ -57,6 +57,7 @@ const (
 type workspaceAttachedRepo struct {
 	Name           string
 	URL            string
+	AuthEnvName    string
 	DefaultRef     string
 	GitAuthorName  string
 	GitAuthorEmail string
@@ -637,21 +638,10 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 		if !found || item.OwnerUserID != userID {
 			continue
 		}
-		cloneURL := strings.TrimSpace(item.URL)
-		if strings.TrimSpace(item.AuthSecretName) != "" {
-			secretValue, err := h.resolveRepositorySecretValueForWorkspace(userID, item.AuthSecretName)
-			if err != nil {
-				return nil, nil, err
-			}
-			authURL, err := authenticatedGitURL(cloneURL, secretValue)
-			if err != nil {
-				return nil, nil, err
-			}
-			cloneURL = authURL
-		}
 		attachedRepos = append(attachedRepos, workspaceAttachedRepo{
 			Name:           fallbackResourceName(item.Name, item.ID),
-			URL:            cloneURL,
+			URL:            strings.TrimSpace(item.URL),
+			AuthEnvName:    repositoryAuthEnvName(item.AuthSecretName),
 			DefaultRef:     strings.TrimSpace(item.DefaultRef),
 			GitAuthorName:  strings.TrimSpace(item.GitAuthorName),
 			GitAuthorEmail: strings.TrimSpace(item.GitAuthorEmail),
@@ -810,16 +800,41 @@ func (h Handlers) resolveRepositorySecretValueForWorkspace(userID, secretName st
 	return value, nil
 }
 
-func authenticatedGitURL(rawURL, token string) (string, error) {
-	u, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil {
-		return "", err
+func repositoryAuthEnvName(secretName string) string {
+	if strings.TrimSpace(secretName) == "" {
+		return ""
 	}
-	if !strings.EqualFold(u.Scheme, "https") {
-		return "", fmt.Errorf("repository auth currently supports https URLs only")
+	return userSecretEnvName(secretName)
+}
+
+func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []string {
+	clonePrefix := ""
+	if repo.AuthEnvName != "" {
+		askPass := "/tmp/noryx-git-askpass-" + sanitizeWorkspacePathName(repo.Name)
+		clonePrefix = fmt.Sprintf("GIT_ASKPASS=%s GIT_TERMINAL_PROMPT=0 ", shellQuote(askPass))
+		return []string{
+			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(askPass)),
+			"#!/bin/sh",
+			"case \"$1\" in",
+			"  *Username*) printf '%s\\n' oauth2 ;;",
+			fmt.Sprintf("  *) printf '%%s\\n' \"$%s\" ;;", repo.AuthEnvName),
+			"esac",
+			"EOF",
+			fmt.Sprintf("chmod 700 %s", shellQuote(askPass)),
+			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
+			fmt.Sprintf("  %sgit -C %s pull --ff-only || true", clonePrefix, shellQuote(repoDir)),
+			"else",
+			fmt.Sprintf("  %sgit clone --depth 1 %s %s || true", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+			"fi",
+		}
 	}
-	u.User = url.UserPassword("oauth2", token)
-	return u.String(), nil
+	return []string{
+		fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
+		fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
+		"else",
+		fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+		"fi",
+	}
 }
 
 func fallbackResourceName(name, fallback string) string {
@@ -918,15 +933,8 @@ func workspaceBootstrapScript(
 
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
-		cloneURL := strings.TrimSpace(repo.URL)
 		repoRef := strings.TrimSpace(repo.DefaultRef)
-		lines = append(lines,
-			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-			fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
-			"else",
-			fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(cloneURL), shellQuote(repoDir)),
-			"fi",
-		)
+		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 		if repoRef != "" {
 			lines = append(lines,
 				fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),

@@ -87,6 +87,23 @@ func TestWorkspaceBootstrapConfiguresRepositoryGitIdentity(t *testing.T) {
 	}
 }
 
+func TestRepositoryBootstrapUsesSecretEnvironmentWithoutEmbeddingToken(t *testing.T) {
+	script := strings.Join(repositoryBootstrapLines(workspaceAttachedRepo{
+		Name:        "example",
+		URL:         "https://example.org/example.git",
+		AuthEnvName: "NORYX_SECRET_GITHUB_TOKEN",
+	}, "/repos/example"), "\n")
+
+	for _, expected := range []string{"GIT_ASKPASS=", "$NORYX_SECRET_GITHUB_TOKEN", "https://example.org/example.git"} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("bootstrap does not contain %q", expected)
+		}
+	}
+	if strings.Contains(script, "oauth2:") {
+		t.Fatal("bootstrap must not embed authenticated repository URLs")
+	}
+}
+
 func TestWorkspaceAccessURLNeverContainsInternalToken(t *testing.T) {
 	for _, kind := range []string{"jupyter", "vscode", "rstudio"} {
 		accessURL := workspaceAccessURL(kind, "workspace-id")
