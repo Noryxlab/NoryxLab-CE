@@ -811,6 +811,7 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 	clonePrefix := ""
 	if repo.AuthEnvName != "" {
 		askPass := "/tmp/noryx-git-askpass-" + sanitizeWorkspacePathName(repo.Name)
+		credentialHelper := "/tmp/noryx-git-credential-" + sanitizeWorkspacePathName(repo.Name)
 		clonePrefix = fmt.Sprintf("GIT_ASKPASS=%s GIT_TERMINAL_PROMPT=0 ", shellQuote(askPass))
 		return []string{
 			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(askPass)),
@@ -821,12 +822,20 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 			"esac",
 			"EOF",
 			fmt.Sprintf("chmod 700 %s", shellQuote(askPass)),
+			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(credentialHelper)),
+			"#!/bin/sh",
+			"[ \"$1\" = get ] || exit 0",
+			"printf 'username=oauth2\\n'",
+			fmt.Sprintf("printf 'password=%%s\\n' \"$%s\"", repo.AuthEnvName),
+			"EOF",
+			fmt.Sprintf("chmod 700 %s", shellQuote(credentialHelper)),
 			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
 			fmt.Sprintf("  %sgit -C %s pull --ff-only || true", clonePrefix, shellQuote(repoDir)),
 			"else",
 			fmt.Sprintf("  %sgit clone --depth 1 %s %s || true", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
 			"fi",
-			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config core.askPass %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote(askPass)),
+			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --replace-all credential.helper ''; fi", shellQuote(repoDir), shellQuote(repoDir)),
+			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --add credential.helper %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote("!"+credentialHelper)),
 			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config credential.interactive never; fi", shellQuote(repoDir), shellQuote(repoDir)),
 		}
 	}
