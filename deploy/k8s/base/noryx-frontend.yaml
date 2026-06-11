@@ -571,6 +571,11 @@ data:
             padding: 12px 8px;
             vertical-align: top;
           }
+          .apps-card { min-width: 0; overflow: hidden; }
+          .apps-table-wrap { width: 100%; overflow-x: auto; }
+          .apps-table-wrap table { min-width: 1080px; }
+          .app-access-link { overflow-wrap: anywhere; word-break: break-word; }
+          .app-actions { white-space: nowrap; }
           th { color: #61718a; font-weight: 700; font-size: var(--fs-12); letter-spacing: .04em; text-transform: uppercase; }
           .badge {
             display: inline-block;
@@ -1239,7 +1244,7 @@ data:
 
               <section class="view" id="view-project-apps">
                 <div class="grid">
-                  <article class="card span-8">
+                  <article class="card span-12 apps-card">
                     <h3>Project Apps</h3>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="appProjectName" class="v">Aucun projet sélectionné</div></div>
@@ -1269,10 +1274,12 @@ data:
                       <button id="createApp" class="btn warn">Launch App</button>
                       <button id="loadApps" class="btn">Refresh</button>
                     </div>
-                    <table>
-                      <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>RBAC</th><th>Access</th><th>Actions</th></tr></thead>
-                      <tbody id="appRows"></tbody>
-                    </table>
+                    <div class="apps-table-wrap">
+                      <table>
+                        <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>RBAC</th><th>Access</th><th>Actions</th></tr></thead>
+                        <tbody id="appRows"></tbody>
+                      </table>
+                    </div>
                   </article>
                 </div>
               </section>
@@ -2481,7 +2488,7 @@ data:
           function appAccessLink(app) {
             const url = absoluteAccessUrl(app && app.accessUrl);
             if (!url) return '-';
-            return '<a href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(url) + '</a>' +
+            return '<a class="app-access-link" href="' + escapeHTML(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHTML(url) + '</a>' +
               '<br/><button type="button" class="btn" data-copy-app="' + escapeHTML((app && app.id) || '') + '">Copier le lien</button>';
           }
 
@@ -3633,7 +3640,7 @@ data:
                 '<td>' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + badge(a.accessMode || 'project') + '</td>' +
                 '<td>' + appAccessLink(a) + '</td>' +
-                '<td><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
+                '<td class="app-actions"><button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
               appRows.appendChild(tr);
             });
           }
@@ -6129,7 +6136,7 @@ data:
       </body>
     </html>
   version.json: |
-    {"version":"ce-web-0.6.180"}
+    {"version":"ce-web-0.6.181"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6150,7 +6157,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.180
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.181
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
