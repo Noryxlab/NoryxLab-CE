@@ -393,6 +393,116 @@ func (r *Runtime) DeletePod(name string) error {
 	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
 }
 
+func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return noryxruntime.PodStatus{}, fmt.Errorf("pod name is required")
+	}
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
+	if err != nil {
+		return noryxruntime.PodStatus{}, err
+	}
+	var pod struct {
+		Status struct {
+			Phase             string `json:"phase"`
+			Reason            string `json:"reason"`
+			Message           string `json:"message"`
+			StartTime         string `json:"startTime"`
+			ContainerStatuses []struct {
+				RestartCount int `json:"restartCount"`
+				State        struct {
+					Waiting struct {
+						Reason  string `json:"reason"`
+						Message string `json:"message"`
+					} `json:"waiting"`
+					Terminated struct {
+						Reason  string `json:"reason"`
+						Message string `json:"message"`
+					} `json:"terminated"`
+				} `json:"state"`
+			} `json:"containerStatuses"`
+		} `json:"status"`
+	}
+	if err := json.Unmarshal(body, &pod); err != nil {
+		return noryxruntime.PodStatus{}, err
+	}
+	status := noryxruntime.PodStatus{Phase: strings.ToLower(pod.Status.Phase), Reason: pod.Status.Reason, Message: pod.Status.Message}
+	status.StartedAt, _ = time.Parse(time.RFC3339, pod.Status.StartTime)
+	for _, container := range pod.Status.ContainerStatuses {
+		status.RestartCount += container.RestartCount
+		if status.Reason == "" {
+			status.Reason = firstNonEmpty(container.State.Waiting.Reason, container.State.Terminated.Reason)
+		}
+		if status.Message == "" {
+			status.Message = firstNonEmpty(container.State.Waiting.Message, container.State.Terminated.Message)
+		}
+	}
+	return status, nil
+}
+
+func (r *Runtime) GetPodLogs(name string, tailLines int) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("pod name is required")
+	}
+	if tailLines <= 0 {
+		tailLines = 300
+	}
+	if tailLines > 5000 {
+		tailLines = 5000
+	}
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/log?tailLines=%d", r.workloadNamespace, name, tailLines))
+	return string(body), err
+}
+
+func (r *Runtime) RestartPod(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("pod name is required")
+	}
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
+	if err != nil {
+		return err
+	}
+	pod, err := restartablePod(body)
+	if err != nil {
+		return err
+	}
+	if err := r.DeletePod(name); err != nil {
+		return err
+	}
+	for i := 0; i < 360; i++ {
+		if _, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name)); err != nil && strings.Contains(err.Error(), "status=404") {
+			_, err = r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), pod)
+			return err
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return fmt.Errorf("pod %s deletion timed out after 90 seconds", name)
+}
+
+func restartablePod(body []byte) (map[string]any, error) {
+	var pod map[string]any
+	if err := json.Unmarshal(body, &pod); err != nil {
+		return nil, err
+	}
+	delete(pod, "status")
+	metadata, _ := pod["metadata"].(map[string]any)
+	for _, key := range []string{"uid", "resourceVersion", "generation", "creationTimestamp", "managedFields", "deletionTimestamp", "deletionGracePeriodSeconds"} {
+		delete(metadata, key)
+	}
+	return pod, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
 	metadata := map[string]any{"name": spec.Name}
 	if strings.TrimSpace(spec.OwnerPodName) != "" {
