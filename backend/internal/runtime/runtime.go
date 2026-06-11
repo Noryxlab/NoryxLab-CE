@@ -167,6 +167,20 @@ type WorkspaceReadiness interface {
 	IsServiceReady(serviceName string) (bool, error)
 }
 
+type PodStatus struct {
+	Phase        string    `json:"phase"`
+	Reason       string    `json:"reason,omitempty"`
+	Message      string    `json:"message,omitempty"`
+	RestartCount int       `json:"restartCount"`
+	StartedAt    time.Time `json:"startedAt,omitempty"`
+}
+
+type PodOperator interface {
+	GetPodStatus(name string) (PodStatus, error)
+	GetPodLogs(name string, tailLines int) (string, error)
+	RestartPod(name string) error
+}
+
 type WorkspaceRuntimeInfo struct {
 	WorkspaceID string    `json:"workspaceId"`
 	ProjectID   string    `json:"projectId"`

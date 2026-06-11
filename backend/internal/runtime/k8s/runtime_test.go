@@ -64,3 +64,35 @@ func TestKanikoBuildArgsKeepsGitContextForRepositoryBuild(t *testing.T) {
 		t.Fatalf("unexpected repository Dockerfile path: %s", dockerfile)
 	}
 }
+
+func TestRestartablePodRemovesServerAndDeletionMetadata(t *testing.T) {
+	pod, err := restartablePod([]byte(`{
+		"apiVersion":"v1",
+		"kind":"Pod",
+		"metadata":{
+			"name":"app-test",
+			"uid":"uid",
+			"resourceVersion":"42",
+			"deletionTimestamp":"2026-06-11T15:48:31Z",
+			"deletionGracePeriodSeconds":30,
+			"labels":{"noryx.io/app-id":"app-id"}
+		},
+		"spec":{"containers":[{"name":"main","image":"example/app"}]},
+		"status":{"phase":"Running"}
+	}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := pod["status"]; exists {
+		t.Fatal("restartable pod must not keep status")
+	}
+	metadata := pod["metadata"].(map[string]any)
+	for _, key := range []string{"uid", "resourceVersion", "deletionTimestamp", "deletionGracePeriodSeconds"} {
+		if _, exists := metadata[key]; exists {
+			t.Fatalf("restartable pod must not keep metadata.%s", key)
+		}
+	}
+	if metadata["name"] != "app-test" {
+		t.Fatalf("restartable pod lost its name: %#v", metadata)
+	}
+}

@@ -49,6 +49,7 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		return
 	}
 	readiness, hasReadiness := h.runtime.(noryxruntime.WorkspaceReadiness)
+	podOperator, hasPodOperator := h.runtime.(noryxruntime.PodOperator)
 	projectFilter := strings.TrimSpace(r.URL.Query().Get("projectId"))
 	filtered := make([]app.App, 0, len(items))
 	for _, item := range items {
@@ -64,7 +65,30 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
-		if hasReadiness && strings.TrimSpace(item.ServiceName) != "" {
+		if hasPodOperator && strings.TrimSpace(item.PodName) != "" {
+			status, err := podOperator.GetPodStatus(item.PodName)
+			if err == nil {
+				item.RestartCount = status.RestartCount
+				if !status.StartedAt.IsZero() {
+					startedAt := status.StartedAt
+					item.StartedAt = &startedAt
+				}
+				item.HealthMessage = strings.TrimSpace(status.Reason + " " + status.Message)
+				switch status.Phase {
+				case "failed":
+					item.Status = "failed"
+				case "succeeded":
+					item.Status = "stopped"
+				case "pending":
+					item.Status = "launching"
+				case "running":
+					item.Status = "unhealthy"
+				}
+			} else if isNotFoundError(err) {
+				item.Status = "stopped"
+			}
+		}
+		if hasReadiness && strings.TrimSpace(item.ServiceName) != "" && item.Status != "stopped" && item.Status != "failed" {
 			ready, err := readiness.IsServiceReady(item.ServiceName)
 			if err == nil {
 				if ready {
@@ -77,6 +101,92 @@ func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind st
 		filtered = append(filtered, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": filtered})
+}
+
+func (h Handlers) GetAppLogs(w http.ResponseWriter, r *http.Request) {
+	record, userID, ok := h.requireAppOperation(w, r, "app logs")
+	if !ok {
+		return
+	}
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "app logs are not supported by runtime"})
+		return
+	}
+	tailLines := 300
+	if raw := strings.TrimSpace(r.URL.Query().Get("tailLines")); raw != "" {
+		if _, err := fmt.Sscanf(raw, "%d", &tailLines); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "tailLines must be an integer"})
+			return
+		}
+	}
+	logs, err := operator.GetPodLogs(record.PodName, tailLines)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to read app logs: " + err.Error()})
+		return
+	}
+	h.emitAudit(r, userID, "app.logs.read", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
+	writeJSON(w, http.StatusOK, map[string]any{"appId": record.ID, "podName": record.PodName, "logs": logs})
+}
+
+func (h Handlers) RestartApp(w http.ResponseWriter, r *http.Request) {
+	record, userID, ok := h.requireAppOperation(w, r, "app restart")
+	if !ok {
+		return
+	}
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "app restart is not supported by runtime"})
+		return
+	}
+	if err := operator.RestartPod(record.PodName); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to restart app: " + err.Error()})
+		return
+	}
+	record.Status = "launching"
+	_ = h.appStore.Upsert(record)
+	h.emitAudit(r, userID, "app.restart", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
+	writeJSON(w, http.StatusAccepted, record)
+}
+
+func (h Handlers) StopApp(w http.ResponseWriter, r *http.Request) {
+	record, userID, ok := h.requireAppOperation(w, r, "app stop")
+	if !ok {
+		return
+	}
+	if h.runtime != nil {
+		if err := h.runtime.DeletePod(record.PodName); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to stop app: " + err.Error()})
+			return
+		}
+	}
+	record.Status = "stopped"
+	if err := h.appStore.Upsert(record); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist stopped app"})
+		return
+	}
+	h.emitAudit(r, userID, "app.stop", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (h Handlers) requireAppOperation(w http.ResponseWriter, r *http.Request, operation string) (app.App, string, bool) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return app.App{}, "", false
+	}
+	record, found, err := h.appStore.GetByID(strings.TrimSpace(r.PathValue("appID")))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read app"})
+		return app.App{}, "", false
+	}
+	if !found || (strings.TrimSpace(record.Kind) != "" && record.Kind != "app") {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "app not found"})
+		return app.App{}, "", false
+	}
+	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, operation) {
+		return app.App{}, "", false
+	}
+	return record, userID, true
 }
 
 func (h Handlers) CreateApp(w http.ResponseWriter, r *http.Request) {
