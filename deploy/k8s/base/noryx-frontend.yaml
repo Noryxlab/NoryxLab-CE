@@ -1099,11 +1099,21 @@ data:
                     <div class="section-head" style="margin-top:32px">
                       <div>
                         <h3>Services de données internes</h3>
-                        <p class="muted">Catalogue des images maintenues dans Harbor. Le Dockerfile est visible mais immuable.</p>
+                        <p class="muted">Créez une base persistante à partir d'une image maintenue dans Harbor. La connexion est ajoutée automatiquement à vos datasources.</p>
                       </div>
                     </div>
+                    <div class="row">
+                      <input id="dataServiceName" placeholder="Nom du service" />
+                      <select id="dataServiceDefinition"></select>
+                      <input id="dataServiceStorage" value="10Gi" placeholder="Stockage (ex: 10Gi)" />
+                    </div>
+                    <div class="row">
+                      <input id="dataServiceDatabase" value="noryx" placeholder="Base de données" />
+                      <input id="dataServiceUsername" value="noryx" placeholder="Utilisateur" />
+                      <button id="createDataService" class="btn primary">Créer le service interne</button>
+                    </div>
                     <table>
-                      <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th></tr></thead>
+                      <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th><th>Action</th></tr></thead>
                       <tbody id="datasourceDefinitionRows"></tbody>
                     </table>
                   </article>
@@ -1788,6 +1798,12 @@ data:
           const dsSSLModeInput = document.getElementById('dsSSLMode');
           const createDatasourceBtn = document.getElementById('createDatasource');
           const refreshDatasourcesBtn = document.getElementById('refreshDatasources');
+          const dataServiceNameInput = document.getElementById('dataServiceName');
+          const dataServiceDefinitionInput = document.getElementById('dataServiceDefinition');
+          const dataServiceStorageInput = document.getElementById('dataServiceStorage');
+          const dataServiceDatabaseInput = document.getElementById('dataServiceDatabase');
+          const dataServiceUsernameInput = document.getElementById('dataServiceUsername');
+          const createDataServiceBtn = document.getElementById('createDataService');
           const datasourceRows = document.getElementById('datasourceRows');
           const datasourceDefinitionRows = document.getElementById('datasourceDefinitionRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
@@ -2447,6 +2463,7 @@ data:
             attachDatasetBtn.disabled = !enabled;
             attachRepoBtn.disabled = !enabled;
             createDatasourceBtn.disabled = !enabled;
+            createDataServiceBtn.disabled = !enabled;
             refreshDatasourcesBtn.disabled = !enabled;
             attachDatasourceBtn.disabled = !enabled;
           }
@@ -3383,13 +3400,14 @@ data:
             }
             state.datasources.forEach((d) => {
               const check = state.datasourceChecks && state.datasourceChecks[d.id] ? state.datasourceChecks[d.id] : null;
-              const checkLabel = check ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error'))) : '-';
+              const checkLabel = d.source === 'internal' ? badge(d.status || 'launching') : (check ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error'))) : '-');
+              const storageLabel = d.source === 'internal' && d.storageSize ? '<br><small>Stockage ' + escapeHTML(d.storageSize) + '</small>' : '';
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                 '<td><strong>' + datasourceTypeLabel(d.type) + '</strong><br><small>' + (d.source === 'internal' ? 'Interne' : 'Externe') + '</small></td>' +
-                '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code></td>' +
-                '<td><code>' + checkLabel + '</code></td>' +
+                '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code>' + storageLabel + '</td>' +
+                '<td>' + checkLabel + '</td>' +
                 '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
               datasourceRows.appendChild(tr);
             });
@@ -3402,20 +3420,28 @@ data:
           function renderDatasourceDefinitions() {
             datasourceDefinitionRows.innerHTML = '';
             const items = ensureArray(state.datasourceDefinitions);
+            const currentDefinition = dataServiceDefinitionInput.value || '';
+            dataServiceDefinitionInput.innerHTML = '';
             if (items.length === 0) {
-              datasourceDefinitionRows.innerHTML = '<tr><td colspan="5">Aucune définition de service interne.</td></tr>';
+              datasourceDefinitionRows.innerHTML = '<tr><td colspan="6">Aucune définition de service interne.</td></tr>';
               return;
             }
             items.forEach((item) => {
+              const option = document.createElement('option');
+              option.value = item.id || '';
+              option.textContent = (item.name || item.id || '-') + ' · ' + datasourceTypeLabel(item.type);
+              dataServiceDefinitionInput.appendChild(option);
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><br><small>' + escapeHTML(item.description || '') + '</small></td>' +
                 '<td>' + escapeHTML(datasourceTypeLabel(item.type)) + '<br><small>Port ' + String(item.defaultPort || '-') + '</small></td>' +
                 '<td><code>' + escapeHTML(item.image || '-') + '</code></td>' +
                 '<td>' + badge(item.system ? 'system' : 'custom') + '</td>' +
-                '<td><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>';
+                '<td><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>' +
+                '<td><button type="button" class="btn" data-use-dataservice="' + escapeHTML(item.id || '') + '">Utiliser</button></td>';
               datasourceDefinitionRows.appendChild(tr);
             });
+            if (items.some((item) => item.id === currentDefinition)) dataServiceDefinitionInput.value = currentDefinition;
           }
 
           function renderSecretOptions() {
@@ -5185,6 +5211,36 @@ data:
             }
           };
 
+          createDataServiceBtn.onclick = async () => {
+            try {
+              const payload = {
+                name: dataServiceNameInput.value.trim(),
+                definitionId: dataServiceDefinitionInput.value.trim(),
+                database: dataServiceDatabaseInput.value.trim() || 'noryx',
+                username: dataServiceUsernameInput.value.trim() || 'noryx',
+                storageSize: dataServiceStorageInput.value.trim() || '10Gi'
+              };
+              if (!payload.name || !payload.definitionId) throw { error: 'Le nom et la définition du service sont requis.' };
+              await callJSON('/api/v1/dataservices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              dataServiceNameInput.value = '';
+              await refreshDatasources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          datasourceDefinitionRows.onclick = (event) => {
+            const definitionID = event.target && event.target.getAttribute('data-use-dataservice');
+            if (!definitionID) return;
+            dataServiceDefinitionInput.value = definitionID;
+            dataServiceNameInput.focus();
+          };
+
           refreshDatasourcesBtn.onclick = async () => {
             try { await refreshDatasources(); }
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
@@ -6252,7 +6308,11 @@ data:
                 usersOut.textContent = result.reachable ? tui('msg_ds_conn_ok') : (tui('msg_ds_conn_failed') + (result.error || tui('msg_unknown_error')));
                 return;
               }
-              if (!window.confirm('Supprimer définitivement cette datasource et la détacher de tous les projets ?')) return;
+              const target = state.datasources.find((item) => item.id === datasourceIDToDelete);
+              const warning = target && target.source === 'internal'
+                ? 'Supprimer définitivement ce service interne, sa connexion et toutes les données de son volume persistant ?'
+                : 'Supprimer définitivement cette datasource et la détacher de tous les projets ?';
+              if (!window.confirm(warning)) return;
               await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToDelete), { method: 'DELETE' });
               delete state.datasourceChecks[datasourceIDToDelete];
               await refreshDatasources();
@@ -6341,7 +6401,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.190"}
+    {"version":"ce-web-0.6.191"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6362,7 +6422,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.190
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.191
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

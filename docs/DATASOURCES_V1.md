@@ -10,12 +10,14 @@ Scope:
 - connection validation endpoint
 - env var injection into workloads (workspaces, jobs, apps)
 - read-only internal data-service definition catalog
+- persistent internal PostgreSQL, MySQL and MongoDB service provisioning
 
 ## API
 
 - `GET /api/v1/datasources`
 - `GET /api/v1/datasource-definitions`
 - `POST /api/v1/datasources`
+- `POST /api/v1/dataservices`
 - `DELETE /api/v1/datasources/{datasourceID}`
 - `POST /api/v1/datasources/{datasourceID}/validate`
 - `GET /api/v1/projects/{projectID}/datasources`
@@ -54,9 +56,38 @@ system definitions expose:
 - the connector type and default port
 
 The initial catalog contains PostgreSQL, MySQL and MongoDB definitions under
-`harbor.lan/noryx-dataservices`. Provisioning persistent instances from these
-definitions is a subsequent lifecycle-controller phase. A provisioned instance
-will generate an attachable datasource automatically.
+`harbor.lan/noryx-dataservices`.
+
+Creating an internal service provisions:
+
+- one `ReadWriteOnce` PVC
+- one credentials Secret managed by the platform
+- one database pod and one ClusterIP service in `noryx-loads`
+- one attachable internal datasource
+
+Example:
+
+```json
+{
+  "name": "project-postgres",
+  "definitionId": "postgresql-17",
+  "database": "noryx",
+  "username": "noryx",
+  "storageSize": "10Gi"
+}
+```
+
+The generated password is encrypted in the Noryx store and injected into
+attached workloads through the usual datasource environment variables. It is
+not listed, revealed or directly editable in the Secrets UI.
+
+Deleting an internal datasource is destructive: the service, pod, Kubernetes
+credentials Secret, Noryx managed Secret and persistent volume claim are
+deleted. The UI requires an explicit confirmation that stored data will be
+destroyed.
+
+NetworkPolicies allow Noryx user workloads and the Noryx backend to connect to
+internal services only on ports `5432`, `3306` and `27017`.
 
 ## Workload env vars
 

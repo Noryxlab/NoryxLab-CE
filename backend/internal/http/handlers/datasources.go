@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,9 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	_ "github.com/lib/pq"
 )
 
@@ -27,6 +30,14 @@ type createDatasourceRequest struct {
 	SSLMode        string `json:"sslMode"`
 }
 
+type createDataServiceRequest struct {
+	Name         string `json:"name"`
+	DefinitionID string `json:"definitionId"`
+	Database     string `json:"database"`
+	Username     string `json:"username"`
+	StorageSize  string `json:"storageSize"`
+}
+
 func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -37,6 +48,9 @@ func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasources"})
 		return
 	}
+	for i := range items {
+		items[i] = h.enrichDatasourceStatus(items[i])
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
@@ -45,6 +59,113 @@ func (h Handlers) ListDatasourceDefinitions(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": datasource.SystemServiceDefinitions()})
+}
+
+func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	if h.runtime == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "kubernetes runtime is disabled"})
+		return
+	}
+	var req createDataServiceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.DefinitionID = strings.TrimSpace(req.DefinitionID)
+	req.Database = strings.TrimSpace(req.Database)
+	req.Username = strings.TrimSpace(req.Username)
+	req.StorageSize = strings.TrimSpace(req.StorageSize)
+	if req.Name == "" || req.DefinitionID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and definitionId are required"})
+		return
+	}
+	definition, found := datasourceDefinitionByID(req.DefinitionID)
+	if !found {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown data service definition"})
+		return
+	}
+	if req.Database == "" {
+		req.Database = "noryx"
+	}
+	if req.Username == "" {
+		req.Username = "noryx"
+	}
+	if req.StorageSize == "" {
+		req.StorageSize = "10Gi"
+	}
+	if !validStorageSize(req.StorageSize) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "storageSize must be a Kubernetes quantity such as 10Gi"})
+		return
+	}
+	if strings.TrimSpace(h.secretsMasterKey) == "" {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "secrets encryption key is not configured"})
+		return
+	}
+	password, err := generatedDatasourcePassword()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to generate credentials"})
+		return
+	}
+	resourceName := "dataservice-" + shortID()
+	pvcName := resourceName + "-data"
+	kubeSecretName := resourceName + "-credentials"
+	noryxSecretName := resourceName + "-password"
+	labels := map[string]string{
+		"app.kubernetes.io/name":      "noryx-data-service",
+		"noryx.io/data-service":       resourceName,
+		"noryx.io/data-service-type":  definition.Type,
+		"noryx.io/data-service-owner": sanitizeK8sName(userID),
+	}
+	cleanup := func() {
+		_ = h.runtime.DeleteService(resourceName)
+		_ = h.runtime.DeletePod(resourceName)
+		_ = h.runtime.DeleteSecret(kubeSecretName)
+		_ = h.runtime.DeletePersistentVolumeClaim(pvcName)
+		_ = h.secretStore.Delete(userID, noryxSecretName)
+	}
+	if err := h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{Name: pvcName, StorageClassName: h.workspacePVCClass, Size: req.StorageSize, AccessModes: []string{"ReadWriteOnce"}, Labels: labels}); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service storage: " + err.Error()})
+		return
+	}
+	if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{Name: kubeSecretName, Data: map[string]string{"password": password}, Labels: labels}); err != nil {
+		cleanup()
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service credentials: " + err.Error()})
+		return
+	}
+	encrypted, err := security.EncryptString(h.secretsMasterKey, password)
+	if err != nil {
+		cleanup()
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt data service credentials"})
+		return
+	}
+	if err := h.secretStore.Upsert(secret.New(userID, noryxSecretName, "datasource-managed", encrypted)); err != nil {
+		cleanup()
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist data service credentials"})
+		return
+	}
+	if err := h.runtime.CreatePod(dataServicePodSpec(resourceName, pvcName, kubeSecretName, req.Database, req.Username, definition, labels, h.registryPullSecret)); err != nil {
+		cleanup()
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service pod: " + err.Error()})
+		return
+	}
+	if err := h.runtime.CreateService(noryxruntime.ServiceSpec{Name: resourceName, Selector: map[string]string{"noryx.io/data-service": resourceName}, Port: definition.DefaultPort}); err != nil {
+		cleanup()
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service endpoint: " + err.Error()})
+		return
+	}
+	item := datasource.Internal(userID, req.Name, req.Database, req.Username, noryxSecretName, req.StorageSize, definition, resourceName, resourceName, pvcName)
+	if err := h.datasourceStore.Create(item); err != nil {
+		cleanup()
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist internal datasource"})
+		return
+	}
+	h.emitAudit(r, userID, "dataservice.create", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name, "definitionId": definition.ID, "storageSize": item.StorageSize})
+	writeJSON(w, http.StatusCreated, item)
 }
 
 func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
@@ -105,11 +226,120 @@ func (h Handlers) DeleteDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
+	if item.Source == "internal" {
+		if h.runtime == nil {
+			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "kubernetes runtime is disabled"})
+			return
+		}
+		for _, err := range []error{
+			h.runtime.DeleteService(item.ServiceName),
+			h.runtime.DeletePod(item.PodName),
+			h.runtime.DeleteSecret(item.PodName + "-credentials"),
+			h.runtime.DeletePersistentVolumeClaim(item.PVCName),
+			h.secretStore.Delete(userID, item.PasswordSecret),
+		} {
+			if err != nil && !isNotFoundError(err) {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete internal data service: " + err.Error()})
+				return
+			}
+		}
+	}
 	if err := h.datasourceStore.Delete(datasourceID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete datasource"})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+	h.emitAudit(r, userID, "datasource.delete", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name, "source": item.Source})
+}
+
+func (h Handlers) enrichDatasourceStatus(item datasource.Datasource) datasource.Datasource {
+	if item.Source != "internal" || item.PodName == "" {
+		return item
+	}
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		return item
+	}
+	status, err := operator.GetPodStatus(item.PodName)
+	if err != nil {
+		item.Status = "missing"
+		return item
+	}
+	item.Status = strings.ToLower(status.Phase)
+	return item
+}
+
+func datasourceDefinitionByID(id string) (datasource.ServiceDefinition, bool) {
+	for _, item := range datasource.SystemServiceDefinitions() {
+		if item.ID == id {
+			return item, true
+		}
+	}
+	return datasource.ServiceDefinition{}, false
+}
+
+func generatedDatasourcePassword() (string, error) {
+	raw := make([]byte, 24)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	const alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	for i := range raw {
+		raw[i] = alphabet[int(raw[i])%len(alphabet)]
+	}
+	return string(raw), nil
+}
+
+func validStorageSize(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) < 3 || !strings.HasSuffix(value, "Gi") {
+		return false
+	}
+	number := strings.TrimSuffix(value, "Gi")
+	if strings.TrimLeft(number, "0") == "" {
+		return false
+	}
+	for _, r := range number {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func dataServicePodSpec(name, pvcName, secretName, database, username string, definition datasource.ServiceDefinition, labels map[string]string, pullSecret string) noryxruntime.PodSpec {
+	env := []noryxruntime.EnvVar{}
+	mountPath := "/var/lib/postgresql/data"
+	switch definition.Type {
+	case "mysql":
+		mountPath = "/var/lib/mysql"
+		env = append(env,
+			noryxruntime.EnvVar{Name: "MYSQL_DATABASE", Value: database},
+			noryxruntime.EnvVar{Name: "MYSQL_USER", Value: username},
+			noryxruntime.EnvVar{Name: "MYSQL_PASSWORD", SecretName: secretName, SecretKey: "password"},
+			noryxruntime.EnvVar{Name: "MYSQL_ROOT_PASSWORD", SecretName: secretName, SecretKey: "password"},
+		)
+	case "mongodb":
+		mountPath = "/data/db"
+		env = append(env,
+			noryxruntime.EnvVar{Name: "MONGO_INITDB_DATABASE", Value: database},
+			noryxruntime.EnvVar{Name: "MONGO_INITDB_ROOT_USERNAME", Value: username},
+			noryxruntime.EnvVar{Name: "MONGO_INITDB_ROOT_PASSWORD", SecretName: secretName, SecretKey: "password"},
+		)
+	default:
+		env = append(env,
+			noryxruntime.EnvVar{Name: "POSTGRES_DB", Value: database},
+			noryxruntime.EnvVar{Name: "POSTGRES_USER", Value: username},
+			noryxruntime.EnvVar{Name: "POSTGRES_PASSWORD", SecretName: secretName, SecretKey: "password"},
+			noryxruntime.EnvVar{Name: "PGDATA", Value: "/var/lib/postgresql/data/pgdata"},
+		)
+	}
+	return noryxruntime.PodSpec{
+		PodName: name, Image: definition.Image, Env: env, Ports: []int{definition.DefaultPort},
+		ReadinessPort: definition.DefaultPort, CPURequest: "100m", CPULimit: "2", MemRequest: "128Mi", MemLimit: "2Gi",
+		Labels: labels, PullSecret: pullSecret, RestartPolicy: "Always",
+		Volumes: []noryxruntime.PersistentVolumeClaimMount{{ClaimName: pvcName, MountPath: mountPath}},
+	}
 }
 
 func (h Handlers) ValidateDatasource(w http.ResponseWriter, r *http.Request) {
@@ -206,7 +436,7 @@ func (h Handlers) ListProjectDatasources(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if found {
-			items = append(items, item)
+			items = append(items, h.enrichDatasourceStatus(item))
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})

@@ -66,7 +66,7 @@ type Config struct {
 func Load() Config {
 	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
 	if backendVersion == "" {
-		backendVersion = "0.5.156"
+		backendVersion = "0.5.157"
 	}
 	edition := os.Getenv("NORYX_EDITION")
 	if edition == "" {
@@ -209,7 +209,7 @@ func Load() Config {
 	}
 	projectFilesImage := os.Getenv("NORYX_PROJECT_FILES_IMAGE")
 	if projectFilesImage == "" {
-		projectFilesImage = "harbor.lan/noryx-ce/noryx-backend:0.5.156-dev"
+		projectFilesImage = "harbor.lan/noryx-ce/noryx-backend:0.5.157-dev"
 	}
 	minioEndpoint := os.Getenv("NORYX_MINIO_ENDPOINT")
 	if minioEndpoint == "" {

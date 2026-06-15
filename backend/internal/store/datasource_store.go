@@ -6,5 +6,6 @@ type DatasourceStore interface {
 	ListByUser(userID string) ([]datasource.Datasource, error)
 	GetByID(id string) (datasource.Datasource, bool, error)
 	Create(item datasource.Datasource) error
+	Upsert(item datasource.Datasource) error
 	Delete(id string) error
 }

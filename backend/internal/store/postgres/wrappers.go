@@ -141,6 +141,9 @@ func (s *DatasourceStore) GetByID(id string) (datasource.Datasource, bool, error
 func (s *DatasourceStore) Create(item datasource.Datasource) error {
 	return s.Store.CreateDatasource(item)
 }
+func (s *DatasourceStore) Upsert(item datasource.Datasource) error {
+	return s.Store.UpsertDatasource(item)
+}
 func (s *DatasourceStore) Delete(id string) error { return s.Store.DeleteDatasource(id) }
 
 type RepositoryStore struct{ *Store }

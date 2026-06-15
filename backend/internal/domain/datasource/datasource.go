@@ -22,8 +22,28 @@ type Datasource struct {
 	Image               string    `json:"image,omitempty"`
 	Dockerfile          string    `json:"dockerfile,omitempty"`
 	System              bool      `json:"system"`
+	Status              string    `json:"status,omitempty"`
+	PodName             string    `json:"podName,omitempty"`
+	ServiceName         string    `json:"serviceName,omitempty"`
+	PVCName             string    `json:"pvcName,omitempty"`
+	StorageSize         string    `json:"storageSize,omitempty"`
 	CreatedAt           time.Time `json:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
+}
+
+func Internal(ownerUserID, name, database, username, passwordSecret, storageSize string, definition ServiceDefinition, podName, serviceName, pvcName string) Datasource {
+	item := New(ownerUserID, name, definition.Type, serviceName+".noryx-loads.svc.cluster.local", database, username, passwordSecret, "disable", definition.DefaultPort)
+	item.Source = "internal"
+	item.ServiceDefinitionID = definition.ID
+	item.Image = definition.Image
+	item.Dockerfile = definition.Dockerfile
+	item.System = definition.System
+	item.Status = "launching"
+	item.PodName = podName
+	item.ServiceName = serviceName
+	item.PVCName = pvcName
+	item.StorageSize = storageSize
+	return item
 }
 
 func New(ownerUserID, name, kind, host, database, username, passwordSecret, sslMode string, port int) Datasource {

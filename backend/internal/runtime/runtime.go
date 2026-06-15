@@ -33,6 +33,7 @@ type PodSpec struct {
 	RunAsUser               int64
 	RunAsGroup              int64
 	FSGroup                 int64
+	RestartPolicy           string
 }
 
 type ServiceSpec struct {
