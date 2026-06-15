@@ -192,6 +192,9 @@ func (s *ProjectResourceStore) DetachDatasource(projectID, datasourceID string) 
 func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]string, error) {
 	return s.Store.ListProjectDatasourceIDs(projectID)
 }
+func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
+	return s.Store.ListDatasourceProjectIDs(datasourceID)
+}
 
 func (s *UserPreferenceStore) Get(userID, key string) (string, bool, error) {
 	return s.Store.GetUserPreference(userID, key)
