@@ -194,7 +194,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		"spec": map[string]any{
 			"automountServiceAccountToken": false,
 			"containers":                   []map[string]any{container},
-			"restartPolicy":                "Never",
+			"restartPolicy":                firstNonEmpty(spec.RestartPolicy, "Never"),
 		},
 	}
 	if spec.FSGroup > 0 {

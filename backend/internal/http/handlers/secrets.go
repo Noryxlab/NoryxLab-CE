@@ -29,7 +29,7 @@ func (h Handlers) resolveUserSecretEnv(userID string) (map[string]string, error)
 	data := map[string]string{}
 	now := time.Now().UTC()
 	for _, item := range items {
-		if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") || (item.ExpiresAt != nil && now.After(*item.ExpiresAt)) {
+		if managedSecret(item) || (item.ExpiresAt != nil && now.After(*item.ExpiresAt)) {
 			continue
 		}
 		envName := userSecretEnvName(item.Name)
@@ -107,7 +107,7 @@ func (h Handlers) ListSecrets(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]secretView, 0, len(items))
 	for _, item := range items {
-		if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") {
+		if managedSecret(item) {
 			continue
 		}
 		out = append(out, secretView{
@@ -140,8 +140,8 @@ func (h Handlers) UpsertSecret(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and value are required"})
 		return
 	}
-	if strings.HasPrefix(req.Name, "dataset-s3-") || req.Type == "dataset-s3" {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials are managed by the dataset lifecycle"})
+	if managedSecret(secret.Secret{Name: req.Name, Type: req.Type}) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "managed credentials cannot be modified directly"})
 		return
 	}
 	if strings.TrimSpace(h.secretsMasterKey) == "" {
@@ -224,8 +224,8 @@ func (h Handlers) GetSecret(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "secret not found"})
 		return
 	}
-	if item.Type == "dataset-s3" || strings.HasPrefix(item.Name, "dataset-s3-") {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials cannot be revealed"})
+	if managedSecret(item) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "managed credentials cannot be revealed"})
 		return
 	}
 	decrypted, err := security.DecryptString(h.secretsMasterKey, item.ValueEncrypted)
@@ -255,8 +255,13 @@ func (h Handlers) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "secret name is required"})
 		return
 	}
-	if strings.HasPrefix(name, "dataset-s3-") {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset S3 credentials are managed by the dataset lifecycle"})
+	item, found, err := h.secretStore.GetByName(userID, name)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read secret"})
+		return
+	}
+	if found && managedSecret(item) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "managed credentials cannot be deleted directly"})
 		return
 	}
 	if err := h.secretStore.Delete(userID, name); err != nil {
@@ -265,4 +270,9 @@ func (h Handlers) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 	h.emitAudit(r, userID, "secret.delete", "secret", name, "", "success", "", nil)
+}
+
+func managedSecret(item secret.Secret) bool {
+	return item.Type == "dataset-s3" || item.Type == "datasource-managed" ||
+		strings.HasPrefix(item.Name, "dataset-s3-") || strings.HasPrefix(item.Name, "dataservice-")
 }
