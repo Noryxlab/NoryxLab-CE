@@ -581,6 +581,20 @@ data:
           .app-usage-bar { flex: 1 1 0; min-width: 5px; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, #35a6b8, #2563a8); }
           .app-access-link { overflow-wrap: anywhere; word-break: break-word; }
           .app-actions { white-space: nowrap; }
+          .dataservice-catalog-wrap { width: 100%; overflow-x: auto; }
+          .dataservice-catalog { table-layout: fixed; min-width: 920px; }
+          .dataservice-catalog th:nth-child(1) { width: 19%; }
+          .dataservice-catalog th:nth-child(2) { width: 14%; }
+          .dataservice-catalog th:nth-child(3) { width: 31%; }
+          .dataservice-catalog th:nth-child(4) { width: 10%; }
+          .dataservice-catalog th:nth-child(5) { width: 16%; }
+          .dataservice-catalog th:nth-child(6) { width: 10%; }
+          .dataservice-description { display: block; margin-top: 5px; color: var(--muted); line-height: 1.45; }
+          .dataservice-image { min-width: 0; }
+          .dataservice-image code { display: block; max-width: 100%; overflow: hidden; color: #263852; text-overflow: ellipsis; white-space: nowrap; }
+          .dataservice-image small { display: block; margin-top: 4px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .dataservice-definition summary { cursor: pointer; white-space: nowrap; }
+          .dataservice-action { white-space: nowrap; }
           th { color: #61718a; font-weight: 700; font-size: var(--fs-12); letter-spacing: .04em; text-transform: uppercase; }
           .badge {
             display: inline-block;
@@ -1112,10 +1126,12 @@ data:
                       <input id="dataServiceUsername" value="noryx" placeholder="Utilisateur" />
                       <button id="createDataService" class="btn primary">Créer le service interne</button>
                     </div>
-                    <table>
-                      <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th><th>Action</th></tr></thead>
-                      <tbody id="datasourceDefinitionRows"></tbody>
-                    </table>
+                    <div class="dataservice-catalog-wrap">
+                      <table class="dataservice-catalog">
+                        <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th><th>Action</th></tr></thead>
+                        <tbody id="datasourceDefinitionRows"></tbody>
+                      </table>
+                    </div>
                   </article>
 
                 </div>
@@ -3417,6 +3433,15 @@ data:
             return ({ postgres:'PostgreSQL', mysql:'MySQL / MariaDB', mongodb:'MongoDB' })[kind] || kind || '-';
           }
 
+          function datasourceImageReference(image) {
+            const value = String(image || '-');
+            const parts = value.split('@');
+            const digest = parts.length > 1 ? parts.slice(1).join('@') : '';
+            const shortDigest = digest ? digest.slice(0, 19) + (digest.length > 19 ? '…' : '') : '';
+            return '<div class="dataservice-image" title="' + escapeHTML(value) + '"><code>' + escapeHTML(parts[0] || value) + '</code>' +
+              (shortDigest ? '<small>' + escapeHTML(shortDigest) + '</small>' : '') + '</div>';
+          }
+
           function renderDatasourceDefinitions() {
             datasourceDefinitionRows.innerHTML = '';
             const items = ensureArray(state.datasourceDefinitions);
@@ -3433,12 +3458,12 @@ data:
               dataServiceDefinitionInput.appendChild(option);
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><br><small>' + escapeHTML(item.description || '') + '</small></td>' +
+                '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><small class="dataservice-description">' + escapeHTML(item.description || '') + '</small></td>' +
                 '<td>' + escapeHTML(datasourceTypeLabel(item.type)) + '<br><small>Port ' + String(item.defaultPort || '-') + '</small></td>' +
-                '<td><code>' + escapeHTML(item.image || '-') + '</code></td>' +
+                '<td>' + datasourceImageReference(item.image) + '</td>' +
                 '<td>' + badge(item.system ? 'system' : 'custom') + '</td>' +
-                '<td><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>' +
-                '<td><button type="button" class="btn" data-use-dataservice="' + escapeHTML(item.id || '') + '">Utiliser</button></td>';
+                '<td class="dataservice-definition"><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>' +
+                '<td class="dataservice-action"><button type="button" class="btn" data-use-dataservice="' + escapeHTML(item.id || '') + '">Utiliser</button></td>';
               datasourceDefinitionRows.appendChild(tr);
             });
             if (items.some((item) => item.id === currentDefinition)) dataServiceDefinitionInput.value = currentDefinition;
@@ -6401,7 +6426,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.191"}
+    {"version":"ce-web-0.6.192"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6422,7 +6447,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.191
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.192
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
