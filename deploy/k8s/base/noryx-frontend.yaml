@@ -878,11 +878,11 @@ data:
                       </article>
 
                       <article class="card project-resource-card">
-                        <h3>Sources de donnees du projet</h3>
-                        <div class="hint">Connexions de donnees accessibles aux membres de ce projet.</div>
+                        <h3>Connexion à une datasource</h3>
+                        <div class="hint">Connectez au projet une datasource déjà référencée sur la plateforme.</div>
                         <div class="row">
                           <select id="attachDatasourceSelect"></select>
-                          <button id="attachDatasourceBtn" class="btn primary">Rattacher une source</button>
+                          <button id="attachDatasourceBtn" class="btn primary">Connecter une datasource</button>
                         </div>
                         <table>
                           <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
@@ -6426,7 +6426,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.192"}
+    {"version":"ce-web-0.6.193"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6447,7 +6447,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.192
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.193
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
