@@ -10,4 +10,5 @@ type ProjectResourceStore interface {
 	AttachDatasource(projectID, datasourceID string) error
 	DetachDatasource(projectID, datasourceID string) error
 	ListProjectDatasourceIDs(projectID string) ([]string, error)
+	ListDatasourceProjectIDs(datasourceID string) ([]string, error)
 }

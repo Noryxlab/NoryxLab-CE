@@ -20,6 +20,8 @@ Scope:
 - `POST /api/v1/dataservices`
 - `DELETE /api/v1/datasources/{datasourceID}`
 - `POST /api/v1/datasources/{datasourceID}/validate`
+- `GET /api/v1/datasources/{datasourceID}/logs`
+- `POST /api/v1/datasources/{datasourceID}/restart`
 - `GET /api/v1/projects/{projectID}/datasources`
 - `PUT /api/v1/projects/{projectID}/datasources/{datasourceID}`
 - `DELETE /api/v1/projects/{projectID}/datasources/{datasourceID}`
@@ -65,6 +67,10 @@ Creating an internal service provisions:
 - one database pod and one ClusterIP service in `noryx-loads`
 - one attachable internal datasource
 
+The creation request accepts a platform hardware tier through `hardwareTier`.
+The tier applies the same hidden low requests and visible CPU/RAM limits used
+by workspaces, jobs and apps.
+
 Example:
 
 ```json
@@ -73,7 +79,8 @@ Example:
   "definitionId": "postgresql-17",
   "database": "noryx",
   "username": "noryx",
-  "storageSize": "10Gi"
+  "storageSize": "10Gi",
+  "hardwareTier": "1x4"
 }
 ```
 
@@ -84,7 +91,13 @@ not listed, revealed or directly editable in the Secrets UI.
 Deleting an internal datasource is destructive: the service, pod, Kubernetes
 credentials Secret, Noryx managed Secret and persistent volume claim are
 deleted. The UI requires an explicit confirmation that stored data will be
-destroyed.
+destroyed. Deletion is refused while the datasource remains attached to any
+project.
+
+Internal datasource status includes the Kubernetes phase, reason, message,
+restart count and start date. Owners can retrieve the last 500 pod log lines
+and request a controlled pod restart. The persistent volume and ClusterIP
+service survive this restart.
 
 NetworkPolicies allow Noryx user workloads and the Noryx backend to connect to
 internal services only on ports `5432`, `3306` and `27017`.

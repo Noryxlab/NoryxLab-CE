@@ -1124,7 +1124,15 @@ data:
                     <div class="row">
                       <input id="dataServiceDatabase" value="noryx" placeholder="Base de données" />
                       <input id="dataServiceUsername" value="noryx" placeholder="Utilisateur" />
+                      <select id="dataServiceHardwareTier"></select>
                       <button id="createDataService" class="btn primary">Créer le service interne</button>
+                    </div>
+                    <div id="dataServiceLogsPanel" class="app-usage-panel" style="display:none">
+                      <div class="section-head">
+                        <h3>Logs du service interne</h3>
+                        <button id="closeDataServiceLogs" class="btn">Fermer</button>
+                      </div>
+                      <pre id="dataServiceLogs"></pre>
                     </div>
                     <div class="dataservice-catalog-wrap">
                       <table class="dataservice-catalog">
@@ -1819,7 +1827,11 @@ data:
           const dataServiceStorageInput = document.getElementById('dataServiceStorage');
           const dataServiceDatabaseInput = document.getElementById('dataServiceDatabase');
           const dataServiceUsernameInput = document.getElementById('dataServiceUsername');
+          const dataServiceHardwareTierInput = document.getElementById('dataServiceHardwareTier');
           const createDataServiceBtn = document.getElementById('createDataService');
+          const dataServiceLogsPanel = document.getElementById('dataServiceLogsPanel');
+          const dataServiceLogs = document.getElementById('dataServiceLogs');
+          const closeDataServiceLogsBtn = document.getElementById('closeDataServiceLogs');
           const datasourceRows = document.getElementById('datasourceRows');
           const datasourceDefinitionRows = document.getElementById('datasourceDefinitionRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
@@ -3417,14 +3429,22 @@ data:
             state.datasources.forEach((d) => {
               const check = state.datasourceChecks && state.datasourceChecks[d.id] ? state.datasourceChecks[d.id] : null;
               const checkLabel = d.source === 'internal' ? badge(d.status || 'launching') : (check ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error'))) : '-');
-              const storageLabel = d.source === 'internal' && d.storageSize ? '<br><small>Stockage ' + escapeHTML(d.storageSize) + '</small>' : '';
+              const runtimeLabel = d.source === 'internal'
+                ? '<br><small>' + escapeHTML(d.hardwareTier || '-') + ' · stockage ' + escapeHTML(d.storageSize || '-') + (d.restartCount ? ' · ' + String(d.restartCount) + ' redémarrage(s)' : '') + '</small>'
+                : '';
+              const statusDetail = d.source === 'internal' && (d.statusReason || d.statusMessage)
+                ? '<br><small title="' + escapeHTML(d.statusMessage || '') + '">' + escapeHTML(d.statusReason || d.statusMessage || '') + '</small>'
+                : '';
+              const internalActions = d.source === 'internal'
+                ? ' <button type="button" class="btn" data-logs-ds="' + (d.id || '') + '">Logs</button> <button type="button" class="btn warn" data-restart-ds="' + (d.id || '') + '">Redémarrer</button>'
+                : '';
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                 '<td><strong>' + datasourceTypeLabel(d.type) + '</strong><br><small>' + (d.source === 'internal' ? 'Interne' : 'Externe') + '</small></td>' +
-                '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code>' + storageLabel + '</td>' +
-                '<td>' + checkLabel + '</td>' +
-                '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
+                '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code>' + runtimeLabel + '</td>' +
+                '<td>' + checkLabel + statusDetail + '</td>' +
+                '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button>' + internalActions + ' <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
               datasourceRows.appendChild(tr);
             });
           }
@@ -3546,7 +3566,7 @@ data:
           window.setInterval(refreshWorkspaceUptimes, 1000);
 
           function renderHardwareTierOptions() {
-            [workspaceHardwareTierInput, jobHardwareTierInput, appHardwareTierInput, dashboardHardwareTierInput].forEach((select) => {
+            [workspaceHardwareTierInput, jobHardwareTierInput, appHardwareTierInput, dashboardHardwareTierInput, dataServiceHardwareTierInput].forEach((select) => {
               if (!select) return;
               const current = select.value;
               select.innerHTML = '';
@@ -5243,7 +5263,8 @@ data:
                 definitionId: dataServiceDefinitionInput.value.trim(),
                 database: dataServiceDatabaseInput.value.trim() || 'noryx',
                 username: dataServiceUsernameInput.value.trim() || 'noryx',
-                storageSize: dataServiceStorageInput.value.trim() || '10Gi'
+                storageSize: dataServiceStorageInput.value.trim() || '10Gi',
+                hardwareTier: dataServiceHardwareTierInput.value.trim()
               };
               if (!payload.name || !payload.definitionId) throw { error: 'Le nom et la définition du service sont requis.' };
               await callJSON('/api/v1/dataservices', {
@@ -6324,8 +6345,23 @@ data:
           datasourceRows.onclick = async (event) => {
             const datasourceIDToTest = (event.target && event.target.getAttribute('data-test-ds'));
             const datasourceIDToDelete = (event.target && event.target.getAttribute('data-del-ds'));
-            if (!datasourceIDToTest && !datasourceIDToDelete) return;
+            const datasourceIDToLogs = (event.target && event.target.getAttribute('data-logs-ds'));
+            const datasourceIDToRestart = (event.target && event.target.getAttribute('data-restart-ds'));
+            if (!datasourceIDToTest && !datasourceIDToDelete && !datasourceIDToLogs && !datasourceIDToRestart) return;
             try {
+              if (datasourceIDToLogs) {
+                const result = await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToLogs) + '/logs');
+                dataServiceLogs.textContent = result.logs || '';
+                dataServiceLogsPanel.style.display = '';
+                dataServiceLogsPanel.scrollIntoView({ behavior:'smooth', block:'center' });
+                return;
+              }
+              if (datasourceIDToRestart) {
+                if (!window.confirm('Redémarrer ce service interne ? La connexion sera momentanément indisponible.')) return;
+                await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToRestart) + '/restart', { method:'POST' });
+                await refreshDatasources();
+                return;
+              }
               if (datasourceIDToTest) {
                 const result = await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToTest) + '/validate', { method: 'POST' });
                 state.datasourceChecks[datasourceIDToTest] = result;
@@ -6346,6 +6382,7 @@ data:
               switchTab('ops');
             }
           };
+          closeDataServiceLogsBtn.onclick = () => { dataServiceLogsPanel.style.display = 'none'; };
 
       if (authMode === 'oidc') {
         keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
@@ -6426,7 +6463,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.193"}
+    {"version":"ce-web-0.6.194"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6447,7 +6484,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.193
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.194
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

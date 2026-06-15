@@ -27,11 +27,17 @@ type Datasource struct {
 	ServiceName         string    `json:"serviceName,omitempty"`
 	PVCName             string    `json:"pvcName,omitempty"`
 	StorageSize         string    `json:"storageSize,omitempty"`
+	HardwareTier        string    `json:"hardwareTier,omitempty"`
+	StatusReason        string    `json:"statusReason,omitempty"`
+	StatusMessage       string    `json:"statusMessage,omitempty"`
+	RestartCount        int       `json:"restartCount,omitempty"`
+	StartedAt           time.Time `json:"startedAt,omitempty"`
+	AttachedProjectIDs  []string  `json:"attachedProjectIds,omitempty"`
 	CreatedAt           time.Time `json:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
-func Internal(ownerUserID, name, database, username, passwordSecret, storageSize string, definition ServiceDefinition, podName, serviceName, pvcName string) Datasource {
+func Internal(ownerUserID, name, database, username, passwordSecret, storageSize, hardwareTier string, definition ServiceDefinition, podName, serviceName, pvcName string) Datasource {
 	item := New(ownerUserID, name, definition.Type, serviceName+".noryx-loads.svc.cluster.local", database, username, passwordSecret, "disable", definition.DefaultPort)
 	item.Source = "internal"
 	item.ServiceDefinitionID = definition.ID
@@ -43,6 +49,7 @@ func Internal(ownerUserID, name, database, username, passwordSecret, storageSize
 	item.ServiceName = serviceName
 	item.PVCName = pvcName
 	item.StorageSize = storageSize
+	item.HardwareTier = hardwareTier
 	return item
 }
 

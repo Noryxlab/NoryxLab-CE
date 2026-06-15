@@ -36,6 +36,7 @@ type createDataServiceRequest struct {
 	Database     string `json:"database"`
 	Username     string `json:"username"`
 	StorageSize  string `json:"storageSize"`
+	HardwareTier string `json:"hardwareTier"`
 }
 
 func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +81,7 @@ func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 	req.Database = strings.TrimSpace(req.Database)
 	req.Username = strings.TrimSpace(req.Username)
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
+	req.HardwareTier = strings.TrimSpace(req.HardwareTier)
 	if req.Name == "" || req.DefinitionID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and definitionId are required"})
 		return
@@ -100,6 +102,11 @@ func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validStorageSize(req.StorageSize) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "storageSize must be a Kubernetes quantity such as 10Gi"})
+		return
+	}
+	tier, found := h.resolveHardwareTier(req.HardwareTier)
+	if !found {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
 		return
 	}
 	if strings.TrimSpace(h.secretsMasterKey) == "" {
@@ -148,7 +155,7 @@ func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist data service credentials"})
 		return
 	}
-	if err := h.runtime.CreatePod(dataServicePodSpec(resourceName, pvcName, kubeSecretName, req.Database, req.Username, definition, labels, h.registryPullSecret)); err != nil {
+	if err := h.runtime.CreatePod(dataServicePodSpec(resourceName, pvcName, kubeSecretName, req.Database, req.Username, definition, labels, h.registryPullSecret, tier)); err != nil {
 		cleanup()
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service pod: " + err.Error()})
 		return
@@ -158,13 +165,13 @@ func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create data service endpoint: " + err.Error()})
 		return
 	}
-	item := datasource.Internal(userID, req.Name, req.Database, req.Username, noryxSecretName, req.StorageSize, definition, resourceName, resourceName, pvcName)
+	item := datasource.Internal(userID, req.Name, req.Database, req.Username, noryxSecretName, req.StorageSize, tier.ID, definition, resourceName, resourceName, pvcName)
 	if err := h.datasourceStore.Create(item); err != nil {
 		cleanup()
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist internal datasource"})
 		return
 	}
-	h.emitAudit(r, userID, "dataservice.create", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name, "definitionId": definition.ID, "storageSize": item.StorageSize})
+	h.emitAudit(r, userID, "dataservice.create", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name, "definitionId": definition.ID, "storageSize": item.StorageSize, "hardwareTier": tier.ID})
 	writeJSON(w, http.StatusCreated, item)
 }
 
@@ -226,6 +233,15 @@ func (h Handlers) DeleteDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
+	projectIDs, err := h.projectResourceStore.ListDatasourceProjectIDs(datasourceID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to inspect datasource attachments"})
+		return
+	}
+	if len(projectIDs) > 0 {
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "datasource must be detached from every project before deletion", "projectIds": projectIDs})
+		return
+	}
 	if item.Source == "internal" {
 		if h.runtime == nil {
 			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "kubernetes runtime is disabled"})
@@ -260,13 +276,76 @@ func (h Handlers) enrichDatasourceStatus(item datasource.Datasource) datasource.
 	if !ok {
 		return item
 	}
+	item.AttachedProjectIDs, _ = h.projectResourceStore.ListDatasourceProjectIDs(item.ID)
 	status, err := operator.GetPodStatus(item.PodName)
 	if err != nil {
 		item.Status = "missing"
+		item.StatusReason = "PodMissing"
+		item.StatusMessage = err.Error()
 		return item
 	}
 	item.Status = strings.ToLower(status.Phase)
+	item.StatusReason = status.Reason
+	item.StatusMessage = status.Message
+	item.RestartCount = status.RestartCount
+	item.StartedAt = status.StartedAt
 	return item
+}
+
+func (h Handlers) GetDataServiceLogs(w http.ResponseWriter, r *http.Request) {
+	item, userID, ok := h.requireOwnedInternalDatasource(w, r)
+	if !ok {
+		return
+	}
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "data service logs are not supported by runtime"})
+		return
+	}
+	logs, err := operator.GetPodLogs(item.PodName, 500)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to read data service logs: " + err.Error()})
+		return
+	}
+	h.emitAudit(r, userID, "dataservice.logs.read", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name})
+	writeJSON(w, http.StatusOK, map[string]any{"datasourceId": item.ID, "podName": item.PodName, "logs": logs})
+}
+
+func (h Handlers) RestartDataService(w http.ResponseWriter, r *http.Request) {
+	item, userID, ok := h.requireOwnedInternalDatasource(w, r)
+	if !ok {
+		return
+	}
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "data service restart is not supported by runtime"})
+		return
+	}
+	if err := operator.RestartPod(item.PodName); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to restart data service: " + err.Error()})
+		return
+	}
+	item.Status = "launching"
+	_ = h.datasourceStore.Upsert(item)
+	h.emitAudit(r, userID, "dataservice.restart", "datasource", item.ID, "", "success", "", map[string]any{"name": item.Name})
+	writeJSON(w, http.StatusAccepted, item)
+}
+
+func (h Handlers) requireOwnedInternalDatasource(w http.ResponseWriter, r *http.Request) (datasource.Datasource, string, bool) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return datasource.Datasource{}, "", false
+	}
+	item, found, err := h.datasourceStore.GetByID(strings.TrimSpace(r.PathValue("datasourceID")))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
+		return datasource.Datasource{}, "", false
+	}
+	if !found || item.OwnerUserID != userID || item.Source != "internal" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "internal datasource not found"})
+		return datasource.Datasource{}, "", false
+	}
+	return item, userID, true
 }
 
 func datasourceDefinitionByID(id string) (datasource.ServiceDefinition, bool) {
@@ -307,7 +386,7 @@ func validStorageSize(value string) bool {
 	return true
 }
 
-func dataServicePodSpec(name, pvcName, secretName, database, username string, definition datasource.ServiceDefinition, labels map[string]string, pullSecret string) noryxruntime.PodSpec {
+func dataServicePodSpec(name, pvcName, secretName, database, username string, definition datasource.ServiceDefinition, labels map[string]string, pullSecret string, tier hardwareTier) noryxruntime.PodSpec {
 	env := []noryxruntime.EnvVar{}
 	mountPath := "/var/lib/postgresql/data"
 	switch definition.Type {
@@ -336,7 +415,7 @@ func dataServicePodSpec(name, pvcName, secretName, database, username string, de
 	}
 	return noryxruntime.PodSpec{
 		PodName: name, Image: definition.Image, Env: env, Ports: []int{definition.DefaultPort},
-		ReadinessPort: definition.DefaultPort, CPURequest: "100m", CPULimit: "2", MemRequest: "128Mi", MemLimit: "2Gi",
+		ReadinessPort: definition.DefaultPort, CPURequest: tier.CPURequest, CPULimit: tier.CPULimit, MemRequest: tier.MemoryRequest, MemLimit: tier.MemoryLimit,
 		Labels: labels, PullSecret: pullSecret, RestartPolicy: "Always",
 		Volumes: []noryxruntime.PersistentVolumeClaimMount{{ClaimName: pvcName, MountPath: mountPath}},
 	}
