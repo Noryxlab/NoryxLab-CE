@@ -21,9 +21,13 @@ func TestValidStorageSize(t *testing.T) {
 
 func TestDataServicePodSpec(t *testing.T) {
 	for _, definition := range datasource.SystemServiceDefinitions() {
-		spec := dataServicePodSpec("dataservice-test", "dataservice-test-data", "dataservice-test-credentials", "app", "owner", definition, map[string]string{"test": "true"}, "pull-secret")
+		tier := defaultHardwareTiers()[1]
+		spec := dataServicePodSpec("dataservice-test", "dataservice-test-data", "dataservice-test-credentials", "app", "owner", definition, map[string]string{"test": "true"}, "pull-secret", tier)
 		if spec.Image != definition.Image || spec.RestartPolicy != "Always" || spec.ReadinessPort != definition.DefaultPort {
 			t.Fatalf("unexpected pod spec for %s: %#v", definition.ID, spec)
+		}
+		if spec.CPULimit != tier.CPULimit || spec.MemLimit != tier.MemoryLimit {
+			t.Fatalf("hardware tier not applied for %s: %#v", definition.ID, spec)
 		}
 		if len(spec.Volumes) != 1 || spec.Volumes[0].ClaimName != "dataservice-test-data" {
 			t.Fatalf("missing persistent volume for %s: %#v", definition.ID, spec.Volumes)

@@ -32,11 +32,11 @@ func TestSystemServiceDefinitionsUseImmutableHarborImages(t *testing.T) {
 
 func TestInternalDatasource(t *testing.T) {
 	definition := SystemServiceDefinitions()[0]
-	item := Internal("stef", "postgres-app", "app", "noryx", "dataservice-secret", "10Gi", definition, "dataservice-pod", "dataservice-service", "dataservice-pvc")
+	item := Internal("stef", "postgres-app", "app", "noryx", "dataservice-secret", "10Gi", "1x4", definition, "dataservice-pod", "dataservice-service", "dataservice-pvc")
 	if item.Source != "internal" || item.Host != "dataservice-service.noryx-loads.svc.cluster.local" {
 		t.Fatalf("unexpected internal datasource endpoint: %#v", item)
 	}
-	if item.Status != "launching" || item.ServiceDefinitionID != definition.ID || item.StorageSize != "10Gi" {
+	if item.Status != "launching" || item.ServiceDefinitionID != definition.ID || item.StorageSize != "10Gi" || item.HardwareTier != "1x4" {
 		t.Fatalf("unexpected internal datasource metadata: %#v", item)
 	}
 }

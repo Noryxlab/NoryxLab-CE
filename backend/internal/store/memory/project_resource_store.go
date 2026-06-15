@@ -6,16 +6,16 @@ import (
 )
 
 type ProjectResourceStore struct {
-	mu               sync.RWMutex
-	projectDatasets  map[string]map[string]struct{}
-	projectRepos     map[string]map[string]struct{}
+	mu                 sync.RWMutex
+	projectDatasets    map[string]map[string]struct{}
+	projectRepos       map[string]map[string]struct{}
 	projectDatasources map[string]map[string]struct{}
 }
 
 func NewProjectResourceStore() *ProjectResourceStore {
 	return &ProjectResourceStore{
-		projectDatasets: map[string]map[string]struct{}{},
-		projectRepos:    map[string]map[string]struct{}{},
+		projectDatasets:    map[string]map[string]struct{}{},
+		projectRepos:       map[string]map[string]struct{}{},
 		projectDatasources: map[string]map[string]struct{}{},
 	}
 }
@@ -121,6 +121,19 @@ func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]str
 	out := make([]string, 0, len(m))
 	for id := range m {
 		out = append(out, id)
+	}
+	return out, nil
+}
+
+func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	d := strings.TrimSpace(datasourceID)
+	out := []string{}
+	for projectID, items := range s.projectDatasources {
+		if _, ok := items[d]; ok {
+			out = append(out, projectID)
+		}
 	}
 	return out, nil
 }
