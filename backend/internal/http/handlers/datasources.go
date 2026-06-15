@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +40,13 @@ func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+func (h Handlers) ListDatasourceDefinitions(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireUserID(w, r); !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": datasource.SystemServiceDefinitions()})
+}
+
 func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -60,12 +68,12 @@ func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name,type,host,database,username,passwordSecret are required"})
 		return
 	}
-	if req.Type != "postgres" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "supported datasource type in V1: postgres"})
+	if !supportedDatasourceType(req.Type) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "supported datasource types: postgres, mysql, mongodb"})
 		return
 	}
 	if req.Port <= 0 {
-		req.Port = 5432
+		req.Port = defaultDatasourcePort(req.Type)
 	}
 	if req.SSLMode == "" {
 		req.SSLMode = "disable"
@@ -119,13 +127,20 @@ func (h Handlers) ValidateDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
-	if item.Type != "postgres" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "validate supports postgres in V1"})
-		return
-	}
 	password, err := h.resolveRepositorySecretValueForWorkspace(userID, item.PasswordSecret)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read datasource secret: " + err.Error()})
+		return
+	}
+	if item.Type != "postgres" {
+		address := net.JoinHostPort(item.Host, fmt.Sprintf("%d", item.Port))
+		conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+		if err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{"reachable": false, "error": err.Error(), "validation": "tcp"})
+			return
+		}
+		_ = conn.Close()
+		writeJSON(w, http.StatusOK, map[string]any{"reachable": true, "validation": "tcp"})
 		return
 	}
 	dsn := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s connect_timeout=4", item.Host, item.Port, item.Database, item.Username, password, item.SSLMode)
@@ -143,6 +158,26 @@ func (h Handlers) ValidateDatasource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"reachable": true})
+}
+
+func supportedDatasourceType(kind string) bool {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "postgres", "mysql", "mongodb":
+		return true
+	default:
+		return false
+	}
+}
+
+func defaultDatasourcePort(kind string) int {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "mysql":
+		return 3306
+	case "mongodb":
+		return 27017
+	default:
+		return 5432
+	}
 }
 
 func (h Handlers) ListProjectDatasources(w http.ResponseWriter, r *http.Request) {

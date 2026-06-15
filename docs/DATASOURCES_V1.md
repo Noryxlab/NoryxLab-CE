@@ -2,17 +2,19 @@
 
 Datasources are connection objects to existing databases.
 
-Scope V1:
+Scope:
 
-- postgres type
+- external PostgreSQL, MySQL/MariaDB and MongoDB connectors
 - user-owned datasource objects
 - project attach/detach
 - connection validation endpoint
 - env var injection into workloads (workspaces, jobs, apps)
+- read-only internal data-service definition catalog
 
 ## API
 
 - `GET /api/v1/datasources`
+- `GET /api/v1/datasource-definitions`
 - `POST /api/v1/datasources`
 - `DELETE /api/v1/datasources/{datasourceID}`
 - `POST /api/v1/datasources/{datasourceID}/validate`
@@ -34,6 +36,27 @@ Scope V1:
   "sslMode": "disable"
 }
 ```
+
+Supported external connector types:
+
+- `postgres`: authenticated SQL validation
+- `mysql`: TCP endpoint validation
+- `mongodb`: TCP endpoint validation
+
+## Internal data services
+
+Internal data services are separate from datasource connection objects. Their
+system definitions expose:
+
+- a platform-maintained Harbor image
+- an immutable image digest used by deployments
+- an immutable, read-only Dockerfile
+- the connector type and default port
+
+The initial catalog contains PostgreSQL, MySQL and MongoDB definitions under
+`harbor.lan/noryx-dataservices`. Provisioning persistent instances from these
+definitions is a subsequent lifecycle-controller phase. A provisioned instance
+will generate an attachable datasource automatically.
 
 ## Workload env vars
 

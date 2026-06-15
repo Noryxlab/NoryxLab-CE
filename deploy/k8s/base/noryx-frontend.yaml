@@ -1059,10 +1059,20 @@ data:
                   </article>
 
                   <article id="card-datasources" class="card span-12">
-                    <h3>Datasources</h3>
-                    <div class="hint">External DB connections (V1: postgres).</div>
+                    <div class="section-head">
+                      <div>
+                        <h3>Datasources externes</h3>
+                        <p class="muted">Connectez une base existante. Les identifiants restent stockés dans vos secrets.</p>
+                      </div>
+                      <button id="refreshDatasources" class="btn">Actualiser</button>
+                    </div>
                     <div class="row">
                       <input id="dsName" placeholder="Datasource name" />
+                      <select id="dsType">
+                        <option value="postgres">PostgreSQL</option>
+                        <option value="mysql">MySQL / MariaDB</option>
+                        <option value="mongodb">MongoDB</option>
+                      </select>
                       <input id="dsHost" placeholder="Host" />
                     </div>
                     <div class="row">
@@ -1080,12 +1090,21 @@ data:
                         <option value="verify-ca">verify-ca</option>
                         <option value="verify-full">verify-full</option>
                       </select>
-                      <button id="createDatasource" class="btn primary">Create Datasource</button>
-                      <button id="refreshDatasources" class="btn">Refresh Datasources</button>
+                      <button id="createDatasource" class="btn primary">Ajouter la connexion</button>
                     </div>
                     <table>
-                      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Validation</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Connecteur</th><th>Cible</th><th>Validation</th><th>Actions</th></tr></thead>
                       <tbody id="datasourceRows"></tbody>
+                    </table>
+                    <div class="section-head" style="margin-top:32px">
+                      <div>
+                        <h3>Services de données internes</h3>
+                        <p class="muted">Catalogue des images maintenues dans Harbor. Le Dockerfile est visible mais immuable.</p>
+                      </div>
+                    </div>
+                    <table>
+                      <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th></tr></thead>
+                      <tbody id="datasourceDefinitionRows"></tbody>
                     </table>
                   </article>
 
@@ -1760,6 +1779,7 @@ data:
           const repoRows = document.getElementById('repoRows');
           let editingRepositoryID = '';
           const dsNameInput = document.getElementById('dsName');
+          const dsTypeInput = document.getElementById('dsType');
           const dsHostInput = document.getElementById('dsHost');
           const dsPortInput = document.getElementById('dsPort');
           const dsDatabaseInput = document.getElementById('dsDatabase');
@@ -1769,6 +1789,7 @@ data:
           const createDatasourceBtn = document.getElementById('createDatasource');
           const refreshDatasourcesBtn = document.getElementById('refreshDatasources');
           const datasourceRows = document.getElementById('datasourceRows');
+          const datasourceDefinitionRows = document.getElementById('datasourceDefinitionRows');
           const tabButtons = [...document.querySelectorAll('.tab-btn')];
           const views = {
             intro: document.getElementById('view-intro'),
@@ -1867,6 +1888,7 @@ data:
             datasetCanManageAccess: false,
             repositories: [],
             datasources: [],
+            datasourceDefinitions: [],
             projectDatasets: [],
             projectRepositories: [],
             projectDatasources: [],
@@ -3365,11 +3387,34 @@ data:
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong></td>' +
-                '<td><code>' + (d.type || '-') + '</code></td>' +
+                '<td><strong>' + datasourceTypeLabel(d.type) + '</strong><br><small>' + (d.source === 'internal' ? 'Interne' : 'Externe') + '</small></td>' +
                 '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code></td>' +
                 '<td><code>' + checkLabel + '</code></td>' +
                 '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
               datasourceRows.appendChild(tr);
+            });
+          }
+
+          function datasourceTypeLabel(kind) {
+            return ({ postgres:'PostgreSQL', mysql:'MySQL / MariaDB', mongodb:'MongoDB' })[kind] || kind || '-';
+          }
+
+          function renderDatasourceDefinitions() {
+            datasourceDefinitionRows.innerHTML = '';
+            const items = ensureArray(state.datasourceDefinitions);
+            if (items.length === 0) {
+              datasourceDefinitionRows.innerHTML = '<tr><td colspan="5">Aucune définition de service interne.</td></tr>';
+              return;
+            }
+            items.forEach((item) => {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><br><small>' + escapeHTML(item.description || '') + '</small></td>' +
+                '<td>' + escapeHTML(datasourceTypeLabel(item.type)) + '<br><small>Port ' + String(item.defaultPort || '-') + '</small></td>' +
+                '<td><code>' + escapeHTML(item.image || '-') + '</code></td>' +
+                '<td>' + badge(item.system ? 'system' : 'custom') + '</td>' +
+                '<td><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>';
+              datasourceDefinitionRows.appendChild(tr);
             });
           }
 
@@ -4230,6 +4275,7 @@ data:
             renderDatasetAccessTable();
             renderRepositoriesTable();
             renderDatasourcesTable();
+            renderDatasourceDefinitions();
             renderSecretOptions();
             renderDatasourceSecretOptions();
             renderWorkspacesTable();
@@ -4419,10 +4465,14 @@ data:
           }
 
           async function refreshDatasources() {
-            const body = await callJSON('/api/v1/datasources');
-            state.datasources = ensureArray(body.items);
+            const bodies = await Promise.all([
+              callJSON('/api/v1/datasources'),
+              callJSON('/api/v1/datasource-definitions')
+            ]);
+            state.datasources = ensureArray(bodies[0].items);
+            state.datasourceDefinitions = ensureArray(bodies[1].items);
             renderAll();
-            return body;
+            return bodies[0];
           }
 
           async function refreshBuilds() {
@@ -5108,9 +5158,9 @@ data:
             try {
               const payload = {
                 name: dsNameInput.value.trim(),
-                type: 'postgres',
+                type: dsTypeInput.value.trim(),
                 host: dsHostInput.value.trim(),
-                port: Number(dsPortInput.value || '5432'),
+                port: Number(dsPortInput.value || '0'),
                 database: dsDatabaseInput.value.trim(),
                 username: dsUsernameInput.value.trim(),
                 passwordSecret: dsPasswordSecretInput.value.trim(),
@@ -5138,6 +5188,10 @@ data:
           refreshDatasourcesBtn.onclick = async () => {
             try { await refreshDatasources(); }
             catch (e) { pretty(usersOut, e); switchTab('ops'); }
+          };
+          dsTypeInput.onchange = () => {
+            dsPortInput.value = ({ postgres:'5432', mysql:'3306', mongodb:'27017' })[dsTypeInput.value] || '';
+            dsSSLModeInput.disabled = dsTypeInput.value !== 'postgres';
           };
 
           loadWorkspacesBtn.onclick = async () => {
@@ -6198,6 +6252,7 @@ data:
                 usersOut.textContent = result.reachable ? tui('msg_ds_conn_ok') : (tui('msg_ds_conn_failed') + (result.error || tui('msg_unknown_error')));
                 return;
               }
+              if (!window.confirm('Supprimer définitivement cette datasource et la détacher de tous les projets ?')) return;
               await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToDelete), { method: 'DELETE' });
               delete state.datasourceChecks[datasourceIDToDelete];
               await refreshDatasources();
@@ -6286,7 +6341,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.189"}
+    {"version":"ce-web-0.6.190"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6307,7 +6362,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.189
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.190
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

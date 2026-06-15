@@ -7,18 +7,23 @@ import (
 )
 
 type Datasource struct {
-	ID             string    `json:"id"`
-	OwnerUserID    string    `json:"ownerUserId"`
-	Name           string    `json:"name"`
-	Type           string    `json:"type"`
-	Host           string    `json:"host"`
-	Port           int       `json:"port"`
-	Database       string    `json:"database"`
-	Username       string    `json:"username"`
-	PasswordSecret string    `json:"passwordSecret"`
-	SSLMode        string    `json:"sslMode"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	ID                  string    `json:"id"`
+	OwnerUserID         string    `json:"ownerUserId"`
+	Name                string    `json:"name"`
+	Type                string    `json:"type"`
+	Source              string    `json:"source"`
+	Host                string    `json:"host"`
+	Port                int       `json:"port"`
+	Database            string    `json:"database"`
+	Username            string    `json:"username"`
+	PasswordSecret      string    `json:"passwordSecret"`
+	SSLMode             string    `json:"sslMode"`
+	ServiceDefinitionID string    `json:"serviceDefinitionId,omitempty"`
+	Image               string    `json:"image,omitempty"`
+	Dockerfile          string    `json:"dockerfile,omitempty"`
+	System              bool      `json:"system"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
 }
 
 func New(ownerUserID, name, kind, host, database, username, passwordSecret, sslMode string, port int) Datasource {
@@ -28,6 +33,7 @@ func New(ownerUserID, name, kind, host, database, username, passwordSecret, sslM
 		OwnerUserID:    ownerUserID,
 		Name:           name,
 		Type:           kind,
+		Source:         "external",
 		Host:           host,
 		Port:           port,
 		Database:       database,
@@ -36,5 +42,39 @@ func New(ownerUserID, name, kind, host, database, username, passwordSecret, sslM
 		SSLMode:        sslMode,
 		CreatedAt:      now,
 		UpdatedAt:      now,
+	}
+}
+
+type ServiceDefinition struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Image       string `json:"image"`
+	Dockerfile  string `json:"dockerfile"`
+	System      bool   `json:"system"`
+	Description string `json:"description"`
+	DefaultPort int    `json:"defaultPort"`
+}
+
+func SystemServiceDefinitions() []ServiceDefinition {
+	return []ServiceDefinition{
+		{
+			ID: "postgresql-17", Name: "PostgreSQL 17", Type: "postgres",
+			Image:      "harbor.lan/noryx-dataservices/postgresql@sha256:abe10a9e2631b6d60ba6fc4d5943ee39e7384da7b50ddc076fec5d066cc416ee",
+			Dockerfile: "FROM postgres:17-alpine\n", System: true, DefaultPort: 5432,
+			Description: "Base relationnelle PostgreSQL maintenue par la plateforme.",
+		},
+		{
+			ID: "mysql-8", Name: "MySQL 8", Type: "mysql",
+			Image:      "harbor.lan/noryx-dataservices/mysql@sha256:21635514702426e031ef50302c5dd738c2cbc990d02664de88a839b64daf63cc",
+			Dockerfile: "FROM mysql:8.4\n", System: true, DefaultPort: 3306,
+			Description: "Base relationnelle MySQL maintenue par la plateforme.",
+		},
+		{
+			ID: "mongodb-8", Name: "MongoDB 8", Type: "mongodb",
+			Image:      "harbor.lan/noryx-dataservices/mongodb@sha256:24b556c65745f3c67a6c5b89f65200df7f64ad718a09aed4c2d7359ecad83ad4",
+			Dockerfile: "FROM mongo:8.0\n", System: true, DefaultPort: 27017,
+			Description: "Base documentaire MongoDB maintenue par la plateforme.",
+		},
 	}
 }
