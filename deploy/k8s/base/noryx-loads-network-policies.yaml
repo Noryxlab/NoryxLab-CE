@@ -59,6 +59,60 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: user-workloads-allow-data-services
+  namespace: noryx-loads
+spec:
+  podSelector:
+    matchLabels:
+      noryx.io/network-isolation: user-workload
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: noryx-data-service
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 3306
+        - protocol: TCP
+          port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-services-allow-user-workloads
+  namespace: noryx-loads
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: noryx-data-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              noryx.io/network-isolation: user-workload
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: noryx-ce
+          podSelector:
+            matchLabels:
+              app: noryx-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 3306
+        - protocol: TCP
+          port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: user-workloads-allow-public-egress
   namespace: noryx-loads
 spec:

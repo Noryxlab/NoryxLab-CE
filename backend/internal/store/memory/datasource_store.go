@@ -48,6 +48,19 @@ func (s *DatasourceStore) Create(item datasource.Datasource) error {
 	return nil
 }
 
+func (s *DatasourceStore) Upsert(item datasource.Datasource) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, current := range s.items {
+		if current.ID == item.ID {
+			s.items[i] = item
+			return nil
+		}
+	}
+	s.items = append(s.items, item)
+	return nil
+}
+
 func (s *DatasourceStore) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
