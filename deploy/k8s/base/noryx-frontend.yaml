@@ -4579,12 +4579,18 @@ data:
               renderAll();
               return;
             }
-            const [datasetsBody, repositoriesBody, filesBody] = await Promise.all([
+            const [datasetsBody, repositoriesBody, datasourcesBody, filesBody, allDatasetsBody, allRepositoriesBody, allDatasourcesBody] = await Promise.all([
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories'),
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] }))
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] })),
+              callJSON('/api/v1/datasets'),
+              callJSON('/api/v1/repositories'),
+              callJSON('/api/v1/datasources')
             ]);
-            const datasourcesBody = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources');
+            state.datasets = ensureArray(allDatasetsBody.items);
+            state.repositories = ensureArray(allRepositoriesBody.items);
+            state.datasources = ensureArray(allDatasourcesBody.items);
             state.projectDatasets = ensureArray(datasetsBody.items);
             state.projectRepositories = ensureArray(repositoriesBody.items);
             state.projectDatasources = ensureArray(datasourcesBody.items);
@@ -4594,14 +4600,10 @@ data:
 
           async function refreshProjectFiles() {
             const pid = selectedProjectId();
-            if (!pid) {
-              state.projectFiles = [];
-              renderProjectFiles();
-              return;
-            }
-            const body = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : ''));
-            state.projectFiles = ensureArray(body.items);
-            renderProjectFiles();
+            if (!pid) return;
+            const filesBody = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] }));
+            state.projectFiles = ensureArray(filesBody.items);
+            renderAll();
           }
 
           function stopWorkspacesAutoRefresh() {
@@ -4767,7 +4769,7 @@ data:
               const name = projectNameInput.value.trim();
               const description = projectDescriptionInput.value.trim();
               if (!name) throw { error: tui('err_project_name_required') };
-              await callJSON('/api/v1/projects', {
+              const created = await callJSON('/api/v1/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, description })
@@ -4775,6 +4777,7 @@ data:
               projectNameInput.value = '';
               projectDescriptionInput.value = '';
               await refreshProjects();
+              if (created && created.id) await selectProjectAndRefresh(created.id);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -6463,7 +6466,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.194"}
+    {"version":"ce-web-0.6.195"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6484,7 +6487,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.194
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.195
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
