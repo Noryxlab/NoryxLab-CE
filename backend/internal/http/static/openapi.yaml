@@ -421,7 +421,7 @@ components:
         prefix: { type: string }
         provider:
           type: string
-          enum: [minio, s3, clever-cloud]
+          enum: [minio, s3]
         classification:
           type: string
           enum: [non-hds]
@@ -504,7 +504,7 @@ components:
           example: raw/2026
         provider:
           type: string
-          enum: [minio, s3, clever-cloud]
+          enum: [minio, s3]
           default: minio
         classification:
           type: string
@@ -512,7 +512,7 @@ components:
           default: non-hds
         endpoint:
           type: string
-          example: https://cellar-c2.services.clever-cloud.com
+          example: https://s3.example.com
         region:
           type: string
           example: custom

@@ -941,10 +941,6 @@ data:
                       </div>
                       <div id="datasetExternalFields" class="dataset-external-fields" style="display:none;">
                         <div class="row">
-                          <select id="datasetProvider">
-                            <option value="s3">S3 standard externe</option>
-                            <option value="clever-cloud">Clever Cloud Cellar</option>
-                          </select>
                           <input id="datasetEndpoint" placeholder="https://s3.example.com" />
                           <input id="datasetRegion" placeholder="Region, ex. eu-west-3" />
                           <input id="datasetBucket" placeholder="Nom du bucket existant" />
@@ -1769,7 +1765,6 @@ data:
           const datasetClassificationInput = document.getElementById('datasetClassification');
           const datasetHDSWarning = document.getElementById('datasetHDSWarning');
           const datasetExternalFields = document.getElementById('datasetExternalFields');
-          const datasetProviderInput = document.getElementById('datasetProvider');
           const datasetBucketInput = document.getElementById('datasetBucket');
           const datasetEndpointInput = document.getElementById('datasetEndpoint');
           const datasetRegionInput = document.getElementById('datasetRegion');
@@ -2999,6 +2994,10 @@ data:
             return 'Utilisateur · ' + (ownerID || '-');
           }
 
+          function datasetProviderLabel(provider) {
+            return String(provider || 'minio').toLowerCase() === 'minio' ? 'Stockage local' : 'S3 externe';
+          }
+
           function updateProjectOwnerOptions() {
             projectOwnerOptions.innerHTML = '';
             const query = String(projectOwnerID.value || '').trim().toLowerCase();
@@ -3065,7 +3064,7 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
                 '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'STANDARD') + '</td>' +
-                '<td><strong>' + (d.provider || 'minio') + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
+                '<td><strong>' + datasetProviderLabel(d.provider) + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
                 '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                 '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
                 '<td>' + (((d.classification || 'non-hds') !== 'hds' && d.accessRole === 'owner') || isAdminUser() ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
@@ -3263,7 +3262,7 @@ data:
             }
             if (datasetSelectedLocation) {
               datasetSelectedLocation.textContent = selected
-                ? ((selected.provider || 'minio') + ' / ' + (selected.bucket || '-') + (selected.prefix ? '/' + selected.prefix : ''))
+                ? (datasetProviderLabel(selected.provider) + ' / ' + (selected.bucket || '-') + (selected.prefix ? '/' + selected.prefix : ''))
                 : '-';
             }
             datasetObjectRows.innerHTML = '';
@@ -4261,7 +4260,7 @@ data:
               availableDatasets.forEach((d) => {
                 const opt = document.createElement('option');
                 opt.value = d.id || '';
-                opt.textContent = (d.name || d.id) + ' [standard] (' + (d.provider || 'minio') + ')';
+                opt.textContent = (d.name || d.id) + ' [standard] (' + datasetProviderLabel(d.provider) + ')';
                 attachDatasetSelect.appendChild(opt);
               });
             }
@@ -4308,7 +4307,7 @@ data:
                 tr.innerHTML =
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                   '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td>' +
-                  '<td><code>' + (d.provider || 'minio') + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
+                  '<td><code>' + datasetProviderLabel(d.provider) + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
                   '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
                 projectDatasetRows.appendChild(tr);
@@ -5136,7 +5135,7 @@ data:
                 name: datasetNameInput.value.trim(),
                 description: datasetDescriptionInput.value.trim(),
                 classification,
-                provider: external ? ((datasetProviderInput && datasetProviderInput.value) || 's3') : 'minio',
+                provider: external ? 's3' : 'minio',
                 bucket: external ? ((datasetBucketInput && datasetBucketInput.value.trim()) || '') : '',
                 endpoint: external ? ((datasetEndpointInput && datasetEndpointInput.value.trim()) || '') : '',
                 region: external ? ((datasetRegionInput && datasetRegionInput.value.trim()) || '') : '',
@@ -6533,7 +6532,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.197"}
+    {"version":"ce-web-0.6.198"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6554,7 +6553,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.197
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.198
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
