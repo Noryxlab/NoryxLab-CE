@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
@@ -954,6 +955,9 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
 		return
 	}
+	if !h.requireProjectRole(w, projectID, identity.UserID(), access.Role.CanLaunchPod, "dataset attach") {
+		return
+	}
 	item, found, err := h.datasetStore.GetByID(datasetID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
@@ -987,6 +991,9 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 	datasetID := strings.TrimSpace(r.PathValue("datasetID"))
 	if projectID == "" || datasetID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, identity.UserID(), access.Role.CanLaunchPod, "dataset detach") {
 		return
 	}
 	item, found, err := h.datasetStore.GetByID(datasetID)
