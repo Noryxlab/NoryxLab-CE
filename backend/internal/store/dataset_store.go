@@ -7,6 +7,7 @@ type DatasetStore interface {
 	ListAll() ([]dataset.Dataset, error)
 	GetByID(id string) (dataset.Dataset, bool, error)
 	Create(item dataset.Dataset) error
+	UpdateMetadata(datasetID, name, description string) error
 	Delete(id string) error
 	ListAccess(datasetID string) ([]dataset.Access, error)
 	UpdateOwner(datasetID, ownerType, ownerID string) error

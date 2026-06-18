@@ -68,6 +68,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/secrets/{name}", h.DeleteSecret)
 	mux.HandleFunc("GET /api/v1/datasets", h.ListDatasets)
 	mux.HandleFunc("POST /api/v1/datasets", h.CreateDataset)
+	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}", h.UpdateDatasetMetadata)
 	mux.HandleFunc("DELETE /api/v1/datasets/{datasetID}", h.DeleteDataset)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/objects", h.ListDatasetObjects)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/folders", h.CreateDatasetFolder)

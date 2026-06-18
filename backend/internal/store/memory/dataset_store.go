@@ -3,6 +3,7 @@ package memory
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 )
@@ -86,6 +87,20 @@ func (s *DatasetStore) Create(item dataset.Dataset) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.items = append(s.items, item)
+	return nil
+}
+
+func (s *DatasetStore) UpdateMetadata(datasetID, name, description string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	target := strings.TrimSpace(datasetID)
+	for i := range s.items {
+		if s.items[i].ID == target {
+			s.items[i].Name = strings.TrimSpace(name)
+			s.items[i].Description = strings.TrimSpace(description)
+			s.items[i].UpdatedAt = time.Now().UTC()
+		}
+	}
 	return nil
 }
 

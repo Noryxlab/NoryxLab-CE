@@ -1339,6 +1339,11 @@ func (s *Store) CreateDataset(item dataset.Dataset) error {
 	return err
 }
 
+func (s *Store) UpdateDatasetMetadata(datasetID, name, description string) error {
+	_, err := s.db.Exec(`UPDATE datasets SET name=$2, description=$3, updated_at=$4 WHERE id=$1`, strings.TrimSpace(datasetID), strings.TrimSpace(name), strings.TrimSpace(description), time.Now().UTC())
+	return err
+}
+
 func (s *Store) UpdateDatasetOwner(datasetID, ownerType, ownerID string) error {
 	_, err := s.db.Exec(`UPDATE datasets SET owner_type=$2, owner_id=$3, owner_user_id=CASE WHEN $2='user' THEN $3 ELSE owner_user_id END, updated_at=$4 WHERE id=$1`, strings.TrimSpace(datasetID), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID), time.Now().UTC())
 	return err

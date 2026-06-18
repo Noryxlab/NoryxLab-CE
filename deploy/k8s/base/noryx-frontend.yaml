@@ -985,6 +985,16 @@ data:
                         <div class="dataset-explorer-stat"><div class="k">Fichiers</div><div id="datasetFileCount" class="v">0</div></div>
                         <div class="dataset-explorer-stat"><div class="k">Volume total</div><div id="datasetTotalSize" class="v">0 B</div></div>
                       </div>
+                      <div id="datasetMetadataForm" class="dataset-access-panel" style="display:none">
+                        <h4>Fiche dataset</h4>
+                        <div class="access-copy">Renommez le dataset et ajustez sa description sans modifier le bucket S3 ni les droits.</div>
+                        <div class="row">
+                          <input id="datasetEditName" placeholder="Nom du dataset" />
+                          <input id="datasetEditDescription" placeholder="Description (optionnelle)" />
+                          <button id="datasetMetadataSave" type="button" class="btn primary">Enregistrer</button>
+                        </div>
+                        <div id="datasetMetadataStatus" class="hint"></div>
+                      </div>
                       <div class="dataset-access-panel">
                         <h4>Permissions</h4>
                         <div class="access-copy">Owner utilisateur ou organisation: lecture, écriture et gestion. Writer: lecture/écriture. Reader: lecture seule.</div>
@@ -1774,6 +1784,11 @@ data:
           const datasetSelectedLocation = document.getElementById('datasetSelectedLocation');
           const datasetFileCount = document.getElementById('datasetFileCount');
           const datasetTotalSize = document.getElementById('datasetTotalSize');
+          const datasetMetadataForm = document.getElementById('datasetMetadataForm');
+          const datasetEditName = document.getElementById('datasetEditName');
+          const datasetEditDescription = document.getElementById('datasetEditDescription');
+          const datasetMetadataSave = document.getElementById('datasetMetadataSave');
+          const datasetMetadataStatus = document.getElementById('datasetMetadataStatus');
           const datasetAccessForm = document.getElementById('datasetAccessForm');
           const datasetOwnerForm = document.getElementById('datasetOwnerForm');
           const datasetOwnerType = document.getElementById('datasetOwnerType');
@@ -1971,6 +1986,8 @@ data:
           let dockerfileEditMode = false;
           let creatingEnvironment = false;
           let selectedDatasetID = '';
+          let datasetMetadataFormDatasetID = '';
+          let datasetMetadataFormDirty = false;
           let projectFilesCurrentPath = '';
           let projectFileEditorPath = '';
           let datasetCurrentPath = '';
@@ -3065,6 +3082,24 @@ data:
 
           function renderDatasetAccessTable() {
             if (!datasetAccessRows) return;
+            const selected = state.datasets.find((d) => d.id === selectedDatasetID) || null;
+            datasetMetadataForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'block' : 'none';
+            if (selected && datasetMetadataFormDatasetID !== selectedDatasetID) {
+              datasetMetadataFormDatasetID = selectedDatasetID;
+              datasetMetadataFormDirty = false;
+              datasetEditName.value = selected.name || '';
+              datasetEditDescription.value = selected.description || '';
+              setProjectResourceStatus(datasetMetadataStatus, '', '');
+            } else if (selected && !datasetMetadataFormDirty) {
+              datasetEditName.value = selected.name || '';
+              datasetEditDescription.value = selected.description || '';
+            } else if (!selected) {
+              datasetMetadataFormDatasetID = '';
+              datasetMetadataFormDirty = false;
+              datasetEditName.value = '';
+              datasetEditDescription.value = '';
+              setProjectResourceStatus(datasetMetadataStatus, '', '');
+            }
             datasetAccessForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
             datasetOwnerForm.style.display = selectedDatasetID && state.datasetCanManageAccess ? 'flex' : 'none';
             datasetSubjectOptions.innerHTML = '';
@@ -5132,6 +5167,31 @@ data:
             }
           };
 
+          datasetEditName.oninput = () => { datasetMetadataFormDirty = true; };
+          datasetEditDescription.oninput = () => { datasetMetadataFormDirty = true; };
+          datasetMetadataSave.onclick = async () => {
+            try {
+              const id = selectedDatasetID;
+              const name = datasetEditName.value.trim();
+              if (!id) throw { error: 'Selectionner un dataset.' };
+              if (!name) throw { error: 'Le nom du dataset est obligatoire.' };
+              datasetMetadataSave.disabled = true;
+              await callJSON('/api/v1/datasets/' + encodeURIComponent(id), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description: datasetEditDescription.value.trim() })
+              });
+              datasetMetadataFormDirty = false;
+              selectedDatasetID = id;
+              await Promise.all([refreshDatasets(), refreshDatasetAccess(id)]);
+              setProjectResourceStatus(datasetMetadataStatus, 'Fiche dataset enregistree.', 'success');
+            } catch (e) {
+              setProjectResourceStatus(datasetMetadataStatus, errorMessage(e), 'error');
+            } finally {
+              datasetMetadataSave.disabled = false;
+            }
+          };
+
           if (datasetModeInput) {
             datasetModeInput.onchange = () => {
               const external = datasetModeInput.value === 'external';
@@ -6473,7 +6533,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.196"}
+    {"version":"ce-web-0.6.197"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6494,7 +6554,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.196
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.197
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

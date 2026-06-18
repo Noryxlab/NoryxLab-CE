@@ -115,7 +115,10 @@ func (s *DatasetStore) GetByID(id string) (dataset.Dataset, bool, error) {
 	return s.Store.GetDatasetByID(id)
 }
 func (s *DatasetStore) Create(item dataset.Dataset) error { return s.Store.CreateDataset(item) }
-func (s *DatasetStore) Delete(id string) error            { return s.Store.DeleteDataset(id) }
+func (s *DatasetStore) UpdateMetadata(datasetID, name, description string) error {
+	return s.Store.UpdateDatasetMetadata(datasetID, name, description)
+}
+func (s *DatasetStore) Delete(id string) error { return s.Store.DeleteDataset(id) }
 func (s *DatasetStore) ListAccess(datasetID string) ([]dataset.Access, error) {
 	return s.Store.ListDatasetAccess(datasetID)
 }
