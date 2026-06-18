@@ -39,6 +39,11 @@ type createDatasetRequest struct {
 	SecretKey      string `json:"secretKey"`
 }
 
+type updateDatasetMetadataRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 type datasetS3Credential struct {
 	AccessKey string `json:"accessKey"`
 	SecretKey string `json:"secretKey"`
@@ -290,6 +295,53 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		"name": item.Name, "provider": item.Provider, "classification": item.Classification, "bucket": item.Bucket,
 	})
 	writeJSON(w, http.StatusCreated, item)
+}
+
+func (h Handlers) UpdateDatasetMetadata(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	datasetID := strings.TrimSpace(r.PathValue("datasetID"))
+	if datasetID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasetID is required"})
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(datasetID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found || !h.datasetAvailableInEdition(item) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canManageDatasetAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset owner or global admin role required to update this dataset"})
+		return
+	}
+	var req updateDatasetMetadataRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		return
+	}
+	description := strings.TrimSpace(req.Description)
+	if err := h.datasetStore.UpdateMetadata(datasetID, req.Name, description); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update dataset"})
+		return
+	}
+	item.Name = req.Name
+	item.Description = description
+	item.UpdatedAt = time.Now().UTC()
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.update", "dataset", item.ID, "", "success", "", map[string]any{
+		"name": item.Name,
+	})
+	writeJSON(w, http.StatusOK, item)
 }
 
 func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
