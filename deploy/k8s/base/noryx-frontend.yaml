@@ -856,8 +856,9 @@ data:
                         <div class="hint">Datasets disponibles dans les executions de ce projet.</div>
                         <div class="row">
                           <select id="attachDatasetSelect"></select>
-                          <button id="attachDatasetBtn" class="btn primary">Rattacher un dataset</button>
+                          <button id="attachDatasetBtn" type="button" class="btn primary">Rattacher un dataset</button>
                         </div>
+                        <div id="projectDatasetStatus" class="hint"></div>
                         <table>
                           <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasetRows"></tbody>
@@ -869,8 +870,9 @@ data:
                         <div class="hint">Depots accessibles depuis les executions de ce projet.</div>
                         <div class="row">
                           <select id="attachRepoSelect"></select>
-                          <button id="attachRepoBtn" class="btn primary">Rattacher un depot</button>
+                          <button id="attachRepoBtn" type="button" class="btn primary">Rattacher un depot</button>
                         </div>
+                        <div id="projectRepoStatus" class="hint"></div>
                         <table>
                           <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
                           <tbody id="projectRepoRows"></tbody>
@@ -882,8 +884,9 @@ data:
                         <div class="hint">Connectez au projet une datasource déjà référencée sur la plateforme.</div>
                         <div class="row">
                           <select id="attachDatasourceSelect"></select>
-                          <button id="attachDatasourceBtn" class="btn primary">Connecter une datasource</button>
+                          <button id="attachDatasourceBtn" type="button" class="btn primary">Connecter une datasource</button>
                         </div>
+                        <div id="projectDatasourceStatus" class="hint"></div>
                         <table>
                           <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasourceRows"></tbody>
@@ -1619,12 +1622,15 @@ data:
           const attachDatasetSelect = document.getElementById('attachDatasetSelect');
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
+          const projectDatasetStatus = document.getElementById('projectDatasetStatus');
           const attachRepoSelect = document.getElementById('attachRepoSelect');
           const attachRepoBtn = document.getElementById('attachRepoBtn');
           const projectRepoRows = document.getElementById('projectRepoRows');
+          const projectRepoStatus = document.getElementById('projectRepoStatus');
           const attachDatasourceSelect = document.getElementById('attachDatasourceSelect');
           const attachDatasourceBtn = document.getElementById('attachDatasourceBtn');
           const projectDatasourceRows = document.getElementById('projectDatasourceRows');
+          const projectDatasourceStatus = document.getElementById('projectDatasourceStatus');
           const projectFilesUp = document.getElementById('projectFilesUp');
           const projectFilesNewFolder = document.getElementById('projectFilesNewFolder');
           const projectFilesUpload = document.getElementById('projectFilesUpload');
@@ -2417,6 +2423,16 @@ data:
           let identityDisplayMode = 'signed-out';
           function setMeta(text) { if (meta) meta.textContent = text; }
           function pretty(node, data) { node.textContent = JSON.stringify(data, null, 2); }
+          function errorMessage(error) {
+            if (!error) return 'Erreur inconnue';
+            if (typeof error === 'string') return error;
+            return error.error || error.message || JSON.stringify(error);
+          }
+          function setProjectResourceStatus(node, message, kind) {
+            if (!node) return;
+            node.textContent = message || '';
+            node.style.color = kind === 'error' ? '#a4232f' : (kind === 'success' ? '#136b3a' : '');
+          }
           function authHeader() {
             if (authMode === 'oidc' && (keycloak && keycloak.token)) {
               return { Authorization: 'Bearer ' + keycloak.token };
@@ -4978,46 +4994,37 @@ data:
             }
           };
 
-          attachDatasetBtn.onclick = async () => {
+          async function attachProjectResource(event, selectNode, buttonNode, statusNode, resourceLabel, endpointSegment, emptyError) {
+            if (event && event.preventDefault) event.preventDefault();
+            const pid = selectedProjectId();
+            const resourceID = (selectNode.value || '').trim();
             try {
-              const pid = selectedProjectId();
-              const datasetID = (attachDatasetSelect.value || '').trim();
+              setProjectResourceStatus(statusNode, '', '');
               if (!pid) throw { error: tui('err_select_project_first') };
-              if (!datasetID) throw { error: tui('err_select_dataset_attach') };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'PUT' });
+              if (!resourceID) throw { error: emptyError };
+              buttonNode.disabled = true;
+              buttonNode.textContent = 'Association...';
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/' + endpointSegment + '/' + encodeURIComponent(resourceID), { method: 'PUT' });
               await refreshProjectResources();
+              setProjectResourceStatus(statusNode, resourceLabel + ' associe au projet.', 'success');
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              setProjectResourceStatus(statusNode, errorMessage(e), 'error');
+            } finally {
+              buttonNode.disabled = false;
+              applyI18n();
             }
+          }
+
+          attachDatasetBtn.onclick = async (event) => {
+            await attachProjectResource(event, attachDatasetSelect, attachDatasetBtn, projectDatasetStatus, 'Dataset', 'datasets', tui('err_select_dataset_attach'));
           };
 
-          attachRepoBtn.onclick = async () => {
-            try {
-              const pid = selectedProjectId();
-              const repositoryID = (attachRepoSelect.value || '').trim();
-              if (!pid) throw { error: tui('err_select_project_first') };
-              if (!repositoryID) throw { error: tui('err_select_repo_attach') };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'PUT' });
-              await refreshProjectResources();
-            } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
-            }
+          attachRepoBtn.onclick = async (event) => {
+            await attachProjectResource(event, attachRepoSelect, attachRepoBtn, projectRepoStatus, 'Depot', 'repositories', tui('err_select_repo_attach'));
           };
 
-          attachDatasourceBtn.onclick = async () => {
-            try {
-              const pid = selectedProjectId();
-              const datasourceID = (attachDatasourceSelect.value || '').trim();
-              if (!pid) throw { error: tui('err_select_project_first') };
-              if (!datasourceID) throw { error: tui('err_select_ds_attach') };
-              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'PUT' });
-              await refreshProjectResources();
-            } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
-            }
+          attachDatasourceBtn.onclick = async (event) => {
+            await attachProjectResource(event, attachDatasourceSelect, attachDatasourceBtn, projectDatasourceStatus, 'Datasource', 'datasources', tui('err_select_ds_attach'));
           };
 
           projectDatasetRows.onclick = async (event) => {
@@ -6466,7 +6473,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.195"}
+    {"version":"ce-web-0.6.196"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6487,7 +6494,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.195
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.196
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
