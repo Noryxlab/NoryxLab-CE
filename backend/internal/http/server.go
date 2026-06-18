@@ -99,6 +99,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/datasets", h.ListProjectDatasets)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/datasets/{datasetID}", h.AttachProjectDataset)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/datasets/{datasetID}", h.DetachProjectDataset)
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/ontology", h.GetProjectOntology)
+	mux.HandleFunc("POST /api/v1/projects/{projectID}/ontology/scans", h.ScanProjectOntology)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/datasources", h.ListProjectDatasources)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/datasources/{datasourceID}", h.AttachProjectDatasource)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/datasources/{datasourceID}", h.DetachProjectDatasource)

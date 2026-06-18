@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"encoding/json"
+
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
@@ -166,6 +168,7 @@ func (s *RepositoryStore) Update(item repository.Repository) error {
 func (s *RepositoryStore) Delete(id string) error { return s.Store.DeleteRepository(id) }
 
 type ProjectResourceStore struct{ *Store }
+type ProjectOntologyStore struct{ *Store }
 type UserPreferenceStore struct{ *Store }
 
 func (s *ProjectResourceStore) AttachDataset(projectID, datasetID string) error {
@@ -197,6 +200,13 @@ func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]str
 }
 func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
 	return s.Store.ListDatasourceProjectIDs(datasourceID)
+}
+
+func (s *ProjectOntologyStore) GetProjectOntology(projectID string) (json.RawMessage, bool, error) {
+	return s.Store.GetProjectOntology(projectID)
+}
+func (s *ProjectOntologyStore) UpsertProjectOntology(projectID, datasetID string, manifest json.RawMessage, generatedBy string) error {
+	return s.Store.UpsertProjectOntology(projectID, datasetID, manifest, generatedBy)
 }
 
 func (s *UserPreferenceStore) Get(userID, key string) (string, bool, error) {

@@ -26,6 +26,7 @@ type Handlers struct {
 	datasourceStore                  store.DatasourceStore
 	repositoryStore                  store.RepositoryStore
 	projectResourceStore             store.ProjectResourceStore
+	projectOntologyStore             store.ProjectOntologyStore
 	userPreferenceStore              store.UserPreferenceStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
@@ -131,6 +132,7 @@ func New(
 	datasourceStore store.DatasourceStore,
 	repositoryStore store.RepositoryStore,
 	projectResourceStore store.ProjectResourceStore,
+	projectOntologyStore store.ProjectOntologyStore,
 	userPreferenceStore store.UserPreferenceStore,
 	runtime runtime.Runner,
 	authVerifier auth.Verifier,
@@ -165,6 +167,7 @@ func New(
 		datasourceStore:                  datasourceStore,
 		repositoryStore:                  repositoryStore,
 		projectResourceStore:             projectResourceStore,
+		projectOntologyStore:             projectOntologyStore,
 		userPreferenceStore:              userPreferenceStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

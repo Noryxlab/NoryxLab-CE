@@ -36,6 +36,7 @@ func main() {
 	var datasourceStore store.DatasourceStore = memory.NewDatasourceStore()
 	var repositoryStore store.RepositoryStore = memory.NewRepositoryStore()
 	var projectResourceStore store.ProjectResourceStore = memory.NewProjectResourceStore()
+	var projectOntologyStore store.ProjectOntologyStore = memory.NewProjectOntologyStore()
 	var userPreferenceStore store.UserPreferenceStore = memory.NewUserPreferenceStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
@@ -67,6 +68,7 @@ func main() {
 			datasourceStore = &postgres.DatasourceStore{Store: pg}
 			repositoryStore = &postgres.RepositoryStore{Store: pg}
 			projectResourceStore = &postgres.ProjectResourceStore{Store: pg}
+			projectOntologyStore = &postgres.ProjectOntologyStore{Store: pg}
 			userPreferenceStore = &postgres.UserPreferenceStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
@@ -134,6 +136,7 @@ func main() {
 		datasourceStore,
 		repositoryStore,
 		projectResourceStore,
+		projectOntologyStore,
 		userPreferenceStore,
 		runtime,
 		verifier,
