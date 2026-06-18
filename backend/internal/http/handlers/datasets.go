@@ -198,8 +198,11 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	if req.Provider == "" {
 		req.Provider = "minio"
 	}
-	if req.Provider != "minio" && req.Provider != "s3" && req.Provider != "clever-cloud" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "provider must be minio, s3, or clever-cloud"})
+	if req.Provider == "clever-cloud" {
+		req.Provider = "s3"
+	}
+	if req.Provider != "minio" && req.Provider != "s3" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "provider must be minio or s3"})
 		return
 	}
 	if req.Classification != "hds" {
