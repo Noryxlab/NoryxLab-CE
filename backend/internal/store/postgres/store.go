@@ -364,6 +364,13 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (project_id, datasource_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS project_ontologies (
+			project_id TEXT PRIMARY KEY,
+			dataset_id TEXT NOT NULL,
+			manifest_json JSONB NOT NULL,
+			generated_by TEXT NOT NULL,
+			generated_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS user_preferences (
 			user_id TEXT NOT NULL,
 			key TEXT NOT NULL,
@@ -1639,6 +1646,31 @@ func (s *Store) ListProjectDatasourceIDs(projectID string) ([]string, error) {
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) GetProjectOntology(projectID string) (json.RawMessage, bool, error) {
+	var raw []byte
+	err := s.db.QueryRow(`SELECT manifest_json FROM project_ontologies WHERE project_id=$1`, strings.TrimSpace(projectID)).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return json.RawMessage(raw), true, nil
+}
+
+func (s *Store) UpsertProjectOntology(projectID, datasetID string, manifest json.RawMessage, generatedBy string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO project_ontologies (project_id, dataset_id, manifest_json, generated_by, generated_at)
+		VALUES ($1,$2,$3,$4,$5)
+		ON CONFLICT (project_id) DO UPDATE SET
+			dataset_id = EXCLUDED.dataset_id,
+			manifest_json = EXCLUDED.manifest_json,
+			generated_by = EXCLUDED.generated_by,
+			generated_at = EXCLUDED.generated_at
+	`, strings.TrimSpace(projectID), strings.TrimSpace(datasetID), []byte(manifest), strings.TrimSpace(generatedBy), time.Now().UTC())
+	return err
 }
 
 func (s *Store) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
