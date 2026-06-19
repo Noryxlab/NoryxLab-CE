@@ -552,13 +552,13 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if item.Classification == "hds" {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
-		return
-	}
 	rel, key := datasetObjectKey(item, r.PathValue("path"))
 	if rel == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
+		return
+	}
+	if item.Classification == "hds" && !hdsRootPDFPreviewAllowed(rel) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
 		return
 	}
 	client, _, err := h.datasetS3Client(item)
@@ -582,7 +582,11 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	contentType := info.ContentType
 	if contentType == "" {
-		contentType = "application/octet-stream"
+		if strings.HasSuffix(strings.ToLower(rel), ".pdf") {
+			contentType = "application/pdf"
+		} else {
+			contentType = "application/octet-stream"
+		}
 	}
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
@@ -593,6 +597,14 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, written))
+}
+
+func hdsRootPDFPreviewAllowed(relPath string) bool {
+	rel := strings.Trim(strings.TrimSpace(relPath), "/")
+	if rel == "" || strings.Contains(rel, "/") {
+		return false
+	}
+	return strings.HasSuffix(strings.ToLower(rel), ".pdf")
 }
 
 func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {

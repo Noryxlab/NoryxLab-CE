@@ -988,7 +988,7 @@ data:
                           <input id="datasetSecretKey" autocomplete="new-password" type="password" placeholder="S3 secret key" />
                         </div>
                         <div class="hint">Les credentials sont chiffres et ne seront jamais reaffiches. Utilisez des credentials dedies avec les permissions minimales necessaires.</div>
-                        <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu, téléchargement direct et export ZIP désactivés.</div>
+                        <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu limité aux PDF racine, téléchargement direct et export ZIP désactivés.</div>
                       </div>
                     </div>
 
@@ -3334,6 +3334,7 @@ data:
             if (!datasetObjectRows) return;
             const selected = state.datasets.find((d) => d.id === selectedDatasetID);
             const canWrite = !!selected && (selected.accessRole === 'owner' || selected.accessRole === 'writer' || isAdminUser());
+            const isHDS = !!selected && String(selected.classification || '').toLowerCase() === 'hds';
             uploadDatasetObjectBtn.disabled = !canWrite;
             datasetUploadPathInput.disabled = !canWrite;
             datasetUploadFileInput.disabled = !canWrite;
@@ -3368,7 +3369,7 @@ data:
               const button = document.createElement('button'); button.type = 'button'; button.textContent = part; button.setAttribute('data-dataset-folder', encodeURIComponent(crumbPath));
               datasetBreadcrumbs.appendChild(button);
             });
-            datasetDownloadSelected.disabled = false;
+            datasetDownloadSelected.disabled = isHDS;
             const objects = ensureArray(state.datasetObjects);
             const files = objects.filter((obj) => !String(obj.path || '').endsWith('/'));
             const totalSize = files.reduce((sum, obj) => sum + Number(obj.size || 0), 0);
@@ -3418,7 +3419,7 @@ data:
                 '<td>' + (obj.contentType || '-') + '</td>' +
                 '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">Voir</button> ' +
                 (editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(fullPath) + '">Modifier</button> ' : '') +
-                '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(fullPath) + '">Telecharger</button> ' +
+                (!isHDS ? '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(fullPath) + '">Telecharger</button> ' : '') +
                 (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-file="' + encodeURIComponent(fullPath) + '">Supprimer</button>' : '') + '</td>';
               datasetObjectRows.appendChild(tr);
             });
@@ -6780,7 +6781,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.200"}
+    {"version":"ce-web-0.6.201"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6801,7 +6802,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.200
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.201
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
