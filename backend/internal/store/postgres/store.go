@@ -480,6 +480,25 @@ func (s *Store) GetRole(projectID, userID string) (access.Role, bool) {
 	return access.Role(role), true
 }
 
+func (s *Store) ListProjectRoles() ([]storepkg.ProjectRole, error) {
+	rows, err := s.db.Query(`SELECT project_id, user_id, role FROM access_roles ORDER BY project_id, user_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []storepkg.ProjectRole{}
+	for rows.Next() {
+		var item storepkg.ProjectRole
+		var role string
+		if err := rows.Scan(&item.ProjectID, &item.UserID, &role); err != nil {
+			return nil, err
+		}
+		item.Role = access.Role(role)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) ListBuilds() ([]build.Build, error) {
 	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at FROM builds ORDER BY created_at DESC`)
 	if err != nil {

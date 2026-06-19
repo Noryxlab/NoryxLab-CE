@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	storepkg "github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
 
 type AccessStore struct {
@@ -36,4 +37,16 @@ func (s *AccessStore) GetRole(projectID, userID string) (access.Role, bool) {
 
 	role, ok := users[userID]
 	return role, ok
+}
+
+func (s *AccessStore) ListProjectRoles() ([]storepkg.ProjectRole, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []storepkg.ProjectRole{}
+	for projectID, users := range s.project {
+		for userID, role := range users {
+			out = append(out, storepkg.ProjectRole{ProjectID: projectID, UserID: userID, Role: role})
+		}
+	}
+	return out, nil
 }
