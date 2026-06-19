@@ -988,7 +988,7 @@ data:
                           <input id="datasetSecretKey" autocomplete="new-password" type="password" placeholder="S3 secret key" />
                         </div>
                         <div class="hint">Les credentials sont chiffres et ne seront jamais reaffiches. Utilisez des credentials dedies avec les permissions minimales necessaires.</div>
-                        <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu limité aux PDF racine, téléchargement direct et export ZIP désactivés.</div>
+                        <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu limité aux documents racine PDF/XLSX/ODS, téléchargement direct et export ZIP désactivés.</div>
                       </div>
                     </div>
 
@@ -6781,7 +6781,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.201"}
+    {"version":"ce-web-0.6.202"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6802,7 +6802,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.201
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.202
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -557,7 +557,7 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
 		return
 	}
-	if item.Classification == "hds" && !hdsRootPDFPreviewAllowed(rel) {
+	if item.Classification == "hds" && !hdsRootDocumentPreviewAllowed(rel) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
 		return
 	}
@@ -584,6 +584,10 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	if contentType == "" {
 		if strings.HasSuffix(strings.ToLower(rel), ".pdf") {
 			contentType = "application/pdf"
+		} else if strings.HasSuffix(strings.ToLower(rel), ".xlsx") {
+			contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+		} else if strings.HasSuffix(strings.ToLower(rel), ".ods") {
+			contentType = "application/vnd.oasis.opendocument.spreadsheet"
 		} else {
 			contentType = "application/octet-stream"
 		}
@@ -599,12 +603,13 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, written))
 }
 
-func hdsRootPDFPreviewAllowed(relPath string) bool {
+func hdsRootDocumentPreviewAllowed(relPath string) bool {
 	rel := strings.Trim(strings.TrimSpace(relPath), "/")
 	if rel == "" || strings.Contains(rel, "/") {
 		return false
 	}
-	return strings.HasSuffix(strings.ToLower(rel), ".pdf")
+	lower := strings.ToLower(rel)
+	return strings.HasSuffix(lower, ".pdf") || strings.HasSuffix(lower, ".xlsx") || strings.HasSuffix(lower, ".ods")
 }
 
 func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {
