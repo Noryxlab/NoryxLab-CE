@@ -582,12 +582,29 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	contentType := info.ContentType
 	if contentType == "" {
-		if strings.HasSuffix(strings.ToLower(rel), ".pdf") {
+		lower := strings.ToLower(rel)
+		if strings.HasSuffix(lower, ".pdf") {
 			contentType = "application/pdf"
-		} else if strings.HasSuffix(strings.ToLower(rel), ".xlsx") {
+		} else if strings.HasSuffix(lower, ".xlsx") {
 			contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-		} else if strings.HasSuffix(strings.ToLower(rel), ".ods") {
+		} else if strings.HasSuffix(lower, ".ods") {
 			contentType = "application/vnd.oasis.opendocument.spreadsheet"
+		} else if strings.HasSuffix(lower, ".csv") {
+			contentType = "text/csv; charset=utf-8"
+		} else if strings.HasSuffix(lower, ".json") {
+			contentType = "application/json; charset=utf-8"
+		} else if strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".log") || strings.HasSuffix(lower, ".txt") || strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") {
+			contentType = "text/plain; charset=utf-8"
+		} else if strings.HasSuffix(lower, ".svg") {
+			contentType = "image/svg+xml"
+		} else if strings.HasSuffix(lower, ".png") {
+			contentType = "image/png"
+		} else if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
+			contentType = "image/jpeg"
+		} else if strings.HasSuffix(lower, ".gif") {
+			contentType = "image/gif"
+		} else if strings.HasSuffix(lower, ".webp") {
+			contentType = "image/webp"
 		} else {
 			contentType = "application/octet-stream"
 		}
@@ -609,7 +626,22 @@ func hdsRootDocumentPreviewAllowed(relPath string) bool {
 		return false
 	}
 	lower := strings.ToLower(rel)
-	return strings.HasSuffix(lower, ".pdf") || strings.HasSuffix(lower, ".xlsx") || strings.HasSuffix(lower, ".ods")
+	return strings.HasSuffix(lower, ".pdf") ||
+		strings.HasSuffix(lower, ".xlsx") ||
+		strings.HasSuffix(lower, ".ods") ||
+		strings.HasSuffix(lower, ".csv") ||
+		strings.HasSuffix(lower, ".txt") ||
+		strings.HasSuffix(lower, ".json") ||
+		strings.HasSuffix(lower, ".md") ||
+		strings.HasSuffix(lower, ".log") ||
+		strings.HasSuffix(lower, ".yaml") ||
+		strings.HasSuffix(lower, ".yml") ||
+		strings.HasSuffix(lower, ".png") ||
+		strings.HasSuffix(lower, ".jpg") ||
+		strings.HasSuffix(lower, ".jpeg") ||
+		strings.HasSuffix(lower, ".gif") ||
+		strings.HasSuffix(lower, ".webp") ||
+		strings.HasSuffix(lower, ".svg")
 }
 
 func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {
