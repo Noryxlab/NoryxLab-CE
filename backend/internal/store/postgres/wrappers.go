@@ -3,6 +3,7 @@ package postgres
 import (
 	"encoding/json"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
@@ -30,6 +31,16 @@ func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
 	return s.Store.UpdateProjectOwner(projectID, ownerType, ownerID)
 }
 func (s *ProjectStore) DeleteProject(id string) error { return s.Store.DeleteProject(id) }
+
+func (s *AccessStore) SetRole(projectID, userID string, role access.Role) {
+	s.Store.SetRole(projectID, userID, role)
+}
+func (s *AccessStore) GetRole(projectID, userID string) (access.Role, bool) {
+	return s.Store.GetRole(projectID, userID)
+}
+func (s *AccessStore) ListProjectRoles() ([]store.ProjectRole, error) {
+	return s.Store.ListProjectRoles()
+}
 
 type BuildStore struct{ *Store }
 

@@ -437,6 +437,20 @@ data:
           .ontology-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
           .ontology-tag { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #e8f1ff; color: #24518f; font-size: 12px; font-weight: 700; }
           .ontology-samples { color: var(--muted); font-size: 12px; word-break: break-all; }
+          .usage-graph { width: 100%; min-height: 360px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(120deg, #f8fbfc 0%, #eef6f8 100%); overflow: hidden; }
+          .usage-graph svg { display: block; width: 100%; height: 360px; }
+          .usage-node { fill: #fff; stroke: #b7c5d6; stroke-width: 1.4; }
+          .usage-node.dataset { fill: #e8f1ff; stroke: #6f8fd9; }
+          .usage-node.organization { fill: #e9f7ef; stroke: #54aa76; }
+          .usage-node.user { fill: #fff7e8; stroke: #d99b37; }
+          .usage-node.project { fill: #f1edff; stroke: #7561d8; }
+          .usage-node.workload { fill: #f7eef5; stroke: #b7679d; }
+          .usage-edge { stroke: #8ba0b7; stroke-width: 1.1; opacity: .72; }
+          .usage-label { fill: #122031; font-size: 11px; font-weight: 750; pointer-events: none; }
+          .usage-sublabel { fill: #667a98; font-size: 9px; pointer-events: none; }
+          .usage-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+          .usage-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+          .usage-legend i { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #b7c5d6; background: #fff; }
           .project-list table { margin-top: 8px; }
           .dataset-create-panel { margin-bottom: 20px; padding: 18px; border: 1px solid #b8dfe5; border-radius: 14px; background: linear-gradient(110deg, #e9f7f8 0%, #f8fbfc 65%, #f0efff 100%); }
           .dataset-create-header, .dataset-catalog-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
@@ -1523,6 +1537,36 @@ data:
                     <h3>Datasets <span id="adminDatasetsCount" class="badge">0</span></h3>
                     <table><thead><tr><th>Nom</th><th>Owner</th><th>Classe</th></tr></thead><tbody id="adminDatasetRows"></tbody></table>
                   </article>
+                  <article class="card span-12 ee-only">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Cartographie d'usage des donnees</h3>
+                        <div class="hint">Vue conformité DPO: qui possède, qui a des droits, quels projets consomment les datasets et quels workloads sont rattachés.</div>
+                      </div>
+                      <div class="row">
+                        <button id="refreshDataUsage" type="button" class="btn">Actualiser</button>
+                        <button id="downloadDataUsage" type="button" class="btn primary">Exporter CSV</button>
+                      </div>
+                    </div>
+                    <div class="stats">
+                      <article class="stat"><div class="k">Datasets</div><div id="usageDatasetsCount" class="v">0</div></article>
+                      <article class="stat"><div class="k">HDS</div><div id="usageHDSCount" class="v">0</div></article>
+                      <article class="stat"><div class="k">Utilisateurs</div><div id="usageUsersCount" class="v">0</div></article>
+                      <article class="stat"><div class="k">Organisations</div><div id="usageOrganizationsCount" class="v">0</div></article>
+                    </div>
+                    <div class="usage-legend">
+                      <span><i style="background:#e8f1ff"></i>Dataset</span>
+                      <span><i style="background:#f1edff"></i>Projet</span>
+                      <span><i style="background:#fff7e8"></i>Utilisateur</span>
+                      <span><i style="background:#e9f7ef"></i>Organisation</span>
+                      <span><i style="background:#f7eef5"></i>Workload</span>
+                    </div>
+                    <div id="dataUsageGraph" class="usage-graph"></div>
+                    <table>
+                      <thead><tr><th>Dataset</th><th>Relation</th><th>Cible</th><th>Projet</th></tr></thead>
+                      <tbody id="dataUsageRows"></tbody>
+                    </table>
+                  </article>
                   <article class="card span-12">
                     <h3>Audit</h3>
                     <div class="row"><button id="downloadAudit" type="button" class="btn primary">Telecharger le rapport CSV</button></div>
@@ -1772,6 +1816,14 @@ data:
           const addOrganizationMemberBtn = document.getElementById('addOrganizationMember');
           const adminProjectRows = document.getElementById('adminProjectRows');
           const adminDatasetRows = document.getElementById('adminDatasetRows');
+          const refreshDataUsageBtn = document.getElementById('refreshDataUsage');
+          const downloadDataUsageBtn = document.getElementById('downloadDataUsage');
+          const usageDatasetsCount = document.getElementById('usageDatasetsCount');
+          const usageHDSCount = document.getElementById('usageHDSCount');
+          const usageUsersCount = document.getElementById('usageUsersCount');
+          const usageOrganizationsCount = document.getElementById('usageOrganizationsCount');
+          const dataUsageGraph = document.getElementById('dataUsageGraph');
+          const dataUsageRows = document.getElementById('dataUsageRows');
           const downloadAuditBtn = document.getElementById('downloadAudit');
           const organizationRequired = document.getElementById('organizationRequired');
           const organizationRequiredLogout = document.getElementById('organizationRequiredLogout');
@@ -1995,6 +2047,7 @@ data:
             adminExecutions: [],
             adminOverview: {},
             adminInventory: {},
+            adminDataUsage: {},
             organizations: [],
             organizationMembers: [],
             platformOverview: {},
@@ -2692,7 +2745,7 @@ data:
               refreshAdminExecutions().catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
             }
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
@@ -4210,6 +4263,58 @@ data:
             adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td><td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
           }
 
+          function renderDataUsage() {
+            const report = state.adminDataUsage || {};
+            const summary = report.summary || {};
+            usageDatasetsCount.textContent = String(summary.datasets || 0);
+            usageHDSCount.textContent = String(summary.hdsDatasets || 0);
+            usageUsersCount.textContent = String(summary.users || 0);
+            usageOrganizationsCount.textContent = String(summary.organizations || 0);
+            const nodes = ensureArray(report.nodes);
+            const edges = ensureArray(report.edges);
+            dataUsageGraph.innerHTML = renderDataUsageSVG(nodes, edges);
+            const nodeByID = new Map(nodes.map((node) => [node.id, node]));
+            const rows = edges.filter((edge) => ['owns','dataset_permission','attached_to_project','project_member','project_owner','runs_in_project'].includes(edge.relation)).slice(0, 80);
+            dataUsageRows.innerHTML = rows.map((edge) => {
+              const from = nodeByID.get(edge.from) || {};
+              const to = nodeByID.get(edge.to) || {};
+              const datasetNode = String(edge.to || '').startsWith('dataset:') ? to : (String(edge.from || '').startsWith('dataset:') ? from : {});
+              const target = String(edge.to || '').startsWith('dataset:') ? from : to;
+              return '<tr><td><strong>' + escapeHTML(datasetNode.label || '-') + '</strong></td><td>' + escapeHTML(edge.relation || '-') + (edge.role ? '<br/>' + badge(edge.role) : '') + '</td><td>' + escapeHTML((target.kind || '-') + ' · ' + (target.label || '-')) + '</td><td><code>' + escapeHTML(edge.projectId || '-') + '</code></td></tr>';
+            }).join('') || '<tr><td colspan="4">Aucune relation de donnees.</td></tr>';
+          }
+
+          function renderDataUsageSVG(nodes, edges) {
+            if (nodes.length === 0) return '<svg viewBox="0 0 1000 360"><text x="40" y="60" class="usage-label">Aucune donnee de cartographie.</text></svg>';
+            const order = ['organization', 'user', 'project', 'workload', 'dataset'];
+            const columns = { organization: 90, user: 280, project: 480, workload: 680, dataset: 880 };
+            const grouped = {};
+            order.forEach((kind) => grouped[kind] = nodes.filter((node) => node.kind === kind).slice(0, 14));
+            const positions = new Map();
+            order.forEach((kind) => {
+              const items = grouped[kind];
+              const step = Math.max(34, Math.floor(300 / Math.max(1, items.length)));
+              items.forEach((node, idx) => positions.set(node.id, { x: columns[kind], y: 34 + idx * step }));
+            });
+            let svg = '<svg viewBox="0 0 1000 360" role="img" aria-label="Cartographie usage donnees">';
+            edges.slice(0, 220).forEach((edge) => {
+              const a = positions.get(edge.from);
+              const b = positions.get(edge.to);
+              if (!a || !b) return;
+              svg += '<line class="usage-edge" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '"><title>' + escapeHTML(edge.relation || '') + '</title></line>';
+            });
+            nodes.forEach((node) => {
+              const p = positions.get(node.id);
+              if (!p) return;
+              const label = String(node.label || node.id || '-');
+              const short = label.length > 18 ? label.slice(0, 17) + '…' : label;
+              svg += '<circle class="usage-node ' + escapeHTML(node.kind || '') + '" cx="' + p.x + '" cy="' + p.y + '" r="12"><title>' + escapeHTML(label + (node.subLabel ? ' · ' + node.subLabel : '')) + '</title></circle>';
+              svg += '<text class="usage-label" x="' + (p.x + 17) + '" y="' + (p.y + 4) + '">' + escapeHTML(short) + '</text>';
+            });
+            svg += '</svg>';
+            return svg;
+          }
+
           function renderOrganizations() {
             const organizations = ensureArray(state.organizations);
             const users = ensureArray(state.adminInventory.users);
@@ -4506,6 +4611,7 @@ data:
             renderProductionTable();
             renderEnvironmentsTable();
             renderWorkloadsTable();
+            renderDataUsage();
             updateStats();
           }
 
@@ -4561,6 +4667,12 @@ data:
             renderAdminInventory();
             renderOrganizations();
             return state.adminInventory;
+          }
+
+          async function refreshDataUsage() {
+            state.adminDataUsage = await callJSON('/api/v1/admin/data-usage');
+            renderDataUsage();
+            return state.adminDataUsage;
           }
 
           async function refreshOrganizations() {
@@ -4825,11 +4937,11 @@ data:
           };
           organizationRequiredLogout.onclick = () => logoutBtn.click();
 
-          downloadAuditBtn.onclick = async () => {
+          async function downloadAdminCSV(path, filename, buttonNode) {
             try {
-              downloadAuditBtn.disabled = true;
+              buttonNode.disabled = true;
               await ensureWebSession();
-              const response = await fetch('/api/v1/admin/audit.csv', {
+              const response = await fetch(path, {
                 method: 'GET',
                 headers: authHeader(),
                 credentials: 'same-origin',
@@ -4843,7 +4955,7 @@ data:
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
-              link.download = 'noryx-audit.csv';
+              link.download = filename;
               document.body.appendChild(link);
               link.click();
               link.remove();
@@ -4851,8 +4963,21 @@ data:
             } catch (e) {
               pretty(auditOut, e);
             } finally {
-              downloadAuditBtn.disabled = false;
+              buttonNode.disabled = false;
             }
+          }
+
+          downloadAuditBtn.onclick = async () => {
+            await downloadAdminCSV('/api/v1/admin/audit.csv', 'noryx-audit.csv', downloadAuditBtn);
+          };
+
+          refreshDataUsageBtn.onclick = async () => {
+            try { await refreshDataUsage(); }
+            catch (e) { pretty(auditOut, e); }
+          };
+
+          downloadDataUsageBtn.onclick = async () => {
+            await downloadAdminCSV('/api/v1/admin/data-usage.csv', 'noryx-data-usage.csv', downloadDataUsageBtn);
           };
 
           createOrganizationBtn.onclick = async () => {
@@ -5734,7 +5859,7 @@ data:
                 }
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
-                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations()]);
+                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]);
               } catch (e) {
                 pretty(usersOut, e);
                 switchTab('ops');
@@ -6655,7 +6780,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.199"}
+    {"version":"ce-web-0.6.200"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6676,7 +6801,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.199
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.200
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
