@@ -383,7 +383,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			source_id TEXT NOT NULL,
 			source_name TEXT NOT NULL DEFAULT '',
 			inference_profile TEXT NOT NULL,
-			status TEXT NOT NULL DEFAULT 'draft',
+			status TEXT NOT NULL DEFAULT 'active',
 			manifest_json JSONB NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL

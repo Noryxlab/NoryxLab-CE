@@ -1216,7 +1216,7 @@ data:
                         <button id="ontologyRefreshBtn" type="button" class="btn">Actualiser</button>
                       </div>
                       <table>
-                        <thead><tr><th>Nom</th><th>Source</th><th>Profil</th><th>Owner</th><th>Statut</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Source</th><th>Profil</th><th>Owner</th><th>Actions</th></tr></thead>
                         <tbody id="ontologyCatalogRows"></tbody>
                       </table>
                     </div>
@@ -4635,7 +4635,7 @@ data:
               selectedOntologyID = '';
               state.ontologyAccess = [];
               state.ontologyCanManageAccess = false;
-              ontologyCatalogRows.innerHTML = '<tr><td colspan="6">Aucune ontologie.</td></tr>';
+              ontologyCatalogRows.innerHTML = '<tr><td colspan="5">Aucune ontologie.</td></tr>';
               renderOntologyAccessPanel();
               return;
             }
@@ -4655,7 +4655,6 @@ data:
                 '<td>' + escapeHTML(sourceName) + '<br/><span class="project-meta">' + escapeHTML(sourceType) + '</span></td>' +
                 '<td><code>' + escapeHTML(item.inferenceProfile || manifest.inferenceProfile || '-') + '</code></td>' +
                 '<td>' + escapeHTML(ownerLabel(item.ownerType, item.ownerId || item.ownerUserId)) + '</td>' +
-                '<td>' + badge(item.status || 'draft') + '</td>' +
                 '<td>' + ((item.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-ontology="' + escapeHTML(item.id || '') + '">Delete</button>' : '-') + '</td>';
               ontologyCatalogRows.appendChild(tr);
             });
@@ -5619,6 +5618,7 @@ data:
               });
               state.projectOntology = (body && body.manifest) || null;
               if (body && body.item && body.item.id) selectedOntologyID = body.item.id;
+              await refreshOntologies();
               await refreshProjectResources();
               await refreshOntologyAccess(selectedOntologyID);
               renderProjectOntology();
@@ -7233,7 +7233,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.213"}
+    {"version":"ce-web-0.6.214"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7254,7 +7254,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.213
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.214
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

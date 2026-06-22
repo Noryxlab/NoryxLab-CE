@@ -54,7 +54,7 @@ func New(ownerUserID, name, description, sourceType, sourceID, sourceName, infer
 		SourceID:         strings.TrimSpace(sourceID),
 		SourceName:       strings.TrimSpace(sourceName),
 		InferenceProfile: strings.TrimSpace(inferenceProfile),
-		Status:           "draft",
+		Status:           "active",
 		Manifest:         append(json.RawMessage(nil), manifest...),
 		CreatedAt:        now,
 		UpdatedAt:        now,
