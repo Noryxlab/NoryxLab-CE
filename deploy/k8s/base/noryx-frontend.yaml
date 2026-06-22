@@ -692,8 +692,8 @@ data:
             <div class="menu-title" data-i18n="menu_data">Data</div>
             <div class="menu">
               <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
-              <button class="tab-btn" data-tab="data-ontology"><span class="menu-ico">◇</span><span>Catalogue sémantique</span></button>
               <button class="tab-btn" data-tab="data-datasources"><span class="menu-ico">◎</span><span>Datasources</span></button>
+              <button class="tab-btn" data-tab="data-ontology"><span class="menu-ico">◇</span><span>Catalogue sémantique</span></button>
               <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
               <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
             </div>
@@ -936,30 +936,6 @@ data:
 
               <section class="view" id="view-data">
                 <div class="grid">
-                  <article id="card-ontology" class="card span-12">
-                    <div class="section-head">
-                      <div>
-                        <h3>Catalogue sémantique</h3>
-                        <p class="muted">Créez un catalogue sémantique depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
-                      </div>
-                    </div>
-                    <div class="execution-project-context">
-                      <div><div class="k">Projet actif</div><div id="ontologyProjectName" class="v">Aucun projet sélectionné</div></div>
-                    </div>
-                    <div class="hint">Sélectionnez une source Data accessible. Le catalogue créé sera automatiquement rattaché au projet actif.</div>
-                    <div class="row">
-                      <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
-                      <select id="ontologyDatasetSelect"></select>
-                      <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
-                    </div>
-                    <div id="ontologyStatus" class="hint"></div>
-                    <div id="ontologySummary" class="ontology-summary"></div>
-                    <div id="ontologyFormats" class="ontology-tags"></div>
-                    <table>
-                      <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
-                      <tbody id="ontologyRows"></tbody>
-                    </table>
-                  </article>
                   <article id="card-secrets" class="card span-12">
                     <h3>Secrets</h3>
                     <div class="hint">Secrets utilisateur injectés dans vos workspaces, jobs et apps sous la forme NORYX_SECRET_NOM_DU_SECRET. Expiration optionnelle.</div>
@@ -1212,6 +1188,30 @@ data:
                     </div>
                   </article>
 
+                  <article id="card-ontology" class="card span-12">
+                    <div class="section-head">
+                      <div>
+                        <h3>Catalogue sémantique</h3>
+                        <p class="muted">Créez un catalogue sémantique depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
+                      </div>
+                    </div>
+                    <div class="execution-project-context">
+                      <div><div class="k">Projet actif</div><div id="ontologyProjectName" class="v">Aucun projet sélectionné</div></div>
+                    </div>
+                    <div class="hint">Sélectionnez une source Data accessible. Le catalogue créé sera automatiquement rattaché au projet actif.</div>
+                    <div class="row">
+                      <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
+                      <select id="ontologyDatasetSelect"></select>
+                      <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
+                    </div>
+                    <div id="ontologyStatus" class="hint"></div>
+                    <div id="ontologySummary" class="ontology-summary"></div>
+                    <div id="ontologyFormats" class="ontology-tags"></div>
+                    <table>
+                      <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
+                      <tbody id="ontologyRows"></tbody>
+                    </table>
+                  </article>
                 </div>
               </section>
 
@@ -1968,6 +1968,7 @@ data:
             data: document.getElementById('view-data'),
             'data-datasets': document.getElementById('view-data'),
             'data-datasources': document.getElementById('view-data'),
+            'data-ontology': document.getElementById('view-data'),
             'data-git': document.getElementById('view-data'),
             'data-secrets': document.getElementById('view-data'),
             workspaces: document.getElementById('view-workspaces'),
@@ -2785,8 +2786,8 @@ data:
               projects: ['section_title_projects', 'section_subtitle_projects'],
               data: ['section_title_data', 'section_subtitle_data'],
               'data-datasets': ['section_title_data', 'section_subtitle_data'],
-              'data-ontology': ['section_title_data', 'section_subtitle_data'],
               'data-datasources': ['section_title_data', 'section_subtitle_data'],
+              'data-ontology': ['section_title_data', 'section_subtitle_data'],
               'data-git': ['section_title_data', 'section_subtitle_data'],
               'data-secrets': ['section_title_data', 'section_subtitle_data'],
               workspaces: ['section_title_workspaces', 'section_subtitle_workspaces'],
@@ -6925,7 +6926,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.206"}
+    {"version":"ce-web-0.6.207"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6946,7 +6947,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.206
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.207
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
