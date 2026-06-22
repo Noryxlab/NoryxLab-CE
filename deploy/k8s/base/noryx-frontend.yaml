@@ -1249,6 +1249,10 @@ data:
                       <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
                       <tbody id="ontologyRows"></tbody>
                     </table>
+                    <table style="margin-top:12px">
+                      <thead><tr><th>Sujet</th><th>Visite</th><th>Modalité</th><th>Formats</th><th>Tables</th><th>Exemples</th></tr></thead>
+                      <tbody id="ontologyDetailRows"></tbody>
+                    </table>
                   </article>
                 </div>
               </section>
@@ -1794,6 +1798,7 @@ data:
           const ontologySummary = document.getElementById('ontologySummary');
           const ontologyFormats = document.getElementById('ontologyFormats');
           const ontologyRows = document.getElementById('ontologyRows');
+          const ontologyDetailRows = document.getElementById('ontologyDetailRows');
           const projectFilesUp = document.getElementById('projectFilesUp');
           const projectFilesNewFolder = document.getElementById('projectFilesNewFolder');
           const projectFilesUpload = document.getElementById('projectFilesUpload');
@@ -4760,23 +4765,28 @@ data:
               opt.textContent = sourceType === 'datasource' ? 'Aucune datasource accessible' : 'Aucun dataset accessible';
               ontologyDatasetSelect.appendChild(opt);
             }
-            const manifest = state.projectOntology || null;
+            const selectedOntology = ensureArray(state.ontologies).find((item) => item.id === selectedOntologyID) || null;
+            const manifest = selectedOntology ? ontologyManifestOf(selectedOntology) : (state.projectOntology || null);
+            renderOntologyManifestDetail(manifest, selectedOntology);
+          }
+
+          function renderOntologyManifestDetail(manifest, selectedOntology) {
             ontologySummary.innerHTML = '';
             ontologyFormats.innerHTML = '';
             ontologyRows.innerHTML = '';
+            if (ontologyDetailRows) ontologyDetailRows.innerHTML = '';
             if (!manifest) {
-              ontologyStatus.textContent = !pid
-                ? 'Aucun projet actif.'
-                : sources.length === 0
-                ? (sourceType === 'datasource' ? 'Aucune datasource accessible.' : 'Aucun dataset accessible.')
-                : 'Aucun catalogue semantique genere pour ce projet.';
-              ontologyRows.innerHTML = '<tr><td colspan="5">Lancez un scan pour generer la vue sujet / visite / modalite.</td></tr>';
+              ontologyStatus.textContent = 'Selectionnez ou creez une ontologie pour afficher son contenu.';
+              ontologyRows.innerHTML = '<tr><td colspan="5">Aucune ontologie selectionnee.</td></tr>';
+              if (ontologyDetailRows) ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail.</td></tr>';
               return;
             }
             const summary = manifest.summary || {};
             const profileLabel = manifest.inferenceProfile || (manifest.sourceType === 'datasource' ? 'datasource-metadata-v1' : 'premyom-file-path-v1');
             const sourceLabel = manifest.sourceType === 'datasource' ? 'datasource ' : 'dataset ';
-            ontologyStatus.textContent = 'Dernier scan · ' + formatDateTime(manifest.generatedAt) + ' · profil ' + profileLabel + ' · ' + sourceLabel + (manifest.sourceName || manifest.datasetName || manifest.sourceId || manifest.datasetId || '-')
+            ontologyStatus.textContent = (selectedOntology ? 'Ontologie · ' + (selectedOntology.name || manifest.study || selectedOntology.id || '-') : 'Dernier scan')
+              + ' · ' + formatDateTime(manifest.generatedAt || (selectedOntology && (selectedOntology.updatedAt || selectedOntology.createdAt)))
+              + ' · profil ' + profileLabel + ' · ' + sourceLabel + (manifest.sourceName || manifest.datasetName || manifest.sourceId || manifest.datasetId || '-')
               + (manifest.truncated ? ' · scan tronque' : '');
             [
               ['Etude', manifest.study || '-'],
@@ -4797,6 +4807,7 @@ data:
             const subjects = ensureArray(manifest.subjects);
             if (subjects.length === 0) {
               ontologyRows.innerHTML = '<tr><td colspan="5">Aucun sujet detecte dans les chemins du dataset.</td></tr>';
+              if (ontologyDetailRows) ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail modalite.</td></tr>';
               return;
             }
             subjects.forEach((subject) => {
@@ -4812,6 +4823,33 @@ data:
                 '<td>' + formatBytes((subject.stats && subject.stats.totalBytes) || 0) + '</td>';
               ontologyRows.appendChild(tr);
             });
+            if (ontologyDetailRows) {
+              let rows = 0;
+              subjects.forEach((subject) => {
+                ensureArray(subject.visits).forEach((visit) => {
+                  ensureArray(visit.modalities).forEach((modality) => {
+                    if (rows >= 120) return;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML =
+                      '<td><strong>' + escapeHTML(subject.id || '-') + '</strong></td>' +
+                      '<td>' + escapeHTML(visit.date || 'unknown') + '</td>' +
+                      '<td>' + escapeHTML(modality.name || 'unknown') + '<br/><span class="project-meta">' + Number(modality.objectCount || 0) + ' objets · ' + formatBytes(modality.totalBytes || 0) + '</span></td>' +
+                      '<td>' + ensureArray(modality.formats).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                      '<td>' + ensureArray(modality.measurementTables).slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                      '<td class="ontology-samples">' + ensureArray(modality.samplePaths).map((p) => escapeHTML(p)).join('<br/>') + '</td>';
+                    ontologyDetailRows.appendChild(tr);
+                    rows++;
+                  });
+                });
+              });
+              if (!rows) {
+                ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail modalite.</td></tr>';
+              } else if (rows >= 120) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="6">Affichage limite aux 120 premieres lignes de detail.</td>';
+                ontologyDetailRows.appendChild(tr);
+              }
+            }
           }
 
           function ontologyManifestOf(item) {
@@ -5664,6 +5702,7 @@ data:
               if (!ontologyID) return;
               selectedOntologyID = ontologyID;
               renderOntologyCatalog();
+              renderProjectOntology();
               await refreshOntologyAccess(selectedOntologyID);
             };
           }
@@ -7233,7 +7272,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.214"}
+    {"version":"ce-web-0.6.215"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7254,7 +7293,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.214
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.215
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
