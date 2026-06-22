@@ -1,6 +1,6 @@
 # Semantic Catalog / Ontology MVP
 
-NoryxLab can generate a first project-level semantic catalog from datasets attached to a project.
+NoryxLab can generate a first semantic catalog from datasets attached to the active project. The UI entry point belongs to the Data domain, not to the project resource panel, while the stored manifest remains project-scoped for RBAC and dataset attachment checks.
 
 ## Scope
 
@@ -15,6 +15,10 @@ The MVP scans S3 object metadata only:
 - CSV/TSV table names inferred from filenames
 
 For HDS datasets, the scan does not download object content. It does not parse DICOM tags, CSV rows, PDF content, images, or Excel values.
+
+## UI
+
+The catalog is exposed from `Data > Catalogue sémantique`. Users select a dataset attached to the active project, then trigger a scan. This keeps the product model Palantir-like at the data layer while preserving project-level access control.
 
 ## API
 
