@@ -1203,6 +1203,7 @@ data:
                     <div class="row">
                       <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
                       <select id="ontologyDatasetSelect"></select>
+                      <select id="ontologyProfileSelect"></select>
                       <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
                     </div>
                     <div id="ontologyStatus" class="hint"></div>
@@ -1771,6 +1772,7 @@ data:
           const projectDatasourceStatus = document.getElementById('projectDatasourceStatus');
           const ontologySourceType = document.getElementById('ontologySourceType');
           const ontologyDatasetSelect = document.getElementById('ontologyDatasetSelect');
+          const ontologyProfileSelect = document.getElementById('ontologyProfileSelect');
           const ontologyScanBtn = document.getElementById('ontologyScanBtn');
           const ontologyStatus = document.getElementById('ontologyStatus');
           const ontologyRefreshBtn = document.getElementById('ontologyRefreshBtn');
@@ -4720,8 +4722,22 @@ data:
             const pid = selectedProjectId();
             const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
             const previousSourceID = String((ontologyDatasetSelect && ontologyDatasetSelect.value) || '').trim();
+            const previousProfile = String((ontologyProfileSelect && ontologyProfileSelect.value) || '').trim();
             const sources = sourceType === 'datasource' ? ensureArray(state.datasources) : ensureArray(state.datasets);
             ontologyDatasetSelect.innerHTML = '';
+            ontologyProfileSelect.innerHTML = '';
+            const profiles = sourceType === 'datasource'
+              ? [{ id: 'datasource-metadata-v1', label: 'Datasource metadata v1' }]
+              : [{ id: 'premyom-file-path-v1', label: 'Premyom / FOR file path v1' }];
+            profiles.forEach((profile) => {
+              const opt = document.createElement('option');
+              opt.value = profile.id;
+              opt.textContent = profile.label;
+              ontologyProfileSelect.appendChild(opt);
+            });
+            if (previousProfile && profiles.some((profile) => profile.id === previousProfile)) {
+              ontologyProfileSelect.value = previousProfile;
+            }
             sources.forEach((d) => {
               const opt = document.createElement('option');
               opt.value = d.id || '';
@@ -5586,13 +5602,14 @@ data:
             const pid = selectedProjectId();
             const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
             const sourceID = String((ontologyDatasetSelect && ontologyDatasetSelect.value) || '').trim();
+            const inferenceProfile = String((ontologyProfileSelect && ontologyProfileSelect.value) || '').trim();
             try {
               setProjectResourceStatus(ontologyStatus, '', '');
               if (!pid) throw { error: tui('err_select_project_first') };
               if (!sourceID) throw { error: sourceType === 'datasource' ? 'Selectionnez une datasource.' : 'Selectionnez un dataset.' };
               ontologyScanBtn.disabled = true;
               ontologyScanBtn.textContent = 'Creation en cours...';
-              const payload = { sourceType };
+              const payload = { sourceType, inferenceProfile };
               if (sourceType === 'datasource') payload.datasourceId = sourceID;
               else payload.datasetId = sourceID;
               const body = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontology/scans', {
@@ -7216,7 +7233,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.212"}
+    {"version":"ce-web-0.6.213"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7237,7 +7254,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.212
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.213
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

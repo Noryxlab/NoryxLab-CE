@@ -27,9 +27,10 @@ var (
 )
 
 type ontologyScanRequest struct {
-	DatasetID    string `json:"datasetId"`
-	DatasourceID string `json:"datasourceId"`
-	SourceType   string `json:"sourceType"`
+	DatasetID        string `json:"datasetId"`
+	DatasourceID     string `json:"datasourceId"`
+	SourceType       string `json:"sourceType"`
+	InferenceProfile string `json:"inferenceProfile"`
 }
 
 type ontologyManifest struct {
@@ -466,8 +467,8 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	datasetID := strings.TrimSpace(req.DatasetID)
 	datasourceID := strings.TrimSpace(req.DatasourceID)
 	sourceType := strings.ToLower(strings.TrimSpace(req.SourceType))
+	inferenceProfile := strings.TrimSpace(req.InferenceProfile)
 	var manifest ontologyManifest
-	var sourceID string
 	if sourceType == "" {
 		switch {
 		case datasetID != "":
@@ -478,6 +479,13 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	}
 	switch sourceType {
 	case "dataset", "":
+		if inferenceProfile == "" {
+			inferenceProfile = "premyom-file-path-v1"
+		}
+		if inferenceProfile != "premyom-file-path-v1" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported dataset inference profile"})
+			return
+		}
 		if datasetID == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasetId is required"})
 			return
@@ -501,8 +509,15 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
 			return
 		}
-		sourceID = item.ID
+		manifest.InferenceProfile = inferenceProfile
 	case "datasource":
+		if inferenceProfile == "" {
+			inferenceProfile = "datasource-metadata-v1"
+		}
+		if inferenceProfile != "datasource-metadata-v1" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported datasource inference profile"})
+			return
+		}
 		if datasourceID == "" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasourceId is required"})
 			return
@@ -517,7 +532,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		manifest = h.buildDatasourceOntologyManifest(projectID, item, identity.UserID())
-		sourceID = item.ID
+		manifest.InferenceProfile = inferenceProfile
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "supported ontology source types: dataset, datasource"})
 		return
@@ -531,10 +546,6 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	object := ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
 	if err := h.ontologyStore.Create(object); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
-		return
-	}
-	if err := h.projectOntologyStore.UpsertProjectOntology(projectID, sourceID, raw, identity.UserID()); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store project ontology"})
 		return
 	}
 	if err := h.projectResourceStore.AttachOntology(projectID, object.ID); err != nil {

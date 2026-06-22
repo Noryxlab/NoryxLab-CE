@@ -399,32 +399,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			PRIMARY KEY (ontology_id, subject_type, subject_id)
 		)`,
 		`UPDATE ontology_access SET subject_id=user_id WHERE subject_id=''`,
-		`INSERT INTO ontologies (id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at)
-		 SELECT po.project_id,
-		        COALESCE(NULLIF((SELECT p.owner_id FROM projects p WHERE p.id=po.project_id), ''), po.generated_by),
-		        COALESCE(NULLIF((SELECT p.owner_type FROM projects p WHERE p.id=po.project_id), ''), 'user'),
-		        COALESCE(NULLIF((SELECT p.owner_id FROM projects p WHERE p.id=po.project_id), ''), po.generated_by),
-		        COALESCE(NULLIF(po.manifest_json->>'study', ''), NULLIF(po.manifest_json->>'sourceName', ''), 'Catalogue semantique'),
-		        'Catalogue migre depuis le stockage projet',
-		        COALESCE(NULLIF(po.manifest_json->>'sourceType', ''), 'dataset'),
-		        COALESCE(NULLIF(po.manifest_json->>'sourceId', ''), po.dataset_id),
-		        COALESCE(NULLIF(po.manifest_json->>'sourceName', ''), NULLIF(po.manifest_json->>'datasetName', ''), ''),
-		        COALESCE(NULLIF(po.manifest_json->>'inferenceProfile', ''), CASE WHEN po.manifest_json->>'sourceType'='datasource' THEN 'datasource-metadata-v1' ELSE 'premyom-file-path-v1' END),
-		        'draft',
-		        po.manifest_json,
-		        po.generated_at,
-		        po.generated_at
-		   FROM project_ontologies po
-		  ON CONFLICT (id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
 			ontology_id TEXT NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (project_id, ontology_id)
 		)`,
-		`INSERT INTO project_ontology_links (project_id, ontology_id, created_at)
-		 SELECT project_id, project_id, generated_at FROM project_ontologies
-		 ON CONFLICT (project_id, ontology_id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS user_preferences (
 			user_id TEXT NOT NULL,
 			key TEXT NOT NULL,
