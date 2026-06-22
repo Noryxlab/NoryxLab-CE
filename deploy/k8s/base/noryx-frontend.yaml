@@ -1206,6 +1206,42 @@ data:
                       <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
                     </div>
                     <div id="ontologyStatus" class="hint"></div>
+                    <div class="dataset-catalog" style="margin-top:16px">
+                      <div class="dataset-catalog-header">
+                        <div>
+                          <h4>Ontologies</h4>
+                          <p class="muted">Objets Data créés depuis un dataset ou une datasource avec un profil d'inférence explicite.</p>
+                        </div>
+                        <button id="ontologyRefreshBtn" type="button" class="btn">Actualiser</button>
+                      </div>
+                      <table>
+                        <thead><tr><th>Nom</th><th>Source</th><th>Profil</th><th>Owner</th><th>Statut</th><th>Actions</th></tr></thead>
+                        <tbody id="ontologyCatalogRows"></tbody>
+                      </table>
+                    </div>
+                    <div id="ontologyObjectPanel" class="dataset-access-panel" style="display:none">
+                      <h4>Fiche ontologie</h4>
+                      <div class="access-copy">Renommez l'ontologie, transférez son ownership et gérez les droits d'accès.</div>
+                      <div class="row">
+                        <input id="ontologyEditName" placeholder="Nom de l'ontologie" />
+                        <input id="ontologyEditDescription" placeholder="Description (optionnelle)" />
+                        <button id="ontologyMetadataSave" type="button" class="btn primary">Enregistrer</button>
+                      </div>
+                      <div class="row">
+                        <select id="ontologyOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
+                        <input id="ontologyOwnerID" list="ontologySubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
+                        <button id="ontologyOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                      </div>
+                      <div class="row">
+                        <select id="ontologyAccessSubjectType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
+                        <input id="ontologyAccessUser" list="ontologySubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
+                        <select id="ontologyAccessRole"><option value="reader">Reader</option><option value="writer">Writer</option></select>
+                        <button id="ontologyAccessSave" type="button" class="btn primary">Ajouter / modifier</button>
+                      </div>
+                      <datalist id="ontologySubjectOptions"></datalist>
+                      <div id="ontologyObjectStatus" class="hint"></div>
+                      <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="ontologyAccessRows"></tbody></table>
+                    </div>
                     <div id="ontologySummary" class="ontology-summary"></div>
                     <div id="ontologyFormats" class="ontology-tags"></div>
                     <table>
@@ -1737,6 +1773,22 @@ data:
           const ontologyDatasetSelect = document.getElementById('ontologyDatasetSelect');
           const ontologyScanBtn = document.getElementById('ontologyScanBtn');
           const ontologyStatus = document.getElementById('ontologyStatus');
+          const ontologyRefreshBtn = document.getElementById('ontologyRefreshBtn');
+          const ontologyCatalogRows = document.getElementById('ontologyCatalogRows');
+          const ontologyObjectPanel = document.getElementById('ontologyObjectPanel');
+          const ontologyEditName = document.getElementById('ontologyEditName');
+          const ontologyEditDescription = document.getElementById('ontologyEditDescription');
+          const ontologyMetadataSave = document.getElementById('ontologyMetadataSave');
+          const ontologyOwnerType = document.getElementById('ontologyOwnerType');
+          const ontologyOwnerID = document.getElementById('ontologyOwnerID');
+          const ontologyOwnerSave = document.getElementById('ontologyOwnerSave');
+          const ontologyAccessSubjectType = document.getElementById('ontologyAccessSubjectType');
+          const ontologyAccessUser = document.getElementById('ontologyAccessUser');
+          const ontologyAccessRole = document.getElementById('ontologyAccessRole');
+          const ontologyAccessSave = document.getElementById('ontologyAccessSave');
+          const ontologySubjectOptions = document.getElementById('ontologySubjectOptions');
+          const ontologyObjectStatus = document.getElementById('ontologyObjectStatus');
+          const ontologyAccessRows = document.getElementById('ontologyAccessRows');
           const ontologySummary = document.getElementById('ontologySummary');
           const ontologyFormats = document.getElementById('ontologyFormats');
           const ontologyRows = document.getElementById('ontologyRows');
@@ -2062,6 +2114,8 @@ data:
             datasources: [],
             datasourceDefinitions: [],
             ontologies: [],
+            ontologyAccess: [],
+            ontologyCanManageAccess: false,
             projectDatasets: [],
             projectRepositories: [],
             projectDatasources: [],
@@ -2099,6 +2153,9 @@ data:
           let selectedDatasetID = '';
           let datasetMetadataFormDatasetID = '';
           let datasetMetadataFormDirty = false;
+          let selectedOntologyID = '';
+          let ontologyMetadataFormOntologyID = '';
+          let ontologyMetadataFormDirty = false;
           let projectFilesCurrentPath = '';
           let projectFileEditorPath = '';
           let datasetCurrentPath = '';
@@ -4568,6 +4625,97 @@ data:
             }
           }
 
+          function renderOntologyCatalog() {
+            if (!ontologyCatalogRows) return;
+            const items = ensureArray(state.ontologies);
+            ontologyCatalogRows.innerHTML = '';
+            if (!items.length) {
+              selectedOntologyID = '';
+              state.ontologyAccess = [];
+              state.ontologyCanManageAccess = false;
+              ontologyCatalogRows.innerHTML = '<tr><td colspan="6">Aucune ontologie.</td></tr>';
+              renderOntologyAccessPanel();
+              return;
+            }
+            if (!selectedOntologyID || !items.some((item) => item.id === selectedOntologyID)) {
+              selectedOntologyID = items[0].id || '';
+            }
+            items.forEach((item) => {
+              const manifest = ontologyManifestOf(item);
+              const tr = document.createElement('tr');
+              tr.setAttribute('data-select-ontology', item.id || '');
+              tr.style.cursor = 'pointer';
+              if (item.id === selectedOntologyID) tr.classList.add('dataset-row-active');
+              const sourceType = manifest.sourceType || item.sourceType || '-';
+              const sourceName = manifest.sourceName || manifest.datasetName || item.sourceName || item.sourceId || '-';
+              tr.innerHTML =
+                '<td><strong>' + escapeHTML(item.name || manifest.study || item.id || '-') + '</strong>' + (item.id === selectedOntologyID ? '<br/><span class="dataset-active-marker">Ontologie active</span>' : '') + '</td>' +
+                '<td>' + escapeHTML(sourceName) + '<br/><span class="project-meta">' + escapeHTML(sourceType) + '</span></td>' +
+                '<td><code>' + escapeHTML(item.inferenceProfile || manifest.inferenceProfile || '-') + '</code></td>' +
+                '<td>' + escapeHTML(ownerLabel(item.ownerType, item.ownerId || item.ownerUserId)) + '</td>' +
+                '<td>' + badge(item.status || 'draft') + '</td>' +
+                '<td>' + ((item.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-ontology="' + escapeHTML(item.id || '') + '">Delete</button>' : '-') + '</td>';
+              ontologyCatalogRows.appendChild(tr);
+            });
+            renderOntologyAccessPanel();
+          }
+
+          function renderOntologyAccessPanel() {
+            if (!ontologyObjectPanel || !ontologyAccessRows) return;
+            const selected = ensureArray(state.ontologies).find((item) => item.id === selectedOntologyID) || null;
+            ontologyObjectPanel.style.display = selected ? 'block' : 'none';
+            if (!selected) {
+              ontologyMetadataFormOntologyID = '';
+              ontologyMetadataFormDirty = false;
+              ontologyEditName.value = '';
+              ontologyEditDescription.value = '';
+              ontologyAccessRows.innerHTML = '';
+              return;
+            }
+            if (ontologyMetadataFormOntologyID !== selectedOntologyID) {
+              ontologyMetadataFormOntologyID = selectedOntologyID;
+              ontologyMetadataFormDirty = false;
+              ontologyEditName.value = selected.name || '';
+              ontologyEditDescription.value = selected.description || '';
+              setProjectResourceStatus(ontologyObjectStatus, '', '');
+            } else if (!ontologyMetadataFormDirty) {
+              ontologyEditName.value = selected.name || '';
+              ontologyEditDescription.value = selected.description || '';
+            }
+            const canManage = !!state.ontologyCanManageAccess;
+            ontologyMetadataSave.disabled = !canManage;
+            ontologyOwnerSave.disabled = !canManage;
+            ontologyAccessSave.disabled = !canManage;
+            ontologySubjectOptions.innerHTML = '';
+            ontologyAccessRows.innerHTML = '';
+            const items = ensureArray(state.ontologyAccess);
+            if (!items.length) {
+              ontologyAccessRows.innerHTML = '<tr><td colspan="4">Aucune permission.</td></tr>';
+              return;
+            }
+            items.forEach((access) => {
+              const tr = document.createElement('tr');
+              const subjectType = access.subjectType || 'user';
+              const subjectID = access.subjectId || access.userId || '';
+              const organization = ensureArray(state.availableOrganizations).find((item) => item.id === subjectID);
+              const subjectLabel = organization ? (organization.name || organization.alias || subjectID) : subjectID;
+              tr.innerHTML = '<td><strong>' + escapeHTML(subjectLabel || '-') + '</strong><br/><code>' + escapeHTML(subjectID) + '</code></td><td>' + badge(subjectType) + '</td><td>' + badge(access.role || '-') + '</td><td>' +
+                ((canManage && access.role !== 'owner') ? '<button type="button" class="btn danger" data-del-ontology-access="' + encodeURIComponent(subjectType) + '" data-ontology-access-subject="' + encodeURIComponent(subjectID) + '">Retirer</button>' : '-') + '</td>';
+              ontologyAccessRows.appendChild(tr);
+            });
+          }
+
+          function resolveOntologySubjectID(raw, subjectType) {
+            return resolveDatasetSubjectID(raw, subjectType);
+          }
+
+          function updateOntologySubjectOptions(input, subjectType) {
+            if (!ontologySubjectOptions) return;
+            const previous = datasetSubjectOptions;
+            updateDatasetSubjectOptions(input, subjectType);
+            ontologySubjectOptions.innerHTML = previous.innerHTML;
+          }
+
           function renderProjectOntology() {
             const pid = selectedProjectId();
             const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
@@ -4707,6 +4855,7 @@ data:
             renderProjectContext();
             renderProjectResourceSelectors();
             renderProjectResourcesTable();
+            renderOntologyCatalog();
             renderProjectOntology();
             renderProjectFiles();
             renderSecretsTable();
@@ -4889,6 +5038,20 @@ data:
             renderDatasetAccessTable();
           }
 
+          async function refreshOntologyAccess(ontologyID) {
+            const id = String(ontologyID || selectedOntologyID || '').trim();
+            if (!id) {
+              state.ontologyAccess = [];
+              state.ontologyCanManageAccess = false;
+              renderOntologyAccessPanel();
+              return;
+            }
+            const body = await callJSON('/api/v1/ontologies/' + encodeURIComponent(id) + '/access').catch(() => ({ items: [], canManage: false }));
+            state.ontologyAccess = ensureArray(body.items);
+            state.ontologyCanManageAccess = !!body.canManage;
+            renderOntologyAccessPanel();
+          }
+
           async function refreshAvailableOrganizations() {
             const body = await callJSON('/api/v1/organizations');
             state.availableOrganizations = ensureArray(body.items);
@@ -4925,6 +5088,7 @@ data:
             const body = await callJSON('/api/v1/ontologies').catch(() => ({ items: [] }));
             state.ontologies = ensureArray(body.items);
             renderAll();
+            await refreshOntologyAccess(selectedOntologyID);
             return body;
           }
 
@@ -5437,7 +5601,9 @@ data:
                 body: JSON.stringify(payload)
               });
               state.projectOntology = (body && body.manifest) || null;
+              if (body && body.item && body.item.id) selectedOntologyID = body.item.id;
               await refreshProjectResources();
+              await refreshOntologyAccess(selectedOntologyID);
               renderProjectOntology();
               setProjectResourceStatus(ontologyStatus, 'Brouillon de catalogue cree avec le profil selectionne.', 'success');
             } catch (e) {
@@ -5454,6 +5620,116 @@ data:
           if (ontologySourceType) {
             ontologySourceType.onchange = () => renderProjectOntology();
           }
+
+          if (ontologyRefreshBtn) {
+            ontologyRefreshBtn.onclick = async () => {
+              await refreshOntologies();
+            };
+          }
+
+          if (ontologyCatalogRows) {
+            ontologyCatalogRows.onclick = async (event) => {
+              const deleteID = event.target && event.target.getAttribute('data-del-ontology');
+              if (deleteID) {
+                if (!window.confirm('Supprimer definitivement cette ontologie ? Les rattachements aux projets seront retires.')) return;
+                try {
+                  await callJSON('/api/v1/ontologies/' + encodeURIComponent(deleteID), { method: 'DELETE' });
+                  if (selectedOntologyID === deleteID) selectedOntologyID = '';
+                  await refreshOntologies();
+                  await refreshProjectResources();
+                } catch (e) {
+                  setProjectResourceStatus(ontologyObjectStatus, errorMessage(e), 'error');
+                }
+                return;
+              }
+              const row = event.target && event.target.closest && event.target.closest('[data-select-ontology]');
+              const ontologyID = row && row.getAttribute('data-select-ontology');
+              if (!ontologyID) return;
+              selectedOntologyID = ontologyID;
+              renderOntologyCatalog();
+              await refreshOntologyAccess(selectedOntologyID);
+            };
+          }
+
+          if (ontologyMetadataSave) {
+            ontologyMetadataSave.onclick = async () => {
+              try {
+                if (!selectedOntologyID) return;
+                await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID), {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: ontologyEditName.value, description: ontologyEditDescription.value })
+                });
+                ontologyMetadataFormDirty = false;
+                setProjectResourceStatus(ontologyObjectStatus, 'Ontologie mise a jour.', 'success');
+                await Promise.all([refreshOntologies(), refreshProjectResources()]);
+              } catch (e) {
+                setProjectResourceStatus(ontologyObjectStatus, errorMessage(e), 'error');
+              }
+            };
+          }
+
+          if (ontologyAccessSave) {
+            ontologyAccessSave.onclick = async () => {
+              try {
+                const subjectType = ontologyAccessSubjectType.value;
+                const subjectID = resolveOntologySubjectID(ontologyAccessUser.value, subjectType);
+                if (!selectedOntologyID || !subjectID) return;
+                await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID) + '/access/' + encodeURIComponent(subjectType) + '/' + encodeURIComponent(subjectID), {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ role: ontologyAccessRole.value })
+                });
+                ontologyAccessUser.value = '';
+                await refreshOntologyAccess(selectedOntologyID);
+              } catch (e) {
+                setProjectResourceStatus(ontologyObjectStatus, errorMessage(e), 'error');
+              }
+            };
+          }
+
+          if (ontologyAccessRows) {
+            ontologyAccessRows.onclick = async (event) => {
+              const subjectType = event.target && event.target.getAttribute('data-del-ontology-access');
+              const subjectID = event.target && event.target.getAttribute('data-ontology-access-subject');
+              if (!subjectType || !subjectID || !selectedOntologyID) return;
+              try {
+                await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID) + '/access/' + subjectType + '/' + subjectID, { method: 'DELETE' });
+                await refreshOntologyAccess(selectedOntologyID);
+              } catch (e) {
+                setProjectResourceStatus(ontologyObjectStatus, errorMessage(e), 'error');
+              }
+            };
+          }
+
+          if (ontologyOwnerSave) {
+            ontologyOwnerSave.onclick = async () => {
+              try {
+                const ownerType = ontologyOwnerType.value;
+                const ownerId = resolveOntologySubjectID(ontologyOwnerID.value, ownerType);
+                if (!selectedOntologyID || !ownerId) return;
+                if (!window.confirm('Transférer définitivement l ownership de cette ontologie ?')) return;
+                await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID) + '/ownership', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ownerType, ownerId })
+                });
+                ontologyOwnerID.value = '';
+                await Promise.all([refreshOntologies(), refreshOntologyAccess(selectedOntologyID), refreshProjectResources()]);
+              } catch (e) {
+                setProjectResourceStatus(ontologyObjectStatus, errorMessage(e), 'error');
+              }
+            };
+          }
+
+          if (ontologyEditName) ontologyEditName.oninput = () => { ontologyMetadataFormDirty = true; };
+          if (ontologyEditDescription) ontologyEditDescription.oninput = () => { ontologyMetadataFormDirty = true; };
+          if (ontologyOwnerID) ontologyOwnerID.oninput = () => updateOntologySubjectOptions(ontologyOwnerID, ontologyOwnerType.value);
+          if (ontologyAccessUser) ontologyAccessUser.oninput = () => updateOntologySubjectOptions(ontologyAccessUser, ontologyAccessSubjectType.value);
+          if (ontologyOwnerID) ontologyOwnerID.onfocus = () => updateOntologySubjectOptions(ontologyOwnerID, ontologyOwnerType.value);
+          if (ontologyAccessUser) ontologyAccessUser.onfocus = () => updateOntologySubjectOptions(ontologyAccessUser, ontologyAccessSubjectType.value);
+          if (ontologyOwnerType) ontologyOwnerType.onchange = () => { ontologyOwnerID.value = ''; ontologySubjectOptions.innerHTML = ''; };
+          if (ontologyAccessSubjectType) ontologyAccessSubjectType.onchange = () => { ontologyAccessUser.value = ''; ontologySubjectOptions.innerHTML = ''; };
 
           projectDatasetRows.onclick = async (event) => {
             const datasetID = (event.target && event.target.getAttribute('data-detach-dataset'));
@@ -6940,7 +7216,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.211"}
+    {"version":"ce-web-0.6.212"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6961,7 +7237,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.211
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.212
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
