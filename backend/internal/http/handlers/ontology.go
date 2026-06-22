@@ -11,9 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -140,11 +142,11 @@ func (h Handlers) GetProjectOntology(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	items, err := h.accessibleOntologyItems(userID)
+	items, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list ontologies"})
 		return
@@ -152,11 +154,210 @@ func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
-func (h Handlers) ListProjectOntologies(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+func (h Handlers) UpdateOntologyMetadata(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
+		return
+	}
+	var req updateDatasetMetadataRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid name and description are required"})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		return
+	}
+	if err := h.ontologyStore.UpdateMetadata(item.ID, req.Name, req.Description); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update ontology"})
+		return
+	}
+	updated, _, _ := h.ontologyStore.GetByID(item.ID)
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h Handlers) DeleteOntology(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
+		return
+	}
+	if err := h.ontologyStore.Delete(item.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete ontology"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "ontology.delete", "ontology", item.ID, "", "success", "", map[string]any{"name": item.Name, "sourceType": item.SourceType, "sourceId": item.SourceID})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) ListOntologyAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found || (h.ontologyRole(item, identity) == "" && !h.isGlobalAdmin(identity)) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	items, err := h.ontologyStore.ListAccess(item.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list ontology permissions"})
+		return
+	}
+	owner := ontologydomain.Access{OntologyID: item.ID, UserID: item.OwnerID, SubjectType: item.OwnerType, SubjectID: item.OwnerID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	writeJSON(w, http.StatusOK, map[string]any{"items": append([]ontologydomain.Access{owner}, items...), "canManage": h.canManageOntologyAccess(item, identity)})
+}
+
+func (h Handlers) SetOntologyAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
+		return
+	}
+	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
+	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	var req setDatasetAccessRequest
+	if (subjectType != "user" && subjectType != "organization") || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid subjectType, subjectID, and role are required"})
+		return
+	}
+	req.Role = strings.ToLower(strings.TrimSpace(req.Role))
+	if req.Role != "reader" && req.Role != "writer" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be reader or writer"})
+		return
+	}
+	if subjectType == "organization" && !h.organizationExists(subjectID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
+		return
+	}
+	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner role cannot be changed"})
+		return
+	}
+	now := time.Now().UTC()
+	access := ontologydomain.Access{OntologyID: item.ID, UserID: subjectID, SubjectType: subjectType, SubjectID: subjectID, Role: req.Role, CreatedAt: now, UpdatedAt: now}
+	if existing, exists, _ := h.ontologyStore.GetAccess(item.ID, subjectType, subjectID); exists {
+		access.CreatedAt = existing.CreatedAt
+	}
+	if err := h.ontologyStore.SetAccess(access); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to set ontology permission"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "ontology.access.set", "ontology", item.ID, "", "success", "", map[string]any{"subjectType": subjectType, "subjectId": subjectID, "role": req.Role})
+	writeJSON(w, http.StatusOK, access)
+}
+
+func (h Handlers) DeleteOntologyAccess(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
+		return
+	}
+	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
+	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner permission cannot be removed"})
+		return
+	}
+	if err := h.ontologyStore.DeleteAccess(item.ID, subjectType, subjectID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete ontology permission"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "ontology.access.delete", "ontology", item.ID, "", "success", "", map[string]any{"subjectType": subjectType, "subjectId": subjectID})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) UpdateOntologyOwner(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
+		return
+	}
+	var req setDatasetOwnerRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
+		return
+	}
+	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
+	req.OwnerID = strings.TrimSpace(req.OwnerID)
+	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
+		return
+	}
+	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
+		isMember := false
+		for _, subject := range h.ontologySubjects(identity) {
+			if subject.Type == "organization" && subject.ID == req.OwnerID {
+				isMember = true
+				break
+			}
+		}
+		if !isMember {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
+			return
+		}
+	}
+	if err := h.ontologyStore.UpdateOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update ontology owner"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "ontology.owner.transfer", "ontology", item.ID, "", "success", "", map[string]any{"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID, "ownerType": req.OwnerType, "ownerId": req.OwnerID})
+	updated, _, _ := h.ontologyStore.GetByID(item.ID)
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (h Handlers) ListProjectOntologies(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	userID := identity.UserID()
 	projectID := strings.TrimSpace(r.PathValue("projectID"))
 	if projectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
@@ -181,15 +382,12 @@ func (h Handlers) ListProjectOntologies(w http.ResponseWriter, r *http.Request) 
 	}
 	items := make([]ontologyListItem, 0, len(ids))
 	for _, id := range ids {
-		if !h.hasProjectMembership(userID, id) {
-			continue
-		}
-		item, found, err := h.ontologyItem(id, byID[id])
+		item, found, err := h.ontologyItem(id, byID[projectID])
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project ontology"})
 			return
 		}
-		if found {
+		if found && h.canReadOntologyObjectID(item.ID, identity) {
 			items = append(items, item)
 		}
 	}
@@ -197,10 +395,11 @@ func (h Handlers) ListProjectOntologies(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	projectID := strings.TrimSpace(r.PathValue("projectID"))
 	ontologyID := strings.TrimSpace(r.PathValue("ontologyID"))
 	if projectID == "" || ontologyID == "" {
@@ -210,14 +409,12 @@ func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) 
 	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "ontology attach") {
 		return
 	}
-	if !h.hasProjectMembership(userID, ontologyID) {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
-		return
-	}
-	if _, found, err := h.projectOntologyStore.GetProjectOntology(ontologyID); err != nil {
+	item, found, err := h.ontologyStore.GetByID(ontologyID)
+	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read ontology"})
 		return
-	} else if !found {
+	}
+	if !found || (h.ontologyRole(item, identity) == "" && !h.isGlobalAdmin(identity)) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
@@ -330,68 +527,55 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encode ontology"})
 		return
 	}
+	objectName := ontologyObjectName(manifest)
+	object := ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
+	if err := h.ontologyStore.Create(object); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
+		return
+	}
 	if err := h.projectOntologyStore.UpsertProjectOntology(projectID, sourceID, raw, identity.UserID()); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store project ontology"})
 		return
 	}
-	_ = h.projectResourceStore.AttachOntology(projectID, projectID)
-	writeJSON(w, http.StatusCreated, map[string]any{"manifest": manifest})
-}
-
-func (h Handlers) accessibleOntologyItems(userID string) ([]ontologyListItem, error) {
-	projects, err := h.projectStore.List()
-	if err != nil {
-		return nil, err
+	if err := h.projectResourceStore.AttachOntology(projectID, object.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
+		return
 	}
-	items := []ontologyListItem{}
-	for _, p := range projects {
-		if !h.hasProjectMembership(userID, p.ID) {
-			continue
-		}
-		item, found, err := h.ontologyItem(p.ID, p.Name)
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			items = append(items, item)
-		}
-	}
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].GeneratedAt.After(items[j].GeneratedAt)
-	})
-	return items, nil
+	writeJSON(w, http.StatusCreated, map[string]any{"manifest": manifest, "item": object})
 }
 
 func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem, bool, error) {
-	raw, found, err := h.projectOntologyStore.GetProjectOntology(ontologyID)
+	object, found, err := h.ontologyStore.GetByID(ontologyID)
 	if err != nil || !found {
 		return ontologyListItem{}, found, err
 	}
 	var manifest ontologyManifest
-	if err := json.Unmarshal(raw, &manifest); err != nil {
+	if err := json.Unmarshal(object.Manifest, &manifest); err != nil {
 		return ontologyListItem{}, false, err
 	}
 	if manifest.ProjectID == "" {
-		manifest.ProjectID = ontologyID
+		manifest.ProjectID = object.ID
 	}
 	if manifest.SourceType == "" {
-		manifest.SourceType = "dataset"
+		manifest.SourceType = object.SourceType
 	}
 	if manifest.SourceID == "" {
-		manifest.SourceID = manifest.DatasetID
+		manifest.SourceID = firstNonEmpty(object.SourceID, manifest.DatasetID)
 	}
 	if manifest.SourceName == "" {
-		manifest.SourceName = manifest.DatasetName
+		manifest.SourceName = firstNonEmpty(object.SourceName, manifest.DatasetName)
 	}
 	if manifest.InferenceProfile == "" {
-		if manifest.SourceType == "datasource" {
+		if object.InferenceProfile != "" {
+			manifest.InferenceProfile = object.InferenceProfile
+		} else if manifest.SourceType == "datasource" {
 			manifest.InferenceProfile = "datasource-metadata-v1"
 		} else {
 			manifest.InferenceProfile = "premyom-file-path-v1"
 		}
 	}
 	return ontologyListItem{
-		ID:               ontologyID,
+		ID:               object.ID,
 		ProjectID:        manifest.ProjectID,
 		ProjectName:      projectName,
 		SourceType:       manifest.SourceType,
@@ -406,6 +590,64 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 		GeneratedAt:      manifest.GeneratedAt,
 		Truncated:        manifest.Truncated,
 	}, true, nil
+}
+
+func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subject {
+	subjects := []ontologydomain.Subject{{Type: "user", ID: identity.UserID()}}
+	if h.keycloak == nil {
+		return subjects
+	}
+	identifier := strings.TrimSpace(identity.Subject)
+	if identifier == "" {
+		identifier = identity.UserID()
+	}
+	organizations, err := h.keycloak.ListUserOrganizations(identifier)
+	if err != nil {
+		return subjects
+	}
+	for _, organization := range organizations {
+		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
+	}
+	return subjects
+}
+
+func (h Handlers) ontologyRole(item ontologydomain.Ontology, identity auth.Identity) string {
+	best := ""
+	for _, subject := range h.ontologySubjects(identity) {
+		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
+			return "owner"
+		}
+		access, found, err := h.ontologyStore.GetAccess(item.ID, subject.Type, subject.ID)
+		if err == nil && found && (access.Role == "writer" || best == "") {
+			best = access.Role
+		}
+	}
+	return best
+}
+
+func (h Handlers) canReadOntologyObjectID(ontologyID string, identity auth.Identity) bool {
+	item, found, err := h.ontologyStore.GetByID(ontologyID)
+	if err != nil || !found {
+		return false
+	}
+	return h.isGlobalAdmin(identity) || h.ontologyRole(item, identity) != ""
+}
+
+func (h Handlers) canManageOntologyAccess(item ontologydomain.Ontology, identity auth.Identity) bool {
+	return h.isGlobalAdmin(identity) || h.ontologyRole(item, identity) == "owner"
+}
+
+func ontologyObjectName(manifest ontologyManifest) string {
+	if strings.TrimSpace(manifest.Study) != "" {
+		return strings.TrimSpace(manifest.Study)
+	}
+	if strings.TrimSpace(manifest.SourceName) != "" {
+		return strings.TrimSpace(manifest.SourceName)
+	}
+	if strings.TrimSpace(manifest.DatasetName) != "" {
+		return strings.TrimSpace(manifest.DatasetName)
+	}
+	return "Catalogue semantique"
 }
 
 func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {

@@ -17,6 +17,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
@@ -371,6 +372,50 @@ func (s *Store) migrate(ctx context.Context) error {
 			generated_by TEXT NOT NULL,
 			generated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS ontologies (
+			id TEXT PRIMARY KEY,
+			owner_user_id TEXT NOT NULL,
+			owner_type TEXT NOT NULL DEFAULT 'user',
+			owner_id TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			source_type TEXT NOT NULL,
+			source_id TEXT NOT NULL,
+			source_name TEXT NOT NULL DEFAULT '',
+			inference_profile TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'draft',
+			manifest_json JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS ontology_access (
+			ontology_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			subject_type TEXT NOT NULL DEFAULT 'user',
+			subject_id TEXT NOT NULL DEFAULT '',
+			role TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (ontology_id, subject_type, subject_id)
+		)`,
+		`UPDATE ontology_access SET subject_id=user_id WHERE subject_id=''`,
+		`INSERT INTO ontologies (id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at)
+		 SELECT po.project_id,
+		        COALESCE(NULLIF((SELECT p.owner_id FROM projects p WHERE p.id=po.project_id), ''), po.generated_by),
+		        COALESCE(NULLIF((SELECT p.owner_type FROM projects p WHERE p.id=po.project_id), ''), 'user'),
+		        COALESCE(NULLIF((SELECT p.owner_id FROM projects p WHERE p.id=po.project_id), ''), po.generated_by),
+		        COALESCE(NULLIF(po.manifest_json->>'study', ''), NULLIF(po.manifest_json->>'sourceName', ''), 'Catalogue semantique'),
+		        'Catalogue migre depuis le stockage projet',
+		        COALESCE(NULLIF(po.manifest_json->>'sourceType', ''), 'dataset'),
+		        COALESCE(NULLIF(po.manifest_json->>'sourceId', ''), po.dataset_id),
+		        COALESCE(NULLIF(po.manifest_json->>'sourceName', ''), NULLIF(po.manifest_json->>'datasetName', ''), ''),
+		        COALESCE(NULLIF(po.manifest_json->>'inferenceProfile', ''), CASE WHEN po.manifest_json->>'sourceType'='datasource' THEN 'datasource-metadata-v1' ELSE 'premyom-file-path-v1' END),
+		        'draft',
+		        po.manifest_json,
+		        po.generated_at,
+		        po.generated_at
+		   FROM project_ontologies po
+		  ON CONFLICT (id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
 			ontology_id TEXT NOT NULL,
@@ -1436,6 +1481,147 @@ func (s *Store) SetDatasetAccess(item dataset.Access) error {
 
 func (s *Store) DeleteDatasetAccess(datasetID, subjectType, subjectID string) error {
 	_, err := s.db.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1 AND subject_type=$2 AND subject_id=$3`, strings.TrimSpace(datasetID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
+	return err
+}
+
+func (s *Store) ListOntologiesBySubjects(subjects []ontology.Subject) ([]ontology.Ontology, error) {
+	conditions := []string{}
+	args := []any{}
+	for _, subject := range subjects {
+		if strings.TrimSpace(subject.ID) == "" {
+			continue
+		}
+		args = append(args, strings.TrimSpace(subject.Type), strings.TrimSpace(subject.ID))
+		n := len(args)
+		conditions = append(conditions, fmt.Sprintf("(o.owner_type=$%d AND o.owner_id=$%d) OR EXISTS (SELECT 1 FROM ontology_access a WHERE a.ontology_id=o.id AND a.subject_type=$%d AND a.subject_id=$%d)", n-1, n, n-1, n))
+	}
+	if len(conditions) == 0 {
+		return []ontology.Ontology{}, nil
+	}
+	ownerConditions := []string{}
+	writerConditions := []string{}
+	for i := 0; i < len(args); i += 2 {
+		ownerConditions = append(ownerConditions, fmt.Sprintf("(o.owner_type=$%d AND o.owner_id=$%d)", i+1, i+2))
+		writerConditions = append(writerConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM ontology_access a WHERE a.ontology_id=o.id AND a.subject_type=$%d AND a.subject_id=$%d AND a.role='writer')", i+1, i+2))
+	}
+	query := `SELECT o.id, o.owner_user_id, o.owner_type, o.owner_id, o.name, o.description, o.source_type, o.source_id, o.source_name, o.inference_profile, o.status, o.manifest_json, o.created_at, o.updated_at,
+		CASE WHEN ` + strings.Join(ownerConditions, " OR ") + ` THEN 'owner' WHEN ` + strings.Join(writerConditions, " OR ") + ` THEN 'writer' ELSE 'reader' END
+		FROM ontologies o
+		WHERE ` + strings.Join(conditions, " OR ") + ` ORDER BY o.updated_at DESC`
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ontology.Ontology{}
+	for rows.Next() {
+		var item ontology.Ontology
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ListAllOntologies() ([]ontology.Ontology, error) {
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at FROM ontologies ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ontology.Ontology{}
+	for rows.Next() {
+		var item ontology.Ontology
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetOntologyByID(id string) (ontology.Ontology, bool, error) {
+	var item ontology.Ontology
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at FROM ontologies WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return ontology.Ontology{}, false, nil
+	}
+	if err != nil {
+		return ontology.Ontology{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateOntology(item ontology.Ontology) error {
+	_, err := s.db.Exec(`INSERT INTO ontologies (id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+		item.ID, item.OwnerUserID, item.OwnerType, item.OwnerID, item.Name, item.Description, item.SourceType, item.SourceID, item.SourceName, item.InferenceProfile, item.Status, item.Manifest, item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) UpdateOntologyMetadata(ontologyID, name, description string) error {
+	_, err := s.db.Exec(`UPDATE ontologies SET name=$2, description=$3, updated_at=$4 WHERE id=$1`, strings.TrimSpace(ontologyID), strings.TrimSpace(name), strings.TrimSpace(description), time.Now().UTC())
+	return err
+}
+
+func (s *Store) UpdateOntologyOwner(ontologyID, ownerType, ownerID string) error {
+	_, err := s.db.Exec(`UPDATE ontologies SET owner_type=$2, owner_id=$3, owner_user_id=CASE WHEN $2='user' THEN $3 ELSE owner_user_id END, updated_at=$4 WHERE id=$1`, strings.TrimSpace(ontologyID), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID), time.Now().UTC())
+	return err
+}
+
+func (s *Store) DeleteOntology(id string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM project_ontology_links WHERE ontology_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM ontology_access WHERE ontology_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM ontologies WHERE id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ListOntologyAccess(ontologyID string) ([]ontology.Access, error) {
+	rows, err := s.db.Query(`SELECT ontology_id, user_id, subject_type, subject_id, role, created_at, updated_at FROM ontology_access WHERE ontology_id=$1 ORDER BY subject_type, subject_id`, strings.TrimSpace(ontologyID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ontology.Access{}
+	for rows.Next() {
+		var item ontology.Access
+		if err := rows.Scan(&item.OntologyID, &item.UserID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetOntologyAccess(ontologyID, subjectType, subjectID string) (ontology.Access, bool, error) {
+	var item ontology.Access
+	err := s.db.QueryRow(`SELECT ontology_id, user_id, subject_type, subject_id, role, created_at, updated_at FROM ontology_access WHERE ontology_id=$1 AND subject_type=$2 AND subject_id=$3`, strings.TrimSpace(ontologyID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID)).Scan(&item.OntologyID, &item.UserID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return ontology.Access{}, false, nil
+	}
+	return item, err == nil, err
+}
+
+func (s *Store) SetOntologyAccess(item ontology.Access) error {
+	_, err := s.db.Exec(`INSERT INTO ontology_access (ontology_id,user_id,subject_type,subject_id,role,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (ontology_id,subject_type,subject_id) DO UPDATE SET role=EXCLUDED.role,updated_at=EXCLUDED.updated_at`, item.OntologyID, item.SubjectID, item.SubjectType, item.SubjectID, item.Role, item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) DeleteOntologyAccess(ontologyID, subjectType, subjectID string) error {
+	_, err := s.db.Exec(`DELETE FROM ontology_access WHERE ontology_id=$1 AND subject_type=$2 AND subject_id=$3`, strings.TrimSpace(ontologyID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
 	return err
 }
 

@@ -4464,9 +4464,10 @@ data:
               attachOntologySelect.appendChild(opt);
             } else {
               availableOntologies.forEach((o) => {
+                const manifest = ontologyManifestOf(o);
                 const opt = document.createElement('option');
                 opt.value = o.id || '';
-                opt.textContent = (o.study || o.projectName || o.id) + ' (' + (o.datasetName || o.datasetId || '-') + ')';
+                opt.textContent = (o.name || manifest.study || o.projectName || o.id) + ' (' + (manifest.sourceName || manifest.datasetName || o.sourceName || o.sourceId || '-') + ')';
                 attachOntologySelect.appendChild(opt);
               });
             }
@@ -4525,12 +4526,13 @@ data:
               projectOntologyRows.innerHTML = '<tr><td colspan="5">Aucun catalogue semantique rattache.</td></tr>';
             } else {
               state.projectOntologies.forEach((o) => {
-                const summary = o.summary || {};
+                const manifest = ontologyManifestOf(o);
+                const summary = manifest.summary || {};
                 const tr = document.createElement('tr');
                 tr.innerHTML =
-                  '<td><strong>' + escapeHTML(o.study || o.projectName || o.id || '-') + '</strong><br/><span class="project-meta">Dernier scan · ' + formatDateTime(o.generatedAt) + '</span></td>' +
+                  '<td><strong>' + escapeHTML(o.name || manifest.study || o.projectName || o.id || '-') + '</strong><br/><span class="project-meta">Dernier scan · ' + formatDateTime(manifest.generatedAt || o.updatedAt || o.createdAt) + '</span></td>' +
                   '<td>' + escapeHTML(o.projectName || o.projectId || '-') + '</td>' +
-                  '<td>' + escapeHTML(o.sourceName || o.datasetName || o.sourceId || o.datasetId || '-') + (o.sourceType ? '<br/><span class="project-meta">' + escapeHTML(o.sourceType) + '</span>' : '') + '</td>' +
+                  '<td>' + escapeHTML(manifest.sourceName || manifest.datasetName || o.sourceName || o.sourceId || '-') + ((manifest.sourceType || o.sourceType) ? '<br/><span class="project-meta">' + escapeHTML(manifest.sourceType || o.sourceType) + '</span>' : '') + '</td>' +
                   '<td>' + Number(summary.subjects || 0) + ' sujets · ' + Number(summary.visits || 0) + ' visites · ' + Number(summary.objects || 0) + ' objets</td>' +
                   '<td><button type="button" class="btn danger" data-detach-ontology="' + escapeHTML(o.id || '') + '">Detach</button></td>';
                 projectOntologyRows.appendChild(tr);
@@ -4647,6 +4649,15 @@ data:
                 '<td>' + formatBytes((subject.stats && subject.stats.totalBytes) || 0) + '</td>';
               ontologyRows.appendChild(tr);
             });
+          }
+
+          function ontologyManifestOf(item) {
+            if (!item) return {};
+            if (item.manifest && typeof item.manifest === 'object') return item.manifest;
+            if (item.manifest && typeof item.manifest === 'string') {
+              try { return JSON.parse(item.manifest) || {}; } catch (_) { return {}; }
+            }
+            return item;
           }
 
           function renderProjectFiles() {
@@ -6929,7 +6940,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.210"}
+    {"version":"ce-web-0.6.211"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6950,7 +6961,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.210
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.211
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

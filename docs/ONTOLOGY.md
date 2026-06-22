@@ -56,7 +56,18 @@ Datasource payload:
 
 ## Output Model
 
-The stored manifest is scoped to a project and contains:
+Ontologies are first-class Data objects, like datasets:
+
+- owner user or organization
+- `owner`, `writer`, `reader` permissions
+- source dataset or datasource
+- inference profile
+- manifest JSON
+- project attachments through `project_ontology_links`
+
+The legacy project-scoped manifest endpoint is kept for UI compatibility and “latest scan” display, but the source of truth for sharing and project attachment is the ontology object.
+
+The stored manifest contains:
 
 - project and dataset identifiers
 - inference profile

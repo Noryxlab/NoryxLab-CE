@@ -34,6 +34,7 @@ func main() {
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
 	var datasourceStore store.DatasourceStore = memory.NewDatasourceStore()
+	var ontologyStore store.OntologyStore = memory.NewOntologyObjectStore()
 	var repositoryStore store.RepositoryStore = memory.NewRepositoryStore()
 	var projectResourceStore store.ProjectResourceStore = memory.NewProjectResourceStore()
 	var projectOntologyStore store.ProjectOntologyStore = memory.NewProjectOntologyStore()
@@ -66,6 +67,7 @@ func main() {
 			secretStore = &postgres.SecretStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
 			datasourceStore = &postgres.DatasourceStore{Store: pg}
+			ontologyStore = &postgres.OntologyStore{Store: pg}
 			repositoryStore = &postgres.RepositoryStore{Store: pg}
 			projectResourceStore = &postgres.ProjectResourceStore{Store: pg}
 			projectOntologyStore = &postgres.ProjectOntologyStore{Store: pg}
@@ -134,6 +136,7 @@ func main() {
 		secretStore,
 		datasetStore,
 		datasourceStore,
+		ontologyStore,
 		repositoryStore,
 		projectResourceStore,
 		projectOntologyStore,
