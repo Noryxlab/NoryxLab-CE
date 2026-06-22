@@ -692,6 +692,7 @@ data:
             <div class="menu-title" data-i18n="menu_data">Data</div>
             <div class="menu">
               <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
+              <button class="tab-btn" data-tab="data-ontology"><span class="menu-ico">◇</span><span>Catalogue sémantique</span></button>
               <button class="tab-btn" data-tab="data-datasources"><span class="menu-ico">◎</span><span>Datasources</span></button>
               <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
               <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
@@ -886,21 +887,6 @@ data:
                         </table>
                       </article>
 
-                      <article class="card project-resource-card">
-                        <h3>Catalogue semantique</h3>
-                        <div class="hint">Generez une premiere ontologie depuis les fichiers du dataset rattache: sujets, visites, modalites, formats et tables de mesures.</div>
-                        <div class="row">
-                          <select id="ontologyDatasetSelect"></select>
-                          <button id="ontologyScanBtn" type="button" class="btn primary">Scanner l'ontologie</button>
-                        </div>
-                        <div id="ontologyStatus" class="hint"></div>
-                        <div id="ontologySummary" class="ontology-summary"></div>
-                        <div id="ontologyFormats" class="ontology-tags"></div>
-                        <table>
-                          <thead><tr><th>Sujet</th><th>Visites</th><th>Modalites</th><th>Objets</th><th>Taille</th></tr></thead>
-                          <tbody id="ontologyRows"></tbody>
-                        </table>
-                      </article>
 
                       <article class="card project-resource-card">
                         <h3>Depots Git du projet</h3>
@@ -936,6 +922,29 @@ data:
 
               <section class="view" id="view-data">
                 <div class="grid">
+                  <article id="card-ontology" class="card span-12">
+                    <div class="section-head">
+                      <div>
+                        <h3>Catalogue sémantique</h3>
+                        <p class="muted">Vue data transverse du projet actif : sujets, visites, modalités, formats et tables de mesures détectés depuis les datasets rattachés.</p>
+                      </div>
+                    </div>
+                    <div class="execution-project-context">
+                      <div><div class="k">Projet actif</div><div id="ontologyProjectName" class="v">Aucun projet sélectionné</div></div>
+                    </div>
+                    <div class="hint">Sélectionnez un dataset rattaché au projet actif, puis générez le catalogue. Les droits restent ceux du projet et du dataset.</div>
+                    <div class="row">
+                      <select id="ontologyDatasetSelect"></select>
+                      <button id="ontologyScanBtn" type="button" class="btn primary">Scanner le catalogue</button>
+                    </div>
+                    <div id="ontologyStatus" class="hint"></div>
+                    <div id="ontologySummary" class="ontology-summary"></div>
+                    <div id="ontologyFormats" class="ontology-tags"></div>
+                    <table>
+                      <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
+                      <tbody id="ontologyRows"></tbody>
+                    </table>
+                  </article>
                   <article id="card-secrets" class="card span-12">
                     <h3>Secrets</h3>
                     <div class="hint">Secrets utilisateur injectés dans vos workspaces, jobs et apps sous la forme NORYX_SECRET_NOM_DU_SECRET. Expiration optionnelle.</div>
@@ -1704,6 +1713,7 @@ data:
           const attachDatasourceBtn = document.getElementById('attachDatasourceBtn');
           const projectDatasourceRows = document.getElementById('projectDatasourceRows');
           const projectDatasourceStatus = document.getElementById('projectDatasourceStatus');
+          const ontologyProjectName = document.getElementById('ontologyProjectName');
           const ontologyDatasetSelect = document.getElementById('ontologyDatasetSelect');
           const ontologyScanBtn = document.getElementById('ontologyScanBtn');
           const ontologyStatus = document.getElementById('ontologyStatus');
@@ -2740,6 +2750,7 @@ data:
             if (viewTab === 'data') {
               Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshAvailableDatasetUsers()])
                 .catch(() => {});
+              if (selectedProjectId()) refreshProjectResources().catch(() => {});
             }
             if (viewTab === 'workloads' && isAdminUser()) {
               refreshAdminExecutions().catch((e) => pretty(usersOut, e));
@@ -2752,6 +2763,7 @@ data:
               projects: ['section_title_projects', 'section_subtitle_projects'],
               data: ['section_title_data', 'section_subtitle_data'],
               'data-datasets': ['section_title_data', 'section_subtitle_data'],
+              'data-ontology': ['section_title_data', 'section_subtitle_data'],
               'data-datasources': ['section_title_data', 'section_subtitle_data'],
               'data-git': ['section_title_data', 'section_subtitle_data'],
               'data-secrets': ['section_title_data', 'section_subtitle_data'],
@@ -2772,12 +2784,22 @@ data:
 
           function applyDataTab(tab) {
             const datasets = document.getElementById('card-datasets');
+            const ontology = document.getElementById('card-ontology');
             const datasources = document.getElementById('card-datasources');
             const repos = document.getElementById('card-repositories');
             const secrets = document.getElementById('card-secrets');
-            if (!datasets || !datasources || !repos || !secrets) return;
+            if (!datasets || !ontology || !datasources || !repos || !secrets) return;
             if (tab === 'data-datasets') {
               datasets.style.display = 'block';
+              ontology.style.display = 'none';
+              datasources.style.display = 'none';
+              repos.style.display = 'none';
+              secrets.style.display = 'none';
+              return;
+            }
+            if (tab === 'data-ontology') {
+              datasets.style.display = 'none';
+              ontology.style.display = 'block';
               datasources.style.display = 'none';
               repos.style.display = 'none';
               secrets.style.display = 'none';
@@ -2785,6 +2807,7 @@ data:
             }
             if (tab === 'data-git') {
               datasets.style.display = 'none';
+              ontology.style.display = 'none';
               datasources.style.display = 'none';
               repos.style.display = 'block';
               secrets.style.display = 'none';
@@ -2792,6 +2815,7 @@ data:
             }
             if (tab === 'data-datasources') {
               datasets.style.display = 'none';
+              ontology.style.display = 'none';
               datasources.style.display = 'block';
               repos.style.display = 'none';
               secrets.style.display = 'none';
@@ -2799,12 +2823,14 @@ data:
             }
             if (tab === 'data-secrets') {
               datasets.style.display = 'none';
+              ontology.style.display = 'none';
               datasources.style.display = 'none';
               repos.style.display = 'none';
               secrets.style.display = 'block';
               return;
             }
             datasets.style.display = 'block';
+            ontology.style.display = 'block';
             datasources.style.display = 'block';
             repos.style.display = 'block';
             secrets.style.display = 'block';
@@ -4480,6 +4506,11 @@ data:
           }
 
           function renderProjectOntology() {
+            const pid = selectedProjectId();
+            const project = state.projects.find((x) => x.id === pid) || null;
+            if (ontologyProjectName) {
+              ontologyProjectName.textContent = project ? (project.name || project.id || '-') : 'Aucun projet selectionne';
+            }
             ontologyDatasetSelect.innerHTML = '';
             ensureArray(state.projectDatasets).forEach((d) => {
               const opt = document.createElement('option');
@@ -4487,8 +4518,13 @@ data:
               opt.textContent = (d.name || d.id) + ' (' + datasetProviderLabel(d.provider) + ')';
               ontologyDatasetSelect.appendChild(opt);
             });
-            ontologyScanBtn.disabled = !selectedProjectId() || state.projectDatasets.length === 0;
-            if (state.projectDatasets.length === 0) {
+            ontologyScanBtn.disabled = !pid || state.projectDatasets.length === 0;
+            if (!pid) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'Selectionnez un projet actif';
+              ontologyDatasetSelect.appendChild(opt);
+            } else if (state.projectDatasets.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
               opt.textContent = 'Rattachez un dataset au projet';
@@ -4499,7 +4535,9 @@ data:
             ontologyFormats.innerHTML = '';
             ontologyRows.innerHTML = '';
             if (!manifest) {
-              ontologyStatus.textContent = state.projectDatasets.length === 0
+              ontologyStatus.textContent = !pid
+                ? 'Aucun projet actif.'
+                : state.projectDatasets.length === 0
                 ? 'Aucun dataset rattache.'
                 : 'Aucun catalogue semantique genere pour ce projet.';
               ontologyRows.innerHTML = '<tr><td colspan="5">Lancez un scan pour generer la vue sujet / visite / modalite.</td></tr>';
@@ -5306,7 +5344,7 @@ data:
               setProjectResourceStatus(ontologyStatus, errorMessage(e), 'error');
             } finally {
               ontologyScanBtn.disabled = !selectedProjectId() || state.projectDatasets.length === 0;
-              ontologyScanBtn.textContent = "Scanner l'ontologie";
+              ontologyScanBtn.textContent = 'Scanner le catalogue';
             }
           };
 
@@ -6781,7 +6819,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.203"}
+    {"version":"ce-web-0.6.204"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6802,7 +6840,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.203
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.204
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
