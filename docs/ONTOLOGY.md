@@ -14,11 +14,11 @@ The MVP scans S3 object metadata only:
 - modality names inferred from paths
 - CSV/TSV table names inferred from filenames
 
-For HDS datasets, the scan does not download object content. It does not parse DICOM tags, CSV rows, PDF content, images, or Excel values.
+For HDS datasets, the scan does not download object content. It does not parse DICOM tags, CSV rows, PDF content, images, or Excel values. Datasource catalogs currently use connection metadata only; SQL/NoSQL schema introspection is a later explicit step.
 
 ## UI
 
-The catalog is exposed from `Data > Catalogue sémantique`. Users select a dataset attached to the active project, then trigger a scan. This keeps the product model Palantir-like at the data layer while preserving project-level access control. Generated catalogs are also project resources: they can be attached to or detached from projects through the project resource panel, with the same operating model as datasets.
+The catalog is exposed from `Data > Catalogue sémantique`. Users select a source dataset or datasource accessible from the Data domain, then create a catalog. This keeps the product model Palantir-like at the data layer while preserving project-level access control. Generated catalogs are also project resources: they can be attached to or detached from projects through the project resource panel, with the same operating model as datasets.
 
 ## API
 
@@ -35,11 +35,20 @@ Scan payload:
 
 ```json
 {
-  "datasetId": "dataset-id-attached-to-project"
+  "sourceType": "dataset",
+  "datasetId": "dataset-id"
 }
 ```
 
-If `datasetId` is omitted, the backend scans the first dataset attached to the project.
+Datasource payload:
+
+```json
+{
+  "sourceType": "datasource",
+  "datasourceId": "datasource-id"
+}
+```
+
 
 ## Output Model
 
