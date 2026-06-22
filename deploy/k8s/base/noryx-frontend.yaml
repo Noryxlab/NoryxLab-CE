@@ -4565,6 +4565,7 @@ data:
           function renderProjectOntology() {
             const pid = selectedProjectId();
             const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
+            const previousSourceID = String((ontologyDatasetSelect && ontologyDatasetSelect.value) || '').trim();
             const sources = sourceType === 'datasource' ? ensureArray(state.datasources) : ensureArray(state.datasets);
             ontologyDatasetSelect.innerHTML = '';
             sources.forEach((d) => {
@@ -4575,6 +4576,9 @@ data:
                 : (d.name || d.id) + ' (' + datasetProviderLabel(d.provider) + ')';
               ontologyDatasetSelect.appendChild(opt);
             });
+            if (previousSourceID && sources.some((d) => String(d.id || '') === previousSourceID)) {
+              ontologyDatasetSelect.value = previousSourceID;
+            }
             ontologyScanBtn.disabled = !pid || sources.length === 0;
             if (!pid) {
               const opt = document.createElement('option');
@@ -6918,7 +6922,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.208"}
+    {"version":"ce-web-0.6.209"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6939,7 +6943,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.208
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.209
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
