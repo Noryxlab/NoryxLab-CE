@@ -18,13 +18,17 @@ For HDS datasets, the scan does not download object content. It does not parse D
 
 ## UI
 
-The catalog is exposed from `Data > Catalogue sémantique`. Users select a dataset attached to the active project, then trigger a scan. This keeps the product model Palantir-like at the data layer while preserving project-level access control.
+The catalog is exposed from `Data > Catalogue sémantique`. Users select a dataset attached to the active project, then trigger a scan. This keeps the product model Palantir-like at the data layer while preserving project-level access control. Generated catalogs are also project resources: they can be attached to or detached from projects through the project resource panel, with the same operating model as datasets.
 
 ## API
 
 ```http
+GET /api/v1/ontologies
 GET /api/v1/projects/{projectID}/ontology
 POST /api/v1/projects/{projectID}/ontology/scans
+GET /api/v1/projects/{projectID}/ontologies
+PUT /api/v1/projects/{projectID}/ontologies/{ontologyID}
+DELETE /api/v1/projects/{projectID}/ontologies/{ontologyID}
 ```
 
 Scan payload:
