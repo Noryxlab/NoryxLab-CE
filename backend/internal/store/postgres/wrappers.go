@@ -10,6 +10,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
@@ -144,6 +145,36 @@ func (s *DatasetStore) GetAccess(datasetID, subjectType, subjectID string) (data
 func (s *DatasetStore) SetAccess(item dataset.Access) error { return s.Store.SetDatasetAccess(item) }
 func (s *DatasetStore) DeleteAccess(datasetID, subjectType, subjectID string) error {
 	return s.Store.DeleteDatasetAccess(datasetID, subjectType, subjectID)
+}
+
+type OntologyStore struct{ *Store }
+
+func (s *OntologyStore) ListBySubjects(subjects []ontology.Subject) ([]ontology.Ontology, error) {
+	return s.Store.ListOntologiesBySubjects(subjects)
+}
+func (s *OntologyStore) ListAll() ([]ontology.Ontology, error) { return s.Store.ListAllOntologies() }
+func (s *OntologyStore) GetByID(id string) (ontology.Ontology, bool, error) {
+	return s.Store.GetOntologyByID(id)
+}
+func (s *OntologyStore) Create(item ontology.Ontology) error { return s.Store.CreateOntology(item) }
+func (s *OntologyStore) UpdateMetadata(ontologyID, name, description string) error {
+	return s.Store.UpdateOntologyMetadata(ontologyID, name, description)
+}
+func (s *OntologyStore) Delete(id string) error { return s.Store.DeleteOntology(id) }
+func (s *OntologyStore) ListAccess(ontologyID string) ([]ontology.Access, error) {
+	return s.Store.ListOntologyAccess(ontologyID)
+}
+func (s *OntologyStore) UpdateOwner(ontologyID, ownerType, ownerID string) error {
+	return s.Store.UpdateOntologyOwner(ontologyID, ownerType, ownerID)
+}
+func (s *OntologyStore) GetAccess(ontologyID, subjectType, subjectID string) (ontology.Access, bool, error) {
+	return s.Store.GetOntologyAccess(ontologyID, subjectType, subjectID)
+}
+func (s *OntologyStore) SetAccess(item ontology.Access) error {
+	return s.Store.SetOntologyAccess(item)
+}
+func (s *OntologyStore) DeleteAccess(ontologyID, subjectType, subjectID string) error {
+	return s.Store.DeleteOntologyAccess(ontologyID, subjectType, subjectID)
 }
 
 type DatasourceStore struct{ *Store }

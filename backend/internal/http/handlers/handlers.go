@@ -24,6 +24,7 @@ type Handlers struct {
 	secretStore                      store.SecretStore
 	datasetStore                     store.DatasetStore
 	datasourceStore                  store.DatasourceStore
+	ontologyStore                    store.OntologyStore
 	repositoryStore                  store.RepositoryStore
 	projectResourceStore             store.ProjectResourceStore
 	projectOntologyStore             store.ProjectOntologyStore
@@ -130,6 +131,7 @@ func New(
 	secretStore store.SecretStore,
 	datasetStore store.DatasetStore,
 	datasourceStore store.DatasourceStore,
+	ontologyStore store.OntologyStore,
 	repositoryStore store.RepositoryStore,
 	projectResourceStore store.ProjectResourceStore,
 	projectOntologyStore store.ProjectOntologyStore,
@@ -165,6 +167,7 @@ func New(
 		secretStore:                      secretStore,
 		datasetStore:                     datasetStore,
 		datasourceStore:                  datasourceStore,
+		ontologyStore:                    ontologyStore,
 		repositoryStore:                  repositoryStore,
 		projectResourceStore:             projectResourceStore,
 		projectOntologyStore:             projectOntologyStore,
