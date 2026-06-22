@@ -7,11 +7,13 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -23,11 +25,16 @@ var (
 )
 
 type ontologyScanRequest struct {
-	DatasetID string `json:"datasetId"`
+	DatasetID    string `json:"datasetId"`
+	DatasourceID string `json:"datasourceId"`
+	SourceType   string `json:"sourceType"`
 }
 
 type ontologyManifest struct {
 	ProjectID   string            `json:"projectId"`
+	SourceType  string            `json:"sourceType"`
+	SourceID    string            `json:"sourceId"`
+	SourceName  string            `json:"sourceName"`
 	DatasetID   string            `json:"datasetId"`
 	DatasetName string            `json:"datasetName"`
 	Study       string            `json:"study"`
@@ -42,6 +49,9 @@ type ontologyListItem struct {
 	ID          string          `json:"id"`
 	ProjectID   string          `json:"projectId"`
 	ProjectName string          `json:"projectName"`
+	SourceType  string          `json:"sourceType"`
+	SourceID    string          `json:"sourceId"`
+	SourceName  string          `json:"sourceName"`
 	DatasetID   string          `json:"datasetId"`
 	DatasetName string          `json:"datasetName"`
 	Study       string          `json:"study"`
@@ -254,40 +264,63 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 	}
-	attachedIDs, err := h.projectResourceStore.ListProjectDatasetIDs(projectID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list project datasets"})
-		return
-	}
 	datasetID := strings.TrimSpace(req.DatasetID)
-	if datasetID == "" && len(attachedIDs) > 0 {
-		datasetID = attachedIDs[0]
+	datasourceID := strings.TrimSpace(req.DatasourceID)
+	sourceType := strings.ToLower(strings.TrimSpace(req.SourceType))
+	var manifest ontologyManifest
+	var sourceID string
+	if sourceType == "" {
+		switch {
+		case datasetID != "":
+			sourceType = "dataset"
+		case datasourceID != "":
+			sourceType = "datasource"
+		}
 	}
-	if datasetID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "attach a dataset before scanning ontology"})
-		return
-	}
-	if !stringInSlice(datasetID, attachedIDs) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset is not attached to this project"})
-		return
-	}
-	item, found, err := h.datasetStore.GetByID(datasetID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
-		return
-	}
-	if !found || !h.canReadDataset(item, identity) {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
-		return
-	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
-		return
-	}
-	manifest, err := h.buildOntologyManifest(r.Context(), projectID, item, client, identity.UserID())
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
+	switch sourceType {
+	case "dataset", "":
+		if datasetID == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasetId is required"})
+			return
+		}
+		item, found, err := h.datasetStore.GetByID(datasetID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+			return
+		}
+		if !found || !h.canReadDataset(item, identity) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+			return
+		}
+		client, _, err := h.datasetS3Client(item)
+		if err != nil || client == nil {
+			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
+			return
+		}
+		manifest, err = h.buildDatasetOntologyManifest(r.Context(), projectID, item, client, identity.UserID())
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
+			return
+		}
+		sourceID = item.ID
+	case "datasource":
+		if datasourceID == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasourceId is required"})
+			return
+		}
+		item, found, err := h.datasourceStore.GetByID(datasourceID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
+			return
+		}
+		if !found || (item.OwnerUserID != identity.UserID() && !h.isGlobalAdmin(identity)) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
+			return
+		}
+		manifest = h.buildDatasourceOntologyManifest(projectID, item, identity.UserID())
+		sourceID = item.ID
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "supported ontology source types: dataset, datasource"})
 		return
 	}
 	raw, err := json.Marshal(manifest)
@@ -295,7 +328,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encode ontology"})
 		return
 	}
-	if err := h.projectOntologyStore.UpsertProjectOntology(projectID, datasetID, raw, identity.UserID()); err != nil {
+	if err := h.projectOntologyStore.UpsertProjectOntology(projectID, sourceID, raw, identity.UserID()); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store project ontology"})
 		return
 	}
@@ -339,10 +372,22 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 	if manifest.ProjectID == "" {
 		manifest.ProjectID = ontologyID
 	}
+	if manifest.SourceType == "" {
+		manifest.SourceType = "dataset"
+	}
+	if manifest.SourceID == "" {
+		manifest.SourceID = manifest.DatasetID
+	}
+	if manifest.SourceName == "" {
+		manifest.SourceName = manifest.DatasetName
+	}
 	return ontologyListItem{
 		ID:          ontologyID,
 		ProjectID:   manifest.ProjectID,
 		ProjectName: projectName,
+		SourceType:  manifest.SourceType,
+		SourceID:    manifest.SourceID,
+		SourceName:  manifest.SourceName,
 		DatasetID:   manifest.DatasetID,
 		DatasetName: manifest.DatasetName,
 		Study:       manifest.Study,
@@ -353,7 +398,7 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 	}, true, nil
 }
 
-func (h Handlers) buildOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {
+func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {
 	prefix := strings.Trim(item.Prefix, "/")
 	if prefix != "" {
 		prefix += "/"
@@ -429,6 +474,9 @@ func (h Handlers) buildOntologyManifest(ctx context.Context, projectID string, i
 	manifestSubjects, visitCount := materializeOntologySubjects(subjects)
 	return ontologyManifest{
 		ProjectID:   projectID,
+		SourceType:  "dataset",
+		SourceID:    item.ID,
+		SourceName:  item.Name,
 		DatasetID:   item.ID,
 		DatasetName: item.Name,
 		Study:       study,
@@ -446,6 +494,60 @@ func (h Handlers) buildOntologyManifest(ctx context.Context, projectID string, i
 		GeneratedAt: time.Now().UTC(),
 		Truncated:   truncated,
 	}, nil
+}
+
+func (h Handlers) buildDatasourceOntologyManifest(projectID string, item datasource.Datasource, generatedBy string) ontologyManifest {
+	source := strings.TrimSpace(item.Source)
+	if source == "" {
+		source = "external"
+	}
+	labels := []string{strings.ToLower(strings.TrimSpace(item.Type)), source}
+	if item.ServiceDefinitionID != "" {
+		labels = append(labels, item.ServiceDefinitionID)
+	}
+	tables := []string{}
+	if item.Database != "" {
+		tables = append(tables, item.Database)
+	}
+	modalityName := strings.ToUpper(strings.TrimSpace(item.Type))
+	if modalityName == "" {
+		modalityName = "DATASOURCE"
+	}
+	host := item.Host
+	if item.Port > 0 {
+		host = host + ":" + strconv.Itoa(item.Port)
+	}
+	return ontologyManifest{
+		ProjectID:   strings.TrimSpace(projectID),
+		SourceType:  "datasource",
+		SourceID:    item.ID,
+		SourceName:  item.Name,
+		Study:       item.Name,
+		GeneratedBy: strings.TrimSpace(generatedBy),
+		GeneratedAt: time.Now().UTC(),
+		Summary: ontologySummary{
+			Subjects:          1,
+			Visits:            1,
+			Modalities:        1,
+			Objects:           1,
+			Formats:           compactStrings(labels),
+			MeasurementTables: compactStrings(tables),
+		},
+		Subjects: []ontologySubject{{
+			ID: "datasource",
+			Visits: []ontologyVisit{{
+				Date: "live",
+				Modalities: []ontologyModality{{
+					Name:              modalityName,
+					ObjectCount:       1,
+					Formats:           compactStrings(labels),
+					MeasurementTables: compactStrings(tables),
+					SamplePaths:       compactStrings([]string{host, item.Database, item.ServiceName}),
+				}},
+			}},
+			Stats: ontologySummary{Objects: 1, Modalities: 1, Visits: 1, Formats: compactStrings(labels), MeasurementTables: compactStrings(tables)},
+		}},
+	}
 }
 
 func inferOntologyPath(relPath string) (subjectID, visitDate, modality string) {
@@ -608,6 +710,24 @@ func sortedKeys(values map[string]struct{}) []string {
 		if strings.TrimSpace(value) != "" {
 			out = append(out, value)
 		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func compactStrings(values []string) []string {
+	seen := map[string]struct{}{}
+	out := []string{}
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
 	}
 	sort.Strings(out)
 	return out

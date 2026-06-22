@@ -940,16 +940,17 @@ data:
                     <div class="section-head">
                       <div>
                         <h3>Catalogue sémantique</h3>
-                        <p class="muted">Vue data transverse du projet actif : sujets, visites, modalités, formats et tables de mesures détectés depuis les datasets rattachés.</p>
+                        <p class="muted">Créez un catalogue sémantique depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
                       </div>
                     </div>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="ontologyProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Sélectionnez un dataset rattaché au projet actif, puis générez le catalogue. Les droits restent ceux du projet et du dataset.</div>
+                    <div class="hint">Sélectionnez une source Data accessible. Le catalogue créé sera automatiquement rattaché au projet actif.</div>
                     <div class="row">
+                      <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
                       <select id="ontologyDatasetSelect"></select>
-                      <button id="ontologyScanBtn" type="button" class="btn primary">Scanner le catalogue</button>
+                      <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
                     </div>
                     <div id="ontologyStatus" class="hint"></div>
                     <div id="ontologySummary" class="ontology-summary"></div>
@@ -1732,6 +1733,7 @@ data:
           const projectDatasourceRows = document.getElementById('projectDatasourceRows');
           const projectDatasourceStatus = document.getElementById('projectDatasourceStatus');
           const ontologyProjectName = document.getElementById('ontologyProjectName');
+          const ontologySourceType = document.getElementById('ontologySourceType');
           const ontologyDatasetSelect = document.getElementById('ontologyDatasetSelect');
           const ontologyScanBtn = document.getElementById('ontologyScanBtn');
           const ontologyStatus = document.getElementById('ontologyStatus');
@@ -4527,7 +4529,7 @@ data:
                 tr.innerHTML =
                   '<td><strong>' + escapeHTML(o.study || o.projectName || o.id || '-') + '</strong><br/><span class="project-meta">Dernier scan · ' + formatDateTime(o.generatedAt) + '</span></td>' +
                   '<td>' + escapeHTML(o.projectName || o.projectId || '-') + '</td>' +
-                  '<td>' + escapeHTML(o.datasetName || o.datasetId || '-') + '</td>' +
+                  '<td>' + escapeHTML(o.sourceName || o.datasetName || o.sourceId || o.datasetId || '-') + (o.sourceType ? '<br/><span class="project-meta">' + escapeHTML(o.sourceType) + '</span>' : '') + '</td>' +
                   '<td>' + Number(summary.subjects || 0) + ' sujets · ' + Number(summary.visits || 0) + ' visites · ' + Number(summary.objects || 0) + ' objets</td>' +
                   '<td><button type="button" class="btn danger" data-detach-ontology="' + escapeHTML(o.id || '') + '">Detach</button></td>';
                 projectOntologyRows.appendChild(tr);
@@ -4569,23 +4571,27 @@ data:
             if (ontologyProjectName) {
               ontologyProjectName.textContent = project ? (project.name || project.id || '-') : 'Aucun projet selectionne';
             }
+            const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
+            const sources = sourceType === 'datasource' ? ensureArray(state.datasources) : ensureArray(state.datasets);
             ontologyDatasetSelect.innerHTML = '';
-            ensureArray(state.projectDatasets).forEach((d) => {
+            sources.forEach((d) => {
               const opt = document.createElement('option');
               opt.value = d.id || '';
-              opt.textContent = (d.name || d.id) + ' (' + datasetProviderLabel(d.provider) + ')';
+              opt.textContent = sourceType === 'datasource'
+                ? (d.name || d.id) + ' (' + (d.type || '-') + ' / ' + (d.database || '-') + ')'
+                : (d.name || d.id) + ' (' + datasetProviderLabel(d.provider) + ')';
               ontologyDatasetSelect.appendChild(opt);
             });
-            ontologyScanBtn.disabled = !pid || state.projectDatasets.length === 0;
+            ontologyScanBtn.disabled = !pid || sources.length === 0;
             if (!pid) {
               const opt = document.createElement('option');
               opt.value = '';
               opt.textContent = 'Selectionnez un projet actif';
               ontologyDatasetSelect.appendChild(opt);
-            } else if (state.projectDatasets.length === 0) {
+            } else if (sources.length === 0) {
               const opt = document.createElement('option');
               opt.value = '';
-              opt.textContent = 'Rattachez un dataset au projet';
+              opt.textContent = sourceType === 'datasource' ? 'Aucune datasource accessible' : 'Aucun dataset accessible';
               ontologyDatasetSelect.appendChild(opt);
             }
             const manifest = state.projectOntology || null;
@@ -4595,8 +4601,8 @@ data:
             if (!manifest) {
               ontologyStatus.textContent = !pid
                 ? 'Aucun projet actif.'
-                : state.projectDatasets.length === 0
-                ? 'Aucun dataset rattache.'
+                : sources.length === 0
+                ? (sourceType === 'datasource' ? 'Aucune datasource accessible.' : 'Aucun dataset accessible.')
                 : 'Aucun catalogue semantique genere pour ce projet.';
               ontologyRows.innerHTML = '<tr><td colspan="5">Lancez un scan pour generer la vue sujet / visite / modalite.</td></tr>';
               return;
@@ -5399,29 +5405,40 @@ data:
 
           ontologyScanBtn.onclick = async () => {
             const pid = selectedProjectId();
-            const datasetID = String((ontologyDatasetSelect && ontologyDatasetSelect.value) || '').trim();
+            const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
+            const sourceID = String((ontologyDatasetSelect && ontologyDatasetSelect.value) || '').trim();
             try {
               setProjectResourceStatus(ontologyStatus, '', '');
               if (!pid) throw { error: tui('err_select_project_first') };
-              if (!datasetID) throw { error: 'Selectionnez un dataset rattache.' };
+              if (!sourceID) throw { error: sourceType === 'datasource' ? 'Selectionnez une datasource.' : 'Selectionnez un dataset.' };
               ontologyScanBtn.disabled = true;
-              ontologyScanBtn.textContent = 'Scan en cours...';
+              ontologyScanBtn.textContent = 'Creation en cours...';
+              const payload = { sourceType };
+              if (sourceType === 'datasource') payload.datasourceId = sourceID;
+              else payload.datasetId = sourceID;
               const body = await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontology/scans', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ datasetId: datasetID })
+                body: JSON.stringify(payload)
               });
               state.projectOntology = (body && body.manifest) || null;
               await refreshProjectResources();
               renderProjectOntology();
-              setProjectResourceStatus(ontologyStatus, 'Catalogue semantique genere.', 'success');
+              setProjectResourceStatus(ontologyStatus, 'Catalogue semantique cree.', 'success');
             } catch (e) {
               setProjectResourceStatus(ontologyStatus, errorMessage(e), 'error');
             } finally {
-              ontologyScanBtn.disabled = !selectedProjectId() || state.projectDatasets.length === 0;
-              ontologyScanBtn.textContent = 'Scanner le catalogue';
+              const hasSources = String((ontologySourceType && ontologySourceType.value) || 'dataset') === 'datasource'
+                ? state.datasources.length > 0
+                : state.datasets.length > 0;
+              ontologyScanBtn.disabled = !selectedProjectId() || !hasSources;
+              ontologyScanBtn.textContent = 'Créer le catalogue';
             }
           };
+
+          if (ontologySourceType) {
+            ontologySourceType.onchange = () => renderProjectOntology();
+          }
 
           projectDatasetRows.onclick = async (event) => {
             const datasetID = (event.target && event.target.getAttribute('data-detach-dataset'));
@@ -6908,7 +6925,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.205"}
+    {"version":"ce-web-0.6.206"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6929,7 +6946,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.205
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.206
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
