@@ -437,6 +437,18 @@ data:
           .ontology-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
           .ontology-tag { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: #e8f1ff; color: #24518f; font-size: 12px; font-weight: 700; }
           .ontology-samples { color: var(--muted); font-size: 12px; word-break: break-all; }
+          .ontology-explorer { margin-top: 16px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+          .ontology-explorer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+          .ontology-explorer-head h4 { margin: 0 0 4px; font-size: 16px; }
+          .ontology-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 9px; margin-bottom: 12px; }
+          .ontology-filter-grid input, .ontology-filter-grid select { width: 100%; }
+          .ontology-result-row { cursor: pointer; }
+          .ontology-result-row:hover { background: #f6f9fc; }
+          .ontology-result-row.active { background: #eef0ff; box-shadow: inset 4px 0 0 var(--accent); }
+          .ontology-detail-panel { margin-top: 12px; padding: 13px; border: 1px solid #d7e1ec; border-radius: 12px; background: var(--surface-soft); }
+          .ontology-detail-panel h4 { margin: 0 0 6px; font-size: 15px; }
+          .ontology-file-list { display: grid; gap: 6px; margin-top: 10px; max-height: 340px; overflow: auto; }
+          .ontology-file-item { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; word-break: break-all; font-size: 12px; }
           .usage-graph { width: 100%; min-height: 360px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(120deg, #f8fbfc 0%, #eef6f8 100%); overflow: hidden; }
           .usage-graph svg { display: block; width: 100%; height: 360px; }
           .usage-node { fill: #fff; stroke: #b7c5d6; stroke-width: 1.4; }
@@ -1249,10 +1261,32 @@ data:
                       <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
                       <tbody id="ontologyRows"></tbody>
                     </table>
-                    <table style="margin-top:12px">
-                      <thead><tr><th>Sujet</th><th>Visite</th><th>Modalité</th><th>Formats</th><th>Tables</th><th>Exemples</th></tr></thead>
-                      <tbody id="ontologyDetailRows"></tbody>
-                    </table>
+                    <div class="ontology-explorer">
+                      <div class="ontology-explorer-head">
+                        <div>
+                          <h4>Explorer l'ontologie</h4>
+                          <p class="muted">Filtrez par sujet, visite, modalité, format ou table de mesure, puis cliquez une ligne pour voir les fichiers associés.</p>
+                        </div>
+                        <button id="ontologyExplorerReset" type="button" class="btn">Réinitialiser</button>
+                      </div>
+                      <div class="ontology-filter-grid">
+                        <input id="ontologyFilterSubject" placeholder="Sujet (ex: 0001)" />
+                        <input id="ontologyFilterVisit" placeholder="Visite/date" />
+                        <select id="ontologyFilterModality"><option value="">Toutes modalités</option></select>
+                        <select id="ontologyFilterFormat"><option value="">Tous formats</option></select>
+                        <select id="ontologyFilterTable"><option value="">Toutes tables</option></select>
+                      </div>
+                      <div id="ontologyExplorerStatus" class="hint"></div>
+                      <table>
+                        <thead><tr><th>Sujet</th><th>Visite</th><th>Modalité</th><th>Formats</th><th>Tables</th><th>Objets</th><th>Taille</th></tr></thead>
+                        <tbody id="ontologyDetailRows"></tbody>
+                      </table>
+                      <div id="ontologyFilePanel" class="ontology-detail-panel" style="display:none">
+                        <h4 id="ontologyFilePanelTitle">Fichiers associés</h4>
+                        <div id="ontologyFilePanelMeta" class="muted"></div>
+                        <div id="ontologyFileRows" class="ontology-file-list"></div>
+                      </div>
+                    </div>
                   </article>
                 </div>
               </section>
@@ -1799,6 +1833,17 @@ data:
           const ontologyFormats = document.getElementById('ontologyFormats');
           const ontologyRows = document.getElementById('ontologyRows');
           const ontologyDetailRows = document.getElementById('ontologyDetailRows');
+          const ontologyExplorerReset = document.getElementById('ontologyExplorerReset');
+          const ontologyFilterSubject = document.getElementById('ontologyFilterSubject');
+          const ontologyFilterVisit = document.getElementById('ontologyFilterVisit');
+          const ontologyFilterModality = document.getElementById('ontologyFilterModality');
+          const ontologyFilterFormat = document.getElementById('ontologyFilterFormat');
+          const ontologyFilterTable = document.getElementById('ontologyFilterTable');
+          const ontologyExplorerStatus = document.getElementById('ontologyExplorerStatus');
+          const ontologyFilePanel = document.getElementById('ontologyFilePanel');
+          const ontologyFilePanelTitle = document.getElementById('ontologyFilePanelTitle');
+          const ontologyFilePanelMeta = document.getElementById('ontologyFilePanelMeta');
+          const ontologyFileRows = document.getElementById('ontologyFileRows');
           const projectFilesUp = document.getElementById('projectFilesUp');
           const projectFilesNewFolder = document.getElementById('projectFilesNewFolder');
           const projectFilesUpload = document.getElementById('projectFilesUpload');
@@ -2161,6 +2206,7 @@ data:
           let datasetMetadataFormDatasetID = '';
           let datasetMetadataFormDirty = false;
           let selectedOntologyID = '';
+          let selectedOntologyExplorerKey = '';
           let ontologyMetadataFormOntologyID = '';
           let ontologyMetadataFormDirty = false;
           let projectFilesCurrentPath = '';
@@ -4775,10 +4821,14 @@ data:
             ontologyFormats.innerHTML = '';
             ontologyRows.innerHTML = '';
             if (ontologyDetailRows) ontologyDetailRows.innerHTML = '';
+            selectedOntologyExplorerKey = '';
+            renderOntologyFilePanel(null);
             if (!manifest) {
               ontologyStatus.textContent = 'Selectionnez ou creez une ontologie pour afficher son contenu.';
               ontologyRows.innerHTML = '<tr><td colspan="5">Aucune ontologie selectionnee.</td></tr>';
               if (ontologyDetailRows) ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail.</td></tr>';
+              if (ontologyExplorerStatus) ontologyExplorerStatus.textContent = 'Aucune ontologie selectionnee.';
+              renderOntologyExplorerOptions([]);
               return;
             }
             const summary = manifest.summary || {};
@@ -4808,6 +4858,8 @@ data:
             if (subjects.length === 0) {
               ontologyRows.innerHTML = '<tr><td colspan="5">Aucun sujet detecte dans les chemins du dataset.</td></tr>';
               if (ontologyDetailRows) ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail modalite.</td></tr>';
+              if (ontologyExplorerStatus) ontologyExplorerStatus.textContent = 'Aucun objet métier detecte.';
+              renderOntologyExplorerOptions([]);
               return;
             }
             subjects.forEach((subject) => {
@@ -4823,33 +4875,127 @@ data:
                 '<td>' + formatBytes((subject.stats && subject.stats.totalBytes) || 0) + '</td>';
               ontologyRows.appendChild(tr);
             });
-            if (ontologyDetailRows) {
-              let rows = 0;
-              subjects.forEach((subject) => {
-                ensureArray(subject.visits).forEach((visit) => {
-                  ensureArray(visit.modalities).forEach((modality) => {
-                    if (rows >= 120) return;
-                    const tr = document.createElement('tr');
-                    tr.innerHTML =
-                      '<td><strong>' + escapeHTML(subject.id || '-') + '</strong></td>' +
-                      '<td>' + escapeHTML(visit.date || 'unknown') + '</td>' +
-                      '<td>' + escapeHTML(modality.name || 'unknown') + '<br/><span class="project-meta">' + Number(modality.objectCount || 0) + ' objets · ' + formatBytes(modality.totalBytes || 0) + '</span></td>' +
-                      '<td>' + ensureArray(modality.formats).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
-                      '<td>' + ensureArray(modality.measurementTables).slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
-                      '<td class="ontology-samples">' + ensureArray(modality.samplePaths).map((p) => escapeHTML(p)).join('<br/>') + '</td>';
-                    ontologyDetailRows.appendChild(tr);
-                    rows++;
+            const rows = ontologyExplorerRows(manifest);
+            renderOntologyExplorerOptions(rows);
+            renderOntologyExplorerRows(rows);
+          }
+
+          function ontologyExplorerRows(manifest) {
+            const rows = [];
+            ensureArray(manifest && manifest.subjects).forEach((subject) => {
+              ensureArray(subject.visits).forEach((visit) => {
+                ensureArray(visit.modalities).forEach((modality) => {
+                  const subjectID = String(subject.id || '-');
+                  const visitDate = String(visit.date || 'unknown');
+                  const modalityName = String(modality.name || 'unknown');
+                  rows.push({
+                    key: subjectID + '|' + visitDate + '|' + modalityName,
+                    subjectID,
+                    visitDate,
+                    modalityName,
+                    formats: ensureArray(modality.formats).map(String).sort(),
+                    measurementTables: ensureArray(modality.measurementTables).map(String).sort(),
+                    samplePaths: ensureArray(modality.samplePaths).map(String),
+                    objectCount: Number(modality.objectCount || 0),
+                    totalBytes: Number(modality.totalBytes || 0)
                   });
                 });
               });
-              if (!rows) {
-                ontologyDetailRows.innerHTML = '<tr><td colspan="6">Aucun detail modalite.</td></tr>';
-              } else if (rows >= 120) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = '<td colspan="6">Affichage limite aux 120 premieres lignes de detail.</td>';
-                ontologyDetailRows.appendChild(tr);
-              }
+            });
+            return rows;
+          }
+
+          function ontologyFilterValue(node) {
+            return String((node && node.value) || '').trim().toLowerCase();
+          }
+
+          function ontologyRowMatches(row) {
+            const subject = ontologyFilterValue(ontologyFilterSubject);
+            const visit = ontologyFilterValue(ontologyFilterVisit);
+            const modality = String((ontologyFilterModality && ontologyFilterModality.value) || '').trim();
+            const format = String((ontologyFilterFormat && ontologyFilterFormat.value) || '').trim();
+            const table = String((ontologyFilterTable && ontologyFilterTable.value) || '').trim();
+            if (subject && !row.subjectID.toLowerCase().includes(subject)) return false;
+            if (visit && !row.visitDate.toLowerCase().includes(visit)) return false;
+            if (modality && row.modalityName !== modality) return false;
+            if (format && !row.formats.includes(format)) return false;
+            if (table && !row.measurementTables.includes(table)) return false;
+            return true;
+          }
+
+          function setOntologySelectOptions(select, label, values) {
+            if (!select) return;
+            const current = String(select.value || '');
+            select.innerHTML = '<option value="">' + escapeHTML(label) + '</option>';
+            values.forEach((value) => {
+              const opt = document.createElement('option');
+              opt.value = value;
+              opt.textContent = value;
+              select.appendChild(opt);
+            });
+            if (current && values.includes(current)) select.value = current;
+          }
+
+          function renderOntologyExplorerOptions(rows) {
+            const modalities = Array.from(new Set(rows.map((row) => row.modalityName).filter(Boolean))).sort();
+            const formats = Array.from(new Set(rows.flatMap((row) => row.formats).filter(Boolean))).sort();
+            const tables = Array.from(new Set(rows.flatMap((row) => row.measurementTables).filter(Boolean))).sort();
+            setOntologySelectOptions(ontologyFilterModality, 'Toutes modalités', modalities);
+            setOntologySelectOptions(ontologyFilterFormat, 'Tous formats', formats);
+            setOntologySelectOptions(ontologyFilterTable, 'Toutes tables', tables);
+          }
+
+          function renderOntologyExplorerRows(rows) {
+            if (!ontologyDetailRows) return;
+            ontologyDetailRows.innerHTML = '';
+            const filtered = rows.filter(ontologyRowMatches);
+            if (ontologyExplorerStatus) {
+              ontologyExplorerStatus.textContent = filtered.length + ' ligne(s) sur ' + rows.length + ' objet(s) métier.';
             }
+            if (filtered.length === 0) {
+              ontologyDetailRows.innerHTML = '<tr><td colspan="7">Aucun résultat avec ces filtres.</td></tr>';
+              renderOntologyFilePanel(null);
+              return;
+            }
+            filtered.slice(0, 200).forEach((row) => {
+              const tr = document.createElement('tr');
+              tr.className = 'ontology-result-row' + (row.key === selectedOntologyExplorerKey ? ' active' : '');
+              tr.innerHTML =
+                '<td><strong>' + escapeHTML(row.subjectID) + '</strong></td>' +
+                '<td>' + escapeHTML(row.visitDate) + '</td>' +
+                '<td>' + escapeHTML(row.modalityName) + '</td>' +
+                '<td>' + row.formats.map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td>' + row.measurementTables.slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td>' + row.objectCount + '</td>' +
+                '<td>' + formatBytes(row.totalBytes) + '</td>';
+              tr.onclick = () => {
+                selectedOntologyExplorerKey = row.key;
+                renderOntologyExplorerRows(rows);
+                renderOntologyFilePanel(row);
+              };
+              ontologyDetailRows.appendChild(tr);
+            });
+            if (filtered.length > 200) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = '<td colspan="7">Affichage limité aux 200 premières lignes. Affinez les filtres.</td>';
+              ontologyDetailRows.appendChild(tr);
+            }
+            const selected = filtered.find((row) => row.key === selectedOntologyExplorerKey) || null;
+            if (!selected) renderOntologyFilePanel(null);
+          }
+
+          function renderOntologyFilePanel(row) {
+            if (!ontologyFilePanel || !ontologyFileRows) return;
+            if (!row) {
+              ontologyFilePanel.style.display = 'none';
+              ontologyFileRows.innerHTML = '';
+              return;
+            }
+            ontologyFilePanel.style.display = '';
+            ontologyFilePanelTitle.textContent = row.subjectID + ' · ' + row.visitDate + ' · ' + row.modalityName;
+            ontologyFilePanelMeta.textContent = row.objectCount + ' objets · ' + formatBytes(row.totalBytes) + ' · chemins exemples disponibles';
+            const paths = row.samplePaths.length ? row.samplePaths : ['Aucun chemin exemple disponible dans le manifeste.'];
+            ontologyFileRows.innerHTML = paths.map((path) => '<div class="ontology-file-item">' + escapeHTML(path) + '</div>').join('');
           }
 
           function ontologyManifestOf(item) {
@@ -5660,7 +5806,7 @@ data:
               await refreshProjectResources();
               await refreshOntologyAccess(selectedOntologyID);
               renderProjectOntology();
-              setProjectResourceStatus(ontologyStatus, 'Brouillon de catalogue cree avec le profil selectionne.', 'success');
+              setProjectResourceStatus(ontologyStatus, 'Ontologie creee avec le profil selectionne.', 'success');
             } catch (e) {
               setProjectResourceStatus(ontologyStatus, errorMessage(e), 'error');
             } finally {
@@ -5674,6 +5820,36 @@ data:
 
           if (ontologySourceType) {
             ontologySourceType.onchange = () => renderProjectOntology();
+          }
+
+          function rerenderSelectedOntologyExplorer() {
+            const selectedOntology = ensureArray(state.ontologies).find((item) => item.id === selectedOntologyID) || null;
+            const manifest = selectedOntology ? ontologyManifestOf(selectedOntology) : (state.projectOntology || null);
+            renderOntologyExplorerRows(ontologyExplorerRows(manifest || {}));
+          }
+
+          [ontologyFilterSubject, ontologyFilterVisit].forEach((node) => {
+            if (node) node.oninput = () => {
+              selectedOntologyExplorerKey = '';
+              rerenderSelectedOntologyExplorer();
+            };
+          });
+
+          [ontologyFilterModality, ontologyFilterFormat, ontologyFilterTable].forEach((node) => {
+            if (node) node.onchange = () => {
+              selectedOntologyExplorerKey = '';
+              rerenderSelectedOntologyExplorer();
+            };
+          });
+
+          if (ontologyExplorerReset) {
+            ontologyExplorerReset.onclick = () => {
+              [ontologyFilterSubject, ontologyFilterVisit, ontologyFilterModality, ontologyFilterFormat, ontologyFilterTable].forEach((node) => {
+                if (node) node.value = '';
+              });
+              selectedOntologyExplorerKey = '';
+              rerenderSelectedOntologyExplorer();
+            };
           }
 
           if (ontologyRefreshBtn) {
@@ -5701,6 +5877,7 @@ data:
               const ontologyID = row && row.getAttribute('data-select-ontology');
               if (!ontologyID) return;
               selectedOntologyID = ontologyID;
+              selectedOntologyExplorerKey = '';
               renderOntologyCatalog();
               renderProjectOntology();
               await refreshOntologyAccess(selectedOntologyID);
@@ -7272,7 +7449,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.215"}
+    {"version":"ce-web-0.6.216"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7293,7 +7470,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.215
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.216
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
