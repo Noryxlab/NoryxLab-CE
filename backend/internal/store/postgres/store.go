@@ -371,6 +371,15 @@ func (s *Store) migrate(ctx context.Context) error {
 			generated_by TEXT NOT NULL,
 			generated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS project_ontology_links (
+			project_id TEXT NOT NULL,
+			ontology_id TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (project_id, ontology_id)
+		)`,
+		`INSERT INTO project_ontology_links (project_id, ontology_id, created_at)
+		 SELECT project_id, project_id, generated_at FROM project_ontologies
+		 ON CONFLICT (project_id, ontology_id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS user_preferences (
 			user_id TEXT NOT NULL,
 			key TEXT NOT NULL,
@@ -1694,6 +1703,33 @@ func (s *Store) UpsertProjectOntology(projectID, datasetID string, manifest json
 
 func (s *Store) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
 	rows, err := s.db.Query(`SELECT project_id FROM project_datasources WHERE datasource_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(datasourceID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) AttachOntology(projectID, ontologyID string) error {
+	_, err := s.db.Exec(`INSERT INTO project_ontology_links (project_id, ontology_id, created_at) VALUES ($1,$2,$3) ON CONFLICT (project_id, ontology_id) DO NOTHING`, strings.TrimSpace(projectID), strings.TrimSpace(ontologyID), time.Now().UTC())
+	return err
+}
+
+func (s *Store) DetachOntology(projectID, ontologyID string) error {
+	_, err := s.db.Exec(`DELETE FROM project_ontology_links WHERE project_id=$1 AND ontology_id=$2`, strings.TrimSpace(projectID), strings.TrimSpace(ontologyID))
+	return err
+}
+
+func (s *Store) ListProjectOntologyIDs(projectID string) ([]string, error) {
+	rows, err := s.db.Query(`SELECT ontology_id FROM project_ontology_links WHERE project_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(projectID))
 	if err != nil {
 		return nil, err
 	}

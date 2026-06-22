@@ -38,6 +38,19 @@ type ontologyManifest struct {
 	Truncated   bool              `json:"truncated"`
 }
 
+type ontologyListItem struct {
+	ID          string          `json:"id"`
+	ProjectID   string          `json:"projectId"`
+	ProjectName string          `json:"projectName"`
+	DatasetID   string          `json:"datasetId"`
+	DatasetName string          `json:"datasetName"`
+	Study       string          `json:"study"`
+	Summary     ontologySummary `json:"summary"`
+	GeneratedBy string          `json:"generatedBy"`
+	GeneratedAt time.Time       `json:"generatedAt"`
+	Truncated   bool            `json:"truncated"`
+}
+
 type ontologySummary struct {
 	Subjects          int      `json:"subjects"`
 	Visits            int      `json:"visits"`
@@ -114,6 +127,116 @@ func (h Handlers) GetProjectOntology(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"manifest": manifest})
 }
 
+func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.accessibleOntologyItems(userID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list ontologies"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h Handlers) ListProjectOntologies(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	if projectID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
+		return
+	}
+	if !h.requireProjectMember(w, projectID, userID, "ontology listing") {
+		return
+	}
+	ids, err := h.projectResourceStore.ListProjectOntologyIDs(projectID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list project ontologies"})
+		return
+	}
+	projects, err := h.projectStore.List()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list projects"})
+		return
+	}
+	byID := map[string]string{}
+	for _, p := range projects {
+		byID[p.ID] = p.Name
+	}
+	items := make([]ontologyListItem, 0, len(ids))
+	for _, id := range ids {
+		if !h.hasProjectMembership(userID, id) {
+			continue
+		}
+		item, found, err := h.ontologyItem(id, byID[id])
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project ontology"})
+			return
+		}
+		if found {
+			items = append(items, item)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	ontologyID := strings.TrimSpace(r.PathValue("ontologyID"))
+	if projectID == "" || ontologyID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "ontology attach") {
+		return
+	}
+	if !h.hasProjectMembership(userID, ontologyID) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if _, found, err := h.projectOntologyStore.GetProjectOntology(ontologyID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read ontology"})
+		return
+	} else if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	if err := h.projectResourceStore.AttachOntology(projectID, ontologyID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h Handlers) DetachProjectOntology(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	ontologyID := strings.TrimSpace(r.PathValue("ontologyID"))
+	if projectID == "" || ontologyID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "ontology detach") {
+		return
+	}
+	if err := h.projectResourceStore.DetachOntology(projectID, ontologyID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach ontology"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -176,7 +299,58 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store project ontology"})
 		return
 	}
+	_ = h.projectResourceStore.AttachOntology(projectID, projectID)
 	writeJSON(w, http.StatusCreated, map[string]any{"manifest": manifest})
+}
+
+func (h Handlers) accessibleOntologyItems(userID string) ([]ontologyListItem, error) {
+	projects, err := h.projectStore.List()
+	if err != nil {
+		return nil, err
+	}
+	items := []ontologyListItem{}
+	for _, p := range projects {
+		if !h.hasProjectMembership(userID, p.ID) {
+			continue
+		}
+		item, found, err := h.ontologyItem(p.ID, p.Name)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			items = append(items, item)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].GeneratedAt.After(items[j].GeneratedAt)
+	})
+	return items, nil
+}
+
+func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem, bool, error) {
+	raw, found, err := h.projectOntologyStore.GetProjectOntology(ontologyID)
+	if err != nil || !found {
+		return ontologyListItem{}, found, err
+	}
+	var manifest ontologyManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		return ontologyListItem{}, false, err
+	}
+	if manifest.ProjectID == "" {
+		manifest.ProjectID = ontologyID
+	}
+	return ontologyListItem{
+		ID:          ontologyID,
+		ProjectID:   manifest.ProjectID,
+		ProjectName: projectName,
+		DatasetID:   manifest.DatasetID,
+		DatasetName: manifest.DatasetName,
+		Study:       manifest.Study,
+		Summary:     manifest.Summary,
+		GeneratedBy: manifest.GeneratedBy,
+		GeneratedAt: manifest.GeneratedAt,
+		Truncated:   manifest.Truncated,
+	}, true, nil
 }
 
 func (h Handlers) buildOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {

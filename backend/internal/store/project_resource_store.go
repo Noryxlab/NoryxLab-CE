@@ -11,4 +11,7 @@ type ProjectResourceStore interface {
 	DetachDatasource(projectID, datasourceID string) error
 	ListProjectDatasourceIDs(projectID string) ([]string, error)
 	ListDatasourceProjectIDs(datasourceID string) ([]string, error)
+	AttachOntology(projectID, ontologyID string) error
+	DetachOntology(projectID, ontologyID string) error
+	ListProjectOntologyIDs(projectID string) ([]string, error)
 }

@@ -889,6 +889,20 @@ data:
 
 
                       <article class="card project-resource-card">
+                        <h3>Catalogues sémantiques du projet</h3>
+                        <div class="hint">Catalogues Data disponibles pour ce projet, rattachés comme les datasets.</div>
+                        <div class="row">
+                          <select id="attachOntologySelect"></select>
+                          <button id="attachOntologyBtn" type="button" class="btn primary">Rattacher un catalogue</button>
+                        </div>
+                        <div id="projectOntologyStatus" class="hint"></div>
+                        <table>
+                          <thead><tr><th>Catalogue</th><th>Projet source</th><th>Dataset</th><th>Sujets</th><th>Actions</th></tr></thead>
+                          <tbody id="projectOntologyRows"></tbody>
+                        </table>
+                      </article>
+
+                      <article class="card project-resource-card">
                         <h3>Depots Git du projet</h3>
                         <div class="hint">Depots accessibles depuis les executions de ce projet.</div>
                         <div class="row">
@@ -1705,6 +1719,10 @@ data:
           const attachDatasetBtn = document.getElementById('attachDatasetBtn');
           const projectDatasetRows = document.getElementById('projectDatasetRows');
           const projectDatasetStatus = document.getElementById('projectDatasetStatus');
+          const attachOntologySelect = document.getElementById('attachOntologySelect');
+          const attachOntologyBtn = document.getElementById('attachOntologyBtn');
+          const projectOntologyRows = document.getElementById('projectOntologyRows');
+          const projectOntologyStatus = document.getElementById('projectOntologyStatus');
           const attachRepoSelect = document.getElementById('attachRepoSelect');
           const attachRepoBtn = document.getElementById('attachRepoBtn');
           const projectRepoRows = document.getElementById('projectRepoRows');
@@ -2040,9 +2058,11 @@ data:
             repositories: [],
             datasources: [],
             datasourceDefinitions: [],
+            ontologies: [],
             projectDatasets: [],
             projectRepositories: [],
             projectDatasources: [],
+            projectOntologies: [],
             projectFiles: [],
             projectOntology: null,
             workspaces: [],
@@ -2748,7 +2768,7 @@ data:
             uniqueViews.forEach((view) => view.classList.toggle('active', view === views[viewTab]));
             applyDataTab(tab);
             if (viewTab === 'data') {
-              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshAvailableDatasetUsers()])
+              Promise.allSettled([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshAvailableDatasetUsers()])
                 .catch(() => {});
               if (selectedProjectId()) refreshProjectResources().catch(() => {});
             }
@@ -4386,6 +4406,7 @@ data:
           function renderProjectResourceSelectors() {
             const pid = selectedProjectId();
             attachDatasetSelect.innerHTML = '';
+            attachOntologySelect.innerHTML = '';
             attachRepoSelect.innerHTML = '';
             attachDatasourceSelect.innerHTML = '';
 
@@ -4394,6 +4415,10 @@ data:
               ds.value = '';
               ds.textContent = 'Select a project first';
               attachDatasetSelect.appendChild(ds);
+              const on = document.createElement('option');
+              on.value = '';
+              on.textContent = 'Select a project first';
+              attachOntologySelect.appendChild(on);
               const rp = document.createElement('option');
               rp.value = '';
               rp.textContent = 'Select a project first';
@@ -4406,10 +4431,12 @@ data:
             }
 
             const attachedDatasetIDs = new Set(ensureArray(state.projectDatasets).map((d) => d.id));
+            const attachedOntologyIDs = new Set(ensureArray(state.projectOntologies).map((o) => o.id));
             const attachedRepoIDs = new Set(ensureArray(state.projectRepositories).map((r) => r.id));
             const attachedDatasourceIDs = new Set(ensureArray(state.projectDatasources).map((d) => d.id));
 
             const availableDatasets = ensureArray(state.datasets).filter((d) => d && d.id && !attachedDatasetIDs.has(d.id));
+            const availableOntologies = ensureArray(state.ontologies).filter((o) => o && o.id && !attachedOntologyIDs.has(o.id));
             const availableRepos = ensureArray(state.repositories).filter((r) => r && r.id && !attachedRepoIDs.has(r.id));
             const availableDatasources = ensureArray(state.datasources).filter((d) => d && d.id && !attachedDatasourceIDs.has(d.id));
 
@@ -4424,6 +4451,20 @@ data:
                 opt.value = d.id || '';
                 opt.textContent = (d.name || d.id) + ' [standard] (' + datasetProviderLabel(d.provider) + ')';
                 attachDatasetSelect.appendChild(opt);
+              });
+            }
+
+            if (availableOntologies.length === 0) {
+              const opt = document.createElement('option');
+              opt.value = '';
+              opt.textContent = 'Aucun catalogue à rattacher';
+              attachOntologySelect.appendChild(opt);
+            } else {
+              availableOntologies.forEach((o) => {
+                const opt = document.createElement('option');
+                opt.value = o.id || '';
+                opt.textContent = (o.study || o.projectName || o.id) + ' (' + (o.datasetName || o.datasetId || '-') + ')';
+                attachOntologySelect.appendChild(opt);
               });
             }
 
@@ -4458,6 +4499,7 @@ data:
 
           function renderProjectResourcesTable() {
             projectDatasetRows.innerHTML = '';
+            projectOntologyRows.innerHTML = '';
             projectRepoRows.innerHTML = '';
             projectDatasourceRows.innerHTML = '';
 
@@ -4473,6 +4515,22 @@ data:
                   '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                   '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
                 projectDatasetRows.appendChild(tr);
+              });
+            }
+
+            if (state.projectOntologies.length === 0) {
+              projectOntologyRows.innerHTML = '<tr><td colspan="5">Aucun catalogue semantique rattache.</td></tr>';
+            } else {
+              state.projectOntologies.forEach((o) => {
+                const summary = o.summary || {};
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td><strong>' + escapeHTML(o.study || o.projectName || o.id || '-') + '</strong><br/><span class="project-meta">Dernier scan · ' + formatDateTime(o.generatedAt) + '</span></td>' +
+                  '<td>' + escapeHTML(o.projectName || o.projectId || '-') + '</td>' +
+                  '<td>' + escapeHTML(o.datasetName || o.datasetId || '-') + '</td>' +
+                  '<td>' + Number(summary.subjects || 0) + ' sujets · ' + Number(summary.visits || 0) + ' visites · ' + Number(summary.objects || 0) + ' objets</td>' +
+                  '<td><button type="button" class="btn danger" data-detach-ontology="' + escapeHTML(o.id || '') + '">Detach</button></td>';
+                projectOntologyRows.appendChild(tr);
               });
             }
 
@@ -4842,6 +4900,13 @@ data:
             return bodies[0];
           }
 
+          async function refreshOntologies() {
+            const body = await callJSON('/api/v1/ontologies').catch(() => ({ items: [] }));
+            state.ontologies = ensureArray(body.items);
+            renderAll();
+            return body;
+          }
+
           async function refreshBuilds() {
             const body = await callJSON('/api/v1/builds');
             state.builds = ensureArray(body.items);
@@ -4871,27 +4936,32 @@ data:
               state.projectDatasets = [];
               state.projectRepositories = [];
               state.projectDatasources = [];
+              state.projectOntologies = [];
               state.projectFiles = [];
               state.projectOntology = null;
               renderAll();
               return;
             }
-            const [datasetsBody, repositoriesBody, datasourcesBody, filesBody, ontologyBody, allDatasetsBody, allRepositoriesBody, allDatasourcesBody] = await Promise.all([
+            const [datasetsBody, repositoriesBody, datasourcesBody, ontologiesBody, filesBody, ontologyBody, allDatasetsBody, allRepositoriesBody, allDatasourcesBody, allOntologiesBody] = await Promise.all([
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories'),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontologies').catch(() => ({ items:[] })),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] })),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontology').catch(() => ({ manifest:null })),
               callJSON('/api/v1/datasets'),
               callJSON('/api/v1/repositories'),
-              callJSON('/api/v1/datasources')
+              callJSON('/api/v1/datasources'),
+              callJSON('/api/v1/ontologies').catch(() => ({ items:[] }))
             ]);
             state.datasets = ensureArray(allDatasetsBody.items);
             state.repositories = ensureArray(allRepositoriesBody.items);
             state.datasources = ensureArray(allDatasourcesBody.items);
+            state.ontologies = ensureArray(allOntologiesBody.items);
             state.projectDatasets = ensureArray(datasetsBody.items);
             state.projectRepositories = ensureArray(repositoriesBody.items);
             state.projectDatasources = ensureArray(datasourcesBody.items);
+            state.projectOntologies = ensureArray(ontologiesBody.items);
             state.projectFiles = ensureArray(filesBody.items);
             state.projectOntology = (ontologyBody && ontologyBody.manifest) || null;
             renderAll();
@@ -5315,6 +5385,10 @@ data:
             await attachProjectResource(event, attachDatasetSelect, attachDatasetBtn, projectDatasetStatus, 'Dataset', 'datasets', tui('err_select_dataset_attach'));
           };
 
+          attachOntologyBtn.onclick = async (event) => {
+            await attachProjectResource(event, attachOntologySelect, attachOntologyBtn, projectOntologyStatus, 'Catalogue semantique', 'ontologies', 'Selectionnez un catalogue a rattacher.');
+          };
+
           attachRepoBtn.onclick = async (event) => {
             await attachProjectResource(event, attachRepoSelect, attachRepoBtn, projectRepoStatus, 'Depot', 'repositories', tui('err_select_repo_attach'));
           };
@@ -5338,6 +5412,7 @@ data:
                 body: JSON.stringify({ datasetId: datasetID })
               });
               state.projectOntology = (body && body.manifest) || null;
+              await refreshProjectResources();
               renderProjectOntology();
               setProjectResourceStatus(ontologyStatus, 'Catalogue semantique genere.', 'success');
             } catch (e) {
@@ -5355,6 +5430,20 @@ data:
               const pid = selectedProjectId();
               if (!pid) throw { error: tui('err_select_project_first') };
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
+              await refreshProjectResources();
+            } catch (e) {
+              pretty(usersOut, e);
+              switchTab('ops');
+            }
+          };
+
+          projectOntologyRows.onclick = async (event) => {
+            const ontologyID = (event.target && event.target.getAttribute('data-detach-ontology'));
+            if (!ontologyID) return;
+            try {
+              const pid = selectedProjectId();
+              if (!pid) throw { error: tui('err_select_project_first') };
+              await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontologies/' + encodeURIComponent(ontologyID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
               pretty(usersOut, e);
@@ -5496,7 +5585,7 @@ data:
 
           refreshDataBtn.onclick = async () => {
             try {
-              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations()]);
+              await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations()]);
             } catch (e) {
               pretty(usersOut, e);
               switchTab('ops');
@@ -6753,7 +6842,7 @@ data:
                 startWorkspacesAutoRefresh();
               startPlatformPulse();
                 refreshProjects()
-                  .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                  .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
                   .catch((err) => {
                     pretty(usersOut, { sessionError: String(err) });
                     switchTab('ops');
@@ -6771,7 +6860,7 @@ data:
               startPlatformPulse();
               ensureWebSession()
                 .then(() => refreshProjects())
-                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch((err) => {
                   pretty(usersOut, { sessionError: String(err) });
                   switchTab('ops');
@@ -6789,7 +6878,7 @@ data:
               startWorkspacesAutoRefresh();
               startPlatformPulse();
               refreshProjects()
-                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+                .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch(() => {});
               switchTab('intro');
             });
@@ -6803,7 +6892,7 @@ data:
             startWorkspacesAutoRefresh();
               startPlatformPulse();
             refreshProjects()
-              .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshAvailableOrganizations(), refreshProjectResources()]))
+              .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
               .catch(() => {});
             switchTab('intro');
           }
@@ -6819,7 +6908,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.204"}
+    {"version":"ce-web-0.6.205"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6840,7 +6929,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.204
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.205
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

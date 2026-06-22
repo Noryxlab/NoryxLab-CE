@@ -10,6 +10,7 @@ type ProjectResourceStore struct {
 	projectDatasets    map[string]map[string]struct{}
 	projectRepos       map[string]map[string]struct{}
 	projectDatasources map[string]map[string]struct{}
+	projectOntologies  map[string]map[string]struct{}
 }
 
 func NewProjectResourceStore() *ProjectResourceStore {
@@ -17,6 +18,7 @@ func NewProjectResourceStore() *ProjectResourceStore {
 		projectDatasets:    map[string]map[string]struct{}{},
 		projectRepos:       map[string]map[string]struct{}{},
 		projectDatasources: map[string]map[string]struct{}{},
+		projectOntologies:  map[string]map[string]struct{}{},
 	}
 }
 
@@ -134,6 +136,41 @@ func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]
 		if _, ok := items[d]; ok {
 			out = append(out, projectID)
 		}
+	}
+	return out, nil
+}
+
+func (s *ProjectResourceStore) AttachOntology(projectID, ontologyID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p := strings.TrimSpace(projectID)
+	o := strings.TrimSpace(ontologyID)
+	if _, ok := s.projectOntologies[p]; !ok {
+		s.projectOntologies[p] = map[string]struct{}{}
+	}
+	s.projectOntologies[p][o] = struct{}{}
+	return nil
+}
+
+func (s *ProjectResourceStore) DetachOntology(projectID, ontologyID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p := strings.TrimSpace(projectID)
+	o := strings.TrimSpace(ontologyID)
+	if m, ok := s.projectOntologies[p]; ok {
+		delete(m, o)
+	}
+	return nil
+}
+
+func (s *ProjectResourceStore) ListProjectOntologyIDs(projectID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	p := strings.TrimSpace(projectID)
+	m := s.projectOntologies[p]
+	out := make([]string, 0, len(m))
+	for id := range m {
+		out = append(out, id)
 	}
 	return out, nil
 }

@@ -212,6 +212,15 @@ func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]str
 func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
 	return s.Store.ListDatasourceProjectIDs(datasourceID)
 }
+func (s *ProjectResourceStore) AttachOntology(projectID, ontologyID string) error {
+	return s.Store.AttachOntology(projectID, ontologyID)
+}
+func (s *ProjectResourceStore) DetachOntology(projectID, ontologyID string) error {
+	return s.Store.DetachOntology(projectID, ontologyID)
+}
+func (s *ProjectResourceStore) ListProjectOntologyIDs(projectID string) ([]string, error) {
+	return s.Store.ListProjectOntologyIDs(projectID)
+}
 
 func (s *ProjectOntologyStore) GetProjectOntology(projectID string) (json.RawMessage, bool, error) {
 	return s.Store.GetProjectOntology(projectID)
