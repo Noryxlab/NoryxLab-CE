@@ -31,34 +31,36 @@ type ontologyScanRequest struct {
 }
 
 type ontologyManifest struct {
-	ProjectID   string            `json:"projectId"`
-	SourceType  string            `json:"sourceType"`
-	SourceID    string            `json:"sourceId"`
-	SourceName  string            `json:"sourceName"`
-	DatasetID   string            `json:"datasetId"`
-	DatasetName string            `json:"datasetName"`
-	Study       string            `json:"study"`
-	Summary     ontologySummary   `json:"summary"`
-	Subjects    []ontologySubject `json:"subjects"`
-	GeneratedBy string            `json:"generatedBy"`
-	GeneratedAt time.Time         `json:"generatedAt"`
-	Truncated   bool              `json:"truncated"`
+	ProjectID        string            `json:"projectId"`
+	SourceType       string            `json:"sourceType"`
+	SourceID         string            `json:"sourceId"`
+	SourceName       string            `json:"sourceName"`
+	InferenceProfile string            `json:"inferenceProfile"`
+	DatasetID        string            `json:"datasetId"`
+	DatasetName      string            `json:"datasetName"`
+	Study            string            `json:"study"`
+	Summary          ontologySummary   `json:"summary"`
+	Subjects         []ontologySubject `json:"subjects"`
+	GeneratedBy      string            `json:"generatedBy"`
+	GeneratedAt      time.Time         `json:"generatedAt"`
+	Truncated        bool              `json:"truncated"`
 }
 
 type ontologyListItem struct {
-	ID          string          `json:"id"`
-	ProjectID   string          `json:"projectId"`
-	ProjectName string          `json:"projectName"`
-	SourceType  string          `json:"sourceType"`
-	SourceID    string          `json:"sourceId"`
-	SourceName  string          `json:"sourceName"`
-	DatasetID   string          `json:"datasetId"`
-	DatasetName string          `json:"datasetName"`
-	Study       string          `json:"study"`
-	Summary     ontologySummary `json:"summary"`
-	GeneratedBy string          `json:"generatedBy"`
-	GeneratedAt time.Time       `json:"generatedAt"`
-	Truncated   bool            `json:"truncated"`
+	ID               string          `json:"id"`
+	ProjectID        string          `json:"projectId"`
+	ProjectName      string          `json:"projectName"`
+	SourceType       string          `json:"sourceType"`
+	SourceID         string          `json:"sourceId"`
+	SourceName       string          `json:"sourceName"`
+	InferenceProfile string          `json:"inferenceProfile"`
+	DatasetID        string          `json:"datasetId"`
+	DatasetName      string          `json:"datasetName"`
+	Study            string          `json:"study"`
+	Summary          ontologySummary `json:"summary"`
+	GeneratedBy      string          `json:"generatedBy"`
+	GeneratedAt      time.Time       `json:"generatedAt"`
+	Truncated        bool            `json:"truncated"`
 }
 
 type ontologySummary struct {
@@ -381,20 +383,28 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 	if manifest.SourceName == "" {
 		manifest.SourceName = manifest.DatasetName
 	}
+	if manifest.InferenceProfile == "" {
+		if manifest.SourceType == "datasource" {
+			manifest.InferenceProfile = "datasource-metadata-v1"
+		} else {
+			manifest.InferenceProfile = "premyom-file-path-v1"
+		}
+	}
 	return ontologyListItem{
-		ID:          ontologyID,
-		ProjectID:   manifest.ProjectID,
-		ProjectName: projectName,
-		SourceType:  manifest.SourceType,
-		SourceID:    manifest.SourceID,
-		SourceName:  manifest.SourceName,
-		DatasetID:   manifest.DatasetID,
-		DatasetName: manifest.DatasetName,
-		Study:       manifest.Study,
-		Summary:     manifest.Summary,
-		GeneratedBy: manifest.GeneratedBy,
-		GeneratedAt: manifest.GeneratedAt,
-		Truncated:   manifest.Truncated,
+		ID:               ontologyID,
+		ProjectID:        manifest.ProjectID,
+		ProjectName:      projectName,
+		SourceType:       manifest.SourceType,
+		SourceID:         manifest.SourceID,
+		SourceName:       manifest.SourceName,
+		InferenceProfile: manifest.InferenceProfile,
+		DatasetID:        manifest.DatasetID,
+		DatasetName:      manifest.DatasetName,
+		Study:            manifest.Study,
+		Summary:          manifest.Summary,
+		GeneratedBy:      manifest.GeneratedBy,
+		GeneratedAt:      manifest.GeneratedAt,
+		Truncated:        manifest.Truncated,
 	}, true, nil
 }
 
@@ -473,13 +483,14 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	}
 	manifestSubjects, visitCount := materializeOntologySubjects(subjects)
 	return ontologyManifest{
-		ProjectID:   projectID,
-		SourceType:  "dataset",
-		SourceID:    item.ID,
-		SourceName:  item.Name,
-		DatasetID:   item.ID,
-		DatasetName: item.Name,
-		Study:       study,
+		ProjectID:        projectID,
+		SourceType:       "dataset",
+		SourceID:         item.ID,
+		SourceName:       item.Name,
+		InferenceProfile: "premyom-file-path-v1",
+		DatasetID:        item.ID,
+		DatasetName:      item.Name,
+		Study:            study,
 		Summary: ontologySummary{
 			Subjects:          len(manifestSubjects),
 			Visits:            visitCount,
@@ -518,13 +529,14 @@ func (h Handlers) buildDatasourceOntologyManifest(projectID string, item datasou
 		host = host + ":" + strconv.Itoa(item.Port)
 	}
 	return ontologyManifest{
-		ProjectID:   strings.TrimSpace(projectID),
-		SourceType:  "datasource",
-		SourceID:    item.ID,
-		SourceName:  item.Name,
-		Study:       item.Name,
-		GeneratedBy: strings.TrimSpace(generatedBy),
-		GeneratedAt: time.Now().UTC(),
+		ProjectID:        strings.TrimSpace(projectID),
+		SourceType:       "datasource",
+		SourceID:         item.ID,
+		SourceName:       item.Name,
+		InferenceProfile: "datasource-metadata-v1",
+		Study:            item.Name,
+		GeneratedBy:      strings.TrimSpace(generatedBy),
+		GeneratedAt:      time.Now().UTC(),
 		Summary: ontologySummary{
 			Subjects:          1,
 			Visits:            1,

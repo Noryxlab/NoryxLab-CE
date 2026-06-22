@@ -1192,10 +1192,14 @@ data:
                     <div class="section-head">
                       <div>
                         <h3>Catalogue sémantique</h3>
-                        <p class="muted">Créez un catalogue sémantique depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
+                        <p class="muted">Créez un brouillon de catalogue depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
                       </div>
                     </div>
-                    <div class="hint">Sélectionnez une source Data accessible. Le catalogue créé sera automatiquement rattaché au projet actif.</div>
+                    <div class="hint">
+                      Dataset : scan de métadonnées S3 avec profil Premyom/FOR par chemins de fichiers
+                      (étude, sujets pseudonymisés, visites, modalités, formats, tables CSV).
+                      Datasource : fiche structurelle metadata-only, sans introspection SQL/NoSQL pour l'instant.
+                    </div>
                     <div class="row">
                       <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
                       <select id="ontologyDatasetSelect"></select>
@@ -4605,10 +4609,13 @@ data:
               return;
             }
             const summary = manifest.summary || {};
-            ontologyStatus.textContent = 'Dernier scan · ' + formatDateTime(manifest.generatedAt) + ' · dataset ' + (manifest.datasetName || manifest.datasetId || '-')
+            const profileLabel = manifest.inferenceProfile || (manifest.sourceType === 'datasource' ? 'datasource-metadata-v1' : 'premyom-file-path-v1');
+            const sourceLabel = manifest.sourceType === 'datasource' ? 'datasource ' : 'dataset ';
+            ontologyStatus.textContent = 'Dernier scan · ' + formatDateTime(manifest.generatedAt) + ' · profil ' + profileLabel + ' · ' + sourceLabel + (manifest.sourceName || manifest.datasetName || manifest.sourceId || manifest.datasetId || '-')
               + (manifest.truncated ? ' · scan tronque' : '');
             [
               ['Etude', manifest.study || '-'],
+              ['Profil', profileLabel],
               ['Sujets', Number(summary.subjects || 0)],
               ['Visites', Number(summary.visits || 0)],
               ['Modalites', Number(summary.modalities || 0)],
@@ -5421,7 +5428,7 @@ data:
               state.projectOntology = (body && body.manifest) || null;
               await refreshProjectResources();
               renderProjectOntology();
-              setProjectResourceStatus(ontologyStatus, 'Catalogue semantique cree.', 'success');
+              setProjectResourceStatus(ontologyStatus, 'Brouillon de catalogue cree avec le profil selectionne.', 'success');
             } catch (e) {
               setProjectResourceStatus(ontologyStatus, errorMessage(e), 'error');
             } finally {
@@ -6922,7 +6929,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.209"}
+    {"version":"ce-web-0.6.210"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6943,7 +6950,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.209
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.210
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

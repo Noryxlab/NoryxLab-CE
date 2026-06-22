@@ -2,19 +2,23 @@
 
 NoryxLab can generate a first semantic catalog from datasets attached to the active project. The UI entry point belongs to the Data domain, not to the project resource panel, while the stored manifest remains project-scoped for RBAC and dataset attachment checks.
 
+The current dataset inference is intentionally profile-based, not generic. The first supported profile is `premyom-file-path-v1`, built for the Premyom/FOR file layout.
+
 ## Scope
 
-The MVP scans S3 object metadata only:
+The `premyom-file-path-v1` profile scans S3 object metadata only and tries to infer:
 
-- object keys / paths
-- object sizes
-- file extensions and inferred formats
-- subject identifiers inferred from paths
-- visit dates inferred from paths
-- modality names inferred from paths
-- CSV/TSV table names inferred from filenames
+- a study, for example `PREMYOM1000`
+- pseudonymized subjects/patients, for example `PREMYOM1000-0001`
+- visits/dates when present in paths
+- modalities, for example `ANTERION`, `IOLMASTER`
+- formats, for example `CSV`, `PDF`, `XLSX`
+- measurement tables from CSV/TSV filenames, for example `Cornea_Basics`
+- object counts and byte sizes
 
-For HDS datasets, the scan does not download object content. It does not parse DICOM tags, CSV rows, PDF content, images, or Excel values. Datasource catalogs currently use connection metadata only; SQL/NoSQL schema introspection is a later explicit step.
+For HDS datasets, the scan does not download object content. It does not parse DICOM tags, CSV rows, PDF content, images, or Excel values. On another dataset layout, this profile can produce incomplete or irrelevant output; adding a new domain requires adding a new explicit inference profile.
+
+Datasource catalogs currently use the `datasource-metadata-v1` profile: connection metadata only, without SQL/NoSQL schema introspection. Real DB schema extraction is a later explicit step.
 
 ## UI
 
@@ -55,6 +59,7 @@ Datasource payload:
 The stored manifest is scoped to a project and contains:
 
 - project and dataset identifiers
+- inference profile
 - study name inferred from subject identifiers
 - global summary: subjects, visits, modalities, objects, size, formats, measurement tables
 - subjects
