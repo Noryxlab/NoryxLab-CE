@@ -1195,9 +1195,6 @@ data:
                         <p class="muted">Créez un catalogue sémantique depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
                       </div>
                     </div>
-                    <div class="execution-project-context">
-                      <div><div class="k">Projet actif</div><div id="ontologyProjectName" class="v">Aucun projet sélectionné</div></div>
-                    </div>
                     <div class="hint">Sélectionnez une source Data accessible. Le catalogue créé sera automatiquement rattaché au projet actif.</div>
                     <div class="row">
                       <select id="ontologySourceType"><option value="dataset">Dataset</option><option value="datasource">Datasource</option></select>
@@ -1732,7 +1729,6 @@ data:
           const attachDatasourceBtn = document.getElementById('attachDatasourceBtn');
           const projectDatasourceRows = document.getElementById('projectDatasourceRows');
           const projectDatasourceStatus = document.getElementById('projectDatasourceStatus');
-          const ontologyProjectName = document.getElementById('ontologyProjectName');
           const ontologySourceType = document.getElementById('ontologySourceType');
           const ontologyDatasetSelect = document.getElementById('ontologyDatasetSelect');
           const ontologyScanBtn = document.getElementById('ontologyScanBtn');
@@ -4568,10 +4564,6 @@ data:
 
           function renderProjectOntology() {
             const pid = selectedProjectId();
-            const project = state.projects.find((x) => x.id === pid) || null;
-            if (ontologyProjectName) {
-              ontologyProjectName.textContent = project ? (project.name || project.id || '-') : 'Aucun projet selectionne';
-            }
             const sourceType = String((ontologySourceType && ontologySourceType.value) || 'dataset');
             const sources = sourceType === 'datasource' ? ensureArray(state.datasources) : ensureArray(state.datasets);
             ontologyDatasetSelect.innerHTML = '';
@@ -6926,7 +6918,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.207"}
+    {"version":"ce-web-0.6.208"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -6947,7 +6939,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.207
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.208
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
