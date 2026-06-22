@@ -1264,25 +1264,25 @@ data:
                     <div class="ontology-explorer">
                       <div class="ontology-explorer-head">
                         <div>
-                          <h4>Explorer l'ontologie</h4>
-                          <p class="muted">Filtrez par sujet, visite, modalité, format ou table de mesure, puis cliquez une ligne pour voir les fichiers associés.</p>
+                          <h4>Explorer les objets</h4>
+                          <p class="muted">Filtrez les objets déduits du manifeste, puis cliquez une ligne pour voir les références associées.</p>
                         </div>
                         <button id="ontologyExplorerReset" type="button" class="btn">Réinitialiser</button>
                       </div>
                       <div class="ontology-filter-grid">
-                        <input id="ontologyFilterSubject" placeholder="Sujet (ex: 0001)" />
-                        <input id="ontologyFilterVisit" placeholder="Visite/date" />
-                        <select id="ontologyFilterModality"><option value="">Toutes modalités</option></select>
-                        <select id="ontologyFilterFormat"><option value="">Tous formats</option></select>
-                        <select id="ontologyFilterTable"><option value="">Toutes tables</option></select>
+                        <input id="ontologyFilterSubject" placeholder="Objet / identifiant" />
+                        <input id="ontologyFilterVisit" placeholder="Parent / contexte" />
+                        <select id="ontologyFilterModality"><option value="">Tous types</option></select>
+                        <select id="ontologyFilterFormat"><option value="">Tous attributs</option></select>
+                        <select id="ontologyFilterTable"><option value="">Toutes références</option></select>
                       </div>
                       <div id="ontologyExplorerStatus" class="hint"></div>
                       <table>
-                        <thead><tr><th>Sujet</th><th>Visite</th><th>Modalité</th><th>Formats</th><th>Tables</th><th>Objets</th><th>Taille</th></tr></thead>
+                        <thead><tr><th>Objet</th><th>Type</th><th>Parent</th><th>Attributs</th><th>Références</th><th>Quantité</th><th>Taille</th></tr></thead>
                         <tbody id="ontologyDetailRows"></tbody>
                       </table>
                       <div id="ontologyFilePanel" class="ontology-detail-panel" style="display:none">
-                        <h4 id="ontologyFilePanelTitle">Fichiers associés</h4>
+                        <h4 id="ontologyFilePanelTitle">Références associées</h4>
                         <div id="ontologyFilePanelMeta" class="muted"></div>
                         <div id="ontologyFileRows" class="ontology-file-list"></div>
                       </div>
@@ -4888,14 +4888,22 @@ data:
                   const subjectID = String(subject.id || '-');
                   const visitDate = String(visit.date || 'unknown');
                   const modalityName = String(modality.name || 'unknown');
+                  const sourceType = String((manifest && manifest.sourceType) || '').trim();
+                  const objectLabel = sourceType === 'datasource'
+                    ? String((manifest && (manifest.sourceName || manifest.sourceId)) || modalityName || '-')
+                    : subjectID;
+                  const objectType = sourceType === 'datasource' ? modalityName : modalityName;
+                  const parentLabel = sourceType === 'datasource'
+                    ? String((manifest && (manifest.sourceName || manifest.sourceId)) || subjectID || '-')
+                    : visitDate;
                   rows.push({
                     key: subjectID + '|' + visitDate + '|' + modalityName,
-                    subjectID,
-                    visitDate,
-                    modalityName,
-                    formats: ensureArray(modality.formats).map(String).sort(),
-                    measurementTables: ensureArray(modality.measurementTables).map(String).sort(),
-                    samplePaths: ensureArray(modality.samplePaths).map(String),
+                    label: objectLabel,
+                    type: objectType,
+                    parent: parentLabel || subjectID,
+                    attributes: ensureArray(modality.formats).map(String).sort(),
+                    references: ensureArray(modality.measurementTables).map(String).sort(),
+                    links: ensureArray(modality.samplePaths).map(String),
                     objectCount: Number(modality.objectCount || 0),
                     totalBytes: Number(modality.totalBytes || 0)
                   });
@@ -4910,16 +4918,16 @@ data:
           }
 
           function ontologyRowMatches(row) {
-            const subject = ontologyFilterValue(ontologyFilterSubject);
-            const visit = ontologyFilterValue(ontologyFilterVisit);
-            const modality = String((ontologyFilterModality && ontologyFilterModality.value) || '').trim();
-            const format = String((ontologyFilterFormat && ontologyFilterFormat.value) || '').trim();
-            const table = String((ontologyFilterTable && ontologyFilterTable.value) || '').trim();
-            if (subject && !row.subjectID.toLowerCase().includes(subject)) return false;
-            if (visit && !row.visitDate.toLowerCase().includes(visit)) return false;
-            if (modality && row.modalityName !== modality) return false;
-            if (format && !row.formats.includes(format)) return false;
-            if (table && !row.measurementTables.includes(table)) return false;
+            const objectQuery = ontologyFilterValue(ontologyFilterSubject);
+            const parentQuery = ontologyFilterValue(ontologyFilterVisit);
+            const type = String((ontologyFilterModality && ontologyFilterModality.value) || '').trim();
+            const attribute = String((ontologyFilterFormat && ontologyFilterFormat.value) || '').trim();
+            const reference = String((ontologyFilterTable && ontologyFilterTable.value) || '').trim();
+            if (objectQuery && !String(row.label || '').toLowerCase().includes(objectQuery) && !String(row.key || '').toLowerCase().includes(objectQuery)) return false;
+            if (parentQuery && !String(row.parent || '').toLowerCase().includes(parentQuery)) return false;
+            if (type && row.type !== type) return false;
+            if (attribute && !row.attributes.includes(attribute)) return false;
+            if (reference && !row.references.includes(reference)) return false;
             return true;
           }
 
@@ -4937,12 +4945,12 @@ data:
           }
 
           function renderOntologyExplorerOptions(rows) {
-            const modalities = Array.from(new Set(rows.map((row) => row.modalityName).filter(Boolean))).sort();
-            const formats = Array.from(new Set(rows.flatMap((row) => row.formats).filter(Boolean))).sort();
-            const tables = Array.from(new Set(rows.flatMap((row) => row.measurementTables).filter(Boolean))).sort();
-            setOntologySelectOptions(ontologyFilterModality, 'Toutes modalités', modalities);
-            setOntologySelectOptions(ontologyFilterFormat, 'Tous formats', formats);
-            setOntologySelectOptions(ontologyFilterTable, 'Toutes tables', tables);
+            const types = Array.from(new Set(rows.map((row) => row.type).filter(Boolean))).sort();
+            const attributes = Array.from(new Set(rows.flatMap((row) => row.attributes).filter(Boolean))).sort();
+            const references = Array.from(new Set(rows.flatMap((row) => row.references).filter(Boolean))).sort();
+            setOntologySelectOptions(ontologyFilterModality, 'Tous types', types);
+            setOntologySelectOptions(ontologyFilterFormat, 'Tous attributs', attributes);
+            setOntologySelectOptions(ontologyFilterTable, 'Toutes références', references);
           }
 
           function renderOntologyExplorerRows(rows) {
@@ -4961,11 +4969,11 @@ data:
               const tr = document.createElement('tr');
               tr.className = 'ontology-result-row' + (row.key === selectedOntologyExplorerKey ? ' active' : '');
               tr.innerHTML =
-                '<td><strong>' + escapeHTML(row.subjectID) + '</strong></td>' +
-                '<td>' + escapeHTML(row.visitDate) + '</td>' +
-                '<td>' + escapeHTML(row.modalityName) + '</td>' +
-                '<td>' + row.formats.map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
-                '<td>' + row.measurementTables.slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td><strong>' + escapeHTML(row.label || '-') + '</strong></td>' +
+                '<td>' + escapeHTML(row.type || '-') + '</td>' +
+                '<td>' + escapeHTML(row.parent || '-') + '</td>' +
+                '<td>' + row.attributes.map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td>' + row.references.slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
                 '<td>' + row.objectCount + '</td>' +
                 '<td>' + formatBytes(row.totalBytes) + '</td>';
               tr.onclick = () => {
@@ -4992,9 +5000,9 @@ data:
               return;
             }
             ontologyFilePanel.style.display = '';
-            ontologyFilePanelTitle.textContent = row.subjectID + ' · ' + row.visitDate + ' · ' + row.modalityName;
-            ontologyFilePanelMeta.textContent = row.objectCount + ' objets · ' + formatBytes(row.totalBytes) + ' · chemins exemples disponibles';
-            const paths = row.samplePaths.length ? row.samplePaths : ['Aucun chemin exemple disponible dans le manifeste.'];
+            ontologyFilePanelTitle.textContent = (row.type || 'objet') + ' · ' + (row.label || '-');
+            ontologyFilePanelMeta.textContent = row.objectCount + ' élément(s) · ' + formatBytes(row.totalBytes) + ' · références disponibles dans le manifeste';
+            const paths = row.links.length ? row.links : ['Aucune référence détaillée disponible dans le manifeste.'];
             ontologyFileRows.innerHTML = paths.map((path) => '<div class="ontology-file-item">' + escapeHTML(path) + '</div>').join('');
           }
 
@@ -7449,7 +7457,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.216"}
+    {"version":"ce-web-0.6.217"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7470,7 +7478,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.216
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.217
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
