@@ -1726,6 +1726,23 @@ func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, e
 	return out, rows.Err()
 }
 
+func (s *Store) ListAllDatasources() ([]datasource.Datasource, error) {
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []datasource.Datasource{}
+	for rows.Next() {
+		var item datasource.Datasource
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetDatasourceByID(id string) (datasource.Datasource, bool, error) {
 	var item datasource.Datasource
 	err := s.db.QueryRow(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE id=$1`, strings.TrimSpace(id)).Scan(

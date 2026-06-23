@@ -141,6 +141,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/inventory", h.GetAdminInventory)
 	mux.HandleFunc("GET /api/v1/admin/data-usage", h.GetAdminDataUsage)
 	mux.HandleFunc("GET /api/v1/admin/data-usage.csv", h.ExportAdminDataUsageCSV)
+	mux.HandleFunc("GET /api/v1/admin/rbac-matrix", h.GetAdminRBACMatrix)
+	mux.HandleFunc("GET /api/v1/admin/rbac-matrix.csv", h.ExportAdminRBACMatrixCSV)
 	mux.HandleFunc("GET /api/v1/admin/egress/rules", h.ListAdminEgressRules)
 	mux.HandleFunc("PUT /api/v1/admin/egress/rules/{egressRuleID}", h.DecideAdminEgressRule)
 	mux.HandleFunc("GET /api/v1/admin/organizations", h.ListOrganizations)
