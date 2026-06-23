@@ -16,6 +16,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
@@ -252,6 +253,25 @@ func (s *Store) migrate(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_audit_events_actor_user_id ON audit_events (actor_user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_events_project_id ON audit_events (project_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events (action)`,
+		`CREATE TABLE IF NOT EXISTS egress_rules (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			requester_id TEXT NOT NULL,
+			profile TEXT NOT NULL,
+			destination TEXT NOT NULL,
+			port INTEGER NOT NULL,
+			protocol TEXT NOT NULL,
+			workload_types_json JSONB NOT NULL DEFAULT '[]',
+			justification TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'pending',
+			reviewer_id TEXT NOT NULL DEFAULT '',
+			decision_note TEXT NOT NULL DEFAULT '',
+			expires_at TIMESTAMPTZ NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_egress_rules_project ON egress_rules (project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_egress_rules_status ON egress_rules (status)`,
 		`CREATE TABLE IF NOT EXISTS user_secrets (
 			id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -1233,6 +1253,84 @@ func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, err
 		out = append(out, item)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) ListEgressRules() ([]egress.Rule, error) {
+	rows, err := s.db.Query(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanEgressRules(rows)
+}
+
+func (s *Store) ListEgressRulesByProject(projectID string) ([]egress.Rule, error) {
+	rows, err := s.db.Query(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE project_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(projectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanEgressRules(rows)
+}
+
+func (s *Store) GetEgressRuleByID(id string) (egress.Rule, bool, error) {
+	row := s.db.QueryRow(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE id=$1`, strings.TrimSpace(id))
+	item, err := scanEgressRule(row)
+	if err == sql.ErrNoRows {
+		return egress.Rule{}, false, nil
+	}
+	if err != nil {
+		return egress.Rule{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateEgressRule(item egress.Rule) error {
+	workloadTypesJSON, _ := json.Marshal(item.WorkloadTypes)
+	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		item.ID, item.ProjectID, item.RequesterID, item.Profile, item.Destination, item.Port, item.Protocol, workloadTypesJSON, item.Justification, item.Status, item.ReviewerID, item.DecisionNote, item.ExpiresAt, item.CreatedAt, item.UpdatedAt,
+	)
+	return err
+}
+
+func (s *Store) UpdateEgressRuleDecision(id, status, reviewerID, note string) error {
+	_, err := s.db.Exec(`UPDATE egress_rules SET status=$2, reviewer_id=$3, decision_note=$4, updated_at=$5 WHERE id=$1`,
+		strings.TrimSpace(id),
+		strings.ToLower(strings.TrimSpace(status)),
+		strings.TrimSpace(reviewerID),
+		strings.TrimSpace(note),
+		time.Now().UTC(),
+	)
+	return err
+}
+
+type egressRuleScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanEgressRules(rows *sql.Rows) ([]egress.Rule, error) {
+	out := []egress.Rule{}
+	for rows.Next() {
+		item, err := scanEgressRule(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func scanEgressRule(scanner egressRuleScanner) (egress.Rule, error) {
+	var item egress.Rule
+	var workloadTypesJSON []byte
+	err := scanner.Scan(&item.ID, &item.ProjectID, &item.RequesterID, &item.Profile, &item.Destination, &item.Port, &item.Protocol, &workloadTypesJSON, &item.Justification, &item.Status, &item.ReviewerID, &item.DecisionNote, &item.ExpiresAt, &item.CreatedAt, &item.UpdatedAt)
+	if err != nil {
+		return egress.Rule{}, err
+	}
+	if len(workloadTypesJSON) > 0 {
+		_ = json.Unmarshal(workloadTypesJSON, &item.WorkloadTypes)
+	}
+	return item, nil
 }
 
 func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {

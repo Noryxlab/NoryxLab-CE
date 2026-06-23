@@ -20,6 +20,7 @@ type Handlers struct {
 	workspaceStore                   store.WorkspaceStore
 	sessionStore                     store.SessionStore
 	auditStore                       store.AuditStore
+	egressRuleStore                  store.EgressRuleStore
 	accessStore                      store.AccessStore
 	secretStore                      store.SecretStore
 	datasetStore                     store.DatasetStore
@@ -127,6 +128,7 @@ func New(
 	workspaceStore store.WorkspaceStore,
 	sessionStore store.SessionStore,
 	auditStore store.AuditStore,
+	egressRuleStore store.EgressRuleStore,
 	accessStore store.AccessStore,
 	secretStore store.SecretStore,
 	datasetStore store.DatasetStore,
@@ -163,6 +165,7 @@ func New(
 		workspaceStore:                   workspaceStore,
 		sessionStore:                     sessionStore,
 		auditStore:                       auditStore,
+		egressRuleStore:                  egressRuleStore,
 		accessStore:                      accessStore,
 		secretStore:                      secretStore,
 		datasetStore:                     datasetStore,
