@@ -1701,6 +1701,19 @@ data:
                       <tbody id="dataUsageRows"></tbody>
                     </table>
                   </article>
+                  <article class="card span-12 ee-only">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Accès Internet contrôlé</h3>
+                        <div class="hint">Gouvernance EE des demandes egress. V1: approbation/audit; enforcement réseau via gateway à brancher ensuite.</div>
+                      </div>
+                      <button id="refreshEgressRules" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Projet</th><th>Destination</th><th>Profil</th><th>Workloads</th><th>Statut</th><th>Demandeur</th><th>Expiration</th><th>Action</th></tr></thead>
+                      <tbody id="adminEgressRows"></tbody>
+                    </table>
+                  </article>
                   <article class="card span-12">
                     <h3>Audit</h3>
                     <div class="row"><button id="downloadAudit" type="button" class="btn primary">Telecharger le rapport CSV</button></div>
@@ -1998,6 +2011,8 @@ data:
           const usageOrganizationsCount = document.getElementById('usageOrganizationsCount');
           const dataUsageGraph = document.getElementById('dataUsageGraph');
           const dataUsageRows = document.getElementById('dataUsageRows');
+          const refreshEgressRulesBtn = document.getElementById('refreshEgressRules');
+          const adminEgressRows = document.getElementById('adminEgressRows');
           const downloadAuditBtn = document.getElementById('downloadAudit');
           const organizationRequired = document.getElementById('organizationRequired');
           const organizationRequiredLogout = document.getElementById('organizationRequiredLogout');
@@ -2227,6 +2242,7 @@ data:
             adminOverview: {},
             adminInventory: {},
             adminDataUsage: {},
+            adminEgressRules: [],
             organizations: [],
             organizationMembers: [],
             platformOverview: {},
@@ -2930,7 +2946,7 @@ data:
               refreshAdminExecutions().catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
             }
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
@@ -5399,6 +5415,28 @@ data:
             return body;
           }
 
+          function renderAdminEgressRules() {
+            const projectsById = new Map(ensureArray(state.adminInventory.projects).map((p) => [p.id, p]));
+            const rows = ensureArray(state.adminEgressRules);
+            adminEgressRows.innerHTML = rows.map((rule) => {
+              const project = projectsById.get(rule.projectId) || {};
+              const status = String(rule.status || 'pending').toLowerCase();
+              const actions = status === 'pending'
+                ? '<button type="button" class="btn primary" data-egress-decision="approved" data-egress-id="' + escapeHTML(rule.id || '') + '">Approuver</button> <button type="button" class="btn danger" data-egress-decision="rejected" data-egress-id="' + escapeHTML(rule.id || '') + '">Refuser</button>'
+                : (status === 'approved' ? '<button type="button" class="btn danger" data-egress-decision="revoked" data-egress-id="' + escapeHTML(rule.id || '') + '">Révoquer</button>' : '-');
+              return '<tr>' +
+                '<td><strong>' + escapeHTML(project.name || rule.projectId || '-') + '</strong></td>' +
+                '<td><code>' + escapeHTML(rule.protocol || 'HTTPS') + '://' + escapeHTML(rule.destination || '-') + ':' + escapeHTML(String(rule.port || '-')) + '</code></td>' +
+                '<td>' + badge(rule.profile || '-') + '</td>' +
+                '<td>' + escapeHTML(ensureArray(rule.workloadTypes).join(', ') || '-') + '</td>' +
+                '<td>' + badge(status) + '</td>' +
+                '<td>' + escapeHTML(rule.requesterId || '-') + '</td>' +
+                '<td>' + (rule.expiresAt ? formatDateTime(rule.expiresAt) : '-') + '</td>' +
+                '<td>' + actions + '</td>' +
+              '</tr>';
+            }).join('') || '<tr><td colspan="8">Aucune demande egress.</td></tr>';
+          }
+
           async function refreshAdminExecutions() {
             const body = await callJSON('/api/v1/admin/executions');
             state.adminExecutions = ensureArray(body.items);
@@ -5436,6 +5474,18 @@ data:
             state.adminDataUsage = await callJSON('/api/v1/admin/data-usage');
             renderDataUsage();
             return state.adminDataUsage;
+          }
+
+          async function refreshAdminEgressRules() {
+            try {
+              const body = await callJSON('/api/v1/admin/egress/rules');
+              state.adminEgressRules = ensureArray(body.items);
+            } catch (e) {
+              state.adminEgressRules = [];
+              if (platformEdition === 'enterprise') throw e;
+            }
+            renderAdminEgressRules();
+            return state.adminEgressRules;
           }
 
           async function refreshOrganizations() {
@@ -5768,6 +5818,29 @@ data:
 
           downloadDataUsageBtn.onclick = async () => {
             await downloadAdminCSV('/api/v1/admin/data-usage.csv', 'noryx-data-usage.csv', downloadDataUsageBtn);
+          };
+
+          refreshEgressRulesBtn.onclick = async () => {
+            try { await refreshAdminEgressRules(); }
+            catch (e) { pretty(auditOut, e); }
+          };
+
+          adminEgressRows.onclick = async (event) => {
+            const button = event.target && event.target.closest && event.target.closest('[data-egress-decision]');
+            if (!button) return;
+            const id = button.getAttribute('data-egress-id');
+            const status = button.getAttribute('data-egress-decision');
+            if (!id || !status) return;
+            const note = window.prompt('Note de décision egress (' + status + ')', '') || '';
+            if (!window.confirm('Confirmer la décision egress: ' + status + ' ?')) return;
+            try {
+              await callJSON('/api/v1/admin/egress/rules/' + encodeURIComponent(id), {
+                method:'PUT',
+                headers:{ 'Content-Type':'application/json' },
+                body:JSON.stringify({ status, note })
+              });
+              await refreshAdminEgressRules();
+            } catch (e) { pretty(auditOut, e); }
           };
 
           createOrganizationBtn.onclick = async () => {
@@ -6856,7 +6929,7 @@ data:
                 }
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
-                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]);
+                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshAdminEgressRules()]);
               } catch (e) {
                 pretty(usersOut, e);
                 switchTab('ops');
@@ -7777,7 +7850,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.221"}
+    {"version":"ce-web-0.6.222"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7798,7 +7871,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.221
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.222
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

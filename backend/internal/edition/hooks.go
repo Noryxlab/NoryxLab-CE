@@ -12,6 +12,7 @@ const (
 	FeatureAdvancedAudit    = "advanced_audit"
 	FeaturePolicyEngine     = "policy_engine"
 	FeatureHDSDatasets      = "hds_datasets"
+	FeatureControlledEgress = "controlled_egress"
 )
 
 type RBACProvider interface {
