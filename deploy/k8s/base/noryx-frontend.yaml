@@ -645,6 +645,8 @@ data:
           .rbac-perm.is-rw, .rbac-perm.is-admin { background: #d9fbe8; color: #11633a; }
           .rbac-perm.is-none { background: #f2f5f8; color: #94a3b8; }
           .rbac-role-desc { display: block; margin-top: 4px; color: var(--muted); font-size: var(--fs-12); max-width: 320px; }
+          .rbac-policy-select { width: 100%; min-width: 110px; padding: 7px 9px; border-radius: 10px; border: 1px solid #c9d5df; background: #fff; font-weight: 800; }
+          .rbac-role-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; align-items: center; }
           .apps-card { min-width: 0; overflow: hidden; }
           .apps-table-wrap { width: 100%; overflow-x: auto; }
           .apps-table-wrap table { min-width: 1080px; }
@@ -1697,6 +1699,11 @@ data:
                         <option value="governance">Gouvernance</option>
                       </select>
                     </div>
+                    <div class="row">
+                      <input id="rbacNewRoleName" placeholder="Nouveau rôle (ex: Data steward)" />
+                      <button id="addRBACRole" type="button" class="btn">Ajouter le rôle</button>
+                      <button id="resetRBACPolicy" type="button" class="btn danger">Réinitialiser la matrice</button>
+                    </div>
                     <div class="rbac-matrix-wrap">
                       <table>
                         <thead id="rbacMatrixHead"><tr><th>Rôle</th><th>Ressources</th></tr></thead>
@@ -2104,6 +2111,9 @@ data:
           const rbacSearchInput = document.getElementById('rbacSearch');
           const rbacResourceTypeInput = document.getElementById('rbacResourceType');
           const rbacSubjectTypeInput = document.getElementById('rbacSubjectType');
+          const rbacNewRoleNameInput = document.getElementById('rbacNewRoleName');
+          const addRBACRoleBtn = document.getElementById('addRBACRole');
+          const resetRBACPolicyBtn = document.getElementById('resetRBACPolicy');
           const rbacMatrixHead = document.getElementById('rbacMatrixHead');
           const rbacMatrixRows = document.getElementById('rbacMatrixRows');
           const usageDatasetsCount = document.getElementById('usageDatasetsCount');
@@ -2358,6 +2368,7 @@ data:
             adminDataUsage: {},
             adminEgressRules: [],
             adminRBACMatrix: {},
+            rbacPolicyRows: [],
             organizations: [],
             organizationMembers: [],
             platformOverview: {},
@@ -4641,6 +4652,59 @@ data:
             }).join('') || '<tr><td colspan="4">Aucune relation de donnees.</td></tr>';
           }
 
+          const RBAC_POLICY_KEY = 'noryx.rbac.policy.v1';
+          const RBAC_COLUMNS = [
+            { key: 'project', label: 'Projets' },
+            { key: 'dataset', label: 'Datasets' },
+            { key: 'ontology', label: 'Ontologies' },
+            { key: 'datasource', label: 'Datasources' },
+            { key: 'environment', label: 'Environnements' },
+            { key: 'workload', label: 'Workloads' },
+            { key: 'governance', label: 'Gouvernance' }
+          ];
+          const RBAC_PERMISSIONS = ['-', 'R', 'RW', 'Admin', 'R attaché', 'RW attaché'];
+          const DEFAULT_RBAC_POLICY_ROWS = [
+            { role: 'Administrateur', key: 'admin', locked: true, description: 'Administration plateforme: configuration, gouvernance, audit et exploitation.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: 'RW', workload: 'RW', governance: 'Admin' },
+            { role: 'Owner', key: 'owner', locked: true, description: 'Propriétaire direct ou organisation propriétaire de la ressource.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: 'RW', governance: '-' },
+            { role: 'Project admin', key: 'project-admin', locked: true, description: 'Admin d’un projet: membres, ressources attachées et workloads du projet.', project: 'RW', dataset: 'RW attaché', ontology: 'RW attaché', datasource: 'RW attaché', environment: 'R', workload: 'RW', governance: '-' },
+            { role: 'Editor', key: 'editor', locked: true, description: 'Contributeur projet: modification du contenu projet et usages de calcul.', project: 'RW', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'RW', governance: '-' },
+            { role: 'Writer', key: 'writer', locked: true, description: 'Droit d’écriture sur une ressource data donnée.', project: '-', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: '-', governance: '-' },
+            { role: 'Reader', key: 'reader', locked: true, description: 'Consultation seule sur une ressource data donnée.', project: '-', dataset: 'R', ontology: 'R', datasource: 'R', environment: '-', workload: '-', governance: '-' },
+            { role: 'Viewer', key: 'viewer', locked: true, description: 'Lecture projet et suivi des sorties publiées.', project: 'R', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'R', governance: '-' }
+          ];
+
+          function slugRoleName(value) {
+            return String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          }
+
+          function defaultRBACPolicyRows() {
+            return DEFAULT_RBAC_POLICY_ROWS.map((row) => ({ ...row }));
+          }
+
+          function loadRBACPolicyRows() {
+            try {
+              const raw = JSON.parse(localStorage.getItem(RBAC_POLICY_KEY) || '[]');
+              if (Array.isArray(raw) && raw.length) return raw;
+            } catch (_) {}
+            return defaultRBACPolicyRows();
+          }
+
+          function saveRBACPolicyRows() {
+            try { localStorage.setItem(RBAC_POLICY_KEY, JSON.stringify(state.rbacPolicyRows || [])); } catch (_) {}
+          }
+
+          function assignedRoleCounts() {
+            const counts = new Map();
+            ensureArray((state.adminRBACMatrix || {}).cells).forEach((cell) => {
+              const role = slugRoleName(cell.role || '');
+              if (!role) return;
+              const subjects = counts.get(role) || new Set();
+              subjects.add(String(cell.subjectType || 'user') + ':' + String(cell.subjectId || ''));
+              counts.set(role, subjects);
+            });
+            return counts;
+          }
+
           function renderRBACMatrix() {
             const report = state.adminRBACMatrix || {};
             const summary = report.summary || {};
@@ -4651,39 +4715,32 @@ data:
             if (rbacGrantsCount) rbacGrantsCount.textContent = String(summary.grants || 0);
             const query = String((rbacSearchInput && rbacSearchInput.value) || '').trim().toLowerCase();
             const resourceType = String((rbacResourceTypeInput && rbacResourceTypeInput.value) || '').trim().toLowerCase();
-            const columns = [
-              { key: 'project', label: 'Projets' },
-              { key: 'dataset', label: 'Datasets' },
-              { key: 'ontology', label: 'Ontologies' },
-              { key: 'datasource', label: 'Datasources' },
-              { key: 'environment', label: 'Environnements' },
-              { key: 'workload', label: 'Workloads' },
-              { key: 'governance', label: 'Gouvernance' }
-            ].filter((column) => !resourceType || column.key === resourceType);
-            const policyRows = [
-              { role: 'Administrateur', key: 'admin', description: 'Administration plateforme: configuration, gouvernance, audit et exploitation.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: 'RW', workload: 'RW', governance: 'Admin' },
-              { role: 'Owner', key: 'owner', description: 'Propriétaire direct ou organisation propriétaire de la ressource.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: 'RW', governance: '-' },
-              { role: 'Project admin', key: 'project-admin', description: 'Admin d’un projet: membres, ressources attachées et workloads du projet.', project: 'RW', dataset: 'RW attaché', ontology: 'RW attaché', datasource: 'RW attaché', environment: 'R', workload: 'RW', governance: '-' },
-              { role: 'Editor', key: 'editor', description: 'Contributeur projet: modification du contenu projet et usages de calcul.', project: 'RW', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'RW', governance: '-' },
-              { role: 'Writer', key: 'writer', description: 'Droit d’écriture sur une ressource data donnée.', project: '-', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: '-', governance: '-' },
-              { role: 'Reader', key: 'reader', description: 'Consultation seule sur une ressource data donnée.', project: '-', dataset: 'R', ontology: 'R', datasource: 'R', environment: '-', workload: '-', governance: '-' },
-              { role: 'Viewer', key: 'viewer', description: 'Lecture projet et suivi des sorties publiées.', project: 'R', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'R', governance: '-' }
-            ].filter((row) => {
+            const columns = RBAC_COLUMNS.filter((column) => !resourceType || column.key === resourceType);
+            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = loadRBACPolicyRows();
+            const roleCounts = assignedRoleCounts();
+            const policyRows = ensureArray(state.rbacPolicyRows).filter((row) => {
               if (!query) return true;
               const haystack = [row.role, row.key, row.description].concat(columns.map((column) => row[column.key] || '')).join(' ').toLowerCase();
               return haystack.includes(query);
             });
-            const formatPerm = (value) => {
-              const raw = String(value || '-');
-              const cls = raw === '-' ? ' is-none' : (raw.toLowerCase().includes('rw') || raw.toLowerCase().includes('admin') ? ' is-rw' : '');
-              return '<span class="rbac-perm' + cls + '">' + escapeHTML(raw) + '</span>';
+            const permissionSelect = (row, column) => {
+              const current = String(row[column.key] || '-');
+              return '<select class="rbac-policy-select" data-rbac-permission-role="' + escapeHTML(row.key || '') + '" data-rbac-permission-resource="' + escapeHTML(column.key) + '">' +
+                RBAC_PERMISSIONS.map((value) => '<option value="' + escapeHTML(value) + '"' + (value === current ? ' selected' : '') + '>' + escapeHTML(value) + '</option>').join('') +
+                '</select>';
             };
             rbacMatrixHead.innerHTML = '<tr><th>Rôle</th>' + columns.map((column) => '<th>' + escapeHTML(column.label) + '</th>').join('') + '</tr>';
-            rbacMatrixRows.innerHTML = policyRows.map((row) =>
-              '<tr><td><strong>' + escapeHTML(row.role) + '</strong><span class="rbac-role-desc">' + escapeHTML(row.description) + '</span></td>' +
-              columns.map((column) => '<td class="rbac-cell">' + formatPerm(row[column.key]) + '</td>').join('') +
-              '</tr>'
-            ).join('') || '<tr><td colspan="' + String(columns.length + 1) + '">Aucun rôle correspondant.</td></tr>';
+            rbacMatrixRows.innerHTML = policyRows.map((row) => {
+              const count = (roleCounts.get(row.key) || new Set()).size;
+              const deleteDisabled = count > 0;
+              const title = deleteDisabled ? 'Impossible de supprimer: rôle assigné à ' + String(count) + ' sujet(s).' : 'Supprimer ce rôle';
+              return '<tr><td><strong>' + escapeHTML(row.role) + '</strong><span class="rbac-role-desc">' + escapeHTML(row.description || 'Rôle personnalisé.') + '</span>' +
+                '<div class="rbac-role-actions">' + badge(String(count) + ' assignation' + (count > 1 ? 's' : '')) +
+                '<button type="button" class="btn danger" data-rbac-delete-role="' + escapeHTML(row.key || '') + '"' + (deleteDisabled ? ' disabled' : '') + ' title="' + escapeHTML(title) + '">Supprimer</button>' +
+                '</div></td>' +
+                columns.map((column) => '<td class="rbac-cell">' + permissionSelect(row, column) + '</td>').join('') +
+                '</tr>';
+            }).join('') || '<tr><td colspan="' + String(columns.length + 1) + '">Aucun rôle correspondant.</td></tr>';
           }
 
           function renderDataUsageSVG(nodes, edges) {
@@ -6048,6 +6105,62 @@ data:
             if (node) node.oninput = () => renderRBACMatrix();
             if (node) node.onchange = () => renderRBACMatrix();
           });
+
+          addRBACRoleBtn.onclick = () => {
+            const name = String((rbacNewRoleNameInput && rbacNewRoleNameInput.value) || '').trim();
+            const key = slugRoleName(name);
+            if (!name || !key) {
+              pretty(auditOut, { error: 'Nom de rôle requis.' });
+              return;
+            }
+            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = loadRBACPolicyRows();
+            if (state.rbacPolicyRows.some((row) => row.key === key)) {
+              pretty(auditOut, { error: 'Ce rôle existe déjà.' });
+              return;
+            }
+            const row = { role: name, key, locked: false, description: 'Rôle personnalisé.' };
+            RBAC_COLUMNS.forEach((column) => row[column.key] = '-');
+            state.rbacPolicyRows.push(row);
+            saveRBACPolicyRows();
+            if (rbacNewRoleNameInput) rbacNewRoleNameInput.value = '';
+            renderRBACMatrix();
+          };
+
+          resetRBACPolicyBtn.onclick = () => {
+            if (!confirm('Réinitialiser la matrice RBAC aux rôles standards ?')) return;
+            state.rbacPolicyRows = defaultRBACPolicyRows();
+            saveRBACPolicyRows();
+            renderRBACMatrix();
+          };
+
+          rbacMatrixRows.onchange = (event) => {
+            const select = event.target && event.target.closest ? event.target.closest('[data-rbac-permission-role]') : null;
+            if (!select) return;
+            const roleKey = select.getAttribute('data-rbac-permission-role');
+            const resourceKey = select.getAttribute('data-rbac-permission-resource');
+            const row = ensureArray(state.rbacPolicyRows).find((item) => item.key === roleKey);
+            if (!row || !resourceKey) return;
+            row[resourceKey] = select.value || '-';
+            saveRBACPolicyRows();
+            renderRBACMatrix();
+          };
+
+          rbacMatrixRows.onclick = (event) => {
+            const button = event.target && event.target.closest ? event.target.closest('[data-rbac-delete-role]') : null;
+            if (!button) return;
+            const roleKey = button.getAttribute('data-rbac-delete-role');
+            const count = (assignedRoleCounts().get(roleKey) || new Set()).size;
+            if (count > 0) {
+              pretty(auditOut, { error: 'Suppression impossible: ce rôle est assigné à ' + String(count) + ' sujet(s).' });
+              return;
+            }
+            const row = ensureArray(state.rbacPolicyRows).find((item) => item.key === roleKey);
+            if (!row) return;
+            if (!confirm('Supprimer le rôle "' + row.role + '" ?')) return;
+            state.rbacPolicyRows = ensureArray(state.rbacPolicyRows).filter((item) => item.key !== roleKey);
+            saveRBACPolicyRows();
+            renderRBACMatrix();
+          };
 
           refreshEgressRulesBtn.onclick = async () => {
             try { await refreshAdminEgressRules(); }
@@ -8115,7 +8228,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.229"}
+    {"version":"ce-web-0.6.230"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8136,7 +8249,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.229
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.230
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
