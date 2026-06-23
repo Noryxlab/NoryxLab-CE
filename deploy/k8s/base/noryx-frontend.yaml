@@ -755,6 +755,7 @@ data:
             <div class="menu-title" data-i18n="menu_govern">Govern</div>
             <div class="menu">
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
+              <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_access">Accès réseau</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1604,6 +1605,50 @@ data:
                 </div>
               </section>
 
+              <section class="view" id="view-govern-network">
+                <div class="grid">
+                  <article class="card span-12 ee-only">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Accès réseau contrôlé</h3>
+                        <div class="hint">Gouvernance EE des demandes egress par utilisateur ou organisation. V1: approbation/audit; enforcement réseau via gateway à brancher ensuite.</div>
+                      </div>
+                      <button id="refreshEgressRules" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <div class="row">
+                      <select id="egressProject"></select>
+                      <select id="egressSubjectType">
+                        <option value="user">Utilisateur</option>
+                        <option value="organization">Organisation</option>
+                      </select>
+                      <select id="egressSubject"></select>
+                      <select id="egressProfile">
+                        <option value="approved-egress">Destination approuvée</option>
+                        <option value="package-access">Paquets et Git</option>
+                        <option value="internal-only">Interne uniquement</option>
+                        <option value="hds-regulated">HDS régulé</option>
+                        <option value="unrestricted">Exception temporaire</option>
+                      </select>
+                    </div>
+                    <div class="row">
+                      <input id="egressDestination" placeholder="Domaine autorisé (ex: api.open-meteo.com)" />
+                      <input id="egressPort" value="443" placeholder="Port" />
+                      <select id="egressProtocol"><option value="HTTPS">HTTPS</option><option value="HTTP">HTTP</option><option value="TCP">TCP</option></select>
+                      <input id="egressWorkloads" value="workspace,job,app" placeholder="workloads: workspace,job,app" />
+                    </div>
+                    <div class="row">
+                      <input id="egressJustification" placeholder="Justification métier et sécurité" />
+                      <input id="egressExpiresAt" type="date" />
+                      <button id="createEgressRule" type="button" class="btn primary">Créer la demande</button>
+                    </div>
+                    <table>
+                      <thead><tr><th>Projet</th><th>Scope</th><th>Destination</th><th>Profil</th><th>Workloads</th><th>Statut</th><th>Demandeur</th><th>Expiration</th><th>Action</th></tr></thead>
+                      <tbody id="adminEgressRows"></tbody>
+                    </table>
+                  </article>
+                </div>
+              </section>
+
               <section class="view" id="view-workloads">
                 <div class="grid">
                   <article class="card span-8">
@@ -1699,19 +1744,6 @@ data:
                     <table>
                       <thead><tr><th>Dataset</th><th>Relation</th><th>Cible</th><th>Projet</th></tr></thead>
                       <tbody id="dataUsageRows"></tbody>
-                    </table>
-                  </article>
-                  <article class="card span-12 ee-only">
-                    <div class="dataset-catalog-header">
-                      <div>
-                        <h3>Accès Internet contrôlé</h3>
-                        <div class="hint">Gouvernance EE des demandes egress. V1: approbation/audit; enforcement réseau via gateway à brancher ensuite.</div>
-                      </div>
-                      <button id="refreshEgressRules" type="button" class="btn">Actualiser</button>
-                    </div>
-                    <table>
-                      <thead><tr><th>Projet</th><th>Destination</th><th>Profil</th><th>Workloads</th><th>Statut</th><th>Demandeur</th><th>Expiration</th><th>Action</th></tr></thead>
-                      <tbody id="adminEgressRows"></tbody>
                     </table>
                   </article>
                   <article class="card span-12">
@@ -2013,6 +2045,17 @@ data:
           const dataUsageRows = document.getElementById('dataUsageRows');
           const refreshEgressRulesBtn = document.getElementById('refreshEgressRules');
           const adminEgressRows = document.getElementById('adminEgressRows');
+          const egressProjectInput = document.getElementById('egressProject');
+          const egressSubjectTypeInput = document.getElementById('egressSubjectType');
+          const egressSubjectInput = document.getElementById('egressSubject');
+          const egressProfileInput = document.getElementById('egressProfile');
+          const egressDestinationInput = document.getElementById('egressDestination');
+          const egressPortInput = document.getElementById('egressPort');
+          const egressProtocolInput = document.getElementById('egressProtocol');
+          const egressWorkloadsInput = document.getElementById('egressWorkloads');
+          const egressJustificationInput = document.getElementById('egressJustification');
+          const egressExpiresAtInput = document.getElementById('egressExpiresAt');
+          const createEgressRuleBtn = document.getElementById('createEgressRule');
           const downloadAuditBtn = document.getElementById('downloadAudit');
           const organizationRequired = document.getElementById('organizationRequired');
           const organizationRequiredLogout = document.getElementById('organizationRequiredLogout');
@@ -2137,6 +2180,7 @@ data:
             'project-apis': document.getElementById('view-project-apis'),
             production: document.getElementById('view-production'),
             environments: document.getElementById('view-environments'),
+            'govern-network': document.getElementById('view-govern-network'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
           };
@@ -2313,6 +2357,7 @@ data:
               tab_apis: 'Services API',
               tab_activity: 'Activites',
               tab_admin: 'Administration',
+              tab_network_access: 'Accès réseau',
               api_reference: 'Reference API',
               title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
@@ -2428,6 +2473,7 @@ data:
               tab_label_environments: 'Environnements',
               tab_label_workloads: 'Activites',
               tab_label_ops: 'Administration',
+              tab_label_govern_network: 'Network access',
               section_title_intro: 'Accueil',
               section_subtitle_intro: "Vue d'ensemble de la plateforme et actions rapides.",
               section_title_projects: 'Projets',
@@ -2450,6 +2496,8 @@ data:
               section_subtitle_environments: 'Revisions d images et edition Dockerfile.',
               section_title_workloads: 'Activites',
               section_subtitle_workloads: 'Suivi des workspaces, builds et charges actives.',
+              section_title_govern_network: 'Accès réseau',
+              section_subtitle_govern_network: 'Règles egress, approbations et exceptions Internet contrôlées.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
@@ -2470,6 +2518,7 @@ data:
               tab_apis: 'API Services',
               tab_activity: 'Activity',
               tab_admin: 'Administration',
+              tab_network_access: 'Network access',
               api_reference: 'API Reference',
               title: 'NoryxLab',
               subtitle: 'Collaborative platform for data teams, from exploration to production.',
@@ -2585,6 +2634,7 @@ data:
               tab_label_environments: 'Environments',
               tab_label_workloads: 'Activity',
               tab_label_ops: 'Administration',
+              tab_label_govern_network: 'Network access',
               section_title_intro: 'Home',
               section_subtitle_intro: 'Platform overview and quick actions.',
               section_title_projects: 'Projects',
@@ -2607,6 +2657,8 @@ data:
               section_subtitle_environments: 'Image revisions and Dockerfile editing.',
               section_title_workloads: 'Activity',
               section_subtitle_workloads: 'Track active workspaces, builds and workloads.',
+              section_title_govern_network: 'Network access',
+              section_subtitle_govern_network: 'Egress rules, approvals and controlled Internet exceptions.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observability, modules and users.'
             }
@@ -2875,7 +2927,7 @@ data:
             document.querySelectorAll('.admin-only').forEach((el) => {
               el.style.display = admin ? '' : 'none';
             });
-            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops')) {
+            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network')) {
               switchTab('intro');
             }
             if (datasetClassificationInput) datasetClassificationInput.style.display = admin && platformEdition === 'enterprise' ? '' : 'none';
@@ -2945,8 +2997,11 @@ data:
             if (viewTab === 'workloads' && isAdminUser()) {
               refreshAdminExecutions().catch((e) => pretty(usersOut, e));
             }
+            if (viewTab === 'govern-network' && isAdminUser()) {
+              Promise.all([refreshAdminInventory(), refreshOrganizations(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
+            }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
             }
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
@@ -2965,6 +3020,7 @@ data:
               production: ['section_title_production', 'section_subtitle_production'],
               environments: ['section_title_environments', 'section_subtitle_environments'],
               workloads: ['section_title_workloads', 'section_subtitle_workloads'],
+              'govern-network': ['section_title_govern_network', 'section_subtitle_govern_network'],
               ops: ['section_title_ops', 'section_subtitle_ops']
             };
             const section = sectionI18n[tab] || sectionI18n.intro;
@@ -4478,6 +4534,7 @@ data:
             adminUserRows.innerHTML = users.map((u) => '<tr><td><strong>' + (u.username || u.id || '-') + '</strong></td><td>' + (u.email || '-') + '</td><td>' + badge(u.enabled === false ? 'disabled' : 'enabled') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun utilisateur.</td></tr>';
             adminProjectRows.innerHTML = projects.map((p) => '<tr><td><strong>' + (p.name || p.id || '-') + '</strong></td><td>' + formatDateTime(p.createdAt) + '</td></tr>').join('') || '<tr><td colspan="2">Aucun projet.</td></tr>';
             adminDatasetRows.innerHTML = datasets.map((d) => '<tr><td><strong>' + (d.name || d.id || '-') + '</strong><br/><code>' + (d.bucket || '-') + '</code></td><td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td><td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td></tr>').join('') || '<tr><td colspan="3">Aucun dataset.</td></tr>';
+            renderEgressFormOptions();
           }
 
           function renderDataUsage() {
@@ -4552,6 +4609,24 @@ data:
               '<option value="' + user.id + '">' + (user.username || user.email || user.id) + '</option>'
             ).join('');
             addOrganizationMemberBtn.disabled = !selectedOrganizationID || !organizationMemberUser.value;
+            renderEgressFormOptions();
+          }
+
+          function renderEgressFormOptions() {
+            if (!egressProjectInput || !egressSubjectInput) return;
+            const projects = ensureArray(state.adminInventory.projects);
+            const users = ensureArray(state.adminInventory.users);
+            const organizations = ensureArray(state.organizations);
+            const currentProject = egressProjectInput.value;
+            egressProjectInput.innerHTML = projects.map((p) => '<option value="' + escapeHTML(p.id || '') + '">' + escapeHTML(p.name || p.id || '-') + '</option>').join('');
+            if (currentProject && projects.some((p) => p.id === currentProject)) egressProjectInput.value = currentProject;
+            const subjectType = egressSubjectTypeInput ? egressSubjectTypeInput.value : 'user';
+            const currentSubject = egressSubjectInput.value;
+            const subjects = subjectType === 'organization'
+              ? organizations.map((o) => ({ id: o.id, label: o.name || o.alias || o.id }))
+              : users.map((u) => ({ id: u.id, label: u.username || u.email || u.id }));
+            egressSubjectInput.innerHTML = subjects.map((s) => '<option value="' + escapeHTML(s.id || '') + '">' + escapeHTML(s.label || s.id || '-') + '</option>').join('');
+            if (currentSubject && subjects.some((s) => s.id === currentSubject)) egressSubjectInput.value = currentSubject;
           }
 
           function renderProjectContext() {
@@ -5417,15 +5492,21 @@ data:
 
           function renderAdminEgressRules() {
             const projectsById = new Map(ensureArray(state.adminInventory.projects).map((p) => [p.id, p]));
+            const usersById = new Map(ensureArray(state.adminInventory.users).map((u) => [u.id, u]));
+            const organizationsById = new Map(ensureArray(state.organizations).map((o) => [o.id, o]));
             const rows = ensureArray(state.adminEgressRules);
             adminEgressRows.innerHTML = rows.map((rule) => {
               const project = projectsById.get(rule.projectId) || {};
+              const subjectType = String(rule.subjectType || 'user').toLowerCase();
+              const subject = subjectType === 'organization' ? (organizationsById.get(rule.subjectId) || {}) : (usersById.get(rule.subjectId) || {});
+              const subjectLabel = subjectType === 'organization' ? (subject.name || subject.alias || rule.subjectId || '-') : (subject.username || subject.email || rule.subjectId || '-');
               const status = String(rule.status || 'pending').toLowerCase();
               const actions = status === 'pending'
                 ? '<button type="button" class="btn primary" data-egress-decision="approved" data-egress-id="' + escapeHTML(rule.id || '') + '">Approuver</button> <button type="button" class="btn danger" data-egress-decision="rejected" data-egress-id="' + escapeHTML(rule.id || '') + '">Refuser</button>'
                 : (status === 'approved' ? '<button type="button" class="btn danger" data-egress-decision="revoked" data-egress-id="' + escapeHTML(rule.id || '') + '">Révoquer</button>' : '-');
               return '<tr>' +
                 '<td><strong>' + escapeHTML(project.name || rule.projectId || '-') + '</strong></td>' +
+                '<td>' + badge(subjectType === 'organization' ? 'Organisation' : 'Utilisateur') + '<br/><strong>' + escapeHTML(subjectLabel) + '</strong></td>' +
                 '<td><code>' + escapeHTML(rule.protocol || 'HTTPS') + '://' + escapeHTML(rule.destination || '-') + ':' + escapeHTML(String(rule.port || '-')) + '</code></td>' +
                 '<td>' + badge(rule.profile || '-') + '</td>' +
                 '<td>' + escapeHTML(ensureArray(rule.workloadTypes).join(', ') || '-') + '</td>' +
@@ -5434,7 +5515,7 @@ data:
                 '<td>' + (rule.expiresAt ? formatDateTime(rule.expiresAt) : '-') + '</td>' +
                 '<td>' + actions + '</td>' +
               '</tr>';
-            }).join('') || '<tr><td colspan="8">Aucune demande egress.</td></tr>';
+            }).join('') || '<tr><td colspan="9">Aucune demande egress.</td></tr>';
           }
 
           async function refreshAdminExecutions() {
@@ -5839,6 +5920,42 @@ data:
                 headers:{ 'Content-Type':'application/json' },
                 body:JSON.stringify({ status, note })
               });
+              await refreshAdminEgressRules();
+            } catch (e) { pretty(auditOut, e); }
+          };
+
+          if (egressSubjectTypeInput) {
+            egressSubjectTypeInput.onchange = () => renderEgressFormOptions();
+          }
+
+          createEgressRuleBtn.onclick = async () => {
+            try {
+              const projectId = egressProjectInput.value;
+              const subjectType = egressSubjectTypeInput.value;
+              const subjectId = egressSubjectInput.value;
+              const destination = egressDestinationInput.value.trim().toLowerCase();
+              const port = Number(egressPortInput.value || 443);
+              const justification = egressJustificationInput.value.trim();
+              if (!projectId || !subjectId || !destination || !justification) throw { error:'Projet, scope, destination et justification obligatoires.' };
+              const expiresAt = egressExpiresAtInput.value ? (egressExpiresAtInput.value + 'T23:59:59Z') : null;
+              await callJSON('/api/v1/egress/rules', {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json' },
+                body:JSON.stringify({
+                  projectId,
+                  subjectType,
+                  subjectId,
+                  profile: egressProfileInput.value,
+                  destination,
+                  port,
+                  protocol: egressProtocolInput.value,
+                  workloadTypes: String(egressWorkloadsInput.value || '').split(',').map((v) => v.trim()).filter(Boolean),
+                  justification,
+                  expiresAt
+                })
+              });
+              egressDestinationInput.value = '';
+              egressJustificationInput.value = '';
               await refreshAdminEgressRules();
             } catch (e) { pretty(auditOut, e); }
           };
@@ -6929,7 +7046,7 @@ data:
                 }
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
-                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshAdminEgressRules()]);
+                if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]);
               } catch (e) {
                 pretty(usersOut, e);
                 switchTab('ops');
@@ -7850,7 +7967,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.222"}
+    {"version":"ce-web-0.6.223"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7871,7 +7988,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.222
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.223
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

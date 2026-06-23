@@ -6,12 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 )
 
 type createEgressRuleRequest struct {
 	ProjectID     string     `json:"projectId"`
+	SubjectType   string     `json:"subjectType"`
+	SubjectID     string     `json:"subjectId"`
 	Profile       string     `json:"profile"`
 	Destination   string     `json:"destination"`
 	Port          int        `json:"port"`
@@ -71,6 +74,8 @@ func (h Handlers) CreateEgressRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
+	req.SubjectType = strings.ToLower(strings.TrimSpace(req.SubjectType))
+	req.SubjectID = strings.TrimSpace(req.SubjectID)
 	req.Profile = strings.TrimSpace(req.Profile)
 	req.Destination = strings.TrimSpace(req.Destination)
 	req.Protocol = strings.TrimSpace(req.Protocol)
@@ -94,7 +99,17 @@ func (h Handlers) CreateEgressRule(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProjectMember(w, req.ProjectID, identity.UserID(), "egress request") {
 		return
 	}
-	item := egress.New(req.ProjectID, identity.UserID(), req.Profile, req.Destination, req.Port, req.Protocol, req.WorkloadTypes, req.Justification, req.ExpiresAt)
+	if req.SubjectType == "" {
+		req.SubjectType = "user"
+	}
+	if req.SubjectID == "" {
+		req.SubjectID = identity.UserID()
+	}
+	if !h.canManageEgressSubject(identity, req.SubjectType, req.SubjectID) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient rights for egress subject"})
+		return
+	}
+	item := egress.New(req.ProjectID, identity.UserID(), req.SubjectType, req.SubjectID, req.Profile, req.Destination, req.Port, req.Protocol, req.WorkloadTypes, req.Justification, req.ExpiresAt)
 	if err := h.egressRuleStore.Create(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create egress rule"})
 		return
@@ -160,4 +175,19 @@ func (h Handlers) requireControlledEgress(w http.ResponseWriter) bool {
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "controlled egress is an Enterprise feature"})
 	return false
+}
+
+func (h Handlers) canManageEgressSubject(identity auth.Identity, subjectType, subjectID string) bool {
+	subjectType = strings.ToLower(strings.TrimSpace(subjectType))
+	subjectID = strings.TrimSpace(subjectID)
+	if subjectID == "" {
+		return false
+	}
+	if h.isGlobalAdmin(identity) {
+		return true
+	}
+	if subjectType == "organization" {
+		return h.userBelongsToOrganization(identity.UserID(), subjectID)
+	}
+	return subjectType == "user" && strings.EqualFold(subjectID, identity.UserID())
 }
