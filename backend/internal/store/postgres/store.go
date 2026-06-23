@@ -438,6 +438,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (user_id, key)
 		)`,
+		`CREATE TABLE IF NOT EXISTS rbac_policy (
+			id TEXT PRIMARY KEY,
+			policy_json JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -2061,6 +2067,30 @@ func (s *Store) SetUserPreference(userID, key, value string) error {
 		strings.TrimSpace(value),
 		time.Now().UTC(),
 	)
+	return err
+}
+
+func (s *Store) GetRBACPolicy() (json.RawMessage, bool, error) {
+	var raw []byte
+	err := s.db.QueryRow(`SELECT policy_json FROM rbac_policy WHERE id=$1`, "default").Scan(&raw)
+	if err == sql.ErrNoRows {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return json.RawMessage(raw), true, nil
+}
+
+func (s *Store) SetRBACPolicy(policy json.RawMessage) error {
+	now := time.Now().UTC()
+	_, err := s.db.Exec(`
+		INSERT INTO rbac_policy (id, policy_json, created_at, updated_at)
+		VALUES ($1,$2,$3,$3)
+		ON CONFLICT (id) DO UPDATE SET
+			policy_json=EXCLUDED.policy_json,
+			updated_at=EXCLUDED.updated_at
+	`, "default", []byte(policy), now)
 	return err
 }
 
