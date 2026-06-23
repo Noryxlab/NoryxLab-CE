@@ -233,6 +233,7 @@ func (s *RepositoryStore) Delete(id string) error { return s.Store.DeleteReposit
 type ProjectResourceStore struct{ *Store }
 type ProjectOntologyStore struct{ *Store }
 type UserPreferenceStore struct{ *Store }
+type RBACPolicyStore struct{ *Store }
 
 func (s *ProjectResourceStore) AttachDataset(projectID, datasetID string) error {
 	return s.Store.AttachDataset(projectID, datasetID)
@@ -286,4 +287,11 @@ func (s *UserPreferenceStore) Get(userID, key string) (string, bool, error) {
 }
 func (s *UserPreferenceStore) Set(userID, key, value string) error {
 	return s.Store.SetUserPreference(userID, key, value)
+}
+
+func (s *RBACPolicyStore) Get() (json.RawMessage, bool, error) {
+	return s.Store.GetRBACPolicy()
+}
+func (s *RBACPolicyStore) Set(policy json.RawMessage) error {
+	return s.Store.SetRBACPolicy(policy)
 }
