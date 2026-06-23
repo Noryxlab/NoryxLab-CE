@@ -137,6 +137,11 @@ type Runner interface {
 	DeleteSecret(name string) error
 }
 
+type ControlSecretStore interface {
+	GetControlSecret(name string) (map[string]string, bool, error)
+	UpsertControlSecret(spec SecretSpec) error
+}
+
 type DeploymentStatus struct {
 	Name              string `json:"name"`
 	Replicas          int    `json:"replicas"`

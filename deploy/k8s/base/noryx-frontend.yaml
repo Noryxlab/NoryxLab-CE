@@ -774,6 +774,7 @@ data:
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
               <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
               <button class="tab-btn admin-only" data-tab="govern-rbac"><span class="menu-ico">▦</span><span data-i18n="tab_rbac_matrix">RBAC & organisations</span></button>
+              <button class="tab-btn admin-only" data-tab="govern-backups"><span class="menu-ico">⇧</span><span>Backups</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1733,6 +1734,63 @@ data:
                 </div>
               </section>
 
+              <section class="view" id="view-govern-backups">
+                <div class="grid">
+                  <article class="card span-12 ee-only">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Backups plateforme</h3>
+                        <div class="hint">Configurez la cible S3 externe utilisée pour les sauvegardes plateforme. Les credentials ne sont jamais réaffichés.</div>
+                      </div>
+                      <button id="refreshBackupConfig" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <div class="stats">
+                      <article class="stat"><div class="k">Statut</div><div id="backupConfiguredStatus" class="v">-</div></article>
+                      <article class="stat"><div class="k">Bucket</div><div id="backupBucketStatus" class="v">-</div></article>
+                      <article class="stat"><div class="k">Préfixe</div><div id="backupPrefixStatus" class="v">-</div></article>
+                      <article class="stat"><div class="k">Dernière mise à jour</div><div id="backupUpdatedStatus" class="v">-</div></article>
+                    </div>
+                    <div class="notice">
+                      Première étape: configuration de la cible externe. Le lancement de backup, les rapports et le restore contrôlé seront branchés ensuite sur cette cible.
+                    </div>
+                    <div class="grid">
+                      <div class="span-6">
+                        <label>Endpoint S3 HTTPS</label>
+                        <input id="backupEndpoint" placeholder="https://s3.example.com" />
+                      </div>
+                      <div class="span-3">
+                        <label>Bucket</label>
+                        <input id="backupBucket" placeholder="noryx-backups" />
+                      </div>
+                      <div class="span-3">
+                        <label>Préfixe</label>
+                        <input id="backupPrefix" placeholder="premyom/prod" />
+                      </div>
+                      <div class="span-3">
+                        <label>Région</label>
+                        <input id="backupRegion" placeholder="us-east-1" />
+                      </div>
+                      <div class="span-3">
+                        <label>Access key</label>
+                        <input id="backupAccessKey" autocomplete="off" placeholder="AKIA..." />
+                      </div>
+                      <div class="span-3">
+                        <label>Secret key</label>
+                        <input id="backupSecretKey" type="password" autocomplete="new-password" placeholder="Non affichée après sauvegarde" />
+                      </div>
+                      <div class="span-3">
+                        <label>Clé chiffrement</label>
+                        <input id="backupEncryptionKeyId" autocomplete="off" placeholder="optionnel" />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <button id="saveBackupConfig" type="button" class="btn primary">Enregistrer la cible S3</button>
+                    </div>
+                    <pre id="backupOut">-</pre>
+                  </article>
+                </div>
+              </section>
+
               <section class="view" id="view-ops">
                 <div class="grid">
                   <article class="card span-12">
@@ -2135,6 +2193,20 @@ data:
           const egressJustificationInput = document.getElementById('egressJustification');
           const egressExpiresAtInput = document.getElementById('egressExpiresAt');
           const createEgressRuleBtn = document.getElementById('createEgressRule');
+          const refreshBackupConfigBtn = document.getElementById('refreshBackupConfig');
+          const saveBackupConfigBtn = document.getElementById('saveBackupConfig');
+          const backupConfiguredStatus = document.getElementById('backupConfiguredStatus');
+          const backupBucketStatus = document.getElementById('backupBucketStatus');
+          const backupPrefixStatus = document.getElementById('backupPrefixStatus');
+          const backupUpdatedStatus = document.getElementById('backupUpdatedStatus');
+          const backupEndpointInput = document.getElementById('backupEndpoint');
+          const backupBucketInput = document.getElementById('backupBucket');
+          const backupPrefixInput = document.getElementById('backupPrefix');
+          const backupRegionInput = document.getElementById('backupRegion');
+          const backupAccessKeyInput = document.getElementById('backupAccessKey');
+          const backupSecretKeyInput = document.getElementById('backupSecretKey');
+          const backupEncryptionKeyIdInput = document.getElementById('backupEncryptionKeyId');
+          const backupOut = document.getElementById('backupOut');
           const downloadAuditBtn = document.getElementById('downloadAudit');
           const organizationRequired = document.getElementById('organizationRequired');
           const organizationRequiredLogout = document.getElementById('organizationRequiredLogout');
@@ -2261,6 +2333,7 @@ data:
             environments: document.getElementById('view-environments'),
             'govern-network': document.getElementById('view-govern-network'),
             'govern-rbac': document.getElementById('view-govern-rbac'),
+            'govern-backups': document.getElementById('view-govern-backups'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
           };
@@ -2368,6 +2441,7 @@ data:
             adminDataUsage: {},
             adminEgressRules: [],
             adminRBACMatrix: {},
+            adminBackupConfig: {},
             rbacPolicyRows: [],
             rbacPolicyAssignmentCounts: {},
             organizations: [],
@@ -2585,6 +2659,8 @@ data:
               section_subtitle_govern_network: 'Règles egress, exposition contrôlée et posture sécurité des workloads.',
               section_title_govern_rbac: 'RBAC et organisations',
               section_subtitle_govern_rbac: 'Matrice effective des droits par utilisateur, organisation et ressource.',
+              section_title_govern_backups: 'Backups',
+              section_subtitle_govern_backups: 'Configuration de la cible S3 externe et préparation du restore.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
@@ -2750,6 +2826,8 @@ data:
               section_subtitle_govern_network: 'Egress rules, controlled exposure and workload security posture.',
               section_title_govern_rbac: 'RBAC and organizations',
               section_subtitle_govern_rbac: 'Effective rights matrix by user, organization and resource.',
+              section_title_govern_backups: 'Backups',
+              section_subtitle_govern_backups: 'External S3 target configuration and restore preparation.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observability, modules and users.'
             }
@@ -3018,7 +3096,7 @@ data:
             document.querySelectorAll('.admin-only').forEach((el) => {
               el.style.display = admin ? '' : 'none';
             });
-            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network' || state.activeTab === 'govern-rbac')) {
+            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network' || state.activeTab === 'govern-rbac' || state.activeTab === 'govern-backups')) {
               switchTab('intro');
             }
             if (datasetClassificationInput) datasetClassificationInput.style.display = admin && platformEdition === 'enterprise' ? '' : 'none';
@@ -3094,6 +3172,9 @@ data:
             if (viewTab === 'govern-rbac' && isAdminUser()) {
               Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => pretty(usersOut, e));
             }
+            if (viewTab === 'govern-backups' && isAdminUser()) {
+              refreshBackupConfig().catch((e) => pretty(backupOut || usersOut, e));
+            }
             if (viewTab === 'ops' && isAdminUser()) {
               Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
             }
@@ -3116,6 +3197,7 @@ data:
               workloads: ['section_title_workloads', 'section_subtitle_workloads'],
               'govern-network': ['section_title_govern_network', 'section_subtitle_govern_network'],
               'govern-rbac': ['section_title_govern_rbac', 'section_subtitle_govern_rbac'],
+              'govern-backups': ['section_title_govern_backups', 'section_subtitle_govern_backups'],
               ops: ['section_title_ops', 'section_subtitle_ops']
             };
             const section = sectionI18n[tab] || sectionI18n.intro;
@@ -5767,6 +5849,49 @@ data:
             return body;
           }
 
+          function renderBackupConfig() {
+            const cfg = state.adminBackupConfig || {};
+            if (backupConfiguredStatus) backupConfiguredStatus.textContent = cfg.configured ? 'Configuré' : 'Non configuré';
+            if (backupBucketStatus) backupBucketStatus.textContent = cfg.bucket || '-';
+            if (backupPrefixStatus) backupPrefixStatus.textContent = cfg.prefix || '-';
+            if (backupUpdatedStatus) backupUpdatedStatus.textContent = (cfg.configured && cfg.updatedAt) ? formatDateTime(cfg.updatedAt) : '-';
+            if (backupEndpointInput) backupEndpointInput.value = cfg.endpoint || '';
+            if (backupBucketInput) backupBucketInput.value = cfg.bucket || '';
+            if (backupPrefixInput) backupPrefixInput.value = cfg.prefix || '';
+            if (backupRegionInput) backupRegionInput.value = cfg.region || 'us-east-1';
+            if (backupAccessKeyInput) backupAccessKeyInput.value = '';
+            if (backupSecretKeyInput) backupSecretKeyInput.value = '';
+            if (backupEncryptionKeyIdInput) backupEncryptionKeyIdInput.value = '';
+            if (backupOut) pretty(backupOut, cfg.configured ? { status: 'configured', endpoint: cfg.endpoint, bucket: cfg.bucket, prefix: cfg.prefix, region: cfg.region } : { status: 'not_configured' });
+          }
+
+          async function refreshBackupConfig() {
+            const body = await callJSON('/api/v1/admin/backups/config/status');
+            state.adminBackupConfig = body || {};
+            renderBackupConfig();
+            return state.adminBackupConfig;
+          }
+
+          async function saveBackupConfig() {
+            const payload = {
+              endpoint: backupEndpointInput ? backupEndpointInput.value : '',
+              bucket: backupBucketInput ? backupBucketInput.value : '',
+              prefix: backupPrefixInput ? backupPrefixInput.value : '',
+              region: backupRegionInput ? backupRegionInput.value : '',
+              accessKey: backupAccessKeyInput ? backupAccessKeyInput.value : '',
+              secretKey: backupSecretKeyInput ? backupSecretKeyInput.value : '',
+              encryptionKeyId: backupEncryptionKeyIdInput ? backupEncryptionKeyIdInput.value : ''
+            };
+            const body = await callJSON('/api/v1/admin/backups/config', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            state.adminBackupConfig = body || {};
+            renderBackupConfig();
+            return state.adminBackupConfig;
+          }
+
           async function refreshAdminEgressRules() {
             try {
               const body = await callJSON('/api/v1/admin/egress/rules');
@@ -6187,6 +6312,17 @@ data:
           refreshEgressRulesBtn.onclick = async () => {
             try { await refreshAdminEgressRules(); }
             catch (e) { pretty(auditOut, e); }
+          };
+
+          refreshBackupConfigBtn.onclick = async () => {
+            try { await refreshBackupConfig(); }
+            catch (e) { pretty(backupOut, e); }
+          };
+
+          saveBackupConfigBtn.onclick = async () => {
+            if (!confirm('Enregistrer cette cible S3 externe pour les backups plateforme ?')) return;
+            try { await saveBackupConfig(); }
+            catch (e) { pretty(backupOut, e); }
           };
 
           adminEgressRows.onclick = async (event) => {
@@ -8250,7 +8386,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.231"}
+    {"version":"ce-web-0.6.233"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8271,7 +8407,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.231
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.233
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

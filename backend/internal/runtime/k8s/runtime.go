@@ -3,6 +3,7 @@ package k8s
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -229,6 +230,56 @@ func (r *Runtime) CreateSecret(spec noryxruntime.SecretSpec) error {
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/secrets", r.workloadNamespace), payload)
 	if err != nil && strings.Contains(err.Error(), "status=409") {
 		_, err = r.patch(fmt.Sprintf("/api/v1/namespaces/%s/secrets/%s", r.workloadNamespace, spec.Name), payload)
+	}
+	return err
+}
+
+func (r *Runtime) GetControlSecret(name string) (map[string]string, bool, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, false, fmt.Errorf("secret name is required")
+	}
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/secrets/%s", r.controlNamespace, name))
+	if err != nil {
+		if strings.Contains(err.Error(), "status=404") {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	var response struct {
+		Data map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, false, err
+	}
+	out := map[string]string{}
+	for key, value := range response.Data {
+		decoded, err := base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return nil, false, fmt.Errorf("decode secret key %s: %w", key, err)
+		}
+		out[key] = string(decoded)
+	}
+	return out, true, nil
+}
+
+func (r *Runtime) UpsertControlSecret(spec noryxruntime.SecretSpec) error {
+	if strings.TrimSpace(spec.Name) == "" {
+		return fmt.Errorf("secret name is required")
+	}
+	payload := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata": map[string]any{
+			"name":   spec.Name,
+			"labels": spec.Labels,
+		},
+		"type":       "Opaque",
+		"stringData": spec.Data,
+	}
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/secrets", r.controlNamespace), payload)
+	if err != nil && strings.Contains(err.Error(), "status=409") {
+		_, err = r.patch(fmt.Sprintf("/api/v1/namespaces/%s/secrets/%s", r.controlNamespace, spec.Name), payload)
 	}
 	return err
 }
