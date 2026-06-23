@@ -18,7 +18,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
-          image: harbor.lan/noryx-ce/noryx-backend:0.5.174-dev
+          image: harbor.lan/noryx-ce/noryx-backend:0.5.175-dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -156,7 +156,7 @@ spec:
             - name: NORYX_WORKSPACE_PROFILE_PVC_MOUNT_PATH
               value: "/home/noryx/.noryx-profile"
             - name: NORYX_PROJECT_FILES_IMAGE
-              value: "harbor.lan/noryx-ce/noryx-backend:0.5.174-dev"
+              value: "harbor.lan/noryx-ce/noryx-backend:0.5.175-dev"
 ---
 apiVersion: v1
 kind: Service

@@ -33,6 +33,26 @@ type ontologyScanRequest struct {
 	InferenceProfile string `json:"inferenceProfile"`
 }
 
+type ontologyQueryRequest struct {
+	Object    string `json:"object"`
+	Type      string `json:"type"`
+	Parent    string `json:"parent"`
+	Attribute string `json:"attribute"`
+	Reference string `json:"reference"`
+	Limit     int    `json:"limit"`
+}
+
+type ontologyQueryItem struct {
+	Object     string   `json:"object"`
+	Type       string   `json:"type"`
+	Parent     string   `json:"parent"`
+	Attributes []string `json:"attributes"`
+	References []string `json:"references"`
+	Links      []string `json:"links"`
+	Count      int      `json:"count"`
+	Bytes      int64    `json:"bytes"`
+}
+
 type ontologyManifest struct {
 	ProjectID        string            `json:"projectId"`
 	SourceType       string            `json:"sourceType"`
@@ -153,6 +173,36 @@ func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h Handlers) QueryOntology(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found || (!h.isGlobalAdmin(identity) && h.ontologyRole(item, identity) == "") {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return
+	}
+	var req ontologyQueryRequest
+	if r.Body != nil && r.Body != http.NoBody {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid ontology query"})
+			return
+		}
+	}
+	var manifest ontologyManifest
+	if err := json.Unmarshal(item.Manifest, &manifest); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "stored ontology manifest is invalid"})
+		return
+	}
+	results, total := queryOntologyManifest(manifest, req)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":   results,
+		"count":   total,
+		"limited": len(results) < total,
+	})
 }
 
 func (h Handlers) UpdateOntologyMetadata(w http.ResponseWriter, r *http.Request) {
@@ -659,6 +709,98 @@ func ontologyObjectName(manifest ontologyManifest) string {
 		return strings.TrimSpace(manifest.DatasetName)
 	}
 	return "Catalogue semantique"
+}
+
+func queryOntologyManifest(manifest ontologyManifest, req ontologyQueryRequest) ([]ontologyQueryItem, int) {
+	limit := queryLimit(req.Limit)
+	items := make([]ontologyQueryItem, 0)
+	total := 0
+	for _, subject := range manifest.Subjects {
+		for _, visit := range subject.Visits {
+			for _, modality := range visit.Modalities {
+				item := ontologyManifestQueryItem(manifest, subject, visit, modality)
+				if !ontologyQueryMatches(item, req) {
+					continue
+				}
+				total++
+				if len(items) < limit {
+					items = append(items, item)
+				}
+			}
+		}
+	}
+	return items, total
+}
+
+func ontologyManifestQueryItem(manifest ontologyManifest, subject ontologySubject, visit ontologyVisit, modality ontologyModality) ontologyQueryItem {
+	sourceType := strings.TrimSpace(manifest.SourceType)
+	object := strings.TrimSpace(subject.ID)
+	parent := strings.TrimSpace(visit.Date)
+	typ := strings.TrimSpace(modality.Name)
+	if sourceType == "datasource" {
+		object = firstNonEmpty(manifest.SourceName, manifest.SourceID, modality.Name)
+		parent = firstNonEmpty(manifest.SourceName, manifest.SourceID, subject.ID)
+	}
+	return ontologyQueryItem{
+		Object:     firstNonEmpty(object, "-"),
+		Type:       firstNonEmpty(typ, "object"),
+		Parent:     firstNonEmpty(parent, "-"),
+		Attributes: compactStrings(modality.Formats),
+		References: compactStrings(modality.MeasurementTables),
+		Links:      compactStrings(modality.SamplePaths),
+		Count:      modality.ObjectCount,
+		Bytes:      modality.TotalBytes,
+	}
+}
+
+func ontologyQueryMatches(item ontologyQueryItem, req ontologyQueryRequest) bool {
+	if !queryContains(item.Object, req.Object) && !queryContains(strings.Join([]string{item.Object, item.Type, item.Parent}, " "), req.Object) {
+		return false
+	}
+	if !queryContains(item.Type, req.Type) {
+		return false
+	}
+	if !queryContains(item.Parent, req.Parent) {
+		return false
+	}
+	if !querySliceContains(item.Attributes, req.Attribute) {
+		return false
+	}
+	if !querySliceContains(item.References, req.Reference) {
+		return false
+	}
+	return true
+}
+
+func queryContains(value, needle string) bool {
+	needle = strings.ToLower(strings.TrimSpace(needle))
+	if needle == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(strings.TrimSpace(value)), needle)
+}
+
+func querySliceContains(values []string, needle string) bool {
+	needle = strings.ToLower(strings.TrimSpace(needle))
+	if needle == "" {
+		return true
+	}
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(strings.TrimSpace(value)), needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func queryLimit(limit int) int {
+	if limit <= 0 {
+		return 200
+	}
+	if limit > 1000 {
+		return 1000
+	}
+	return limit
 }
 
 func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {

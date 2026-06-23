@@ -1267,7 +1267,11 @@ data:
                           <h4>Explorer les objets</h4>
                           <p class="muted">Filtrez les objets déduits du manifeste, puis cliquez une ligne pour voir les références associées.</p>
                         </div>
-                        <button id="ontologyExplorerReset" type="button" class="btn">Réinitialiser</button>
+                        <div class="actions">
+                          <button id="ontologyExportJson" type="button" class="btn">Export JSON</button>
+                          <button id="ontologyExportCsv" type="button" class="btn">Export CSV</button>
+                          <button id="ontologyExplorerReset" type="button" class="btn">Réinitialiser</button>
+                        </div>
                       </div>
                       <div class="ontology-filter-grid">
                         <input id="ontologyFilterSubject" placeholder="Objet / identifiant" />
@@ -1834,6 +1838,8 @@ data:
           const ontologyRows = document.getElementById('ontologyRows');
           const ontologyDetailRows = document.getElementById('ontologyDetailRows');
           const ontologyExplorerReset = document.getElementById('ontologyExplorerReset');
+          const ontologyExportJson = document.getElementById('ontologyExportJson');
+          const ontologyExportCsv = document.getElementById('ontologyExportCsv');
           const ontologyFilterSubject = document.getElementById('ontologyFilterSubject');
           const ontologyFilterVisit = document.getElementById('ontologyFilterVisit');
           const ontologyFilterModality = document.getElementById('ontologyFilterModality');
@@ -2207,6 +2213,7 @@ data:
           let datasetMetadataFormDirty = false;
           let selectedOntologyID = '';
           let selectedOntologyExplorerKey = '';
+          let ontologyExplorerResults = [];
           let ontologyMetadataFormOntologyID = '';
           let ontologyMetadataFormDirty = false;
           let projectFilesCurrentPath = '';
@@ -4923,11 +4930,11 @@ data:
             const type = String((ontologyFilterModality && ontologyFilterModality.value) || '').trim();
             const attribute = String((ontologyFilterFormat && ontologyFilterFormat.value) || '').trim();
             const reference = String((ontologyFilterTable && ontologyFilterTable.value) || '').trim();
-            if (objectQuery && !String(row.label || '').toLowerCase().includes(objectQuery) && !String(row.key || '').toLowerCase().includes(objectQuery)) return false;
+            if (objectQuery && !String(row.label || row.object || '').toLowerCase().includes(objectQuery) && !String(row.key || '').toLowerCase().includes(objectQuery)) return false;
             if (parentQuery && !String(row.parent || '').toLowerCase().includes(parentQuery)) return false;
             if (type && row.type !== type) return false;
-            if (attribute && !row.attributes.includes(attribute)) return false;
-            if (reference && !row.references.includes(reference)) return false;
+            if (attribute && !ensureArray(row.attributes).includes(attribute)) return false;
+            if (reference && !ensureArray(row.references).includes(reference)) return false;
             return true;
           }
 
@@ -4955,10 +4962,53 @@ data:
 
           function renderOntologyExplorerRows(rows) {
             if (!ontologyDetailRows) return;
+            if (selectedOntologyID) {
+              queryOntologyExplorerRows(rows);
+              return;
+            }
+            renderOntologyExplorerResultRows(rows.filter(ontologyRowMatches), rows.length, false);
+          }
+
+          async function queryOntologyExplorerRows(fallbackRows) {
+            if (!ontologyDetailRows) return;
             ontologyDetailRows.innerHTML = '';
-            const filtered = rows.filter(ontologyRowMatches);
+            ontologyDetailRows.innerHTML = '<tr><td colspan="7">Recherche en cours...</td></tr>';
+            try {
+              const body = await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID) + '/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  object: String((ontologyFilterSubject && ontologyFilterSubject.value) || '').trim(),
+                  parent: String((ontologyFilterVisit && ontologyFilterVisit.value) || '').trim(),
+                  type: String((ontologyFilterModality && ontologyFilterModality.value) || '').trim(),
+                  attribute: String((ontologyFilterFormat && ontologyFilterFormat.value) || '').trim(),
+                  reference: String((ontologyFilterTable && ontologyFilterTable.value) || '').trim(),
+                  limit: 500
+                })
+              });
+              const items = ensureArray(body && body.items).map((item) => ({
+                key: [item.object, item.parent, item.type].join('|'),
+                label: item.object || '-',
+                type: item.type || 'object',
+                parent: item.parent || '-',
+                attributes: ensureArray(item.attributes).map(String),
+                references: ensureArray(item.references).map(String),
+                links: ensureArray(item.links).map(String),
+                objectCount: Number(item.count || 0),
+                totalBytes: Number(item.bytes || 0)
+              }));
+              renderOntologyExplorerResultRows(items, Number((body && body.count) || items.length), Boolean(body && body.limited));
+            } catch (e) {
+              setProjectResourceStatus(ontologyExplorerStatus, 'API indisponible, affichage local du manifeste.', 'error');
+              renderOntologyExplorerResultRows(ensureArray(fallbackRows).filter(ontologyRowMatches), ensureArray(fallbackRows).length, false);
+            }
+          }
+
+          function renderOntologyExplorerResultRows(filtered, total, limited) {
+            ontologyDetailRows.innerHTML = '';
+            ontologyExplorerResults = ensureArray(filtered);
             if (ontologyExplorerStatus) {
-              ontologyExplorerStatus.textContent = filtered.length + ' ligne(s) sur ' + rows.length + ' objet(s) métier.';
+              ontologyExplorerStatus.textContent = filtered.length + ' ligne(s) affichée(s) sur ' + total + ' objet(s)' + (limited ? ' · résultat limité, affinez les filtres.' : '.');
             }
             if (filtered.length === 0) {
               ontologyDetailRows.innerHTML = '<tr><td colspan="7">Aucun résultat avec ces filtres.</td></tr>';
@@ -4972,13 +5022,13 @@ data:
                 '<td><strong>' + escapeHTML(row.label || '-') + '</strong></td>' +
                 '<td>' + escapeHTML(row.type || '-') + '</td>' +
                 '<td>' + escapeHTML(row.parent || '-') + '</td>' +
-                '<td>' + row.attributes.map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
-                '<td>' + row.references.slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td>' + ensureArray(row.attributes).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
+                '<td>' + ensureArray(row.references).slice(0, 8).map((name) => '<span class="ontology-tag">' + escapeHTML(name) + '</span>').join(' ') + '</td>' +
                 '<td>' + row.objectCount + '</td>' +
                 '<td>' + formatBytes(row.totalBytes) + '</td>';
               tr.onclick = () => {
                 selectedOntologyExplorerKey = row.key;
-                renderOntologyExplorerRows(rows);
+                renderOntologyExplorerResultRows(filtered, total, limited);
                 renderOntologyFilePanel(row);
               };
               ontologyDetailRows.appendChild(tr);
@@ -5004,6 +5054,47 @@ data:
             ontologyFilePanelMeta.textContent = row.objectCount + ' élément(s) · ' + formatBytes(row.totalBytes) + ' · références disponibles dans le manifeste';
             const paths = row.links.length ? row.links : ['Aucune référence détaillée disponible dans le manifeste.'];
             ontologyFileRows.innerHTML = paths.map((path) => '<div class="ontology-file-item">' + escapeHTML(path) + '</div>').join('');
+          }
+
+          function downloadOntologyExplorerExport(format) {
+            const rows = ensureArray(ontologyExplorerResults);
+            if (!rows.length) {
+              setProjectResourceStatus(ontologyExplorerStatus, 'Aucun resultat a exporter.', 'error');
+              return;
+            }
+            const selectedOntology = ensureArray(state.ontologies).find((item) => item.id === selectedOntologyID) || null;
+            const baseName = normalizeSlug((selectedOntology && selectedOntology.name) || 'ontology-query') || 'ontology-query';
+            let blob;
+            let filename;
+            if (format === 'csv') {
+              const header = ['object', 'type', 'parent', 'attributes', 'references', 'links', 'count', 'bytes'];
+              const lines = [header.join(',')].concat(rows.map((row) => [
+                row.label || '',
+                row.type || '',
+                row.parent || '',
+                ensureArray(row.attributes).join('|'),
+                ensureArray(row.references).join('|'),
+                ensureArray(row.links).join('|'),
+                String(row.objectCount || 0),
+                String(row.totalBytes || 0)
+              ].map(csvCell).join(',')));
+              blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+              filename = baseName + '-ontology-query.csv';
+            } else {
+              blob = new Blob([JSON.stringify({ ontologyId: selectedOntologyID, exportedAt: new Date().toISOString(), items: rows }, null, 2)], { type: 'application/json' });
+              filename = baseName + '-ontology-query.json';
+            }
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+          }
+
+          function csvCell(value) {
+            const s = String(value == null ? '' : value);
+            return '"' + s.replace(/"/g, '""') + '"';
           }
 
           function ontologyManifestOf(item) {
@@ -5858,6 +5949,14 @@ data:
               selectedOntologyExplorerKey = '';
               rerenderSelectedOntologyExplorer();
             };
+          }
+
+          if (ontologyExportJson) {
+            ontologyExportJson.onclick = () => downloadOntologyExplorerExport('json');
+          }
+
+          if (ontologyExportCsv) {
+            ontologyExportCsv.onclick = () => downloadOntologyExplorerExport('csv');
           }
 
           if (ontologyRefreshBtn) {
@@ -7457,7 +7556,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.217"}
+    {"version":"ce-web-0.6.218"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7478,7 +7577,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.217
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.218
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
