@@ -755,7 +755,7 @@ data:
             <div class="menu-title" data-i18n="menu_govern">Govern</div>
             <div class="menu">
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
-              <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_access">Accès réseau</span></button>
+              <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1610,8 +1610,8 @@ data:
                   <article class="card span-12 ee-only">
                     <div class="dataset-catalog-header">
                       <div>
-                        <h3>Accès réseau contrôlé</h3>
-                        <div class="hint">Gouvernance EE des demandes egress par utilisateur ou organisation. V1: approbation/audit; enforcement réseau via gateway à brancher ensuite.</div>
+                        <h3>Accès Internet sortant</h3>
+                        <div class="hint">Règles egress par utilisateur ou organisation. V1: approbation/audit; enforcement réseau via gateway à brancher ensuite.</div>
                       </div>
                       <button id="refreshEgressRules" type="button" class="btn">Actualiser</button>
                     </div>
@@ -2357,7 +2357,7 @@ data:
               tab_apis: 'Services API',
               tab_activity: 'Activites',
               tab_admin: 'Administration',
-              tab_network_access: 'Accès réseau',
+              tab_network_security: 'Réseau & sécurité',
               api_reference: 'Reference API',
               title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
@@ -2473,7 +2473,7 @@ data:
               tab_label_environments: 'Environnements',
               tab_label_workloads: 'Activites',
               tab_label_ops: 'Administration',
-              tab_label_govern_network: 'Network access',
+              tab_label_govern_network: 'Network & security',
               section_title_intro: 'Accueil',
               section_subtitle_intro: "Vue d'ensemble de la plateforme et actions rapides.",
               section_title_projects: 'Projets',
@@ -2496,8 +2496,8 @@ data:
               section_subtitle_environments: 'Revisions d images et edition Dockerfile.',
               section_title_workloads: 'Activites',
               section_subtitle_workloads: 'Suivi des workspaces, builds et charges actives.',
-              section_title_govern_network: 'Accès réseau',
-              section_subtitle_govern_network: 'Règles egress, approbations et exceptions Internet contrôlées.',
+              section_title_govern_network: 'Réseau et sécurité',
+              section_subtitle_govern_network: 'Règles egress, exposition contrôlée et posture sécurité des workloads.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
@@ -2518,7 +2518,7 @@ data:
               tab_apis: 'API Services',
               tab_activity: 'Activity',
               tab_admin: 'Administration',
-              tab_network_access: 'Network access',
+              tab_network_security: 'Network & security',
               api_reference: 'API Reference',
               title: 'NoryxLab',
               subtitle: 'Collaborative platform for data teams, from exploration to production.',
@@ -2634,7 +2634,7 @@ data:
               tab_label_environments: 'Environments',
               tab_label_workloads: 'Activity',
               tab_label_ops: 'Administration',
-              tab_label_govern_network: 'Network access',
+              tab_label_govern_network: 'Network & security',
               section_title_intro: 'Home',
               section_subtitle_intro: 'Platform overview and quick actions.',
               section_title_projects: 'Projects',
@@ -2657,8 +2657,8 @@ data:
               section_subtitle_environments: 'Image revisions and Dockerfile editing.',
               section_title_workloads: 'Activity',
               section_subtitle_workloads: 'Track active workspaces, builds and workloads.',
-              section_title_govern_network: 'Network access',
-              section_subtitle_govern_network: 'Egress rules, approvals and controlled Internet exceptions.',
+              section_title_govern_network: 'Network and security',
+              section_subtitle_govern_network: 'Egress rules, controlled exposure and workload security posture.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observability, modules and users.'
             }
@@ -7967,7 +7967,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.223"}
+    {"version":"ce-web-0.6.224"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7988,7 +7988,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.223
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.224
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
