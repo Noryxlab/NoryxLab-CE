@@ -6,6 +6,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/backup"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
@@ -234,6 +235,7 @@ type ProjectResourceStore struct{ *Store }
 type ProjectOntologyStore struct{ *Store }
 type UserPreferenceStore struct{ *Store }
 type RBACPolicyStore struct{ *Store }
+type BackupRunStore struct{ *Store }
 
 func (s *ProjectResourceStore) AttachDataset(projectID, datasetID string) error {
 	return s.Store.AttachDataset(projectID, datasetID)
@@ -294,4 +296,17 @@ func (s *RBACPolicyStore) Get() (json.RawMessage, bool, error) {
 }
 func (s *RBACPolicyStore) Set(policy json.RawMessage) error {
 	return s.Store.SetRBACPolicy(policy)
+}
+
+func (s *BackupRunStore) List() ([]backup.Run, error) {
+	return s.Store.ListBackupRuns()
+}
+func (s *BackupRunStore) GetByID(id string) (backup.Run, bool, error) {
+	return s.Store.GetBackupRunByID(id)
+}
+func (s *BackupRunStore) Create(item backup.Run) error {
+	return s.Store.CreateBackupRun(item)
+}
+func (s *BackupRunStore) Update(item backup.Run) error {
+	return s.Store.UpdateBackupRun(item)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/backup"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
@@ -443,6 +444,18 @@ func (s *Store) migrate(ctx context.Context) error {
 			policy_json JSONB NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS backup_runs (
+			id TEXT PRIMARY KEY,
+			status TEXT NOT NULL,
+			created_by TEXT NOT NULL,
+			bucket TEXT NOT NULL,
+			prefix TEXT NOT NULL,
+			object_key TEXT NOT NULL DEFAULT '',
+			report_json JSONB NOT NULL DEFAULT '{}',
+			error TEXT NOT NULL DEFAULT '',
+			started_at TIMESTAMPTZ NOT NULL,
+			ended_at TIMESTAMPTZ
 		)`,
 	}
 	for _, stmt := range stmts {
@@ -2091,6 +2104,67 @@ func (s *Store) SetRBACPolicy(policy json.RawMessage) error {
 			policy_json=EXCLUDED.policy_json,
 			updated_at=EXCLUDED.updated_at
 	`, "default", []byte(policy), now)
+	return err
+}
+
+func (s *Store) ListBackupRuns() ([]backup.Run, error) {
+	rows, err := s.db.Query(`SELECT id, status, created_by, bucket, prefix, object_key, report_json::text, error, started_at, ended_at FROM backup_runs ORDER BY started_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []backup.Run{}
+	for rows.Next() {
+		var item backup.Run
+		var endedAt sql.NullTime
+		if err := rows.Scan(&item.ID, &item.Status, &item.CreatedBy, &item.Bucket, &item.Prefix, &item.ObjectKey, &item.Report, &item.Error, &item.StartedAt, &endedAt); err != nil {
+			return nil, err
+		}
+		if endedAt.Valid {
+			item.EndedAt = &endedAt.Time
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetBackupRunByID(id string) (backup.Run, bool, error) {
+	var item backup.Run
+	var endedAt sql.NullTime
+	err := s.db.QueryRow(`SELECT id, status, created_by, bucket, prefix, object_key, report_json::text, error, started_at, ended_at FROM backup_runs WHERE id=$1`, strings.TrimSpace(id)).
+		Scan(&item.ID, &item.Status, &item.CreatedBy, &item.Bucket, &item.Prefix, &item.ObjectKey, &item.Report, &item.Error, &item.StartedAt, &endedAt)
+	if err == sql.ErrNoRows {
+		return backup.Run{}, false, nil
+	}
+	if err != nil {
+		return backup.Run{}, false, err
+	}
+	if endedAt.Valid {
+		item.EndedAt = &endedAt.Time
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateBackupRun(item backup.Run) error {
+	report := strings.TrimSpace(item.Report)
+	if report == "" {
+		report = "{}"
+	}
+	_, err := s.db.Exec(`
+		INSERT INTO backup_runs (id, status, created_by, bucket, prefix, object_key, report_json, error, started_at, ended_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10)
+	`, item.ID, item.Status, item.CreatedBy, item.Bucket, item.Prefix, item.ObjectKey, report, item.Error, item.StartedAt, item.EndedAt)
+	return err
+}
+
+func (s *Store) UpdateBackupRun(item backup.Run) error {
+	report := strings.TrimSpace(item.Report)
+	if report == "" {
+		report = "{}"
+	}
+	_, err := s.db.Exec(`
+		UPDATE backup_runs SET status=$2, object_key=$3, report_json=$4::jsonb, error=$5, ended_at=$6 WHERE id=$1
+	`, item.ID, item.Status, item.ObjectKey, report, item.Error, item.EndedAt)
 	return err
 }
 
