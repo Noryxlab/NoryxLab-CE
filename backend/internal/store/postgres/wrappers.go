@@ -9,6 +9,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
@@ -102,10 +103,27 @@ func (s *SessionStore) Get(token string) (session.Session, bool, error) {
 func (s *SessionStore) Delete(token string) error { return s.Store.DeleteSession(token) }
 
 type AuditStore struct{ *Store }
+type EgressRuleStore struct{ *Store }
 
 func (s *AuditStore) Create(event audit.Event) error { return s.Store.CreateAuditEvent(event) }
 func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 	return s.Store.ListAuditEvents(filter)
+}
+
+func (s *EgressRuleStore) List() ([]egress.Rule, error) {
+	return s.Store.ListEgressRules()
+}
+func (s *EgressRuleStore) ListByProject(projectID string) ([]egress.Rule, error) {
+	return s.Store.ListEgressRulesByProject(projectID)
+}
+func (s *EgressRuleStore) GetByID(id string) (egress.Rule, bool, error) {
+	return s.Store.GetEgressRuleByID(id)
+}
+func (s *EgressRuleStore) Create(item egress.Rule) error {
+	return s.Store.CreateEgressRule(item)
+}
+func (s *EgressRuleStore) UpdateDecision(id, status, reviewerID, note string) error {
+	return s.Store.UpdateEgressRuleDecision(id, status, reviewerID, note)
 }
 
 type SecretStore struct{ *Store }

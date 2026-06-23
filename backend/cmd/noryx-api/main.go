@@ -30,6 +30,7 @@ func main() {
 	var workspaceStore store.WorkspaceStore = memory.NewWorkspaceStore()
 	var sessionStore store.SessionStore = memory.NewSessionStore()
 	var auditStore store.AuditStore = memory.NewAuditStore()
+	var egressRuleStore store.EgressRuleStore = memory.NewEgressRuleStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
@@ -63,6 +64,7 @@ func main() {
 			workspaceStore = &postgres.WorkspaceStore{Store: pg}
 			sessionStore = &postgres.SessionStore{Store: pg}
 			auditStore = &postgres.AuditStore{Store: pg}
+			egressRuleStore = &postgres.EgressRuleStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
@@ -132,6 +134,7 @@ func main() {
 		workspaceStore,
 		sessionStore,
 		auditStore,
+		egressRuleStore,
 		accessStore,
 		secretStore,
 		datasetStore,
