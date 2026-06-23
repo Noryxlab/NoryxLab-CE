@@ -1280,6 +1280,11 @@ data:
                         <select id="ontologyFilterFormat"><option value="">Tous attributs</option></select>
                         <select id="ontologyFilterTable"><option value="">Toutes références</option></select>
                       </div>
+                      <div class="row">
+                        <input id="ontologyAskInput" style="min-width:360px;flex:1" placeholder="Posez une question simple (ex: sujets avec ANTERION et Cornea_Basics)" />
+                        <button id="ontologyAskBtn" type="button" class="btn primary">Interroger</button>
+                      </div>
+                      <div id="ontologyAskStatus" class="hint"></div>
                       <div id="ontologyExplorerStatus" class="hint"></div>
                       <table>
                         <thead><tr><th>Objet</th><th>Type</th><th>Parent</th><th>Attributs</th><th>Références</th><th>Quantité</th><th>Taille</th></tr></thead>
@@ -1845,6 +1850,9 @@ data:
           const ontologyFilterModality = document.getElementById('ontologyFilterModality');
           const ontologyFilterFormat = document.getElementById('ontologyFilterFormat');
           const ontologyFilterTable = document.getElementById('ontologyFilterTable');
+          const ontologyAskInput = document.getElementById('ontologyAskInput');
+          const ontologyAskBtn = document.getElementById('ontologyAskBtn');
+          const ontologyAskStatus = document.getElementById('ontologyAskStatus');
           const ontologyExplorerStatus = document.getElementById('ontologyExplorerStatus');
           const ontologyFilePanel = document.getElementById('ontologyFilePanel');
           const ontologyFilePanelTitle = document.getElementById('ontologyFilePanelTitle');
@@ -5097,6 +5105,66 @@ data:
             return '"' + s.replace(/"/g, '""') + '"';
           }
 
+          function parseOntologyQuestion(question) {
+            const text = String(question || '').trim();
+            const normalized = normalizeQuestionText(text);
+            const type = findQuestionVocabularyMatch(normalized, ontologyFilterModality);
+            const attribute = findQuestionVocabularyMatch(normalized, ontologyFilterFormat);
+            const reference = findQuestionVocabularyMatch(normalized, ontologyFilterTable);
+            const objectMatch = text.match(/[A-Za-z0-9]+-[0-9]{3,4}/);
+            const dateMatch = text.match(/\b[0-9]{8}\b/);
+            return {
+              object: objectMatch ? objectMatch[0] : '',
+              parent: dateMatch ? dateMatch[0] : '',
+              type,
+              attribute,
+              reference
+            };
+          }
+
+          function normalizeQuestionText(value) {
+            return String(value == null ? '' : value)
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase();
+          }
+
+          function findQuestionVocabularyMatch(normalizedQuestion, selectNode) {
+            const options = Array.from((selectNode && selectNode.options) || [])
+              .map((option) => String(option.value || '').trim())
+              .filter(Boolean)
+              .sort((a, b) => b.length - a.length);
+            for (const value of options) {
+              const normalizedValue = normalizeQuestionText(value);
+              if (normalizedValue && normalizedQuestion.includes(normalizedValue)) return value;
+            }
+            return '';
+          }
+
+          function applyOntologyQuestion() {
+            const question = String((ontologyAskInput && ontologyAskInput.value) || '').trim();
+            if (!question) {
+              setProjectResourceStatus(ontologyAskStatus, 'Saisissez une question.', 'error');
+              return;
+            }
+            const filters = parseOntologyQuestion(question);
+            ontologyFilterSubject.value = filters.object;
+            ontologyFilterVisit.value = filters.parent;
+            ontologyFilterModality.value = filters.type;
+            ontologyFilterFormat.value = filters.attribute;
+            ontologyFilterTable.value = filters.reference;
+            selectedOntologyExplorerKey = '';
+            const mapped = [
+              filters.object ? 'objet=' + filters.object : '',
+              filters.parent ? 'parent=' + filters.parent : '',
+              filters.type ? 'type=' + filters.type : '',
+              filters.attribute ? 'attribut=' + filters.attribute : '',
+              filters.reference ? 'référence=' + filters.reference : ''
+            ].filter(Boolean);
+            setProjectResourceStatus(ontologyAskStatus, mapped.length ? 'Question traduite en filtres : ' + mapped.join(' · ') : 'Aucun filtre reconnu. Résultat large.', 'success');
+            rerenderSelectedOntologyExplorer();
+          }
+
           function ontologyManifestOf(item) {
             if (!item) return {};
             if (item.manifest && typeof item.manifest === 'object') return item.manifest;
@@ -5946,8 +6014,23 @@ data:
               [ontologyFilterSubject, ontologyFilterVisit, ontologyFilterModality, ontologyFilterFormat, ontologyFilterTable].forEach((node) => {
                 if (node) node.value = '';
               });
+              if (ontologyAskInput) ontologyAskInput.value = '';
+              if (ontologyAskStatus) ontologyAskStatus.textContent = '';
               selectedOntologyExplorerKey = '';
               rerenderSelectedOntologyExplorer();
+            };
+          }
+
+          if (ontologyAskBtn) {
+            ontologyAskBtn.onclick = () => applyOntologyQuestion();
+          }
+
+          if (ontologyAskInput) {
+            ontologyAskInput.onkeydown = (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                applyOntologyQuestion();
+              }
             };
           }
 
@@ -7556,7 +7639,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.218"}
+    {"version":"ce-web-0.6.219"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7577,7 +7660,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.218
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.219
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
