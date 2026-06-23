@@ -257,6 +257,8 @@ func (s *Store) migrate(ctx context.Context) error {
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
 			requester_id TEXT NOT NULL,
+			subject_type TEXT NOT NULL DEFAULT 'user',
+			subject_id TEXT NOT NULL DEFAULT '',
 			profile TEXT NOT NULL,
 			destination TEXT NOT NULL,
 			port INTEGER NOT NULL,
@@ -270,7 +272,11 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE egress_rules ADD COLUMN IF NOT EXISTS subject_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE egress_rules ADD COLUMN IF NOT EXISTS subject_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE egress_rules SET subject_id=requester_id WHERE subject_id=''`,
 		`CREATE INDEX IF NOT EXISTS idx_egress_rules_project ON egress_rules (project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_egress_rules_subject ON egress_rules (subject_type, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_egress_rules_status ON egress_rules (status)`,
 		`CREATE TABLE IF NOT EXISTS user_secrets (
 			id TEXT NOT NULL,
@@ -1256,7 +1262,7 @@ func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, err
 }
 
 func (s *Store) ListEgressRules() ([]egress.Rule, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1265,7 +1271,7 @@ func (s *Store) ListEgressRules() ([]egress.Rule, error) {
 }
 
 func (s *Store) ListEgressRulesByProject(projectID string) ([]egress.Rule, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE project_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(projectID))
+	rows, err := s.db.Query(`SELECT id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE project_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(projectID))
 	if err != nil {
 		return nil, err
 	}
@@ -1274,7 +1280,7 @@ func (s *Store) ListEgressRulesByProject(projectID string) ([]egress.Rule, error
 }
 
 func (s *Store) GetEgressRuleByID(id string) (egress.Rule, bool, error) {
-	row := s.db.QueryRow(`SELECT id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE id=$1`, strings.TrimSpace(id))
+	row := s.db.QueryRow(`SELECT id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at FROM egress_rules WHERE id=$1`, strings.TrimSpace(id))
 	item, err := scanEgressRule(row)
 	if err == sql.ErrNoRows {
 		return egress.Rule{}, false, nil
@@ -1287,8 +1293,8 @@ func (s *Store) GetEgressRuleByID(id string) (egress.Rule, bool, error) {
 
 func (s *Store) CreateEgressRule(item egress.Rule) error {
 	workloadTypesJSON, _ := json.Marshal(item.WorkloadTypes)
-	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-		item.ID, item.ProjectID, item.RequesterID, item.Profile, item.Destination, item.Port, item.Protocol, workloadTypesJSON, item.Justification, item.Status, item.ReviewerID, item.DecisionNote, item.ExpiresAt, item.CreatedAt, item.UpdatedAt,
+	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+		item.ID, item.ProjectID, item.RequesterID, item.SubjectType, item.SubjectID, item.Profile, item.Destination, item.Port, item.Protocol, workloadTypesJSON, item.Justification, item.Status, item.ReviewerID, item.DecisionNote, item.ExpiresAt, item.CreatedAt, item.UpdatedAt,
 	)
 	return err
 }
@@ -1323,7 +1329,7 @@ func scanEgressRules(rows *sql.Rows) ([]egress.Rule, error) {
 func scanEgressRule(scanner egressRuleScanner) (egress.Rule, error) {
 	var item egress.Rule
 	var workloadTypesJSON []byte
-	err := scanner.Scan(&item.ID, &item.ProjectID, &item.RequesterID, &item.Profile, &item.Destination, &item.Port, &item.Protocol, &workloadTypesJSON, &item.Justification, &item.Status, &item.ReviewerID, &item.DecisionNote, &item.ExpiresAt, &item.CreatedAt, &item.UpdatedAt)
+	err := scanner.Scan(&item.ID, &item.ProjectID, &item.RequesterID, &item.SubjectType, &item.SubjectID, &item.Profile, &item.Destination, &item.Port, &item.Protocol, &workloadTypesJSON, &item.Justification, &item.Status, &item.ReviewerID, &item.DecisionNote, &item.ExpiresAt, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return egress.Rule{}, err
 	}
