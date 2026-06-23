@@ -756,6 +756,7 @@ data:
             <div class="menu">
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
               <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
+              <button class="tab-btn admin-only" data-tab="govern-rbac"><span class="menu-ico">▦</span><span data-i18n="tab_rbac_matrix">RBAC & organisations</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1649,6 +1650,48 @@ data:
                 </div>
               </section>
 
+              <section class="view" id="view-govern-rbac">
+                <div class="grid">
+                  <article class="card span-12">
+                    <div class="dataset-catalog-header">
+                      <div>
+                        <h3>Matrice RBAC</h3>
+                        <div class="hint">Vue effective des droits par utilisateur, organisation et ressource. Les accès hérités via organisation ou projet sont explicitement marqués.</div>
+                      </div>
+                      <div class="row">
+                        <button id="refreshRBACMatrix" type="button" class="btn">Actualiser</button>
+                        <button id="downloadRBACMatrix" type="button" class="btn primary">Exporter CSV</button>
+                      </div>
+                    </div>
+                    <div class="stats">
+                      <div class="stat"><div class="k">Utilisateurs</div><div id="rbacUsersCount" class="v">0</div></div>
+                      <div class="stat"><div class="k">Organisations</div><div id="rbacOrganizationsCount" class="v">0</div></div>
+                      <div class="stat"><div class="k">Ressources</div><div id="rbacResourcesCount" class="v">0</div></div>
+                      <div class="stat"><div class="k">Droits</div><div id="rbacGrantsCount" class="v">0</div></div>
+                    </div>
+                    <div class="row">
+                      <input id="rbacSearch" placeholder="Filtrer par sujet, ressource, rôle..." />
+                      <select id="rbacResourceType">
+                        <option value="">Toutes les ressources</option>
+                        <option value="project">Projets</option>
+                        <option value="dataset">Datasets</option>
+                        <option value="ontology">Ontologies</option>
+                        <option value="datasource">Datasources</option>
+                      </select>
+                      <select id="rbacSubjectType">
+                        <option value="">Tous les sujets</option>
+                        <option value="user">Utilisateurs</option>
+                        <option value="organization">Organisations</option>
+                      </select>
+                    </div>
+                    <table>
+                      <thead><tr><th>Sujet</th><th>Ressource</th><th>Rôle</th><th>Source</th><th>Owner</th><th>Classe</th></tr></thead>
+                      <tbody id="rbacMatrixRows"></tbody>
+                    </table>
+                  </article>
+                </div>
+              </section>
+
               <section class="view" id="view-workloads">
                 <div class="grid">
                   <article class="card span-8">
@@ -2037,6 +2080,16 @@ data:
           const adminDatasetRows = document.getElementById('adminDatasetRows');
           const refreshDataUsageBtn = document.getElementById('refreshDataUsage');
           const downloadDataUsageBtn = document.getElementById('downloadDataUsage');
+          const refreshRBACMatrixBtn = document.getElementById('refreshRBACMatrix');
+          const downloadRBACMatrixBtn = document.getElementById('downloadRBACMatrix');
+          const rbacUsersCount = document.getElementById('rbacUsersCount');
+          const rbacOrganizationsCount = document.getElementById('rbacOrganizationsCount');
+          const rbacResourcesCount = document.getElementById('rbacResourcesCount');
+          const rbacGrantsCount = document.getElementById('rbacGrantsCount');
+          const rbacSearchInput = document.getElementById('rbacSearch');
+          const rbacResourceTypeInput = document.getElementById('rbacResourceType');
+          const rbacSubjectTypeInput = document.getElementById('rbacSubjectType');
+          const rbacMatrixRows = document.getElementById('rbacMatrixRows');
           const usageDatasetsCount = document.getElementById('usageDatasetsCount');
           const usageHDSCount = document.getElementById('usageHDSCount');
           const usageUsersCount = document.getElementById('usageUsersCount');
@@ -2181,6 +2234,7 @@ data:
             production: document.getElementById('view-production'),
             environments: document.getElementById('view-environments'),
             'govern-network': document.getElementById('view-govern-network'),
+            'govern-rbac': document.getElementById('view-govern-rbac'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
           };
@@ -2287,6 +2341,7 @@ data:
             adminInventory: {},
             adminDataUsage: {},
             adminEgressRules: [],
+            adminRBACMatrix: {},
             organizations: [],
             organizationMembers: [],
             platformOverview: {},
@@ -2358,6 +2413,7 @@ data:
               tab_activity: 'Activites',
               tab_admin: 'Administration',
               tab_network_security: 'Réseau & sécurité',
+              tab_rbac_matrix: 'RBAC & organisations',
               api_reference: 'Reference API',
               title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
@@ -2474,6 +2530,7 @@ data:
               tab_label_workloads: 'Activites',
               tab_label_ops: 'Administration',
               tab_label_govern_network: 'Network & security',
+              tab_label_govern_rbac: 'RBAC & organisations',
               section_title_intro: 'Accueil',
               section_subtitle_intro: "Vue d'ensemble de la plateforme et actions rapides.",
               section_title_projects: 'Projets',
@@ -2498,6 +2555,8 @@ data:
               section_subtitle_workloads: 'Suivi des workspaces, builds et charges actives.',
               section_title_govern_network: 'Réseau et sécurité',
               section_subtitle_govern_network: 'Règles egress, exposition contrôlée et posture sécurité des workloads.',
+              section_title_govern_rbac: 'RBAC et organisations',
+              section_subtitle_govern_rbac: 'Matrice effective des droits par utilisateur, organisation et ressource.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
@@ -2519,6 +2578,7 @@ data:
               tab_activity: 'Activity',
               tab_admin: 'Administration',
               tab_network_security: 'Network & security',
+              tab_rbac_matrix: 'RBAC & organizations',
               api_reference: 'API Reference',
               title: 'NoryxLab',
               subtitle: 'Collaborative platform for data teams, from exploration to production.',
@@ -2635,6 +2695,7 @@ data:
               tab_label_workloads: 'Activity',
               tab_label_ops: 'Administration',
               tab_label_govern_network: 'Network & security',
+              tab_label_govern_rbac: 'RBAC & organizations',
               section_title_intro: 'Home',
               section_subtitle_intro: 'Platform overview and quick actions.',
               section_title_projects: 'Projects',
@@ -2659,6 +2720,8 @@ data:
               section_subtitle_workloads: 'Track active workspaces, builds and workloads.',
               section_title_govern_network: 'Network and security',
               section_subtitle_govern_network: 'Egress rules, controlled exposure and workload security posture.',
+              section_title_govern_rbac: 'RBAC and organizations',
+              section_subtitle_govern_rbac: 'Effective rights matrix by user, organization and resource.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observability, modules and users.'
             }
@@ -2927,7 +2990,7 @@ data:
             document.querySelectorAll('.admin-only').forEach((el) => {
               el.style.display = admin ? '' : 'none';
             });
-            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network')) {
+            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network' || state.activeTab === 'govern-rbac')) {
               switchTab('intro');
             }
             if (datasetClassificationInput) datasetClassificationInput.style.display = admin && platformEdition === 'enterprise' ? '' : 'none';
@@ -3000,6 +3063,9 @@ data:
             if (viewTab === 'govern-network' && isAdminUser()) {
               Promise.all([refreshAdminInventory(), refreshOrganizations(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
             }
+            if (viewTab === 'govern-rbac' && isAdminUser()) {
+              refreshRBACMatrix().catch((e) => pretty(usersOut, e));
+            }
             if (viewTab === 'ops' && isAdminUser()) {
               Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
             }
@@ -3021,6 +3087,7 @@ data:
               environments: ['section_title_environments', 'section_subtitle_environments'],
               workloads: ['section_title_workloads', 'section_subtitle_workloads'],
               'govern-network': ['section_title_govern_network', 'section_subtitle_govern_network'],
+              'govern-rbac': ['section_title_govern_rbac', 'section_subtitle_govern_rbac'],
               ops: ['section_title_ops', 'section_subtitle_ops']
             };
             const section = sectionI18n[tab] || sectionI18n.intro;
@@ -4558,6 +4625,44 @@ data:
             }).join('') || '<tr><td colspan="4">Aucune relation de donnees.</td></tr>';
           }
 
+          function renderRBACMatrix() {
+            const report = state.adminRBACMatrix || {};
+            const summary = report.summary || {};
+            const resources = ensureArray(report.resources);
+            const resourceByKey = new Map(resources.map((resource) => [String(resource.type || '') + ':' + String(resource.id || ''), resource]));
+            if (rbacUsersCount) rbacUsersCount.textContent = String(summary.users || 0);
+            if (rbacOrganizationsCount) rbacOrganizationsCount.textContent = String(summary.organizations || 0);
+            if (rbacResourcesCount) rbacResourcesCount.textContent = String(resources.length || ((summary.projects || 0) + (summary.datasets || 0) + (summary.ontologies || 0) + (summary.datasources || 0)));
+            if (rbacGrantsCount) rbacGrantsCount.textContent = String(summary.grants || 0);
+            const query = String((rbacSearchInput && rbacSearchInput.value) || '').trim().toLowerCase();
+            const resourceType = String((rbacResourceTypeInput && rbacResourceTypeInput.value) || '').trim().toLowerCase();
+            const subjectType = String((rbacSubjectTypeInput && rbacSubjectTypeInput.value) || '').trim().toLowerCase();
+            const rows = ensureArray(report.cells).filter((cell) => {
+              if (resourceType && String(cell.resourceType || '').toLowerCase() !== resourceType) return false;
+              if (subjectType && String(cell.subjectType || '').toLowerCase() !== subjectType) return false;
+              if (!query) return true;
+              const haystack = [
+                cell.subjectName, cell.subjectId, cell.subjectType, cell.resourceName,
+                cell.resourceId, cell.resourceType, cell.role, cell.source
+              ].join(' ').toLowerCase();
+              return haystack.includes(query);
+            }).slice(0, 300);
+            rbacMatrixRows.innerHTML = rows.map((cell) => {
+              const resource = resourceByKey.get(String(cell.resourceType || '') + ':' + String(cell.resourceId || '')) || {};
+              const inherited = cell.inherited ? badge('hérité') : badge('direct');
+              const owner = resource.ownerName || ownerLabel(resource.ownerType, resource.ownerId);
+              const cls = resource.classification || resource.source || '-';
+              return '<tr>' +
+                '<td><strong>' + escapeHTML(cell.subjectName || cell.subjectId || '-') + '</strong><br/>' + badge(cell.subjectType || '-') + '</td>' +
+                '<td><strong>' + escapeHTML(cell.resourceName || cell.resourceId || '-') + '</strong><br/>' + badge(cell.resourceType || '-') + '</td>' +
+                '<td>' + badge(cell.role || '-') + '</td>' +
+                '<td>' + inherited + '<br/><span class="hint">' + escapeHTML(cell.source || '-') + '</span></td>' +
+                '<td>' + escapeHTML(owner || '-') + '</td>' +
+                '<td>' + escapeHTML(cls || '-') + '</td>' +
+              '</tr>';
+            }).join('') || '<tr><td colspan="6">Aucun droit correspondant.</td></tr>';
+          }
+
           function renderDataUsageSVG(nodes, edges) {
             if (nodes.length === 0) return '<svg viewBox="0 0 1000 360"><text x="40" y="60" class="usage-label">Aucune donnee de cartographie.</text></svg>';
             const order = ['organization', 'user', 'project', 'workload', 'dataset'];
@@ -5557,6 +5662,12 @@ data:
             return state.adminDataUsage;
           }
 
+          async function refreshRBACMatrix() {
+            state.adminRBACMatrix = await callJSON('/api/v1/admin/rbac-matrix');
+            renderRBACMatrix();
+            return state.adminRBACMatrix;
+          }
+
           async function refreshAdminEgressRules() {
             try {
               const body = await callJSON('/api/v1/admin/egress/rules');
@@ -5900,6 +6011,20 @@ data:
           downloadDataUsageBtn.onclick = async () => {
             await downloadAdminCSV('/api/v1/admin/data-usage.csv', 'noryx-data-usage.csv', downloadDataUsageBtn);
           };
+
+          refreshRBACMatrixBtn.onclick = async () => {
+            try { await refreshRBACMatrix(); }
+            catch (e) { pretty(auditOut, e); }
+          };
+
+          downloadRBACMatrixBtn.onclick = async () => {
+            await downloadAdminCSV('/api/v1/admin/rbac-matrix.csv', 'noryx-rbac-matrix.csv', downloadRBACMatrixBtn);
+          };
+
+          [rbacSearchInput, rbacResourceTypeInput, rbacSubjectTypeInput].forEach((node) => {
+            if (node) node.oninput = () => renderRBACMatrix();
+            if (node) node.onchange = () => renderRBACMatrix();
+          });
 
           refreshEgressRulesBtn.onclick = async () => {
             try { await refreshAdminEgressRules(); }
@@ -7967,7 +8092,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.225"}
+    {"version":"ce-web-0.6.226"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7988,7 +8113,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.225
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.226
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

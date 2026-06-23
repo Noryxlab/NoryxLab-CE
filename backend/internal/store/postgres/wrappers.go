@@ -200,6 +200,9 @@ type DatasourceStore struct{ *Store }
 func (s *DatasourceStore) ListByUser(userID string) ([]datasource.Datasource, error) {
 	return s.Store.ListDatasourcesByUser(userID)
 }
+func (s *DatasourceStore) ListAll() ([]datasource.Datasource, error) {
+	return s.Store.ListAllDatasources()
+}
 func (s *DatasourceStore) GetByID(id string) (datasource.Datasource, bool, error) {
 	return s.Store.GetDatasourceByID(id)
 }
