@@ -2369,6 +2369,7 @@ data:
             adminEgressRules: [],
             adminRBACMatrix: {},
             rbacPolicyRows: [],
+            rbacPolicyAssignmentCounts: {},
             organizations: [],
             organizationMembers: [],
             platformOverview: {},
@@ -3091,7 +3092,7 @@ data:
               Promise.all([refreshAdminInventory(), refreshOrganizations(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'govern-rbac' && isAdminUser()) {
-              refreshRBACMatrix().catch((e) => pretty(usersOut, e));
+              Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
               Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
@@ -4652,7 +4653,6 @@ data:
             }).join('') || '<tr><td colspan="4">Aucune relation de donnees.</td></tr>';
           }
 
-          const RBAC_POLICY_KEY = 'noryx.rbac.policy.v1';
           const RBAC_COLUMNS = [
             { key: 'project', label: 'Projets' },
             { key: 'dataset', label: 'Datasets' },
@@ -4681,19 +4681,20 @@ data:
             return DEFAULT_RBAC_POLICY_ROWS.map((row) => ({ ...row }));
           }
 
-          function loadRBACPolicyRows() {
-            try {
-              const raw = JSON.parse(localStorage.getItem(RBAC_POLICY_KEY) || '[]');
-              if (Array.isArray(raw) && raw.length) return raw;
-            } catch (_) {}
-            return defaultRBACPolicyRows();
-          }
-
-          function saveRBACPolicyRows() {
-            try { localStorage.setItem(RBAC_POLICY_KEY, JSON.stringify(state.rbacPolicyRows || [])); } catch (_) {}
+          function applyRBACPolicyResponse(body) {
+            state.rbacPolicyRows = ensureArray(body && body.rows);
+            state.rbacPolicyAssignmentCounts = (body && body.assignmentCounts) || {};
+            if (!state.rbacPolicyRows.length) state.rbacPolicyRows = defaultRBACPolicyRows();
           }
 
           function assignedRoleCounts() {
+            if (state.rbacPolicyAssignmentCounts && Object.keys(state.rbacPolicyAssignmentCounts).length) {
+              const counts = new Map();
+              Object.entries(state.rbacPolicyAssignmentCounts).forEach(([role, count]) => {
+                counts.set(role, { size: Number(count || 0) });
+              });
+              return counts;
+            }
             const counts = new Map();
             ensureArray((state.adminRBACMatrix || {}).cells).forEach((cell) => {
               const role = slugRoleName(cell.role || '');
@@ -4716,7 +4717,7 @@ data:
             const query = String((rbacSearchInput && rbacSearchInput.value) || '').trim().toLowerCase();
             const resourceType = String((rbacResourceTypeInput && rbacResourceTypeInput.value) || '').trim().toLowerCase();
             const columns = RBAC_COLUMNS.filter((column) => !resourceType || column.key === resourceType);
-            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = loadRBACPolicyRows();
+            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = defaultRBACPolicyRows();
             const roleCounts = assignedRoleCounts();
             const policyRows = ensureArray(state.rbacPolicyRows).filter((row) => {
               if (!query) return true;
@@ -5748,6 +5749,24 @@ data:
             return state.adminRBACMatrix;
           }
 
+          async function refreshRBACPolicy() {
+            const body = await callJSON('/api/v1/admin/rbac-policy');
+            applyRBACPolicyResponse(body);
+            renderRBACMatrix();
+            return body;
+          }
+
+          async function saveRBACPolicyRows(rows) {
+            const body = await callJSON('/api/v1/admin/rbac-policy', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ rows: ensureArray(rows) })
+            });
+            applyRBACPolicyResponse(body);
+            renderRBACMatrix();
+            return body;
+          }
+
           async function refreshAdminEgressRules() {
             try {
               const body = await callJSON('/api/v1/admin/egress/rules');
@@ -6093,7 +6112,7 @@ data:
           };
 
           refreshRBACMatrixBtn.onclick = async () => {
-            try { await refreshRBACMatrix(); }
+            try { await Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]); }
             catch (e) { pretty(auditOut, e); }
           };
 
@@ -6106,46 +6125,50 @@ data:
             if (node) node.onchange = () => renderRBACMatrix();
           });
 
-          addRBACRoleBtn.onclick = () => {
+          addRBACRoleBtn.onclick = async () => {
             const name = String((rbacNewRoleNameInput && rbacNewRoleNameInput.value) || '').trim();
             const key = slugRoleName(name);
             if (!name || !key) {
               pretty(auditOut, { error: 'Nom de rôle requis.' });
               return;
             }
-            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = loadRBACPolicyRows();
+            if (!state.rbacPolicyRows || state.rbacPolicyRows.length === 0) state.rbacPolicyRows = defaultRBACPolicyRows();
             if (state.rbacPolicyRows.some((row) => row.key === key)) {
               pretty(auditOut, { error: 'Ce rôle existe déjà.' });
               return;
             }
             const row = { role: name, key, locked: false, description: 'Rôle personnalisé.' };
             RBAC_COLUMNS.forEach((column) => row[column.key] = '-');
-            state.rbacPolicyRows.push(row);
-            saveRBACPolicyRows();
-            if (rbacNewRoleNameInput) rbacNewRoleNameInput.value = '';
-            renderRBACMatrix();
+            try {
+              await saveRBACPolicyRows(ensureArray(state.rbacPolicyRows).concat([row]));
+              if (rbacNewRoleNameInput) rbacNewRoleNameInput.value = '';
+            } catch (e) { pretty(auditOut, e); }
           };
 
-          resetRBACPolicyBtn.onclick = () => {
+          resetRBACPolicyBtn.onclick = async () => {
             if (!confirm('Réinitialiser la matrice RBAC aux rôles standards ?')) return;
-            state.rbacPolicyRows = defaultRBACPolicyRows();
-            saveRBACPolicyRows();
-            renderRBACMatrix();
+            try { await saveRBACPolicyRows(defaultRBACPolicyRows()); }
+            catch (e) { pretty(auditOut, e); }
           };
 
-          rbacMatrixRows.onchange = (event) => {
+          rbacMatrixRows.onchange = async (event) => {
             const select = event.target && event.target.closest ? event.target.closest('[data-rbac-permission-role]') : null;
             if (!select) return;
             const roleKey = select.getAttribute('data-rbac-permission-role');
             const resourceKey = select.getAttribute('data-rbac-permission-resource');
             const row = ensureArray(state.rbacPolicyRows).find((item) => item.key === roleKey);
             if (!row || !resourceKey) return;
+            const previous = row[resourceKey] || '-';
             row[resourceKey] = select.value || '-';
-            saveRBACPolicyRows();
-            renderRBACMatrix();
+            try { await saveRBACPolicyRows(state.rbacPolicyRows); }
+            catch (e) {
+              row[resourceKey] = previous;
+              renderRBACMatrix();
+              pretty(auditOut, e);
+            }
           };
 
-          rbacMatrixRows.onclick = (event) => {
+          rbacMatrixRows.onclick = async (event) => {
             const button = event.target && event.target.closest ? event.target.closest('[data-rbac-delete-role]') : null;
             if (!button) return;
             const roleKey = button.getAttribute('data-rbac-delete-role');
@@ -6157,9 +6180,8 @@ data:
             const row = ensureArray(state.rbacPolicyRows).find((item) => item.key === roleKey);
             if (!row) return;
             if (!confirm('Supprimer le rôle "' + row.role + '" ?')) return;
-            state.rbacPolicyRows = ensureArray(state.rbacPolicyRows).filter((item) => item.key !== roleKey);
-            saveRBACPolicyRows();
-            renderRBACMatrix();
+            try { await saveRBACPolicyRows(ensureArray(state.rbacPolicyRows).filter((item) => item.key !== roleKey)); }
+            catch (e) { pretty(auditOut, e); }
           };
 
           refreshEgressRulesBtn.onclick = async () => {
@@ -8228,7 +8250,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.230"}
+    {"version":"ce-web-0.6.231"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8249,7 +8271,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.230
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.231
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"encoding/csv"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,6 +66,34 @@ type rbacCell struct {
 	Inherited    bool   `json:"inherited"`
 }
 
+type rbacPolicyRow struct {
+	Role        string `json:"role"`
+	Key         string `json:"key"`
+	Locked      bool   `json:"locked"`
+	Description string `json:"description"`
+	Project     string `json:"project"`
+	Dataset     string `json:"dataset"`
+	Ontology    string `json:"ontology"`
+	Datasource  string `json:"datasource"`
+	Environment string `json:"environment"`
+	Workload    string `json:"workload"`
+	Governance  string `json:"governance"`
+}
+
+type rbacPolicyResponse struct {
+	Rows             []rbacPolicyRow `json:"rows"`
+	AssignmentCounts map[string]int  `json:"assignmentCounts"`
+	UpdatedAt        time.Time       `json:"updatedAt"`
+}
+
+type rbacPolicyUpdateRequest struct {
+	Rows []rbacPolicyRow `json:"rows"`
+}
+
+var rbacPolicyPermissions = map[string]bool{
+	"-": true, "R": true, "RW": true, "Admin": true, "R attaché": true, "RW attaché": true,
+}
+
 func (h Handlers) GetAdminRBACMatrix(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requireAdminModule(w, r, "rbac matrix"); !ok {
 		return
@@ -73,6 +104,77 @@ func (h Handlers) GetAdminRBACMatrix(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
+}
+
+func (h Handlers) GetAdminRBACPolicy(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdminModule(w, r, "rbac policy"); !ok {
+		return
+	}
+	rows, err := h.loadRBACPolicyRows()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load RBAC policy: " + err.Error()})
+		return
+	}
+	counts, err := h.rbacRoleAssignmentCounts()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to count RBAC assignments: " + err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, rbacPolicyResponse{Rows: rows, AssignmentCounts: counts, UpdatedAt: time.Now().UTC()})
+}
+
+func (h Handlers) UpdateAdminRBACPolicy(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireAdminModule(w, r, "rbac policy")
+	if !ok {
+		return
+	}
+	var req rbacPolicyUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid RBAC policy payload"})
+		return
+	}
+	if req.Rows == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "rows are required"})
+		return
+	}
+	currentRows, err := h.loadRBACPolicyRows()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load current RBAC policy: " + err.Error()})
+		return
+	}
+	counts, err := h.rbacRoleAssignmentCounts()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to count RBAC assignments: " + err.Error()})
+		return
+	}
+	rows, err := validateRBACPolicyRows(req.Rows)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	nextKeys := map[string]bool{}
+	for _, row := range rows {
+		nextKeys[row.Key] = true
+	}
+	for _, row := range currentRows {
+		if !nextKeys[row.Key] && counts[row.Key] > 0 {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "role " + row.Role + " is assigned to " + strconv.Itoa(counts[row.Key]) + " subject(s) and cannot be removed"})
+			return
+		}
+	}
+	raw, err := json.Marshal(rows)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to encode RBAC policy"})
+		return
+	}
+	if h.rbacPolicyStore != nil {
+		if err := h.rbacPolicyStore.Set(raw); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save RBAC policy: " + err.Error()})
+			return
+		}
+	}
+	h.emitAudit(r, identity.UserID(), "rbac.policy.update", "rbac_policy", "default", "", "success", "", map[string]any{"roles": len(rows)})
+	writeJSON(w, http.StatusOK, rbacPolicyResponse{Rows: rows, AssignmentCounts: counts, UpdatedAt: time.Now().UTC()})
 }
 
 func (h Handlers) ExportAdminRBACMatrixCSV(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +199,107 @@ func (h Handlers) ExportAdminRBACMatrixCSV(w http.ResponseWriter, r *http.Reques
 		_ = writer.Write([]string{cell.SubjectType, cell.SubjectID, cell.SubjectName, cell.ResourceType, cell.ResourceID, cell.ResourceName, cell.Role, cell.Source, boolCSV(cell.Inherited), resource.OwnerType, resource.OwnerID, resource.OwnerName, resource.Classification})
 	}
 	writer.Flush()
+}
+
+func (h Handlers) loadRBACPolicyRows() ([]rbacPolicyRow, error) {
+	if h.rbacPolicyStore != nil {
+		if raw, ok, err := h.rbacPolicyStore.Get(); err != nil {
+			return nil, err
+		} else if ok && len(raw) > 0 {
+			var rows []rbacPolicyRow
+			if err := json.Unmarshal(raw, &rows); err != nil {
+				return nil, err
+			}
+			return validateRBACPolicyRows(rows)
+		}
+	}
+	return defaultRBACPolicyRows(), nil
+}
+
+func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
+	report, err := h.buildRBACMatrixReport()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]map[string]bool{}
+	for _, cell := range report.Cells {
+		key := rbacRoleKey(cell.Role)
+		if key == "" {
+			continue
+		}
+		if seen[key] == nil {
+			seen[key] = map[string]bool{}
+		}
+		seen[key][cell.SubjectType+":"+cell.SubjectID] = true
+	}
+	out := map[string]int{}
+	for key, subjects := range seen {
+		out[key] = len(subjects)
+	}
+	return out, nil
+}
+
+func defaultRBACPolicyRows() []rbacPolicyRow {
+	return []rbacPolicyRow{
+		{Role: "Administrateur", Key: "admin", Locked: true, Description: "Administration plateforme: configuration, gouvernance, audit et exploitation.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "RW", Workload: "RW", Governance: "Admin"},
+		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire direct ou organisation propriétaire de la ressource.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
+		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "RW", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "R", Workload: "RW", Governance: "-"},
+		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "RW", Governance: "-"},
+		{Role: "Writer", Key: "writer", Locked: true, Description: "Droit d’écriture sur une ressource data donnée.", Project: "-", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "-", Governance: "-"},
+		{Role: "Reader", Key: "reader", Locked: true, Description: "Consultation seule sur une ressource data donnée.", Project: "-", Dataset: "R", Ontology: "R", Datasource: "R", Environment: "-", Workload: "-", Governance: "-"},
+		{Role: "Viewer", Key: "viewer", Locked: true, Description: "Lecture projet et suivi des sorties publiées.", Project: "R", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "R", Governance: "-"},
+	}
+}
+
+func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
+	out := make([]rbacPolicyRow, 0, len(rows))
+	seen := map[string]bool{}
+	for _, row := range rows {
+		row.Role = strings.TrimSpace(row.Role)
+		row.Key = rbacRoleKey(firstNonEmpty(row.Key, row.Role))
+		row.Description = strings.TrimSpace(row.Description)
+		if row.Role == "" || row.Key == "" {
+			return nil, errors.New("role and key are required")
+		}
+		if seen[row.Key] {
+			return nil, errors.New("duplicate role key: " + row.Key)
+		}
+		seen[row.Key] = true
+		normalize := func(value string) (string, error) {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				value = "-"
+			}
+			if !rbacPolicyPermissions[value] {
+				return "", errors.New("unsupported permission " + value + " for role " + row.Role)
+			}
+			return value, nil
+		}
+		var err error
+		if row.Project, err = normalize(row.Project); err != nil {
+			return nil, err
+		}
+		if row.Dataset, err = normalize(row.Dataset); err != nil {
+			return nil, err
+		}
+		if row.Ontology, err = normalize(row.Ontology); err != nil {
+			return nil, err
+		}
+		if row.Datasource, err = normalize(row.Datasource); err != nil {
+			return nil, err
+		}
+		if row.Environment, err = normalize(row.Environment); err != nil {
+			return nil, err
+		}
+		if row.Workload, err = normalize(row.Workload); err != nil {
+			return nil, err
+		}
+		if row.Governance, err = normalize(row.Governance); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, nil
 }
 
 func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
@@ -348,6 +551,33 @@ func normalizedSubjectType(value string) string {
 		return "organization"
 	}
 	return "user"
+}
+
+func rbacRoleKey(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.NewReplacer(
+		"à", "a", "â", "a", "ä", "a",
+		"ç", "c",
+		"é", "e", "è", "e", "ê", "e", "ë", "e",
+		"î", "i", "ï", "i",
+		"ô", "o", "ö", "o",
+		"ù", "u", "û", "u", "ü", "u",
+	).Replace(value)
+	var b strings.Builder
+	lastDash := false
+	for _, r := range value {
+		isAlphaNum := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if isAlphaNum {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 func userOrganization(userID string, orgMembers map[string][]keycloak.User, organizations map[string]keycloak.Organization) (string, string) {
