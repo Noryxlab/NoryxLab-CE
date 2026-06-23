@@ -41,6 +41,7 @@ func main() {
 	var projectOntologyStore store.ProjectOntologyStore = memory.NewProjectOntologyStore()
 	var userPreferenceStore store.UserPreferenceStore = memory.NewUserPreferenceStore()
 	var rbacPolicyStore store.RBACPolicyStore = memory.NewRBACPolicyStore()
+	var backupRunStore store.BackupRunStore = memory.NewBackupRunStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
 		pg, err := postgres.New(postgres.Config{
@@ -76,6 +77,7 @@ func main() {
 			projectOntologyStore = &postgres.ProjectOntologyStore{Store: pg}
 			userPreferenceStore = &postgres.UserPreferenceStore{Store: pg}
 			rbacPolicyStore = &postgres.RBACPolicyStore{Store: pg}
+			backupRunStore = &postgres.BackupRunStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
 	}
@@ -147,6 +149,7 @@ func main() {
 		projectOntologyStore,
 		userPreferenceStore,
 		rbacPolicyStore,
+		backupRunStore,
 		runtime,
 		verifier,
 		keycloakClient,

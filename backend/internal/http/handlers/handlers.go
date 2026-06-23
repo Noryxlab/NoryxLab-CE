@@ -31,6 +31,7 @@ type Handlers struct {
 	projectOntologyStore             store.ProjectOntologyStore
 	userPreferenceStore              store.UserPreferenceStore
 	rbacPolicyStore                  store.RBACPolicyStore
+	backupRunStore                   store.BackupRunStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
 	keycloak                         *keycloak.Client
@@ -140,6 +141,7 @@ func New(
 	projectOntologyStore store.ProjectOntologyStore,
 	userPreferenceStore store.UserPreferenceStore,
 	rbacPolicyStore store.RBACPolicyStore,
+	backupRunStore store.BackupRunStore,
 	runtime runtime.Runner,
 	authVerifier auth.Verifier,
 	keycloakClient *keycloak.Client,
@@ -178,6 +180,7 @@ func New(
 		projectOntologyStore:             projectOntologyStore,
 		userPreferenceStore:              userPreferenceStore,
 		rbacPolicyStore:                  rbacPolicyStore,
+		backupRunStore:                   backupRunStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,
 		keycloak:                         keycloakClient,

@@ -1785,7 +1785,12 @@ data:
                     </div>
                     <div class="row">
                       <button id="saveBackupConfig" type="button" class="btn primary">Enregistrer la cible S3</button>
+                      <button id="runBackupNow" type="button" class="btn">Lancer un backup</button>
                     </div>
+                    <table>
+                      <thead><tr><th>Début</th><th>Statut</th><th>Bucket</th><th>Objet</th><th>Erreur</th><th>Actions</th></tr></thead>
+                      <tbody id="backupRunRows"></tbody>
+                    </table>
                     <pre id="backupOut">-</pre>
                   </article>
                 </div>
@@ -2195,6 +2200,8 @@ data:
           const createEgressRuleBtn = document.getElementById('createEgressRule');
           const refreshBackupConfigBtn = document.getElementById('refreshBackupConfig');
           const saveBackupConfigBtn = document.getElementById('saveBackupConfig');
+          const runBackupNowBtn = document.getElementById('runBackupNow');
+          const backupRunRows = document.getElementById('backupRunRows');
           const backupConfiguredStatus = document.getElementById('backupConfiguredStatus');
           const backupBucketStatus = document.getElementById('backupBucketStatus');
           const backupPrefixStatus = document.getElementById('backupPrefixStatus');
@@ -2442,6 +2449,7 @@ data:
             adminEgressRules: [],
             adminRBACMatrix: {},
             adminBackupConfig: {},
+            adminBackupRuns: [],
             rbacPolicyRows: [],
             rbacPolicyAssignmentCounts: {},
             organizations: [],
@@ -3173,7 +3181,7 @@ data:
               Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => pretty(usersOut, e));
             }
             if (viewTab === 'govern-backups' && isAdminUser()) {
-              refreshBackupConfig().catch((e) => pretty(backupOut || usersOut, e));
+              Promise.all([refreshBackupConfig(), refreshBackupRuns()]).catch((e) => pretty(backupOut || usersOut, e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
               Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
@@ -5865,11 +5873,42 @@ data:
             if (backupOut) pretty(backupOut, cfg.configured ? { status: 'configured', endpoint: cfg.endpoint, bucket: cfg.bucket, prefix: cfg.prefix, region: cfg.region } : { status: 'not_configured' });
           }
 
+          function renderBackupRuns() {
+            const rows = ensureArray(state.adminBackupRuns);
+            if (!backupRunRows) return;
+            backupRunRows.innerHTML = rows.map((run) => {
+              const status = String(run.status || '-').toLowerCase();
+              const reportButton = run.id ? '<button type="button" class="btn" data-backup-report="' + escapeHTML(run.id) + '">Rapport</button>' : '-';
+              return '<tr>' +
+                '<td>' + (run.startedAt ? formatDateTime(run.startedAt) : '-') + '</td>' +
+                '<td>' + badge(status) + '</td>' +
+                '<td>' + escapeHTML(run.bucket || '-') + '<br/><span class="muted">' + escapeHTML(run.prefix || '') + '</span></td>' +
+                '<td><code>' + escapeHTML(run.objectKey || '-') + '</code></td>' +
+                '<td>' + escapeHTML(run.error || '-') + '</td>' +
+                '<td>' + reportButton + '</td>' +
+              '</tr>';
+            }).join('') || '<tr><td colspan="6">Aucun backup lancé.</td></tr>';
+          }
+
           async function refreshBackupConfig() {
             const body = await callJSON('/api/v1/admin/backups/config/status');
             state.adminBackupConfig = body || {};
             renderBackupConfig();
             return state.adminBackupConfig;
+          }
+
+          async function refreshBackupRuns() {
+            const body = await callJSON('/api/v1/admin/backups/runs');
+            state.adminBackupRuns = ensureArray(body.items);
+            renderBackupRuns();
+            return state.adminBackupRuns;
+          }
+
+          async function runBackupNow() {
+            const body = await callJSON('/api/v1/admin/backups/runs', { method: 'POST' });
+            pretty(backupOut, body);
+            await refreshBackupRuns();
+            return body;
           }
 
           async function saveBackupConfig() {
@@ -5889,6 +5928,7 @@ data:
             });
             state.adminBackupConfig = body || {};
             renderBackupConfig();
+            await refreshBackupRuns();
             return state.adminBackupConfig;
           }
 
@@ -6315,7 +6355,7 @@ data:
           };
 
           refreshBackupConfigBtn.onclick = async () => {
-            try { await refreshBackupConfig(); }
+            try { await Promise.all([refreshBackupConfig(), refreshBackupRuns()]); }
             catch (e) { pretty(backupOut, e); }
           };
 
@@ -6323,6 +6363,22 @@ data:
             if (!confirm('Enregistrer cette cible S3 externe pour les backups plateforme ?')) return;
             try { await saveBackupConfig(); }
             catch (e) { pretty(backupOut, e); }
+          };
+
+          runBackupNowBtn.onclick = async () => {
+            if (!confirm('Lancer un backup manifest-only vers la cible S3 configurée ?')) return;
+            try { await runBackupNow(); }
+            catch (e) {
+              pretty(backupOut, e);
+              await refreshBackupRuns().catch(() => {});
+            }
+          };
+
+          backupRunRows.onclick = async (event) => {
+            const button = event.target && event.target.closest ? event.target.closest('[data-backup-report]') : null;
+            if (!button) return;
+            const runID = button.getAttribute('data-backup-report');
+            await downloadAdminCSV('/api/v1/admin/backups/runs/' + encodeURIComponent(runID) + '/report', 'noryx-backup-report-' + runID + '.json', button);
           };
 
           adminEgressRows.onclick = async (event) => {
@@ -8386,7 +8442,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.233"}
+    {"version":"ce-web-0.6.234"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8407,7 +8463,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.233
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.234
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
