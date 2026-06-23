@@ -1667,7 +1667,7 @@ data:
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Matrice RBAC</h3>
-                        <div class="hint">Vue effective des droits par utilisateur, organisation et ressource. Les accès hérités via organisation ou projet sont explicitement marqués.</div>
+                        <div class="hint">Vue effective par ressource et par rôle. Les cellules listent les utilisateurs ou organisations concernés, avec héritage explicite.</div>
                       </div>
                       <div class="row">
                         <button id="refreshRBACMatrix" type="button" class="btn">Actualiser</button>
@@ -1697,7 +1697,7 @@ data:
                     </div>
                     <div class="rbac-matrix-wrap">
                       <table>
-                        <thead id="rbacMatrixHead"><tr><th>Ressource</th></tr></thead>
+                        <thead id="rbacMatrixHead"><tr><th>Ressource</th><th>Rôles</th></tr></thead>
                         <tbody id="rbacMatrixRows"></tbody>
                       </table>
                     </div>
@@ -4666,16 +4666,17 @@ data:
               ].join(' ').toLowerCase();
               return haystack.includes(query);
             });
-            const visibleSubjectKeys = new Set(filteredCells.map((cell) => String(cell.subjectType || '') + ':' + String(cell.subjectId || '')));
             const visibleResourceKeys = new Set(filteredCells.map((cell) => String(cell.resourceType || '') + ':' + String(cell.resourceId || '')));
-            const subjects = ensureArray(report.subjects).filter((subject) => {
-              if (subjectType && String(subject.type || '').toLowerCase() !== subjectType) return false;
-              return visibleSubjectKeys.has(String(subject.type || '') + ':' + String(subject.id || ''));
-            }).sort((a, b) => String(a.type + a.name).localeCompare(String(b.type + b.name))).slice(0, 18);
-            const subjectKeys = subjects.map((subject) => String(subject.type || '') + ':' + String(subject.id || ''));
+            const roleOrder = ['owner', 'admin', 'project-owner', 'project-admin', 'editor', 'project-editor', 'writer', 'reader', 'viewer', 'project-viewer'];
+            const roleRank = (role) => {
+              const idx = roleOrder.indexOf(String(role || '').toLowerCase());
+              return idx === -1 ? 100 : idx;
+            };
+            const roles = [...new Set(filteredCells.map((cell) => String(cell.role || '').trim()).filter(Boolean))]
+              .sort((a, b) => (roleRank(a) - roleRank(b)) || a.localeCompare(b));
             const cellMap = new Map();
             filteredCells.forEach((cell) => {
-              const key = String(cell.resourceType || '') + ':' + String(cell.resourceId || '') + '|' + String(cell.subjectType || '') + ':' + String(cell.subjectId || '');
+              const key = String(cell.resourceType || '') + ':' + String(cell.resourceId || '') + '|' + String(cell.role || '');
               const current = cellMap.get(key) || [];
               current.push(cell);
               cellMap.set(key, current);
@@ -4684,11 +4685,8 @@ data:
               if (resourceType && String(resource.type || '').toLowerCase() !== resourceType) return false;
               return visibleResourceKeys.has(String(resource.type || '') + ':' + String(resource.id || ''));
             }).sort((a, b) => String(a.type + a.name).localeCompare(String(b.type + b.name))).slice(0, 120);
-            rbacMatrixHead.innerHTML = '<tr><th>Ressource</th>' + subjects.map((subject) =>
-              '<th><strong>' + escapeHTML(subject.name || subject.id || '-') + '</strong><br/>' +
-              badge(subject.type || '-') +
-              (subject.organizationName ? '<br/><span class="hint">' + escapeHTML(subject.organizationName) + '</span>' : '') +
-              '</th>'
+            rbacMatrixHead.innerHTML = '<tr><th>Ressource</th>' + roles.map((role) =>
+              '<th><strong>' + escapeHTML(role || '-') + '</strong></th>'
             ).join('') + '</tr>';
             rbacMatrixRows.innerHTML = matrixResources.map((resource) => {
               const resourceKey = String(resource.type || '') + ':' + String(resource.id || '');
@@ -4698,17 +4696,19 @@ data:
                 '<td><strong>' + escapeHTML(resource.name || resource.id || '-') + '</strong><br/>' +
                 badge(resource.type || '-') + ' ' + badge(cls || '-') +
                 '<br/><span class="hint">Owner · ' + escapeHTML(owner || '-') + '</span></td>' +
-                subjectKeys.map((subjectKey) => {
-                  const items = ensureArray(cellMap.get(resourceKey + '|' + subjectKey));
+                roles.map((role) => {
+                  const items = ensureArray(cellMap.get(resourceKey + '|' + role))
+                    .sort((a, b) => String(a.subjectName || a.subjectId || '').localeCompare(String(b.subjectName || b.subjectId || '')));
                   if (items.length === 0) return '<td class="rbac-cell"><span class="rbac-empty">-</span></td>';
                   return '<td class="rbac-cell">' + items.slice(0, 4).map((cell) =>
-                    '<span class="rbac-cell-entry">' + badge(cell.role || '-') +
+                    '<span class="rbac-cell-entry"><strong>' + escapeHTML(cell.subjectName || cell.subjectId || '-') + '</strong> ' +
+                    badge(cell.subjectType || '-') +
                     (cell.inherited ? ' ' + badge('hérité') : '') +
                     '<span class="rbac-cell-source">' + escapeHTML(cell.source || '-') + '</span></span>'
-                  ).join('') + (items.length > 4 ? '<span class="hint">+' + String(items.length - 4) + ' droits</span>' : '') + '</td>';
+                  ).join('') + (items.length > 4 ? '<span class="hint">+' + String(items.length - 4) + ' sujets</span>' : '') + '</td>';
                 }).join('') +
               '</tr>';
-            }).join('') || '<tr><td colspan="' + String(Math.max(1, subjects.length + 1)) + '">Aucun droit correspondant.</td></tr>';
+            }).join('') || '<tr><td colspan="' + String(Math.max(1, roles.length + 1)) + '">Aucun droit correspondant.</td></tr>';
           }
 
           function renderDataUsageSVG(nodes, edges) {
@@ -8140,7 +8140,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.227"}
+    {"version":"ce-web-0.6.228"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8161,7 +8161,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.227
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.228
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
