@@ -29,6 +29,13 @@ func (s *DatasourceStore) ListByUser(userID string) ([]datasource.Datasource, er
 	return out, nil
 }
 
+func (s *DatasourceStore) ListAll() ([]datasource.Datasource, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := append([]datasource.Datasource(nil), s.items...)
+	return out, nil
+}
+
 func (s *DatasourceStore) GetByID(id string) (datasource.Datasource, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
