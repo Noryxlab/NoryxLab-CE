@@ -1607,7 +1607,7 @@ data:
 
               <section class="view" id="view-govern-network">
                 <div class="grid">
-                  <article class="card span-12 ee-only">
+                  <article class="card span-12">
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Accès Internet sortant</h3>
@@ -7967,7 +7967,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.224"}
+    {"version":"ce-web-0.6.225"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -7988,7 +7988,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.224
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.225
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
