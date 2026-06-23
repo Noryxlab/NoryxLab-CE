@@ -630,6 +630,17 @@ data:
             padding: 12px 8px;
             vertical-align: top;
           }
+          .rbac-matrix-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+          .rbac-matrix-wrap table { min-width: 980px; margin: 0; }
+          .rbac-matrix-wrap th { position: sticky; top: 0; z-index: 2; background: #f5f8fb; }
+          .rbac-matrix-wrap th:first-child,
+          .rbac-matrix-wrap td:first-child { position: sticky; left: 0; z-index: 3; background: #fff; box-shadow: 1px 0 0 var(--line); min-width: 260px; }
+          .rbac-matrix-wrap th:first-child { background: #f5f8fb; z-index: 4; }
+          .rbac-cell { min-width: 170px; max-width: 240px; }
+          .rbac-cell-entry { display: block; margin: 0 0 6px; line-height: 1.35; }
+          .rbac-cell-entry:last-child { margin-bottom: 0; }
+          .rbac-cell-source { display: block; margin-top: 2px; color: var(--muted); font-size: var(--fs-12); word-break: break-word; }
+          .rbac-empty { color: #9aa8b8; }
           .apps-card { min-width: 0; overflow: hidden; }
           .apps-table-wrap { width: 100%; overflow-x: auto; }
           .apps-table-wrap table { min-width: 1080px; }
@@ -1684,10 +1695,12 @@ data:
                         <option value="organization">Organisations</option>
                       </select>
                     </div>
-                    <table>
-                      <thead><tr><th>Sujet</th><th>Ressource</th><th>Rôle</th><th>Source</th><th>Owner</th><th>Classe</th></tr></thead>
-                      <tbody id="rbacMatrixRows"></tbody>
-                    </table>
+                    <div class="rbac-matrix-wrap">
+                      <table>
+                        <thead id="rbacMatrixHead"><tr><th>Ressource</th></tr></thead>
+                        <tbody id="rbacMatrixRows"></tbody>
+                      </table>
+                    </div>
                   </article>
                 </div>
               </section>
@@ -2089,6 +2102,7 @@ data:
           const rbacSearchInput = document.getElementById('rbacSearch');
           const rbacResourceTypeInput = document.getElementById('rbacResourceType');
           const rbacSubjectTypeInput = document.getElementById('rbacSubjectType');
+          const rbacMatrixHead = document.getElementById('rbacMatrixHead');
           const rbacMatrixRows = document.getElementById('rbacMatrixRows');
           const usageDatasetsCount = document.getElementById('usageDatasetsCount');
           const usageHDSCount = document.getElementById('usageHDSCount');
@@ -4630,6 +4644,7 @@ data:
             const summary = report.summary || {};
             const resources = ensureArray(report.resources);
             const resourceByKey = new Map(resources.map((resource) => [String(resource.type || '') + ':' + String(resource.id || ''), resource]));
+            const subjectsByKey = new Map(ensureArray(report.subjects).map((subject) => [String(subject.type || '') + ':' + String(subject.id || ''), subject]));
             if (rbacUsersCount) rbacUsersCount.textContent = String(summary.users || 0);
             if (rbacOrganizationsCount) rbacOrganizationsCount.textContent = String(summary.organizations || 0);
             if (rbacResourcesCount) rbacResourcesCount.textContent = String(resources.length || ((summary.projects || 0) + (summary.datasets || 0) + (summary.ontologies || 0) + (summary.datasources || 0)));
@@ -4637,30 +4652,63 @@ data:
             const query = String((rbacSearchInput && rbacSearchInput.value) || '').trim().toLowerCase();
             const resourceType = String((rbacResourceTypeInput && rbacResourceTypeInput.value) || '').trim().toLowerCase();
             const subjectType = String((rbacSubjectTypeInput && rbacSubjectTypeInput.value) || '').trim().toLowerCase();
-            const rows = ensureArray(report.cells).filter((cell) => {
+            const filteredCells = ensureArray(report.cells).filter((cell) => {
               if (resourceType && String(cell.resourceType || '').toLowerCase() !== resourceType) return false;
               if (subjectType && String(cell.subjectType || '').toLowerCase() !== subjectType) return false;
               if (!query) return true;
+              const resource = resourceByKey.get(String(cell.resourceType || '') + ':' + String(cell.resourceId || '')) || {};
+              const subject = subjectsByKey.get(String(cell.subjectType || '') + ':' + String(cell.subjectId || '')) || {};
               const haystack = [
                 cell.subjectName, cell.subjectId, cell.subjectType, cell.resourceName,
-                cell.resourceId, cell.resourceType, cell.role, cell.source
+                cell.resourceId, cell.resourceType, cell.role, cell.source,
+                resource.ownerName, resource.ownerId, resource.classification, resource.source,
+                subject.email, subject.organizationName
               ].join(' ').toLowerCase();
               return haystack.includes(query);
-            }).slice(0, 300);
-            rbacMatrixRows.innerHTML = rows.map((cell) => {
-              const resource = resourceByKey.get(String(cell.resourceType || '') + ':' + String(cell.resourceId || '')) || {};
-              const inherited = cell.inherited ? badge('hérité') : badge('direct');
+            });
+            const visibleSubjectKeys = new Set(filteredCells.map((cell) => String(cell.subjectType || '') + ':' + String(cell.subjectId || '')));
+            const visibleResourceKeys = new Set(filteredCells.map((cell) => String(cell.resourceType || '') + ':' + String(cell.resourceId || '')));
+            const subjects = ensureArray(report.subjects).filter((subject) => {
+              if (subjectType && String(subject.type || '').toLowerCase() !== subjectType) return false;
+              return visibleSubjectKeys.has(String(subject.type || '') + ':' + String(subject.id || ''));
+            }).sort((a, b) => String(a.type + a.name).localeCompare(String(b.type + b.name))).slice(0, 18);
+            const subjectKeys = subjects.map((subject) => String(subject.type || '') + ':' + String(subject.id || ''));
+            const cellMap = new Map();
+            filteredCells.forEach((cell) => {
+              const key = String(cell.resourceType || '') + ':' + String(cell.resourceId || '') + '|' + String(cell.subjectType || '') + ':' + String(cell.subjectId || '');
+              const current = cellMap.get(key) || [];
+              current.push(cell);
+              cellMap.set(key, current);
+            });
+            const matrixResources = resources.filter((resource) => {
+              if (resourceType && String(resource.type || '').toLowerCase() !== resourceType) return false;
+              return visibleResourceKeys.has(String(resource.type || '') + ':' + String(resource.id || ''));
+            }).sort((a, b) => String(a.type + a.name).localeCompare(String(b.type + b.name))).slice(0, 120);
+            rbacMatrixHead.innerHTML = '<tr><th>Ressource</th>' + subjects.map((subject) =>
+              '<th><strong>' + escapeHTML(subject.name || subject.id || '-') + '</strong><br/>' +
+              badge(subject.type || '-') +
+              (subject.organizationName ? '<br/><span class="hint">' + escapeHTML(subject.organizationName) + '</span>' : '') +
+              '</th>'
+            ).join('') + '</tr>';
+            rbacMatrixRows.innerHTML = matrixResources.map((resource) => {
+              const resourceKey = String(resource.type || '') + ':' + String(resource.id || '');
               const owner = resource.ownerName || ownerLabel(resource.ownerType, resource.ownerId);
               const cls = resource.classification || resource.source || '-';
               return '<tr>' +
-                '<td><strong>' + escapeHTML(cell.subjectName || cell.subjectId || '-') + '</strong><br/>' + badge(cell.subjectType || '-') + '</td>' +
-                '<td><strong>' + escapeHTML(cell.resourceName || cell.resourceId || '-') + '</strong><br/>' + badge(cell.resourceType || '-') + '</td>' +
-                '<td>' + badge(cell.role || '-') + '</td>' +
-                '<td>' + inherited + '<br/><span class="hint">' + escapeHTML(cell.source || '-') + '</span></td>' +
-                '<td>' + escapeHTML(owner || '-') + '</td>' +
-                '<td>' + escapeHTML(cls || '-') + '</td>' +
+                '<td><strong>' + escapeHTML(resource.name || resource.id || '-') + '</strong><br/>' +
+                badge(resource.type || '-') + ' ' + badge(cls || '-') +
+                '<br/><span class="hint">Owner · ' + escapeHTML(owner || '-') + '</span></td>' +
+                subjectKeys.map((subjectKey) => {
+                  const items = ensureArray(cellMap.get(resourceKey + '|' + subjectKey));
+                  if (items.length === 0) return '<td class="rbac-cell"><span class="rbac-empty">-</span></td>';
+                  return '<td class="rbac-cell">' + items.slice(0, 4).map((cell) =>
+                    '<span class="rbac-cell-entry">' + badge(cell.role || '-') +
+                    (cell.inherited ? ' ' + badge('hérité') : '') +
+                    '<span class="rbac-cell-source">' + escapeHTML(cell.source || '-') + '</span></span>'
+                  ).join('') + (items.length > 4 ? '<span class="hint">+' + String(items.length - 4) + ' droits</span>' : '') + '</td>';
+                }).join('') +
               '</tr>';
-            }).join('') || '<tr><td colspan="6">Aucun droit correspondant.</td></tr>';
+            }).join('') || '<tr><td colspan="' + String(Math.max(1, subjects.length + 1)) + '">Aucun droit correspondant.</td></tr>';
           }
 
           function renderDataUsageSVG(nodes, edges) {
@@ -8092,7 +8140,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.226"}
+    {"version":"ce-web-0.6.227"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8113,7 +8161,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.226
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.227
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
