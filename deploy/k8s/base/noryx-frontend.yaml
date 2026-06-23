@@ -774,7 +774,6 @@ data:
               <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
               <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
               <button class="tab-btn admin-only" data-tab="govern-rbac"><span class="menu-ico">▦</span><span data-i18n="tab_rbac_matrix">RBAC & organisations</span></button>
-              <button class="tab-btn admin-only" data-tab="govern-backups"><span class="menu-ico">⇧</span><span>Backups</span></button>
               <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
               <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
             </div>
@@ -1734,7 +1733,7 @@ data:
                 </div>
               </section>
 
-              <section class="view" id="view-govern-backups">
+              <section class="view" id="view-ops">
                 <div class="grid">
                   <article class="card span-12 ee-only">
                     <div class="dataset-catalog-header">
@@ -1793,11 +1792,6 @@ data:
                     </table>
                     <pre id="backupOut">-</pre>
                   </article>
-                </div>
-              </section>
-
-              <section class="view" id="view-ops">
-                <div class="grid">
                   <article class="card span-12">
                     <h3>Charge plateforme</h3>
                     <div class="stats">
@@ -2340,7 +2334,6 @@ data:
             environments: document.getElementById('view-environments'),
             'govern-network': document.getElementById('view-govern-network'),
             'govern-rbac': document.getElementById('view-govern-rbac'),
-            'govern-backups': document.getElementById('view-govern-backups'),
             workloads: document.getElementById('view-workloads'),
             ops: document.getElementById('view-ops')
           };
@@ -2667,8 +2660,6 @@ data:
               section_subtitle_govern_network: 'Règles egress, exposition contrôlée et posture sécurité des workloads.',
               section_title_govern_rbac: 'RBAC et organisations',
               section_subtitle_govern_rbac: 'Matrice effective des droits par utilisateur, organisation et ressource.',
-              section_title_govern_backups: 'Backups',
-              section_subtitle_govern_backups: 'Configuration de la cible S3 externe et préparation du restore.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
             },
@@ -2834,8 +2825,6 @@ data:
               section_subtitle_govern_network: 'Egress rules, controlled exposure and workload security posture.',
               section_title_govern_rbac: 'RBAC and organizations',
               section_subtitle_govern_rbac: 'Effective rights matrix by user, organization and resource.',
-              section_title_govern_backups: 'Backups',
-              section_subtitle_govern_backups: 'External S3 target configuration and restore preparation.',
               section_title_ops: 'Administration',
               section_subtitle_ops: 'Observability, modules and users.'
             }
@@ -3104,7 +3093,7 @@ data:
             document.querySelectorAll('.admin-only').forEach((el) => {
               el.style.display = admin ? '' : 'none';
             });
-            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network' || state.activeTab === 'govern-rbac' || state.activeTab === 'govern-backups')) {
+            if (!admin && (state.activeTab === 'workloads' || state.activeTab === 'ops' || state.activeTab === 'govern-network' || state.activeTab === 'govern-rbac')) {
               switchTab('intro');
             }
             if (datasetClassificationInput) datasetClassificationInput.style.display = admin && platformEdition === 'enterprise' ? '' : 'none';
@@ -3180,11 +3169,8 @@ data:
             if (viewTab === 'govern-rbac' && isAdminUser()) {
               Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => pretty(usersOut, e));
             }
-            if (viewTab === 'govern-backups' && isAdminUser()) {
-              Promise.all([refreshBackupConfig(), refreshBackupRuns()]).catch((e) => pretty(backupOut || usersOut, e));
-            }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshBackupConfig(), refreshBackupRuns()]).catch((e) => pretty(usersOut, e));
             }
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
@@ -3205,7 +3191,6 @@ data:
               workloads: ['section_title_workloads', 'section_subtitle_workloads'],
               'govern-network': ['section_title_govern_network', 'section_subtitle_govern_network'],
               'govern-rbac': ['section_title_govern_rbac', 'section_subtitle_govern_rbac'],
-              'govern-backups': ['section_title_govern_backups', 'section_subtitle_govern_backups'],
               ops: ['section_title_ops', 'section_subtitle_ops']
             };
             const section = sectionI18n[tab] || sectionI18n.intro;
@@ -8442,7 +8427,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.234"}
+    {"version":"ce-web-0.6.235"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8463,7 +8448,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.234
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.235
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
