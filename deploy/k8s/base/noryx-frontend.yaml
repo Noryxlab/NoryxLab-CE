@@ -641,6 +641,10 @@ data:
           .rbac-cell-entry:last-child { margin-bottom: 0; }
           .rbac-cell-source { display: block; margin-top: 2px; color: var(--muted); font-size: var(--fs-12); word-break: break-word; }
           .rbac-empty { color: #9aa8b8; }
+          .rbac-perm { display: inline-flex; align-items: center; justify-content: center; min-width: 46px; padding: 5px 8px; border-radius: 999px; font-weight: 900; letter-spacing: .03em; background: #edf5ff; color: #1d4f91; }
+          .rbac-perm.is-rw, .rbac-perm.is-admin { background: #d9fbe8; color: #11633a; }
+          .rbac-perm.is-none { background: #f2f5f8; color: #94a3b8; }
+          .rbac-role-desc { display: block; margin-top: 4px; color: var(--muted); font-size: var(--fs-12); max-width: 320px; }
           .apps-card { min-width: 0; overflow: hidden; }
           .apps-table-wrap { width: 100%; overflow-x: auto; }
           .apps-table-wrap table { min-width: 1080px; }
@@ -1667,7 +1671,7 @@ data:
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Matrice RBAC</h3>
-                        <div class="hint">Vue effective par ressource et par rôle. Les cellules listent les utilisateurs ou organisations concernés, avec héritage explicite.</div>
+                        <div class="hint">Matrice de politique: rôle en ligne, famille de ressource en colonne, niveau d'autorisation dans la cellule.</div>
                       </div>
                       <div class="row">
                         <button id="refreshRBACMatrix" type="button" class="btn">Actualiser</button>
@@ -1681,23 +1685,21 @@ data:
                       <div class="stat"><div class="k">Droits</div><div id="rbacGrantsCount" class="v">0</div></div>
                     </div>
                     <div class="row">
-                      <input id="rbacSearch" placeholder="Filtrer par sujet, ressource, rôle..." />
+                      <input id="rbacSearch" placeholder="Filtrer par rôle ou ressource..." />
                       <select id="rbacResourceType">
                         <option value="">Toutes les ressources</option>
                         <option value="project">Projets</option>
                         <option value="dataset">Datasets</option>
                         <option value="ontology">Ontologies</option>
                         <option value="datasource">Datasources</option>
-                      </select>
-                      <select id="rbacSubjectType">
-                        <option value="">Tous les sujets</option>
-                        <option value="user">Utilisateurs</option>
-                        <option value="organization">Organisations</option>
+                        <option value="environment">Environnements</option>
+                        <option value="workload">Workloads</option>
+                        <option value="governance">Gouvernance</option>
                       </select>
                     </div>
                     <div class="rbac-matrix-wrap">
                       <table>
-                        <thead id="rbacMatrixHead"><tr><th>Ressource</th><th>Rôles</th></tr></thead>
+                        <thead id="rbacMatrixHead"><tr><th>Rôle</th><th>Ressources</th></tr></thead>
                         <tbody id="rbacMatrixRows"></tbody>
                       </table>
                     </div>
@@ -4643,72 +4645,45 @@ data:
             const report = state.adminRBACMatrix || {};
             const summary = report.summary || {};
             const resources = ensureArray(report.resources);
-            const resourceByKey = new Map(resources.map((resource) => [String(resource.type || '') + ':' + String(resource.id || ''), resource]));
-            const subjectsByKey = new Map(ensureArray(report.subjects).map((subject) => [String(subject.type || '') + ':' + String(subject.id || ''), subject]));
             if (rbacUsersCount) rbacUsersCount.textContent = String(summary.users || 0);
             if (rbacOrganizationsCount) rbacOrganizationsCount.textContent = String(summary.organizations || 0);
             if (rbacResourcesCount) rbacResourcesCount.textContent = String(resources.length || ((summary.projects || 0) + (summary.datasets || 0) + (summary.ontologies || 0) + (summary.datasources || 0)));
             if (rbacGrantsCount) rbacGrantsCount.textContent = String(summary.grants || 0);
             const query = String((rbacSearchInput && rbacSearchInput.value) || '').trim().toLowerCase();
             const resourceType = String((rbacResourceTypeInput && rbacResourceTypeInput.value) || '').trim().toLowerCase();
-            const subjectType = String((rbacSubjectTypeInput && rbacSubjectTypeInput.value) || '').trim().toLowerCase();
-            const filteredCells = ensureArray(report.cells).filter((cell) => {
-              if (resourceType && String(cell.resourceType || '').toLowerCase() !== resourceType) return false;
-              if (subjectType && String(cell.subjectType || '').toLowerCase() !== subjectType) return false;
+            const columns = [
+              { key: 'project', label: 'Projets' },
+              { key: 'dataset', label: 'Datasets' },
+              { key: 'ontology', label: 'Ontologies' },
+              { key: 'datasource', label: 'Datasources' },
+              { key: 'environment', label: 'Environnements' },
+              { key: 'workload', label: 'Workloads' },
+              { key: 'governance', label: 'Gouvernance' }
+            ].filter((column) => !resourceType || column.key === resourceType);
+            const policyRows = [
+              { role: 'Administrateur', key: 'admin', description: 'Administration plateforme: configuration, gouvernance, audit et exploitation.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: 'RW', workload: 'RW', governance: 'Admin' },
+              { role: 'Owner', key: 'owner', description: 'Propriétaire direct ou organisation propriétaire de la ressource.', project: 'RW', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: 'RW', governance: '-' },
+              { role: 'Project admin', key: 'project-admin', description: 'Admin d’un projet: membres, ressources attachées et workloads du projet.', project: 'RW', dataset: 'RW attaché', ontology: 'RW attaché', datasource: 'RW attaché', environment: 'R', workload: 'RW', governance: '-' },
+              { role: 'Editor', key: 'editor', description: 'Contributeur projet: modification du contenu projet et usages de calcul.', project: 'RW', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'RW', governance: '-' },
+              { role: 'Writer', key: 'writer', description: 'Droit d’écriture sur une ressource data donnée.', project: '-', dataset: 'RW', ontology: 'RW', datasource: 'RW', environment: '-', workload: '-', governance: '-' },
+              { role: 'Reader', key: 'reader', description: 'Consultation seule sur une ressource data donnée.', project: '-', dataset: 'R', ontology: 'R', datasource: 'R', environment: '-', workload: '-', governance: '-' },
+              { role: 'Viewer', key: 'viewer', description: 'Lecture projet et suivi des sorties publiées.', project: 'R', dataset: 'R attaché', ontology: 'R attaché', datasource: 'R attaché', environment: 'R', workload: 'R', governance: '-' }
+            ].filter((row) => {
               if (!query) return true;
-              const resource = resourceByKey.get(String(cell.resourceType || '') + ':' + String(cell.resourceId || '')) || {};
-              const subject = subjectsByKey.get(String(cell.subjectType || '') + ':' + String(cell.subjectId || '')) || {};
-              const haystack = [
-                cell.subjectName, cell.subjectId, cell.subjectType, cell.resourceName,
-                cell.resourceId, cell.resourceType, cell.role, cell.source,
-                resource.ownerName, resource.ownerId, resource.classification, resource.source,
-                subject.email, subject.organizationName
-              ].join(' ').toLowerCase();
+              const haystack = [row.role, row.key, row.description].concat(columns.map((column) => row[column.key] || '')).join(' ').toLowerCase();
               return haystack.includes(query);
             });
-            const visibleResourceKeys = new Set(filteredCells.map((cell) => String(cell.resourceType || '') + ':' + String(cell.resourceId || '')));
-            const roleOrder = ['owner', 'admin', 'project-owner', 'project-admin', 'editor', 'project-editor', 'writer', 'reader', 'viewer', 'project-viewer'];
-            const roleRank = (role) => {
-              const idx = roleOrder.indexOf(String(role || '').toLowerCase());
-              return idx === -1 ? 100 : idx;
+            const formatPerm = (value) => {
+              const raw = String(value || '-');
+              const cls = raw === '-' ? ' is-none' : (raw.toLowerCase().includes('rw') || raw.toLowerCase().includes('admin') ? ' is-rw' : '');
+              return '<span class="rbac-perm' + cls + '">' + escapeHTML(raw) + '</span>';
             };
-            const roles = [...new Set(filteredCells.map((cell) => String(cell.role || '').trim()).filter(Boolean))]
-              .sort((a, b) => (roleRank(a) - roleRank(b)) || a.localeCompare(b));
-            const cellMap = new Map();
-            filteredCells.forEach((cell) => {
-              const key = String(cell.resourceType || '') + ':' + String(cell.resourceId || '') + '|' + String(cell.role || '');
-              const current = cellMap.get(key) || [];
-              current.push(cell);
-              cellMap.set(key, current);
-            });
-            const matrixResources = resources.filter((resource) => {
-              if (resourceType && String(resource.type || '').toLowerCase() !== resourceType) return false;
-              return visibleResourceKeys.has(String(resource.type || '') + ':' + String(resource.id || ''));
-            }).sort((a, b) => String(a.type + a.name).localeCompare(String(b.type + b.name))).slice(0, 120);
-            rbacMatrixHead.innerHTML = '<tr><th>Ressource</th>' + roles.map((role) =>
-              '<th><strong>' + escapeHTML(role || '-') + '</strong></th>'
-            ).join('') + '</tr>';
-            rbacMatrixRows.innerHTML = matrixResources.map((resource) => {
-              const resourceKey = String(resource.type || '') + ':' + String(resource.id || '');
-              const owner = resource.ownerName || ownerLabel(resource.ownerType, resource.ownerId);
-              const cls = resource.classification || resource.source || '-';
-              return '<tr>' +
-                '<td><strong>' + escapeHTML(resource.name || resource.id || '-') + '</strong><br/>' +
-                badge(resource.type || '-') + ' ' + badge(cls || '-') +
-                '<br/><span class="hint">Owner · ' + escapeHTML(owner || '-') + '</span></td>' +
-                roles.map((role) => {
-                  const items = ensureArray(cellMap.get(resourceKey + '|' + role))
-                    .sort((a, b) => String(a.subjectName || a.subjectId || '').localeCompare(String(b.subjectName || b.subjectId || '')));
-                  if (items.length === 0) return '<td class="rbac-cell"><span class="rbac-empty">-</span></td>';
-                  return '<td class="rbac-cell">' + items.slice(0, 4).map((cell) =>
-                    '<span class="rbac-cell-entry"><strong>' + escapeHTML(cell.subjectName || cell.subjectId || '-') + '</strong> ' +
-                    badge(cell.subjectType || '-') +
-                    (cell.inherited ? ' ' + badge('hérité') : '') +
-                    '<span class="rbac-cell-source">' + escapeHTML(cell.source || '-') + '</span></span>'
-                  ).join('') + (items.length > 4 ? '<span class="hint">+' + String(items.length - 4) + ' sujets</span>' : '') + '</td>';
-                }).join('') +
-              '</tr>';
-            }).join('') || '<tr><td colspan="' + String(Math.max(1, roles.length + 1)) + '">Aucun droit correspondant.</td></tr>';
+            rbacMatrixHead.innerHTML = '<tr><th>Rôle</th>' + columns.map((column) => '<th>' + escapeHTML(column.label) + '</th>').join('') + '</tr>';
+            rbacMatrixRows.innerHTML = policyRows.map((row) =>
+              '<tr><td><strong>' + escapeHTML(row.role) + '</strong><span class="rbac-role-desc">' + escapeHTML(row.description) + '</span></td>' +
+              columns.map((column) => '<td class="rbac-cell">' + formatPerm(row[column.key]) + '</td>').join('') +
+              '</tr>'
+            ).join('') || '<tr><td colspan="' + String(columns.length + 1) + '">Aucun rôle correspondant.</td></tr>';
           }
 
           function renderDataUsageSVG(nodes, edges) {
@@ -8140,7 +8115,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.228"}
+    {"version":"ce-web-0.6.229"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8161,7 +8136,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.228
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.229
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
