@@ -398,9 +398,17 @@ func (h Handlers) buildBackupManifest(run backup.Run) (backupManifest, []string)
 }
 
 func backupManifestObjectKey(run backup.Run) string {
-	stamp := run.StartedAt.UTC().Format("20060102T150405Z")
+	started := run.StartedAt.UTC()
 	prefix := strings.Trim(strings.TrimSpace(run.Prefix), "/")
-	key := strings.Trim(strings.Join([]string{prefix, "manual", stamp, run.ID, "manifest.json"}, "/"), "/")
+	key := strings.Trim(strings.Join([]string{
+		prefix,
+		started.Format("2006"),
+		started.Format("01"),
+		started.Format("02"),
+		started.Format("150405Z"),
+		run.ID,
+		"manifest.json",
+	}, "/"), "/")
 	return key
 }
 

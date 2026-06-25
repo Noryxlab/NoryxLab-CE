@@ -53,7 +53,7 @@ func main() {
 			SSLMode:  cfg.DatabaseSSLMode,
 		})
 		if err != nil {
-			log.Printf("warning: postgres store init failed, fallback to memory: %v", err)
+			log.Fatalf("postgres store backend required but init failed: %v", err)
 		} else {
 			defer func() {
 				_ = pg.Close()
