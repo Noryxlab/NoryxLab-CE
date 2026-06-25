@@ -6115,15 +6115,15 @@ data:
               return;
             }
             const [datasetsBody, repositoriesBody, datasourcesBody, ontologiesBody, filesBody, ontologyBody, allDatasetsBody, allRepositoriesBody, allDatasourcesBody, allOntologiesBody] = await Promise.all([
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets'),
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories'),
-              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources'),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets').catch((e) => ({ items: [], error: errorMessage(e) })),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories').catch((e) => ({ items: [], error: errorMessage(e) })),
+              callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources').catch((e) => ({ items: [], error: errorMessage(e) })),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontologies').catch(() => ({ items:[] })),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/files' + (projectFilesCurrentPath ? '/' + encodeURIComponent(projectFilesCurrentPath) : '')).catch(() => ({ items:[] })),
               callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontology').catch(() => ({ manifest:null })),
-              callJSON('/api/v1/datasets'),
-              callJSON('/api/v1/repositories'),
-              callJSON('/api/v1/datasources'),
+              callJSON('/api/v1/datasets').catch(() => ({ items: state.datasets || [] })),
+              callJSON('/api/v1/repositories').catch(() => ({ items: state.repositories || [] })),
+              callJSON('/api/v1/datasources').catch(() => ({ items: state.datasources || [] })),
               callJSON('/api/v1/ontologies').catch(() => ({ items:[] }))
             ]);
             state.datasets = ensureArray(allDatasetsBody.items);
@@ -8427,7 +8427,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.235"}
+    {"version":"ce-web-0.6.236"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8448,7 +8448,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.235
+          image: harbor.lan/noryx-ce/noryx-frontend:ce-web-0.6.236
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
