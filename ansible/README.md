@@ -47,6 +47,13 @@ cd ansible
 ansible-playbook playbooks/bootstrap-demo.yml -e @../clients/demo.yaml
 ```
 
+For the Example/Noryx EE bootstrap target:
+
+```bash
+cd ansible
+ansible-playbook -i inventory/example.ini playbooks/bootstrap-demo.yml -e @../clients/example.yaml
+```
+
 ## One-time host preparation
 
 From your laptop:
