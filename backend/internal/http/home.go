@@ -25,7 +25,7 @@ const homeHTML = `<!doctype html>
       pre { margin: 0; background: #0b1220; color: #dbeafe; border-radius: 10px; padding: 10px; overflow: auto; min-height: 120px; font-size: 12px; }
       a { color: #0f172a; text-underline-offset: 3px; }
     </style>
-    <script src="/auth/js/keycloak.js"></script>
+    <script src="/vendor/keycloak.js"></script>
   </head>
   <body>
     <main class="wrap">
