@@ -121,6 +121,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/repositories/{repositoryID}", h.AttachProjectRepository)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/repositories/{repositoryID}", h.DetachProjectRepository)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/egress/rules", h.ListProjectEgressRules)
+	mux.HandleFunc("GET /api/v1/auth/login", h.DirectLogin)
 	mux.HandleFunc("POST /api/v1/auth/session", h.CreateWebSession)
 	mux.HandleFunc("DELETE /api/v1/auth/session", h.DeleteWebSession)
 	// Workspace reverse-proxy must support all HTTP methods used by Jupyter.

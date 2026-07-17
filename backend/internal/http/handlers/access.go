@@ -82,44 +82,74 @@ func (h Handlers) requireUserIDFromSessionOrBearer(w http.ResponseWriter, r *htt
 }
 
 func (h Handlers) userIDFromSessionOrBearerNoWrite(r *http.Request) (string, bool) {
+	identity, ok := h.identityFromSessionOrBearerNoWrite(r)
+	if !ok {
+		return "", false
+	}
+	userID := strings.TrimSpace(identity.UserID())
+	if userID == "" {
+		return "", false
+	}
+	return userID, true
+}
+
+func (h Handlers) identityFromSessionOrBearerNoWrite(r *http.Request) (auth.Identity, bool) {
 	token := strings.TrimSpace(r.Header.Get(authHeader))
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)
 	if token != "" {
 		if h.authVerifier == nil {
-			return "", false
+			return auth.Identity{}, false
 		}
 		identity, err := h.authVerifier.VerifyBearerToken(token)
 		if err != nil {
-			return "", false
+			return auth.Identity{}, false
 		}
-		userID := strings.TrimSpace(identity.UserID())
-		if userID == "" {
-			return "", false
+		if h.organizationRequired && !h.identityHasOrganizationNoWrite(identity) {
+			return auth.Identity{}, false
 		}
-		return userID, true
+		return identity, true
 	}
 
 	if h.sessionStore == nil {
-		return "", false
+		return auth.Identity{}, false
 	}
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil || strings.TrimSpace(cookie.Value) == "" {
-		return "", false
+		return auth.Identity{}, false
 	}
 	item, ok, err := h.sessionStore.Get(strings.TrimSpace(cookie.Value))
 	if err != nil || !ok {
-		return "", false
+		return auth.Identity{}, false
 	}
 	if time.Now().UTC().After(item.ExpiresAt) {
 		_ = h.sessionStore.Delete(item.Token)
-		return "", false
+		return auth.Identity{}, false
 	}
 	userID := strings.TrimSpace(item.Identity)
 	if userID == "" {
-		return "", false
+		return auth.Identity{}, false
 	}
-	return userID, true
+	identity := auth.Identity{Username: userID, Roles: map[string]struct{}{}}
+	if h.organizationRequired && !h.identityHasOrganizationNoWrite(identity) {
+		return auth.Identity{}, false
+	}
+	return identity, true
+}
+
+func (h Handlers) identityHasOrganizationNoWrite(identity auth.Identity) bool {
+	if h.keycloak == nil {
+		return false
+	}
+	identifier := strings.TrimSpace(identity.Subject)
+	if identifier == "" {
+		identifier = strings.TrimSpace(identity.UserID())
+	}
+	if identifier == "" {
+		return false
+	}
+	hasOrganization, err := h.keycloak.HasOrganization(identifier)
+	return err == nil && hasOrganization
 }
 
 func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {

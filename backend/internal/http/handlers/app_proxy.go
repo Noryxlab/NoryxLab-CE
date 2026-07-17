@@ -97,8 +97,13 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	if mode == "public" {
 		return true
 	}
-	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	identity, ok := h.identityFromSessionOrBearerNoWrite(r)
 	if !ok {
+		if shouldRedirectToInteractiveLogin(r) {
+			redirectToInteractiveLogin(w, r)
+			return false
+		}
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
 		return false
 	}
 	if h.isGlobalAdmin(identity) {
@@ -132,4 +137,23 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 func appIdentityMatches(identity auth.Identity, expected string) bool {
 	expected = strings.TrimSpace(expected)
 	return expected != "" && (strings.EqualFold(identity.UserID(), expected) || strings.EqualFold(identity.Subject, expected) || identity.MatchesUsername(expected) || identity.MatchesEmail(expected))
+}
+
+func shouldRedirectToInteractiveLogin(r *http.Request) bool {
+	if strings.TrimSpace(r.Header.Get(authHeader)) != "" {
+		return false
+	}
+	accept := strings.ToLower(r.Header.Get("Accept"))
+	if strings.Contains(accept, "application/json") {
+		return false
+	}
+	return r.Method == http.MethodGet || r.Method == http.MethodHead
+}
+
+func redirectToInteractiveLogin(w http.ResponseWriter, r *http.Request) {
+	target := safeLocalReturnTo(r.URL.RequestURI())
+	if target == "" {
+		target = "/"
+	}
+	http.Redirect(w, r, "/api/v1/auth/login?returnTo="+url.QueryEscape(target), http.StatusFound)
 }
