@@ -104,11 +104,12 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
+	if appIdentityMatches(identity, record.OwnerUserID) {
+		return true
+	}
 	switch mode {
 	case "private":
-		if appIdentityMatches(identity, record.OwnerUserID) {
-			return true
-		}
+		return false
 	case "users":
 		for _, userID := range record.AllowedUsers {
 			if appIdentityMatches(identity, userID) {
