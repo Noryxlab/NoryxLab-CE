@@ -1523,7 +1523,7 @@ data:
                         <option value="users">Restricted · utilisateurs</option>
                         <option value="public">Public · sans authentification</option>
                       </select>
-                      <select id="appAllowedOrganizations" style="display:none"></select>
+                      <select id="appAllowedOrganizations" multiple size="3" style="display:none"></select>
                       <input id="appAllowedUsers" placeholder="Utilisateurs séparés par des virgules" style="display:none" />
                     </div>
                     <div class="row">
@@ -4246,17 +4246,17 @@ data:
             if (current && items.some((env) => env.destinationImage === current)) {
               appEnvInput.value = current;
             }
-            const currentOrganization = appAllowedOrganizationsInput.value;
-            appAllowedOrganizationsInput.innerHTML = '<option value="">Choisir une organisation</option>';
+            const currentOrganizations = Array.from(appAllowedOrganizationsInput.selectedOptions || []).map((option) => option.value).filter(Boolean);
+            appAllowedOrganizationsInput.innerHTML = '';
             ensureArray(state.availableOrganizations).forEach((organization) => {
               const option = document.createElement('option');
               option.value = organization.id || '';
               option.textContent = organization.name || organization.alias || organization.id || '-';
               appAllowedOrganizationsInput.appendChild(option);
             });
-            if (currentOrganization && ensureArray(state.availableOrganizations).some((organization) => organization.id === currentOrganization)) {
-              appAllowedOrganizationsInput.value = currentOrganization;
-            }
+            Array.from(appAllowedOrganizationsInput.options || []).forEach((option) => {
+              option.selected = currentOrganizations.includes(option.value);
+            });
           }
 
           function renderDashboardEnvOptions() {
@@ -7383,7 +7383,7 @@ data:
                 image,
                 accessMode: appAccessModeInput.value,
                 allowedUsers: appAllowedUsersInput.value.split(',').map((value) => resolveDatasetSubjectID(value.trim(), 'user')).filter(Boolean),
-                allowedOrganizations: appAllowedOrganizationsInput.value ? [appAllowedOrganizationsInput.value] : []
+                allowedOrganizations: Array.from(appAllowedOrganizationsInput.selectedOptions || []).map((option) => option.value).filter(Boolean)
               };
               const hardwareTier = appHardwareTierInput.value.trim();
               if (hardwareTier) payload.hardwareTier = hardwareTier;
@@ -8427,7 +8427,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.236"}
+    {"version":"ce-web-0.6.237"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8448,7 +8448,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.example.local/noryx-ce/noryx-frontend:ce-web-0.6.236
+          image: harbor.example.local/noryx-ce/noryx-frontend:ce-web-0.6.237
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
