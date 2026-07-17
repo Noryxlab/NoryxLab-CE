@@ -17,7 +17,7 @@ var directLoginTemplate = template.Must(template.New("direct-login").Parse(`<!do
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Connexion</title>
-    <script src="/auth/js/keycloak.js"></script>
+    <script src="/vendor/keycloak.js"></script>
     <style>
       body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:Arial,sans-serif; background:#eef5f8; color:#142033; }
       main { max-width:520px; padding:32px; border:1px solid #d5e1ea; border-radius:18px; background:white; box-shadow:0 16px 40px rgba(15,23,42,.08); }
