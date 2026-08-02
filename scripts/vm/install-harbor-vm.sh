@@ -20,7 +20,11 @@ if [ "${EUID}" -ne 0 ]; then
 fi
 
 apt-get update -y
-apt-get install -y ca-certificates curl openssl docker.io docker-compose-plugin jq rsync python3
+COMPOSE_PACKAGE="docker-compose-plugin"
+if ! apt-cache show docker-compose-plugin >/dev/null 2>&1; then
+  COMPOSE_PACKAGE="docker-compose"
+fi
+apt-get install -y ca-certificates curl openssl docker.io "$COMPOSE_PACKAGE" jq rsync python3
 systemctl enable --now docker
 
 mkdir -p "$HARBOR_INSTALL_DIR"
@@ -47,13 +51,8 @@ sed -i "s/^hostname:.*$/hostname: ${HARBOR_HOSTNAME}/" harbor.yml
 sed -i "s/^harbor_admin_password:.*$/harbor_admin_password: ${HARBOR_ADMIN_PASSWORD}/" harbor.yml
 sed -i 's/^# *https:/https:/' harbor.yml
 sed -i 's/^# *  port: 443/  port: 443/' harbor.yml
-
-if ! grep -q '^  certificate:' harbor.yml; then
-  sed -i "/^https:/a\\  certificate: ${HARBOR_INSTALL_DIR}/harbor/certs/harbor.crt" harbor.yml
-fi
-if ! grep -q '^  private_key:' harbor.yml; then
-  sed -i "/^https:/a\\  private_key: ${HARBOR_INSTALL_DIR}/harbor/certs/harbor.key" harbor.yml
-fi
+sed -i "s|^  certificate:.*$|  certificate: ${HARBOR_INSTALL_DIR}/harbor/certs/harbor.crt|" harbor.yml
+sed -i "s|^  private_key:.*$|  private_key: ${HARBOR_INSTALL_DIR}/harbor/certs/harbor.key|" harbor.yml
 
 ./install.sh
 echo "Harbor installed: https://${HARBOR_HOSTNAME}"

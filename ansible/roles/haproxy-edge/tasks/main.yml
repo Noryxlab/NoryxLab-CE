@@ -1,0 +1,29 @@
+---
+- name: Install HAProxy packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - haproxy
+    state: present
+    update_cache: true
+
+- name: Render HAProxy edge configuration
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart haproxy
+
+- name: Validate HAProxy configuration
+  ansible.builtin.command: haproxy -c -f /etc/haproxy/haproxy.cfg
+  changed_when: false
+
+- name: Enable and start HAProxy
+  ansible.builtin.service:
+    name: haproxy
+    enabled: true
+    state: started

@@ -1,0 +1,61 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    daemon
+    maxconn 4096
+
+    # Current HTTPS mode is TCP passthrough, matching the Noryx lab pattern.
+    ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
+    ssl-default-bind-ciphersuites TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256
+
+defaults
+    log global
+    option dontlognull
+    retries 3
+    timeout connect 5s
+    timeout client 60s
+    timeout server 60s
+
+frontend http-in
+    bind *:80
+    mode http
+    option httplog
+{% if haproxy_backend_http_nodeport | string | length > 0 %}
+    acl host_platform hdr(host) -i {{ haproxy_edge_domain }}
+    use_backend noryx-k3s-http if host_platform
+    default_backend noryx-k3s-http
+{% else %}
+    http-request return status 503 content-type text/plain lf-string "Noryx Example edge is ready. Kubernetes backend is not configured yet.\n"
+{% endif %}
+
+frontend https-in
+    bind *:443
+    mode tcp
+    option tcplog
+    tcp-request inspect-delay 5s
+    tcp-request content accept if { req.ssl_hello_type 1 }
+{% if haproxy_backend_https_nodeport | string | length > 0 %}
+    acl sni_platform req.ssl_sni -i {{ haproxy_edge_domain }}
+    use_backend noryx-k3s-https if sni_platform
+    default_backend noryx-k3s-https
+{% else %}
+    default_backend noryx-k3s-https-placeholder
+{% endif %}
+
+{% if haproxy_backend_http_nodeport | string | length > 0 %}
+backend noryx-k3s-http
+    mode http
+    option forwardfor
+    server noryx-master {{ haproxy_backend_host }}:{{ haproxy_backend_http_nodeport }} check
+{% endif %}
+
+{% if haproxy_backend_https_nodeport | string | length > 0 %}
+backend noryx-k3s-https
+    mode tcp
+    server noryx-master {{ haproxy_backend_host }}:{{ haproxy_backend_https_nodeport }} check
+{% else %}
+backend noryx-k3s-https-placeholder
+    mode tcp
+    # Placeholder until k3s/Traefik NodePort is known on {{ haproxy_backend_host }}.
+    tcp-request content reject
+{% endif %}

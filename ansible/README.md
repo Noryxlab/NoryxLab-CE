@@ -36,7 +36,7 @@ Ansible uses a dedicated account on target host:
 
 ## Files
 
-- `inventory/hosts.ini`: target hosts
+- `inventory/hosts.ini`: default target hosts
 - `playbooks/bootstrap-demo.yml`: main playbook
 - `clients/demo.yaml`: environment-specific variables
 
@@ -51,7 +51,41 @@ For the Example/Noryx EE bootstrap target:
 
 ```bash
 cd ansible
-ansible-playbook -i inventory/example.ini playbooks/bootstrap-demo.yml -e @../clients/example.yaml
+ansible-playbook -i inventory/example.ini playbooks/bootstrap-demo.yml -e @../clients/example-temp.yaml
+```
+
+Use `../clients/example-temp.yaml` while `datalab-example.noryxlab.ai` is the
+temporary public name. Switch to `../clients/example.yaml` only when the final
+`datalab.example.fr` DNS and TLS are ready.
+
+For the Example HAProxy edge:
+
+```bash
+cd ansible
+ansible-playbook -i inventory/example-edge.ini playbooks/bootstrap-edge.yml
+```
+
+For the Example Harbor and dockerbuild VMs, use:
+
+```bash
+scripts/vm/install-harbor-vm.sh
+scripts/vm/install-dockerbuild-vm.sh
+```
+
+Current Example inventory files:
+
+- `inventory/example-edge.ini`: `noryx-edge` / `127.0.0.1`
+- `inventory/example-harbor.ini`: `noryx-registry` / `127.0.0.1`
+- `inventory/example-dockerbuild.ini`: `noryx-dockerbuild` / `127.0.0.1`
+- `inventory/example.ini`: `noryx-master` / `127.0.0.1`
+
+Before k3s/Traefik exists, the edge listens on `80/443` and returns a clear
+placeholder on HTTP. After k3s is installed, pass Traefik NodePorts:
+
+```bash
+ansible-playbook -i inventory/example-edge.ini playbooks/bootstrap-edge.yml \
+  -e haproxy_backend_http_nodeport=<traefik-http-nodeport> \
+  -e haproxy_backend_https_nodeport=<traefik-https-nodeport>
 ```
 
 ## One-time host preparation
