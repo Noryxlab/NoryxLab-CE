@@ -15,14 +15,59 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
-- name: Patch secret values for demo environment
+- name: Require explicit platform secrets
+  ansible.builtin.fail:
+    msg: "Set platform and Harbor credentials with Ansible Vault or extra vars before bootstrap."
+  when: >
+    (postgres_password | default('')) in ['', 'change-me', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
+    (keycloak_admin_password | default('')) in ['', 'change-me', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
+    (minio_root_password | default('')) in ['', 'change-me-minio', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
+    (noryx_secrets_master_key | default('')) in ['', 'change-me-noryx-master-key', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
+    (harbor_robot_username | default('')) in ['', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
+    (harbor_robot_password | default('')) in ['', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS']
+
+- name: Patch deployment domain and registry placeholders
+  ansible.builtin.shell: |
+    set -euo pipefail
+    find {{ noryx_deploy_path }}/deploy/k8s/base -type f -name '*.yaml' -print0 | xargs -0 sed -i \
+      -e 's#datalab.example.local#{{ public_domain }}#g' \
+      -e 's#harbor.example.local#{{ harbor_registry_host }}#g'
+  args:
+    executable: /bin/bash
+
+- name: Patch secret values
   ansible.builtin.shell: |
     set -euo pipefail
     sed -i 's/POSTGRES_PASSWORD: ".*"/POSTGRES_PASSWORD: "{{ postgres_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
     sed -i 's/KEYCLOAK_ADMIN_PASSWORD: ".*"/KEYCLOAK_ADMIN_PASSWORD: "{{ keycloak_admin_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
     sed -i 's/MINIO_ROOT_PASSWORD: ".*"/MINIO_ROOT_PASSWORD: "{{ minio_root_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
+    sed -i 's/NORYX_SECRETS_MASTER_KEY: ".*"/NORYX_SECRETS_MASTER_KEY: "{{ noryx_secrets_master_key }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
   args:
     executable: /bin/bash
+  no_log: true
+
+- name: Apply namespaces before image pull secrets
+  ansible.builtin.command: kubectl apply -f {{ noryx_deploy_path }}/deploy/k8s/base/namespace.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Create Harbor pull secret in platform namespaces
+  ansible.builtin.shell: |
+    set -euo pipefail
+    kubectl -n {{ item }} create secret docker-registry harbor-regcred \
+      --docker-server={{ harbor_registry_host }} \
+      --docker-username='{{ harbor_robot_username }}' \
+      --docker-password='{{ harbor_robot_password }}' \
+      --docker-email='{{ harbor_robot_email | default("noreply@example.org") }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  args:
+    executable: /bin/bash
+  loop:
+    - "{{ noryx_namespace }}"
+    - noryx-loads
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
 
 - name: Apply baseline manifests
   ansible.builtin.command: kubectl apply -k {{ noryx_deploy_path }}/deploy/k8s/base

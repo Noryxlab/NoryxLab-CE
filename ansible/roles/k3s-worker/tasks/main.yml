@@ -1,0 +1,69 @@
+---
+- name: Resolve k3s server host
+  ansible.builtin.set_fact:
+    k3s_server_host: "{{ k3s_master_host | default(hostvars[groups['noryx_master'][0]].ansible_host) }}"
+
+- name: Read k3s node token from master
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  delegate_to: "{{ groups['noryx_master'][0] }}"
+  register: k3s_node_token_raw
+
+- name: Store k3s node token
+  ansible.builtin.set_fact:
+    k3s_node_token: "{{ k3s_node_token_raw.content | b64decode | trim }}"
+  no_log: true
+
+- name: Ensure Harbor hostname is resolvable from worker
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ harbor_registry_ip }} {{ harbor_registry_host }}"
+    state: present
+  when:
+    - harbor_registry_host is defined
+    - harbor_registry_ip is defined
+
+- name: Ensure k3s registry config directory exists
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    mode: "0755"
+
+- name: Configure k3s agent containerd registry settings
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/registries.yaml
+    mode: "0644"
+    content: |
+      mirrors:
+        "{{ harbor_registry_host }}":
+          endpoint:
+            - "https://{{ harbor_registry_host }}"
+      configs:
+        "{{ harbor_registry_host }}":
+          tls:
+            insecure_skip_verify: {{ (harbor_registry_insecure_skip_verify | default(true)) | bool | lower }}
+  register: k3s_worker_registry_config
+  when: harbor_registry_host is defined
+
+- name: Check if k3s agent is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s-agent
+  register: k3s_agent_binary
+
+- name: Install k3s agent
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} K3S_URL=https://{{ k3s_server_host }}:6443 K3S_TOKEN='{{ k3s_node_token }}' sh -
+  args:
+    executable: /bin/bash
+  when: not k3s_agent_binary.stat.exists
+  no_log: true
+
+- name: Restart k3s agent when registry config changes
+  ansible.builtin.service:
+    name: k3s-agent
+    state: restarted
+  when:
+    - k3s_agent_binary.stat.exists
+    - harbor_registry_host is defined
+    - k3s_worker_registry_config is changed

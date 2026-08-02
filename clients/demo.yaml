@@ -27,3 +27,8 @@ observability_loki_size: 20Gi
 postgres_password: change-me
 keycloak_admin_password: change-me
 minio_root_password: change-me-minio
+noryx_secrets_master_key: change-me-noryx-master-key
+observability_grafana_admin_password: CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS
+harbor_robot_username: CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS
+harbor_robot_password: CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS
+harbor_robot_email: noreply@example.org
