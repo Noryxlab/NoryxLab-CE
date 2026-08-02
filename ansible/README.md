@@ -40,10 +40,12 @@ Ansible uses a dedicated account on target host:
 - `inventory/hosts.ini`: default demo target hosts
 - `inventory/example-edge.ini`: generic HAProxy edge inventory template
 - `inventory/example-s3.ini`: generic S3 manager inventory template
-- `inventory/example-worker.ini`: generic worker inventory template
+- `inventory/example-worker.ini`: generic worker-only inventory fragment
+- `inventory/example-cluster.ini`: generic master + worker inventory template
 - `playbooks/bootstrap-demo.yml`: main CE bootstrap playbook
 - `playbooks/bootstrap-edge.yml`: HAProxy edge bootstrap playbook
 - `playbooks/bootstrap-s3.yml`: S3 manager bootstrap playbook
+- `playbooks/bootstrap-worker.yml`: k3s worker join playbook
 - `clients/demo.yaml`: demo variables
 
 Customer-specific inventories, domains, IP addresses, and secrets must stay out
@@ -86,6 +88,19 @@ ansible-playbook -i /path/to/private-edge.ini playbooks/bootstrap-edge.yml \
   -e haproxy_backend_http_nodeport=<traefik-http-nodeport> \
   -e haproxy_backend_https_nodeport=<traefik-https-nodeport>
 ```
+
+For a worker VM, use an inventory that contains both `noryx_master` and
+`noryx_workers`. The playbook reads the k3s node token from the master through
+Ansible delegation and joins each worker as a k3s agent:
+
+```bash
+cd ansible
+ansible-playbook -i /path/to/private-cluster.ini playbooks/bootstrap-worker.yml \
+  -e @/path/to/private-vars.yaml
+```
+
+The worker playbook also configures Harbor hostname resolution and containerd
+registry trust before joining the cluster.
 
 ## One-Time Host Preparation
 
