@@ -1,0 +1,20 @@
+services:
+  minio:
+    image: {{ s3_manager_image }}
+    container_name: noryx-s3-minio
+    command: server /data --console-address ":{{ s3_manager_console_port }}"
+    restart: unless-stopped
+    ports:
+      - "{{ s3_manager_api_port }}:9000"
+      - "{{ s3_manager_console_port }}:{{ s3_manager_console_port }}"
+    environment:
+      MINIO_ROOT_USER: "{{ s3_manager_root_user }}"
+      MINIO_ROOT_PASSWORD: "{{ s3_manager_root_password }}"
+      MINIO_BROWSER_REDIRECT_URL: "http://{{ s3_manager_hostname }}:{{ s3_manager_console_port }}"
+    volumes:
+      - "{{ s3_manager_data_dir }}:/data"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
