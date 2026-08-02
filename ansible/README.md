@@ -2,7 +2,7 @@
 
 ## Scope
 
-Bootstrap one CE demo host with:
+Bootstrap a Noryx CE host with:
 
 - base OS packages
 - k3s
@@ -19,14 +19,15 @@ The `common` role also installs operator tooling on target node:
 
 ## Preamble
 
-External services must exist before running this playbook:
+External services should exist before running a production-like bootstrap:
 
-- Harbor VM (registry)
-- Dockerbuild VM (build and push)
+- Harbor or another OCI registry
+- Dockerbuild VM or another build/push runner
+- optional S3-compatible object store for backups/artifacts/staging
 
 See `docs/INFRA_PREREQUISITES.md`.
 
-## Service account model
+## Service Account Model
 
 Ansible uses a dedicated account on target host:
 
@@ -36,9 +37,18 @@ Ansible uses a dedicated account on target host:
 
 ## Files
 
-- `inventory/hosts.ini`: default target hosts
-- `playbooks/bootstrap-demo.yml`: main playbook
-- `clients/demo.yaml`: environment-specific variables
+- `inventory/hosts.ini`: default demo target hosts
+- `inventory/example-edge.ini`: generic HAProxy edge inventory template
+- `inventory/example-s3.ini`: generic S3 manager inventory template
+- `inventory/example-worker.ini`: generic worker inventory template
+- `playbooks/bootstrap-demo.yml`: main CE bootstrap playbook
+- `playbooks/bootstrap-edge.yml`: HAProxy edge bootstrap playbook
+- `playbooks/bootstrap-s3.yml`: S3 manager bootstrap playbook
+- `clients/demo.yaml`: demo variables
+
+Customer-specific inventories, domains, IP addresses, and secrets must stay out
+of the public CE repository. Keep them in a private operations repository or in
+operator-local files.
 
 ## Run
 
@@ -47,36 +57,20 @@ cd ansible
 ansible-playbook playbooks/bootstrap-demo.yml -e @../clients/demo.yaml
 ```
 
-For the Example/Noryx EE bootstrap target:
+For a HAProxy edge, copy `inventory/example-edge.ini` to a private inventory and
+replace `CHANGE_ME`:
 
 ```bash
 cd ansible
-ansible-playbook -i inventory/example.ini playbooks/bootstrap-demo.yml -e @../clients/example-temp.yaml
+ansible-playbook -i /path/to/private-edge.ini playbooks/bootstrap-edge.yml
 ```
 
-Use `../clients/example-temp.yaml` while `datalab-example.noryxlab.ai` is the
-temporary public name. Switch to `../clients/example.yaml` only when the final
-`datalab.example.fr` DNS and TLS are ready.
-
-For the Example HAProxy edge:
+For an optional S3 manager VM, copy `inventory/example-s3.ini` to a private
+inventory and run:
 
 ```bash
 cd ansible
-ansible-playbook -i inventory/example-edge.ini playbooks/bootstrap-edge.yml
-```
-
-For the Example Harbor and dockerbuild VMs, use:
-
-```bash
-scripts/vm/install-harbor-vm.sh
-scripts/vm/install-dockerbuild-vm.sh
-```
-
-For an optional Example S3 manager VM:
-
-```bash
-cd ansible
-ansible-playbook -i inventory/example-s3.ini playbooks/bootstrap-s3.yml \
+ansible-playbook -i /path/to/private-s3.ini playbooks/bootstrap-s3.yml \
   -e s3_manager_root_password='<strong-password>'
 ```
 
@@ -84,25 +78,16 @@ The S3 manager is intended for backups, artifacts, staging, and optional
 non-HDS local buckets. HDS datasets stay on external HDS-certified S3 buckets.
 Do not place the S3 manager data directory on the master/control-plane disk.
 
-Current Example inventory files:
-
-- `inventory/example-edge.ini`: `noryx-edge` / `127.0.0.1`
-- `inventory/example-harbor.ini`: `noryx-registry` / `127.0.0.1`
-- `inventory/example-dockerbuild.ini`: `noryx-dockerbuild` / `127.0.0.1`
-- `inventory/example-s3.ini`: `noryx-s3` / `127.0.0.1`
-- `inventory/example-worker.ini`: `noryx-worker-1` / `127.0.0.1`
-- `inventory/example.ini`: `noryx-master` / `127.0.0.1`
-
 Before k3s/Traefik exists, the edge listens on `80/443` and returns a clear
 placeholder on HTTP. After k3s is installed, pass Traefik NodePorts:
 
 ```bash
-ansible-playbook -i inventory/example-edge.ini playbooks/bootstrap-edge.yml \
+ansible-playbook -i /path/to/private-edge.ini playbooks/bootstrap-edge.yml \
   -e haproxy_backend_http_nodeport=<traefik-http-nodeport> \
   -e haproxy_backend_https_nodeport=<traefik-https-nodeport>
 ```
 
-## One-time host preparation
+## One-Time Host Preparation
 
 From your laptop:
 
@@ -116,13 +101,11 @@ ssh -t noryxlab-master 'sudo bash /tmp/create-noryxops.sh /tmp/noryxops.pub'
 Validation:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_noryxops noryxops@CHANGE_ME 'sudo -n true && echo ok'
+ssh -i ~/.ssh/id_ed25519_noryxops noryxops@<host> 'sudo -n true && echo ok'
 ```
 
 ## Notes
 
-- Host alias used by default: `noryxlab-master` (`CHANGE_ME`)
-- Domain for this environment: `datalab.example.local`
 - Password variables in `clients/demo.yaml` are placeholders and must be changed.
 - Harbor integration variables are in `clients/demo.yaml`:
   - `harbor_registry_host`

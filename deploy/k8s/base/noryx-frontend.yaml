@@ -1251,7 +1251,7 @@ data:
                       </div>
                     </div>
                     <div class="hint">
-                      Dataset : scan de métadonnées S3 avec profil Noryx/FOR par chemins de fichiers
+                      Dataset : scan de métadonnées S3 avec profil generique par chemins de fichiers
                       (étude, sujets pseudonymisés, visites, modalités, formats, tables CSV).
                       Datasource : fiche structurelle metadata-only, sans introspection SQL/NoSQL pour l'instant.
                     </div>
@@ -1763,7 +1763,7 @@ data:
                       </div>
                       <div class="span-3">
                         <label>Préfixe</label>
-                        <input id="backupPrefix" placeholder="noryx/prod" />
+                        <input id="backupPrefix" placeholder="backups/prod" />
                       </div>
                       <div class="span-3">
                         <label>Région</label>
@@ -5171,7 +5171,7 @@ data:
             ontologyProfileSelect.innerHTML = '';
             const profiles = sourceType === 'datasource'
               ? [{ id: 'datasource-metadata-v1', label: 'Datasource metadata v1' }]
-              : [{ id: 'noryx-file-path-v1', label: 'Noryx / FOR file path v1' }];
+              : [{ id: 'health-file-path-v1', label: 'Health file path v1' }];
             profiles.forEach((profile) => {
               const opt = document.createElement('option');
               opt.value = profile.id;
@@ -5226,7 +5226,7 @@ data:
               return;
             }
             const summary = manifest.summary || {};
-            const profileLabel = manifest.inferenceProfile || (manifest.sourceType === 'datasource' ? 'datasource-metadata-v1' : 'noryx-file-path-v1');
+            const profileLabel = manifest.inferenceProfile || (manifest.sourceType === 'datasource' ? 'datasource-metadata-v1' : 'health-file-path-v1');
             const sourceLabel = manifest.sourceType === 'datasource' ? 'datasource ' : 'dataset ';
             ontologyStatus.textContent = (selectedOntology ? 'Ontologie · ' + (selectedOntology.name || manifest.study || selectedOntology.id || '-') : 'Dernier scan')
               + ' · ' + formatDateTime(manifest.generatedAt || (selectedOntology && (selectedOntology.updatedAt || selectedOntology.createdAt)))
