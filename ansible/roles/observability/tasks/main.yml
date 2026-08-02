@@ -3,6 +3,11 @@
   ansible.builtin.meta: end_host
   when: not (observability_enabled | bool)
 
+- name: Require explicit Grafana admin password
+  ansible.builtin.fail:
+    msg: "Set observability_grafana_admin_password with Ansible Vault or extra vars before enabling observability."
+  when: observability_grafana_admin_password == 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'
+
 - name: Ensure observability namespace exists
   ansible.builtin.command: kubectl create namespace {{ observability_namespace }}
   register: observability_ns_create
