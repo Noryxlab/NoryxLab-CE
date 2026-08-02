@@ -1,0 +1,103 @@
+---
+- name: Fail when root password was not overridden
+  ansible.builtin.fail:
+    msg: "Set s3_manager_root_password with Ansible Vault or -e before running this playbook."
+  when: s3_manager_root_password == 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'
+
+- name: Install S3 manager packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - docker.io
+      - jq
+      - python3
+      - python3-pip
+      - rsync
+    state: present
+    update_cache: true
+
+- name: Install docker compose plugin if available
+  ansible.builtin.apt:
+    name: docker-compose-plugin
+    state: present
+  failed_when: false
+
+- name: Install docker-compose compatibility package if plugin is unavailable
+  ansible.builtin.apt:
+    name: docker-compose
+    state: present
+  failed_when: false
+
+- name: Ensure Docker is enabled and started
+  ansible.builtin.service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Create S3 manager directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - "{{ s3_manager_install_dir }}"
+    - "{{ s3_manager_data_dir }}"
+
+- name: Render S3 manager compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ s3_manager_install_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Detect docker compose command
+  ansible.builtin.shell: |
+    set -e
+    if docker compose version >/dev/null 2>&1; then
+      echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+      echo "docker-compose"
+    else
+      echo "missing"
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  register: s3_manager_compose_cmd
+  changed_when: false
+
+- name: Start S3 manager
+  ansible.builtin.command:
+    cmd: "{{ s3_manager_compose_cmd.stdout }} -f {{ s3_manager_install_dir }}/docker-compose.yml up -d"
+  register: s3_manager_compose_up
+  changed_when: "'Started' in s3_manager_compose_up.stderr or 'Created' in s3_manager_compose_up.stderr or 'Recreated' in s3_manager_compose_up.stderr or 'Pulling' in s3_manager_compose_up.stderr"
+
+- name: Wait for MinIO health endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ s3_manager_api_port }}/minio/health/live"
+    status_code: 200
+  register: s3_manager_health
+  retries: 20
+  delay: 3
+  until: s3_manager_health.status == 200
+
+- name: Create bootstrap buckets
+  ansible.builtin.shell: |
+    set -euo pipefail
+    docker run --rm --network host \
+      -e MINIO_ROOT_USER \
+      -e MINIO_ROOT_PASSWORD \
+      minio/mc:RELEASE.2025-04-16T18-13-26Z \
+      sh -c 'mc alias set noryx http://127.0.0.1:{{ s3_manager_api_port }} "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && for bucket in "$@"; do mc mb --ignore-existing "noryx/$bucket"; done' \
+      sh {{ s3_manager_buckets | join(' ') }}
+  args:
+    executable: /bin/bash
+  environment:
+    MINIO_ROOT_USER: "{{ s3_manager_root_user }}"
+    MINIO_ROOT_PASSWORD: "{{ s3_manager_root_password }}"
+  changed_when: false
+  when: s3_manager_create_noryx_buckets | bool

@@ -72,11 +72,24 @@ scripts/vm/install-harbor-vm.sh
 scripts/vm/install-dockerbuild-vm.sh
 ```
 
+For an optional Example S3 manager VM:
+
+```bash
+cd ansible
+ansible-playbook -i inventory/example-s3.ini playbooks/bootstrap-s3.yml \
+  -e s3_manager_root_password='<strong-password>'
+```
+
+The S3 manager is intended for backups, artifacts, staging, and optional
+non-HDS local buckets. HDS datasets stay on external HDS-certified S3 buckets.
+Do not place the S3 manager data directory on the master/control-plane disk.
+
 Current Example inventory files:
 
 - `inventory/example-edge.ini`: `noryx-edge` / `127.0.0.1`
 - `inventory/example-harbor.ini`: `noryx-registry` / `127.0.0.1`
 - `inventory/example-dockerbuild.ini`: `noryx-dockerbuild` / `127.0.0.1`
+- `inventory/example-s3.ini`: `noryx-s3` / placeholder until the VM exists
 - `inventory/example.ini`: `noryx-master` / `127.0.0.1`
 
 Before k3s/Traefik exists, the edge listens on `80/443` and returns a clear

@@ -1,0 +1,14 @@
+---
+s3_manager_hostname: s3.example.local
+s3_manager_install_dir: /opt/noryx-s3
+s3_manager_data_dir: /data/minio
+s3_manager_image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+s3_manager_api_port: 9000
+s3_manager_console_port: 9001
+s3_manager_root_user: minioadmin
+s3_manager_root_password: "CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS"
+s3_manager_create_noryx_buckets: true
+s3_manager_buckets:
+  - noryx-backups
+  - noryx-artifacts
+  - noryx-staging
