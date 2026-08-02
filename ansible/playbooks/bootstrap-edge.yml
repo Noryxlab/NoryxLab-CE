@@ -1,11 +1,8 @@
 ---
-- name: Bootstrap Noryx host
-  hosts: noryx_master
+- name: Bootstrap Noryx HAProxy edge
+  hosts: edge
   become: true
   gather_facts: false
-
-  vars:
-    noryx_repo_root: "{{ playbook_dir }}/../.."
 
   pre_tasks:
     - name: Install python3 on minimal Debian hosts
@@ -17,9 +14,4 @@
       ansible.builtin.setup:
 
   roles:
-    - role: common
-    - role: k3s-master
-    - role: helm
-    - role: longhorn
-    - role: observability
-    - role: noryx-bootstrap
+    - role: haproxy-edge

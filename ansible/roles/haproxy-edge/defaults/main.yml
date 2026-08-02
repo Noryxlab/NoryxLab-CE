@@ -1,0 +1,7 @@
+---
+haproxy_edge_domain: datalab-example.noryxlab.ai
+haproxy_backend_host: 127.0.0.1
+
+# Leave empty until k3s/Traefik is installed and NodePorts are known.
+haproxy_backend_http_nodeport: ""
+haproxy_backend_https_nodeport: ""
