@@ -25,6 +25,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/storageendpoint"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	storepkg "github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	_ "github.com/lib/pq"
@@ -445,6 +446,27 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS storage_endpoints (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			provider TEXT NOT NULL,
+			endpoint_url TEXT NOT NULL,
+			region TEXT NOT NULL DEFAULT '',
+			classification TEXT NOT NULL DEFAULT 'internal',
+			purpose TEXT NOT NULL DEFAULT 'general',
+			use_ssl BOOLEAN NOT NULL DEFAULT TRUE,
+			default_backup BOOLEAN NOT NULL DEFAULT FALSE,
+			default_dataset BOOLEAN NOT NULL DEFAULT FALSE,
+			secret_name TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'unchecked',
+			status_message TEXT NOT NULL DEFAULT '',
+			last_checked_at TIMESTAMPTZ NULL,
+			created_by TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_storage_endpoints_purpose ON storage_endpoints (purpose)`,
+		`CREATE INDEX IF NOT EXISTS idx_storage_endpoints_classification ON storage_endpoints (classification)`,
 		`CREATE TABLE IF NOT EXISTS backup_runs (
 			id TEXT PRIMARY KEY,
 			status TEXT NOT NULL,
@@ -2196,4 +2218,63 @@ func unmarshalStringMap(raw []byte) map[string]string {
 		return nil
 	}
 	return out
+}
+
+func (s *Store) ListStorageEndpoints() ([]storageendpoint.Endpoint, error) {
+	rows, err := s.db.Query(`SELECT id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at FROM storage_endpoints ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []storageendpoint.Endpoint{}
+	for rows.Next() {
+		var item storageendpoint.Endpoint
+		var lastChecked sql.NullTime
+		if err := rows.Scan(&item.ID, &item.Name, &item.Provider, &item.EndpointURL, &item.Region, &item.Classification, &item.Purpose, &item.UseSSL, &item.DefaultBackup, &item.DefaultDataset, &item.SecretName, &item.Status, &item.StatusMessage, &lastChecked, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		if lastChecked.Valid {
+			item.LastCheckedAt = lastChecked.Time
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetStorageEndpointByID(id string) (storageendpoint.Endpoint, bool, error) {
+	var item storageendpoint.Endpoint
+	var lastChecked sql.NullTime
+	err := s.db.QueryRow(`SELECT id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at FROM storage_endpoints WHERE id=$1`, strings.TrimSpace(id)).Scan(&item.ID, &item.Name, &item.Provider, &item.EndpointURL, &item.Region, &item.Classification, &item.Purpose, &item.UseSSL, &item.DefaultBackup, &item.DefaultDataset, &item.SecretName, &item.Status, &item.StatusMessage, &lastChecked, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return storageendpoint.Endpoint{}, false, nil
+	}
+	if err != nil {
+		return storageendpoint.Endpoint{}, false, err
+	}
+	if lastChecked.Valid {
+		item.LastCheckedAt = lastChecked.Time
+	}
+	return item, true, nil
+}
+
+func (s *Store) CreateStorageEndpoint(item storageendpoint.Endpoint) error {
+	_, err := s.db.Exec(`INSERT INTO storage_endpoints (id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), item.CreatedBy, item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) UpdateStorageEndpoint(item storageendpoint.Endpoint) error {
+	_, err := s.db.Exec(`UPDATE storage_endpoints SET name=$2, provider=$3, endpoint_url=$4, region=$5, classification=$6, purpose=$7, use_ssl=$8, default_backup=$9, default_dataset=$10, secret_name=$11, status=$12, status_message=$13, last_checked_at=$14, updated_at=$15 WHERE id=$1`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), time.Now().UTC())
+	return err
+}
+
+func (s *Store) DeleteStorageEndpoint(id string) error {
+	_, err := s.db.Exec(`DELETE FROM storage_endpoints WHERE id=$1`, strings.TrimSpace(id))
+	return err
+}
+
+func nullableTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value
 }

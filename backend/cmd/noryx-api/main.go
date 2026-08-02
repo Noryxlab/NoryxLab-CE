@@ -42,6 +42,7 @@ func main() {
 	var userPreferenceStore store.UserPreferenceStore = memory.NewUserPreferenceStore()
 	var rbacPolicyStore store.RBACPolicyStore = memory.NewRBACPolicyStore()
 	var backupRunStore store.BackupRunStore = memory.NewBackupRunStore()
+	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
 		pg, err := postgres.New(postgres.Config{
@@ -78,6 +79,7 @@ func main() {
 			userPreferenceStore = &postgres.UserPreferenceStore{Store: pg}
 			rbacPolicyStore = &postgres.RBACPolicyStore{Store: pg}
 			backupRunStore = &postgres.BackupRunStore{Store: pg}
+			storageEndpointStore = &postgres.StorageEndpointStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
 	}
@@ -150,6 +152,7 @@ func main() {
 		userPreferenceStore,
 		rbacPolicyStore,
 		backupRunStore,
+		storageEndpointStore,
 		runtime,
 		verifier,
 		keycloakClient,
