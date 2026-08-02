@@ -4,7 +4,7 @@ grafana:
     enabled: true
     storageClassName: "{{ observability_storage_class }}"
     size: "{{ observability_grafana_size }}"
-  adminPassword: "admin"
+  adminPassword: "{{ observability_grafana_admin_password }}"
   defaultDashboardsEnabled: true
   sidecar:
     datasources:
