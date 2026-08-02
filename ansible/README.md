@@ -90,6 +90,7 @@ Current Example inventory files:
 - `inventory/example-harbor.ini`: `noryx-registry` / `127.0.0.1`
 - `inventory/example-dockerbuild.ini`: `noryx-dockerbuild` / `127.0.0.1`
 - `inventory/example-s3.ini`: `noryx-s3` / `127.0.0.1`
+- `inventory/example-worker.ini`: `noryx-worker-1` / `127.0.0.1`
 - `inventory/example.ini`: `noryx-master` / `127.0.0.1`
 
 Before k3s/Traefik exists, the edge listens on `80/443` and returns a clear
