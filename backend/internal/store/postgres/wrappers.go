@@ -18,6 +18,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/storageendpoint"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
@@ -214,6 +215,22 @@ func (s *DatasourceStore) Upsert(item datasource.Datasource) error {
 	return s.Store.UpsertDatasource(item)
 }
 func (s *DatasourceStore) Delete(id string) error { return s.Store.DeleteDatasource(id) }
+
+type StorageEndpointStore struct{ *Store }
+
+func (s *StorageEndpointStore) List() ([]storageendpoint.Endpoint, error) {
+	return s.Store.ListStorageEndpoints()
+}
+func (s *StorageEndpointStore) GetByID(id string) (storageendpoint.Endpoint, bool, error) {
+	return s.Store.GetStorageEndpointByID(id)
+}
+func (s *StorageEndpointStore) Create(item storageendpoint.Endpoint) error {
+	return s.Store.CreateStorageEndpoint(item)
+}
+func (s *StorageEndpointStore) Update(item storageendpoint.Endpoint) error {
+	return s.Store.UpdateStorageEndpoint(item)
+}
+func (s *StorageEndpointStore) Delete(id string) error { return s.Store.DeleteStorageEndpoint(id) }
 
 type RepositoryStore struct{ *Store }
 
