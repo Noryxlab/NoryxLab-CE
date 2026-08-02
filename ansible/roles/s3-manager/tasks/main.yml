@@ -89,10 +89,11 @@
   ansible.builtin.shell: |
     set -euo pipefail
     docker run --rm --network host \
+      --entrypoint /bin/sh \
       -e MINIO_ROOT_USER \
       -e MINIO_ROOT_PASSWORD \
       minio/mc:RELEASE.2025-04-16T18-13-26Z \
-      sh -c 'mc alias set noryx http://127.0.0.1:{{ s3_manager_api_port }} "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && for bucket in "$@"; do mc mb --ignore-existing "noryx/$bucket"; done' \
+      -c 'mc alias set noryx http://127.0.0.1:{{ s3_manager_api_port }} "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && for bucket in "$@"; do mc mb --ignore-existing "noryx/$bucket"; done' \
       sh {{ s3_manager_buckets | join(' ') }}
   args:
     executable: /bin/bash
