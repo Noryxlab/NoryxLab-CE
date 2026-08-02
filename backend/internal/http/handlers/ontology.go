@@ -530,9 +530,9 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	switch sourceType {
 	case "dataset", "":
 		if inferenceProfile == "" {
-			inferenceProfile = "noryx-file-path-v1"
+			inferenceProfile = "health-file-path-v1"
 		}
-		if inferenceProfile != "noryx-file-path-v1" {
+		if inferenceProfile != "health-file-path-v1" {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported dataset inference profile"})
 			return
 		}
@@ -632,7 +632,7 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 		} else if manifest.SourceType == "datasource" {
 			manifest.InferenceProfile = "datasource-metadata-v1"
 		} else {
-			manifest.InferenceProfile = "noryx-file-path-v1"
+			manifest.InferenceProfile = "health-file-path-v1"
 		}
 	}
 	return ontologyListItem{
@@ -882,7 +882,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		SourceType:       "dataset",
 		SourceID:         item.ID,
 		SourceName:       item.Name,
-		InferenceProfile: "noryx-file-path-v1",
+		InferenceProfile: "health-file-path-v1",
 		DatasetID:        item.ID,
 		DatasetName:      item.Name,
 		Study:            study,
