@@ -31,6 +31,7 @@
     helm upgrade --install longhorn longhorn/longhorn \
       --namespace longhorn-system \
       --create-namespace \
+      --set persistence.defaultClassReplicaCount={{ longhorn_default_replica_count | default(1) }} \
       --set defaultSettings.defaultReplicaCount={{ longhorn_default_replica_count | default(1) }} \
       ${CHART_VERSION_FLAG}
   args:
