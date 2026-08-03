@@ -74,6 +74,19 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   no_log: true
 
+- name: Create Harbor API credentials for backend
+  ansible.builtin.shell: |
+    set -euo pipefail
+    kubectl -n {{ noryx_namespace }} create secret generic harbor-api-credentials \
+      --from-literal=username='{{ harbor_robot_username }}' \
+      --from-literal=password='{{ harbor_robot_password }}' \
+      --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  no_log: true
+
 - name: Apply baseline manifests
   ansible.builtin.command: kubectl apply --server-side --force-conflicts -k {{ noryx_deploy_path }}/deploy/k8s/base
   environment:
