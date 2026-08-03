@@ -39,16 +39,37 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
 - name: Wait for Longhorn manager pods
-  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=600s
+  ansible.builtin.shell: |
+    set -euo pipefail
+    until [ "$(kubectl -n longhorn-system get pods -l app=longhorn-manager --no-headers 2>/dev/null | wc -l)" -gt 0 ]; do
+      sleep 5
+    done
+    kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-manager --timeout=600s
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
 - name: Wait for Longhorn UI pods
-  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-ui --timeout=600s
+  ansible.builtin.shell: |
+    set -euo pipefail
+    until [ "$(kubectl -n longhorn-system get pods -l app=longhorn-ui --no-headers 2>/dev/null | wc -l)" -gt 0 ]; do
+      sleep 5
+    done
+    kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-ui --timeout=600s
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
 - name: Wait for Longhorn driver deployer pod
-  ansible.builtin.command: kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=600s
+  ansible.builtin.shell: |
+    set -euo pipefail
+    until [ "$(kubectl -n longhorn-system get pods -l app=longhorn-driver-deployer --no-headers 2>/dev/null | wc -l)" -gt 0 ]; do
+      sleep 5
+    done
+    kubectl -n longhorn-system wait --for=condition=Ready pod -l app=longhorn-driver-deployer --timeout=600s
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
