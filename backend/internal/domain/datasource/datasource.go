@@ -1,6 +1,8 @@
 package datasource
 
 import (
+	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,22 +86,26 @@ type ServiceDefinition struct {
 }
 
 func SystemServiceDefinitions() []ServiceDefinition {
+	registry := strings.TrimRight(strings.TrimSpace(os.Getenv("NORYX_DATASERVICE_REGISTRY")), "/")
+	if registry == "" {
+		registry = "harbor.example.local/noryx-dataservices"
+	}
 	return []ServiceDefinition{
 		{
 			ID: "postgresql-17", Name: "PostgreSQL 17", Type: "postgres",
-			Image:      "harbor.example.local/noryx-dataservices/postgresql@sha256:abe10a9e2631b6d60ba6fc4d5943ee39e7384da7b50ddc076fec5d066cc416ee",
+			Image:      registry + "/postgresql:17",
 			Dockerfile: "FROM postgres:17-alpine\n", System: true, DefaultPort: 5432,
 			Description: "Base relationnelle PostgreSQL maintenue par la plateforme.",
 		},
 		{
 			ID: "mysql-8", Name: "MySQL 8", Type: "mysql",
-			Image:      "harbor.example.local/noryx-dataservices/mysql@sha256:21635514702426e031ef50302c5dd738c2cbc990d02664de88a839b64daf63cc",
+			Image:      registry + "/mysql:8.4",
 			Dockerfile: "FROM mysql:8.4\n", System: true, DefaultPort: 3306,
 			Description: "Base relationnelle MySQL maintenue par la plateforme.",
 		},
 		{
 			ID: "mongodb-8", Name: "MongoDB 8", Type: "mongodb",
-			Image:      "harbor.example.local/noryx-dataservices/mongodb@sha256:24b556c65745f3c67a6c5b89f65200df7f64ad718a09aed4c2d7359ecad83ad4",
+			Image:      registry + "/mongodb:8.0",
 			Dockerfile: "FROM mongo:8.0\n", System: true, DefaultPort: 27017,
 			Description: "Base documentaire MongoDB maintenue par la plateforme.",
 		},

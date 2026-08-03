@@ -12,7 +12,8 @@ func TestNewDatasourceIsExternal(t *testing.T) {
 	}
 }
 
-func TestSystemServiceDefinitionsUseImmutableHarborImages(t *testing.T) {
+func TestSystemServiceDefinitionsUseConfigurableRegistry(t *testing.T) {
+	t.Setenv("NORYX_DATASERVICE_REGISTRY", "registry.example.local/custom-dataservices/")
 	items := SystemServiceDefinitions()
 	if len(items) != 3 {
 		t.Fatalf("expected 3 system definitions, got %d", len(items))
@@ -24,8 +25,8 @@ func TestSystemServiceDefinitionsUseImmutableHarborImages(t *testing.T) {
 		if item.Image == "" || item.Dockerfile == "" {
 			t.Fatalf("%s must expose image and dockerfile", item.ID)
 		}
-		if !strings.HasPrefix(item.Image, "harbor.example.local/noryx-dataservices/") || !strings.Contains(item.Image, "@sha256:") {
-			t.Fatalf("%s image must be an immutable Harbor reference: %s", item.ID, item.Image)
+		if !strings.HasPrefix(item.Image, "registry.example.local/custom-dataservices/") {
+			t.Fatalf("%s image must use configured registry: %s", item.ID, item.Image)
 		}
 	}
 }

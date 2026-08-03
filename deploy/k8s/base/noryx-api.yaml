@@ -35,6 +35,8 @@ spec:
               value: ""
             - name: NORYX_HARBOR_URL
               value: "https://harbor.example.local"
+            - name: NORYX_DATASERVICE_REGISTRY
+              value: "harbor.example.local/noryx-dataservices"
             - name: NORYX_HARBOR_INSECURE_SKIP_VERIFY
               value: "true"
             - name: NORYX_HARBOR_USERNAME
