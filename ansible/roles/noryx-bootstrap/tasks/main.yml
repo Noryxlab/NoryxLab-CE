@@ -75,7 +75,7 @@
   no_log: true
 
 - name: Apply baseline manifests
-  ansible.builtin.command: kubectl apply -k {{ noryx_deploy_path }}/deploy/k8s/base
+  ansible.builtin.command: kubectl apply --server-side -k {{ noryx_deploy_path }}/deploy/k8s/base
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
 
