@@ -36,14 +36,19 @@
     executable: /bin/bash
 
 - name: Patch secret values
-  ansible.builtin.shell: |
-    set -euo pipefail
-    sed -i 's/POSTGRES_PASSWORD: ".*"/POSTGRES_PASSWORD: "{{ postgres_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
-    sed -i 's/KEYCLOAK_ADMIN_PASSWORD: ".*"/KEYCLOAK_ADMIN_PASSWORD: "{{ keycloak_admin_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
-    sed -i 's/MINIO_ROOT_PASSWORD: ".*"/MINIO_ROOT_PASSWORD: "{{ minio_root_password }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
-    sed -i 's/NORYX_SECRETS_MASTER_KEY: ".*"/NORYX_SECRETS_MASTER_KEY: "{{ noryx_secrets_master_key }}"/' {{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml
-  args:
-    executable: /bin/bash
+  ansible.builtin.lineinfile:
+    path: "{{ noryx_deploy_path }}/deploy/k8s/base/secrets.yaml"
+    regexp: '^  {{ item.key }}: '
+    line: '  {{ item.key }}: "{{ item.value }}"'
+  loop:
+    - key: POSTGRES_PASSWORD
+      value: "{{ postgres_password }}"
+    - key: KEYCLOAK_ADMIN_PASSWORD
+      value: "{{ keycloak_admin_password }}"
+    - key: MINIO_ROOT_PASSWORD
+      value: "{{ minio_root_password }}"
+    - key: NORYX_SECRETS_MASTER_KEY
+      value: "{{ noryx_secrets_master_key }}"
   no_log: true
 
 - name: Apply namespaces before image pull secrets
