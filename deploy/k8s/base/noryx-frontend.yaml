@@ -16,7 +16,13 @@ data:
         <link rel="shortcut icon" href="/favicon.svg?v=3" />
         <title>CE</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+          @font-face {
+            font-family: "Plus Jakarta Sans";
+            src: url('/fonts/plus-jakarta-sans.woff2') format('woff2-variations');
+            font-style: normal;
+            font-weight: 200 800;
+            font-display: swap;
+          }
           :root {
             --bg: #f3f5f8;
             --surface: #ffffff;
@@ -715,75 +721,621 @@ data:
             .stats { grid-template-columns: 1fr; }
             .platform-pulse-grid { grid-template-columns: 1fr; }
           }
+
+          /* Professional UI: shared product shell and component language. */
+          :root {
+            --bg: #f6f7f9;
+            --surface: #ffffff;
+            --surface-soft: #f8f9fb;
+            --line: #e2e5ea;
+            --line-strong: #cbd1da;
+            --text: #182033;
+            --muted: #667085;
+            --nav-bg: #282a33;
+            --nav-bg-2: #282a33;
+            --nav-text: #f5f6f8;
+            --nav-muted: #b6bac6;
+            --brand: #087f8c;
+            --brand-2: #1197a5;
+            --brand-soft: #e5f5f6;
+            --accent: #4756d7;
+            --accent-strong: #3845ba;
+            --accent-soft: #eef0ff;
+            --ok: #147a4b;
+            --warn: #9a5b08;
+            --bad: #b4232c;
+            --shadow-sm: 0 1px 2px rgba(16, 24, 40, .04);
+            --shadow-md: 0 8px 24px rgba(16, 24, 40, .07);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --control-height: 40px;
+          }
+          html { background: var(--bg); }
+          body {
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+          }
+          .layout,
+          .layout.is-collapsed {
+            display: block;
+            min-height: 100vh;
+          }
+          .sidebar,
+          .layout.is-collapsed .sidebar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-height: 62px;
+            padding: 0 26px;
+            overflow: visible;
+            color: var(--nav-text);
+            background: var(--nav-bg);
+            border: 0;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            box-shadow: 0 1px 8px rgba(16, 24, 40, .16);
+          }
+          .sidebar::after { display: none; }
+          .sidebar-brand-block {
+            display: flex;
+            align-items: center;
+            min-width: 164px;
+            margin-right: 24px;
+          }
+          .brand,
+          .layout.is-collapsed .brand {
+            display: block;
+            margin: 0;
+            color: #fff;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            white-space: nowrap;
+          }
+          .brand::before {
+            content: "";
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            margin-right: 9px;
+            border: 2px solid #61d3dc;
+            border-radius: 50%;
+            box-shadow: 5px -4px 0 -3px #61d3dc, 5px 4px 0 -3px #61d3dc;
+            vertical-align: 1px;
+          }
+          .brand-meta { display: none; }
+          .edition, .versions { display: none; }
+          .main-nav {
+            display: flex;
+            align-self: stretch;
+            gap: 3px;
+            min-width: 0;
+          }
+          .nav-group {
+            position: relative;
+            display: flex;
+            align-items: stretch;
+          }
+          .nav-group > .menu-title,
+          .nav-home > .tab-btn {
+            display: flex;
+            align-items: center;
+            min-height: 62px;
+            margin: 0;
+            padding: 0 15px;
+            border: 0;
+            border-radius: 0;
+            color: #f5f6f8;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 650;
+            letter-spacing: 0;
+            text-transform: none;
+            white-space: nowrap;
+            cursor: pointer;
+          }
+          .nav-group:not(.nav-home) > .menu-title::after {
+            content: "";
+            width: 6px;
+            height: 6px;
+            margin-left: 9px;
+            border-right: 1.5px solid #b8bdc9;
+            border-bottom: 1.5px solid #b8bdc9;
+            transform: rotate(45deg) translateY(-2px);
+          }
+          .nav-group:hover > .menu-title,
+          .nav-group:focus-within > .menu-title,
+          .nav-group:has(.tab-btn.active) > .menu-title,
+          .nav-home > .tab-btn:hover,
+          .nav-home > .tab-btn.active {
+            color: #fff;
+            background: #3b3e4a;
+          }
+          .nav-group > .menu,
+          .layout.is-collapsed .nav-group > .menu {
+            position: absolute;
+            top: calc(100% - 1px);
+            left: 0;
+            z-index: 120;
+            display: none;
+            width: max-content;
+            min-width: 220px;
+            max-width: 320px;
+            gap: 2px;
+            margin: 0;
+            padding: 7px;
+            color: var(--text);
+            background: #fff;
+            border: 1px solid #d9dde5;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 14px 34px rgba(16,24,40,.18);
+          }
+          .nav-group:hover > .menu,
+          .nav-group:focus-within > .menu { display: grid; }
+          .nav-group > .menu .tab-btn,
+          .layout.is-collapsed .nav-group > .menu .tab-btn {
+            display: flex;
+            justify-content: flex-start;
+            min-height: 36px;
+            padding: 8px 10px;
+            color: #30384b;
+            background: transparent;
+            border: 0;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 550;
+            transform: none;
+          }
+          .nav-group > .menu .tab-btn:hover { background: #f0f2f6; box-shadow: none; }
+          .nav-group > .menu .tab-btn.active {
+            color: var(--accent-strong);
+            background: var(--accent-soft);
+            box-shadow: inset 3px 0 0 var(--accent);
+          }
+          .menu-ico, .side-sep, .reduce-row, .reduce-btn { display: none; }
+          .sidebar-tools {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-left: auto;
+            padding-left: 20px;
+          }
+          .docs-link {
+            color: #e8eaf0 !important;
+            font-size: 12px;
+            font-weight: 600 !important;
+            text-decoration: none !important;
+          }
+          .docs-link:hover { color: #fff !important; }
+          .who,
+          .layout.is-collapsed .who {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            margin: 0;
+            padding: 0;
+            color: #f5f6f8;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            font-size: 12px;
+            white-space: nowrap;
+          }
+          .who-actions { display: flex; gap: 6px; margin: 0; }
+          .who .btn {
+            min-height: 32px;
+            padding: 6px 9px;
+            color: #f5f6f8;
+            background: transparent;
+            border-color: #5a5e6b;
+            font-size: 11px;
+            box-shadow: none;
+          }
+          .who .btn:hover { background: #3b3e4a; transform: none; }
+          .who .btn.primary { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+          .content {
+            width: 100%;
+            min-width: 0;
+            padding: 0 32px 48px;
+          }
+          .topbar {
+            min-height: 94px;
+            padding: 27px 4px 20px;
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            box-shadow: none;
+          }
+          .topbar-main { min-width: 0; }
+          .title {
+            font-size: 30px;
+            font-weight: 650;
+            letter-spacing: -.035em;
+          }
+          .subtitle {
+            display: block;
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+          }
+          .lang-min {
+            min-width: 58px;
+            min-height: 32px;
+            padding: 5px 9px;
+            background: #fff;
+            border-radius: var(--radius-sm);
+          }
+          .views { margin-top: 24px; }
+          .view.active { animation: view-enter .22s ease-out; }
+          @keyframes view-enter {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .grid { gap: 20px; }
+          .card {
+            min-width: 0;
+            padding: 22px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+          }
+          .card h3 {
+            margin-bottom: 16px;
+            color: #222b3d;
+            font-size: 14px;
+            font-weight: 750;
+            letter-spacing: .075em;
+          }
+          .stats {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+          }
+          .stat {
+            min-height: 96px;
+            padding: 17px 19px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+          }
+          .stat .k { font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+          .stat .v { margin-top: 9px; font-size: 26px; font-weight: 650; }
+
+          input, select, textarea {
+            min-width: 0;
+            min-height: var(--control-height);
+            padding: 9px 11px;
+            color: #20283a;
+            background: #fff;
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-sm);
+            font: inherit;
+          }
+          textarea { resize: vertical; line-height: 1.45; }
+          input::placeholder, textarea::placeholder { color: #98a0ae; }
+          input:hover, select:hover, textarea:hover { border-color: #aeb6c2; }
+          input:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(71,86,215,.12);
+            outline: none;
+          }
+          label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4b5568;
+            font-size: 11px;
+            font-weight: 700;
+          }
+          .row { align-items: center; gap: 10px; margin-bottom: 12px; }
+          .row > input, .row > select, .row > textarea { flex: 1 1 210px; }
+          .btn {
+            min-height: var(--control-height);
+            padding: 9px 14px;
+            color: #283247;
+            background: #fff;
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-sm);
+            font: inherit;
+            font-weight: 650;
+            box-shadow: none;
+          }
+          .btn:hover {
+            background: #f4f5f7;
+            border-color: #aeb6c2;
+            box-shadow: none;
+            transform: none;
+          }
+          .btn.primary { background: var(--accent); border-color: var(--accent); }
+          .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+          .btn.good { background: #ecf8f1; border-color: #b9dfca; }
+          .btn.warn { background: #fff8ec; border-color: #ebd3a8; }
+          .btn.danger { background: #fff; border-color: #eab9bd; }
+          .btn.danger:hover { background: #fff1f2; border-color: #d98d94; }
+          .hint {
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            color: #34545c;
+            background: #f0f8f9;
+            border: 1px solid #d4e9ec;
+            border-left: 3px solid var(--brand);
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+          }
+          table {
+            width: 100%;
+            color: #2b3447;
+            font-size: 12px;
+          }
+          th, td {
+            padding: 11px 12px;
+            border-bottom: 1px solid #e8eaee;
+            vertical-align: middle;
+          }
+          th {
+            color: #697386;
+            background: #fafbfc;
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: .08em;
+          }
+          tbody tr:last-child td { border-bottom: 0; }
+          tbody tr:hover { background: #fafbfc; }
+          code, .mono { overflow-wrap: anywhere; }
+          pre { border-radius: var(--radius-sm); }
+          .badge { padding: 3px 8px; font-size: 10px; letter-spacing: .055em; }
+
+          .home-stack {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 20px;
+          }
+          .home-stack > .hero,
+          .home-stack > .platform-pulse { grid-column: 1 / -1; }
+          .hero {
+            position: relative;
+            min-height: 210px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 34px 38px;
+            overflow: hidden;
+            color: #fff;
+            background: #273149;
+            border: 0;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+          }
+          .hero::after {
+            content: "";
+            position: absolute;
+            top: -160px;
+            right: -80px;
+            width: 480px;
+            height: 360px;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 50%;
+            box-shadow: 0 0 0 70px rgba(255,255,255,.035), 0 0 0 140px rgba(255,255,255,.025);
+          }
+          .hero h2, .hero p { position: relative; z-index: 1; max-width: 1050px; }
+          .hero h2 { font-size: clamp(30px, 3vw, 46px); font-weight: 650; letter-spacing: -.045em; }
+          .hero p { color: #dce3ef; font-size: 15px; }
+          .platform-pulse {
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+          }
+          .platform-pulse-head { padding: 16px 19px; }
+          .platform-pulse-head h3 { font-size: 14px; }
+          .platform-pulse-grid { background: var(--line); border-top-color: var(--line); }
+          .pulse-metric { padding: 16px 18px; background: #fff; }
+          .pulse-metric .v { color: #202a3d; font-size: 27px; font-weight: 650; }
+          .pulse-spark polyline { stroke: var(--brand); stroke-width: 1.8; }
+
+          .project-create-panel,
+          .dataset-create-panel {
+            margin-bottom: 24px;
+            padding: 18px;
+            background: #f8f9fc;
+            border: 1px solid #dfe3eb;
+            border-radius: var(--radius-md);
+          }
+          .project-create-copy h4,
+          .dataset-create-header h4 { color: #273149; font-size: 15px; }
+          .projects-toolbar { align-items: center; margin-bottom: 16px; }
+          .projects-grid { gap: 18px; }
+          .project-card {
+            min-height: 245px;
+            background: #fff;
+            border: 1px solid #dfe3e9;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+          }
+          .project-card:hover { border-color: #b9c1cd; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+          .project-card.is-active { border: 1px solid var(--accent); box-shadow: inset 4px 0 0 var(--accent), var(--shadow-md); }
+          .project-card-main { padding: 20px 20px 16px; }
+          .project-card h4 { margin: 6px 0 13px; color: var(--accent-strong); font-size: 19px; }
+          .project-owner { color: #697386; font-weight: 600; }
+          .project-card-footer { background: var(--line); }
+          .project-workload { background: #f4f5f7; }
+          .project-card-actions { background: #fafbfc; }
+          .project-scope,
+          .dataset-explorer {
+            background: #f7f8fa;
+            border: 1px solid #dfe3e9;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+          }
+          .project-scope-header,
+          .dataset-explorer-header {
+            padding: 20px 22px;
+            color: var(--text);
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+            box-shadow: inset 4px 0 0 var(--accent);
+          }
+          .project-scope-kicker,
+          .dataset-explorer-kicker { color: #697386; }
+          .project-scope-name,
+          .dataset-explorer-name { color: #20293b; }
+          .dataset-explorer-location { color: var(--muted); }
+          .project-resources { gap: 16px; padding: 18px; }
+          .project-resource-card { border-left: 1px solid var(--line); }
+          .project-resource-card h3::before { border-radius: 50%; }
+          .execution-project-context {
+            padding: 14px 16px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-sm);
+          }
+          .dataset-catalog,
+          .dataset-upload-panel,
+          .dataset-access-panel,
+          .dataset-files,
+          .dataset-preview,
+          .ontology-explorer,
+          .ontology-map,
+          .ontology-insights,
+          .app-usage-panel {
+            background: #fff;
+            border-color: var(--line);
+            border-radius: var(--radius-sm);
+          }
+          .dataset-file-toolbar { background: #f7f8fa; }
+          .dataset-files tbody tr:hover { background: #f5f8fa; }
+          .table-flat, .rbac-matrix-wrap { border-color: var(--line); border-radius: var(--radius-sm); }
+          .apps-table-wrap, .dataservice-catalog-wrap { border: 1px solid var(--line); border-radius: var(--radius-sm); }
+          .apps-table-wrap table, .dataservice-catalog-wrap table { margin: 0; }
+          .env-toolbar { margin-bottom: 16px; }
+          .env-name { color: var(--accent-strong); }
+
+          @media (max-width: 1180px) {
+            .sidebar, .layout.is-collapsed .sidebar { padding: 0 16px; }
+            .sidebar-brand-block { min-width: auto; margin-right: 12px; }
+            .brand { font-size: 17px; }
+            .nav-group > .menu-title, .nav-home > .tab-btn { padding: 0 10px; }
+            .sidebar-tools { gap: 9px; padding-left: 10px; }
+            .docs-link { display: none; }
+            .content { padding: 0 22px 40px; }
+          }
+          @media (max-width: 920px) {
+            .sidebar, .layout.is-collapsed .sidebar {
+              position: relative;
+              flex-wrap: wrap;
+              min-height: auto;
+              padding: 12px 16px 0;
+            }
+            .sidebar-brand-block { min-height: 38px; }
+            .sidebar-tools { margin-left: auto; }
+            .main-nav {
+              order: 3;
+              width: calc(100% + 32px);
+              margin: 8px -16px 0;
+              padding: 0 10px;
+              overflow-x: auto;
+              border-top: 1px solid rgba(255,255,255,.08);
+            }
+            .nav-group > .menu-title, .nav-home > .tab-btn { min-height: 46px; }
+            .nav-group > .menu { position: fixed; top: auto; margin-top: 46px; }
+            .content { padding: 0 16px 32px; }
+            .topbar { min-height: 82px; padding-top: 22px; }
+            .home-stack { grid-template-columns: 1fr; }
+            .home-stack > * { grid-column: 1; }
+            .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          }
+          @media (max-width: 680px) {
+            .who #metaText { display: none; }
+            .title { font-size: 25px; }
+            .subtitle { max-width: 80%; }
+            .stats, .projects-grid { grid-template-columns: 1fr; }
+            .card { padding: 16px; }
+            .hero { min-height: 190px; padding: 26px 24px; }
+            .project-create-panel, .project-create-form { display: grid; }
+            .platform-pulse-grid { grid-template-columns: 1fr; }
+          }
         </style>
         <script src="/vendor/keycloak.js"></script>
         <script src="/vendor/xlsx.full.min.js"></script>
       </head>
       <body>
         <div class="layout">
-          <aside class="sidebar">
-            <div class="reduce-row">
+          <header class="sidebar">
+            <div class="sidebar-brand-block">
               <div id="brandName" class="brand">NoryxLab</div>
-              <button id="reduceNav" class="reduce-btn" type="button"><span class="ico">◀</span> <span class="txt">Reduce</span></button>
-            </div>
-            <div class="edition" data-i18n="edition">Community Edition</div>
-            <div id="versions" class="versions">front: loading | back: loading</div>
-            <div id="meta" class="who">
-              <div id="metaText">Non connecte</div>
-              <div class="who-actions">
-                <button id="login" type="button" class="btn primary" style="position:relative;z-index:20;pointer-events:auto;" data-i18n="login">Se connecter</button>
-                <button id="logout" class="btn" style="display:none;" data-i18n="logout">Se déconnecter</button>
+              <div class="brand-meta">
+                <span class="edition" data-i18n="edition">Community Edition</span>
+                <span id="versions" class="versions">front: loading | back: loading</span>
               </div>
             </div>
 
-            <div class="menu-title" data-i18n="menu_home">Home</div>
-            <div class="menu">
-              <button class="tab-btn active" data-tab="intro"><span class="menu-ico">⌂</span><span data-i18n="tab_home">Home</span></button>
-            </div>
-            <hr class="side-sep" />
+            <nav class="main-nav" aria-label="Navigation principale">
+              <div class="nav-group nav-home">
+                <button class="tab-btn active" data-tab="intro"><span data-i18n="tab_home">Accueil</span></button>
+              </div>
 
-            <div class="menu-title" data-i18n="menu_data">Data</div>
-            <div class="menu">
-              <button class="tab-btn" data-tab="data-datasets"><span class="menu-ico">▦</span><span data-i18n="tab_datasets">Datasets</span></button>
-              <button class="tab-btn" data-tab="data-datasources"><span class="menu-ico">◎</span><span>Datasources</span></button>
-              <button class="tab-btn" data-tab="data-ontology"><span class="menu-ico">◇</span><span>Catalogue sémantique</span></button>
-              <button class="tab-btn" data-tab="data-git"><span class="menu-ico">⑂</span><span>Git</span></button>
-              <button class="tab-btn" data-tab="data-secrets"><span class="menu-ico">◍</span><span>Secrets</span></button>
-            </div>
-            <hr class="side-sep" />
+              <div class="nav-group">
+                <div class="menu-title" data-i18n="menu_data">Data</div>
+                <div class="menu">
+                  <button class="tab-btn" data-tab="data-datasets"><span data-i18n="tab_datasets">Datasets</span></button>
+                  <button class="tab-btn" data-tab="data-datasources"><span data-i18n="tab_datasources">Datasources</span></button>
+                  <button class="tab-btn" data-tab="data-ontology"><span data-i18n="tab_ontology">Catalogue sémantique</span></button>
+                  <button class="tab-btn" data-tab="data-git"><span data-i18n="tab_git">Git</span></button>
+                  <button class="tab-btn" data-tab="data-secrets"><span data-i18n="tab_secrets">Secrets</span></button>
+                </div>
+              </div>
 
-            <div class="menu-title" data-i18n="menu_develop">Develop</div>
-            <div class="menu">
-              <button class="tab-btn" data-tab="projects"><span class="menu-ico">◫</span><span data-i18n="tab_projects_overview">Projets</span></button>
-              <button class="tab-btn" data-tab="workspaces"><span class="menu-ico">⌘</span><span data-i18n="tab_workspaces">Workspaces</span></button>
-              <button class="tab-btn" data-tab="project-jobs"><span class="menu-ico">⏱</span><span data-i18n="tab_jobs">Jobs</span></button>
-              <button class="tab-btn" data-tab="project-apps"><span class="menu-ico">▣</span><span>Apps</span></button>
-              <button class="tab-btn" data-tab="project-dashboards"><span class="menu-ico">◧</span><span>Dashboards</span></button>
-              <button class="tab-btn" data-tab="project-apis"><span class="menu-ico">⋈</span><span data-i18n="tab_apis">Services API</span></button>
-            </div>
-            <hr class="side-sep" />
+              <div class="nav-group">
+                <div class="menu-title" data-i18n="menu_develop">Develop</div>
+                <div class="menu">
+                  <button class="tab-btn" data-tab="projects"><span data-i18n="tab_projects_overview">Projets</span></button>
+                  <button class="tab-btn" data-tab="workspaces"><span data-i18n="tab_workspaces">Workspaces</span></button>
+                  <button class="tab-btn" data-tab="project-jobs"><span data-i18n="tab_jobs">Jobs</span></button>
+                  <button class="tab-btn" data-tab="project-apps"><span>Apps</span></button>
+                  <button class="tab-btn" data-tab="project-dashboards"><span>Dashboards</span></button>
+                  <button class="tab-btn" data-tab="project-apis"><span data-i18n="tab_apis">Services API</span></button>
+                </div>
+              </div>
 
-            <div class="menu-title" data-i18n="menu_deploy">Deploy</div>
-            <div class="menu">
-              <button class="tab-btn" data-tab="production"><span class="menu-ico">●</span><span>Production</span></button>
-            </div>
-            <hr class="side-sep" />
+              <div class="nav-group">
+                <div class="menu-title" data-i18n="menu_deploy">Production</div>
+                <div class="menu">
+                  <button class="tab-btn" data-tab="production"><span>Applications</span></button>
+                </div>
+              </div>
 
-            <div class="menu-title" data-i18n="menu_govern">Govern</div>
-            <div class="menu">
-              <button class="tab-btn" data-tab="environments"><span class="menu-ico">◈</span><span data-i18n="tab_environments">Environnements</span></button>
-              <button class="tab-btn admin-only" data-tab="govern-network"><span class="menu-ico">⇄</span><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
-              <button class="tab-btn admin-only" data-tab="govern-rbac"><span class="menu-ico">▦</span><span data-i18n="tab_rbac_matrix">RBAC & organisations</span></button>
-              <button class="tab-btn admin-only" data-tab="workloads"><span class="menu-ico">◷</span><span data-i18n="tab_activity">Activites</span></button>
-              <button class="tab-btn admin-only" data-tab="ops"><span class="menu-ico">☰</span><span data-i18n="tab_admin">Administration</span></button>
-            </div>
-            <hr class="side-sep" />
+              <div class="nav-group">
+                <div class="menu-title" data-i18n="menu_govern">Govern</div>
+                <div class="menu">
+                  <button class="tab-btn" data-tab="environments"><span data-i18n="tab_environments">Environnements</span></button>
+                  <button class="tab-btn admin-only" data-tab="govern-network"><span data-i18n="tab_network_security">Réseau & sécurité</span></button>
+                  <button class="tab-btn admin-only" data-tab="govern-rbac"><span data-i18n="tab_rbac_matrix">RBAC & organisations</span></button>
+                  <button class="tab-btn admin-only" data-tab="workloads"><span data-i18n="tab_activity">Activités</span></button>
+                  <button class="tab-btn admin-only" data-tab="ops"><span data-i18n="tab_admin">Administration</span></button>
+                </div>
+              </div>
+            </nav>
 
-            <div class="menu-title" data-i18n="menu_docs">Documentation</div>
-            <div class="menu">
-              <a href="/swagger" target="_blank" rel="noopener noreferrer" data-i18n="api_reference">Reference API</a>
+            <div class="sidebar-tools">
+              <a class="docs-link" href="/swagger" target="_blank" rel="noopener noreferrer" data-i18n="api_reference">API</a>
+              <div id="meta" class="who">
+                <div id="metaText">Non connecté</div>
+                <div class="who-actions">
+                  <button id="login" type="button" class="btn primary" data-i18n="login">Se connecter</button>
+                  <button id="logout" class="btn" style="display:none;" data-i18n="logout">Se déconnecter</button>
+                </div>
+              </div>
             </div>
-          </aside>
+          </header>
 
           <main class="content">
             <section class="topbar">
@@ -846,7 +1398,7 @@ data:
               <section class="view" id="view-projects">
                 <div class="grid">
                   <article class="card span-12">
-                    <h3>Projects</h3>
+                    <h3>Projets</h3>
                     <div class="project-create-panel">
                       <div class="project-create-copy">
                         <h4>Nouveau projet</h4>
@@ -863,10 +1415,10 @@ data:
                       <button id="loadProjects" type="button" class="btn">Actualiser</button>
                     </div>
                     <div class="projects-toolbar">
-                      <input id="projectSearch" placeholder="Find project" />
+                      <input id="projectSearch" placeholder="Rechercher un projet" />
                       <select id="projectViewMode">
-                        <option value="grid">Grid</option>
-                        <option value="list">List</option>
+                        <option value="grid">Tuiles</option>
+                        <option value="list">Liste</option>
                       </select>
                       <select id="projectSelect" aria-label="Projet actif" style="display:none"></select>
                     </div>
@@ -2500,15 +3052,19 @@ data:
           const UI_TEXT = {
             fr: {
               edition: 'Community Edition',
-              menu_home: 'Home',
+              menu_home: 'Accueil',
               menu_data: 'Data',
               menu_develop: 'Develop',
-              menu_deploy: 'Deploy',
+              menu_deploy: 'Production',
               menu_govern: 'Govern',
               menu_docs: 'Documentation',
-              tab_home: 'Home',
+              tab_home: 'Accueil',
               tab_environments: 'Environnements',
               tab_datasets: 'Datasets',
+              tab_datasources: 'Datasources',
+              tab_ontology: 'Catalogue sémantique',
+              tab_git: 'Git',
+              tab_secrets: 'Secrets',
               tab_projects_overview: "Projets",
               tab_workspaces: 'Workspaces',
               tab_jobs: 'Jobs',
@@ -2640,6 +3196,14 @@ data:
               section_subtitle_projects: 'Gestion des projets et rattachement des ressources.',
               section_title_data: 'Data',
               section_subtitle_data: 'Catalogues de datasets, depots, connexions et secrets.',
+              section_title_datasources: 'Datasources',
+              section_subtitle_datasources: 'Connexions externes et services de données internes.',
+              section_title_ontology: 'Catalogue sémantique',
+              section_subtitle_ontology: 'Ontologies, objets métier et exploration des relations.',
+              section_title_git: 'Dépôts Git',
+              section_subtitle_git: 'Dépôts de code utilisables par les projets et leurs exécutions.',
+              section_title_secrets: 'Secrets',
+              section_subtitle_secrets: 'Variables sensibles injectées dans vos exécutions autorisées.',
               section_title_workspaces: 'Workspaces',
               section_subtitle_workspaces: 'Lancement et suivi des environnements de travail.',
               section_title_jobs: 'Jobs',
@@ -2668,12 +3232,16 @@ data:
               menu_home: 'Home',
               menu_data: 'Data',
               menu_develop: 'Develop',
-              menu_deploy: 'Deploy',
+              menu_deploy: 'Production',
               menu_govern: 'Govern',
               menu_docs: 'Documentation',
               tab_home: 'Home',
               tab_environments: 'Environments',
               tab_datasets: 'Datasets',
+              tab_datasources: 'Datasources',
+              tab_ontology: 'Semantic catalog',
+              tab_git: 'Git',
+              tab_secrets: 'Secrets',
               tab_projects_overview: 'Projects',
               tab_workspaces: 'Workspaces',
               tab_jobs: 'Jobs',
@@ -2805,6 +3373,14 @@ data:
               section_subtitle_projects: 'Project management and resource attachments.',
               section_title_data: 'Data',
               section_subtitle_data: 'Catalogs for datasets, repositories, datasources and secrets.',
+              section_title_datasources: 'Datasources',
+              section_subtitle_datasources: 'External connections and managed internal data services.',
+              section_title_ontology: 'Semantic catalog',
+              section_subtitle_ontology: 'Ontologies, business objects and relationship exploration.',
+              section_title_git: 'Git repositories',
+              section_subtitle_git: 'Code repositories available to projects and their executions.',
+              section_title_secrets: 'Secrets',
+              section_subtitle_secrets: 'Sensitive variables injected into authorized executions.',
               section_title_workspaces: 'Workspaces',
               section_subtitle_workspaces: 'Launch and monitor collaborative IDE sessions.',
               section_title_jobs: 'Jobs',
@@ -3176,11 +3752,11 @@ data:
               intro: ['section_title_intro', 'section_subtitle_intro'],
               projects: ['section_title_projects', 'section_subtitle_projects'],
               data: ['section_title_data', 'section_subtitle_data'],
-              'data-datasets': ['section_title_data', 'section_subtitle_data'],
-              'data-datasources': ['section_title_data', 'section_subtitle_data'],
-              'data-ontology': ['section_title_data', 'section_subtitle_data'],
-              'data-git': ['section_title_data', 'section_subtitle_data'],
-              'data-secrets': ['section_title_data', 'section_subtitle_data'],
+              'data-datasets': ['tab_datasets', 'section_subtitle_data'],
+              'data-datasources': ['section_title_datasources', 'section_subtitle_datasources'],
+              'data-ontology': ['section_title_ontology', 'section_subtitle_ontology'],
+              'data-git': ['section_title_git', 'section_subtitle_git'],
+              'data-secrets': ['section_title_secrets', 'section_subtitle_secrets'],
               workspaces: ['section_title_workspaces', 'section_subtitle_workspaces'],
               'project-jobs': ['section_title_jobs', 'section_subtitle_jobs'],
               'project-apps': ['section_title_apps', 'section_subtitle_apps'],
@@ -8427,7 +9003,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.237"}
+    {"version":"ce-web-0.6.239"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -8448,7 +9024,7 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-frontend
-          image: harbor.example.local/noryx-ce/noryx-frontend:ce-web-0.6.237
+          image: harbor.example.local/noryx-ce/noryx-frontend:ce-web-0.6.238
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
