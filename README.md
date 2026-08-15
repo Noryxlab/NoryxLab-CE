@@ -150,3 +150,9 @@ python3 -m pip install --user playwright
 python3 -m playwright install chromium
 BASE_URL=https://datalab.example.local python3 scripts/ops/smoke_frontend_login.py
 ```
+
+## License
+
+NoryxLab Community Edition is licensed under the Mozilla Public License 2.0 (`MPL-2.0`). See [`LICENSE`](LICENSE).
+
+The MPL applies at file level: modifications to MPL-covered files remain under MPL-2.0 when distributed, while separate files can be combined with the Community Edition as part of a larger work under different terms.
