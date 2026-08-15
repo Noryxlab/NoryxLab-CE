@@ -701,6 +701,54 @@ data:
             overflow: auto;
             font-size: 12px;
           }
+          .hint:empty { display: none; }
+          .toast-region {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 1200;
+            display: grid;
+            width: min(390px, calc(100vw - 32px));
+            gap: 10px;
+            pointer-events: none;
+          }
+          .toast {
+            display: grid;
+            grid-template-columns: 4px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: start;
+            padding: 14px 14px 14px 0;
+            overflow: hidden;
+            color: #263044;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            pointer-events: auto;
+            animation: toast-enter .18s ease-out;
+          }
+          .toast::before { content: ""; align-self: stretch; background: var(--brand); }
+          .toast.error::before { background: #c73a46; }
+          .toast.success::before { background: #26845a; }
+          .toast strong { display: block; margin-bottom: 3px; font-size: 12px; }
+          .toast p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+          .toast button { padding: 0; color: #7a8495; background: transparent; border: 0; cursor: pointer; }
+          @keyframes toast-enter { from { opacity: 0; transform: translateY(8px); } }
+          .action-dialog {
+            width: min(470px, calc(100vw - 32px));
+            padding: 0;
+            color: #263044;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            box-shadow: 0 24px 70px rgba(24,32,48,.24);
+          }
+          .action-dialog::backdrop { background: rgba(20,27,40,.46); backdrop-filter: blur(2px); }
+          .action-dialog-body { padding: 24px; }
+          .action-dialog h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: -.02em; }
+          .action-dialog p { margin: 0 0 18px; color: var(--muted); line-height: 1.55; }
+          .action-dialog-field { margin-bottom: 18px; }
+          .action-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
           @media (max-width: 1240px) {
             .layout { grid-template-columns: 1fr; }
             .sidebar { border-right: none; border-bottom: 1px solid #22455f; }
@@ -944,6 +992,7 @@ data:
             min-width: 0;
             padding: 0 32px 48px;
           }
+          [hidden] { display: none !important; }
           .topbar {
             min-height: 94px;
             padding: 27px 4px 20px;
@@ -1035,6 +1084,9 @@ data:
             font-size: 11px;
             font-weight: 700;
           }
+          .field { min-width: 0; }
+          .field > input, .field > select, .field > textarea { width: 100%; }
+          .row > .field { flex: 1 1 210px; }
           .row { align-items: center; gap: 10px; margin-bottom: 12px; }
           .row > input, .row > select, .row > textarea { flex: 1 1 210px; }
           .btn {
@@ -1158,6 +1210,61 @@ data:
           }
           .section-head h3 { margin-bottom: 4px; }
           .section-head .muted { margin: 0; }
+          .context-chip {
+            display: inline-flex;
+            margin-left: 8px;
+            padding: 3px 8px;
+            color: #4d5870;
+            background: #f1f3f7;
+            border: 1px solid #dfe3ea;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 650;
+            letter-spacing: 0;
+            vertical-align: middle;
+          }
+          .row-actions { display: inline-block; margin-left: 5px; text-align: left; }
+          .row-actions > summary {
+            display: inline-grid;
+            place-items: center;
+            width: var(--control-height);
+            min-height: var(--control-height);
+            color: #596377;
+            background: #fff;
+            border: 1px solid var(--line-strong);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            list-style: none;
+            font-size: 17px;
+            line-height: 1;
+          }
+          .row-actions > summary::-webkit-details-marker { display: none; }
+          .row-actions-menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+          .row-actions-menu .btn { min-height: 30px; padding: 6px 9px; font-size: 10px; }
+          .technical-meta { display: inline-flex; align-items: center; color: var(--muted); font-size: 10px; }
+          .admin-subnav {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            padding: 4px;
+            overflow-x: auto;
+            background: #eef0f4;
+            border-radius: var(--radius-sm);
+          }
+          .admin-subnav button {
+            min-height: 36px;
+            padding: 8px 13px;
+            color: #616b7d;
+            background: transparent;
+            border: 0;
+            border-radius: 7px;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 650;
+            white-space: nowrap;
+            cursor: pointer;
+          }
+          .admin-subnav button.active { color: #263044; background: #fff; box-shadow: var(--shadow-sm); }
           .subsection-head {
             margin-top: 30px;
             padding-top: 24px;
@@ -1385,7 +1492,7 @@ data:
                 <div class="menu">
                   <button class="tab-btn" data-tab="data-datasets"><span data-i18n="tab_datasets">Datasets</span></button>
                   <button class="tab-btn" data-tab="data-datasources"><span data-i18n="tab_datasources">Datasources</span></button>
-                  <button class="tab-btn" data-tab="data-ontology"><span data-i18n="tab_ontology">Catalogue sémantique</span></button>
+                  <button class="tab-btn" data-tab="data-ontology"><span data-i18n="tab_ontology">Ontologies</span></button>
                   <button class="tab-btn" data-tab="data-git"><span data-i18n="tab_git">Git</span></button>
                   <button class="tab-btn" data-tab="data-secrets"><span data-i18n="tab_secrets">Secrets</span></button>
                 </div>
@@ -1397,16 +1504,15 @@ data:
                   <button class="tab-btn" data-tab="projects"><span data-i18n="tab_projects_overview">Projets</span></button>
                   <button class="tab-btn" data-tab="workspaces"><span data-i18n="tab_workspaces">Workspaces</span></button>
                   <button class="tab-btn" data-tab="project-jobs"><span data-i18n="tab_jobs">Jobs</span></button>
-                  <button class="tab-btn" data-tab="project-apps"><span>Apps</span></button>
+                  <button class="tab-btn" data-tab="project-apps"><span>Applications</span></button>
                   <button class="tab-btn" data-tab="project-dashboards"><span>Dashboards</span></button>
-                  <button class="tab-btn" data-tab="project-apis"><span data-i18n="tab_apis">Services API</span></button>
                 </div>
               </div>
 
               <div class="nav-group">
                 <div class="menu-title" data-i18n="menu_deploy">Production</div>
                 <div class="menu">
-                  <button class="tab-btn" data-tab="production"><span>Applications</span></button>
+                  <button class="tab-btn" data-tab="production"><span>Services publiés</span></button>
                 </div>
               </div>
 
@@ -1448,12 +1554,6 @@ data:
               </div>
             </section>
 
-            <section class="stats" id="statsBar">
-              <article class="stat"><div class="k" data-i18n="stat_projects">Projets</div><div id="statProjects" class="v">0</div></article>
-              <article class="stat"><div class="k" data-i18n="stat_activity">Activites</div><div id="statWorkspaces" class="v">0</div></article>
-              <article class="stat"><div class="k" data-i18n="stat_env">Environnements</div><div id="statBuilds" class="v">0</div></article>
-            </section>
-
             <section class="views">
               <section class="view active" id="view-intro">
                 <div class="stack home-stack">
@@ -1468,14 +1568,6 @@ data:
                       <a class="btn" href="/swagger" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_api">Documentation API</a>
                       <a class="btn" href="https://docs.noryxlab.ai" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_docs">Documentation utilisateur</a>
                       <a class="btn" href="https://status.noryxlab.ai" target="_blank" rel="noopener noreferrer" data-i18n="home_notice_cta_status">Etat plateforme</a>
-                    </div>
-                  </article>
-                  <article class="card span-12">
-                    <h3 data-i18n="quickstart">Demarrage rapide</h3>
-                    <div class="row">
-                      <button class="btn primary" data-tab-jump="projects" data-i18n="go_projects">Aller aux projets</button>
-                      <button class="btn" data-tab-jump="data" data-i18n="go_data">Aller aux donnees</button>
-                      <button class="btn" data-tab-jump="environments" data-i18n="go_env">Aller aux environnements</button>
                     </div>
                   </article>
                   <article class="platform-pulse">
@@ -1500,7 +1592,7 @@ data:
                         <h3>Mes projets</h3>
                         <p class="muted">Sélectionnez un projet pour retrouver ses ressources et ses exécutions.</p>
                       </div>
-                      <button id="loadProjects" type="button" class="btn">Actualiser</button>
+                      <button id="loadProjects" type="button" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouveau projet</span><small>Nom et description suffisent pour démarrer.</small></summary>
@@ -1521,7 +1613,7 @@ data:
                     <div id="projectCards" class="projects-grid"></div>
                     <div id="projectList" class="project-list" style="display:none;">
                       <table>
-                        <thead><tr><th>Name</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Actions</th></tr></thead>
                         <tbody id="projectRows"></tbody>
                       </table>
                     </div>
@@ -1531,13 +1623,16 @@ data:
                       <div>
                         <div class="project-scope-kicker">Projet actif · ressources rattachees</div>
                         <div id="projectActiveName" class="project-scope-name">Aucun projet selectionne</div>
-                        <div id="projectActiveOwner" class="project-meta">Owner · -</div>
+                        <div id="projectActiveOwner" class="project-meta">Propriétaire · -</div>
                       </div>
                     </header>
+                    <details class="resource-disclosure">
+                      <summary><span>Paramètres du projet</span><small>Nom, description et propriétaire</small></summary>
+                      <div class="resource-disclosure-body">
                     <div id="projectOwnerForm" class="row" style="display:none">
                       <select id="projectOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
                       <input id="projectOwnerID" list="projectOwnerOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
-                      <button id="projectOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                      <button id="projectOwnerSave" type="button" class="btn primary">Transférer la propriété</button>
                       <datalist id="projectOwnerOptions"></datalist>
                     </div>
                     <div id="projectMetadataForm" class="row" style="display:none">
@@ -1545,6 +1640,8 @@ data:
                       <textarea id="projectEditDescription" rows="2" placeholder="Description courte du projet"></textarea>
                       <button id="projectMetadataSave" type="button" class="btn">Enregistrer la fiche projet</button>
                     </div>
+                      </div>
+                    </details>
                     <div class="project-resources">
                       <details class="resource-disclosure" open>
                         <summary><span>Fichiers du projet</span><small>Stockage persistant partagé par les exécutions</small></summary>
@@ -1587,7 +1684,7 @@ data:
                         </div>
                         <div id="projectDatasetStatus" class="hint"></div>
                         <table>
-                          <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Actions</th></tr></thead>
+                          <thead><tr><th>Nom</th><th>Classification</th><th>Stockage</th><th>Propriétaire</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasetRows"></tbody>
                         </table>
                         </div>
@@ -1618,7 +1715,7 @@ data:
                         </div>
                         <div id="projectRepoStatus" class="hint"></div>
                         <table>
-                          <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
+                          <thead><tr><th>Nom</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
                           <tbody id="projectRepoRows"></tbody>
                         </table>
                         </div>
@@ -1633,7 +1730,7 @@ data:
                         </div>
                         <div id="projectDatasourceStatus" class="hint"></div>
                         <table>
-                          <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
+                          <thead><tr><th>Nom</th><th>Type</th><th>Cible</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasourceRows"></tbody>
                         </table>
                         </div>
@@ -1654,12 +1751,12 @@ data:
                       <div class="action-drawer-body">
                       <div class="context-note">Le secret sera injecté sous la forme <code>NORYX_SECRET_NOM_DU_SECRET</code>.</div>
                       <div class="row">
-                      <input id="secretName" placeholder="Secret name" />
+                      <input id="secretName" placeholder="Nom du secret" />
                       <input id="secretExpiresAt" type="date" />
                       </div>
                       <div class="row">
                       <input id="secretValue" placeholder="Secret value" />
-                      <button id="saveSecret" class="btn primary">Save Secret</button>
+                      <button id="saveSecret" class="btn primary">Enregistrer le secret</button>
                       </div>
                       </div>
                     </details>
@@ -1668,7 +1765,7 @@ data:
                       <pre id="secretOut">-</pre>
                     </details>
                     <table>
-                      <thead><tr><th>Name</th><th>Expires</th><th>Updated</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Expiration</th><th>Mise à jour</th><th>Actions</th></tr></thead>
                       <tbody id="secretRows"></tbody>
                     </table>
                   </article>
@@ -1679,7 +1776,7 @@ data:
                         <h3>Mes datasets</h3>
                         <p class="muted">Sélectionnez un dataset pour parcourir et gérer ses fichiers.</p>
                       </div>
-                      <button id="refreshData" type="button" class="btn">Actualiser</button>
+                      <button id="refreshData" type="button" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouveau dataset</span><small>Stockage local ou bucket S3 externe</small></summary>
@@ -1716,7 +1813,7 @@ data:
 
                     <section class="dataset-catalog">
                       <table>
-                        <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Updated</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Classification</th><th>Stockage</th><th>Propriétaire</th><th>Mise à jour</th><th>Actions</th></tr></thead>
                         <tbody id="datasetRows"></tbody>
                       </table>
                     </section>
@@ -1748,11 +1845,11 @@ data:
                       </div>
                       <div class="dataset-access-panel">
                         <h4>Permissions</h4>
-                        <div class="access-copy">Owner utilisateur ou organisation: lecture, écriture et gestion. Writer: lecture/écriture. Reader: lecture seule.</div>
+                        <div class="access-copy">Le propriétaire, utilisateur ou organisation, gère la ressource. Writer : lecture et écriture. Reader : lecture seule.</div>
                         <div id="datasetOwnerForm" class="row" style="display:none">
                           <select id="datasetOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
                           <input id="datasetOwnerID" list="datasetSubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
-                          <button id="datasetOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                          <button id="datasetOwnerSave" type="button" class="btn primary">Transférer la propriété</button>
                         </div>
                         <div id="datasetAccessForm" class="row" style="display:none">
                           <select id="datasetAccessSubjectType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
@@ -1761,7 +1858,7 @@ data:
                           <button id="datasetAccessSave" type="button" class="btn primary">Ajouter / modifier</button>
                         </div>
                         <datalist id="datasetSubjectOptions"></datalist>
-                        <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
+                        <table><thead><tr><th>Sujet</th><th>Type</th><th>Rôle</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
                       </div>
                         </div>
                       </details>
@@ -1787,7 +1884,7 @@ data:
                           <button id="datasetCreateFolder" type="button" class="btn primary">Nouveau dossier</button>
                           <span class="spacer"></span>
                           <button id="datasetDeleteSelected" type="button" class="btn danger">Supprimer la selection</button>
-                          <button id="datasetDownloadSelected" type="button" class="btn">Telecharger la selection (ZIP)</button>
+                          <button id="datasetDownloadSelected" type="button" class="btn">Télécharger la sélection (ZIP)</button>
                         </div>
                         <div id="datasetBreadcrumbs" class="dataset-breadcrumbs"></div>
                         <table>
@@ -1797,7 +1894,7 @@ data:
                       </div>
                       <div id="datasetPreview" class="dataset-preview" style="display:none">
                         <div class="dataset-preview-head">
-                          <h4 id="datasetPreviewTitle">Apercu</h4>
+                          <h4 id="datasetPreviewTitle">Aperçu</h4>
                           <div class="row" style="margin:0">
                             <button id="datasetPreviewEdit" type="button" class="btn" style="display:none">Modifier</button>
                             <button id="datasetPreviewSave" type="button" class="btn primary" style="display:none">Enregistrer</button>
@@ -1842,7 +1939,7 @@ data:
                       </div>
                     </details>
                     <table>
-                      <thead><tr><th>Nom</th><th>URL</th><th>Identite Git</th><th>Authentification</th><th>Connexion</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>URL</th><th>Connexion</th><th>Actions</th></tr></thead>
                       <tbody id="repoRows"></tbody>
                     </table>
                   </article>
@@ -1853,26 +1950,26 @@ data:
                         <h3>Datasources externes</h3>
                         <p class="muted">Connectez une base existante. Les identifiants restent stockés dans vos secrets.</p>
                       </div>
-                      <button id="refreshDatasources" class="btn">Actualiser</button>
+                      <button id="refreshDatasources" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouvelle connexion externe</span><small>PostgreSQL, MySQL/MariaDB ou MongoDB</small></summary>
                       <div class="action-drawer-body">
                       <div class="row">
-                      <input id="dsName" placeholder="Datasource name" />
+                      <input id="dsName" placeholder="Nom de la connexion" />
                       <select id="dsType">
                         <option value="postgres">PostgreSQL</option>
                         <option value="mysql">MySQL / MariaDB</option>
                         <option value="mongodb">MongoDB</option>
                       </select>
-                      <input id="dsHost" placeholder="Host" />
+                      <input id="dsHost" placeholder="Hôte" />
                       </div>
                       <div class="row">
                       <input id="dsPort" value="5432" placeholder="Port" />
                       <input id="dsDatabase" placeholder="Database" />
                       </div>
                       <div class="row">
-                      <input id="dsUsername" placeholder="Username" />
+                      <input id="dsUsername" placeholder="Utilisateur" />
                       <select id="dsPasswordSecret"></select>
                       </div>
                       <div class="row">
@@ -1921,7 +2018,7 @@ data:
                     </div>
                     <div class="dataservice-catalog-wrap">
                       <table class="dataservice-catalog">
-                        <thead><tr><th>Service</th><th>Type</th><th>Image Harbor</th><th>Gestion</th><th>Définition</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Service</th><th>Type</th><th>Gestion</th><th>Action</th></tr></thead>
                         <tbody id="datasourceDefinitionRows"></tbody>
                       </table>
                     </div>
@@ -1930,7 +2027,7 @@ data:
                   <article id="card-ontology" class="card span-12">
                     <div class="section-head">
                       <div>
-                        <h3>Catalogue sémantique</h3>
+                        <h3>Ontologies</h3>
                         <p class="muted">Créez un brouillon de catalogue depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
                       </div>
                     </div>
@@ -1954,19 +2051,19 @@ data:
                     <div class="dataset-catalog" style="margin-top:16px">
                       <div class="dataset-catalog-header">
                         <div>
-                          <h4>Ontologies</h4>
+                          <h4>Mes ontologies</h4>
                           <p class="muted">Objets Data créés depuis un dataset ou une datasource avec un profil d'inférence explicite.</p>
                         </div>
-                        <button id="ontologyRefreshBtn" type="button" class="btn">Actualiser</button>
+                        <button id="ontologyRefreshBtn" type="button" class="btn" hidden>Actualiser</button>
                       </div>
                       <table>
-                        <thead><tr><th>Nom</th><th>Source</th><th>Profil</th><th>Owner</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Source</th><th>Profil</th><th>Propriétaire</th><th>Actions</th></tr></thead>
                         <tbody id="ontologyCatalogRows"></tbody>
                       </table>
                     </div>
-                    <div id="ontologyObjectPanel" class="dataset-access-panel" style="display:none">
-                      <h4>Fiche ontologie</h4>
-                      <div class="access-copy">Renommez l'ontologie, transférez son ownership et gérez les droits d'accès.</div>
+                    <details id="ontologyObjectPanel" class="resource-disclosure" style="display:none">
+                      <summary><span>Paramètres et permissions</span><small>Nom, propriétaire et droits d'accès</small></summary>
+                      <div class="resource-disclosure-body">
                       <div class="row">
                         <input id="ontologyEditName" placeholder="Nom de l'ontologie" />
                         <input id="ontologyEditDescription" placeholder="Description (optionnelle)" />
@@ -1975,7 +2072,7 @@ data:
                       <div class="row">
                         <select id="ontologyOwnerType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
                         <input id="ontologyOwnerID" list="ontologySubjectOptions" autocomplete="off" placeholder="Saisissez au moins une lettre" />
-                        <button id="ontologyOwnerSave" type="button" class="btn primary">Transférer l'ownership</button>
+                        <button id="ontologyOwnerSave" type="button" class="btn primary">Transférer la propriété</button>
                       </div>
                       <div class="row">
                         <select id="ontologyAccessSubjectType"><option value="user">Utilisateur</option><option value="organization">Organisation</option></select>
@@ -1985,8 +2082,12 @@ data:
                       </div>
                       <datalist id="ontologySubjectOptions"></datalist>
                       <div id="ontologyObjectStatus" class="hint"></div>
-                      <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="ontologyAccessRows"></tbody></table>
-                    </div>
+                      <table><thead><tr><th>Sujet</th><th>Type</th><th>Rôle</th><th>Actions</th></tr></thead><tbody id="ontologyAccessRows"></tbody></table>
+                      </div>
+                    </details>
+                    <details class="resource-disclosure" open>
+                      <summary><span>Vue d'ensemble</span><small>Indicateurs et structure de l'ontologie</small></summary>
+                      <div class="resource-disclosure-body">
                     <div id="ontologySummary" class="ontology-summary"></div>
                     <div id="ontologyFormats" class="ontology-tags"></div>
                     <div id="ontologyDashboard" class="ontology-dashboard"></div>
@@ -1994,6 +2095,11 @@ data:
                       <thead><tr><th>Sujet</th><th>Visites</th><th>Modalités</th><th>Objets</th><th>Taille</th></tr></thead>
                       <tbody id="ontologyRows"></tbody>
                     </table>
+                      </div>
+                    </details>
+                    <details class="resource-disclosure">
+                      <summary><span>Explorer l'ontologie</span><small>Recherche et références associées</small></summary>
+                      <div class="resource-disclosure-body">
                     <div class="ontology-explorer">
                       <div class="ontology-explorer-head">
                         <div>
@@ -2029,6 +2135,8 @@ data:
                         <div id="ontologyFileRows" class="ontology-file-list"></div>
                       </div>
                     </div>
+                      </div>
+                    </details>
                   </article>
                 </div>
               </section>
@@ -2037,11 +2145,8 @@ data:
                 <div class="grid">
                   <article class="card span-12">
                     <div class="section-head">
-                      <div><h3>Workspaces</h3><p class="muted">Environnements interactifs du projet actif.</p></div>
-                      <button id="loadWorkspaces" class="btn">Actualiser</button>
-                    </div>
-                    <div class="execution-project-context">
-                      <div><div class="k">Projet actif</div><div id="workspaceProjectName" class="v">Aucun projet sélectionné</div></div>
+                      <div><h3>Workspaces <span id="workspaceProjectName" class="context-chip">Aucun projet</span></h3><p class="muted">Environnements interactifs du projet sélectionné.</p></div>
+                      <button id="loadWorkspaces" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Lancer un workspace</span><small>Environnement, IDE et profil matériel</small></summary>
@@ -2055,15 +2160,15 @@ data:
                         <option value="rstudio">rstudio</option>
                       </select>
                       <select id="workspaceHardwareTier"></select>
-                      <input id="workspaceName" placeholder="Workspace name (optional)" />
-                      <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
+                      <input id="workspaceName" placeholder="Nom personnalisé (optionnel)" />
+                      <input id="workspaceStorageSize" placeholder="Stockage (ex. 10Gi)" value="10Gi" />
                       <button id="createWorkspace" class="btn primary">Lancer le workspace</button>
                       </div>
                       </div>
                     </details>
                     <table>
                       <thead>
-                        <tr><th>Name</th><th>Projet</th><th>IDE / environnement</th><th>Pod</th><th>Volume</th><th>Lancé le</th><th>Up depuis</th><th>Status</th><th>Access</th><th>Actions</th></tr>
+                        <tr><th>Nom</th><th>IDE / environnement</th><th>Lancé le</th><th>Durée</th><th>État</th><th>Accès</th><th>Actions</th></tr>
                       </thead>
                       <tbody id="workspaceRows"></tbody>
                     </table>
@@ -2171,17 +2276,14 @@ data:
                 <div class="grid">
                   <article class="card span-12">
                     <div class="section-head">
-                      <div><h3>Jobs</h3><p class="muted">Exécutions ponctuelles et planifiées du projet actif.</p></div>
-                      <button id="loadJobs" class="btn">Actualiser</button>
-                    </div>
-                    <div class="execution-project-context">
-                      <div><div class="k">Projet actif</div><div id="jobProjectName" class="v">Aucun projet sélectionné</div></div>
+                      <div><h3>Jobs <span id="jobProjectName" class="context-chip">Aucun projet</span></h3><p class="muted">Exécutions ponctuelles et planifiées du projet sélectionné.</p></div>
+                      <button id="loadJobs" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouveau job</span><small>Exécution immédiate ou planification cron</small></summary>
                       <div class="action-drawer-body">
                       <div class="row">
-                      <input id="jobName" placeholder="job name (optional)" />
+                      <input id="jobName" placeholder="Nom du job (optionnel)" />
                       <select id="jobEnv" class="execution-env-select"></select>
                       <select id="jobHardwareTier"></select>
                       </div>
@@ -2204,17 +2306,16 @@ data:
                     </details>
                     <h3>Historique des exécutions</h3>
                     <table>
-                      <thead><tr><th>Nom</th><th>Projet</th><th>Commande</th><th>Image</th><th>Résultat</th><th>Lancé</th><th>Terminé</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Résultat</th><th>Lancé</th><th>Terminé</th><th>Actions</th></tr></thead>
                       <tbody id="jobRows"></tbody>
                     </table>
                     <h3>Automatisations</h3>
                     <div class="hint">Format cron standard à 5 champs. Les exécutions simultanées d’une même planification sont interdites.</div>
                     <table>
-                      <thead><tr><th>Nom</th><th>Projet</th><th>Planification</th><th>Fuseau</th><th>Image</th><th>Dernière exécution</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>Planification</th><th>Fuseau</th><th>Dernière exécution</th><th>Actions</th></tr></thead>
                       <tbody id="cronJobRows"></tbody>
                     </table>
-                    <h3>Job Logs</h3>
-                    <pre id="jobLogsOut">-</pre>
+                    <details class="technical-disclosure"><summary>Résultat et logs sélectionnés</summary><pre id="jobLogsOut">-</pre></details>
                   </article>
                 </div>
               </section>
@@ -2223,18 +2324,15 @@ data:
                 <div class="grid">
                   <article class="card span-12 apps-card">
                     <div class="section-head">
-                      <div><h3>Applications</h3><p class="muted">Applications en développement pour le projet actif.</p></div>
-                      <button id="loadApps" class="btn">Actualiser</button>
-                    </div>
-                    <div class="execution-project-context">
-                      <div><div class="k">Projet actif</div><div id="appProjectName" class="v">Aucun projet sélectionné</div></div>
+                      <div><h3>Applications <span id="appProjectName" class="context-chip">Aucun projet</span></h3><p class="muted">Applications en développement pour le projet sélectionné.</p></div>
+                      <button id="loadApps" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouvelle application</span><small>Environnement, accès et commande de lancement</small></summary>
                       <div class="action-drawer-body">
                     <div class="context-note">Point d'entrée recommandé : <code>/mnt/app.sh</code>. La commande manuelle est optionnelle.</div>
                     <div class="row">
-                      <input id="appName" placeholder="app name (optional)" />
+                      <input id="appName" placeholder="Nom de l'application (optionnel)" />
                       <input id="appSlug" placeholder="url slug (example: fraud-ui)" />
                     </div>
                     <div class="row">
@@ -2260,12 +2358,11 @@ data:
                     </details>
                     <div class="apps-table-wrap">
                       <table>
-                        <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>RBAC</th><th>Access</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>URL</th><th>État</th><th>Accès</th><th>Actions</th></tr></thead>
                         <tbody id="appRows"></tbody>
                       </table>
                     </div>
-                    <h4>Logs de l'application</h4>
-                    <pre id="appLogsOut">Sélectionnez Logs sur une application.</pre>
+                    <details class="technical-disclosure"><summary>Logs de l'application sélectionnée</summary><pre id="appLogsOut">Sélectionnez les logs depuis le menu d'actions.</pre></details>
                     <div id="appUsagePanel" class="app-usage-panel">
                       <h4 id="appUsageTitle">Usage de l'application</h4>
                       <div class="stats">
@@ -2288,13 +2385,13 @@ data:
                   <article class="card span-12">
                     <div class="section-head">
                       <div><h3>Dashboards</h3><p class="muted">Dashboards dédiés avec leur propre URL.</p></div>
-                      <button id="loadDashboards" class="btn">Actualiser</button>
+                      <button id="loadDashboards" class="btn" hidden>Actualiser</button>
                     </div>
                     <details class="action-drawer">
                       <summary><span>Nouveau dashboard</span><small>Environnement, URL et commande de lancement</small></summary>
                       <div class="action-drawer-body">
                     <div class="row">
-                      <input id="dashboardName" placeholder="dashboard name (optional)" />
+                      <input id="dashboardName" placeholder="Nom du dashboard (optionnel)" />
                       <input id="dashboardSlug" placeholder="url slug (example: kpi-overview)" />
                     </div>
                     <div class="row">
@@ -2309,19 +2406,17 @@ data:
                       </div>
                     </details>
                     <table>
-                      <thead><tr><th>Name</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Nom</th><th>URL</th><th>État</th><th>Accès</th><th>Actions</th></tr></thead>
                       <tbody id="dashboardRows"></tbody>
                     </table>
                   </article>
                 </div>
               </section>
 
-              <section class="view" id="view-project-apis">
+              <section class="view" id="view-project-apis" hidden>
                 <div class="grid">
                   <article class="card span-8">
-                    <h3>Project APIs</h3>
-                    <div class="hint">Coming soon. APIs will be managed workloads with environment + route.</div>
-                    <pre>Planned V1: API deploy, route, version and lifecycle controls.</pre>
+                    <h3>Services API</h3>
                   </article>
                 </div>
               </section>
@@ -2334,7 +2429,7 @@ data:
                         <h3>Production</h3>
                         <div class="hint">Inventaire opérationnel des services effectivement publiés sur la plateforme.</div>
                       </div>
-                      <button id="loadProduction" type="button" class="btn">Actualiser</button>
+                      <button id="loadProduction" type="button" class="btn" hidden>Actualiser</button>
                     </div>
                     <div class="stats">
                       <div class="stat"><div class="k">Services publiés</div><div id="productionTotal" class="v">0</div></div>
@@ -2451,24 +2546,27 @@ data:
                 <div class="grid">
                   <article class="card span-8">
                     <h3>Workloads</h3>
-                <div class="hint">Toutes les executions de la plateforme. Un administrateur peut les arreter.</div>
+                <div class="hint">Toutes les exécutions de la plateforme. Un administrateur peut les arrêter.</div>
                 <table>
                   <thead><tr><th>Type</th><th>Projet</th><th>Nom</th><th>Ressource</th><th>Statut</th><th>Depuis</th><th>Action</th></tr></thead>
                   <tbody id="workloadRows"></tbody>
                 </table>
                   </article>
 
-                  <article class="card span-4">
-                    <h3>Policy Baseline</h3>
-                    <div class="hint">request=limit pour des workloads prévisibles.</div>
-                    <pre>Workspace profile | CPU: 500m | Memory: 512Mi | Storage: PVC (longhorn) | Namespace runtime: noryx-loads</pre>
-                  </article>
                 </div>
               </section>
 
               <section class="view" id="view-ops">
+                <nav class="admin-subnav" aria-label="Sections d'administration">
+                  <button type="button" class="active" data-admin-section-button="overview">Vue d'ensemble</button>
+                  <button type="button" data-admin-section-button="identity">Utilisateurs et organisations</button>
+                  <button type="button" data-admin-section-button="data">Gouvernance des données</button>
+                      <button type="button" data-admin-section-button="backups">Sauvegardes</button>
+                      <button type="button" class="ee-only" data-admin-section-button="validation">Validation</button>
+                      <button type="button" data-admin-section-button="audit">Audit</button>
+                </nav>
                 <div class="grid">
-                  <article class="card span-12 ee-only">
+                  <article class="card span-12 ee-only" data-admin-section="backups">
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Backups plateforme</h3>
@@ -2533,20 +2631,20 @@ data:
                     </table>
                     <details class="technical-disclosure"><summary>Diagnostic</summary><pre id="backupOut">-</pre></details>
                   </article>
-                  <article class="card span-12">
+                  <article class="card span-12" data-admin-section="overview">
                     <h3>Charge plateforme</h3>
                     <div class="stats">
                       <article class="stat"><div class="k">Executions actives</div><div id="adminActiveCount" class="v">0</div></article>
                       <article class="stat"><div class="k">Pods runtime</div><div id="adminPodCount" class="v">0</div></article>
                       <article class="stat"><div class="k">CPU reserve</div><div id="adminCPUCount" class="v">0m</div></article>
-                      <article class="stat"><div class="k">Memoire reservee</div><div id="adminMemoryCount" class="v">0 B</div></article>
+                      <article class="stat"><div class="k">Mémoire réservée</div><div id="adminMemoryCount" class="v">0 B</div></article>
                     </div>
                   </article>
-                  <article class="card span-4">
+                  <article class="card span-4" data-admin-section="identity">
                     <h3>Utilisateurs <span id="adminUsersCount" class="badge">0</span></h3>
-                    <table><thead><tr><th>Utilisateur</th><th>Email</th><th>Etat</th></tr></thead><tbody id="adminUserRows"></tbody></table>
+                    <table><thead><tr><th>Utilisateur</th><th>Email</th><th>État</th></tr></thead><tbody id="adminUserRows"></tbody></table>
                   </article>
-                  <article class="card span-8 ee-only">
+                  <article class="card span-8 ee-only" data-admin-section="identity">
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Organisations <span id="adminOrganizationsCount" class="badge">0</span></h3>
@@ -2571,15 +2669,15 @@ data:
                       </div>
                     </div>
                   </article>
-                  <article class="card span-4">
+                  <article class="card span-6" data-admin-section="overview">
                     <h3>Projets <span id="adminProjectsCount" class="badge">0</span></h3>
-                    <table><thead><tr><th>Nom</th><th>Cree</th></tr></thead><tbody id="adminProjectRows"></tbody></table>
+                    <table><thead><tr><th>Nom</th><th>Création</th></tr></thead><tbody id="adminProjectRows"></tbody></table>
                   </article>
-                  <article class="card span-4">
+                  <article class="card span-6" data-admin-section="overview">
                     <h3>Datasets <span id="adminDatasetsCount" class="badge">0</span></h3>
-                    <table><thead><tr><th>Nom</th><th>Owner</th><th>Classe</th></tr></thead><tbody id="adminDatasetRows"></tbody></table>
+                    <table><thead><tr><th>Nom</th><th>Propriétaire</th><th>Classe</th></tr></thead><tbody id="adminDatasetRows"></tbody></table>
                   </article>
-                  <article class="card span-12 ee-only">
+                  <article class="card span-12 ee-only" data-admin-section="data">
                     <div class="dataset-catalog-header">
                       <div>
                         <h3>Cartographie d'usage des donnees</h3>
@@ -2609,10 +2707,10 @@ data:
                       <tbody id="dataUsageRows"></tbody>
                     </table>
                   </article>
-                  <article class="card span-12">
+                  <article class="card span-12" data-admin-section="audit">
                     <h3>Audit</h3>
-                    <div class="row"><button id="downloadAudit" type="button" class="btn primary">Telecharger le rapport CSV</button></div>
-                    <pre id="auditOut">-</pre>
+                    <div class="row"><button id="downloadAudit" type="button" class="btn primary">Télécharger le rapport CSV</button></div>
+                    <details class="technical-disclosure"><summary>Diagnostic</summary><pre id="auditOut">-</pre></details>
                     <pre id="usersOut" style="display:none">-</pre>
                   </article>
                 </div>
@@ -2620,6 +2718,21 @@ data:
             </section>
           </main>
         </div>
+        <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+        <dialog id="actionDialog" class="action-dialog">
+          <form method="dialog" class="action-dialog-body">
+            <h3 id="actionDialogTitle">Confirmer l'action</h3>
+            <p id="actionDialogMessage"></p>
+            <div id="actionDialogField" class="action-dialog-field" hidden>
+              <label id="actionDialogInputLabel" for="actionDialogInput">Valeur</label>
+              <input id="actionDialogInput" autocomplete="off" />
+            </div>
+            <div class="action-dialog-actions">
+              <button id="actionDialogCancel" value="cancel" class="btn">Annuler</button>
+              <button id="actionDialogConfirm" value="confirm" class="btn primary">Confirmer</button>
+            </div>
+          </form>
+        </dialog>
         <div id="organizationRequired" class="access-blocker" hidden>
           <div class="access-blocker-card">
             <div class="section-kicker">Accès suspendu</div>
@@ -2686,6 +2799,14 @@ data:
           const reduceNavBtn = document.getElementById('reduceNav');
           const usersOut = document.getElementById('usersOut');
           const auditOut = document.getElementById('auditOut');
+          const toastRegion = document.getElementById('toastRegion');
+          const actionDialog = document.getElementById('actionDialog');
+          const actionDialogTitle = document.getElementById('actionDialogTitle');
+          const actionDialogMessage = document.getElementById('actionDialogMessage');
+          const actionDialogField = document.getElementById('actionDialogField');
+          const actionDialogInputLabel = document.getElementById('actionDialogInputLabel');
+          const actionDialogInput = document.getElementById('actionDialogInput');
+          const actionDialogConfirm = document.getElementById('actionDialogConfirm');
           const workspaceProjectName = document.getElementById('workspaceProjectName');
           const jobProjectName = document.getElementById('jobProjectName');
           const appProjectName = document.getElementById('appProjectName');
@@ -3246,60 +3367,60 @@ data:
               edition: 'Community Edition',
               menu_home: 'Accueil',
               menu_data: 'Data',
-              menu_develop: 'Develop',
+              menu_develop: 'Développer',
               menu_deploy: 'Production',
-              menu_govern: 'Govern',
+              menu_govern: 'Gouvernance',
               menu_docs: 'Documentation',
               tab_home: 'Accueil',
               tab_environments: 'Environnements',
               tab_datasets: 'Datasets',
               tab_datasources: 'Datasources',
-              tab_ontology: 'Catalogue sémantique',
+              tab_ontology: 'Ontologies',
               tab_git: 'Git',
               tab_secrets: 'Secrets',
               tab_projects_overview: "Projets",
               tab_workspaces: 'Workspaces',
               tab_jobs: 'Jobs',
               tab_apis: 'Services API',
-              tab_activity: 'Activites',
+              tab_activity: 'Activités',
               tab_admin: 'Administration',
               tab_network_security: 'Réseau & sécurité',
               tab_rbac_matrix: 'RBAC & organisations',
-              api_reference: 'Reference API',
+              api_reference: 'Référence API',
               title: 'NoryxLab',
               subtitle: "Plateforme collaborative pour les equipes data, de l'exploration au passage en production.",
               login: 'Se connecter',
               logout: 'Se déconnecter',
-              platform_status: 'Etat plateforme',
+              platform_status: 'État plateforme',
               users: 'Utilisateurs',
               stat_projects: 'Projets',
-              stat_activity: 'Activites',
+              stat_activity: 'Activités',
               stat_env: 'Environnements',
               hero_title: 'Votre plateforme collaborative data et IA',
-              hero_subtitle: "Une plateforme metier simple pour vos equipes Python et data science, de l'idee a la production.",
-              home_notice_title: 'Informations equipe',
-              home_notice_text: 'Ajoutez ici vos consignes internes, vos liens de formation et vos actualites data.',
+              hero_subtitle: "Une plateforme métier simple pour vos équipes Python et data science, de l'idée à la production.",
+              home_notice_title: 'Informations équipe',
+              home_notice_text: 'Ajoutez ici vos consignes internes, vos liens de formation et vos actualités data.',
               home_notice_cta_api: 'Documentation API',
               home_notice_cta_docs: 'Documentation utilisateur',
-              home_notice_cta_status: 'Etat plateforme',
+              home_notice_cta_status: 'État plateforme',
               quickstart: 'Demarrage rapide',
               go_projects: 'Aller aux projets',
               go_data: 'Aller aux donnees',
               go_env: 'Aller aux environnements',
-              btn_create_project: 'Creer projet',
-              btn_refresh_projects: 'Actualiser projets',
-              btn_attach_dataset: 'Associer dataset',
-              btn_attach_repo: 'Associer depot',
+              btn_create_project: 'Créer le projet',
+              btn_refresh_projects: 'Actualiser',
+              btn_attach_dataset: 'Associer le dataset',
+              btn_attach_repo: 'Associer le dépôt',
               btn_attach_datasource: 'Associer connexion',
-              btn_save_secret: 'Enregistrer secret',
-              btn_create_dataset: 'Creer dataset',
-              btn_refresh_data: 'Actualiser donnees',
-              btn_upload_object: 'Envoyer fichier',
-              btn_create_repo: 'Creer depot',
-              btn_create_datasource: 'Creer connexion',
-              btn_refresh_datasources: 'Actualiser connexions',
+              btn_save_secret: 'Enregistrer le secret',
+              btn_create_dataset: 'Créer le dataset',
+              btn_refresh_data: 'Actualiser',
+              btn_upload_object: 'Envoyer le fichier',
+              btn_create_repo: 'Créer le dépôt',
+              btn_create_datasource: 'Créer la connexion',
+              btn_refresh_datasources: 'Actualiser',
               btn_launch_workspace: 'Lancer un workspace',
-              btn_refresh_workspaces: 'Actualiser les workspaces',
+              btn_refresh_workspaces: 'Actualiser',
               btn_refresh_jobs: 'Actualiser',
               btn_refresh_apps: 'Actualiser',
               btn_refresh_dashboards: 'Actualiser',
@@ -3309,10 +3430,10 @@ data:
               ph_dataset_name: 'Nom du dataset',
               ph_dataset_description: 'Description (optionnelle)',
               ph_dataset_path: 'Chemin du fichier (ex: train.csv)',
-              ph_repo_name: 'Nom du depot',
+              ph_repo_name: 'Nom du dépôt',
               ph_repo_url: 'https://...',
               ph_ds_name: 'Nom de la connexion',
-              ph_ds_host: 'Hote',
+              ph_ds_host: 'Hôte',
               ph_ds_port: 'Port',
               ph_ds_db: 'Base',
               ph_ds_user: 'Utilisateur',
@@ -3320,7 +3441,7 @@ data:
               ph_workspace_size: 'Taille stockage (ex: 10Gi)',
               ph_job_name: 'Nom personnalisé (optionnel)',
               ph_job_cmd: 'Commande shell',
-              ph_app_name: 'Nom app (optionnel)',
+              ph_app_name: "Nom de l'application (optionnel)",
               ph_app_slug: 'Slug URL (ex: fraude-ui)',
               ph_app_port: 'Port (defaut 9000)',
               ph_app_cmd: 'Commande optionnelle (sinon /mnt/app.sh)',
@@ -3328,28 +3449,28 @@ data:
               ph_dash_slug: 'Slug URL (ex: kpi-overview)',
               ph_dash_port: 'Port (defaut 9000)',
               ph_dash_cmd: 'Commande de lancement',
-              msg_not_authenticated: 'Non connecte',
+              msg_not_authenticated: 'Non connecté',
               identity_local_session: 'Session locale',
               role_admin: 'Administrateur',
               role_user: 'Utilisateur',
               msg_no_project: 'Aucun projet pour le moment.',
               msg_no_secret: 'Aucun secret.',
               msg_no_dataset: 'Aucun dataset.',
-              msg_no_repository: 'Aucun depot.',
+              msg_no_repository: 'Aucun dépôt.',
               msg_no_datasource: 'Aucune connexion.',
               msg_no_workspace_project: 'Aucun workspace pour ce projet.',
               msg_no_jobs_project: 'Aucun job pour ce projet.',
               msg_no_apps_project: 'Aucune application pour ce projet.',
               msg_no_dashboards_project: 'Aucun dashboard pour ce projet.',
               msg_no_env_project: 'Aucun environnement pour ce projet.',
-              msg_no_activity_project: 'Aucune activite pour ce projet.',
+              msg_no_activity_project: 'Aucune activité pour ce projet.',
               msg_no_dataset_attach: 'Aucun dataset a associer',
-              msg_no_repo_attach: 'Aucun depot a associer',
+              msg_no_repo_attach: 'Aucun dépôt à associer',
               msg_no_ds_attach: 'Aucune connexion a associer',
               msg_dataset_attached_none: 'Aucun dataset associe.',
-              msg_repo_attached_none: 'Aucun depot associe.',
+              msg_repo_attached_none: 'Aucun dépôt associé.',
               msg_ds_attached_none: 'Aucune connexion associee.',
-              msg_secret_copied: 'Secret copie dans le presse-papiers.',
+              msg_secret_copied: 'Secret copié dans le presse-papiers.',
               msg_repo_conn_ok: 'Connexion depot OK.',
               msg_repo_conn_failed: 'Echec connexion depot: ',
               msg_ds_conn_ok: 'Connexion source OK.',
@@ -3357,7 +3478,7 @@ data:
               msg_popup_blocked: 'Popup bloquee par le navigateur. Autorisez les popups pour ce site.',
               msg_unknown_error: 'erreur inconnue',
               err_project_name_required: 'projectName requis',
-              err_select_project_first: 'selectionner un projet',
+              err_select_project_first: 'Sélectionnez d’abord un projet.',
               err_select_dataset_attach: 'selectionner un dataset a associer',
               err_select_repo_attach: 'selectionner un depot a associer',
               err_select_ds_attach: 'selectionner une connexion a associer',
@@ -3371,26 +3492,26 @@ data:
               err_delete_failed: 'suppression echouee',
               tab_label_intro: 'Accueil',
               tab_label_projects: 'Projets',
-              tab_label_data: 'Donnees',
+              tab_label_data: 'Données',
               tab_label_workspaces: 'Workspaces',
               tab_label_project_jobs: 'Jobs',
               tab_label_project_apps: 'Applications',
               tab_label_project_dashboards: 'Dashboards',
               tab_label_project_apis: 'Services API',
               tab_label_environments: 'Environnements',
-              tab_label_workloads: 'Activites',
+              tab_label_workloads: 'Activités',
               tab_label_ops: 'Administration',
-              tab_label_govern_network: 'Network & security',
+              tab_label_govern_network: 'Réseau et sécurité',
               tab_label_govern_rbac: 'RBAC & organisations',
               section_title_intro: 'Accueil',
-              section_subtitle_intro: "Vue d'ensemble de la plateforme et actions rapides.",
+              section_subtitle_intro: "Vue d'ensemble de la plateforme.",
               section_title_projects: 'Projets',
               section_subtitle_projects: 'Gestion des projets et rattachement des ressources.',
               section_title_data: 'Data',
               section_subtitle_data: 'Catalogues de datasets, depots, connexions et secrets.',
               section_title_datasources: 'Datasources',
               section_subtitle_datasources: 'Connexions externes et services de données internes.',
-              section_title_ontology: 'Catalogue sémantique',
+              section_title_ontology: 'Ontologies',
               section_subtitle_ontology: 'Ontologies, objets métier et exploration des relations.',
               section_title_git: 'Dépôts Git',
               section_subtitle_git: 'Dépôts de code utilisables par les projets et leurs exécutions.',
@@ -3399,9 +3520,9 @@ data:
               section_title_workspaces: 'Workspaces',
               section_subtitle_workspaces: 'Lancement et suivi des environnements de travail.',
               section_title_jobs: 'Jobs',
-              section_subtitle_jobs: 'Execution batch sur environnement selectionne.',
+              section_subtitle_jobs: 'Exécutions batch sur l’environnement sélectionné.',
               section_title_apps: 'Applications',
-              section_subtitle_apps: 'Deploiement d applications web longues durees.',
+              section_subtitle_apps: 'Développement et publication des applications web.',
               section_title_dashboards: 'Dashboards',
               section_subtitle_dashboards: 'Publication de dashboards dans le projet actif.',
               section_title_production: 'Production',
@@ -3409,15 +3530,15 @@ data:
               section_title_apis: 'Services API',
               section_subtitle_apis: 'Exposition des services applicatifs du projet.',
               section_title_environments: 'Environnements',
-              section_subtitle_environments: 'Revisions d images et edition Dockerfile.',
-              section_title_workloads: 'Activites',
+              section_subtitle_environments: "Images d'exécution et définitions Dockerfile.",
+              section_title_workloads: 'Activités',
               section_subtitle_workloads: 'Suivi des workspaces, builds et charges actives.',
               section_title_govern_network: 'Réseau et sécurité',
               section_subtitle_govern_network: 'Règles egress, exposition contrôlée et posture sécurité des workloads.',
               section_title_govern_rbac: 'RBAC et organisations',
               section_subtitle_govern_rbac: 'Matrice effective des droits par utilisateur, organisation et ressource.',
               section_title_ops: 'Administration',
-              section_subtitle_ops: 'Observabilite, modules et utilisateurs.'
+              section_subtitle_ops: 'Exploitation, conformité et configuration de la plateforme.'
             },
             en: {
               edition: 'Community Edition',
@@ -3668,6 +3789,47 @@ data:
               const node = document.getElementById(id);
               if (node) node.setAttribute('placeholder', tui(placeholders[id]));
             });
+            enhanceFormLabels();
+          }
+          const FORM_LABELS = {
+            fr: {
+                  projectName: 'Nom', projectDescription: 'Description', secretName: 'Nom', secretExpiresAt: 'Expiration', secretValue: 'Valeur',
+                  projectOwnerType: 'Type de propriétaire', projectOwnerID: 'Nouveau propriétaire', projectEditName: 'Nom', projectEditDescription: 'Description',
+                  datasetName: 'Nom', datasetDescription: 'Description', datasetStorageType: 'Type de stockage', datasetEndpoint: 'Endpoint S3', datasetRegion: 'Région', datasetBucket: 'Bucket', datasetPrefix: 'Préfixe', datasetAccessKey: 'Access key', datasetSecretKey: 'Secret key',
+                  datasetEditName: 'Nom', datasetEditDescription: 'Description', datasetOwnerType: 'Type de propriétaire', datasetOwnerID: 'Nouveau propriétaire', datasetAccessSubjectType: 'Type de bénéficiaire', datasetAccessUser: 'Utilisateur ou organisation', datasetAccessRole: 'Droit',
+              repoName: 'Nom', repoUrl: 'URL', repoDefaultBranch: 'Branche par défaut', repoGitAuthorName: 'Nom Git', repoGitAuthorEmail: 'Email Git', repoAuthType: "Mode d'authentification", repoSecret: 'Secret associé',
+              dsName: 'Nom', dsType: 'Connecteur', dsHost: 'Hôte', dsPort: 'Port', dsDatabase: 'Base', dsUsername: 'Utilisateur', dsPasswordSecret: 'Secret du mot de passe', dsSSLMode: 'Mode TLS',
+              dataServiceName: 'Nom du service', dataServiceDefinition: 'Type de base', dataServiceStorage: 'Stockage persistant', dataServiceDatabase: 'Base de données', dataServiceUsername: 'Utilisateur', dataServiceHardwareTier: 'Profil matériel',
+              workspaceEnv: 'Environnement', workspaceIde: 'IDE', workspaceHardwareTier: 'Profil matériel', workspaceName: 'Nom personnalisé', workspaceStorageSize: 'Stockage persistant',
+              jobName: 'Nom', jobEnv: 'Environnement', jobHardwareTier: 'Profil matériel', jobCommand: 'Commande', jobMode: "Type d'exécution", jobSchedule: 'Planification cron', jobTimeZone: 'Fuseau horaire',
+              appName: 'Nom', appSlug: 'URL', appEnv: 'Environnement', appHardwareTier: 'Profil matériel', appPort: 'Port', appAccessMode: 'Accès', appAllowedOrganizations: 'Organisations autorisées', appCommand: 'Commande de lancement',
+              dashboardName: 'Nom', dashboardSlug: 'URL', dashboardEnv: 'Environnement', dashboardHardwareTier: 'Profil matériel', dashboardPort: 'Port', dashboardCommand: 'Commande de lancement',
+                  envNameInput: 'Nom', envForkSource: 'Image de départ', ontologyName: 'Nom', ontologySourceType: 'Type de source', ontologyDatasetSelect: 'Dataset source', ontologyDatasourceSelect: 'Datasource source', ontologyProfileSelect: 'Profil',
+                  ontologyEditName: 'Nom', ontologyEditDescription: 'Description', ontologyOwnerType: 'Type de propriétaire', ontologyOwnerID: 'Nouveau propriétaire', ontologyAccessSubjectType: 'Type de bénéficiaire', ontologyAccessUser: 'Utilisateur ou organisation', ontologyAccessRole: 'Droit',
+              backupEndpoint: 'Endpoint S3 HTTPS', backupBucket: 'Bucket', backupPrefix: 'Préfixe', backupRegion: 'Région', backupAccessKey: 'Access key', backupSecretKey: 'Secret key', backupEncryptionKeyId: 'Clé de chiffrement'
+            },
+            en: {}
+          };
+          function enhanceFormLabels() {
+            const labels = FORM_LABELS[currentLang] || FORM_LABELS.fr;
+                document.querySelectorAll('.action-drawer-body input:not([type="hidden"]), .action-drawer-body select, .action-drawer-body textarea, .resource-disclosure-body input:not([type="hidden"]), .resource-disclosure-body select, .resource-disclosure-body textarea').forEach((node) => {
+              const text = labels[node.id] || FORM_LABELS.fr[node.id] || node.getAttribute('aria-label') || node.getAttribute('placeholder');
+              if (!text) return;
+              let field = node.closest('.field');
+              if (!field) {
+                field = document.createElement('div');
+                field.className = 'field';
+                node.parentNode.insertBefore(field, node);
+                field.appendChild(node);
+              }
+              let label = field.querySelector(':scope > label');
+              if (!label) {
+                label = document.createElement('label');
+                label.htmlFor = node.id;
+                field.insertBefore(label, node);
+              }
+              label.textContent = text;
+            });
           }
           if (langSelect) {
             langSelect.onchange = async () => {
@@ -3708,6 +3870,55 @@ data:
             if (!error) return 'Erreur inconnue';
             if (typeof error === 'string') return error;
             return error.error || error.message || JSON.stringify(error);
+          }
+          function notify(message, kind, title) {
+            if (!toastRegion) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + (kind || 'info');
+            toast.innerHTML = '<div></div><div><strong>' + escapeHTML(title || (kind === 'error' ? 'Action impossible' : kind === 'success' ? 'Terminé' : 'Information')) + '</strong><p>' + escapeHTML(String(message || '')) + '</p></div><button type="button" aria-label="Fermer">×</button>';
+            const close = () => { if (toast.parentNode) toast.remove(); };
+            toast.querySelector('button').onclick = close;
+            toastRegion.appendChild(toast);
+            window.setTimeout(close, kind === 'error' ? 9000 : 5000);
+          }
+          function reportError(error, title) { notify(errorMessage(error), 'error', title); }
+          function reportSuccess(message, title) { notify(message, 'success', title); }
+          function requestAction(options) {
+            const opts = options || {};
+            if (!actionDialog || typeof actionDialog.showModal !== 'function') {
+              const value = opts.inputLabel ? window.prompt(opts.message || '', opts.inputValue || '') : '';
+              return Promise.resolve({ confirmed: opts.inputLabel ? value !== null : window.confirm(opts.message || ''), value: value || '' });
+            }
+            actionDialogTitle.textContent = opts.title || 'Confirmer l\'action';
+            actionDialogMessage.textContent = opts.message || '';
+            actionDialogConfirm.textContent = opts.confirmLabel || 'Confirmer';
+            actionDialogConfirm.className = 'btn ' + (opts.danger ? 'danger' : 'primary');
+            actionDialogField.hidden = !opts.inputLabel;
+            actionDialogInputLabel.textContent = opts.inputLabel || 'Valeur';
+            actionDialogInput.value = opts.inputValue || '';
+            return new Promise((resolve) => {
+              const finish = () => {
+                const confirmed = actionDialog.returnValue === 'confirm';
+                resolve({ confirmed, value: actionDialogInput.value });
+              };
+              actionDialog.addEventListener('close', finish, { once: true });
+              actionDialog.showModal();
+              if (opts.inputLabel) window.setTimeout(() => actionDialogInput.focus(), 0);
+            });
+          }
+          async function confirmAction(message, options) {
+            const result = await requestAction(Object.assign({ message }, options || {}));
+            if (!result.confirmed) return false;
+            const expected = options && options.confirmation;
+            if (expected && result.value !== expected) {
+              notify('La valeur de confirmation ne correspond pas.', 'error');
+              return false;
+            }
+            return true;
+          }
+          async function promptAction(message, options) {
+            const result = await requestAction(Object.assign({ message, inputLabel: 'Valeur' }, options || {}));
+            return result.confirmed ? String(result.value || '').trim() : '';
           }
           function setProjectResourceStatus(node, message, kind) {
             if (!node) return;
@@ -3869,9 +4080,13 @@ data:
 
           function badge(status) {
             const s = String(status || '').toLowerCase();
-            if (s.includes('run') || s.includes('complete') || s.includes('succeed') || s.includes('ready')) return '<span class="badge b-ok">' + status + '</span>';
-            if (s.includes('submit') || s.includes('pending') || s.includes('queue')) return '<span class="badge b-mid">' + status + '</span>';
-            return '<span class="badge b-info">' + (status || 'unknown') + '</span>';
+            const labels = {
+              running: 'En cours', ready: 'Prêt', succeeded: 'Réussi', completed: 'Terminé', submitted: 'Soumis', pending: 'En attente', queued: 'En file', failed: 'Échec', stopped: 'Arrêté', canceled: 'Annulé', cancelled: 'Annulé', system: 'Système', custom: 'Personnalisé', private: 'Privé', public: 'Public', project: 'Projet', organization: 'Organisation', users: 'Utilisateurs', owner: 'Propriétaire', writer: 'Écriture', reader: 'Lecture'
+            };
+            const label = currentLang === 'fr' ? (labels[s] || status || 'Inconnu') : (status || 'unknown');
+            if (s.includes('run') || s.includes('complete') || s.includes('succeed') || s.includes('ready')) return '<span class="badge b-ok">' + escapeHTML(label) + '</span>';
+            if (s.includes('submit') || s.includes('pending') || s.includes('queue')) return '<span class="badge b-mid">' + escapeHTML(label) + '</span>';
+            return '<span class="badge b-info">' + escapeHTML(label) + '</span>';
           }
 
           function displayAccessUrl(raw) {
@@ -3928,17 +4143,24 @@ data:
                 .catch(() => {});
               if (selectedProjectId()) refreshProjectResources().catch(() => {});
             }
+            if (viewTab === 'projects') refreshProjects().catch((e) => reportError(e));
+            if (viewTab === 'workspaces') refreshWorkspaces().catch((e) => reportError(e));
+            if (viewTab === 'project-jobs') refreshJobs().catch((e) => reportError(e));
+            if (viewTab === 'project-apps') refreshApps().catch((e) => reportError(e));
+            if (viewTab === 'project-dashboards') refreshDashboards().catch((e) => reportError(e));
+            if (viewTab === 'production') refreshProduction().catch((e) => reportError(e));
             if (viewTab === 'workloads' && isAdminUser()) {
-              refreshAdminExecutions().catch((e) => pretty(usersOut, e));
+              refreshAdminExecutions().catch((e) => reportError(e));
             }
             if (viewTab === 'govern-network' && isAdminUser()) {
-              Promise.all([refreshAdminInventory(), refreshOrganizations(), refreshAdminEgressRules()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshAdminInventory(), refreshOrganizations(), refreshAdminEgressRules()]).catch((e) => reportError(e));
             }
             if (viewTab === 'govern-rbac' && isAdminUser()) {
-              Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => pretty(usersOut, e));
+              Promise.all([refreshRBACMatrix(), refreshRBACPolicy()]).catch((e) => reportError(e));
             }
             if (viewTab === 'ops' && isAdminUser()) {
-              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshBackupConfig(), refreshBackupRuns()]).catch((e) => pretty(usersOut, e));
+              setAdminSection(activeAdminSection);
+              Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage(), refreshBackupConfig(), refreshBackupRuns()]).catch((e) => reportError(e));
             }
             const sectionI18n = {
               intro: ['section_title_intro', 'section_subtitle_intro'],
@@ -3965,6 +4187,21 @@ data:
             if (sectionTitle) sectionTitle.textContent = tui(section[0]);
             if (sectionSubtitle) sectionSubtitle.textContent = tui(section[1]);
           }
+
+          let activeAdminSection = 'overview';
+          function setAdminSection(section) {
+            activeAdminSection = section || 'overview';
+            document.querySelectorAll('[data-admin-section]').forEach((node) => {
+              node.hidden = node.getAttribute('data-admin-section') !== activeAdminSection;
+            });
+            document.querySelectorAll('[data-admin-section-button]').forEach((button) => {
+              button.classList.toggle('active', button.getAttribute('data-admin-section-button') === activeAdminSection);
+            });
+          }
+          document.querySelectorAll('[data-admin-section-button]').forEach((button) => {
+            button.onclick = () => setAdminSection(button.getAttribute('data-admin-section-button'));
+          });
+          setAdminSection(activeAdminSection);
 
           function applyDataTab(tab) {
             const datasets = document.getElementById('card-datasets');
@@ -4043,8 +4280,7 @@ data:
             envCreateImageBtn.onclick = async () => {
               if (state.activeTab !== 'environments') switchTab('environments');
               if (!selectedProjectId()) {
-                pretty(usersOut, { error: tui('err_select_project_first') });
-                switchTab('ops');
+                reportError(tui('err_select_project_first'));
                 return;
               }
               creatingEnvironment = true;
@@ -4098,8 +4334,7 @@ data:
                 if (!sourceImage) return;
                 dockerfileEditor.value = 'FROM ' + sourceImage + '\n';
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
             };
           }
@@ -4111,8 +4346,7 @@ data:
               try {
                 await refreshDatasetObjects(selectedDatasetID);
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
             };
           }
@@ -4168,9 +4402,9 @@ data:
           }
 
           function updateStats() {
-            statProjects.textContent = String(state.projects.length);
-            statWorkspaces.textContent = String(state.workspaces.length + state.jobs.length + state.apps.length + state.dashboards.length);
-            statBuilds.textContent = String(state.builds.length);
+            if (statProjects) statProjects.textContent = String(state.projects.length);
+            if (statWorkspaces) statWorkspaces.textContent = String(state.workspaces.length + state.jobs.length + state.apps.length + state.dashboards.length);
+            if (statBuilds) statBuilds.textContent = String(state.builds.length);
           }
 
           async function refreshVersions() {
@@ -4233,7 +4467,7 @@ data:
             projectCards.innerHTML = '';
             projectRows.innerHTML = '';
             if (filtered.length === 0) {
-              projectCards.innerHTML = '<article class="project-card"><h4>No projects</h4><div class="project-meta">Create your first project to get started.</div></article>';
+              projectCards.innerHTML = '<article class="project-card"><h4>Aucun projet</h4><div class="project-meta">Créez votre premier projet pour commencer.</div></article>';
               projectRows.innerHTML = '<tr><td colspan="2">' + tui('msg_no_project') + '</td></tr>';
               return;
             }
@@ -4247,7 +4481,7 @@ data:
                 '<div class="project-owner">' + escapeHTML(projectOwnerLabel(p)) + '</div>' +
                 '<h4>' + escapeHTML(p.name || '-') + '</h4>' +
                 '<div class="project-description">' + escapeHTML(p.description || 'Aucune description pour ce projet.') + '</div>' +
-                '<div class="project-last-activity">Derniere activite · ' + formatDateTime(p.lastActivityAt || p.updatedAt || p.createdAt) + '</div>' +
+                '<div class="project-last-activity">Dernière activité · ' + formatDateTime(p.lastActivityAt || p.updatedAt || p.createdAt) + '</div>' +
                 '</div>' +
                 '<div class="project-card-footer">' +
                 '<div class="project-workload"><strong>' + Number(p.runningApps || 0) + '</strong> apps</div>' +
@@ -4258,14 +4492,14 @@ data:
                 (isSelected
                   ? '<button type="button" class="btn primary" disabled>Actif</button>'
                   : '<button type="button" class="btn primary" data-select-project="' + (p.id || '') + '">Activer</button>') +
-                '<button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button>' +
+                actionMenu('<button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Supprimer</button>') +
                 '</div>';
               projectCards.appendChild(card);
               const tr = document.createElement('tr');
               if (isSelected) tr.classList.add('project-row-active');
               tr.innerHTML =
-                '<td><strong>' + p.name + '</strong><br/><span class="project-meta">Owner · ' + escapeHTML(projectOwnerLabel(p)) + '</span>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
-                '<td>' + (isSelected ? '<button type="button" class="btn primary" disabled>Actif</button>' : '<button type="button" class="btn" data-select-project="' + (p.id || '') + '">Activer</button>') + ' <button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Delete</button></td>';
+                '<td><strong>' + p.name + '</strong><br/><span class="project-meta">' + escapeHTML(projectOwnerLabel(p)) + '</span>' + (isSelected ? '<br/><span class="project-active-marker">Projet actif</span>' : '') + '</td>' +
+                '<td>' + (isSelected ? '<button type="button" class="btn primary" disabled>Actif</button>' : '<button type="button" class="btn" data-select-project="' + (p.id || '') + '">Activer</button>') + actionMenu('<button type="button" class="btn danger" data-del-project="' + (p.id || '') + '">Supprimer</button>') + '</td>';
               projectRows.appendChild(tr);
             }
             const showList = mode === 'list';
@@ -4315,7 +4549,7 @@ data:
             state.secrets.forEach((s) => {
               const secretName = encodeURIComponent(s.name || '');
               const expiresLabel = s.expiresAt
-                ? (String(s.expiresAt) + (s.isExpired ? ' (expired)' : ''))
+                ? (String(s.expiresAt) + (s.isExpired ? ' (expiré)' : ''))
                 : '-';
               const tr = document.createElement('tr');
               tr.innerHTML =
@@ -4323,9 +4557,8 @@ data:
                 '<td><code>' + expiresLabel + '</code></td>' +
                 '<td>' + (s.updatedAt || '-') + '</td>' +
                 '<td>' +
-                '<button type="button" class="btn" data-view-secret="' + secretName + '">View</button> ' +
-                '<button type="button" class="btn" data-copy-secret="' + secretName + '">Copy</button> ' +
-                '<button type="button" class="btn danger" data-del-secret="' + secretName + '">Delete</button>' +
+                '<button type="button" class="btn" data-copy-secret="' + secretName + '">Copier</button>' +
+                actionMenu('<button type="button" class="btn" data-view-secret="' + secretName + '">Afficher</button><button type="button" class="btn danger" data-del-secret="' + secretName + '">Supprimer</button>') +
                 '</td>';
               secretRows.appendChild(tr);
             });
@@ -4357,10 +4590,10 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (d.name || d.id) + '</strong>' + (d.id === selectedDatasetID ? '<br/><span class="dataset-active-marker">Dataset actif</span>' : '') + '</td>' +
                 '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'STANDARD') + '</td>' +
-                '<td><strong>' + datasetProviderLabel(d.provider) + '</strong><br/><code>' + (d.bucket || '-') + '</code><br/><span style="color:#667a98">' + (d.prefix || '/') + '</span></td>' +
+                '<td><strong>' + datasetProviderLabel(d.provider) + '</strong><br/><span class="muted">' + escapeHTML(d.bucket || '-') + '</span></td>' +
                 '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
                 '<td>' + formatDateTime(d.updatedAt || d.createdAt) + '</td>' +
-                '<td>' + (((d.classification || 'non-hds') !== 'hds' && d.accessRole === 'owner') || isAdminUser() ? '<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Delete</button>' : '-') + '</td>';
+                '<td>' + (((d.classification || 'non-hds') !== 'hds' && d.accessRole === 'owner') || isAdminUser() ? actionMenu('<button type="button" class="btn danger" data-del-dataset="' + (d.id || '') + '">Supprimer</button>') : '-') + '</td>';
               datasetRows.appendChild(tr);
 
               const opt = document.createElement('option');
@@ -4504,7 +4737,7 @@ data:
             datasetTransfer.classList.toggle('is-indeterminate', !!indeterminate);
             datasetTransferLabel.textContent = label || 'Transfert';
             if (indeterminate || !total) {
-              datasetTransferValue.textContent = loaded ? formatBytes(loaded) : 'Preparation...';
+              datasetTransferValue.textContent = loaded ? formatBytes(loaded) : 'Préparation...';
               datasetTransferBar.style.width = '';
               return;
             }
@@ -4514,7 +4747,7 @@ data:
           }
           function finishDatasetTransfer(label) {
             datasetTransfer.classList.remove('is-indeterminate');
-            datasetTransferLabel.textContent = label || 'Transfert termine';
+            datasetTransferLabel.textContent = label || 'Transfert terminé';
             datasetTransferValue.textContent = '100%';
             datasetTransferBar.style.width = '100%';
           }
@@ -4611,8 +4844,8 @@ data:
                 '<td><input type="checkbox" data-dataset-folder-select="' + encodeURIComponent(folderPath) + '" /></td>' +
                 '<td><span class="file-path"><span class="file-icon folder">📁</span><button type="button" class="file-name-button" data-dataset-folder="' + encodeURIComponent(folderPath) + '">' + escapeHTML(name) + '</button></span></td>' +
                 '<td>-</td><td>-</td><td>Dossier</td>' +
-                '<td><button type="button" class="btn" data-dataset-folder="' + encodeURIComponent(folderPath) + '">Ouvrir</button> ' +
-                (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-folder="' + encodeURIComponent(folderPath) + '">Supprimer</button>' : '') + '</td>';
+                '<td><button type="button" class="btn" data-dataset-folder="' + encodeURIComponent(folderPath) + '">Ouvrir</button>' +
+                (canWrite ? actionMenu('<button type="button" class="btn danger" data-delete-dataset-folder="' + encodeURIComponent(folderPath) + '">Supprimer</button>') : '') + '</td>';
               datasetObjectRows.appendChild(tr);
             });
             visibleFiles.sort((a, b) => String(a.path || '').localeCompare(String(b.path || ''))).forEach((obj) => {
@@ -4623,14 +4856,14 @@ data:
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><input type="checkbox" data-dataset-file-select="' + encodeURIComponent(fullPath) + '" /></td>' +
-                '<td><span class="file-path"><span class="file-icon">▤</span>' + (visual.supported ? '<span class="preview-dot supported" title="Apercu disponible"></span>' : '') + '<button type="button" class="file-name-button" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">' + escapeHTML(name || '-') + '</button></span></td>' +
+                '<td><span class="file-path"><span class="file-icon">▤</span>' + (visual.supported ? '<span class="preview-dot supported" title="Aperçu disponible"></span>' : '') + '<button type="button" class="file-name-button" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">' + escapeHTML(name || '-') + '</button></span></td>' +
                 '<td>' + formatBytes(obj.size) + '</td>' +
                 '<td>' + formatDateTime(obj.lastModified) + '</td>' +
                 '<td>' + (obj.contentType || '-') + '</td>' +
-                '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">Voir</button> ' +
-                (editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(fullPath) + '">Modifier</button> ' : '') +
-                (!isHDS ? '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(fullPath) + '">Telecharger</button> ' : '') +
-                (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-file="' + encodeURIComponent(fullPath) + '">Supprimer</button>' : '') + '</td>';
+                '<td><button type="button" class="btn" data-preview-dataset-file="' + encodeURIComponent(fullPath) + '">Voir</button>' +
+                actionMenu((editable ? '<button type="button" class="btn" data-edit-dataset-file="' + encodeURIComponent(fullPath) + '">Modifier</button>' : '') +
+                (!isHDS ? '<button type="button" class="btn" data-download-dataset-file="' + encodeURIComponent(fullPath) + '">Télécharger</button>' : '') +
+                (canWrite ? '<button type="button" class="btn danger" data-delete-dataset-file="' + encodeURIComponent(fullPath) + '">Supprimer</button>' : '')) + '</td>';
               datasetObjectRows.appendChild(tr);
             });
           }
@@ -4675,7 +4908,7 @@ data:
             const body = document.createElement('tbody');
             rows.slice(1, 501).forEach((values) => { const tr = document.createElement('tr'); values.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }); body.appendChild(tr); });
             table.appendChild(body); datasetPreviewBody.appendChild(table);
-            if (rows.length > 501) { const note = document.createElement('p'); note.textContent = 'Apercu limite aux 500 premieres lignes.'; datasetPreviewBody.appendChild(note); }
+            if (rows.length > 501) { const note = document.createElement('p'); note.textContent = 'Aperçu limité aux 500 premières lignes.'; datasetPreviewBody.appendChild(note); }
           }
 
           function spreadsheetBookType(filePath) {
@@ -4701,7 +4934,7 @@ data:
               const option = document.createElement('option'); option.value = name; option.textContent = name; option.selected = name === datasetPreviewSheetName; select.appendChild(option);
             });
             const note = document.createElement('span'); note.className = 'spreadsheet-note';
-            note.textContent = datasetPreviewSpreadsheetEditing ? 'Edition des valeurs uniquement. La sauvegarde peut modifier styles et formules complexes.' : 'Apercu des 500 premieres lignes.';
+            note.textContent = datasetPreviewSpreadsheetEditing ? 'Édition des valeurs uniquement. La sauvegarde peut modifier les styles et formules complexes.' : 'Aperçu des 500 premières lignes.';
             toolbar.appendChild(select); toolbar.appendChild(note); datasetPreviewBody.appendChild(toolbar);
             const sheet = datasetPreviewWorkbook.Sheets[datasetPreviewSheetName];
             const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'', raw:false }).slice(0, 500);
@@ -4727,7 +4960,7 @@ data:
           function renderRepositoriesTable() {
             repoRows.innerHTML = '';
             if (state.repositories.length === 0) {
-              repoRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_repository') + '</td></tr>';
+              repoRows.innerHTML = '<tr><td colspan="4">' + tui('msg_no_repository') + '</td></tr>';
               return;
             }
             state.repositories.forEach((r) => {
@@ -4743,10 +4976,8 @@ data:
               tr.innerHTML =
                 '<td><strong>' + (r.name || r.id) + '</strong></td>' +
                 '<td><code>' + (r.url || '-') + '</code></td>' +
-                '<td>' + ((r.gitAuthorName || r.gitAuthorEmail) ? ((r.gitAuthorName || '-') + '<br><small>' + (r.gitAuthorEmail || '-') + '</small>') : '-') + '</td>' +
-                '<td><strong>' + String(r.authType || (r.authSecretName ? 'persat' : 'none')).toUpperCase() + '</strong><br><small>' + (r.authSecretName || '-') + '</small></td>' +
                 '<td><code>' + checkLabel + '</code></td>' +
-                '<td><button type="button" class="btn" data-edit-repo="' + (r.id || '') + '">Modifier</button> <button type="button" class="btn" data-test-repo="' + (r.id || '') + '">Re-test</button> <button type="button" class="btn danger" data-del-repo="' + (r.id || '') + '">Delete</button></td>';
+                '<td><button type="button" class="btn" data-edit-repo="' + (r.id || '') + '">Modifier</button>' + actionMenu('<button type="button" class="btn" data-test-repo="' + (r.id || '') + '">Tester</button><button type="button" class="btn danger" data-del-repo="' + (r.id || '') + '">Supprimer</button><span class="technical-meta">' + escapeHTML(String(r.authType || (r.authSecretName ? 'persat' : 'none')).toUpperCase()) + '</span>') + '</td>';
               repoRows.appendChild(tr);
             });
           }
@@ -4772,7 +5003,7 @@ data:
             }
             state.datasources.forEach((d) => {
               const check = state.datasourceChecks && state.datasourceChecks[d.id] ? state.datasourceChecks[d.id] : null;
-              const checkLabel = d.source === 'internal' ? badge(d.status || 'launching') : (check ? (check.reachable ? 'OK' : ('Failed: ' + (check.error || 'connection error'))) : '-');
+              const checkLabel = d.source === 'internal' ? badge(d.status || 'launching') : (check ? (check.reachable ? 'OK' : ('Échec : ' + (check.error || 'erreur de connexion'))) : '-');
               const runtimeLabel = d.source === 'internal'
                 ? '<br><small>' + escapeHTML(d.hardwareTier || '-') + ' · stockage ' + escapeHTML(d.storageSize || '-') + (d.restartCount ? ' · ' + String(d.restartCount) + ' redémarrage(s)' : '') + '</small>'
                 : '';
@@ -4780,7 +5011,7 @@ data:
                 ? '<br><small title="' + escapeHTML(d.statusMessage || '') + '">' + escapeHTML(d.statusReason || d.statusMessage || '') + '</small>'
                 : '';
               const internalActions = d.source === 'internal'
-                ? ' <button type="button" class="btn" data-logs-ds="' + (d.id || '') + '">Logs</button> <button type="button" class="btn warn" data-restart-ds="' + (d.id || '') + '">Redémarrer</button>'
+                ? '<button type="button" class="btn" data-logs-ds="' + (d.id || '') + '">Logs</button><button type="button" class="btn warn" data-restart-ds="' + (d.id || '') + '">Redémarrer</button>'
                 : '';
               const tr = document.createElement('tr');
               tr.innerHTML =
@@ -4788,7 +5019,7 @@ data:
                 '<td><strong>' + datasourceTypeLabel(d.type) + '</strong><br><small>' + (d.source === 'internal' ? 'Interne' : 'Externe') + '</small></td>' +
                 '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code>' + runtimeLabel + '</td>' +
                 '<td>' + checkLabel + statusDetail + '</td>' +
-                '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Re-test</button>' + internalActions + ' <button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Delete</button></td>';
+                '<td><button type="button" class="btn" data-test-ds="' + (d.id || '') + '">Tester</button>' + actionMenu(internalActions + '<button type="button" class="btn danger" data-del-ds="' + (d.id || '') + '">Supprimer</button>') + '</td>';
               datasourceRows.appendChild(tr);
             });
           }
@@ -4812,7 +5043,7 @@ data:
             const currentDefinition = dataServiceDefinitionInput.value || '';
             dataServiceDefinitionInput.innerHTML = '';
             if (items.length === 0) {
-              datasourceDefinitionRows.innerHTML = '<tr><td colspan="6">Aucune définition de service interne.</td></tr>';
+              datasourceDefinitionRows.innerHTML = '<tr><td colspan="4">Aucune définition de service interne.</td></tr>';
               return;
             }
             items.forEach((item) => {
@@ -4822,11 +5053,10 @@ data:
               dataServiceDefinitionInput.appendChild(option);
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><small class="dataservice-description">' + escapeHTML(item.description || '') + '</small></td>' +
+                '<td><strong>' + escapeHTML(item.name || item.id || '-') + '</strong><small class="dataservice-description">' + escapeHTML(item.description || '') + '</small>' +
+                '<details class="technical-disclosure"><summary>Détails techniques</summary>' + datasourceImageReference(item.image) + '<pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>' +
                 '<td>' + escapeHTML(datasourceTypeLabel(item.type)) + '<br><small>Port ' + String(item.defaultPort || '-') + '</small></td>' +
-                '<td>' + datasourceImageReference(item.image) + '</td>' +
                 '<td>' + badge(item.system ? 'system' : 'custom') + '</td>' +
-                '<td class="dataservice-definition"><details><summary>Voir le Dockerfile</summary><pre class="code-block">' + escapeHTML(item.dockerfile || '') + '</pre></details></td>' +
                 '<td class="dataservice-action"><button type="button" class="btn" data-use-dataservice="' + escapeHTML(item.id || '') + '">Utiliser</button></td>';
               datasourceDefinitionRows.appendChild(tr);
             });
@@ -4856,7 +5086,7 @@ data:
             dsPasswordSecretInput.innerHTML = '';
             const none = document.createElement('option');
             none.value = '';
-            none.textContent = 'Select password secret';
+            none.textContent = 'Sélectionner le secret du mot de passe';
             dsPasswordSecretInput.appendChild(none);
             state.secrets.forEach((s) => {
               const opt = document.createElement('option');
@@ -4876,7 +5106,7 @@ data:
             const items = state.workspaces.filter(w => !pid || w.projectId === pid);
             workspaceRows.innerHTML = '';
             if (items.length === 0) {
-              workspaceRows.innerHTML = '<tr><td colspan="10">' + tui('msg_no_workspace_project') + '</td></tr>';
+              workspaceRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_workspace_project') + '</td></tr>';
               return;
             }
             for (const w of items) {
@@ -4889,15 +5119,12 @@ data:
                 : '';
               tr.innerHTML =
                 '<td><strong>' + (w.name || 'Workspace') + '</strong></td>' +
-                '<td><strong>' + escapeHTML(projectName(w.projectId)) + '</strong></td>' +
-                '<td><code>' + (w.kind || 'jupyter') + '</code><br/><span style="color:#667a98">' + escapeHTML(w.image || '-') + '</span></td>' +
-                '<td><code>' + (w.podName || '-') + '</code></td>' +
-                '<td><code>' + (w.pvcName || '-') + '</code><br/><span style="color:#667a98">' + (w.pvcSize || '') + '</span></td>' +
+                '<td><strong>' + escapeHTML(w.kind || 'jupyter') + '</strong><br/><span class="muted">' + escapeHTML(environmentNameForImage(w.image)) + '</span></td>' +
                 '<td>' + formatDateTime(w.createdAt) + '</td>' +
                 '<td data-workspace-up="' + escapeHTML(w.createdAt || '') + '" data-workspace-status="' + escapeHTML(w.status || '') + '">' + formatUptime(w.createdAt, w.status) + '</td>' +
                 '<td>' + badge(w.status || 'submitted') + '</td>' +
                 '<td>' + displayAccessUrl(w.accessUrl) + '</td>' +
-                '<td>' + openBtn + ' <button type="button" class="btn danger" data-del="' + w.id + '">Delete</button></td>';
+                '<td>' + openBtn + actionMenu('<button type="button" class="btn danger" data-del="' + w.id + '">Supprimer</button>') + '</td>';
               workspaceRows.appendChild(tr);
             }
           }
@@ -5071,6 +5298,18 @@ data:
             return parts.join(' · ');
           }
 
+          function environmentNameForImage(image) {
+            const match = state.environments.find((env) => env.destinationImage === image);
+            if (match && match.name) return match.name;
+            const value = String(image || '').split('/').pop() || 'Environnement';
+            return value.replace(/@sha256:.+$/, '');
+          }
+
+          function actionMenu(content) {
+            if (!content) return '';
+            return '<details class="row-actions"><summary aria-label="Autres actions">•••</summary><div class="row-actions-menu">' + content + '</div></details>';
+          }
+
           function renderJobsTable() {
             const pid = selectedProjectId();
             const activeProject = selectedProject();
@@ -5078,7 +5317,7 @@ data:
             const items = state.jobs.filter((j) => !pid || j.projectId === pid);
             jobRows.innerHTML = '';
             if (items.length === 0) {
-              jobRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_jobs_project') + '</td></tr>';
+              jobRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_jobs_project') + '</td></tr>';
             } else {
               items.forEach((j) => {
                 const tr = document.createElement('tr');
@@ -5090,13 +5329,10 @@ data:
                   : (status === 'running' ? 'En cours' : 'En attente');
                 tr.innerHTML =
                   '<td><strong>' + escapeHTML(j.name || j.jobName || 'Job') + '</strong></td>' +
-                  '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong></td>' +
-                  '<td><code>' + escapeHTML(command) + '</code></td>' +
-                  '<td><code>' + escapeHTML(j.image || '-') + '</code></td>' +
                   '<td>' + badge(status) + '<br/><span style="color:#667a98">' + resultLabel + '</span></td>' +
                   '<td>' + formatDateTime(j.createdAt) + '</td>' +
                   '<td>' + (j.completedAt ? formatDateTime(j.completedAt) : '-') + '</td>' +
-                  '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">' + (terminal ? 'Résultat' : 'Logs') + '</button> <button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Supprimer</button></td>';
+                  '<td><button type="button" class="btn" data-logs-job="' + (j.id || '') + '">' + (terminal ? 'Résultat' : 'Logs') + '</button>' + actionMenu('<button type="button" class="btn danger" data-del-job="' + (j.id || '') + '">Supprimer</button><span class="technical-meta" title="' + escapeHTML(command) + '">' + escapeHTML(environmentNameForImage(j.image)) + '</span>') + '</td>';
                 jobRows.appendChild(tr);
               });
             }
@@ -5104,18 +5340,16 @@ data:
             const cronItems = state.cronJobs.filter((j) => !pid || j.projectId === pid);
             cronJobRows.innerHTML = '';
             if (cronItems.length === 0) {
-              cronJobRows.innerHTML = '<tr><td colspan="7">Aucune automatisation pour ce projet.</td></tr>';
+              cronJobRows.innerHTML = '<tr><td colspan="5">Aucune automatisation pour ce projet.</td></tr>';
               return;
             }
             cronItems.forEach((j) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
                 '<td><strong>' + escapeHTML(j.name || j.cronJobName || 'Job planifié') + '</strong></td>' +
-                '<td><strong>' + escapeHTML(projectName(j.projectId)) + '</strong></td>' +
                 '<td><code>' + escapeHTML(j.schedule || '-') + '</code></td>' +
                 '<td>' + escapeHTML(j.timeZone || 'UTC') + '</td>' +
-                '<td><code>' + escapeHTML(j.image || '-') + '</code></td>' +
-                '<td><code>' + escapeHTML(j.lastScheduleAt || 'Jamais') + '</code></td>' +
+                '<td>' + formatDateTime(j.lastScheduleAt) + '</td>' +
                 '<td><button type="button" class="btn danger" data-del-cronjob="' + escapeHTML(j.id || '') + '">Supprimer</button></td>';
               cronJobRows.appendChild(tr);
             });
@@ -5128,24 +5362,21 @@ data:
             const items = state.apps.filter((a) => !pid || a.projectId === pid);
             appRows.innerHTML = '';
             if (items.length === 0) {
-              appRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_apps_project') + '</td></tr>';
+              appRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_apps_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
               const tr = document.createElement('tr');
               const health = [a.healthMessage || '', a.startedAt ? ('Démarrée : ' + a.startedAt) : '', a.restartCount ? ('Redémarrages conteneur : ' + a.restartCount) : ''].filter(Boolean).join(' · ');
               const restartAction = a.status === 'stopped'
-                ? '<button type="button" class="btn" disabled title="Une application arrêtée doit être redéployée">Restart</button>'
-                : '<button type="button" class="btn" data-restart-app="' + (a.id || '') + '">Restart</button>';
+                ? '<button type="button" class="btn" disabled title="Une application arrêtée doit être redéployée">Redémarrer</button>'
+                : '<button type="button" class="btn" data-restart-app="' + (a.id || '') + '">Redémarrer</button>';
               tr.innerHTML =
-                '<td><strong>' + escapeHTML(a.name || 'App') + '</strong></td>' +
-                '<td><strong>' + escapeHTML(projectName(a.projectId)) + '</strong></td>' +
-                '<td><code>' + escapeHTML(a.slug || '-') + '</code></td>' +
-                '<td><code>' + escapeHTML(a.podName || '-') + '</code></td>' +
+                '<td><strong>' + escapeHTML(a.name || 'Application') + '</strong><br/><span class="muted">' + escapeHTML(environmentNameForImage(a.image)) + '</span></td>' +
+                '<td>' + appAccessLink(a) + '</td>' +
                 '<td title="' + escapeHTML(health) + '">' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + badge(a.accessMode || 'project') + '</td>' +
-                '<td>' + appAccessLink(a) + '</td>' +
-                '<td class="app-actions"><button type="button" class="btn primary" data-publish-app="' + (a.id || '') + '">' + (a.published ? 'Publier une révision' : 'Publier en Production') + '</button> <button type="button" class="btn" data-open-app="' + (a.id || '') + '">Open</button> <button type="button" class="btn" data-usage-app="' + (a.id || '') + '">Usage</button> <button type="button" class="btn" data-logs-app="' + (a.id || '') + '">Logs</button> ' + restartAction + ' <button type="button" class="btn" data-stop-app="' + (a.id || '') + '">Stop</button> <button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Delete</button></td>';
+                '<td class="app-actions"><button type="button" class="btn primary" data-open-app="' + (a.id || '') + '">Ouvrir</button>' + actionMenu('<button type="button" class="btn" data-publish-app="' + (a.id || '') + '">' + (a.published ? 'Publier une révision' : 'Publier en Production') + '</button><button type="button" class="btn" data-usage-app="' + (a.id || '') + '">Consultations</button><button type="button" class="btn" data-logs-app="' + (a.id || '') + '">Logs</button>' + restartAction + '<button type="button" class="btn" data-stop-app="' + (a.id || '') + '">Arrêter</button><button type="button" class="btn danger" data-del-app="' + (a.id || '') + '">Supprimer</button>') + '</td>';
               appRows.appendChild(tr);
             });
           }
@@ -5171,18 +5402,17 @@ data:
             const items = state.dashboards.filter((a) => !pid || a.projectId === pid);
             dashboardRows.innerHTML = '';
             if (items.length === 0) {
-              dashboardRows.innerHTML = '<tr><td colspan="6">' + tui('msg_no_dashboards_project') + '</td></tr>';
+              dashboardRows.innerHTML = '<tr><td colspan="5">' + tui('msg_no_dashboards_project') + '</td></tr>';
               return;
             }
             items.forEach((a) => {
               const tr = document.createElement('tr');
               tr.innerHTML =
-                '<td><strong>' + (a.name || a.id) + '</strong><br/><span style="color:#667a98">' + (a.id || '-') + '</span></td>' +
+                '<td><strong>' + escapeHTML(a.name || 'Dashboard') + '</strong></td>' +
                 '<td><code>' + (a.slug || '-') + '</code></td>' +
-                '<td><code>' + (a.podName || '-') + '</code></td>' +
                 '<td>' + badge(a.status || 'submitted') + '</td>' +
                 '<td>' + displayAccessUrl(a.accessUrl) + '</td>' +
-                '<td><button type="button" class="btn" data-open-dashboard="' + (a.id || '') + '">Open</button> <button type="button" class="btn danger" data-del-dashboard="' + (a.id || '') + '">Delete</button></td>';
+                '<td><button type="button" class="btn primary" data-open-dashboard="' + (a.id || '') + '">Ouvrir</button>' + actionMenu('<button type="button" class="btn danger" data-del-dashboard="' + (a.id || '') + '">Supprimer</button>') + '</td>';
               dashboardRows.appendChild(tr);
             });
           }
@@ -5668,7 +5898,7 @@ data:
             const pid = selectedProjectId();
             const p = state.projects.find((x) => x.id === pid) || null;
             projectActiveName.textContent = p ? (p.name || p.id || '-') : 'Aucun projet selectionne';
-            projectActiveOwner.textContent = p ? ('Owner · ' + projectOwnerLabel(p)) : 'Owner · -';
+            projectActiveOwner.textContent = p ? ('Propriétaire · ' + projectOwnerLabel(p)) : 'Propriétaire · -';
             projectOwnerForm.style.display = p && p.canManageOwner ? 'flex' : 'none';
             projectMetadataForm.style.display = p && p.canManageOwner ? 'flex' : 'none';
             if (projectMetadataFormProjectID !== pid) {
@@ -5794,7 +6024,7 @@ data:
                   '<td>' + badge((d.classification || 'non-hds') === 'hds' ? 'HDS' : 'standard') + '</td>' +
                   '<td><code>' + datasetProviderLabel(d.provider) + ' / ' + (d.bucket || '-') + (d.prefix ? '/' + d.prefix : '') + '</code></td>' +
                   '<td>' + escapeHTML(ownerLabel(d.ownerType, d.ownerId || d.ownerUserId)) + '</td>' +
-                  '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Detach</button></td>';
+                  '<td><button type="button" class="btn danger" data-detach-dataset="' + (d.id || '') + '">Détacher</button></td>';
                 projectDatasetRows.appendChild(tr);
               });
             }
@@ -5811,7 +6041,7 @@ data:
                   '<td>' + escapeHTML(o.projectName || o.projectId || '-') + '</td>' +
                   '<td>' + escapeHTML(manifest.sourceName || manifest.datasetName || o.sourceName || o.sourceId || '-') + ((manifest.sourceType || o.sourceType) ? '<br/><span class="project-meta">' + escapeHTML(manifest.sourceType || o.sourceType) + '</span>' : '') + '</td>' +
                   '<td>' + Number(summary.subjects || 0) + ' sujets · ' + Number(summary.visits || 0) + ' visites · ' + Number(summary.objects || 0) + ' objets</td>' +
-                  '<td><button type="button" class="btn danger" data-detach-ontology="' + escapeHTML(o.id || '') + '">Detach</button></td>';
+                  '<td><button type="button" class="btn danger" data-detach-ontology="' + escapeHTML(o.id || '') + '">Détacher</button></td>';
                 projectOntologyRows.appendChild(tr);
               });
             }
@@ -5825,7 +6055,7 @@ data:
                   '<td><strong>' + (r.name || r.id) + '</strong></td>' +
                   '<td><code>' + (r.url || '-') + '</code></td>' +
                   '<td><code>' + (r.authSecretName || '-') + '</code></td>' +
-                  '<td><button type="button" class="btn danger" data-detach-repo="' + (r.id || '') + '">Detach</button></td>';
+                  '<td><button type="button" class="btn danger" data-detach-repo="' + (r.id || '') + '">Détacher</button></td>';
                 projectRepoRows.appendChild(tr);
               });
             }
@@ -5839,7 +6069,7 @@ data:
                   '<td><strong>' + (d.name || d.id) + '</strong></td>' +
                   '<td><code>' + (d.type || '-') + '</code></td>' +
                   '<td><code>' + (d.host || '-') + ':' + String(d.port || '-') + '/' + (d.database || '-') + '</code></td>' +
-                  '<td><button type="button" class="btn danger" data-detach-ds="' + (d.id || '') + '">Detach</button></td>';
+                  '<td><button type="button" class="btn danger" data-detach-ds="' + (d.id || '') + '">Détacher</button></td>';
                 projectDatasourceRows.appendChild(tr);
               });
             }
@@ -5873,7 +6103,7 @@ data:
                 '<td>' + escapeHTML(sourceName) + '<br/><span class="project-meta">' + escapeHTML(sourceType) + '</span></td>' +
                 '<td><code>' + escapeHTML(item.inferenceProfile || manifest.inferenceProfile || '-') + '</code></td>' +
                 '<td>' + escapeHTML(ownerLabel(item.ownerType, item.ownerId || item.ownerUserId)) + '</td>' +
-                '<td>' + ((item.accessRole === 'owner' || isAdminUser()) ? '<button type="button" class="btn danger" data-del-ontology="' + escapeHTML(item.id || '') + '">Delete</button>' : '-') + '</td>';
+                '<td>' + ((item.accessRole === 'owner' || isAdminUser()) ? actionMenu('<button type="button" class="btn danger" data-del-ontology="' + escapeHTML(item.id || '') + '">Supprimer</button>') : '-') + '</td>';
               ontologyCatalogRows.appendChild(tr);
             });
             renderOntologyAccessPanel();
@@ -6961,7 +7191,7 @@ data:
           window.location.assign(loginUrl);
           return false;
         } catch (err) {
-          pretty(usersOut, { loginError: String(err) });
+          reportError(err, 'Connexion impossible');
           setIdentityDisplayMode('signed-out');
         }
         try { localStorage.setItem(LAB_USER_KEY, currentLabUser()); } catch (_) {}
@@ -7070,7 +7300,7 @@ data:
           };
 
           resetRBACPolicyBtn.onclick = async () => {
-            if (!confirm('Réinitialiser la matrice RBAC aux rôles standards ?')) return;
+            if (!(await confirmAction('Réinitialiser la matrice RBAC aux rôles standards ?', { danger: true, confirmLabel: 'Réinitialiser' }))) return;
             try { await saveRBACPolicyRows(defaultRBACPolicyRows()); }
             catch (e) { pretty(auditOut, e); }
           };
@@ -7103,7 +7333,7 @@ data:
             }
             const row = ensureArray(state.rbacPolicyRows).find((item) => item.key === roleKey);
             if (!row) return;
-            if (!confirm('Supprimer le rôle "' + row.role + '" ?')) return;
+            if (!(await confirmAction('Supprimer le rôle « ' + row.role + ' » ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
             try { await saveRBACPolicyRows(ensureArray(state.rbacPolicyRows).filter((item) => item.key !== roleKey)); }
             catch (e) { pretty(auditOut, e); }
           };
@@ -7119,13 +7349,13 @@ data:
           };
 
           saveBackupConfigBtn.onclick = async () => {
-            if (!confirm('Enregistrer cette cible S3 externe pour les backups plateforme ?')) return;
+            if (!(await confirmAction('Enregistrer cette cible S3 externe pour les sauvegardes de la plateforme ?', { confirmLabel: 'Enregistrer' }))) return;
             try { await saveBackupConfig(); }
             catch (e) { pretty(backupOut, e); }
           };
 
           runBackupNowBtn.onclick = async () => {
-            if (!confirm('Lancer un backup manifest-only vers la cible S3 configurée ?')) return;
+            if (!(await confirmAction('Lancer une sauvegarde vers la cible S3 configurée ?', { confirmLabel: 'Lancer' }))) return;
             try { await runBackupNow(); }
             catch (e) {
               pretty(backupOut, e);
@@ -7146,8 +7376,8 @@ data:
             const id = button.getAttribute('data-egress-id');
             const status = button.getAttribute('data-egress-decision');
             if (!id || !status) return;
-            const note = window.prompt('Note de décision egress (' + status + ')', '') || '';
-            if (!window.confirm('Confirmer la décision egress: ' + status + ' ?')) return;
+            const note = await promptAction('Ajoutez une note à la décision « ' + status + ' ».', { title: 'Décision réseau', inputLabel: 'Note (optionnelle)', confirmLabel: 'Continuer' });
+            if (!(await confirmAction('Confirmer la décision réseau « ' + status + ' » ?', { confirmLabel: 'Confirmer' }))) return;
             try {
               await callJSON('/api/v1/admin/egress/rules/' + encodeURIComponent(id), {
                 method:'PUT',
@@ -7208,7 +7438,7 @@ data:
               organizationNameInput.value = '';
               organizationAliasInput.value = '';
               await refreshOrganizations();
-            } catch (e) { pretty(usersOut, e); }
+            } catch (e) { reportError(e); }
           };
 
           addOrganizationMemberBtn.onclick = async () => {
@@ -7217,7 +7447,7 @@ data:
               if (!selectedOrganizationID || !userID) return;
               await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(selectedOrganizationID) + '/members/' + encodeURIComponent(userID), { method:'PUT' });
               await refreshOrganizationMembers();
-            } catch (e) { pretty(usersOut, e); }
+            } catch (e) { reportError(e); }
           };
 
           adminOrganizationRows.onclick = async (event) => {
@@ -7227,28 +7457,28 @@ data:
               selectedOrganizationID = selectID;
               await refreshOrganizationMembers();
             }
-            if (deleteID && window.confirm('Supprimer cette organisation ? Les utilisateurs sans autre organisation seront bloqués.')) {
+            if (deleteID && await confirmAction('Supprimer cette organisation ? Les utilisateurs sans autre organisation seront bloqués.', { danger: true, confirmLabel: 'Supprimer' })) {
               try {
                 await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(deleteID), { method:'DELETE' });
                 selectedOrganizationID = '';
                 await refreshOrganizations();
-              } catch (e) { pretty(usersOut, e); }
+              } catch (e) { reportError(e); }
             }
           };
 
           adminOrganizationMemberRows.onclick = async (event) => {
             const userID = event.target.getAttribute && event.target.getAttribute('data-remove-organization-member');
             if (!userID || !selectedOrganizationID) return;
-            if (!window.confirm('Retirer cet utilisateur de l’organisation ? Il sera bloqué s’il ne possède aucune autre organisation.')) return;
+            if (!(await confirmAction('Retirer cet utilisateur de l’organisation ? Il sera bloqué s’il ne possède aucune autre organisation.', { danger: true, confirmLabel: 'Retirer' }))) return;
             try {
               await callJSON('/api/v1/admin/organizations/' + encodeURIComponent(selectedOrganizationID) + '/members/' + encodeURIComponent(userID), { method:'DELETE' });
               await refreshOrganizationMembers();
-            } catch (e) { pretty(usersOut, e); }
+            } catch (e) { reportError(e); }
           };
 
           loadProjectsBtn.onclick = async () => {
             try { await refreshProjects(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
 
           createProjectBtn.onclick = async () => {
@@ -7266,8 +7496,7 @@ data:
               await refreshProjects();
               if (created && created.id) await selectProjectAndRefresh(created.id);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
           projectMetadataSave.onclick = async () => {
@@ -7283,8 +7512,7 @@ data:
               projectMetadataFormDirty = false;
               await refreshProjects();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
           projectEditName.oninput = () => { projectMetadataFormDirty = true; };
@@ -7310,8 +7538,7 @@ data:
               projectOwnerID.value = '';
               await refreshProjects();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7351,7 +7578,7 @@ data:
             await refreshProjectFiles();
           };
           projectFilesNewFolder.onclick = async () => {
-            const name = prompt('Nom du nouveau dossier');
+            const name = await promptAction('Choisissez le nom du nouveau dossier.', { title: 'Nouveau dossier', inputLabel: 'Nom du dossier', confirmLabel: 'Créer' });
             if (!name) return;
             const path = [projectFilesCurrentPath, name.trim()].filter(Boolean).join('/');
             await callJSON('/api/v1/projects/' + encodeURIComponent(selectedProjectId()) + '/folders', {
@@ -7381,11 +7608,11 @@ data:
                 await editProjectFile(decodeURIComponent(file));
               } else if (download) {
                 await downloadProjectFile(decodeURIComponent(download));
-              } else if (remove && confirm('Supprimer ce fichier ou dossier ?')) {
+              } else if (remove && await confirmAction('Supprimer ce fichier ou dossier ?', { danger: true, confirmLabel: 'Supprimer' })) {
                 await callJSON(projectFileURL(decodeURIComponent(remove)), { method:'DELETE' });
                 await refreshProjectFiles();
               }
-            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            } catch (e) { reportError(e); }
           };
           projectFileEditorSave.onclick = async () => {
             if (!projectFileEditorPath) return;
@@ -7418,7 +7645,7 @@ data:
             const projectID = (event.target && event.target.getAttribute('data-del-project'));
             if (selectProjectID) {
               try { await selectProjectAndRefresh(selectProjectID); }
-              catch (e) { pretty(usersOut, e); switchTab('ops'); }
+              catch (e) { reportError(e); }
               return;
             }
             if (!projectID) return;
@@ -7426,8 +7653,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
               await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7436,7 +7662,7 @@ data:
             const projectID = (event.target && event.target.getAttribute('data-del-project'));
             if (selectProjectID) {
               try { await selectProjectAndRefresh(selectProjectID); }
-              catch (e) { pretty(usersOut, e); switchTab('ops'); }
+              catch (e) { reportError(e); }
               return;
             }
             if (!projectID) return;
@@ -7444,8 +7670,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(projectID), { method: 'DELETE' });
               await Promise.all([refreshProjects(), refreshWorkspaces(), refreshBuilds(), refreshEnvironments(), refreshProjectResources()]);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7460,8 +7685,7 @@ data:
               await refreshApps();
               await refreshDashboards();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7614,7 +7838,7 @@ data:
             ontologyCatalogRows.onclick = async (event) => {
               const deleteID = event.target && event.target.getAttribute('data-del-ontology');
               if (deleteID) {
-                if (!window.confirm('Supprimer definitivement cette ontologie ? Les rattachements aux projets seront retires.')) return;
+                if (!(await confirmAction('Supprimer définitivement cette ontologie ? Les rattachements aux projets seront retirés.', { danger: true, confirmLabel: 'Supprimer' }))) return;
                 try {
                   await callJSON('/api/v1/ontologies/' + encodeURIComponent(deleteID), { method: 'DELETE' });
                   if (selectedOntologyID === deleteID) selectedOntologyID = '';
@@ -7693,7 +7917,7 @@ data:
                 const ownerType = ontologyOwnerType.value;
                 const ownerId = resolveOntologySubjectID(ontologyOwnerID.value, ownerType);
                 if (!selectedOntologyID || !ownerId) return;
-                if (!window.confirm('Transférer définitivement l ownership de cette ontologie ?')) return;
+                if (!(await confirmAction('Transférer définitivement la propriété de cette ontologie ?', { danger: true, confirmLabel: 'Transférer' }))) return;
                 await callJSON('/api/v1/ontologies/' + encodeURIComponent(selectedOntologyID) + '/ownership', {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
@@ -7725,8 +7949,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasets/' + encodeURIComponent(datasetID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7739,8 +7962,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/ontologies/' + encodeURIComponent(ontologyID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7753,8 +7975,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/repositories/' + encodeURIComponent(repositoryID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7767,8 +7988,7 @@ data:
               await callJSON('/api/v1/projects/' + encodeURIComponent(pid) + '/datasources/' + encodeURIComponent(datasourceID), { method: 'DELETE' });
               await refreshProjectResources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7791,8 +8011,7 @@ data:
               secretOut.textContent = '-';
               await refreshSecrets();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7830,8 +8049,7 @@ data:
               if (datasetSecretKeyInput) datasetSecretKeyInput.value = '';
               await refreshDatasets();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7880,8 +8098,7 @@ data:
             try {
               await Promise.all([refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations()]);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -7950,12 +8167,11 @@ data:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               });
-              usersOut.textContent = editingRepositoryID ? 'Depot modifie et valide.' : 'Depot ajoute et valide.';
+              reportSuccess(editingRepositoryID ? 'Dépôt modifié et validé.' : 'Dépôt ajouté et validé.');
               resetRepositoryForm();
               await refreshRepositories();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
           cancelRepositoryEditBtn.onclick = resetRepositoryForm;
@@ -7989,8 +8205,7 @@ data:
               dsUsernameInput.value = '';
               await refreshDatasources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8013,8 +8228,7 @@ data:
               dataServiceNameInput.value = '';
               await refreshDatasources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8027,7 +8241,7 @@ data:
 
           refreshDatasourcesBtn.onclick = async () => {
             try { await refreshDatasources(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
           dsTypeInput.onchange = () => {
             dsPortInput.value = ({ postgres:'5432', mysql:'3306', mongodb:'27017' })[dsTypeInput.value] || '';
@@ -8036,22 +8250,22 @@ data:
 
           loadWorkspacesBtn.onclick = async () => {
             try { await refreshWorkspaces(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
 
           loadJobsBtn.onclick = async () => {
             try { await refreshJobs(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
 
           loadAppsBtn.onclick = async () => {
             try { await refreshApps(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
 
           loadDashboardsBtn.onclick = async () => {
             try { await refreshDashboards(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
 
           workspaceEnvInput.onchange = syncWorkspaceIDEFromEnvironment;
@@ -8081,14 +8295,13 @@ data:
               await refreshWorkspaces();
               switchTab('workspaces');
               if (created.accessUrl) {
-                usersOut.textContent = t('launchingMsg');
+                notify(t('launchingMsg'));
                 const ready = await waitWorkspaceReady(created.id, 60000);
-                usersOut.textContent = ready ? t('readyMsg') : t('launchingMsg');
+                notify(ready ? t('readyMsg') : t('launchingMsg'), ready ? 'success' : 'info');
                 await refreshWorkspaces();
               }
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8119,8 +8332,7 @@ data:
               await refreshJobs();
               switchTab('project-jobs');
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8178,8 +8390,7 @@ data:
               await refreshApps();
               switchTab('project-apps');
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
           appAccessModeInput.onchange = () => {
@@ -8213,8 +8424,7 @@ data:
               await refreshDashboards();
               switchTab('project-dashboards');
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8251,8 +8461,7 @@ data:
               await Promise.all([refreshBuilds(), refreshEnvironments()]);
               switchTab('environments');
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8267,10 +8476,9 @@ data:
               const looksSystem = String((env && env.category) || '').toLowerCase() === 'system' ||
                 /(^|\/)(system|base|core)(\/|:|$)/i.test(image) || /^system[-_]/i.test(name);
               if (looksSystem) {
-                const token = prompt('System environment detected. Type DELETE to confirm permanent removal:');
-                if (token !== 'DELETE') return;
+                if (!(await confirmAction('Cet environnement système est protégé. Saisissez DELETE pour confirmer sa suppression définitive.', { danger: true, confirmLabel: 'Supprimer', inputLabel: 'Confirmation', confirmation: 'DELETE' }))) return;
               } else {
-                if (!confirm('Delete this environment image and all related builds?')) return;
+                if (!(await confirmAction('Supprimer cette image et toutes ses révisions ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
               }
               try {
                 await callJSON('/api/v1/environments/' + deleteEnvID, { method: 'DELETE' });
@@ -8282,8 +8490,7 @@ data:
                 if (state.activeTab === 'workloads' && isAdminUser()) await refreshAdminExecutions();
                 if (state.activeTab === 'ops' && isAdminUser()) await Promise.all([refreshAdminOverview(), refreshAdminInventory(), refreshOrganizations(), refreshDataUsage()]);
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
               return;
             }
@@ -8307,7 +8514,7 @@ data:
             if (deleteBuildID) {
               event.preventDefault();
               event.stopPropagation();
-              if (!confirm('Delete this build revision?')) return;
+              if (!(await confirmAction('Supprimer cette révision ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
               try {
                 await callJSON('/api/v1/builds/' + deleteBuildID, { method: 'DELETE' });
                 if (decodeURIComponent(deleteBuildID) === selectedEnvironmentBuildID) {
@@ -8315,8 +8522,7 @@ data:
                 }
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
               return;
             }
@@ -8339,15 +8545,14 @@ data:
           if (envDeleteImageBtn) {
             envDeleteImageBtn.onclick = async () => {
               if (!selectedEnvironmentID) return;
-              if (!confirm('Delete this environment image from registry and remove related builds?')) return;
+              if (!(await confirmAction('Supprimer cette image du registre et toutes ses révisions ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
               try {
                 await callJSON('/api/v1/environments/' + encodeURIComponent(selectedEnvironmentID), { method: 'DELETE' });
                 selectedEnvironmentID = '';
                 selectedEnvironmentBuildID = '';
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
             };
           }
@@ -8357,7 +8562,7 @@ data:
               if (!env || !Array.isArray(env.revisions)) return;
               const canceled = env.revisions.filter((r) => String(r.status || '').toLowerCase() === 'canceled');
               if (canceled.length === 0) return;
-              if (!confirm('Delete ' + canceled.length + ' canceled build(s)?')) return;
+              if (!(await confirmAction('Supprimer les ' + canceled.length + ' builds annulés ?', { danger: true, confirmLabel: 'Nettoyer' }))) return;
               const initialLabel = envCleanupCanceledBtn.textContent;
               envCleanupCanceledBtn.disabled = true;
               envCleanupCanceledBtn.textContent = 'Cleaning...';
@@ -8370,8 +8575,7 @@ data:
                 selectedEnvironmentBuildID = '';
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               } finally {
                 envCleanupCanceledBtn.disabled = false;
                 envCleanupCanceledBtn.textContent = initialLabel;
@@ -8418,8 +8622,7 @@ data:
                 await Promise.all([refreshBuilds(), refreshEnvironments()]);
                 switchTab('environments');
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
             };
           }
@@ -8435,7 +8638,7 @@ data:
               if ((ws && ws.accessUrl)) {
                 const ready = String(ws.status || '').toLowerCase().includes('run');
                 if (!ready) {
-                  usersOut.textContent = t('launchingMsg');
+                  notify(t('launchingMsg'));
                   return;
                 }
                 openingWorkspaceId = openId;
@@ -8443,7 +8646,7 @@ data:
                 const wsTab = window.open('about:blank', '_blank');
                 try {
                   if (!wsTab) {
-                    usersOut.textContent = tui('msg_popup_blocked');
+                    reportError(tui('msg_popup_blocked'));
                     openingWorkspaceId = null;
                     return;
                   }
@@ -8457,8 +8660,7 @@ data:
                 } catch (e) {
                   if (wsTab && !wsTab.closed) wsTab.close();
                   openingWorkspaceId = null;
-                  pretty(usersOut, e);
-                  switchTab('ops');
+                  reportError(e);
                 }
               }
               return;
@@ -8474,8 +8676,7 @@ data:
                 if (!res.ok) throw await res.json().catch(() => ({ error: tui('err_delete_failed') }));
                 await refreshWorkspaces();
               } catch (e) {
-                pretty(usersOut, e);
-                switchTab('ops');
+                reportError(e);
               }
             }
           };
@@ -8484,13 +8685,12 @@ data:
             const kind = event.target && event.target.getAttribute('data-stop-execution');
             const executionID = event.target && event.target.getAttribute('data-execution-id');
             if (!kind || !executionID) return;
-            if (!window.confirm('Arreter cette execution ?')) return;
+            if (!(await confirmAction('Arrêter cette exécution ?', { danger: true, confirmLabel: 'Arrêter' }))) return;
             try {
               await callJSON('/api/v1/admin/executions/' + encodeURIComponent(kind) + '/' + encodeURIComponent(executionID), { method: 'DELETE' });
               await refreshAdminExecutions();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8510,7 +8710,7 @@ data:
             if (!delId) return;
             const target = state.jobs.find((job) => job.id === delId);
             const label = (target && (target.name || target.jobName)) || 'ce job';
-            if (!window.confirm('Supprimer définitivement « ' + label + ' » et son historique ?')) return;
+            if (!(await confirmAction('Supprimer définitivement « ' + label + ' » et son historique ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
             try {
               await callJSON('/api/v1/jobs/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshJobs();
@@ -8521,13 +8721,12 @@ data:
 
           cronJobRows.onclick = async (event) => {
             const delId = event.target && event.target.getAttribute('data-del-cronjob');
-            if (!delId || !window.confirm('Supprimer cette planification ?')) return;
+            if (!delId || !(await confirmAction('Supprimer cette planification ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
             try {
               await callJSON('/api/v1/cronjobs/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshJobs();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8541,7 +8740,7 @@ data:
             const stopId = (event.target && event.target.getAttribute('data-stop-app'));
             const delId = (event.target && event.target.getAttribute('data-del-app'));
             if (publishId) {
-              if (!window.confirm('Publier la configuration active comme nouvelle révision de Production ?')) return;
+              if (!(await confirmAction('Publier la configuration active comme nouvelle révision de Production ?', { confirmLabel: 'Publier' }))) return;
               try {
                 await callJSON('/api/v1/apps/' + encodeURIComponent(publishId) + '/publish', { method:'POST' });
                 await Promise.all([refreshApps(), refreshProduction()]);
@@ -8583,7 +8782,7 @@ data:
               return;
             }
             if (restartId) {
-              if (!window.confirm('Redémarrer cette application ?')) return;
+              if (!(await confirmAction('Redémarrer cette application ?', { confirmLabel: 'Redémarrer' }))) return;
               try {
                 await callJSON('/api/v1/apps/' + encodeURIComponent(restartId) + '/restart', { method: 'POST' });
                 await refreshApps();
@@ -8593,7 +8792,7 @@ data:
               return;
             }
             if (stopId) {
-              if (!window.confirm('Arrêter cette application ? Elle devra ensuite être redéployée.')) return;
+              if (!(await confirmAction('Arrêter cette application ? Elle devra ensuite être redéployée.', { danger: true, confirmLabel: 'Arrêter' }))) return;
               try {
                 await callJSON('/api/v1/apps/' + encodeURIComponent(stopId) + '/stop', { method: 'POST' });
                 await refreshApps();
@@ -8602,7 +8801,7 @@ data:
               }
               return;
             }
-            if (!delId || !window.confirm('Supprimer définitivement cette application ?')) return;
+            if (!delId || !(await confirmAction('Supprimer définitivement cette application ?', { danger: true, confirmLabel: 'Supprimer' }))) return;
             try {
               await callJSON('/api/v1/apps/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshApps();
@@ -8612,7 +8811,7 @@ data:
           };
           loadProductionBtn.onclick = async () => {
             try { await refreshProduction(); }
-            catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            catch (e) { reportError(e); }
           };
           productionRows.onclick = async (event) => {
             const accessURL = event.target && event.target.getAttribute('data-open-production');
@@ -8634,7 +8833,7 @@ data:
           productionRevisionRows.onclick = async (event) => {
             const appId = event.target && event.target.getAttribute('data-rollback-app');
             const revisionId = event.target && event.target.getAttribute('data-revision-id');
-            if (!appId || !revisionId || !window.confirm('Restaurer cette révision en Production ?')) return;
+            if (!appId || !revisionId || !(await confirmAction('Restaurer cette révision en Production ?', { confirmLabel: 'Restaurer' }))) return;
             try {
               await callJSON('/api/v1/apps/' + encodeURIComponent(appId) + '/revisions/' + encodeURIComponent(revisionId) + '/rollback', { method:'POST' });
               await Promise.all([refreshApps(), refreshProduction()]);
@@ -8659,8 +8858,7 @@ data:
               await callJSON('/api/v1/dashboards/' + encodeURIComponent(delId), { method: 'DELETE' });
               await refreshDashboards();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8678,7 +8876,7 @@ data:
               if (copyName) {
                 const body = await callJSON('/api/v1/secrets/' + encodeURIComponent(decodeURIComponent(copyName)));
                 await copyText((body && body.value) || '');
-                usersOut.textContent = tui('msg_secret_copied');
+                reportSuccess(tui('msg_secret_copied'));
                 pretty(secretOut, body);
                 return;
               }
@@ -8686,8 +8884,7 @@ data:
               secretOut.textContent = '-';
               await Promise.all([refreshSecrets(), refreshRepositories()]);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8714,8 +8911,7 @@ data:
               renderDatasetsTable();
               await Promise.all([refreshDatasetObjects(selectID), refreshDatasetAccess(selectID)]);
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -8729,7 +8925,7 @@ data:
               });
               datasetAccessUser.value = '';
               await refreshDatasetAccess(selectedDatasetID);
-            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            } catch (e) { reportError(e); }
           };
 
           datasetAccessRows.onclick = async (event) => {
@@ -8739,7 +8935,7 @@ data:
             try {
               await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/access/' + subjectType + '/' + subjectID, { method: 'DELETE' });
               await refreshDatasetAccess(selectedDatasetID);
-            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            } catch (e) { reportError(e); }
           };
 
           datasetOwnerSave.onclick = async () => {
@@ -8747,13 +8943,13 @@ data:
               const ownerType = datasetOwnerType.value;
               const ownerId = resolveDatasetSubjectID(datasetOwnerID.value, ownerType);
               if (!selectedDatasetID || !ownerId) return;
-              if (!window.confirm('Transférer définitivement l ownership de ce dataset ?')) return;
+              if (!(await confirmAction('Transférer définitivement la propriété de ce dataset ?', { danger: true, confirmLabel: 'Transférer' }))) return;
               await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/ownership', {
                 method:'PUT', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ ownerType, ownerId })
               });
               datasetOwnerID.value = '';
               await Promise.all([refreshDatasets(), refreshDatasetAccess(selectedDatasetID)]);
-            } catch (e) { pretty(usersOut, e); switchTab('ops'); }
+            } catch (e) { reportError(e); }
           };
 
           datasetOwnerID.oninput = () => updateDatasetSubjectOptions(datasetOwnerID, datasetOwnerType.value);
@@ -8848,7 +9044,7 @@ data:
             if (deleteFilePath || deleteFolderPath) {
               const encodedPath = deleteFilePath || deleteFolderPath;
               const targetPath = decodeURIComponent(encodedPath);
-              if (!window.confirm('Supprimer ' + targetPath + (deleteFolderPath ? ' et tout son contenu ?' : ' ?'))) return;
+              if (!(await confirmAction('Supprimer ' + targetPath + (deleteFolderPath ? ' et tout son contenu ?' : ' ?'), { danger: true, confirmLabel: 'Supprimer' }))) return;
               try {
                 await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodedPath + (deleteFolderPath ? '?recursive=true' : ''), { method:'DELETE' });
                 await refreshDatasetObjects(selectedDatasetID);
@@ -8926,7 +9122,7 @@ data:
             renderDatasetObjectsTable();
           };
           datasetCreateFolder.onclick = async () => {
-            const name = window.prompt('Nom du nouveau dossier');
+            const name = await promptAction('Choisissez le nom du nouveau dossier.', { title: 'Nouveau dossier', inputLabel: 'Nom du dossier', confirmLabel: 'Créer' });
             if (!name) return;
             const cleanName = name.trim().replace(/^\/+|\/+$/g, '');
             if (!cleanName || cleanName.includes('/')) {
@@ -8948,7 +9144,7 @@ data:
               datasetUploadStatus.style.display = ''; datasetUploadStatus.textContent = 'Selectionnez au moins un fichier ou dossier.';
               return;
             }
-            if (!window.confirm('Supprimer la selection ? Les dossiers seront supprimes avec tout leur contenu.')) return;
+            if (!(await confirmAction('Supprimer la sélection ? Les dossiers seront supprimés avec tout leur contenu.', { danger: true, confirmLabel: 'Supprimer' }))) return;
             try {
               for (const filePath of files) {
                 await callJSON('/api/v1/datasets/' + encodeURIComponent(selectedDatasetID) + '/objects/' + encodeURIComponent(filePath), { method:'DELETE' });
@@ -8989,9 +9185,9 @@ data:
               datasetUploadStatus.textContent = String((e && e.error) || e);
             }
           };
-          datasetPreviewEdit.onclick = () => {
+          datasetPreviewEdit.onclick = async () => {
             if (datasetFileVisual(datasetPreviewPath, datasetPreviewContentType).kind === 'spreadsheet') {
-              if (!window.confirm('L edition XLSX/ODS est limitee aux valeurs. Styles, formules complexes et graphiques peuvent etre modifies. Continuer ?')) return;
+              if (!(await confirmAction('L’édition XLSX/ODS est limitée aux valeurs. Les styles, formules complexes et graphiques peuvent être modifiés.', { confirmLabel: 'Continuer' }))) return;
               datasetPreviewSpreadsheetEditing = true; renderSpreadsheetPreview();
               datasetPreviewEdit.style.display = 'none'; datasetPreviewSave.style.display = ''; datasetPreviewCancel.style.display = '';
               return;
@@ -9068,15 +9264,14 @@ data:
                 const result = await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToTest) + '/validate', { method: 'POST' });
                 state.repositoryChecks[repositoryIDToTest] = result;
                 renderRepositoriesTable();
-                usersOut.textContent = result.reachable ? tui('msg_repo_conn_ok') : (tui('msg_repo_conn_failed') + (result.error || tui('msg_unknown_error')));
+                notify(result.reachable ? tui('msg_repo_conn_ok') : (tui('msg_repo_conn_failed') + (result.error || tui('msg_unknown_error'))), result.reachable ? 'success' : 'error');
                 return;
               }
               await callJSON('/api/v1/repositories/' + encodeURIComponent(repositoryIDToDelete), { method: 'DELETE' });
               delete state.repositoryChecks[repositoryIDToDelete];
               await refreshRepositories();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
 
@@ -9095,7 +9290,7 @@ data:
                 return;
               }
               if (datasourceIDToRestart) {
-                if (!window.confirm('Redémarrer ce service interne ? La connexion sera momentanément indisponible.')) return;
+                if (!(await confirmAction('Redémarrer ce service interne ? La connexion sera momentanément indisponible.', { confirmLabel: 'Redémarrer' }))) return;
                 await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToRestart) + '/restart', { method:'POST' });
                 await refreshDatasources();
                 return;
@@ -9104,20 +9299,19 @@ data:
                 const result = await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToTest) + '/validate', { method: 'POST' });
                 state.datasourceChecks[datasourceIDToTest] = result;
                 renderDatasourcesTable();
-                usersOut.textContent = result.reachable ? tui('msg_ds_conn_ok') : (tui('msg_ds_conn_failed') + (result.error || tui('msg_unknown_error')));
+                notify(result.reachable ? tui('msg_ds_conn_ok') : (tui('msg_ds_conn_failed') + (result.error || tui('msg_unknown_error'))), result.reachable ? 'success' : 'error');
                 return;
               }
               const target = state.datasources.find((item) => item.id === datasourceIDToDelete);
               const warning = target && target.source === 'internal'
                 ? 'Supprimer définitivement ce service interne, sa connexion et toutes les données de son volume persistant ?'
                 : 'Supprimer définitivement cette datasource et la détacher de tous les projets ?';
-              if (!window.confirm(warning)) return;
+              if (!(await confirmAction(warning, { danger: true, confirmLabel: 'Supprimer' }))) return;
               await callJSON('/api/v1/datasources/' + encodeURIComponent(datasourceIDToDelete), { method: 'DELETE' });
               delete state.datasourceChecks[datasourceIDToDelete];
               await refreshDatasources();
             } catch (e) {
-              pretty(usersOut, e);
-              switchTab('ops');
+              reportError(e);
             }
           };
           closeDataServiceLogsBtn.onclick = () => { dataServiceLogsPanel.style.display = 'none'; };
@@ -9137,8 +9331,7 @@ data:
                 refreshProjects()
                   .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
                   .catch((err) => {
-                    pretty(usersOut, { sessionError: String(err) });
-                    switchTab('ops');
+                    reportError(err, 'Session');
                   });
                 switchTab('intro');
                 return;
@@ -9155,13 +9348,12 @@ data:
                 .then(() => refreshProjects())
                 .then(() => Promise.all([refreshHardwareTiers(), refreshWorkspaces(), refreshJobs(), refreshApps(), refreshProduction(), refreshDashboards(), refreshBuilds(), refreshEnvironments(), refreshSecrets(), refreshDatasets(), refreshRepositories(), refreshDatasources(), refreshOntologies(), refreshAvailableOrganizations(), refreshProjectResources()]))
                 .catch((err) => {
-                  pretty(usersOut, { sessionError: String(err) });
-                  switchTab('ops');
+                  reportError(err, 'Session');
                 });
             }).catch((err) => {
               stopWorkspacesAutoRefresh();
               syncAuthButtons(true);
-              pretty(usersOut, { error: String(err) });
+              reportError(err, 'Session');
               authMode = 'lab';
               setIdentityDisplayMode('local');
               applyRoleVisibility();
@@ -9201,7 +9393,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.240"}
+    {"version":"ce-web-0.6.241"}
 ---
 apiVersion: apps/v1
 kind: Deployment
