@@ -1149,6 +1149,103 @@ data:
             border: 1px solid #dfe3eb;
             border-radius: var(--radius-md);
           }
+          .section-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 18px;
+          }
+          .section-head h3 { margin-bottom: 4px; }
+          .section-head .muted { margin: 0; }
+          .subsection-head {
+            margin-top: 30px;
+            padding-top: 24px;
+            border-top: 1px solid var(--line);
+          }
+          .action-drawer {
+            margin: 0 0 20px;
+            overflow: hidden;
+            background: #fafbfc;
+            border: 1px solid #dfe3e9;
+            border-radius: var(--radius-sm);
+          }
+          .action-drawer > summary,
+          .resource-disclosure > summary {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-height: 54px;
+            padding: 13px 46px 13px 16px;
+            color: #263044;
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+          }
+          .action-drawer > summary::-webkit-details-marker,
+          .resource-disclosure > summary::-webkit-details-marker,
+          .technical-disclosure > summary::-webkit-details-marker { display: none; }
+          .action-drawer > summary::after,
+          .resource-disclosure > summary::after {
+            content: "+";
+            position: absolute;
+            right: 16px;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            color: #667085;
+            background: #fff;
+            border: 1px solid #d8dde5;
+            border-radius: 50%;
+            font-size: 17px;
+            font-weight: 450;
+          }
+          .action-drawer[open] > summary::after,
+          .resource-disclosure[open] > summary::after { content: "−"; }
+          .action-drawer > summary:hover,
+          .resource-disclosure > summary:hover { background: #f4f5f7; }
+          .action-drawer > summary span,
+          .resource-disclosure > summary span { font-size: 13px; font-weight: 750; }
+          .action-drawer > summary small,
+          .resource-disclosure > summary small { color: var(--muted); font-size: 11px; font-weight: 500; }
+          .action-drawer-body {
+            padding: 18px;
+            background: #fff;
+            border-top: 1px solid var(--line);
+          }
+          .action-drawer-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+          .context-note {
+            margin: 0 0 14px;
+            color: #5e687b;
+            font-size: 12px;
+            line-height: 1.55;
+          }
+          .technical-disclosure { margin: 8px 0 16px; }
+          .technical-disclosure > summary {
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 650;
+            list-style: none;
+          }
+          .technical-disclosure > pre { margin-top: 8px; }
+          .project-scope.is-empty .project-resources { display: none; }
+          .project-resources { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+          .resource-disclosure {
+            min-width: 0;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-sm);
+          }
+          .resource-disclosure-body {
+            min-width: 0;
+            padding: 16px 18px 18px;
+            border-top: 1px solid var(--line);
+          }
           .project-create-copy h4,
           .dataset-create-header h4 { color: #273149; font-size: 15px; }
           .projects-toolbar { align-items: center; margin-bottom: 16px; }
@@ -1398,22 +1495,21 @@ data:
               <section class="view" id="view-projects">
                 <div class="grid">
                   <article class="card span-12">
-                    <h3>Projets</h3>
-                    <div class="project-create-panel">
-                      <div class="project-create-copy">
-                        <h4>Nouveau projet</h4>
-                        <p>Creez un espace de travail puis rattachez ses ressources.</p>
+                    <div class="section-head">
+                      <div>
+                        <h3>Mes projets</h3>
+                        <p class="muted">Sélectionnez un projet pour retrouver ses ressources et ses exécutions.</p>
                       </div>
-                      <div class="project-create-form">
+                      <button id="loadProjects" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <details class="action-drawer">
+                      <summary><span>Nouveau projet</span><small>Nom et description suffisent pour démarrer.</small></summary>
+                      <div class="action-drawer-body project-create-form">
                         <input id="projectName" placeholder="Nom du nouveau projet" />
                         <input id="projectDescription" placeholder="Description courte du projet" />
                         <button id="createProject" type="button" class="btn primary">Creer le projet</button>
                       </div>
-                    </div>
-                    <div class="project-catalog-header">
-                      <h4>Mes projets</h4>
-                      <button id="loadProjects" type="button" class="btn">Actualiser</button>
-                    </div>
+                    </details>
                     <div class="projects-toolbar">
                       <input id="projectSearch" placeholder="Rechercher un projet" />
                       <select id="projectViewMode">
@@ -1450,9 +1546,10 @@ data:
                       <button id="projectMetadataSave" type="button" class="btn">Enregistrer la fiche projet</button>
                     </div>
                     <div class="project-resources">
-                      <article class="card project-resource-card">
-                        <h3>Fichiers du projet</h3>
-                        <div class="hint">Contenu persistant monte dans <code>/mnt</code> pour les workspaces, jobs et applications du projet.</div>
+                      <details class="resource-disclosure" open>
+                        <summary><span>Fichiers du projet</span><small>Stockage persistant partagé par les exécutions</small></summary>
+                        <div class="resource-disclosure-body">
+                        <div class="context-note">Contenu monté dans <code>/mnt</code> pour les workspaces, jobs et applications.</div>
                         <div class="dataset-files" style="margin:12px 0 0">
                           <div class="dataset-file-toolbar">
                             <button id="projectFilesUp" type="button" class="btn">← Retour</button>
@@ -1478,11 +1575,12 @@ data:
                           </div>
                           <textarea id="projectFileEditorContent" style="width:100%;min-height:320px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace"></textarea>
                         </div>
-                      </article>
+                        </div>
+                      </details>
 
-                      <article class="card project-resource-card">
-                        <h3>Datasets du projet</h3>
-                        <div class="hint">Datasets disponibles dans les executions de ce projet.</div>
+                      <details class="resource-disclosure">
+                        <summary><span>Datasets</span><small>Données disponibles dans les exécutions</small></summary>
+                        <div class="resource-disclosure-body">
                         <div class="row">
                           <select id="attachDatasetSelect"></select>
                           <button id="attachDatasetBtn" type="button" class="btn primary">Rattacher un dataset</button>
@@ -1492,12 +1590,13 @@ data:
                           <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasetRows"></tbody>
                         </table>
-                      </article>
+                        </div>
+                      </details>
 
 
-                      <article class="card project-resource-card">
-                        <h3>Catalogues sémantiques du projet</h3>
-                        <div class="hint">Catalogues Data disponibles pour ce projet, rattachés comme les datasets.</div>
+                      <details class="resource-disclosure">
+                        <summary><span>Catalogues sémantiques</span><small>Objets métier utilisables par le projet</small></summary>
+                        <div class="resource-disclosure-body">
                         <div class="row">
                           <select id="attachOntologySelect"></select>
                           <button id="attachOntologyBtn" type="button" class="btn primary">Rattacher un catalogue</button>
@@ -1507,11 +1606,12 @@ data:
                           <thead><tr><th>Catalogue</th><th>Projet source</th><th>Dataset</th><th>Sujets</th><th>Actions</th></tr></thead>
                           <tbody id="projectOntologyRows"></tbody>
                         </table>
-                      </article>
+                        </div>
+                      </details>
 
-                      <article class="card project-resource-card">
-                        <h3>Depots Git du projet</h3>
-                        <div class="hint">Depots accessibles depuis les executions de ce projet.</div>
+                      <details class="resource-disclosure">
+                        <summary><span>Dépôts Git</span><small>Code cloné dans les exécutions</small></summary>
+                        <div class="resource-disclosure-body">
                         <div class="row">
                           <select id="attachRepoSelect"></select>
                           <button id="attachRepoBtn" type="button" class="btn primary">Rattacher un depot</button>
@@ -1521,11 +1621,12 @@ data:
                           <thead><tr><th>Name</th><th>URL</th><th>Secret</th><th>Actions</th></tr></thead>
                           <tbody id="projectRepoRows"></tbody>
                         </table>
-                      </article>
+                        </div>
+                      </details>
 
-                      <article class="card project-resource-card">
-                        <h3>Connexion à une datasource</h3>
-                        <div class="hint">Connectez au projet une datasource déjà référencée sur la plateforme.</div>
+                      <details class="resource-disclosure">
+                        <summary><span>Datasources</span><small>Connexions de données accessibles au projet</small></summary>
+                        <div class="resource-disclosure-body">
                         <div class="row">
                           <select id="attachDatasourceSelect"></select>
                           <button id="attachDatasourceBtn" type="button" class="btn primary">Connecter une datasource</button>
@@ -1535,7 +1636,8 @@ data:
                           <thead><tr><th>Name</th><th>Type</th><th>Host</th><th>Actions</th></tr></thead>
                           <tbody id="projectDatasourceRows"></tbody>
                         </table>
-                      </article>
+                        </div>
+                      </details>
                     </div>
                   </section>
                 </div>
@@ -1544,17 +1646,27 @@ data:
               <section class="view" id="view-data">
                 <div class="grid">
                   <article id="card-secrets" class="card span-12">
-                    <h3>Secrets</h3>
-                    <div class="hint">Secrets utilisateur injectés dans vos workspaces, jobs et apps sous la forme NORYX_SECRET_NOM_DU_SECRET. Expiration optionnelle.</div>
-                    <div class="row">
+                    <div class="section-head">
+                      <div><h3>Mes secrets</h3><p class="muted">Valeurs sensibles disponibles dans vos exécutions autorisées.</p></div>
+                    </div>
+                    <details class="action-drawer">
+                      <summary><span>Nouveau secret</span><small>Nom, valeur et expiration optionnelle</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="context-note">Le secret sera injecté sous la forme <code>NORYX_SECRET_NOM_DU_SECRET</code>.</div>
+                      <div class="row">
                       <input id="secretName" placeholder="Secret name" />
                       <input id="secretExpiresAt" type="date" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="secretValue" placeholder="Secret value" />
                       <button id="saveSecret" class="btn primary">Save Secret</button>
-                    </div>
-                    <pre id="secretOut">-</pre>
+                      </div>
+                      </div>
+                    </details>
+                    <details class="technical-disclosure">
+                      <summary>Diagnostic</summary>
+                      <pre id="secretOut">-</pre>
+                    </details>
                     <table>
                       <thead><tr><th>Name</th><th>Expires</th><th>Updated</th><th>Actions</th></tr></thead>
                       <tbody id="secretRows"></tbody>
@@ -1562,15 +1674,16 @@ data:
                   </article>
 
                   <article id="card-datasets" class="card span-12">
-                    <h3>Datasets</h3>
-                    <div class="dataset-create-panel">
-                      <div class="dataset-create-header">
-                        <div>
-                          <h4>Nouveau dataset</h4>
-                          <p>Creez un stockage local ou branchez un bucket S3 externe.</p>
-                        </div>
-                        <button id="createDataset" type="button" class="btn primary">Creer le dataset</button>
+                    <div class="section-head">
+                      <div>
+                        <h3>Mes datasets</h3>
+                        <p class="muted">Sélectionnez un dataset pour parcourir et gérer ses fichiers.</p>
                       </div>
+                      <button id="refreshData" type="button" class="btn">Actualiser</button>
+                    </div>
+                    <details class="action-drawer">
+                      <summary><span>Nouveau dataset</span><small>Stockage local ou bucket S3 externe</small></summary>
+                      <div class="action-drawer-body">
                       <div class="dataset-create-fields">
                         <select id="datasetMode">
                           <option value="local">Dataset local</option>
@@ -1597,16 +1710,11 @@ data:
                         <div class="hint">Les credentials sont chiffres et ne seront jamais reaffiches. Utilisez des credentials dedies avec les permissions minimales necessaires.</div>
                         <div id="datasetHDSWarning" class="hint" style="display:none;color:#9b3b16;font-weight:700">HDS : création et attribution réservées aux administrateurs. Aperçu limité aux fichiers racine visualisables, téléchargement direct et export ZIP désactivés.</div>
                       </div>
-                    </div>
+                      <div class="action-drawer-actions"><button id="createDataset" type="button" class="btn primary">Créer le dataset</button></div>
+                      </div>
+                    </details>
 
                     <section class="dataset-catalog">
-                      <div class="dataset-catalog-header">
-                        <div>
-                          <h4>Mes datasets</h4>
-                          <span class="project-meta">Selectionnez un dataset pour explorer ses fichiers.</span>
-                        </div>
-                        <button id="refreshData" type="button" class="btn">Actualiser</button>
-                      </div>
                       <table>
                         <thead><tr><th>Name</th><th>Classification</th><th>Storage</th><th>Owner</th><th>Updated</th><th>Actions</th></tr></thead>
                         <tbody id="datasetRows"></tbody>
@@ -1625,6 +1733,9 @@ data:
                         <div class="dataset-explorer-stat"><div class="k">Fichiers</div><div id="datasetFileCount" class="v">0</div></div>
                         <div class="dataset-explorer-stat"><div class="k">Volume total</div><div id="datasetTotalSize" class="v">0 B</div></div>
                       </div>
+                      <details class="resource-disclosure dataset-management">
+                        <summary><span>Gestion et permissions</span><small>Fiche, ownership et droits d’accès</small></summary>
+                        <div class="resource-disclosure-body">
                       <div id="datasetMetadataForm" class="dataset-access-panel" style="display:none">
                         <h4>Fiche dataset</h4>
                         <div class="access-copy">Renommez le dataset et ajustez sa description sans modifier le bucket S3 ni les droits.</div>
@@ -1652,8 +1763,11 @@ data:
                         <datalist id="datasetSubjectOptions"></datalist>
                         <table><thead><tr><th>Sujet</th><th>Type</th><th>Role</th><th>Actions</th></tr></thead><tbody id="datasetAccessRows"></tbody></table>
                       </div>
-                      <div class="dataset-upload-panel">
-                        <h4>Ajouter un fichier</h4>
+                        </div>
+                      </details>
+                      <details class="resource-disclosure dataset-management">
+                        <summary><span>Ajouter des fichiers</span><small>Téléversement vers le dossier courant</small></summary>
+                        <div class="resource-disclosure-body">
                         <div class="row">
                           <select id="datasetUploadTarget" style="display:none"></select>
                           <input id="datasetUploadPath" placeholder="Chemin destination, ex. raw/ventes.csv" />
@@ -1665,7 +1779,8 @@ data:
                           <div class="dataset-transfer-head"><span id="datasetTransferLabel">Transfert</span><span id="datasetTransferValue">0%</span></div>
                           <div class="dataset-transfer-track"><div id="datasetTransferBar" class="dataset-transfer-bar"></div></div>
                         </div>
-                      </div>
+                        </div>
+                      </details>
                       <div class="dataset-files">
                         <div class="dataset-file-toolbar">
                           <button id="datasetFolderUp" type="button" class="btn">← Retour</button>
@@ -1696,29 +1811,36 @@ data:
                   </article>
 
                   <article id="card-repositories" class="card span-12">
-                    <h3>Repositories</h3>
-                    <div class="hint">L'identite auteur Git est distincte du jeton utilise pour acceder au depot.</div>
-                    <div class="row">
+                    <div class="section-head">
+                      <div><h3>Mes dépôts Git</h3><p class="muted">Dépôts utilisables dans vos projets et exécutions.</p></div>
+                    </div>
+                    <details class="action-drawer">
+                      <summary><span>Nouveau dépôt</span><small>URL, identité de commit et authentification</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="context-note">L’identité auteur Git est distincte du jeton utilisé pour accéder au dépôt.</div>
+                      <div class="row">
                       <input id="repoName" placeholder="Nom du depot" />
                       <input id="repoUrl" placeholder="https://..." />
                       <input id="repoDefaultRef" placeholder="Branche par defaut (optionnel)" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="repoGitAuthorName" placeholder="Nom auteur Git" />
                       <input id="repoGitAuthorEmail" type="email" placeholder="Email auteur Git" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <select id="repoAuthType">
                         <option value="none">Aucune authentification</option>
                         <option value="persat">PersAT utilisateur</option>
                         <option value="prat">PrAT projet</option>
                       </select>
                       <select id="repoSecretRef"></select>
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <button id="createRepository" class="btn primary">Ajouter le depot</button>
                       <button id="cancelRepositoryEdit" class="btn" style="display:none">Annuler</button>
-                    </div>
+                      </div>
+                      </div>
+                    </details>
                     <table>
                       <thead><tr><th>Nom</th><th>URL</th><th>Identite Git</th><th>Authentification</th><th>Connexion</th><th>Actions</th></tr></thead>
                       <tbody id="repoRows"></tbody>
@@ -1733,7 +1855,10 @@ data:
                       </div>
                       <button id="refreshDatasources" class="btn">Actualiser</button>
                     </div>
-                    <div class="row">
+                    <details class="action-drawer">
+                      <summary><span>Nouvelle connexion externe</span><small>PostgreSQL, MySQL/MariaDB ou MongoDB</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="row">
                       <input id="dsName" placeholder="Datasource name" />
                       <select id="dsType">
                         <option value="postgres">PostgreSQL</option>
@@ -1741,16 +1866,16 @@ data:
                         <option value="mongodb">MongoDB</option>
                       </select>
                       <input id="dsHost" placeholder="Host" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="dsPort" value="5432" placeholder="Port" />
                       <input id="dsDatabase" placeholder="Database" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="dsUsername" placeholder="Username" />
                       <select id="dsPasswordSecret"></select>
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <select id="dsSSLMode">
                         <option value="disable">disable</option>
                         <option value="require">require</option>
@@ -1758,28 +1883,35 @@ data:
                         <option value="verify-full">verify-full</option>
                       </select>
                       <button id="createDatasource" class="btn primary">Ajouter la connexion</button>
-                    </div>
+                      </div>
+                      </div>
+                    </details>
                     <table>
                       <thead><tr><th>Nom</th><th>Connecteur</th><th>Cible</th><th>Validation</th><th>Actions</th></tr></thead>
                       <tbody id="datasourceRows"></tbody>
                     </table>
-                    <div class="section-head" style="margin-top:32px">
+                    <div class="section-head subsection-head">
                       <div>
                         <h3>Services de données internes</h3>
                         <p class="muted">Créez une base persistante à partir d'une image maintenue dans Harbor. La connexion est ajoutée automatiquement à vos datasources.</p>
                       </div>
                     </div>
-                    <div class="row">
+                    <details class="action-drawer">
+                      <summary><span>Nouveau service interne</span><small>Base persistante maintenue par la plateforme</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="row">
                       <input id="dataServiceName" placeholder="Nom du service" />
                       <select id="dataServiceDefinition"></select>
                       <input id="dataServiceStorage" value="10Gi" placeholder="Stockage (ex: 10Gi)" />
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="dataServiceDatabase" value="noryx" placeholder="Base de données" />
                       <input id="dataServiceUsername" value="noryx" placeholder="Utilisateur" />
                       <select id="dataServiceHardwareTier"></select>
                       <button id="createDataService" class="btn primary">Créer le service interne</button>
-                    </div>
+                      </div>
+                      </div>
+                    </details>
                     <div id="dataServiceLogsPanel" class="app-usage-panel" style="display:none">
                       <div class="section-head">
                         <h3>Logs du service interne</h3>
@@ -1802,7 +1934,10 @@ data:
                         <p class="muted">Créez un brouillon de catalogue depuis un dataset ou une datasource, puis rattachez-le aux projets.</p>
                       </div>
                     </div>
-                    <div class="hint">
+                    <details class="action-drawer">
+                      <summary><span>Nouveau catalogue</span><small>Générer une ontologie depuis une source de données</small></summary>
+                      <div class="action-drawer-body">
+                    <div class="context-note">
                       Dataset : scan de métadonnées S3 avec profil generique par chemins de fichiers
                       (étude, sujets pseudonymisés, visites, modalités, formats, tables CSV).
                       Datasource : fiche structurelle metadata-only, sans introspection SQL/NoSQL pour l'instant.
@@ -1814,6 +1949,8 @@ data:
                       <button id="ontologyScanBtn" type="button" class="btn primary">Créer le catalogue</button>
                     </div>
                     <div id="ontologyStatus" class="hint"></div>
+                      </div>
+                    </details>
                     <div class="dataset-catalog" style="margin-top:16px">
                       <div class="dataset-catalog-header">
                         <div>
@@ -1899,12 +2036,18 @@ data:
               <section class="view" id="view-workspaces">
                 <div class="grid">
                   <article class="card span-12">
-                    <h3>Workspace Launcher</h3>
+                    <div class="section-head">
+                      <div><h3>Workspaces</h3><p class="muted">Environnements interactifs du projet actif.</p></div>
+                      <button id="loadWorkspaces" class="btn">Actualiser</button>
+                    </div>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="workspaceProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Choisissez un profil matériel nommé CPUxRAM. Seules les limites sont affichées; 1x4 signifie 1 vCPU et 4 Gi RAM.</div>
-                    <div class="row">
+                    <details class="action-drawer">
+                      <summary><span>Lancer un workspace</span><small>Environnement, IDE et profil matériel</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="context-note">Les profils sont nommés CPUxRAM : <strong>1x4</strong> signifie 1 vCPU et 4 Gi RAM.</div>
+                      <div class="row">
                       <select id="workspaceEnv" class="execution-env-select"></select>
                       <select id="workspaceIde" disabled title="IDE déterminé automatiquement par l'environnement">
                         <option value="vscode">vscode</option>
@@ -1914,9 +2057,10 @@ data:
                       <select id="workspaceHardwareTier"></select>
                       <input id="workspaceName" placeholder="Workspace name (optional)" />
                       <input id="workspaceStorageSize" placeholder="Storage size (optional, e.g. 10Gi)" value="10Gi" />
-                      <button id="createWorkspace" class="btn primary">Launch Workspace</button>
-                      <button id="loadWorkspaces" class="btn">Refresh Workspaces</button>
-                    </div>
+                      <button id="createWorkspace" class="btn primary">Lancer le workspace</button>
+                      </div>
+                      </div>
+                    </details>
                     <table>
                       <thead>
                         <tr><th>Name</th><th>Projet</th><th>IDE / environnement</th><th>Pod</th><th>Volume</th><th>Lancé le</th><th>Up depuis</th><th>Status</th><th>Access</th><th>Actions</th></tr>
@@ -1931,18 +2075,19 @@ data:
               <section class="view" id="view-environments">
                 <div class="grid env-layout">
                   <article class="card span-12">
-                    <h3>Environments</h3>
-                    <div class="hint">Catalogue des images d'environnement par projet avec état de la dernière révision.</div>
+                    <div class="section-head">
+                      <div><h3>Environnements</h3><p class="muted">Images disponibles pour lancer les workloads.</p></div>
+                      <button id="envCreateImage" class="btn primary" type="button">Nouvel environnement</button>
+                    </div>
                     <div class="env-toolbar">
-                      <div id="envCount" class="env-count">0 environments</div>
+                      <div id="envCount" class="env-count">0 environnement</div>
                       <div class="env-toolbar-right">
-                        <button id="envCreateImage" class="btn primary" type="button">Create Image</button>
-                        <input id="envFilter" class="env-filter" placeholder="Filter environments..." />
+                        <input id="envFilter" class="env-filter" placeholder="Rechercher un environnement..." />
                       </div>
                     </div>
                     <div class="table-flat">
                       <table>
-                        <thead><tr><th>Name</th><th>Type</th><th>Image</th><th>Latest</th><th>Revisions</th><th>Image Size</th><th>Last Build</th><th>Actions</th></tr></thead>
+                        <thead><tr><th>Nom</th><th>Type</th><th>État</th><th>Révisions</th><th>Taille</th><th>Dernière mise à jour</th><th>Actions</th></tr></thead>
                         <tbody id="environmentRows"></tbody>
                       </table>
                     </div>
@@ -1950,57 +2095,74 @@ data:
 
                   <article class="card span-12" id="envDetailCard">
                     <div class="env-header">
-                      <h3>Environment Detail</h3>
+                      <h3>Détail de l'environnement</h3>
                       <div class="env-header-actions">
-                        <button id="envCleanupCanceled" class="btn">Cleanup canceled builds</button>
-                        <button id="envDeleteImage" class="btn danger">Delete Image</button>
-                        <button id="envReloadDockerfile" class="btn">Reload</button>
-                        <button id="envEditDockerfile" class="btn">Edit</button>
-                        <button id="envCancelDockerfile" class="btn" style="display:none;">Cancel</button>
-                        <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Build Revision</button>
+                        <button id="envCleanupCanceled" class="btn">Nettoyer les builds annulés</button>
+                        <button id="envDeleteImage" class="btn danger">Supprimer</button>
+                        <button id="envReloadDockerfile" class="btn">Actualiser</button>
+                        <button id="envEditDockerfile" class="btn">Modifier</button>
+                        <button id="envCancelDockerfile" class="btn" style="display:none;">Annuler</button>
+                        <button id="envBuildFromDockerfile" class="btn warn" style="display:none;">Construire la révision</button>
                       </div>
                     </div>
-                    <div class="hint">Fiche de l'environnement sélectionné, révisions et Dockerfile éditable.</div>
                     <div class="env-section-title">Résumé</div>
                     <div class="table-flat" style="margin-bottom:12px;">
                     <table class="env-detail-table">
                       <tbody>
-                        <tr><th>Name</th><td id="envSelectedName" class="mono">-</td></tr>
-                        <tr><th>Image</th><td id="envSelectedImage" class="mono">-</td></tr>
-                        <tr><th>Status</th><td id="envSelectedStatus">-</td></tr>
-                        <tr><th>Git Ref</th><td id="envSelectedRef" class="mono">-</td></tr>
-                        <tr><th>Build ID</th><td id="envSelectedBuildId" class="mono">-</td></tr>
+                        <tr><th>Nom</th><td id="envSelectedName">-</td></tr>
+                        <tr><th>État</th><td id="envSelectedStatus">-</td></tr>
                       </tbody>
                     </table>
                     </div>
-                    <div class="env-section-title">New Environment</div>
+                    <details class="technical-disclosure">
+                      <summary>Informations techniques</summary>
+                      <div class="table-flat">
+                        <table class="env-detail-table"><tbody>
+                          <tr><th>Image</th><td id="envSelectedImage" class="mono">-</td></tr>
+                          <tr><th>Branche Git</th><td id="envSelectedRef" class="mono">-</td></tr>
+                          <tr><th>Build ID</th><td id="envSelectedBuildId" class="mono">-</td></tr>
+                        </tbody></table>
+                      </div>
+                    </details>
+                    <div id="envCreatePanel" style="display:none;">
+                    <div class="env-section-title">Nouvel environnement</div>
+                    <p class="muted">Nommez l'environnement puis partez d'une image existante ou d'un Dockerfile vide.</p>
                     <div class="row">
-                      <input id="envNameInput" placeholder="Environment name (ex: my-python)" />
+                      <input id="envNameInput" placeholder="Nom (ex. analyse-python)" />
                       <select id="envForkSource">
-                        <option value="">Start from scratch</option>
+                        <option value="">Partir d'un Dockerfile vide</option>
                       </select>
                       <button id="envForkLoad" class="btn" type="button">Fork</button>
                     </div>
                     <div class="row">
-                      <button id="buildEnv" class="btn warn">Create Environment</button>
+                      <button id="buildEnv" class="btn warn">Créer l'environnement</button>
+                    </div>
                     </div>
                     <input id="envDestination" type="hidden" value="" />
                     <input id="envGitRepo" type="hidden" value="git://github.com/Noryxlab/NoryxLab-CE.git" />
                     <input id="envGitRef" type="hidden" value="main" />
                     <input id="envDockerfile" type="hidden" value="Dockerfile" />
                     <input id="envContext" type="hidden" value="." />
-                    <div id="envActiveRevision" class="env-active-rev">Active revision: -</div>
-                    <div class="env-section-title">Revisions</div>
+                    <details class="resource-disclosure" id="envRevisionsPanel">
+                    <summary><span>Historique des révisions</span><small>Builds et versions précédentes</small></summary>
+                    <div class="resource-disclosure-body">
+                    <div id="envActiveRevision" class="env-active-rev">Révision active : -</div>
                     <div class="table-flat" style="margin-bottom:12px;">
                     <table>
-                      <thead><tr><th>Revision</th><th>Status</th><th>Git Ref</th><th>Dockerfile</th><th>Created</th></tr></thead>
+                      <thead><tr><th>Révision</th><th>État</th><th>Branche Git</th><th>Dockerfile</th><th>Création</th></tr></thead>
                       <tbody id="envRevisionRows"></tbody>
                     </table>
                     </div>
-                    <div class="env-section-title">Dockerfile</div>
+                    </div>
+                    </details>
+                    <details class="resource-disclosure" id="envDockerfilePanel">
+                    <summary><span>Dockerfile</span><small>Définition technique de l'image</small></summary>
+                    <div class="resource-disclosure-body">
                     <pre id="dockerfileOut">-</pre>
                     <textarea id="dockerfileEditor" style="display:none;width:100%;min-height:260px;border:1px solid #8ea6bf;border-radius:12px;padding:10px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:12px;"></textarea>
                     <pre id="buildOut" style="display:none;">-</pre>
+                    </div>
+                    </details>
                   </article>
                 </div>
               </section>
@@ -2008,32 +2170,38 @@ data:
               <section class="view" id="view-project-jobs">
                 <div class="grid">
                   <article class="card span-12">
-                    <h3>Project Jobs</h3>
+                    <div class="section-head">
+                      <div><h3>Jobs</h3><p class="muted">Exécutions ponctuelles et planifiées du projet actif.</p></div>
+                      <button id="loadJobs" class="btn">Actualiser</button>
+                    </div>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="jobProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Lancez un job immédiatement ou automatisez son exécution avec une planification cron.</div>
-                    <div class="row">
+                    <details class="action-drawer">
+                      <summary><span>Nouveau job</span><small>Exécution immédiate ou planification cron</small></summary>
+                      <div class="action-drawer-body">
+                      <div class="row">
                       <input id="jobName" placeholder="job name (optional)" />
                       <select id="jobEnv" class="execution-env-select"></select>
                       <select id="jobHardwareTier"></select>
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="jobCommand" value="python -V" placeholder="shell command" />
                       <select id="jobMode">
                         <option value="job">Job ponctuel</option>
                         <option value="cron">Job planifié</option>
                       </select>
-                    </div>
-                    <div class="row">
+                      </div>
+                      <div class="row">
                       <input id="jobSchedule" value="0 8 * * 1-5" placeholder="Cron: minute heure jour mois semaine" disabled />
                       <select id="jobTimeZone" disabled>
                         <option value="Europe/Paris">Europe/Paris</option>
                         <option value="UTC">UTC</option>
                       </select>
-                      <button id="createJob" class="btn warn">Launch Job</button>
-                      <button id="loadJobs" class="btn">Refresh</button>
-                    </div>
+                      <button id="createJob" class="btn primary">Lancer le job</button>
+                      </div>
+                      </div>
+                    </details>
                     <h3>Historique des exécutions</h3>
                     <table>
                       <thead><tr><th>Nom</th><th>Projet</th><th>Commande</th><th>Image</th><th>Résultat</th><th>Lancé</th><th>Terminé</th><th>Actions</th></tr></thead>
@@ -2054,11 +2222,17 @@ data:
               <section class="view" id="view-project-apps">
                 <div class="grid">
                   <article class="card span-12 apps-card">
-                    <h3>Project Apps</h3>
+                    <div class="section-head">
+                      <div><h3>Applications</h3><p class="muted">Applications en développement pour le projet actif.</p></div>
+                      <button id="loadApps" class="btn">Actualiser</button>
+                    </div>
                     <div class="execution-project-context">
                       <div><div class="k">Projet actif</div><div id="appProjectName" class="v">Aucun projet sélectionné</div></div>
                     </div>
-                    <div class="hint">Point d'entree recommande : <code>/mnt/app.sh</code>. La commande manuelle ci-dessous est une surcharge optionnelle.</div>
+                    <details class="action-drawer">
+                      <summary><span>Nouvelle application</span><small>Environnement, accès et commande de lancement</small></summary>
+                      <div class="action-drawer-body">
+                    <div class="context-note">Point d'entrée recommandé : <code>/mnt/app.sh</code>. La commande manuelle est optionnelle.</div>
                     <div class="row">
                       <input id="appName" placeholder="app name (optional)" />
                       <input id="appSlug" placeholder="url slug (example: fraud-ui)" />
@@ -2080,9 +2254,10 @@ data:
                     </div>
                     <div class="row">
                       <input id="appCommand" value="" placeholder="Commande optionnelle (sinon /mnt/app.sh)" />
-                      <button id="createApp" class="btn warn">Launch App</button>
-                      <button id="loadApps" class="btn">Refresh</button>
+                      <button id="createApp" class="btn primary">Lancer l'application</button>
                     </div>
+                      </div>
+                    </details>
                     <div class="apps-table-wrap">
                       <table>
                         <thead><tr><th>Name</th><th>Projet</th><th>Slug</th><th>Pod</th><th>Status</th><th>RBAC</th><th>Access</th><th>Actions</th></tr></thead>
@@ -2110,9 +2285,14 @@ data:
 
               <section class="view" id="view-project-dashboards">
                 <div class="grid">
-                  <article class="card span-8">
-                    <h3>Project Dashboards</h3>
-                    <div class="hint">Deploy dashboards as dedicated workloads with their own URL slug.</div>
+                  <article class="card span-12">
+                    <div class="section-head">
+                      <div><h3>Dashboards</h3><p class="muted">Dashboards dédiés avec leur propre URL.</p></div>
+                      <button id="loadDashboards" class="btn">Actualiser</button>
+                    </div>
+                    <details class="action-drawer">
+                      <summary><span>Nouveau dashboard</span><small>Environnement, URL et commande de lancement</small></summary>
+                      <div class="action-drawer-body">
                     <div class="row">
                       <input id="dashboardName" placeholder="dashboard name (optional)" />
                       <input id="dashboardSlug" placeholder="url slug (example: kpi-overview)" />
@@ -2124,9 +2304,10 @@ data:
                     </div>
                     <div class="row">
                       <input id="dashboardCommand" value="python3 -m http.server 9000 --bind 0.0.0.0 --directory /mnt" placeholder="launch command" />
-                      <button id="createDashboard" class="btn warn">Launch Dashboard</button>
-                      <button id="loadDashboards" class="btn">Refresh</button>
+                      <button id="createDashboard" class="btn primary">Lancer le dashboard</button>
                     </div>
+                      </div>
+                    </details>
                     <table>
                       <thead><tr><th>Name</th><th>Slug</th><th>Pod</th><th>Status</th><th>Access</th><th>Actions</th></tr></thead>
                       <tbody id="dashboardRows"></tbody>
@@ -2301,6 +2482,9 @@ data:
                       <article class="stat"><div class="k">Préfixe</div><div id="backupPrefixStatus" class="v">-</div></article>
                       <article class="stat"><div class="k">Dernière mise à jour</div><div id="backupUpdatedStatus" class="v">-</div></article>
                     </div>
+                    <details class="action-drawer">
+                    <summary><span>Configurer la cible de sauvegarde</span><small>Endpoint S3 et credentials</small></summary>
+                    <div class="action-drawer-body">
                     <div class="notice">
                       Première étape: configuration de la cible externe. Le lancement de backup, les rapports et le restore contrôlé seront branchés ensuite sur cette cible.
                     </div>
@@ -2336,13 +2520,18 @@ data:
                     </div>
                     <div class="row">
                       <button id="saveBackupConfig" type="button" class="btn primary">Enregistrer la cible S3</button>
-                      <button id="runBackupNow" type="button" class="btn">Lancer un backup</button>
+                    </div>
+                    </div>
+                    </details>
+                    <div class="section-head subsection-head">
+                      <div><h4>Historique des sauvegardes</h4><p class="muted">Exécutions automatiques et manuelles, classées par date.</p></div>
+                      <button id="runBackupNow" type="button" class="btn primary">Lancer une sauvegarde</button>
                     </div>
                     <table>
                       <thead><tr><th>Début</th><th>Statut</th><th>Bucket</th><th>Objet</th><th>Erreur</th><th>Actions</th></tr></thead>
                       <tbody id="backupRunRows"></tbody>
                     </table>
-                    <pre id="backupOut">-</pre>
+                    <details class="technical-disclosure"><summary>Diagnostic</summary><pre id="backupOut">-</pre></details>
                   </article>
                   <article class="card span-12">
                     <h3>Charge plateforme</h3>
@@ -2688,6 +2877,9 @@ data:
           const envCreateImageBtn = document.getElementById('envCreateImage');
           const envCount = document.getElementById('envCount');
           const envDetailCard = document.getElementById('envDetailCard');
+          const envCreatePanel = document.getElementById('envCreatePanel');
+          const envRevisionsPanel = document.getElementById('envRevisionsPanel');
+          const envDockerfilePanel = document.getElementById('envDockerfilePanel');
 
           const workloadRows = document.getElementById('workloadRows');
           const adminActiveCount = document.getElementById('adminActiveCount');
@@ -5035,10 +5227,10 @@ data:
                 ].join(' ').toLowerCase();
                 return haystack.includes(q);
               });
-            if (envCount) envCount.textContent = String(items.length) + ' environments';
+            if (envCount) envCount.textContent = String(items.length) + ' environnement' + (items.length > 1 ? 's' : '');
             environmentRows.innerHTML = '';
             if (items.length === 0) {
-              environmentRows.innerHTML = '<tr><td colspan="8">' + tui('msg_no_env_project') + '</td></tr>';
+              environmentRows.innerHTML = '<tr><td colspan="7">' + tui('msg_no_env_project') + '</td></tr>';
               envSelectedName.textContent = '-';
               envSelectedImage.textContent = '-';
               envSelectedStatus.textContent = '-';
@@ -5048,6 +5240,8 @@ data:
               envRevisionRows.innerHTML = '<tr><td colspan="5">-</td></tr>';
               dockerfileOut.textContent = '-';
               selectedEnvironmentID = '';
+              if (creatingEnvironment) renderCreateEnvironmentDetail(items);
+              else if (envCreatePanel) envCreatePanel.style.display = 'none';
               return;
             }
             if (!creatingEnvironment) {
@@ -5067,37 +5261,39 @@ data:
               if (!creatingEnvironment && env.id === selectedEnvironmentID) tr.classList.add('is-selected');
               const revCount = Array.isArray(env.revisions) ? env.revisions.length : 0;
               const latestRef = env.latestGitRef || '-';
-              const lastBuild = env.category === 'system' && String(env.updatedAt || '').startsWith('0001-') ? 'Managed system image' : formatDateTime(env.updatedAt);
+              const lastBuild = env.category === 'system' && String(env.updatedAt || '').startsWith('0001-') ? 'Maintenu par la plateforme' : formatDateTime(env.updatedAt);
               const rawSize = env.latestImageSizeGiB ?? env.imageSizeGiB ?? env.latestImageSize ?? env.imageSize ?? '';
               const imageSize = String(rawSize || '').trim() || 'N/A';
               const category = String(env.category || 'custom').toLowerCase() === 'system' ? 'system' : 'custom';
-              const categoryLabel = category === 'system' ? 'System' : 'Custom';
+              const categoryLabel = category === 'system' ? 'Système' : 'Personnalisé';
               const categoryBadge = '<span class="badge ' + (category === 'system' ? 'b-sys' : 'b-custom') + '">' + categoryLabel + '</span>';
               tr.innerHTML =
-                '<td><span class="env-name">' + (env.name || 'environment') + '</span></td>' +
+                '<td><span class="env-name" title="' + escapeHTML(env.destinationImage || '') + '">' + (env.name || 'environnement') + '</span></td>' +
                 '<td>' + categoryBadge + '</td>' +
-                '<td><code>' + (env.destinationImage || '-') + '</code></td>' +
                 '<td>' + badge(env.latestStatus || 'submitted') + '<br/><span style="color:#667a98">' + latestRef + '</span></td>' +
                 '<td>' + String(revCount) + '</td>' +
                 '<td>' + imageSize + '</td>' +
                 '<td>' + lastBuild + '</td>' +
-                '<td>' + (category === 'system' ? '<span style="color:#667a98">Managed</span>' : '<button type="button" class="btn danger" data-del-env="' + encodeURIComponent(env.id || '') + '">Delete</button>') + '</td>';
+                '<td>' + (category === 'system' ? '<span style="color:#667a98">Protégé</span>' : '<button type="button" class="btn danger" data-del-env="' + encodeURIComponent(env.id || '') + '">Supprimer</button>') + '</td>';
               environmentRows.appendChild(tr);
             }
           }
 
           function renderCreateEnvironmentDetail(currentItems) {
-            envSelectedName.textContent = '(new environment)';
+            if (envCreatePanel) envCreatePanel.style.display = '';
+            if (envRevisionsPanel) envRevisionsPanel.open = false;
+            if (envDockerfilePanel) envDockerfilePanel.open = true;
+            envSelectedName.textContent = 'Nouvel environnement';
             envSelectedImage.textContent = '-';
             envSelectedStatus.textContent = '-';
             envSelectedRef.textContent = '-';
             envSelectedBuildId.textContent = '-';
-            envActiveRevision.textContent = 'Active revision: new';
-            envRevisionRows.innerHTML = '<tr><td colspan="5">No revision yet</td></tr>';
+            envActiveRevision.textContent = 'Aucune révision';
+            envRevisionRows.innerHTML = '<tr><td colspan="5">Aucune révision</td></tr>';
             if (envForkSource) {
               const all = Array.isArray(currentItems) ? currentItems : [];
               const previous = envForkSource.value;
-              envForkSource.innerHTML = '<option value="">Start from scratch</option>' +
+              envForkSource.innerHTML = '<option value="">Partir d\'un Dockerfile vide</option>' +
                 all.map((e) => '<option value="' + encodeURIComponent(String(e.id || '')) + '">' + (e.name || e.destinationImage || 'environment') + '</option>').join('');
               if (previous && all.some((e) => encodeURIComponent(String(e.id || '')) === previous)) {
                 envForkSource.value = previous;
@@ -5107,6 +5303,7 @@ data:
 
           function renderEnvironmentDetail(env) {
             if (!env) return;
+            if (envCreatePanel) envCreatePanel.style.display = 'none';
             const isSystemEnvironment = String(env.category || '').toLowerCase() === 'system';
             envDeleteImageBtn.style.display = isSystemEnvironment ? 'none' : '';
             envCleanupCanceledBtn.style.display = isSystemEnvironment ? 'none' : '';
@@ -5116,12 +5313,12 @@ data:
             envSelectedStatus.innerHTML = badge(env.latestStatus || 'submitted');
             envSelectedRef.textContent = env.latestGitRef || '-';
             envSelectedBuildId.textContent = env.latestBuildId || '-';
-            envActiveRevision.textContent = 'Active revision: ' + (selectedEnvironmentBuildID || '-');
+            envActiveRevision.textContent = 'Révision active : ' + (selectedEnvironmentBuildID || '-');
             const revisions = Array.isArray(env.revisions) ? env.revisions : [];
             if (!selectedEnvironmentBuildID || !revisions.some((r) => (r.buildId || r.id || '') === selectedEnvironmentBuildID)) {
               selectedEnvironmentBuildID = env.latestBuildId || '';
             }
-            envActiveRevision.textContent = 'Active revision: ' + (selectedEnvironmentBuildID || '-');
+            envActiveRevision.textContent = 'Révision active : ' + (selectedEnvironmentBuildID || '-');
             envRevisionRows.innerHTML = '';
             if (revisions.length === 0) {
               envRevisionRows.innerHTML = '<tr><td colspan="5">-</td></tr>';
@@ -5137,7 +5334,7 @@ data:
                   '<td>' + badge(rev.status || 'submitted') + '</td>' +
                   '<td>' + (rev.gitRef || '-') + '</td>' +
                   '<td><code>' + (rev.dockerfilePath || '-') + '</code></td>' +
-                  '<td>' + (isSystemEnvironment ? 'Managed system revision' : formatDateTime(rev.createdAt) + '<br/><button type="button" class="btn danger" data-del-build="' + revID + '">Delete build</button>') + '</td>';
+                  '<td>' + (isSystemEnvironment ? 'Révision système protégée' : formatDateTime(rev.createdAt) + '<br/><button type="button" class="btn danger" data-del-build="' + revID + '">Supprimer</button>') + '</td>';
                 envRevisionRows.appendChild(tr);
               });
             }
@@ -5158,12 +5355,13 @@ data:
 
           function setDockerfileEditMode(enabled) {
             dockerfileEditMode = enabled;
+            if (enabled && envDockerfilePanel) envDockerfilePanel.open = true;
             dockerfileOut.style.display = enabled ? 'none' : 'block';
             dockerfileEditor.style.display = enabled ? 'block' : 'none';
             envEditDockerfileBtn.style.display = enabled ? 'none' : '';
             envCancelDockerfileBtn.style.display = enabled ? '' : 'none';
             envBuildFromDockerfileBtn.style.display = enabled ? '' : 'none';
-            envBuildFromDockerfileBtn.textContent = creatingEnvironment ? 'Create Environment' : 'Build Revision';
+            envBuildFromDockerfileBtn.textContent = creatingEnvironment ? 'Créer l\'environnement' : 'Construire la révision';
           }
 
           async function loadSelectedDockerfile() {
@@ -9003,7 +9201,7 @@ data:
       <path d="M17 47V17h8l14 19V17h8v30h-8L25 28v19z" fill="#fff"/>
     </svg>
   version.json: |
-    {"version":"ce-web-0.6.239"}
+    {"version":"ce-web-0.6.240"}
 ---
 apiVersion: apps/v1
 kind: Deployment
