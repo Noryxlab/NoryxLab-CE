@@ -199,6 +199,8 @@ func main() {
 			HarborUsername:           cfg.HarborUsername,
 			HarborPassword:           cfg.HarborPassword,
 			HarborInsecureSkipVerify: cfg.HarborInsecureSkipVerify,
+			AssistantURL:             cfg.AssistantURL,
+			AssistantInternalToken:   cfg.AssistantInternalToken,
 		},
 	)
 

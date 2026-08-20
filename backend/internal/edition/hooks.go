@@ -13,6 +13,7 @@ const (
 	FeaturePolicyEngine     = "policy_engine"
 	FeatureHDSDatasets      = "hds_datasets"
 	FeatureControlledEgress = "controlled_egress"
+	FeatureAssistant        = "assistant"
 )
 
 type RBACProvider interface {
