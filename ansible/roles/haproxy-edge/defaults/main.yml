@@ -5,3 +5,7 @@ haproxy_backend_host: 127.0.0.1
 # Leave empty until k3s/Traefik is installed and NodePorts are known.
 haproxy_backend_http_nodeport: ""
 haproxy_backend_https_nodeport: ""
+
+# Set a PEM bundle path to terminate TLS on HAProxy. Leave empty to retain
+# TCP passthrough to Traefik, which is useful during bootstrap.
+haproxy_tls_cert_path: ""
