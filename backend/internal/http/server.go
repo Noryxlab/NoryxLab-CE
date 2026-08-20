@@ -13,6 +13,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /", GetHome)
 	mux.HandleFunc("GET /healthz", h.GetHealth)
 	mux.HandleFunc("GET /api/v1/version", h.GetVersion)
+	mux.HandleFunc("POST /api/v1/assistant/chat", h.ChatWithAssistant)
 	mux.HandleFunc("GET /api/v1/platform/overview", h.GetPlatformOverview)
 	mux.HandleFunc("GET /api/v1/hardware-tiers", h.GetHardwareTiers)
 	mux.HandleFunc("GET /api/v1/egress/profiles", h.ListEgressProfiles)

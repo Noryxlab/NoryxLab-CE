@@ -61,6 +61,8 @@ type Config struct {
 	HarborUsername                   string
 	HarborPassword                   string
 	HarborInsecureSkipVerify         bool
+	AssistantURL                     string
+	AssistantInternalToken           string
 }
 
 func Load() Config {
@@ -287,5 +289,7 @@ func Load() Config {
 		HarborUsername:                   os.Getenv("NORYX_HARBOR_USERNAME"),
 		HarborPassword:                   os.Getenv("NORYX_HARBOR_PASSWORD"),
 		HarborInsecureSkipVerify:         os.Getenv("NORYX_HARBOR_INSECURE_SKIP_VERIFY") == "true",
+		AssistantURL:                     os.Getenv("NORYX_ASSISTANT_URL"),
+		AssistantInternalToken:           os.Getenv("NORYX_ASSISTANT_INTERNAL_TOKEN"),
 	}
 }
