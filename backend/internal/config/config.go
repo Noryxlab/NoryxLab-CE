@@ -63,6 +63,8 @@ type Config struct {
 	HarborInsecureSkipVerify         bool
 	AssistantURL                     string
 	AssistantInternalToken           string
+	AssistantDeveloperSigningKey     string
+	AssistantPublicURL               string
 }
 
 func Load() Config {
@@ -143,7 +145,7 @@ func Load() Config {
 	}
 	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
 	if workspaceVSCodeImage == "" {
-		workspaceVSCodeImage = "harbor.example.local/noryx-environments/noryx-vscode:0.1.0"
+		workspaceVSCodeImage = "harbor.example.local/noryx-environments/noryx-vscode:0.1.1"
 	}
 	workspaceRStudioImage := os.Getenv("NORYX_WORKSPACE_RSTUDIO_IMAGE")
 	if workspaceRStudioImage == "" {
@@ -291,5 +293,7 @@ func Load() Config {
 		HarborInsecureSkipVerify:         os.Getenv("NORYX_HARBOR_INSECURE_SKIP_VERIFY") == "true",
 		AssistantURL:                     os.Getenv("NORYX_ASSISTANT_URL"),
 		AssistantInternalToken:           os.Getenv("NORYX_ASSISTANT_INTERNAL_TOKEN"),
+		AssistantDeveloperSigningKey:     os.Getenv("NORYX_ASSISTANT_DEVELOPER_SIGNING_KEY"),
+		AssistantPublicURL:               os.Getenv("NORYX_ASSISTANT_PUBLIC_URL"),
 	}
 }
