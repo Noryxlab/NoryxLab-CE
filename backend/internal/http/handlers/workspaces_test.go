@@ -49,6 +49,7 @@ func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 		"/mnt",
 		nil,
 		2,
+		"",
 	)
 
 	if strings.Contains(script, "from minio import Minio") || strings.Contains(script, "initial_sync") {
@@ -76,6 +77,7 @@ func TestWorkspaceBootstrapConfiguresRepositoryGitIdentity(t *testing.T) {
 			GitAuthorEmail: "git-author@example.org",
 		}},
 		0,
+		"",
 	)
 	for _, expected := range []string{
 		"git -C '/repos/example' config user.name 'Git Author'",
@@ -120,7 +122,7 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 		expected string
 	}{
 		{name: "jupyter system", values: []string{"harbor.example.local/noryx-environments/noryx-jupyter:0.1.0"}, expected: "jupyter"},
-		{name: "vscode fork", values: []string{"harbor.example.local/project/custom:1", "FROM harbor.example.local/noryx-environments/noryx-vscode:0.1.0"}, expected: "vscode"},
+		{name: "vscode fork", values: []string{"harbor.example.local/project/custom:1", "FROM harbor.example.local/noryx-environments/noryx-vscode:0.1.1"}, expected: "vscode"},
 		{name: "rstudio fork", values: []string{"harbor.example.local/project/custom-r:1", "FROM harbor.example.local/noryx-environments/noryx-rstudio:0.1.0"}, expected: "rstudio"},
 		{name: "generic job image", values: []string{"harbor.example.local/project/batch:1"}, expected: ""},
 	}
@@ -135,7 +137,7 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 }
 
 func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
-	script := workspaceBootstrapScript("rstudio", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
+	script := workspaceBootstrapScript("rstudio", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "")
 	for _, expected := range []string{"rserver", "--www-root-path=/workspaces/workspace-id", "--server-user=noryx"} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("RStudio bootstrap missing %s", expected)
@@ -144,7 +146,7 @@ func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
 }
 
 func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
-	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0)
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "")
 	for _, expected := range []string{
 		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.name 'stef'",
 		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.email 'admin@example.org'",
@@ -152,6 +154,22 @@ func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
 	} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("workspace bootstrap missing persistent Git identity command: %s", expected)
+		}
+	}
+}
+
+func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
+	config := continueDeveloperAssistantConfig("https://datalab.example.org/", "developer-token")
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config)
+	for _, expected := range []string{
+		"/home/noryx/.continue/config.yaml",
+		"apiBase: 'https://datalab.example.org/api/v1/assistant/developer/v1'",
+		"apiKey: 'developer-token'",
+		"useResponsesApi: false",
+		"provider: code",
+	} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("workspace bootstrap missing Continue assistant config: %s", expected)
 		}
 	}
 }

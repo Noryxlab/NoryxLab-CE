@@ -79,6 +79,8 @@ type Handlers struct {
 	harborInsecureSkipVerify         bool
 	assistantURL                     string
 	assistantInternalToken           string
+	assistantDeveloperSigningKey     string
+	assistantPublicURL               string
 }
 
 type Options struct {
@@ -124,6 +126,8 @@ type Options struct {
 	HarborInsecureSkipVerify         bool
 	AssistantURL                     string
 	AssistantInternalToken           string
+	AssistantDeveloperSigningKey     string
+	AssistantPublicURL               string
 }
 
 func New(
@@ -234,5 +238,7 @@ func New(
 		harborInsecureSkipVerify:         options.HarborInsecureSkipVerify,
 		assistantURL:                     strings.TrimRight(strings.TrimSpace(options.AssistantURL), "/"),
 		assistantInternalToken:           options.AssistantInternalToken,
+		assistantDeveloperSigningKey:     strings.TrimSpace(options.AssistantDeveloperSigningKey),
+		assistantPublicURL:               strings.TrimRight(strings.TrimSpace(options.AssistantPublicURL), "/"),
 	}
 }

@@ -38,7 +38,7 @@ RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" \
     '  "python.defaultInterpreterPath": "/usr/local/bin/python3"' \
     '}' > "${OPENVSCODE_DATA_DIR}/data/Machine/settings.json" \
  && set -eux; \
-    for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff; do \
+    for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
       openvscode-server --install-extension "$ext" || true; \
     done
 

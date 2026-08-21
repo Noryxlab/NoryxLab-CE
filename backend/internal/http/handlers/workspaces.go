@@ -14,6 +14,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
@@ -438,6 +439,21 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 		volumes = append(volumes, datasetVolumes...)
 
+		continueConfig := ""
+		if req.IDE == "vscode" && h.featureEnabled(edition.FeatureAssistant) && h.assistantPublicURL != "" && h.assistantDeveloperSigningKey != "" {
+			developerToken, err := signDeveloperAssistantToken(h.assistantDeveloperSigningKey, developerAssistantClaims{
+				UserID:      userID,
+				ProjectID:   req.ProjectID,
+				WorkspaceID: record.ID,
+				ExpiresAt:   time.Now().UTC().Add(12 * time.Hour).Unix(),
+			})
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
+				return
+			}
+			continueConfig = continueDeveloperAssistantConfig(h.assistantPublicURL, developerToken)
+		}
+
 		bootstrapScript := workspaceBootstrapScript(
 			req.IDE,
 			record.ID,
@@ -449,6 +465,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			projectMountPath,
 			attachedRepos,
 			len(attachedDatasets),
+			continueConfig,
 		)
 		workspaceArgs = nil
 		bootstrapSecretName := podName + "-bootstrap"
@@ -933,6 +950,7 @@ func workspaceBootstrapScript(
 	projectMountPath string,
 	attachedRepos []workspaceAttachedRepo,
 	datasetMountCount int,
+	continueConfig string,
 ) string {
 	lines := []string{
 		"set -e",
@@ -1001,6 +1019,16 @@ func workspaceBootstrapScript(
 	ideCommandSuffix := ""
 
 	if kind == "vscode" {
+		if strings.TrimSpace(continueConfig) != "" {
+			lines = append(lines,
+				"mkdir -p /home/noryx/.continue",
+				fmt.Sprintf("cat > %s <<'EOF'", shellQuote("/home/noryx/.continue/config.yaml")),
+				strings.TrimSpace(continueConfig),
+				"EOF",
+				"chmod 600 /home/noryx/.continue/config.yaml || true",
+				"ln -sfn /home/noryx/.continue/config.yaml /home/noryx/.continue/config.yml || true",
+			)
+		}
 		lines = append(lines,
 			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 			"{",
@@ -1070,6 +1098,35 @@ func workspaceBootstrapScript(
 		"  --ServerApp.password="+ideCommandSuffix,
 	)
 	return strings.Join(lines, "\n")
+}
+
+func continueDeveloperAssistantConfig(publicURL, token string) string {
+	apiBase := strings.TrimRight(strings.TrimSpace(publicURL), "/") + "/api/v1/assistant/developer/v1"
+	return strings.Join([]string{
+		"name: Noryx Workspace",
+		"version: 0.0.1",
+		"schema: v1",
+		"models:",
+		"  - name: Noryx Assistant",
+		"    provider: openai",
+		"    model: noryx-workspace",
+		"    apiBase: " + yamlSingleQuoted(apiBase),
+		"    apiKey: " + yamlSingleQuoted(token),
+		"    useResponsesApi: false",
+		"    roles:",
+		"      - chat",
+		"      - edit",
+		"      - apply",
+		"context:",
+		"  - provider: code",
+		"  - provider: diff",
+		"rules:",
+		"  - Always respect Noryx workspace boundaries. Do not ask for secrets, credentials, or data outside the selected code context.",
+	}, "\n")
+}
+
+func yamlSingleQuoted(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func gitAuthorName(identity auth.Identity) string {
