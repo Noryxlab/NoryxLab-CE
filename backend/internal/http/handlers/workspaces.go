@@ -1062,6 +1062,8 @@ func workspaceBootstrapScript(
 			"  --host 0.0.0.0 \\",
 			"  --port 8888 \\",
 			"  --without-connection-token \\",
+			fmt.Sprintf("  --user-data-dir %s \\", shellQuote(profileMountPath+"/vscode/data")),
+			fmt.Sprintf("  --extensions-dir %s \\", shellQuote(profileMountPath+"/vscode/extensions")),
 			fmt.Sprintf("  --server-base-path /workspaces/%s \\", workspaceID),
 			fmt.Sprintf("  --default-workspace %s \\", profileMountPath+"/vscode/noryx.code-workspace"),
 			"  --telemetry-level off \\",

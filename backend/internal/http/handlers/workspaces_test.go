@@ -164,6 +164,8 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 	for _, expected := range []string{
 		"/opt/noryx-vscode/extensions",
 		"/home/noryx/.continue/config.yaml",
+		"--user-data-dir '/home/noryx/.noryx-profile/vscode/data'",
+		"--extensions-dir '/home/noryx/.noryx-profile/vscode/extensions'",
 		"apiBase: 'https://datalab.example.org/api/v1/assistant/developer/v1'",
 		"apiKey: 'developer-token'",
 		"useResponsesApi: false",
