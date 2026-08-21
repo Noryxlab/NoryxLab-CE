@@ -31,25 +31,26 @@ data["extensionsGallery"] = {
 p.write_text(json.dumps(data, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
 PY
 
-RUN mkdir -p "${OPENVSCODE_DATA_DIR}/data/Machine" \
- && printf '%s\n' \
-    '{' \
-    '  "workbench.colorTheme": "Default Dark Modern",' \
-    '  "python.defaultInterpreterPath": "/usr/local/bin/python3"' \
-    '}' > "${OPENVSCODE_DATA_DIR}/data/Machine/settings.json" \
- && set -eux; \
-    for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
-      openvscode-server --install-extension "$ext" || true; \
-    done
-
 RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
  && chmod 0440 /etc/sudoers.d/90-noryx \
- && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile \
- && chown -R noryx:noryx /home/noryx /mnt /repos /datasets
+ && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile /opt/noryx-vscode/data/Machine /opt/noryx-vscode/extensions \
+ && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /opt/noryx-vscode
+
+USER noryx
+
+RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
+ && printf '%s\n' \
+    '{' \
+    '  "workbench.colorTheme": "Default Dark Modern",' \
+    '  "python.defaultInterpreterPath": "/usr/local/bin/python3"' \
+    '}' > "/opt/noryx-vscode/data/Machine/settings.json" \
+ && set -eux; \
+    for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
+      openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext" || true; \
+    done
 
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["openvscode-server", "--host", "0.0.0.0", "--port", "8888", "--without-connection-token", "--telemetry-level", "off", "--default-folder", "/mnt"]
-USER noryx

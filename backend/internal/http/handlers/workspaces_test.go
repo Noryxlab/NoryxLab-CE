@@ -122,7 +122,7 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 		expected string
 	}{
 		{name: "jupyter system", values: []string{"harbor.example.local/noryx-environments/noryx-jupyter:0.1.0"}, expected: "jupyter"},
-		{name: "vscode fork", values: []string{"harbor.example.local/project/custom:1", "FROM harbor.example.local/noryx-environments/noryx-vscode:0.1.1"}, expected: "vscode"},
+		{name: "vscode fork", values: []string{"harbor.example.local/project/custom:1", "FROM harbor.example.local/noryx-environments/noryx-vscode:0.1.2"}, expected: "vscode"},
 		{name: "rstudio fork", values: []string{"harbor.example.local/project/custom-r:1", "FROM harbor.example.local/noryx-environments/noryx-rstudio:0.1.0"}, expected: "rstudio"},
 		{name: "generic job image", values: []string{"harbor.example.local/project/batch:1"}, expected: ""},
 	}
@@ -162,6 +162,7 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 	config := continueDeveloperAssistantConfig("https://datalab.example.org/", "developer-token")
 	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config)
 	for _, expected := range []string{
+		"/opt/noryx-vscode/extensions",
 		"/home/noryx/.continue/config.yaml",
 		"apiBase: 'https://datalab.example.org/api/v1/assistant/developer/v1'",
 		"apiKey: 'developer-token'",

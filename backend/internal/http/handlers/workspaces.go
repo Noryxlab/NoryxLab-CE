@@ -1019,6 +1019,15 @@ func workspaceBootstrapScript(
 	ideCommandSuffix := ""
 
 	if kind == "vscode" {
+		lines = append(lines,
+			fmt.Sprintf("mkdir -p %s %s", shellQuote(profileMountPath+"/vscode/data/Machine"), shellQuote(profileMountPath+"/vscode/extensions")),
+			fmt.Sprintf("if [ -d /opt/noryx-vscode/extensions ] && ! find %s -mindepth 1 -maxdepth 1 -type d | grep -q .; then", shellQuote(profileMountPath+"/vscode/extensions")),
+			fmt.Sprintf("  cp -a /opt/noryx-vscode/extensions/. %s/ || true", shellQuote(profileMountPath+"/vscode/extensions")),
+			"fi",
+			fmt.Sprintf("if [ -f /opt/noryx-vscode/data/Machine/settings.json ] && [ ! -f %s ]; then", shellQuote(profileMountPath+"/vscode/data/Machine/settings.json")),
+			fmt.Sprintf("  cp /opt/noryx-vscode/data/Machine/settings.json %s || true", shellQuote(profileMountPath+"/vscode/data/Machine/settings.json")),
+			"fi",
+		)
 		if strings.TrimSpace(continueConfig) != "" {
 			lines = append(lines,
 				"mkdir -p /home/noryx/.continue",
