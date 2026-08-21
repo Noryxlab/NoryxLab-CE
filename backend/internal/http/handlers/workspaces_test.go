@@ -173,6 +173,7 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 		"tool_use",
 		"provider: code",
 		"/repos",
+		"Git credentials are provisioned by Noryx",
 	} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("workspace bootstrap missing Continue assistant config: %s", expected)
