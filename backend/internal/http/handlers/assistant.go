@@ -49,6 +49,12 @@ func (h Handlers) ChatWithAssistant(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "platform surface and a valid message are required"})
 		return
 	}
+	// Project and workspace context will only be enabled once it is resolved and
+	// authorized server-side. Never accept a browser-provided scope as trusted.
+	if strings.TrimSpace(request.ProjectID) != "" || strings.TrimSpace(request.WorkspaceID) != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "scoped assistant context is not available in this pilot"})
+		return
+	}
 	organizationID := ""
 	if h.keycloak != nil {
 		if organizations, err := h.keycloak.ListUserOrganizations(identity.UserID()); err == nil && len(organizations) > 0 {
@@ -59,8 +65,8 @@ func (h Handlers) ChatWithAssistant(w http.ResponseWriter, r *http.Request) {
 		ConversationID: request.ConversationID,
 		UserID:         identity.UserID(),
 		OrganizationID: organizationID,
-		ProjectID:      strings.TrimSpace(request.ProjectID),
-		WorkspaceID:    strings.TrimSpace(request.WorkspaceID),
+		ProjectID:      "",
+		WorkspaceID:    "",
 		Surface:        request.Surface,
 		Message:        request.Message,
 	})
