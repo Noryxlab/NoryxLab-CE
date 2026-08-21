@@ -169,7 +169,10 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 		"apiBase: 'https://datalab.example.org/api/v1/assistant/developer/v1'",
 		"apiKey: 'developer-token'",
 		"useResponsesApi: false",
+		"capabilities:",
+		"tool_use",
 		"provider: code",
+		"/repos",
 	} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("workspace bootstrap missing Continue assistant config: %s", expected)

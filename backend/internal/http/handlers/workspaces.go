@@ -1128,11 +1128,14 @@ func continueDeveloperAssistantConfig(publicURL, token string) string {
 		"      - chat",
 		"      - edit",
 		"      - apply",
+		"    capabilities:",
+		"      - tool_use",
 		"context:",
 		"  - provider: code",
 		"  - provider: diff",
 		"rules:",
-		"  - Always respect Noryx workspace boundaries. Do not ask for secrets, credentials, or data outside the selected code context.",
+		"  - Always respect Noryx workspace boundaries. You may use Continue tools inside the current workspace filesystem only, including /mnt, /repos, and /datasets when present.",
+		"  - Do not ask for secrets, credentials, host paths, Kubernetes access, platform internals, or data from other workspaces.",
 	}, "\n")
 }
 
