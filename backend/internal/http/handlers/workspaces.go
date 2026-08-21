@@ -1135,6 +1135,8 @@ func continueDeveloperAssistantConfig(publicURL, token string) string {
 		"  - provider: diff",
 		"rules:",
 		"  - Always respect Noryx workspace boundaries. You may use Continue tools inside the current workspace filesystem only, including /mnt, /repos, and /datasets when present.",
+		"  - When the user asks about Git, repositories, commits, or pushes, inspect /repos and the relevant .git directory before saying a repository or remote is unavailable.",
+		"  - Git credentials are provisioned by Noryx when a repository is attached to the project; use normal git commands from the repository directory instead of asking the user for credentials.",
 		"  - Do not ask for secrets, credentials, host paths, Kubernetes access, platform internals, or data from other workspaces.",
 	}, "\n")
 }
