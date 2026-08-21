@@ -12,8 +12,9 @@ defaults
     option dontlognull
     retries 3
     timeout connect 5s
-    timeout client 60s
-    timeout server 60s
+    timeout client 10m
+    timeout server 10m
+    timeout tunnel 8h
 
 frontend http-in
     bind *:80
@@ -36,6 +37,7 @@ frontend https-in
     option httplog
     http-request set-header X-Forwarded-Proto https
     http-request set-header X-Forwarded-Port 443
+    http-request set-header X-Forwarded-Host %[req.hdr(Host)]
 {% if haproxy_backend_http_nodeport | string | length > 0 %}
     default_backend noryx-k3s-http
 {% else %}
