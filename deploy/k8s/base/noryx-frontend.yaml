@@ -1467,6 +1467,16 @@ data:
             .project-create-panel, .project-create-form { display: grid; }
             .platform-pulse-grid { grid-template-columns: 1fr; }
           }
+          .assistant-toggle { position: fixed; right: 28px; bottom: 26px; z-index: 30; border: 0; border-radius: 999px; padding: 13px 18px; color: #fff; background: #3447b5; box-shadow: 0 12px 28px rgba(34,48,112,.25); font-weight: 700; cursor: pointer; }
+          .assistant-panel { position: fixed; z-index: 31; right: 24px; bottom: 86px; width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100vh - 120px)); display: none; flex-direction: column; overflow: hidden; border: 1px solid #ccd7e5; border-radius: 16px; background: #fff; box-shadow: 0 22px 60px rgba(20,35,60,.24); }
+          .assistant-panel.open { display: flex; }
+          .assistant-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid #e5ebf2; }
+          .assistant-head strong { font-size:16px; color:#1d2c43; } .assistant-head span { display:block; margin-top:3px; color:#687992; font-size:12px; }
+          .assistant-messages { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:#f7f9fc; }
+          .assistant-message { max-width:88%; padding:10px 12px; border-radius:12px; white-space:pre-wrap; line-height:1.45; font-size:14px; }
+          .assistant-message.user { align-self:flex-end; color:#fff; background:#3447b5; } .assistant-message.assistant { align-self:flex-start; color:#24334a; background:#fff; border:1px solid #e0e7ef; }
+          .assistant-form { display:flex; gap:8px; padding:12px; border-top:1px solid #e5ebf2; } .assistant-form textarea { flex:1; min-height:42px; max-height:100px; resize:vertical; }
+          @media (max-width: 700px) { .assistant-toggle { right:16px; bottom:16px; } .assistant-panel { right:16px; bottom:76px; height:min(590px, calc(100vh - 96px)); } }
         </style>
         <script src="/vendor/keycloak.js"></script>
         <script src="/vendor/xlsx.full.min.js"></script>
@@ -2718,6 +2728,12 @@ data:
             </section>
           </main>
         </div>
+        <button id="assistantToggle" class="assistant-toggle" type="button" aria-expanded="false">Assistant</button>
+        <aside id="assistantPanel" class="assistant-panel" aria-label="Assistant Noryx">
+          <div class="assistant-head"><div><strong>Assistant Noryx</strong><span>Documentation et aide plateforme · lecture seule</span></div><button id="assistantClose" class="btn" type="button">Fermer</button></div>
+          <div id="assistantMessages" class="assistant-messages"><div class="assistant-message assistant">Bonjour. Je peux expliquer la plateforme, ses ressources et ses limites. Je ne peux ni lire vos secrets, ni exécuter d’action.</div></div>
+          <form id="assistantForm" class="assistant-form"><textarea id="assistantInput" placeholder="Posez une question sur Noryx..." maxlength="32000"></textarea><button class="btn primary" type="submit">Envoyer</button></form>
+        </aside>
         <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
         <dialog id="actionDialog" class="action-dialog">
           <form method="dialog" class="action-dialog-body">
@@ -9315,6 +9331,29 @@ data:
             }
           };
           closeDataServiceLogsBtn.onclick = () => { dataServiceLogsPanel.style.display = 'none'; };
+
+          const assistantToggle = document.getElementById('assistantToggle');
+          const assistantPanel = document.getElementById('assistantPanel');
+          const assistantClose = document.getElementById('assistantClose');
+          const assistantForm = document.getElementById('assistantForm');
+          const assistantInput = document.getElementById('assistantInput');
+          const assistantMessages = document.getElementById('assistantMessages');
+          let assistantConversationId = '';
+          function appendAssistantMessage(kind, text) {
+            const node = document.createElement('div'); node.className = 'assistant-message ' + kind; node.textContent = String(text || ''); assistantMessages.appendChild(node); assistantMessages.scrollTop = assistantMessages.scrollHeight;
+          }
+          function setAssistantOpen(open) { assistantPanel.classList.toggle('open', open); assistantToggle.setAttribute('aria-expanded', open ? 'true' : 'false'); if (open) assistantInput.focus(); }
+          assistantToggle.onclick = () => setAssistantOpen(!assistantPanel.classList.contains('open'));
+          assistantClose.onclick = () => setAssistantOpen(false);
+          assistantForm.onsubmit = async (event) => {
+            event.preventDefault(); const message = String(assistantInput.value || '').trim(); if (!message) return;
+            appendAssistantMessage('user', message); assistantInput.value = ''; assistantInput.disabled = true;
+            try {
+              const result = await callJSON('/api/v1/assistant/chat', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ surface:'platform', conversationId:assistantConversationId, message }) });
+              assistantConversationId = String(result.conversationId || assistantConversationId); appendAssistantMessage('assistant', result.message);
+            } catch (error) { appendAssistantMessage('assistant', 'L’assistant est indisponible pour le moment.'); }
+            finally { assistantInput.disabled = false; assistantInput.focus(); }
+          };
 
       if (authMode === 'oidc') {
         keycloak.init({ onLoad: 'check-sso', pkceMethod: 'S256', checkLoginIframe: false }).then((authenticated) => {
