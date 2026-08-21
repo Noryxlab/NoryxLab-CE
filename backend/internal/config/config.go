@@ -145,7 +145,7 @@ func Load() Config {
 	}
 	workspaceVSCodeImage := os.Getenv("NORYX_WORKSPACE_VSCODE_IMAGE")
 	if workspaceVSCodeImage == "" {
-		workspaceVSCodeImage = "harbor.example.local/noryx-environments/noryx-vscode:0.1.1"
+		workspaceVSCodeImage = "harbor.example.local/noryx-environments/noryx-vscode:0.1.2"
 	}
 	workspaceRStudioImage := os.Getenv("NORYX_WORKSPACE_RSTUDIO_IMAGE")
 	if workspaceRStudioImage == "" {

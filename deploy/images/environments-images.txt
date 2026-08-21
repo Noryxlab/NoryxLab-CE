@@ -2,7 +2,7 @@
 # Build and push the system workspace images from this repo:
 #   docker build -t harbor.example.local/noryx-environments/noryx-jupyter:0.1.0 -f environments/noryx-jupyter/Dockerfile .
 #   docker push harbor.example.local/noryx-environments/noryx-jupyter:0.1.0
-#   docker build -t harbor.example.local/noryx-environments/noryx-vscode:0.1.1 -f environments/noryx-vscode/Dockerfile .
-#   docker push harbor.example.local/noryx-environments/noryx-vscode:0.1.1
+#   docker build -t harbor.example.local/noryx-environments/noryx-vscode:0.1.2 -f environments/noryx-vscode/Dockerfile .
+#   docker push harbor.example.local/noryx-environments/noryx-vscode:0.1.2
 #   docker build -t harbor.example.local/noryx-environments/noryx-rstudio:0.1.0 -f environments/noryx-rstudio/Dockerfile .
 #   docker push harbor.example.local/noryx-environments/noryx-rstudio:0.1.0

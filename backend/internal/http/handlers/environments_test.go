@@ -4,9 +4,9 @@ import "testing"
 
 func TestAddSystemEnvironmentSupportsGlobalCatalog(t *testing.T) {
 	items := map[string]*environmentItem{}
-	addSystemEnvironment(items, "", "harbor.example.local/noryx-environments/noryx-vscode:0.1.1", systemEnvironmentDefinitions["system-vscode"])
+	addSystemEnvironment(items, "", "harbor.example.local/noryx-environments/noryx-vscode:0.1.2", systemEnvironmentDefinitions["system-vscode"])
 
-	item, ok := items["|harbor.example.local/noryx-environments/noryx-vscode:0.1.1"]
+	item, ok := items["|harbor.example.local/noryx-environments/noryx-vscode:0.1.2"]
 	if !ok {
 		t.Fatal("expected system environment in global catalog")
 	}
