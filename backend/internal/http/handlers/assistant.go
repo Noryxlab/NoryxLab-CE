@@ -30,6 +30,13 @@ type assistantServiceRequest struct {
 	Message        string `json:"message"`
 }
 
+type developerAssistantRequestKind string
+
+const (
+	developerAssistantChatCompletions developerAssistantRequestKind = "chat/completions"
+	developerAssistantCompletions     developerAssistantRequestKind = "completions"
+)
+
 func (h Handlers) ChatWithAssistant(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
 	if !ok {
@@ -102,6 +109,14 @@ func (h Handlers) ChatWithAssistant(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) ChatCompletionsWithDeveloperAssistant(w http.ResponseWriter, r *http.Request) {
+	h.proxyDeveloperAssistantOpenAICompatible(w, r, developerAssistantChatCompletions)
+}
+
+func (h Handlers) CompletionsWithDeveloperAssistant(w http.ResponseWriter, r *http.Request) {
+	h.proxyDeveloperAssistantOpenAICompatible(w, r, developerAssistantCompletions)
+}
+
+func (h Handlers) proxyDeveloperAssistantOpenAICompatible(w http.ResponseWriter, r *http.Request, kind developerAssistantRequestKind) {
 	if !h.featureEnabled(edition.FeatureAssistant) || h.assistantURL == "" || h.assistantInternalToken == "" || h.assistantDeveloperSigningKey == "" {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "assistant is not enabled"})
 		return
@@ -132,14 +147,18 @@ func (h Handlers) ChatCompletionsWithDeveloperAssistant(w http.ResponseWriter, r
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid chat completion request"})
 		return
 	}
-	if !openAICompatiblePayloadHasMessages(payload) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid messages are required"})
+	if !openAICompatiblePayloadIsValid(payload, kind) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid OpenAI-compatible payload is required"})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 130*time.Second)
 	defer cancel()
-	proxyRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, h.assistantURL+"/v1/openai/chat/completions", bytes.NewReader(rawBody))
+	proxyPath := "/v1/openai/chat/completions"
+	if kind == developerAssistantCompletions {
+		proxyPath = "/v1/openai/completions"
+	}
+	proxyRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, h.assistantURL+proxyPath, bytes.NewReader(rawBody))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "assistant service is unavailable"})
 		return
@@ -189,6 +208,24 @@ func (h Handlers) ListDeveloperAssistantModels(w http.ResponseWriter, r *http.Re
 func openAICompatiblePayloadHasMessages(payload map[string]any) bool {
 	messages, ok := payload["messages"].([]any)
 	return ok && len(messages) > 0
+}
+
+func openAICompatiblePayloadHasPrompt(payload map[string]any) bool {
+	switch prompt := payload["prompt"].(type) {
+	case string:
+		return strings.TrimSpace(prompt) != ""
+	case []any:
+		return len(prompt) > 0
+	default:
+		return false
+	}
+}
+
+func openAICompatiblePayloadIsValid(payload map[string]any, kind developerAssistantRequestKind) bool {
+	if kind == developerAssistantCompletions {
+		return openAICompatiblePayloadHasPrompt(payload)
+	}
+	return openAICompatiblePayloadHasMessages(payload)
 }
 
 func copyProxyResponse(w http.ResponseWriter, response *http.Response) {

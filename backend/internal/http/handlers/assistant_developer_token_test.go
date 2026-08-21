@@ -58,3 +58,15 @@ func TestOpenAICompatiblePayloadRequiresMessages(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenAICompatiblePayloadAcceptsCompletionPrompt(t *testing.T) {
+	if !openAICompatiblePayloadIsValid(map[string]any{"prompt": "rewrite this"}, developerAssistantCompletions) {
+		t.Fatal("completion payload with prompt must be accepted")
+	}
+	if openAICompatiblePayloadIsValid(map[string]any{"prompt": ""}, developerAssistantCompletions) {
+		t.Fatal("empty prompt must be rejected")
+	}
+	if !openAICompatiblePayloadIsValid(map[string]any{"messages": []any{map[string]any{"role": "user", "content": "hello"}}}, developerAssistantChatCompletions) {
+		t.Fatal("chat payload with messages must be accepted")
+	}
+}

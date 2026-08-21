@@ -955,6 +955,7 @@ func workspaceBootstrapScript(
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, workspaceReposPath, workspaceDatasetsPath),
+		fmt.Sprintf("if [ -d %s/lost+found ]; then (chmod 755 %s/lost+found || sudo chmod 755 %s/lost+found || true); fi", projectMountPath, projectMountPath, projectMountPath),
 		"echo NORYX_WS_BOOTSTRAP_V2 >/tmp/noryx-bootstrap-version || true",
 		fmt.Sprintf("echo repos=%d datasets=%d >/tmp/noryx-resource-count || true", len(attachedRepos), datasetMountCount),
 		fmt.Sprintf("mkdir -p %s %s %s %s %s",

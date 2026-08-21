@@ -163,6 +163,7 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config)
 	for _, expected := range []string{
 		"/opt/noryx-vscode/extensions",
+		"chmod 755 /mnt/lost+found",
 		"/home/noryx/.continue/config.yaml",
 		"--user-data-dir '/home/noryx/.noryx-profile/vscode/data'",
 		"--extensions-dir '/home/noryx/.noryx-profile/vscode/extensions'",

@@ -16,6 +16,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/assistant/chat", h.ChatWithAssistant)
 	mux.HandleFunc("GET /api/v1/assistant/developer/v1/models", h.ListDeveloperAssistantModels)
 	mux.HandleFunc("POST /api/v1/assistant/developer/v1/chat/completions", h.ChatCompletionsWithDeveloperAssistant)
+	mux.HandleFunc("POST /api/v1/assistant/developer/v1/completions", h.CompletionsWithDeveloperAssistant)
 	mux.HandleFunc("GET /api/v1/platform/overview", h.GetPlatformOverview)
 	mux.HandleFunc("GET /api/v1/hardware-tiers", h.GetHardwareTiers)
 	mux.HandleFunc("GET /api/v1/egress/profiles", h.ListEgressProfiles)
