@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -28,15 +28,6 @@ type assistantServiceRequest struct {
 	WorkspaceID    string `json:"workspaceId"`
 	Surface        string `json:"surface"`
 	Message        string `json:"message"`
-}
-
-type openAICompatibleChatRequest struct {
-	Model    string `json:"model"`
-	Messages []struct {
-		Role    string `json:"role"`
-		Content any    `json:"content"`
-	} `json:"messages"`
-	Stream bool `json:"stream"`
 }
 
 func (h Handlers) ChatWithAssistant(w http.ResponseWriter, r *http.Request) {
@@ -131,74 +122,47 @@ func (h Handlers) ChatCompletionsWithDeveloperAssistant(w http.ResponseWriter, r
 		return
 	}
 
-	var request openAICompatibleChatRequest
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&request); err != nil {
+	rawBody, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 4<<20))
+	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid chat completion request"})
 		return
 	}
-	message := openAICompatibleMessagesToText(request.Messages)
-	if message == "" || len(message) > 64000 {
+	var payload map[string]any
+	if err := json.Unmarshal(rawBody, &payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid chat completion request"})
+		return
+	}
+	if !openAICompatiblePayloadHasMessages(payload) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid messages are required"})
 		return
 	}
 
-	payload, _ := json.Marshal(assistantServiceRequest{
-		UserID:      claims.UserID,
-		ProjectID:   claims.ProjectID,
-		WorkspaceID: claims.WorkspaceID,
-		Surface:     "developer",
-		Message:     message,
-	})
-	ctx, cancel := context.WithTimeout(r.Context(), 50*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 130*time.Second)
 	defer cancel()
-	proxyRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, h.assistantURL+"/v1/chat", bytes.NewReader(payload))
+	proxyRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, h.assistantURL+"/v1/openai/chat/completions", bytes.NewReader(rawBody))
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "assistant service is unavailable"})
 		return
 	}
 	proxyRequest.Header.Set("Content-Type", "application/json")
 	proxyRequest.Header.Set("X-Noryx-Assistant-Token", h.assistantInternalToken)
-	response, err := (&http.Client{Timeout: 55 * time.Second}).Do(proxyRequest)
+	if accept := strings.TrimSpace(r.Header.Get("Accept")); accept != "" {
+		proxyRequest.Header.Set("Accept", accept)
+	}
+	response, err := (&http.Client{Timeout: 135 * time.Second}).Do(proxyRequest)
 	if err != nil {
 		h.emitAdvancedAudit(r, claims.UserID, "assistant.developer.chat", "assistant", claims.WorkspaceID, claims.ProjectID, "failure", "provider_unavailable", nil)
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "assistant provider is unavailable"})
 		return
 	}
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		h.emitAdvancedAudit(r, claims.UserID, "assistant.developer.chat", "assistant", claims.WorkspaceID, claims.ProjectID, "failure", "assistant_error", nil)
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "assistant provider is unavailable"})
+		copyProxyResponse(w, response)
 		return
 	}
-	var result map[string]any
-	if err := json.NewDecoder(http.MaxBytesReader(w, response.Body, 1<<20)).Decode(&result); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "assistant provider returned an invalid response"})
-		return
-	}
-	model, _ := result["model"].(string)
-	if model == "" {
-		model = strings.TrimSpace(request.Model)
-	}
-	answer, _ := result["message"].(string)
-	h.emitAdvancedAudit(r, claims.UserID, "assistant.developer.chat", "assistant", claims.WorkspaceID, claims.ProjectID, "success", "", map[string]any{"surface": "developer", "model": model})
-	if request.Stream {
-		writeOpenAICompatibleStream(w, model, answer)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"id":      fmt.Sprintf("chatcmpl-noryx-%d", time.Now().UTC().UnixNano()),
-		"object":  "chat.completion",
-		"created": time.Now().UTC().Unix(),
-		"model":   model,
-		"choices": []map[string]any{{
-			"index": 0,
-			"message": map[string]string{
-				"role":    "assistant",
-				"content": answer,
-			},
-			"finish_reason": "stop",
-		}},
-	})
+	h.emitAdvancedAudit(r, claims.UserID, "assistant.developer.chat", "assistant", claims.WorkspaceID, claims.ProjectID, "success", "", map[string]any{"surface": "developer"})
+	copyProxyResponse(w, response)
 }
 
 func (h Handlers) ListDeveloperAssistantModels(w http.ResponseWriter, r *http.Request) {
@@ -222,78 +186,20 @@ func (h Handlers) ListDeveloperAssistantModels(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func writeOpenAICompatibleStream(w http.ResponseWriter, model, answer string) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	id := fmt.Sprintf("chatcmpl-noryx-%d", time.Now().UTC().UnixNano())
-	writeOpenAICompatibleStreamChunk(w, id, model, map[string]string{"role": "assistant"}, nil)
-	writeOpenAICompatibleStreamChunk(w, id, model, map[string]string{"content": answer}, nil)
-	finishReason := "stop"
-	writeOpenAICompatibleStreamChunk(w, id, model, map[string]string{}, &finishReason)
-	_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
+func openAICompatiblePayloadHasMessages(payload map[string]any) bool {
+	messages, ok := payload["messages"].([]any)
+	return ok && len(messages) > 0
 }
 
-func writeOpenAICompatibleStreamChunk(w http.ResponseWriter, id, model string, delta map[string]string, finishReason *string) {
-	chunk := map[string]any{
-		"id":      id,
-		"object":  "chat.completion.chunk",
-		"created": time.Now().UTC().Unix(),
-		"model":   model,
-		"choices": []map[string]any{{
-			"index":         0,
-			"delta":         delta,
-			"finish_reason": finishReason,
-		}},
+func copyProxyResponse(w http.ResponseWriter, response *http.Response) {
+	for _, header := range []string{"Content-Type", "Cache-Control"} {
+		if value := strings.TrimSpace(response.Header.Get(header)); value != "" {
+			w.Header().Set(header, value)
+		}
 	}
-	encoded, _ := json.Marshal(chunk)
-	_, _ = fmt.Fprintf(w, "data: %s\n\n", encoded)
-}
-
-func openAICompatibleMessagesToText(messages []struct {
-	Role    string `json:"role"`
-	Content any    `json:"content"`
-}) string {
-	var b strings.Builder
-	for _, message := range messages {
-		role := strings.TrimSpace(message.Role)
-		content := strings.TrimSpace(openAICompatibleContentToText(message.Content))
-		if content == "" {
-			continue
-		}
-		if role == "" {
-			role = "user"
-		}
-		if b.Len() > 0 {
-			b.WriteString("\n\n")
-		}
-		b.WriteString(role)
-		b.WriteString(":\n")
-		b.WriteString(content)
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "application/json")
 	}
-	return strings.TrimSpace(b.String())
-}
-
-func openAICompatibleContentToText(content any) string {
-	switch value := content.(type) {
-	case string:
-		return value
-	case []any:
-		parts := make([]string, 0, len(value))
-		for _, item := range value {
-			block, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			if text, ok := block["text"].(string); ok {
-				parts = append(parts, text)
-			}
-		}
-		return strings.Join(parts, "\n")
-	default:
-		return ""
-	}
+	w.WriteHeader(response.StatusCode)
+	_, _ = io.Copy(w, response.Body)
 }

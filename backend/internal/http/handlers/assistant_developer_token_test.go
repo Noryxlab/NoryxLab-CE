@@ -43,3 +43,18 @@ func TestDeveloperAssistantTokenExpires(t *testing.T) {
 		t.Fatal("expired token must not verify")
 	}
 }
+
+func TestOpenAICompatiblePayloadRequiresMessages(t *testing.T) {
+	if !openAICompatiblePayloadHasMessages(map[string]any{"messages": []any{map[string]any{"role": "user", "content": "hello"}}}) {
+		t.Fatal("payload with messages must be accepted")
+	}
+	for _, payload := range []map[string]any{
+		{},
+		{"messages": []any{}},
+		{"messages": "not-a-list"},
+	} {
+		if openAICompatiblePayloadHasMessages(payload) {
+			t.Fatalf("payload must be rejected: %#v", payload)
+		}
+	}
+}
