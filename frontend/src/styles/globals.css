@@ -1,0 +1,281 @@
+@import 'tailwindcss';
+
+/*
+ * Theme is driven by data-theme on <html>, set before first paint by an
+ * inline script in index.html. That gives us an explicit user choice that
+ * survives reload, with prefers-color-scheme as the initial default.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ---------------------------------------------------------------------------
+ * Palette
+ *
+ * One brand colour, taken from the marketing site gradient (#1684ff -> #16e2df)
+ * so the site and the product no longer look like two different companies.
+ * The cyan end of that gradient is decorative only (logo, charts); it is never
+ * a second interactive colour.
+ *
+ * brand-600 is the interactive fill in light mode: #1684ff itself only reaches
+ * 3.6:1 against white text, below AA for body text, so the fill is darkened
+ * and the lighter tint is kept for dark mode and focus rings.
+ *
+ * Every token below is overridable at runtime by the EE overlay through
+ * config.js -> applyBrandOverrides(), which is what replaces the old
+ * `sed` pass over the built HTML.
+ * ------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  --noryx-brand-50: #eef6ff;
+  --noryx-brand-100: #d9eaff;
+  --noryx-brand-200: #b9dbff;
+  --noryx-brand-300: #85c3ff;
+  --noryx-brand-400: #4aa4ff;
+  --noryx-brand-500: #1684ff;
+  --noryx-brand-600: #0b5fd0;
+  --noryx-brand-700: #0b4da8;
+  --noryx-brand-800: #0e4185;
+  --noryx-brand-900: #11386c;
+  --noryx-accent-cyan: #16e2df;
+
+  --noryx-background: #f7f8fa;
+  --noryx-surface: #ffffff;
+  --noryx-surface-muted: #f2f4f7;
+  --noryx-surface-raised: #ffffff;
+  --noryx-border: #dfe3ea;
+  --noryx-border-strong: #c6cddb;
+  --noryx-foreground: #10192b;
+  --noryx-muted-foreground: #56637c;
+  --noryx-placeholder: #8793a8;
+
+  --noryx-brand: var(--noryx-brand-600);
+  --noryx-brand-foreground: #ffffff;
+  --noryx-brand-subtle: var(--noryx-brand-50);
+  --noryx-brand-subtle-foreground: var(--noryx-brand-700);
+  --noryx-ring: var(--noryx-brand-500);
+
+  --noryx-success: #157f4a;
+  --noryx-success-subtle: #e6f5ec;
+  --noryx-success-foreground: #0d5733;
+  --noryx-warning: #9a6108;
+  --noryx-warning-subtle: #fdf3e2;
+  --noryx-warning-foreground: #7a4d06;
+  --noryx-danger: #c02434;
+  --noryx-danger-subtle: #fdeaec;
+  --noryx-danger-foreground: #8f1a27;
+  --noryx-neutral-subtle: #eef0f4;
+  --noryx-neutral-subtle-foreground: #47536a;
+
+  --noryx-sidebar: #ffffff;
+  --noryx-sidebar-foreground: #10192b;
+  --noryx-sidebar-muted: #56637c;
+  --noryx-sidebar-border: #e4e8ef;
+  --noryx-sidebar-active: var(--noryx-brand-50);
+  --noryx-sidebar-active-foreground: var(--noryx-brand-700);
+
+  --noryx-overlay: rgb(11 16 23 / 0.45);
+
+  /* Shadows stay shallow. Depth is carried by borders and surface steps, not
+   * by the drop shadows and radial glows the previous UI leaned on. */
+  --noryx-shadow-xs: 0 1px 2px rgb(16 25 43 / 0.04);
+  --noryx-shadow-sm: 0 1px 3px rgb(16 25 43 / 0.06), 0 1px 2px rgb(16 25 43 / 0.04);
+  --noryx-shadow-md: 0 4px 12px rgb(16 25 43 / 0.08);
+  --noryx-shadow-lg: 0 12px 32px rgb(16 25 43 / 0.12);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --noryx-background: #0b1017;
+  --noryx-surface: #121926;
+  --noryx-surface-muted: #1a2333;
+  --noryx-surface-raised: #18212f;
+  --noryx-border: #263041;
+  --noryx-border-strong: #35425a;
+  --noryx-foreground: #e8edf5;
+  --noryx-muted-foreground: #97a3b8;
+  --noryx-placeholder: #6b7a92;
+
+  --noryx-brand: var(--noryx-brand-500);
+  --noryx-brand-foreground: #05192f;
+  --noryx-brand-subtle: rgb(22 132 255 / 0.14);
+  --noryx-brand-subtle-foreground: var(--noryx-brand-300);
+  --noryx-ring: var(--noryx-brand-400);
+
+  --noryx-success: #3ecf8e;
+  --noryx-success-subtle: rgb(62 207 142 / 0.14);
+  --noryx-success-foreground: #7fe0b4;
+  --noryx-warning: #f5b544;
+  --noryx-warning-subtle: rgb(245 181 68 / 0.14);
+  --noryx-warning-foreground: #f8cd82;
+  --noryx-danger: #ff6b78;
+  --noryx-danger-subtle: rgb(255 107 120 / 0.14);
+  --noryx-danger-foreground: #ff9aa3;
+  --noryx-neutral-subtle: rgb(151 163 184 / 0.14);
+  --noryx-neutral-subtle-foreground: #b6c1d2;
+
+  --noryx-sidebar: #0e141d;
+  --noryx-sidebar-foreground: #e8edf5;
+  --noryx-sidebar-muted: #8b98ae;
+  --noryx-sidebar-border: #1e2836;
+  --noryx-sidebar-active: rgb(22 132 255 / 0.16);
+  --noryx-sidebar-active-foreground: var(--noryx-brand-300);
+
+  --noryx-overlay: rgb(3 6 11 / 0.66);
+
+  --noryx-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+  --noryx-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4);
+  --noryx-shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
+  --noryx-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+
+@theme inline {
+  --color-background: var(--noryx-background);
+  --color-surface: var(--noryx-surface);
+  --color-surface-muted: var(--noryx-surface-muted);
+  --color-surface-raised: var(--noryx-surface-raised);
+  --color-border: var(--noryx-border);
+  --color-border-strong: var(--noryx-border-strong);
+  --color-foreground: var(--noryx-foreground);
+  --color-muted-foreground: var(--noryx-muted-foreground);
+  --color-placeholder: var(--noryx-placeholder);
+
+  --color-brand: var(--noryx-brand);
+  --color-brand-foreground: var(--noryx-brand-foreground);
+  --color-brand-subtle: var(--noryx-brand-subtle);
+  --color-brand-subtle-foreground: var(--noryx-brand-subtle-foreground);
+  --color-brand-50: var(--noryx-brand-50);
+  --color-brand-100: var(--noryx-brand-100);
+  --color-brand-200: var(--noryx-brand-200);
+  --color-brand-300: var(--noryx-brand-300);
+  --color-brand-400: var(--noryx-brand-400);
+  --color-brand-500: var(--noryx-brand-500);
+  --color-brand-600: var(--noryx-brand-600);
+  --color-brand-700: var(--noryx-brand-700);
+  --color-accent-cyan: var(--noryx-accent-cyan);
+
+  --color-success: var(--noryx-success);
+  --color-success-subtle: var(--noryx-success-subtle);
+  --color-success-foreground: var(--noryx-success-foreground);
+  --color-warning: var(--noryx-warning);
+  --color-warning-subtle: var(--noryx-warning-subtle);
+  --color-warning-foreground: var(--noryx-warning-foreground);
+  --color-danger: var(--noryx-danger);
+  --color-danger-subtle: var(--noryx-danger-subtle);
+  --color-danger-foreground: var(--noryx-danger-foreground);
+  --color-neutral-subtle: var(--noryx-neutral-subtle);
+  --color-neutral-subtle-foreground: var(--noryx-neutral-subtle-foreground);
+
+  --color-sidebar: var(--noryx-sidebar);
+  --color-sidebar-foreground: var(--noryx-sidebar-foreground);
+  --color-sidebar-muted: var(--noryx-sidebar-muted);
+  --color-sidebar-border: var(--noryx-sidebar-border);
+  --color-sidebar-active: var(--noryx-sidebar-active);
+  --color-sidebar-active-foreground: var(--noryx-sidebar-active-foreground);
+
+  --color-ring: var(--noryx-ring);
+  --color-overlay: var(--noryx-overlay);
+
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  --shadow-xs: var(--noryx-shadow-xs);
+  --shadow-sm: var(--noryx-shadow-sm);
+  --shadow-md: var(--noryx-shadow-md);
+  --shadow-lg: var(--noryx-shadow-lg);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans Variable';
+  src: url('/fonts/plus-jakarta-sans.woff2') format('woff2-variations');
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+@layer base {
+  * {
+    border-color: var(--noryx-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--noryx-background);
+    color: var(--noryx-foreground);
+    font-family: var(--font-sans);
+    /* 14px body: readable, still dense enough for a data-heavy console.
+     * The old UI ran 11-13px, which is what made it read as "engineer tool". */
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.011em;
+    text-wrap: balance;
+  }
+
+  /* Keyboard focus is visible everywhere by default. The previous UI had four
+   * :focus rules in 9400 lines, which made the app unusable without a mouse. */
+  :focus-visible {
+    outline: 2px solid var(--noryx-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::placeholder {
+    color: var(--noryx-placeholder);
+  }
+
+  ::selection {
+    background-color: var(--noryx-brand-subtle);
+    color: var(--noryx-brand-subtle-foreground);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--noryx-border-strong) transparent;
+  }
+
+  /* Wide content (tables, logs, Dockerfiles) scrolls inside its own container
+   * so the page body never scrolls horizontally. */
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
