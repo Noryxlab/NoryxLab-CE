@@ -103,6 +103,8 @@ spec:
             capabilities:
               drop:
                 - ALL
+              add:
+                - CHOWN
       volumes:
         - name: front-config
           configMap:
