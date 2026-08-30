@@ -1397,6 +1397,26 @@ func (s *Store) ListByUser(userID string) ([]secret.Secret, error) {
 	return out, rows.Err()
 }
 
+// ListAllSecrets returns every secret across users, for backup. The encrypted
+// value is included: a backup without it cannot restore anything, and it stays
+// unreadable without the master key held outside the backup.
+func (s *Store) ListAllSecrets() ([]secret.Secret, error) {
+	rows, err := s.db.Query(`SELECT id, user_id, name, type, value_encrypted, expires_at, created_at, updated_at FROM user_secrets ORDER BY user_id, name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []secret.Secret{}
+	for rows.Next() {
+		var item secret.Secret
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Name, &item.Type, &item.ValueEncrypted, &item.ExpiresAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetByName(userID, name string) (secret.Secret, bool, error) {
 	var item secret.Secret
 	err := s.db.QueryRow(`SELECT id, user_id, name, type, value_encrypted, expires_at, created_at, updated_at FROM user_secrets WHERE user_id=$1 AND name=$2`, strings.TrimSpace(userID), strings.TrimSpace(name)).Scan(
@@ -1823,6 +1843,24 @@ func (s *Store) DeleteDatasource(id string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// ListAllRepositories returns every repository across users, for backup.
+func (s *Store) ListAllRepositories() ([]repository.Repository, error) {
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories ORDER BY owner_user_id, name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []repository.Repository{}
+	for rows.Next() {
+		var item repository.Repository
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, error) {

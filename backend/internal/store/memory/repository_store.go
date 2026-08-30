@@ -28,6 +28,14 @@ func (s *RepositoryStore) ListByUser(userID string) ([]repository.Repository, er
 	return out, nil
 }
 
+func (s *RepositoryStore) ListAll() ([]repository.Repository, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]repository.Repository, len(s.items))
+	copy(out, s.items)
+	return out, nil
+}
+
 func (s *RepositoryStore) GetByID(id string) (repository.Repository, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

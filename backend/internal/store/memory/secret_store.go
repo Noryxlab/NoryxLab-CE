@@ -29,6 +29,14 @@ func (s *SecretStore) ListByUser(userID string) ([]secret.Secret, error) {
 	return out, nil
 }
 
+func (s *SecretStore) ListAll() ([]secret.Secret, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]secret.Secret, len(s.items))
+	copy(out, s.items)
+	return out, nil
+}
+
 func (s *SecretStore) GetByName(userID, name string) (secret.Secret, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

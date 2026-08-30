@@ -4,6 +4,8 @@ import "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 
 type RepositoryStore interface {
 	ListByUser(userID string) ([]repository.Repository, error)
+	// ListAll returns every repository across users, for backup purposes.
+	ListAll() ([]repository.Repository, error)
 	GetByID(id string) (repository.Repository, bool, error)
 	Create(item repository.Repository) error
 	Update(item repository.Repository) error

@@ -50,4 +50,3 @@ func (s *UserPreferenceStore) Set(userID, key, value string) error {
 	s.items[userID][key] = value
 	return nil
 }
-

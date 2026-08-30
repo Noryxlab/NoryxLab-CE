@@ -133,6 +133,7 @@ type SecretStore struct{ *Store }
 func (s *SecretStore) ListByUser(userID string) ([]secret.Secret, error) {
 	return s.Store.ListByUser(userID)
 }
+func (s *SecretStore) ListAll() ([]secret.Secret, error) { return s.Store.ListAllSecrets() }
 func (s *SecretStore) GetByName(userID, name string) (secret.Secret, bool, error) {
 	return s.Store.GetByName(userID, name)
 }
@@ -236,6 +237,9 @@ type RepositoryStore struct{ *Store }
 
 func (s *RepositoryStore) ListByUser(userID string) ([]repository.Repository, error) {
 	return s.Store.ListRepositoriesByUser(userID)
+}
+func (s *RepositoryStore) ListAll() ([]repository.Repository, error) {
+	return s.Store.ListAllRepositories()
 }
 func (s *RepositoryStore) GetByID(id string) (repository.Repository, bool, error) {
 	return s.Store.GetRepositoryByID(id)
