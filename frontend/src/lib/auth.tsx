@@ -150,13 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return keycloak.token ?? null;
       },
       onUnauthorized: () => {
-        // A 401 is an application error, not an instruction to restart the
-        // browser navigation. Keeping the user on the sign-in screen makes a
-        // broken API audience or an expired session diagnosable and avoids an
-        // infinite Keycloak redirect loop.
-        keycloak.clearToken();
-        setIdentity(null);
-        setStatus('anonymous');
+        // Providers such as theme preferences can make a harmless request
+        // before OIDC has finished initialising. A global 401 must never
+        // alter the authentication state: callers receive the ApiError and
+        // decide how to render it, while the OIDC flow stays authoritative.
       },
     });
 
