@@ -25,6 +25,7 @@ OPS_SECRET="${NORYX_OPS_SECRET:-noryx-ops-account}"
 BE_PORT="${NORYX_BE_PORT:-18090}"
 KC_PORT="${NORYX_KC_PORT:-18091}"
 DEPTH="${NORYX_DEPTH:-1}"   # 2 pour deplier les objets imbriques
+RAW="${NORYX_RAW:-0}"      # 1 pour afficher les valeurs, pour un controle operationnel
 
 ENDPOINTS="${NORYX_ENDPOINTS:-version platform/overview admin/overview admin/inventory \
 hardware-tiers projects datasets datasources ontologies repositories secrets cronjobs jobs \
@@ -88,6 +89,13 @@ for EP in $ENDPOINTS; do
   BODY="$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $TOKEN" \
           "http://127.0.0.1:$BE_PORT/api/v1/$EP")"
   echo "  HTTP $(printf '%s' "$BODY" | tail -1)"
+  if [ "$RAW" = "1" ]; then
+    # Values, not shapes. For operational checks only: the output can contain
+    # real data, so do not paste it anywhere without reading it first.
+    printf '%s' "$BODY" | sed '$d' | python3 -m json.tool 2>/dev/null | head -40 \
+      || printf '%s' "$BODY" | sed '$d' | head -c 600
+    continue
+  fi
   printf '%s' "$BODY" | sed '$d' | NORYX_DEPTH="$DEPTH" python3 -c '
 import json, sys
 try:

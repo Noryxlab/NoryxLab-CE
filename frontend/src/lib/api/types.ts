@@ -365,6 +365,16 @@ export interface StorageEndpoint {
   updatedAt: string;
 }
 
+/** Parsed contents of BackupRun.report, which the API returns as a JSON
+ *  string. `warnings` is where an incomplete backup declares itself. */
+export interface BackupReport {
+  bytes?: number;
+  status?: string;
+  warnings?: string[];
+  objectKey?: string;
+  manifestSha256?: string;
+}
+
 export interface BackupRun {
   id: string;
   status: string;

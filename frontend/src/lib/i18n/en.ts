@@ -608,6 +608,7 @@ export const en: Translations = {
     backupHistory: 'History',
     backupEmpty: 'No backups',
     backupEmptyHint: 'Configure an S3 target then run a first backup.',
+    backupIncomplete: 'The latest backup completed with caveats. Its contents are incomplete.',
     backupNotConfigured: 'No target configured',
     backupConfigured: 'Target configured',
     bucket: 'Bucket',

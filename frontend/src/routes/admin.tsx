@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
 import {
   Activity,
+  AlertTriangle,
   Boxes,
   Check,
   Cpu,
@@ -77,6 +78,7 @@ import type {
   PlatformUser,
   RbacCell,
   StorageEndpoint,
+  BackupReport,
   BackupRun,
 } from '@/lib/api/types';
 
@@ -1150,6 +1152,18 @@ function BackupsSection() {
     onError: (error) => toast.error(error, t('admin.backupRun')),
   });
 
+  // The report is a JSON string, and its `warnings` array is how a run
+  // declares that it succeeded without actually copying anything. Surfacing
+  // it is the difference between a backup and the belief that there is one.
+  function parseReport(backup: BackupRun): BackupReport | null {
+    if (!backup.report) return null;
+    try {
+      return JSON.parse(backup.report) as BackupReport;
+    } catch {
+      return null;
+    }
+  }
+
   const columns: Column<BackupRun>[] = [
     {
       id: 'startedAt',
@@ -1162,7 +1176,32 @@ function BackupsSection() {
     {
       id: 'status',
       header: t('common.status'),
-      cell: (backup) => <StatusBadge status={backup.status} locale={locale} />,
+      cell: (backup) => {
+        const report = parseReport(backup);
+        const warnings = report?.warnings ?? [];
+        return (
+          <span className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={backup.status} locale={locale} />
+            {warnings.length > 0 ? (
+              <Badge tone="warning" title={warnings.join('\n')}>
+                <AlertTriangle className="size-3" aria-hidden />
+                {warnings.length}
+              </Badge>
+            ) : null}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'size',
+      header: t('common.size'),
+      align: 'right',
+      sortValue: (backup) => parseReport(backup)?.bytes ?? 0,
+      cell: (backup) => (
+        <span className="tabular-nums text-muted-foreground">
+          {formatBytes(parseReport(backup)?.bytes, locale)}
+        </span>
+      ),
     },
     {
       id: 'object',
@@ -1186,6 +1225,16 @@ function BackupsSection() {
   ];
 
   const configured = status.data?.configured === true;
+
+  // Warnings from the most recent run, hoisted into a banner: a run that
+  // reports success while copying nothing is the failure mode that matters.
+  const latestWarnings = React.useMemo(() => {
+    const latest = [...(runs.data ?? [])].sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    )[0];
+    if (!latest) return [];
+    return parseReport(latest)?.warnings ?? [];
+  }, [runs.data]);
 
   return (
     <div className="space-y-4">
@@ -1277,6 +1326,25 @@ function BackupsSection() {
           </Button>
         </CardFooter>
       </Card>
+
+      {latestWarnings.length > 0 ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning-subtle px-4 py-3"
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm font-medium text-warning-foreground">
+              {t('admin.backupIncomplete')}
+            </p>
+            <ul className="list-inside list-disc space-y-0.5 text-xs leading-relaxed text-warning-foreground">
+              {latestWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       <Card>
         <CardHeader>

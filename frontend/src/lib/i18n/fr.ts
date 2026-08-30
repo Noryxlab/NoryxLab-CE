@@ -613,6 +613,7 @@ export const fr = {
     backupHistory: 'Historique',
     backupEmpty: 'Aucune sauvegarde',
     backupEmptyHint: 'Configurez une cible S3 puis lancez une première sauvegarde.',
+    backupIncomplete: 'La dernière sauvegarde s’est terminée avec des réserves. Son contenu est incomplet.',
     backupNotConfigured: 'Aucune cible configurée',
     backupConfigured: 'Cible configurée',
     bucket: 'Bucket',
