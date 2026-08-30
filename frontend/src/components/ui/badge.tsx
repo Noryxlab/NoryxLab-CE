@@ -60,6 +60,12 @@ export function describeStatus(status: string | null | undefined, locale: 'fr' |
     };
   }
 
+  // A degraded run completed but did not fulfil its contract - an incomplete
+  // backup, for instance. It must never read as a success (ADR-034).
+  if (/(degraded|partial|incomplete)/.test(raw)) {
+    return { tone: 'warning', label: fr ? 'Incomplet' : 'Incomplete', pending: false };
+  }
+
   if (/(failed|error|crash|backoff|imagepull|evicted|unhealthy|timeout|cancelled|canceled)/.test(raw)) {
     const cancelled = /(cancelled|canceled)/.test(raw);
     return {
