@@ -126,6 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clientId: config.oidc.clientId,
     });
     keycloakRef.current = keycloak;
+    // Do not let keycloak-js reuse a deep or stateful current URL as the
+    // callback URL. Some browsers can grow it past Keycloak's URI limit.
+    const redirectUri = `${window.location.origin}/`;
 
     configureAuth({
       getToken: async () => {
@@ -139,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return keycloak.token ?? null;
       },
       onUnauthorized: () => {
-        void keycloak.login();
+        void keycloak.login({ redirectUri });
       },
     });
 
@@ -148,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         onLoad: 'check-sso',
         pkceMethod: 'S256',
         checkLoginIframe: false,
+        redirectUri,
         silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
       })
       .then((authenticated) => {
@@ -171,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       isAdmin: Boolean(identity?.roles.some((role) => ADMIN_ROLES.includes(role.toLowerCase()))),
       login: () => {
-        void keycloakRef.current?.login();
+        void keycloakRef.current?.login({ redirectUri: `${window.location.origin}/` });
       },
       logout: () => {
         void keycloakRef.current?.logout({ redirectUri: window.location.origin });
