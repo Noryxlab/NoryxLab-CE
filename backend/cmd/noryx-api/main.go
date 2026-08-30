@@ -227,6 +227,7 @@ func main() {
 	reaperCtx, stopReaper := context.WithCancel(context.Background())
 	defer stopReaper()
 	h.StartWorkspaceReaper(reaperCtx)
+	h.StartJobWatcher(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)
 

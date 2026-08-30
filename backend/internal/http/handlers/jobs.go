@@ -10,6 +10,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
@@ -324,8 +325,68 @@ func (h Handlers) syncJobsFromRuntime() {
 			}
 		}
 		record.ResultAvailable = strings.TrimSpace(record.Result) != ""
+		if found {
+			h.alertOnJobFailure(existing, record)
+		}
 		_ = h.jobStore.Upsert(record)
 	}
+}
+
+// alertOnJobFailure raises an alert when a job crosses into failure.
+//
+// Only a transition alerts, never a status observed for the first time:
+// otherwise every restart would replay the whole history of past failures and
+// the channel would be useless within a week. The cost is that a job which
+// fails while the backend is down is not announced; its failure is still
+// visible in the run history and in the platform health report.
+func (h Handlers) alertOnJobFailure(previous, current job.Job) {
+	if !isFailedJobStatus(current.Status) || isFailedJobStatus(previous.Status) {
+		return
+	}
+	details := map[string]any{
+		"jobId":     current.ID,
+		"projectId": current.ProjectID,
+		"image":     current.Image,
+	}
+	if current.CompletedAt != nil {
+		details["completedAt"] = current.CompletedAt.UTC().Format(time.RFC3339)
+	}
+	if excerpt := strings.TrimSpace(current.Result); excerpt != "" {
+		// The tail is where a stack trace ends, and an alert is read on a
+		// phone: enough to triage, not the whole log.
+		details["extrait"] = lastLines(excerpt, 5)
+	}
+	h.notifier.SendAsync(notify.Alert{
+		Severity: notify.SeverityWarning,
+		Event:    "job.failed",
+		Summary:  "echec du job " + jobDisplayName(current),
+		Details:  details,
+	})
+}
+
+func isFailedJobStatus(status string) bool {
+	return strings.EqualFold(strings.TrimSpace(status), "failed")
+}
+
+func jobDisplayName(record job.Job) string {
+	if name := strings.TrimSpace(record.Name); name != "" {
+		return name
+	}
+	return strings.TrimSpace(record.JobName)
+}
+
+// lastLines returns the final n non-empty lines of text.
+func lastLines(text string, n int) string {
+	lines := []string{}
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, strings.TrimSpace(line))
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, " | ")
 }
 
 func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo) string {

@@ -57,6 +57,7 @@ func (h Handlers) GetPlatformHealth(w http.ResponseWriter, r *http.Request) {
 	alerts = append(alerts, h.backupAlerts()...)
 	alerts = append(alerts, h.deploymentAlerts()...)
 	alerts = append(alerts, h.workspaceLifetimeAlerts()...)
+	alerts = append(alerts, h.jobFailureAlerts()...)
 
 	// Most severe first: an operator reads the top of the list.
 	rank := map[healthSeverity]int{healthCritical: 0, healthWarning: 1, healthInfo: 2}
@@ -134,6 +135,50 @@ func (h Handlers) backupAlerts() []healthAlert {
 		}}
 	}
 	return nil
+}
+
+// jobFailureAlerts reports failures from the last day. A webhook alert is a
+// moment in time and is easily missed; the health report is what an operator
+// can still consult afterwards.
+func (h Handlers) jobFailureAlerts() []healthAlert {
+	if h.jobStore == nil {
+		return nil
+	}
+	records, err := h.jobStore.List()
+	if err != nil {
+		return nil
+	}
+	since := time.Now().UTC().Add(-24 * time.Hour)
+	names := []string{}
+	var latest *time.Time
+	for _, record := range records {
+		if !isFailedJobStatus(record.Status) {
+			continue
+		}
+		at := record.CreatedAt
+		if record.CompletedAt != nil {
+			at = *record.CompletedAt
+		}
+		if at.Before(since) {
+			continue
+		}
+		names = append(names, jobDisplayName(record))
+		if latest == nil || at.After(*latest) {
+			moment := at
+			latest = &moment
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	return []healthAlert{{
+		Severity: healthWarning,
+		Source:   "jobs",
+		Summary:  strconv.Itoa(len(names)) + " job(s) en echec sur les dernieres 24 heures",
+		Detail:   strings.Join(names, ", "),
+		Since:    latest,
+		Action:   "activity",
+	}}
 }
 
 func (h Handlers) deploymentAlerts() []healthAlert {
