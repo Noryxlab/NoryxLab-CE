@@ -653,6 +653,13 @@ export const fr = {
     allClear: 'Aucun problème détecté.',
     indicator: 'Alertes plateforme',
   },
+  settings: {
+    title: 'Réglages de la plateforme',
+    subtitle: 'Paramètres modifiables sans redéploiement.',
+    precedence: 'Un réglage défini ici prime sur la variable d’environnement, qui prime sur la valeur par défaut. Vider un champ rétablit la valeur héritée.',
+    saved: 'Réglage enregistré.',
+    unset: 'Non défini',
+  },
   errors: {
     notFoundTitle: 'Page introuvable',
     notFoundHint: 'Le lien que vous avez suivi n’existe pas ou n’existe plus.',

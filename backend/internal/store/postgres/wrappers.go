@@ -331,3 +331,12 @@ func (s *BackupRunStore) Create(item backup.Run) error {
 func (s *BackupRunStore) Update(item backup.Run) error {
 	return s.Store.UpdateBackupRun(item)
 }
+
+// SettingsStore exposes platform settings through the settings.Store contract.
+type SettingsStore struct{ *Store }
+
+func (s *SettingsStore) Get(key string) (string, bool, error) { return s.Store.GetSetting(key) }
+func (s *SettingsStore) Set(key, value, actor string) error {
+	return s.Store.SetSetting(key, value, actor)
+}
+func (s *SettingsStore) List() (map[string]string, error) { return s.Store.ListSettings() }

@@ -38,12 +38,16 @@ func TestWorkspaceReaperSelectsOnlyExpired(t *testing.T) {
 	}
 }
 
-// A non-positive lifetime must disable the sweep entirely: reclaiming a user's
-// workspace is a decision an operator opts into.
-func TestWorkspaceReaperDisabledByDefault(t *testing.T) {
-	for _, lifetime := range []time.Duration{0, -time.Hour} {
-		var h Handlers
-		// Returns without starting a goroutine or touching the nil store.
-		h.StartWorkspaceReaper(t.Context(), lifetime)
+// With no settings store and no boot value, the effective lifetime is zero and
+// each sweep skips rather than reclaiming everything ever created.
+func TestWorkspaceLifetimeFallsBackToBootValue(t *testing.T) {
+	var h Handlers
+	if got := h.currentWorkspaceLifetime(); got != 0 {
+		t.Fatalf("expected 0 with nothing configured, got %s", got)
+	}
+
+	h.workspaceMaxLifetime = 12 * time.Hour
+	if got := h.currentWorkspaceLifetime(); got != 12*time.Hour {
+		t.Fatalf("expected the boot value when no settings store exists, got %s", got)
 	}
 }

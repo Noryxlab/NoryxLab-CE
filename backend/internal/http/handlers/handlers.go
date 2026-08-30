@@ -9,6 +9,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/settings"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	"github.com/minio/minio-go/v7"
 )
@@ -36,6 +37,7 @@ type Handlers struct {
 	backupRunStore                   store.BackupRunStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
+	settings                         *settings.Resolver
 	storageEndpointStore             store.StorageEndpointStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
@@ -122,7 +124,10 @@ type Options struct {
 	AlertInstanceName string
 	// WorkspaceMaxLifetime is echoed here so the health report can tell which
 	// workspaces the reaper should already have reclaimed.
-	WorkspaceMaxLifetime         time.Duration
+	WorkspaceMaxLifetime time.Duration
+	// Settings resolves administrator overrides at use time, so a change takes
+	// effect without a redeployment.
+	Settings                     *settings.Resolver
 	SecretsMasterKey             string
 	MinIOClient                  *minio.Client
 	MinIOEndpoint                string
@@ -139,6 +144,19 @@ type Options struct {
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
 	AssistantPublicURL           string
+}
+
+// newNotifier resolves the webhook from the settings store when one exists, so
+// an administrator can change the destination without a redeployment, and falls
+// back to the boot configuration otherwise.
+func newNotifier(options Options) *notify.Notifier {
+	if options.Settings == nil {
+		return notify.New(options.AlertWebhookURL, options.AlertInstanceName)
+	}
+	return notify.NewDynamic(func() (string, string) {
+		return options.Settings.String(settings.KeyAlertWebhookURL),
+			options.Settings.String(settings.KeyAlertInstanceName)
+	})
 }
 
 func New(
@@ -202,8 +220,9 @@ func New(
 		userPreferenceStore:              userPreferenceStore,
 		rbacPolicyStore:                  rbacPolicyStore,
 		backupRunStore:                   backupRunStore,
-		notifier:                         notify.New(options.AlertWebhookURL, options.AlertInstanceName),
+		notifier:                         newNotifier(options),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
+		settings:                         options.Settings,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

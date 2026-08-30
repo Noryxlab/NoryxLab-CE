@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/settings"
 )
 
 // Workspace lifetime reaper.
@@ -29,14 +30,13 @@ const (
 	workspaceReaperGrace = 1 * time.Minute
 )
 
-// StartWorkspaceReaper runs the lifetime sweep until ctx is cancelled. A
-// non-positive lifetime disables it entirely, which is the default.
-func (h Handlers) StartWorkspaceReaper(ctx context.Context, maxLifetime time.Duration) {
-	if maxLifetime <= 0 {
-		log.Printf("workspace reaper disabled (no maximum lifetime configured)")
-		return
-	}
-	log.Printf("workspace reaper enabled: workspaces are stopped after %s", maxLifetime)
+// StartWorkspaceReaper runs the lifetime sweep until ctx is cancelled.
+//
+// The lifetime is read on every sweep rather than captured at start-up, so an
+// administrator changing it takes effect within one interval instead of at the
+// next redeployment. A non-positive value disables the sweep for that pass.
+func (h Handlers) StartWorkspaceReaper(ctx context.Context) {
+	log.Printf("workspace reaper started (lifetime resolved on each sweep, currently %s)", h.currentWorkspaceLifetime())
 
 	go func() {
 		ticker := time.NewTicker(workspaceReaperInterval)
@@ -46,10 +46,23 @@ func (h Handlers) StartWorkspaceReaper(ctx context.Context, maxLifetime time.Dur
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				h.reapExpiredWorkspaces(maxLifetime)
+				lifetime := h.currentWorkspaceLifetime()
+				if lifetime <= 0 {
+					continue
+				}
+				h.reapExpiredWorkspaces(lifetime)
 			}
 		}
 	}()
+}
+
+// currentWorkspaceLifetime prefers the administrator override and falls back to
+// the value resolved at boot when no settings store is available.
+func (h Handlers) currentWorkspaceLifetime() time.Duration {
+	if h.settings != nil {
+		return h.settings.Duration(settings.KeyWorkspaceMaxLifetime)
+	}
+	return h.workspaceMaxLifetime
 }
 
 func (h Handlers) reapExpiredWorkspaces(maxLifetime time.Duration) {

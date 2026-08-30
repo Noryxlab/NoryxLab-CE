@@ -440,6 +440,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			updated_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (user_id, key)
 		)`,
+		`CREATE TABLE IF NOT EXISTS platform_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_by TEXT NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS rbac_policy (
 			id TEXT PRIMARY KEY,
 			policy_json JSONB NOT NULL,
@@ -2141,6 +2147,55 @@ func (s *Store) SetUserPreference(userID, key, value string) error {
 		time.Now().UTC(),
 	)
 	return err
+}
+
+// Platform settings: administrator overrides of the values an environment
+// variable would otherwise pin until the next redeployment.
+
+func (s *Store) GetSetting(key string) (string, bool, error) {
+	var value string
+	err := s.db.QueryRow(`SELECT value FROM platform_settings WHERE key=$1`, strings.TrimSpace(key)).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return value, true, nil
+}
+
+func (s *Store) SetSetting(key, value, actor string) error {
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	if value == "" {
+		// Clearing removes the override so the environment value applies again,
+		// rather than pinning an empty string over it.
+		_, err := s.db.Exec(`DELETE FROM platform_settings WHERE key=$1`, key)
+		return err
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO platform_settings (key, value, updated_by, updated_at) VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
+		key, value, strings.TrimSpace(actor), time.Now().UTC(),
+	)
+	return err
+}
+
+func (s *Store) ListSettings() (map[string]string, error) {
+	rows, err := s.db.Query(`SELECT key, value FROM platform_settings`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, err
+		}
+		out[key] = value
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) GetRBACPolicy() (json.RawMessage, bool, error) {

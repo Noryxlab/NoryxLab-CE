@@ -605,6 +605,22 @@ export interface AssistantIssueDraft {
   url?: string;
 }
 
+export interface EffectiveSetting {
+  key: string;
+  envVar: string;
+  kind: 'duration' | 'string' | 'url' | 'enum';
+  label: string;
+  description: string;
+  values?: string[];
+  fallback: string;
+  secret: boolean;
+  value: string;
+  /** Where the current value comes from, so an operator can tell why it is
+   *  what it is rather than guessing between manifest and environment. */
+  source: 'stored' | 'environment' | 'default';
+  overridable: boolean;
+}
+
 export type HealthSeverity = 'critical' | 'warning' | 'info';
 
 export interface HealthAlert {

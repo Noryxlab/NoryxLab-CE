@@ -69,6 +69,7 @@ import { useExtensions } from '@/lib/extensions';
 import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
+import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
   DataUsageEdge,
@@ -93,6 +94,7 @@ const SECTIONS = [
   'storage',
   'backups',
   'audit',
+  'settings',
 ] as const;
 
 /* -- overview -------------------------------------------------------------- */
@@ -1524,6 +1526,7 @@ export function AdminPage() {
           <TabsTrigger value="rbac">{t('nav.rbac')}</TabsTrigger>
           <TabsTrigger value="storage">{t('nav.storage')}</TabsTrigger>
           <TabsTrigger value="audit">{t('nav.audit')}</TabsTrigger>
+          <TabsTrigger value="settings">{t('common.settings')}</TabsTrigger>
           {/* Data-usage mapping and platform backups are Enterprise modules
               (ADR-026), so the tabs only exist where the module is deployed
               instead of rendering a section the API will refuse. */}
@@ -1560,6 +1563,9 @@ export function AdminPage() {
         </TabsContent>
         <TabsContent value="audit">
           <AuditSection />
+        </TabsContent>
+        <TabsContent value="settings">
+          <PlatformSettingsSection />
         </TabsContent>
         {isEnterprise() ? (
           <>

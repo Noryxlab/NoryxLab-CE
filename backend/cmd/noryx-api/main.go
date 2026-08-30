@@ -13,6 +13,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime/k8s"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/settings"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/postgres"
@@ -42,6 +43,7 @@ func main() {
 	var projectOntologyStore store.ProjectOntologyStore = memory.NewProjectOntologyStore()
 	var userPreferenceStore store.UserPreferenceStore = memory.NewUserPreferenceStore()
 	var rbacPolicyStore store.RBACPolicyStore = memory.NewRBACPolicyStore()
+	var settingsStore settings.Store = memory.NewSettingsStore()
 	var backupRunStore store.BackupRunStore = memory.NewBackupRunStore()
 	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
@@ -79,6 +81,7 @@ func main() {
 			projectOntologyStore = &postgres.ProjectOntologyStore{Store: pg}
 			userPreferenceStore = &postgres.UserPreferenceStore{Store: pg}
 			rbacPolicyStore = &postgres.RBACPolicyStore{Store: pg}
+			settingsStore = &postgres.SettingsStore{Store: pg}
 			backupRunStore = &postgres.BackupRunStore{Store: pg}
 			storageEndpointStore = &postgres.StorageEndpointStore{Store: pg}
 			log.Printf("postgres store backend enabled")
@@ -131,6 +134,8 @@ func main() {
 	} else {
 		keycloakClient = kc
 	}
+
+	settingsResolver := settings.NewResolver(settingsStore)
 
 	h := handlers.New(
 		projectStore,
@@ -189,6 +194,7 @@ func main() {
 			AlertWebhookURL:                  cfg.AlertWebhookURL,
 			AlertInstanceName:                cfg.AlertInstanceName,
 			WorkspaceMaxLifetime:             cfg.WorkspaceMaxLifetime,
+			Settings:                         settingsResolver,
 			EditionHooks: &edition.Hooks{
 				Feature: edition.FeatureGateFromCSV(cfg.EnabledFeatures),
 			},
@@ -214,7 +220,7 @@ func main() {
 	// reclaims capacity even if no request is ever served.
 	reaperCtx, stopReaper := context.WithCancel(context.Background())
 	defer stopReaper()
-	h.StartWorkspaceReaper(reaperCtx, cfg.WorkspaceMaxLifetime)
+	h.StartWorkspaceReaper(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)
 

@@ -648,6 +648,13 @@ export const en: Translations = {
     allClear: 'No problem detected.',
     indicator: 'Platform alerts',
   },
+  settings: {
+    title: 'Platform settings',
+    subtitle: 'Parameters changeable without a redeployment.',
+    precedence: 'A value set here overrides the environment variable, which overrides the default. Clearing a field restores the inherited value.',
+    saved: 'Setting saved.',
+    unset: 'Not set',
+  },
   errors: {
     notFoundTitle: 'Page not found',
     notFoundHint: 'The link you followed does not exist, or no longer exists.',

@@ -48,7 +48,10 @@ type Alert struct {
 type Notifier struct {
 	webhookURL string
 	instance   string
-	client     *http.Client
+	// resolve, when set, supplies the destination at send time so an
+	// administrator changing it takes effect without a restart.
+	resolve func() (webhookURL string, instance string)
+	client  *http.Client
 }
 
 // New returns a Notifier posting to webhookURL. An empty URL disables
@@ -70,23 +73,48 @@ func New(webhookURL, instance string) *Notifier {
 	}
 }
 
+// NewDynamic resolves its destination on every send, so the webhook can be
+// changed from the administration interface rather than by redeploying.
+func NewDynamic(resolve func() (string, string)) *Notifier {
+	return &Notifier{
+		resolve: resolve,
+		client:  &http.Client{Timeout: 10 * time.Second},
+	}
+}
+
+func (n *Notifier) destination() (string, string) {
+	if n == nil {
+		return "", ""
+	}
+	if n.resolve != nil {
+		url, instance := n.resolve()
+		return strings.TrimSpace(url), strings.TrimSpace(instance)
+	}
+	return n.webhookURL, n.instance
+}
+
 func (n *Notifier) Enabled() bool {
-	return n != nil && n.webhookURL != ""
+	if n == nil {
+		return false
+	}
+	url, _ := n.destination()
+	return url != ""
 }
 
 // Send delivers an alert. Failures are logged and swallowed: a broken
 // alerting channel must never take down the operation that raised the alert.
 func (n *Notifier) Send(ctx context.Context, alert Alert) {
-	if !n.Enabled() {
+	webhookURL, instance := n.destination()
+	if webhookURL == "" {
 		return
 	}
 	if alert.OccurredAt.IsZero() {
 		alert.OccurredAt = time.Now().UTC()
 	}
 	if alert.Text == "" {
-		alert.Text = alert.render(n.instance)
+		alert.Text = alert.render(instance)
 	}
-	alert.Instance = n.instance
+	alert.Instance = instance
 	alert.SchemaVersi = "noryx-alert-v1"
 
 	body, err := json.Marshal(alert)
@@ -97,7 +125,7 @@ func (n *Notifier) Send(ctx context.Context, alert Alert) {
 
 	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(sendCtx, http.MethodPost, n.webhookURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(sendCtx, http.MethodPost, webhookURL, bytes.NewReader(body))
 	if err != nil {
 		log.Printf("alert %q could not be prepared: %v", alert.Event, err)
 		return

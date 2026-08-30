@@ -174,7 +174,8 @@ func (h Handlers) deploymentAlerts() []healthAlert {
 // workspaceLifetimeAlerts reports workspaces the reaper should have reclaimed
 // but has not, which means teardown is failing and capacity is leaking.
 func (h Handlers) workspaceLifetimeAlerts() []healthAlert {
-	if h.workspaceStore == nil || h.workspaceMaxLifetime <= 0 {
+	maxLifetime := h.currentWorkspaceLifetime()
+	if h.workspaceStore == nil || maxLifetime <= 0 {
 		return nil
 	}
 	records, err := h.workspaceStore.List()
@@ -183,7 +184,7 @@ func (h Handlers) workspaceLifetimeAlerts() []healthAlert {
 	}
 	// Generous margin over the sweep interval: a workspace one tick past its
 	// deadline is not a problem, one an hour past it is.
-	deadline := time.Now().UTC().Add(-h.workspaceMaxLifetime - time.Hour)
+	deadline := time.Now().UTC().Add(-maxLifetime - time.Hour)
 	stale := []string{}
 	for _, record := range records {
 		if record.CreatedAt.Before(deadline) {

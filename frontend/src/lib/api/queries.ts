@@ -70,6 +70,7 @@ export const qk = {
 
   adminOverview: ['admin', 'overview'] as const,
   adminHealth: ['admin', 'health'] as const,
+  adminSettings: ['admin', 'settings'] as const,
   adminUsers: ['admin', 'users'] as const,
   adminExecutions: ['admin', 'executions'] as const,
   adminPods: ['admin', 'pods'] as const,
@@ -304,6 +305,9 @@ export const useProjectEgressRules = (projectId: string | undefined) =>
 
 export const useAdminOverview = () =>
   useQuery({ queryKey: qk.adminOverview, queryFn: adminApi.overview, refetchInterval: 30_000 });
+
+export const usePlatformSettings = () =>
+  useQuery({ queryKey: qk.adminSettings, queryFn: adminApi.settings });
 
 export const useAdminUsers = () => useQuery({ queryKey: qk.adminUsers, queryFn: adminApi.users });
 

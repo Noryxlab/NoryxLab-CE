@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminOverview,
+  EffectiveSetting,
   HealthReport,
   App,
   AppRevision,
@@ -356,6 +357,9 @@ export const egressApi = {
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   health: () => api.get<HealthReport>(`${V1}/admin/health`),
+  settings: () => api.list<EffectiveSetting>(`${V1}/admin/settings`),
+  updateSetting: (key: string, value: string) =>
+    api.put<{ items: EffectiveSetting[] }>(`${V1}/admin/settings/${encodeURIComponent(key)}`, { value }),
   users: () => api.list<PlatformUser>(`${V1}/admin/users`),
   inventory: () => api.get<AdminInventory>(`${V1}/admin/inventory`),
   modules: () => api.list<ModuleInfo>(`${V1}/admin/modules`),
