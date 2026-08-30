@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,18 +47,37 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
   { className, variant, size, asChild = false, loading = false, children, disabled, ...props },
   ref,
 ) {
-  const Comp = asChild ? Slot : 'button';
+  const classes = cn(buttonVariants({ variant, size }), className);
+
+  if (asChild) {
+    // Radix Slot is convenient but throws at runtime when a composed primitive
+    // forwards multiple children. Button-as-link only needs to pass its visual
+    // and interaction props to one explicit child, which React can do safely.
+    const child = React.Children.only(children) as React.ReactElement<{
+      className?: string;
+      children?: React.ReactNode;
+    }>;
+    return React.cloneElement(child, {
+      ...props,
+      ref,
+      className: cn(classes, child.props.className),
+      'aria-busy': loading || undefined,
+      'aria-disabled': disabled || loading || undefined,
+      children: loading ? <Loader2 className="animate-spin" aria-hidden /> : child.props.children,
+    } as React.Attributes & Record<string, unknown>);
+  }
+
   return (
-    <Comp
+    <button
       ref={ref}
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={classes}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       {...props}
     >
       {loading ? <Loader2 className="animate-spin" aria-hidden /> : null}
       {children}
-    </Comp>
+    </button>
   );
 });
 
