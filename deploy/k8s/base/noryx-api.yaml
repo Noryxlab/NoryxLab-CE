@@ -84,6 +84,13 @@ spec:
             # the default: reclaiming a user's workspace is an operator's
             # decision. Set a duration such as "12h" to stop workspaces that
             # outlive it. This is an age limit, not idle detection (ADR-034).
+            # Operator alerting. Empty disables delivery. Any HTTP endpoint
+            # works; the payload carries a `text` field so Slack, Teams and
+            # Mattermost incoming webhooks render it directly (ADR-034).
+            - name: NORYX_ALERT_WEBHOOK_URL
+              value: ""
+            - name: NORYX_ALERT_INSTANCE_NAME
+              value: "datalab.example.local"
             - name: NORYX_WORKSPACE_MAX_LIFETIME
               value: ""
             - name: NORYX_KUBE_NAMESPACE

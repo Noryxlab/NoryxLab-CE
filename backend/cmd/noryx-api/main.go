@@ -186,6 +186,8 @@ func main() {
 			BackendVersion:                   cfg.BackendVersion,
 			Edition:                          cfg.Edition,
 			DefaultTheme:                     cfg.DefaultTheme,
+			AlertWebhookURL:                  cfg.AlertWebhookURL,
+			AlertInstanceName:                cfg.AlertInstanceName,
 			EditionHooks: &edition.Hooks{
 				Feature: edition.FeatureGateFromCSV(cfg.EnabledFeatures),
 			},

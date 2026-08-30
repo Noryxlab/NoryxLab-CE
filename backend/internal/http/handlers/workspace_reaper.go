@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 )
 
 // Workspace lifetime reaper.
@@ -71,6 +73,20 @@ func (h Handlers) reapExpiredWorkspaces(maxLifetime time.Duration) {
 			// workspace that cannot be torn down must not vanish from the
 			// store while its pod is still running.
 			log.Printf("workspace reaper: cannot tear down %s (age %s): %v", record.ID, age, err)
+			// A workspace the platform cannot reclaim keeps consuming capacity
+			// indefinitely and will not resolve itself.
+			h.notifier.SendAsync(notify.Alert{
+				Severity: notify.SeverityWarning,
+				Event:    "workspace.reap.failed",
+				Summary:  "un workspace expire n'a pas pu etre arrete",
+				Details: map[string]any{
+					"workspaceId": record.ID,
+					"name":        record.Name,
+					"projectId":   record.ProjectID,
+					"ageMinutes":  int(age.Minutes()),
+					"detail":      err.Error(),
+				},
+			})
 			continue
 		}
 		if err := h.workspaceStore.Delete(record.ID); err != nil {

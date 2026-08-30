@@ -56,7 +56,12 @@ type Config struct {
 	// WorkspaceMaxLifetime stops workspaces once they reach this age. Zero
 	// disables the sweep, which is the default: reclaiming a user's workspace
 	// is a policy decision an operator has to make deliberately.
-	WorkspaceMaxLifetime          time.Duration
+	WorkspaceMaxLifetime time.Duration
+	// AlertWebhookURL receives operator alerts. Empty disables delivery.
+	AlertWebhookURL string
+	// AlertInstanceName names this platform in an alert, so an operator
+	// watching several installations can tell them apart.
+	AlertInstanceName             string
 	WorkspaceProfilePVCAccessMode string
 	WorkspaceProfilePVCMountPath  string
 	ProjectFilesImage             string
@@ -113,6 +118,9 @@ func Load() Config {
 			workspaceMaxLifetime = parsed
 		}
 	}
+
+	alertWebhookURL := strings.TrimSpace(os.Getenv("NORYX_ALERT_WEBHOOK_URL"))
+	alertInstanceName := strings.TrimSpace(os.Getenv("NORYX_ALERT_INSTANCE_NAME"))
 
 	namespace := os.Getenv("NORYX_KUBE_NAMESPACE")
 	if namespace == "" {
@@ -304,6 +312,8 @@ func Load() Config {
 		WorkspaceProfilePVCClass:         workspaceProfilePVCClass,
 		WorkspaceProfilePVCSize:          workspaceProfilePVCSize,
 		WorkspaceMaxLifetime:             workspaceMaxLifetime,
+		AlertWebhookURL:                  alertWebhookURL,
+		AlertInstanceName:                alertInstanceName,
 		WorkspaceProfilePVCAccessMode:    workspaceProfilePVCAccessMode,
 		WorkspaceProfilePVCMountPath:     workspaceProfilePVCMountPath,
 		ProjectFilesImage:                projectFilesImage,
