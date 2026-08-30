@@ -67,7 +67,7 @@ function BootSkeleton() {
  */
 export function AuthGate() {
   const t = useT();
-  const { status, identity, error, login } = useAuth();
+  const { status, error, login } = useAuth();
 
   if (status === 'initialising') return <BootSkeleton />;
 
@@ -102,18 +102,8 @@ export function AuthGate() {
     );
   }
 
-  // Organisations are only enforced when the deployment actually uses them,
-  // so a CE install without Keycloak organisations is not locked out.
-  const requiresOrganization = config.features['requireOrganization'] === true;
-  if (requiresOrganization && identity && identity.organizations.length === 0) {
-    return (
-      <CentredCard
-        icon={ShieldAlert}
-        title={t('errors.noOrganizationTitle')}
-        description={t('errors.noOrganizationHint')}
-      />
-    );
-  }
-
+  // Mandatory organisation membership is verified by the backend against
+  // Keycloak. Token claims are presentation data and must not independently
+  // lock out a valid member when a Keycloak mapper changes.
   return <Outlet />;
 }
