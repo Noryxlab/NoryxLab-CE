@@ -95,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [identity, setIdentity] = React.useState<Identity | null>(null);
   const [error, setError] = React.useState<unknown>(null);
   const keycloakRef = React.useRef<Keycloak | null>(null);
+  const loginInFlightRef = React.useRef(false);
 
   React.useEffect(() => {
     // Header mode is the local development path: the API trusts X-Noryx-User
@@ -129,6 +130,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Do not let keycloak-js reuse a deep or stateful current URL as the
     // callback URL. Some browsers can grow it past Keycloak's URI limit.
     const redirectUri = `${window.location.origin}/`;
+    const startLogin = () => {
+      if (loginInFlightRef.current) return;
+      loginInFlightRef.current = true;
+      void keycloak.login({ redirectUri }).catch((cause: unknown) => {
+        loginInFlightRef.current = false;
+        setError(cause);
+        setStatus('failed');
+      });
+    };
 
     configureAuth({
       getToken: async () => {
@@ -142,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return keycloak.token ?? null;
       },
       onUnauthorized: () => {
-        void keycloak.login({ redirectUri });
+        startLogin();
       },
     });
 
@@ -175,7 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       isAdmin: Boolean(identity?.roles.some((role) => ADMIN_ROLES.includes(role.toLowerCase()))),
       login: () => {
-        void keycloakRef.current?.login({ redirectUri: `${window.location.origin}/` });
+        if (loginInFlightRef.current) return;
+        loginInFlightRef.current = true;
+        void keycloakRef.current?.login({ redirectUri: `${window.location.origin}/` }).catch((cause: unknown) => {
+          loginInFlightRef.current = false;
+          setError(cause);
+          setStatus('failed');
+        });
       },
       logout: () => {
         void keycloakRef.current?.logout({ redirectUri: window.location.origin });
