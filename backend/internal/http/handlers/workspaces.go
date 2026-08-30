@@ -1284,29 +1284,9 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.runtime != nil {
-		if err := h.runtime.DeleteService(record.ServiceName); err != nil {
-			if !isNotFoundError(err) {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace service delete failed: " + err.Error()})
-				return
-			}
-		}
-		if err := h.runtime.DeletePod(record.PodName); err != nil {
-			if !isNotFoundError(err) {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace pod delete failed: " + err.Error()})
-				return
-			}
-		}
-		if err := h.runtime.DeleteSecret(record.PodName + "-bootstrap"); err != nil {
-			if !isNotFoundError(err) {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace bootstrap secret delete failed: " + err.Error()})
-				return
-			}
-		}
-		if err := h.runtime.DeleteSecret(record.PodName + "-user-secrets"); err != nil && !isNotFoundError(err) {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes workspace user secret delete failed: " + err.Error()})
-			return
-		}
+	if err := h.deleteWorkspaceResources(record); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
 	}
 
 	if err := h.workspaceStore.Delete(record.ID); err != nil {
@@ -1319,6 +1299,30 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		"name":    record.Name,
 		"podName": record.PodName,
 	})
+}
+
+// deleteWorkspaceResources tears down the Kubernetes objects backing a
+// workspace. Shared by the delete endpoint and the lifetime reaper so the two
+// cannot drift apart; a resource already gone is not an error.
+func (h Handlers) deleteWorkspaceResources(record workspace.Workspace) error {
+	if h.runtime == nil {
+		return nil
+	}
+	steps := []struct {
+		what   string
+		delete func() error
+	}{
+		{"service", func() error { return h.runtime.DeleteService(record.ServiceName) }},
+		{"pod", func() error { return h.runtime.DeletePod(record.PodName) }},
+		{"bootstrap secret", func() error { return h.runtime.DeleteSecret(record.PodName + "-bootstrap") }},
+		{"user secret", func() error { return h.runtime.DeleteSecret(record.PodName + "-user-secrets") }},
+	}
+	for _, step := range steps {
+		if err := step.delete(); err != nil && !isNotFoundError(err) {
+			return fmt.Errorf("kubernetes workspace %s delete failed: %w", step.what, err)
+		}
+	}
+	return nil
 }
 
 func isNotFoundError(err error) bool {

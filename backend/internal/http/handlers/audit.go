@@ -33,6 +33,14 @@ func (h Handlers) emitAudit(r *http.Request, actorUserID, action, resourceType, 
 	_ = h.auditStore.Create(event)
 }
 
+// emitSystemAudit records an action the platform took on its own initiative,
+// with no request and no human actor behind it. Background sweeps still have
+// to be accountable: an operator finding a workspace gone needs to be able to
+// see that the platform stopped it and why.
+func (h Handlers) emitSystemAudit(action, resourceType, resourceID, projectID string, details map[string]any) {
+	h.emitAudit(nil, "system", action, resourceType, resourceID, projectID, "success", "", details)
+}
+
 func (h Handlers) emitAdvancedAudit(r *http.Request, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode string, details map[string]any) {
 	h.emitAudit(r, actorUserID, action, resourceType, resourceID, projectID, outcome, errorCode, details)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strings"
 
@@ -205,6 +206,12 @@ func main() {
 			AssistantPublicURL:           cfg.AssistantPublicURL,
 		},
 	)
+
+	// Background sweeps start before the listener so a long-running instance
+	// reclaims capacity even if no request is ever served.
+	reaperCtx, stopReaper := context.WithCancel(context.Background())
+	defer stopReaper()
+	h.StartWorkspaceReaper(reaperCtx, cfg.WorkspaceMaxLifetime)
 
 	srv := nhttp.NewServer(cfg, h)
 

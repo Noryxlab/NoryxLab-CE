@@ -1,6 +1,11 @@
 package config
 
-import "os"
+import (
+	"log"
+	"os"
+	"strings"
+	"time"
+)
 
 type Config struct {
 	BackendVersion                   string
@@ -48,23 +53,27 @@ type Config struct {
 	WorkspaceProfilePVCEnabled       bool
 	WorkspaceProfilePVCClass         string
 	WorkspaceProfilePVCSize          string
-	WorkspaceProfilePVCAccessMode    string
-	WorkspaceProfilePVCMountPath     string
-	ProjectFilesImage                string
-	SecretsMasterKey                 string
-	MinIOEndpoint                    string
-	MinIOAccessKey                   string
-	MinIOSecretKey                   string
-	MinIOUseSSL                      bool
-	MinIORegion                      string
-	HarborURL                        string
-	HarborUsername                   string
-	HarborPassword                   string
-	HarborInsecureSkipVerify         bool
-	AssistantURL                     string
-	AssistantInternalToken           string
-	AssistantDeveloperSigningKey     string
-	AssistantPublicURL               string
+	// WorkspaceMaxLifetime stops workspaces once they reach this age. Zero
+	// disables the sweep, which is the default: reclaiming a user's workspace
+	// is a policy decision an operator has to make deliberately.
+	WorkspaceMaxLifetime          time.Duration
+	WorkspaceProfilePVCAccessMode string
+	WorkspaceProfilePVCMountPath  string
+	ProjectFilesImage             string
+	SecretsMasterKey              string
+	MinIOEndpoint                 string
+	MinIOAccessKey                string
+	MinIOSecretKey                string
+	MinIOUseSSL                   bool
+	MinIORegion                   string
+	HarborURL                     string
+	HarborUsername                string
+	HarborPassword                string
+	HarborInsecureSkipVerify      bool
+	AssistantURL                  string
+	AssistantInternalToken        string
+	AssistantDeveloperSigningKey  string
+	AssistantPublicURL            string
 }
 
 func Load() Config {
@@ -87,6 +96,22 @@ func Load() Config {
 	storeBackend := os.Getenv("NORYX_STORE_BACKEND")
 	if storeBackend == "" {
 		storeBackend = "postgres"
+	}
+
+	// Deliberately not called an idle timeout: without an activity signal from
+	// the workspace this is a maximum age, and naming it otherwise would
+	// promise behaviour the platform cannot deliver (ADR-034).
+	var workspaceMaxLifetime time.Duration
+	if raw := strings.TrimSpace(os.Getenv("NORYX_WORKSPACE_MAX_LIFETIME")); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		switch {
+		case err != nil:
+			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is not a duration, workspace reaping stays disabled", raw)
+		case parsed < 0:
+			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is negative, workspace reaping stays disabled", raw)
+		default:
+			workspaceMaxLifetime = parsed
+		}
 	}
 
 	namespace := os.Getenv("NORYX_KUBE_NAMESPACE")
@@ -278,6 +303,7 @@ func Load() Config {
 		WorkspaceProfilePVCEnabled:       workspaceProfilePVCEnabled == "true",
 		WorkspaceProfilePVCClass:         workspaceProfilePVCClass,
 		WorkspaceProfilePVCSize:          workspaceProfilePVCSize,
+		WorkspaceMaxLifetime:             workspaceMaxLifetime,
 		WorkspaceProfilePVCAccessMode:    workspaceProfilePVCAccessMode,
 		WorkspaceProfilePVCMountPath:     workspaceProfilePVCMountPath,
 		ProjectFilesImage:                projectFilesImage,
