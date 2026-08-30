@@ -14,7 +14,6 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
@@ -439,19 +438,13 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 		volumes = append(volumes, datasetVolumes...)
 
-		continueConfig := ""
-		if req.IDE == "vscode" && h.featureEnabled(edition.FeatureAssistant) && h.assistantPublicURL != "" && h.assistantDeveloperSigningKey != "" {
-			developerToken, err := signDeveloperAssistantToken(h.assistantDeveloperSigningKey, developerAssistantClaims{
-				UserID:      userID,
-				ProjectID:   req.ProjectID,
-				WorkspaceID: record.ID,
-				ExpiresAt:   time.Now().UTC().Add(12 * time.Hour).Unix(),
-			})
-			if err != nil {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
-				return
-			}
-			continueConfig = continueDeveloperAssistantConfig(h.assistantPublicURL, developerToken)
+		// The developer assistant is an Enterprise capability; a Community
+		// build returns an empty configuration and the workspace starts
+		// without it.
+		continueConfig, err := h.workspaceAssistantConfig(req.IDE, userID, req.ProjectID, record.ID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
+			return
 		}
 
 		bootstrapScript := workspaceBootstrapScript(

@@ -20,7 +20,6 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -123,7 +122,7 @@ func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 }
 
 func (h Handlers) datasetAvailableInEdition(item dataset.Dataset) bool {
-	return item.Classification != "hds" || h.featureEnabled(edition.FeatureHDSDatasets)
+	return item.Classification != "hds" || h.hdsDatasetsAvailable()
 }
 
 func (h Handlers) featureEnabled(feature string) bool {
@@ -208,7 +207,7 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	if req.Classification != "hds" {
 		req.Classification = "non-hds"
 	}
-	if req.Classification == "hds" && !h.featureEnabled(edition.FeatureHDSDatasets) {
+	if req.Classification == "hds" && !h.hdsDatasetsAvailable() {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "HDS dataset management requires NoryxLab Enterprise Edition"})
 		return
 	}

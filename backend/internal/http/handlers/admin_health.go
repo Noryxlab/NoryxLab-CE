@@ -86,57 +86,6 @@ func overallHealth(alerts []healthAlert) string {
 	return "healthy"
 }
 
-// backupAlerts reports on the most recent run only. Older failures are history;
-// what matters is whether the platform is protected right now.
-func (h Handlers) backupAlerts() []healthAlert {
-	// No store means the edition does not ship backups at all; an empty store
-	// means none has run yet, which is reported below rather than here.
-	if h.backupRunStore == nil {
-		return nil
-	}
-	runs, err := h.backupRunStore.List()
-	if err != nil || len(runs) == 0 {
-		return nil
-	}
-	latest := runs[0]
-	for _, run := range runs {
-		if run.StartedAt.After(latest.StartedAt) {
-			latest = run
-		}
-	}
-	switch {
-	case latest.Status == backupStatusFailed:
-		return []healthAlert{{
-			Severity: healthCritical,
-			Source:   "backup",
-			Summary:  "la derniere sauvegarde a echoue",
-			Detail:   latest.Error,
-			Since:    &latest.StartedAt,
-			Action:   "backups",
-		}}
-	case latest.Status == backupStatusDegraded:
-		return []healthAlert{{
-			Severity: healthWarning,
-			Source:   "backup",
-			Summary:  "la derniere sauvegarde est incomplete : elle ne permet pas une restauration complete",
-			Detail:   latest.Error,
-			Since:    &latest.StartedAt,
-			Action:   "backups",
-		}}
-	}
-	// A backup that has not run for more than two days is as good as absent.
-	if time.Since(latest.StartedAt) > 48*time.Hour {
-		return []healthAlert{{
-			Severity: healthWarning,
-			Source:   "backup",
-			Summary:  "aucune sauvegarde depuis plus de deux jours",
-			Since:    &latest.StartedAt,
-			Action:   "backups",
-		}}
-	}
-	return nil
-}
-
 // jobFailureAlerts reports failures from the last day. A webhook alert is a
 // moment in time and is easily missed; the health report is what an operator
 // can still consult afterwards.

@@ -67,4 +67,3 @@ func applyRepositoryAuthHeaders(req *http.Request, host, secretValue string) {
 		req.Header.Set("PRIVATE-TOKEN", secretValue)
 	}
 }
-
