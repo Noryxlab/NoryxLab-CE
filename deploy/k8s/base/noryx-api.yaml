@@ -80,19 +80,12 @@ spec:
               value: "noryx-api"
             - name: NORYX_BOOTSTRAP_ADMIN_USER
               value: "stef"
-            # Maximum workspace lifetime. Empty disables the sweep, which is
-            # the default: reclaiming a user's workspace is an operator's
-            # decision. Set a duration such as "12h" to stop workspaces that
-            # outlive it. This is an age limit, not idle detection (ADR-034).
-            # Operator alerting. Empty disables delivery. Any HTTP endpoint
-            # works; the payload carries a `text` field so Slack, Teams and
-            # Mattermost incoming webhooks render it directly (ADR-034).
-            - name: NORYX_ALERT_WEBHOOK_URL
-              value: ""
-            - name: NORYX_ALERT_INSTANCE_NAME
-              value: "datalab.example.local"
+            # Maximum workspace lifetime, 48h when unset. "0" disables the
+            # sweep entirely. This is an age limit, not idle detection:
+            # without an activity signal the platform cannot tell a busy
+            # workspace from an abandoned one (ADR-034).
             - name: NORYX_WORKSPACE_MAX_LIFETIME
-              value: ""
+              value: "48h"
             - name: NORYX_KUBE_NAMESPACE
               valueFrom:
                 fieldRef:

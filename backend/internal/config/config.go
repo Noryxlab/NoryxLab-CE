@@ -106,15 +106,19 @@ func Load() Config {
 	// Deliberately not called an idle timeout: without an activity signal from
 	// the workspace this is a maximum age, and naming it otherwise would
 	// promise behaviour the platform cannot deliver (ADR-034).
-	var workspaceMaxLifetime time.Duration
+	// 48h by default: long enough that a workspace left open over a weekend
+	// survives, short enough that one forgotten before a holiday does not run
+	// for a fortnight. Administrators override it per installation.
+	workspaceMaxLifetime := 48 * time.Hour
 	if raw := strings.TrimSpace(os.Getenv("NORYX_WORKSPACE_MAX_LIFETIME")); raw != "" {
 		parsed, err := time.ParseDuration(raw)
 		switch {
 		case err != nil:
-			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is not a duration, workspace reaping stays disabled", raw)
+			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is not a duration, keeping the %s default", raw, workspaceMaxLifetime)
 		case parsed < 0:
-			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is negative, workspace reaping stays disabled", raw)
+			log.Printf("config: NORYX_WORKSPACE_MAX_LIFETIME=%q is negative, keeping the %s default", raw, workspaceMaxLifetime)
 		default:
+			// An explicit zero disables the sweep entirely.
 			workspaceMaxLifetime = parsed
 		}
 	}
