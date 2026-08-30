@@ -73,13 +73,13 @@ export interface CronJob {
   id: string;
   projectId: string;
   name: string;
-  image: string;
-  command: string[] | null;
-  args: string[] | null;
+  /** Underlying Kubernetes CronJob name. */
+  cronJobName: string;
   schedule: string;
   timeZone: string;
-  status?: string;
-  lastRunAt?: string | null;
+  /** A suspended schedule stays declared but produces no run. */
+  suspended: boolean;
+  image: string;
   createdAt: string;
 }
 

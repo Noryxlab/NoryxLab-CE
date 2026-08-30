@@ -9,7 +9,7 @@ import { LogViewer } from '@/components/common/log-viewer';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/badge';
+import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -326,13 +326,24 @@ export function JobsPage() {
       cell: (cron) => <span className="text-xs text-muted-foreground">{cron.timeZone}</span>,
     },
     {
-      id: 'last',
-      header: t('jobs.lastRun'),
-      sortValue: (cron) => cron.lastRunAt ?? null,
+      // The API exposes no last-run timestamp for a schedule, so the column
+      // reports whether it is active instead of rendering a permanent dash.
+      id: 'suspended',
+      header: t('common.status'),
+      sortValue: (cron) => (cron.suspended ? 1 : 0),
+      cell: (cron) =>
+        cron.suspended ? (
+          <Badge tone="neutral">{locale === 'fr' ? 'Suspendue' : 'Suspended'}</Badge>
+        ) : (
+          <Badge tone="success">{locale === 'fr' ? 'Active' : 'Active'}</Badge>
+        ),
+    },
+    {
+      id: 'createdAt',
+      header: t('common.createdAt'),
+      sortValue: (cron) => cron.createdAt,
       cell: (cron) => (
-        <span className="text-xs text-muted-foreground">
-          {cron.lastRunAt ? formatDateTime(cron.lastRunAt, locale) : '—'}
-        </span>
+        <span className="text-xs text-muted-foreground">{formatDateTime(cron.createdAt, locale)}</span>
       ),
     },
   ];
