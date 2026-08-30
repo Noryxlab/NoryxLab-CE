@@ -80,6 +80,12 @@ spec:
               value: "noryx-api"
             - name: NORYX_BOOTSTRAP_ADMIN_USER
               value: "stef"
+            # Maximum workspace lifetime, 48h when unset. "0" disables the
+            # sweep entirely. This is an age limit, not idle detection:
+            # without an activity signal the platform cannot tell a busy
+            # workspace from an abandoned one (ADR-034).
+            - name: NORYX_WORKSPACE_MAX_LIFETIME
+              value: "48h"
             - name: NORYX_KUBE_NAMESPACE
               valueFrom:
                 fieldRef:

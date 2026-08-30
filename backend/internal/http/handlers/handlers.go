@@ -6,6 +6,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	"github.com/minio/minio-go/v7"
@@ -32,6 +33,7 @@ type Handlers struct {
 	userPreferenceStore              store.UserPreferenceStore
 	rbacPolicyStore                  store.RBACPolicyStore
 	backupRunStore                   store.BackupRunStore
+	notifier                         *notify.Notifier
 	storageEndpointStore             store.StorageEndpointStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
@@ -112,22 +114,26 @@ type Options struct {
 	BackendVersion                   string
 	Edition                          string
 	DefaultTheme                     string
-	SecretsMasterKey                 string
-	MinIOClient                      *minio.Client
-	MinIOEndpoint                    string
-	MinIOAccessKey                   string
-	MinIOSecretKey                   string
-	MinIOUseSSL                      bool
-	MinIORegion                      string
-	EditionHooks                     *edition.Hooks
-	HarborURL                        string
-	HarborUsername                   string
-	HarborPassword                   string
-	HarborInsecureSkipVerify         bool
-	AssistantURL                     string
-	AssistantInternalToken           string
-	AssistantDeveloperSigningKey     string
-	AssistantPublicURL               string
+	// AlertWebhookURL and AlertInstanceName configure operator alerting.
+	// An empty URL disables it.
+	AlertWebhookURL              string
+	AlertInstanceName            string
+	SecretsMasterKey             string
+	MinIOClient                  *minio.Client
+	MinIOEndpoint                string
+	MinIOAccessKey               string
+	MinIOSecretKey               string
+	MinIOUseSSL                  bool
+	MinIORegion                  string
+	EditionHooks                 *edition.Hooks
+	HarborURL                    string
+	HarborUsername               string
+	HarborPassword               string
+	HarborInsecureSkipVerify     bool
+	AssistantURL                 string
+	AssistantInternalToken       string
+	AssistantDeveloperSigningKey string
+	AssistantPublicURL           string
 }
 
 func New(
@@ -191,6 +197,7 @@ func New(
 		userPreferenceStore:              userPreferenceStore,
 		rbacPolicyStore:                  rbacPolicyStore,
 		backupRunStore:                   backupRunStore,
+		notifier:                         notify.New(options.AlertWebhookURL, options.AlertInstanceName),
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,
