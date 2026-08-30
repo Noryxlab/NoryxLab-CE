@@ -33,14 +33,14 @@ func (h Handlers) UpdatePlatformSetting(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if h.settings == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "aucun magasin de reglages sur cette instance"})
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "no settings store on this instance"})
 		return
 	}
 
 	key := strings.TrimSpace(r.PathValue("key"))
 	definition, found := settings.Lookup(key)
 	if !found {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "reglage inconnu : " + key})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown setting: " + key})
 		return
 	}
 

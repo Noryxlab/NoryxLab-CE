@@ -659,6 +659,13 @@ export const fr = {
     precedence: 'Un réglage défini ici prime sur la variable d’environnement, qui prime sur la valeur par défaut. Vider un champ rétablit la valeur héritée.',
     saved: 'Réglage enregistré.',
     unset: 'Non défini',
+    key_workspace_max_lifetime: 'Durée de vie maximale des workspaces',
+    key_alert_webhook_url: 'Webhook d’alerte',
+    key_alert_instance_name: 'Nom de l’instance',
+    key_ui_default_theme: 'Thème par défaut',
+    key_platform_backend_version: 'Version du backend',
+    key_platform_edition: 'Édition',
+    key_platform_namespace: 'Namespace Kubernetes',
   },
   search: {
     title: 'Recherche',

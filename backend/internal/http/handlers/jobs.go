@@ -354,12 +354,12 @@ func (h Handlers) alertOnJobFailure(previous, current job.Job) {
 	if excerpt := strings.TrimSpace(current.Result); excerpt != "" {
 		// The tail is where a stack trace ends, and an alert is read on a
 		// phone: enough to triage, not the whole log.
-		details["extrait"] = lastLines(excerpt, 5)
+		details["excerpt"] = lastLines(excerpt, 5)
 	}
 	h.notifier.SendAsync(notify.Alert{
 		Severity: notify.SeverityWarning,
 		Event:    "job.failed",
-		Summary:  "echec du job " + jobDisplayName(current),
+		Summary:  "job failed: " + jobDisplayName(current),
 		Details:  details,
 	})
 }

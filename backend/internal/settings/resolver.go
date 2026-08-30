@@ -200,17 +200,17 @@ func (r *Resolver) invalidate() {
 type errUnknownSetting struct{ key string }
 
 func (e errUnknownSetting) Error() string {
-	return "réglage inconnu : " + e.key
+	return "unknown setting: " + e.key
 }
 
 type errReadOnly struct{ key string }
 
 func (e errReadOnly) Error() string {
-	return "ce reglage n'est pas modifiable : " + e.key + " est determine a la compilation ou au deploiement"
+	return "this setting is not editable: " + e.key + " is determined at build or deployment time"
 }
 
 type errNoStore struct{}
 
 func (errNoStore) Error() string {
-	return "aucun magasin de réglages configuré sur cette instance"
+	return "no settings store configured on this instance"
 }

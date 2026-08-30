@@ -13,7 +13,7 @@ import { SectionHeader } from '@/components/common/page-header';
 import { useToast } from '@/components/ui/toast';
 import { usePlatformSettings, qk, useInvalidate } from '@/lib/api/queries';
 import { adminApi } from '@/lib/api/endpoints';
-import { useI18n, useT } from '@/lib/i18n';
+import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
 import type { EffectiveSetting } from '@/lib/api/types';
 
 /**
@@ -25,6 +25,19 @@ import type { EffectiveSetting } from '@/lib/api/types';
  * configuration split across a manifest, an environment and a live deployment
  * is precisely what drifts (ADR-034 follow-up).
  */
+
+// The backend supplies an English label as a fallback. Translating by key
+// means a French session reads French and an English one reads English,
+// instead of whatever language the backend happened to be written in.
+const SETTING_LABEL: Record<string, TranslationKey> = {
+  'workspace.max_lifetime': 'settings.key_workspace_max_lifetime',
+  'alert.webhook_url': 'settings.key_alert_webhook_url',
+  'alert.instance_name': 'settings.key_alert_instance_name',
+  'ui.default_theme': 'settings.key_ui_default_theme',
+  'platform.backend_version': 'settings.key_platform_backend_version',
+  'platform.edition': 'settings.key_platform_edition',
+  'platform.namespace': 'settings.key_platform_namespace',
+};
 
 function sourceLabel(source: string, locale: 'fr' | 'en'): string {
   const labels: Record<string, { fr: string; en: string }> = {
@@ -42,6 +55,9 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
   const toast = useToast();
   const invalidate = useInvalidate();
 
+  const labelKey = SETTING_LABEL[setting.key];
+  const label = labelKey ? t(labelKey) : setting.label;
+
   const [draft, setDraft] = React.useState(setting.value);
   React.useEffect(() => setDraft(setting.value), [setting.value]);
 
@@ -49,9 +65,9 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
     mutationFn: (value: string) => adminApi.updateSetting(setting.key, value),
     onSuccess: () => {
       invalidate(qk.adminSettings, qk.adminHealth);
-      toast.success(setting.label, t('settings.saved'));
+      toast.success(label, t('settings.saved'));
     },
-    onError: (error) => toast.error(error, setting.label),
+    onError: (error) => toast.error(error, label),
   });
 
   const dirty = draft.trim() !== setting.value.trim();
@@ -64,7 +80,7 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
       <div className="space-y-1 border-b border-border py-4 last:border-0">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-medium">{setting.label}</p>
+            <p className="text-sm font-medium">{label}</p>
             <p className="font-mono text-xs text-muted-foreground">{setting.key}</p>
           </div>
           <span className="inline-flex items-center gap-1.5">
@@ -82,7 +98,7 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
     <div className="space-y-2 border-b border-border py-4 last:border-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-sm font-medium">{setting.label}</p>
+          <p className="text-sm font-medium">{label}</p>
           <p className="font-mono text-xs text-muted-foreground">{setting.key}</p>
         </div>
         <Badge tone={setting.source === 'stored' ? 'brand' : 'outline'}>
@@ -91,7 +107,7 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
-        <Field label={setting.label} hideLabel description={setting.description} className="min-w-64 flex-1">
+        <Field label={label} hideLabel description={setting.description} className="min-w-64 flex-1">
           {setting.kind === 'enum' ? (
             <Select
               value={draft}

@@ -38,7 +38,9 @@ type Definition struct {
 	// EnvVar supplies the bootstrap value when nothing is stored.
 	EnvVar string `json:"envVar"`
 	Kind   Kind   `json:"kind"`
-	// Label and Description are shown in the administration interface.
+	// Label and Description are English fallbacks. The interface translates by
+	// key where it has a catalogue entry, so a backend string never decides
+	// which language a user reads.
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	// Values enumerates the accepted options for KindEnum.
@@ -77,54 +79,54 @@ func Definitions() []Definition {
 			Key:         KeyWorkspaceMaxLifetime,
 			EnvVar:      "NORYX_WORKSPACE_MAX_LIFETIME",
 			Kind:        KindDuration,
-			Label:       "Durée de vie maximale des workspaces",
-			Description: "Un workspace est arrêté au-delà de cette durée. « 0 » désactive complètement l'arrêt automatique. Il s'agit d'un âge, pas d'une détection d'inactivité.",
+			Label:       "Maximum workspace lifetime",
+			Description: "A workspace is stopped past this age. \"0\" disables the sweep entirely. This is an age limit, not idle detection.",
 			Fallback:    "48h",
 		},
 		{
 			Key:         KeyAlertWebhookURL,
 			EnvVar:      "NORYX_ALERT_WEBHOOK_URL",
 			Kind:        KindURL,
-			Label:       "Webhook d'alerte",
-			Description: "Adresse HTTP recevant les alertes. Vide : les alertes restent visibles dans l'interface uniquement.",
+			Label:       "Alert webhook",
+			Description: "HTTP endpoint receiving alerts. Empty: alerts remain visible in the interface only.",
 			Fallback:    "",
 		},
 		{
 			Key:         KeyAlertInstanceName,
 			EnvVar:      "NORYX_ALERT_INSTANCE_NAME",
 			Kind:        KindString,
-			Label:       "Nom de l'instance",
-			Description: "Identifie cette plateforme dans les alertes, pour distinguer plusieurs installations.",
+			Label:       "Instance name",
+			Description: "Identifies this platform in alerts, to tell several installations apart.",
 			Fallback:    "",
 		},
 		{
 			Key:         KeyDefaultTheme,
 			EnvVar:      "NORYX_DEFAULT_THEME",
 			Kind:        KindEnum,
-			Label:       "Thème par défaut",
-			Description: "Thème appliqué aux utilisateurs n'ayant pas exprimé de préférence.",
+			Label:       "Default theme",
+			Description: "Theme applied to users who have expressed no preference.",
 			Values:      []string{"", "light", "dark"},
 			Fallback:    "",
 		},
 		{
 			Key:         KeyBackendVersion,
 			Kind:        KindString,
-			Label:       "Version du backend",
-			Description: "Estampillée dans le binaire à la compilation. Elle change avec le code, pas avec un réglage.",
+			Label:       "Backend version",
+			Description: "Stamped into the binary at build time. It changes with the code, not with a setting.",
 			ReadOnly:    true,
 		},
 		{
 			Key:         KeyEdition,
 			Kind:        KindString,
-			Label:       "Édition",
-			Description: "Déterminée par la configuration de déploiement.",
+			Label:       "Edition",
+			Description: "Determined by the deployment configuration.",
 			ReadOnly:    true,
 		},
 		{
 			Key:         KeyNamespace,
 			Kind:        KindString,
-			Label:       "Namespace Kubernetes",
-			Description: "Namespace hébergeant le plan de contrôle.",
+			Label:       "Kubernetes namespace",
+			Description: "Namespace hosting the control plane.",
 			ReadOnly:    true,
 		},
 	}
@@ -152,18 +154,18 @@ func (d Definition) Validate(raw string) error {
 	case KindDuration:
 		parsed, err := time.ParseDuration(value)
 		if err != nil {
-			return fmt.Errorf("durée invalide : attendu par exemple 48h, 90m ou 0")
+			return fmt.Errorf("invalid duration: expected for example 48h, 90m or 0")
 		}
 		if parsed < 0 {
-			return fmt.Errorf("la durée ne peut pas être négative")
+			return fmt.Errorf("duration cannot be negative")
 		}
 	case KindURL:
 		parsed, err := url.Parse(value)
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			return fmt.Errorf("adresse invalide : attendu une URL absolue, par exemple https://hooks.example.com/…")
+			return fmt.Errorf("invalid address: expected an absolute URL, for example https://hooks.example.com/…")
 		}
 		if parsed.Scheme != "http" && parsed.Scheme != "https" {
-			return fmt.Errorf("seuls http et https sont acceptés")
+			return fmt.Errorf("only http and https are accepted")
 		}
 	case KindEnum:
 		for _, candidate := range d.Values {
@@ -171,10 +173,10 @@ func (d Definition) Validate(raw string) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("valeur invalide : attendu %s", strings.Join(nonEmpty(d.Values), ", "))
+		return fmt.Errorf("invalid value: expected %s", strings.Join(nonEmpty(d.Values), ", "))
 	case KindString:
 		if len(value) > 200 {
-			return fmt.Errorf("valeur trop longue : 200 caractères au maximum")
+			return fmt.Errorf("value too long: 200 characters at most")
 		}
 	}
 	return nil

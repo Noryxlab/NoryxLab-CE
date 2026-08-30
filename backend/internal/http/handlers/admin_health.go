@@ -123,7 +123,7 @@ func (h Handlers) jobFailureAlerts() []healthAlert {
 	return []healthAlert{{
 		Severity: healthWarning,
 		Source:   "jobs",
-		Summary:  strconv.Itoa(len(names)) + " job(s) en echec sur les dernieres 24 heures",
+		Summary:  strconv.Itoa(len(names)) + " job(s) failed in the last 24 hours",
 		Detail:   strings.Join(names, ", "),
 		Since:    latest,
 		Action:   "activity",
@@ -140,7 +140,7 @@ func (h Handlers) deploymentAlerts() []healthAlert {
 		return []healthAlert{{
 			Severity: healthWarning,
 			Source:   "runtime",
-			Summary:  "l'etat des deploiements est illisible",
+			Summary:  "deployment status is unreadable",
 			Detail:   err.Error(),
 		}}
 	}
@@ -157,8 +157,8 @@ func (h Handlers) deploymentAlerts() []healthAlert {
 		alerts = append(alerts, healthAlert{
 			Severity: severity,
 			Source:   "runtime",
-			Summary:  "composant indisponible : " + deployment.Name,
-			Detail:   strconv.Itoa(deployment.ReadyReplicas) + "/" + strconv.Itoa(deployment.Replicas) + " replicas prets",
+			Summary:  "component unavailable: " + deployment.Name,
+			Detail:   strconv.Itoa(deployment.ReadyReplicas) + "/" + strconv.Itoa(deployment.Replicas) + " replicas ready",
 			Action:   "overview",
 		})
 	}
@@ -191,7 +191,7 @@ func (h Handlers) workspaceLifetimeAlerts() []healthAlert {
 	return []healthAlert{{
 		Severity: healthWarning,
 		Source:   "workspaces",
-		Summary:  strconv.Itoa(len(stale)) + " workspace(s) depassent leur duree de vie sans avoir ete arretes",
+		Summary:  strconv.Itoa(len(stale)) + " workspace(s) exceed their maximum lifetime without having been stopped",
 		Detail:   strings.Join(stale, ", "),
 		Action:   "activity",
 	}}

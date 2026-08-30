@@ -18,7 +18,7 @@ failures=0
 fail() { printf '  FAIL  %s\n' "$1" >&2; failures=$((failures + 1)); }
 pass() { printf '  ok    %s\n' "$1"; }
 
-echo "Frontière CE/EE"
+echo "CE/EE boundary"
 
 # 1. Every ee_* file must be excluded from the Community build. A file without
 #    the tag is linked into the public binary, which is the failure this whole
@@ -29,11 +29,11 @@ while IFS= read -r file; do
     *_stub.go) continue ;;  # stubs are the Community side and are MPL
   esac
   if ! head -1 "$file" | grep -q '^//go:build enterprise$'; then
-    fail "$file ne porte pas //go:build enterprise"
+    fail "$file does not carry //go:build enterprise"
     missing_tag=1
   fi
 done < <(find "$BACKEND" -name 'ee_*.go' -not -name '*_stub.go')
-[ "$missing_tag" -eq 0 ] && pass "tous les fichiers ee_* portent le tag enterprise"
+[ "$missing_tag" -eq 0 ] && pass "every ee_* file carries the enterprise tag"
 
 # 2. Every ee_* file must carry the proprietary notice, because MPL applies to
 #    any file that does not say otherwise.
@@ -43,11 +43,11 @@ while IFS= read -r file; do
     *_stub.go) continue ;;
   esac
   if ! head -6 "$file" | grep -q 'Enterprise Edition'; then
-    fail "$file ne porte pas l'en-tête propriétaire"
+    fail "$file does not carry the proprietary notice"
     missing_notice=1
   fi
 done < <(find "$BACKEND" -name 'ee_*.go' -not -name '*_stub.go')
-[ "$missing_notice" -eq 0 ] && pass "tous les fichiers ee_* portent l'en-tête propriétaire"
+[ "$missing_notice" -eq 0 ] && pass "every ee_* file carries the proprietary notice"
 
 # 3. No MPL file may name an Enterprise feature constant. Community code asks
 #    "is this capability available" through an extension point; it never
@@ -68,23 +68,23 @@ while IFS= read -r file; do
 done < <(find "$BACKEND" -name '*.go')
 leaked=$(printf '%s' "$leaked" | sed '/^$/d' || true)
 if [ -n "$leaked" ]; then
-  while IFS= read -r file; do fail "$file (MPL) référence une fonctionnalité EE"; done <<< "$leaked"
+  while IFS= read -r file; do fail "$file (MPL) references an Enterprise feature"; done <<< "$leaked"
 else
-  pass "aucun fichier MPL ne référence une fonctionnalité EE"
+  pass "no MPL file references an Enterprise feature"
 fi
 
 # 4. The Community build must compile and pass its tests without the tag. If it
 #    does not, an Enterprise symbol has leaked into the core.
 if go -C "$BACKEND" build ./... >/dev/null 2>&1; then
-  pass "l'édition Community compile sans le tag"
+  pass "the Community edition builds without the tag"
 else
-  fail "l'édition Community ne compile pas : un symbole EE a fuité dans le noyau"
+  fail "the Community edition does not build: an Enterprise symbol leaked into the core"
 fi
 
 if go -C "$BACKEND" build -tags enterprise ./... >/dev/null 2>&1; then
-  pass "l'édition Enterprise compile avec le tag"
+  pass "the Enterprise edition builds with the tag"
 else
-  fail "l'édition Enterprise ne compile pas"
+  fail "the Enterprise edition does not build"
 fi
 
 # 5. The Community binary must contain no Enterprise route. This is the check
@@ -93,14 +93,14 @@ fi
 for route in 'admin/backups' 'assistant/developer' 'admin/egress'; do
   if go -C "$BACKEND" vet ./internal/http/ >/dev/null 2>&1 &&
      grep -rq "$route" "$BACKEND/internal/http/server.go" 2>/dev/null; then
-    fail "la route $route est enregistrée dans le mux Community"
+    fail "route $route is registered on the Community mux"
   fi
 done
-pass "aucune route Enterprise dans l'enregistrement Community"
+pass "no Enterprise route in the Community registration"
 
 echo
 if [ "$failures" -gt 0 ]; then
-  echo "$failures problème(s) de frontière"
+  echo "$failures boundary problem(s)"
   exit 1
 fi
-echo "Frontière respectée"
+echo "Boundary holds"

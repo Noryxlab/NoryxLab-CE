@@ -34,7 +34,7 @@ func TestSendPostsRenderablePayload(t *testing.T) {
 	New(server.URL, "datalab.example").Send(t.Context(), Alert{
 		Severity: SeverityCritical,
 		Event:    "backup.degraded",
-		Summary:  "sauvegarde incomplete",
+		Summary:  "incomplete backup",
 		Details:  map[string]any{"bucket": "noryx-backup", "bytes": 2348},
 	})
 
@@ -49,7 +49,7 @@ func TestSendPostsRenderablePayload(t *testing.T) {
 		if payload.Text == "" {
 			t.Fatal("payload must carry a text field for chat webhooks")
 		}
-		if !strings.Contains(payload.Text, "sauvegarde incomplete") {
+		if !strings.Contains(payload.Text, "incomplete backup") {
 			t.Fatalf("text must contain the summary, got %q", payload.Text)
 		}
 		if !strings.Contains(payload.Text, "datalab.example") {

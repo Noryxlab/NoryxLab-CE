@@ -654,6 +654,13 @@ export const en: Translations = {
     precedence: 'A value set here overrides the environment variable, which overrides the default. Clearing a field restores the inherited value.',
     saved: 'Setting saved.',
     unset: 'Not set',
+    key_workspace_max_lifetime: 'Maximum workspace lifetime',
+    key_alert_webhook_url: 'Alert webhook',
+    key_alert_instance_name: 'Instance name',
+    key_ui_default_theme: 'Default theme',
+    key_platform_backend_version: 'Backend version',
+    key_platform_edition: 'Edition',
+    key_platform_namespace: 'Kubernetes namespace',
   },
   search: {
     title: 'Search',

@@ -91,7 +91,7 @@ func (h Handlers) reapExpiredWorkspaces(maxLifetime time.Duration) {
 			h.notifier.SendAsync(notify.Alert{
 				Severity: notify.SeverityWarning,
 				Event:    "workspace.reap.failed",
-				Summary:  "un workspace expire n'a pas pu etre arrete",
+				Summary:  "an expired workspace could not be stopped",
 				Details: map[string]any{
 					"workspaceId": record.ID,
 					"name":        record.Name,
