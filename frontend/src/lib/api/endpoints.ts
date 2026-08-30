@@ -15,7 +15,8 @@ import type {
   DatasetAccess,
   Datasource,
   DatasourceDefinition,
-  DataUsageEdge,
+  AdminInventory,
+  DataUsageReport,
   EgressProfile,
   EgressRule,
   Environment,
@@ -32,7 +33,7 @@ import type {
   PodInfo,
   Project,
   ProjectMember,
-  RbacMatrixEntry,
+  RbacMatrixReport,
   Repository,
   Secret,
   StorageEndpoint,
@@ -49,8 +50,6 @@ export const platformApi = {
   overview: () => api.get<PlatformOverview>(`${V1}/platform/overview`),
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
-  savePreferences: (preferences: UserPreferences) =>
-    api.put<UserPreferences>(`${V1}/user/preferences`, preferences),
   organizations: () => api.list<Organization>(`${V1}/organizations`),
 };
 
@@ -349,7 +348,7 @@ export const egressApi = {
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   users: () => api.list<PlatformUser>(`${V1}/admin/users`),
-  inventory: () => api.get<Record<string, number>>(`${V1}/admin/inventory`),
+  inventory: () => api.get<AdminInventory>(`${V1}/admin/inventory`),
   modules: () => api.list<ModuleInfo>(`${V1}/admin/modules`),
   executions: () => api.list<Execution>(`${V1}/admin/executions`),
   killExecution: (kind: string, executionId: string) =>
@@ -371,10 +370,10 @@ export const adminApi = {
   audit: (params?: Record<string, string>) => api.list<AuditEvent>(`${V1}/admin/audit`, { params }),
   downloadAudit: () => downloadFile(`${V1}/admin/audit.csv`, 'noryx-audit.csv'),
 
-  dataUsage: () => api.list<DataUsageEdge>(`${V1}/admin/data-usage`),
+  dataUsage: () => api.get<DataUsageReport>(`${V1}/admin/data-usage`),
   downloadDataUsage: () => downloadFile(`${V1}/admin/data-usage.csv`, 'noryx-data-usage.csv'),
 
-  rbacMatrix: () => api.list<RbacMatrixEntry>(`${V1}/admin/rbac-matrix`),
+  rbacMatrix: () => api.get<RbacMatrixReport>(`${V1}/admin/rbac-matrix`),
   downloadRbacMatrix: () => downloadFile(`${V1}/admin/rbac-matrix.csv`, 'noryx-rbac-matrix.csv'),
   rbacPolicy: () => api.get<Record<string, unknown>>(`${V1}/admin/rbac-policy`),
   saveRbacPolicy: (policy: Record<string, unknown>) =>

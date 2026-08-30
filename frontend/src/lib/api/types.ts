@@ -404,19 +404,16 @@ export interface AuditEvent {
 
 export interface PlatformUser {
   id: string;
-  username?: string;
-  email?: string;
-  enabled?: boolean;
-  firstName?: string;
-  lastName?: string;
-  organizations?: string[];
+  username: string;
+  email: string;
+  enabled: boolean;
 }
 
 export interface Organization {
   id: string;
   name: string;
-  alias?: string;
-  memberCount?: number;
+  alias: string;
+  enabled: boolean;
 }
 
 export interface OrganizationMember {
@@ -441,49 +438,130 @@ export interface Execution {
   kind: string;
   name: string;
   projectId: string;
-  ownerUserId?: string;
+  /** Resolved server-side, so the UI does not need to join against projects. */
+  projectName: string;
+  runtimeName: string;
   status: string;
-  cpu?: string;
-  memory?: string;
   createdAt: string;
 }
 
+export interface WorkloadMetrics {
+  pods: number;
+  running: number;
+  pending: number;
+  cpuRequestMillicores: number;
+  memoryRequestBytes: number;
+}
+
 export interface AdminOverview {
-  users?: number;
-  projects?: number;
-  datasets?: number;
-  activeExecutions?: number;
-  pods?: number;
-  cpuMillicores?: number;
-  memoryBytes?: number;
+  counts: {
+    active: number;
+    apps: number;
+    builds: number;
+    datasets: number;
+    jobs: number;
+    projects: number;
+    users: number;
+    workspaces: number;
+  };
+  workloadMetrics: WorkloadMetrics;
 }
 
 export interface PlatformOverview {
-  users?: number;
-  projects?: number;
-  workloads?: number;
-  storageBytes?: number;
-  buckets?: number;
+  counts: {
+    active: number;
+    datasets: number;
+    projects: number;
+    users: number;
+  };
+  sampledAt: string;
+  storage: {
+    bytes: number;
+    datasetsMeasured: number;
+    datasetsTotal: number;
+  };
+  workloadMetrics: WorkloadMetrics;
+}
+
+export interface AdminInventory {
+  datasets: Dataset[];
+  projects: Project[];
+  users: PlatformUser[];
+}
+
+export interface DataUsageNode {
+  id: string;
+  kind: string;
+  label: string;
+  subLabel: string;
+  class: string;
 }
 
 export interface DataUsageEdge {
-  datasetId: string;
-  datasetName: string;
+  from: string;
+  to: string;
   relation: string;
-  targetType: string;
-  targetId: string;
-  targetName: string;
-  projectId?: string;
-  projectName?: string;
+  projectId: string;
 }
 
-export interface RbacMatrixEntry {
+export interface DataUsageReport {
+  generatedAt: string;
+  summary: {
+    datasets: number;
+    hdsDatasets: number;
+    projects: number;
+    users: number;
+    organizations: number;
+    workloads: number;
+    edges: number;
+  };
+  nodes: DataUsageNode[];
+  edges: DataUsageEdge[];
+}
+
+export interface RbacSubject {
+  type: string;
+  id: string;
+  name: string;
+}
+
+export interface RbacResource {
+  type: string;
+  id: string;
+  name: string;
+  ownerType: string;
+  ownerId: string;
+  ownerName: string;
+  classification: string;
+}
+
+export interface RbacCell {
   subjectType: string;
   subjectId: string;
+  subjectName: string;
   resourceType: string;
   resourceId: string;
-  resourceName?: string;
+  resourceName: string;
   role: string;
+  source: string;
+  inherited: boolean;
+}
+
+export interface RbacMatrixReport {
+  generatedAt: string;
+  summary: {
+    users: number;
+    organizations: number;
+    projects: number;
+    datasets: number;
+    ontologies: number;
+    datasources: number;
+    grants: number;
+    inherited: number;
+  };
+  subjects: RbacSubject[];
+  resources: RbacResource[];
+  cells: RbacCell[];
 }
 
 export interface VersionInfo {
@@ -494,8 +572,7 @@ export interface VersionInfo {
 }
 
 export interface UserPreferences {
-  theme?: 'light' | 'dark' | 'system';
-  locale?: 'fr' | 'en';
+  organizations: Organization[];
 }
 
 export interface AssistantMessage {
@@ -525,7 +602,3 @@ export interface ModuleInfo {
   version?: string;
 }
 
-export interface InventoryEntry {
-  kind: string;
-  count: number;
-}

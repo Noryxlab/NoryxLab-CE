@@ -59,28 +59,28 @@ export function HomePage() {
             label={t('home.users')}
             hint={t('home.usersHint')}
             loading={overview.isLoading}
-            value={formatNumber(overview.data?.users, locale)}
+            value={formatNumber(overview.data?.counts.users, locale)}
           />
           <Stat
             icon={Boxes}
             label={t('home.projects')}
             hint={t('home.projectsHint')}
             loading={overview.isLoading}
-            value={formatNumber(overview.data?.projects ?? projects.data?.length, locale)}
+            value={formatNumber(overview.data?.counts.projects ?? projects.data?.length, locale)}
           />
           <Stat
             icon={Activity}
             label={t('home.workloads')}
             hint={t('home.workloadsHint')}
             loading={overview.isLoading}
-            value={formatNumber(overview.data?.workloads, locale)}
+            value={formatNumber(overview.data?.counts.active, locale)}
           />
           <Stat
             icon={HardDrive}
             label={t('home.storage')}
             hint={t('home.storageHint')}
             loading={overview.isLoading}
-            value={formatBytes(overview.data?.storageBytes, locale)}
+            value={formatBytes(overview.data?.storage.bytes, locale)}
           />
         </StatGrid>
       </section>

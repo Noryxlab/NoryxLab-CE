@@ -34,7 +34,7 @@ command -v kubectl >/dev/null || { echo "kubectl introuvable" >&2; exit 1; }
 
 # Generated locally so it can be stored in the cluster secret without ever
 # being echoed to the terminal.
-PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)"
+PASSWORD="$(openssl rand -hex 32)"
 
 POD="$(kubectl -n "$NS" get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')"
 [ -n "$POD" ] || { echo "pod keycloak introuvable dans $NS" >&2; exit 1; }
@@ -52,7 +52,7 @@ CFG=/tmp/kcadm-ops-account.config
   --server http://127.0.0.1:8080/auth --realm master \
   --user "$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null
 
-id_of() { sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' | head -n 1; }
+id_of() { sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' | sed -n '1p'; }
 
 # --- organisation -----------------------------------------------------------
 ORG_ID="$("$KC" get "organizations?search=$ORG_ALIAS" -r "$REALM" --config "$CFG" --fields id,alias | id_of)"
@@ -108,22 +108,5 @@ kubectl -n "$NS" create secret generic "$OPS_SECRET" \
   --dry-run=client -o yaml | kubectl -n "$NS" apply -f - >/dev/null
 echo "identifiants stockes dans le secret $NS/$OPS_SECRET"
 
-# --- verification -----------------------------------------------------------
-KC_IP="$(kubectl -n "$NS" get svc keycloak -o jsonpath='{.spec.clusterIP}')"
-BE_IP="$(kubectl -n "$NS" get svc noryx-backend -o jsonpath='{.spec.clusterIP}')"
 echo
-echo "verification:"
-kubectl -n "$NS" exec -i "$POD" -- bash -s -- "$OPS_USER" "$PASSWORD" "$KC_IP" "$BE_IP" <<'CHECK'
-set -euo pipefail
-OPS_USER="$1"; PASSWORD="$2"; KC_IP="$3"; BE_IP="$4"
-TOKEN="$(curl -s -X POST "http://$KC_IP:8080/auth/realms/noryx/protocol/openid-connect/token" \
-  -d grant_type=password -d client_id=noryx-api -d scope=openid \
-  -d username="$OPS_USER" --data-urlencode "password=$PASSWORD" \
-  | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')"
-[ -n "$TOKEN" ] || { echo "  ECHEC: pas de jeton"; exit 1; }
-echo "  jeton obtenu"
-for EP in projects admin/overview; do
-  CODE="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $TOKEN" "http://$BE_IP:8080/api/v1/$EP")"
-  echo "  /api/v1/$EP -> HTTP $CODE"
-done
-CHECK
+echo "Termine. Lancez scripts/verify-api-contracts.sh pour verifier l'acces."

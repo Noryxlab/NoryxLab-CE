@@ -62,6 +62,7 @@ import {
 import { adminApi, egressApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatCpu, formatDateTime, formatNumber, formatRelative } from '@/lib/format';
+import { presentRole } from '@/lib/presenters';
 import { isEnterprise } from '@/lib/config';
 import { useExtensions } from '@/lib/extensions';
 import { ExtensionSlot } from '@/components/common/extension-slot';
@@ -69,11 +70,12 @@ import { useAuth } from '@/lib/auth';
 import type {
   AuditEvent,
   DataUsageEdge,
+  DataUsageNode,
   EgressRule,
   Execution,
   Organization,
   PlatformUser,
-  RbacMatrixEntry,
+  RbacCell,
   StorageEndpoint,
   BackupRun,
 } from '@/lib/api/types';
@@ -106,25 +108,25 @@ function OverviewSection() {
           icon={Users}
           label={t('home.users')}
           loading={overview.isLoading}
-          value={formatNumber(overview.data?.users, locale)}
+          value={formatNumber(overview.data?.counts.users, locale)}
         />
         <Stat
           icon={Boxes}
           label={t('home.projects')}
           loading={overview.isLoading || projects.isLoading}
-          value={formatNumber(overview.data?.projects ?? projects.data?.length, locale)}
+          value={formatNumber(overview.data?.counts.projects ?? projects.data?.length, locale)}
         />
         <Stat
           icon={Cpu}
           label={t('activity.cpuReserved')}
           loading={overview.isLoading}
-          value={formatCpu(overview.data?.cpuMillicores, locale)}
+          value={formatCpu(overview.data?.workloadMetrics.cpuRequestMillicores, locale)}
         />
         <Stat
           icon={MemoryStick}
           label={t('activity.memoryReserved')}
           loading={overview.isLoading}
-          value={formatBytes(overview.data?.memoryBytes, locale)}
+          value={formatBytes(overview.data?.workloadMetrics.memoryRequestBytes, locale)}
         />
       </StatGrid>
     </div>
@@ -190,24 +192,19 @@ function IdentitySection() {
     {
       id: 'user',
       header: t('common.user'),
-      sortValue: (user) => user.username ?? user.id,
-      searchValue: (user) => `${user.username ?? ''} ${user.email ?? ''} ${user.id}`,
+      sortValue: (user) => user.username || user.id,
+      searchValue: (user) => `${user.username} ${user.email} ${user.id}`,
       cell: (user) => (
         <div className="min-w-0">
-          <p className="truncate font-medium">{user.username ?? user.id}</p>
-          {[user.firstName, user.lastName].filter(Boolean).length > 0 ? (
-            <p className="truncate text-xs text-muted-foreground">
-              {[user.firstName, user.lastName].filter(Boolean).join(' ')}
-            </p>
-          ) : null}
+          <p className="truncate font-medium">{user.username || user.id}</p>
         </div>
       ),
     },
     {
       id: 'email',
       header: 'Email',
-      sortValue: (user) => user.email ?? null,
-      cell: (user) => <span className="truncate text-xs text-muted-foreground">{user.email ?? '—'}</span>,
+      sortValue: (user) => user.email || null,
+      cell: (user) => <span className="truncate text-xs text-muted-foreground">{user.email || '—'}</span>,
     },
     {
       id: 'status',
@@ -232,6 +229,9 @@ function IdentitySection() {
           {organization.alias ? (
             <p className="truncate font-mono text-xs text-muted-foreground">{organization.alias}</p>
           ) : null}
+          {organization.enabled ? null : (
+            <Badge tone="danger">{t('common.no')}</Badge>
+          )}
         </div>
       ),
     },
@@ -420,7 +420,6 @@ function ActivitySection() {
 
   const executions = useAdminExecutions();
   const overview = useAdminOverview();
-  const projects = useProjects();
 
   const stop = useMutation({
     mutationFn: (execution: Execution) => adminApi.killExecution(execution.kind, execution.id),
@@ -445,18 +444,20 @@ function ActivitySection() {
     {
       id: 'project',
       header: t('common.project'),
+      sortValue: (execution) => execution.projectName || execution.projectId,
       cell: (execution) => (
         <span className="truncate text-xs text-muted-foreground">
-          {projects.data?.find((project) => project.id === execution.projectId)?.name ??
-            execution.projectId}
+          {execution.projectName || execution.projectId}
         </span>
       ),
     },
     {
-      id: 'owner',
-      header: t('common.owner'),
+      id: 'runtime',
+      header: t('activity.pods'),
       cell: (execution) => (
-        <span className="text-xs text-muted-foreground">{execution.ownerUserId ?? '—'}</span>
+        <span className="truncate font-mono text-xs text-muted-foreground">
+          {execution.runtimeName || '—'}
+        </span>
       ),
     },
     {
@@ -490,19 +491,19 @@ function ActivitySection() {
           icon={Boxes}
           label={t('activity.pods')}
           loading={overview.isLoading}
-          value={formatNumber(overview.data?.pods, locale)}
+          value={formatNumber(overview.data?.workloadMetrics.pods, locale)}
         />
         <Stat
           icon={Cpu}
           label={t('activity.cpuReserved')}
           loading={overview.isLoading}
-          value={formatCpu(overview.data?.cpuMillicores, locale)}
+          value={formatCpu(overview.data?.workloadMetrics.cpuRequestMillicores, locale)}
         />
         <Stat
           icon={MemoryStick}
           label={t('activity.memoryReserved')}
           loading={overview.isLoading}
-          value={formatBytes(overview.data?.memoryBytes, locale)}
+          value={formatBytes(overview.data?.workloadMetrics.memoryRequestBytes, locale)}
         />
       </StatGrid>
       <Card>
@@ -546,17 +547,41 @@ function ActivitySection() {
 
 function DataGovernanceSection() {
   const t = useT();
+  const { locale } = useI18n();
   const toast = useToast();
   const usage = useDataUsage();
   const [search, setSearch] = React.useState('');
 
+  // The endpoint returns a graph: edges reference nodes by id, so labels are
+  // resolved here rather than repeated on every edge.
+  const nodesById = React.useMemo(() => {
+    const index = new Map<string, DataUsageNode>();
+    for (const node of usage.data?.nodes ?? []) index.set(node.id, node);
+    return index;
+  }, [usage.data]);
+
+  const label = React.useCallback(
+    (id: string) => nodesById.get(id)?.label ?? id,
+    [nodesById],
+  );
+
   const columns: Column<DataUsageEdge>[] = [
     {
-      id: 'dataset',
-      header: t('nav.datasets'),
-      sortValue: (edge) => edge.datasetName,
-      searchValue: (edge) => `${edge.datasetName} ${edge.targetName} ${edge.projectName ?? ''}`,
-      cell: (edge) => <span className="truncate font-medium">{edge.datasetName}</span>,
+      id: 'from',
+      header: t('rbac.subject'),
+      sortValue: (edge) => label(edge.from),
+      searchValue: (edge) => `${label(edge.from)} ${label(edge.to)}`,
+      cell: (edge) => {
+        const node = nodesById.get(edge.from);
+        return (
+          <div className="min-w-0">
+            <p className="truncate font-medium">{node?.label ?? edge.from}</p>
+            {node?.subLabel ? (
+              <p className="truncate text-xs text-muted-foreground">{node.subLabel}</p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: 'relation',
@@ -565,22 +590,31 @@ function DataGovernanceSection() {
       cell: (edge) => <Badge tone="outline">{edge.relation}</Badge>,
     },
     {
-      id: 'target',
-      header: t('rbac.subject'),
-      cell: (edge) => (
-        <span className="truncate text-xs text-muted-foreground">
-          {edge.targetType} · {edge.targetName || edge.targetId}
-        </span>
-      ),
+      id: 'to',
+      header: t('rbac.resource'),
+      sortValue: (edge) => label(edge.to),
+      cell: (edge) => {
+        const node = nodesById.get(edge.to);
+        return (
+          <div className="min-w-0">
+            <p className="truncate">{node?.label ?? edge.to}</p>
+            {node?.kind ? <p className="text-xs text-muted-foreground">{node.kind}</p> : null}
+          </div>
+        );
+      },
     },
     {
       id: 'project',
       header: t('common.project'),
       cell: (edge) => (
-        <span className="truncate text-xs text-muted-foreground">{edge.projectName ?? '—'}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {edge.projectId ? label(edge.projectId) : '—'}
+        </span>
       ),
     },
   ];
+
+  const summary = usage.data?.summary;
 
   return (
     <div className="space-y-4">
@@ -609,11 +643,49 @@ function DataGovernanceSection() {
           </div>
         }
       />
+
+      <StatGrid>
+        <Stat
+          icon={Database}
+          label={t('nav.datasets')}
+          loading={usage.isLoading}
+          value={formatNumber(summary?.datasets, locale)}
+          hint={
+            summary?.hdsDatasets
+              ? `${formatNumber(summary.hdsDatasets, locale)} ${t('datasets.classificationHds')}`
+              : undefined
+          }
+        />
+        <Stat
+          icon={Boxes}
+          label={t('home.projects')}
+          loading={usage.isLoading}
+          value={formatNumber(summary?.projects, locale)}
+        />
+        <Stat
+          icon={Users}
+          label={t('home.users')}
+          loading={usage.isLoading}
+          value={formatNumber(summary?.users, locale)}
+          hint={
+            summary?.organizations
+              ? `${formatNumber(summary.organizations, locale)} ${t('rbac.organizations')}`
+              : undefined
+          }
+        />
+        <Stat
+          icon={Activity}
+          label={t('home.workloads')}
+          loading={usage.isLoading}
+          value={formatNumber(summary?.workloads, locale)}
+        />
+      </StatGrid>
+
       <Card>
         <DataTable
-          data={usage.data}
+          data={usage.data?.edges}
           columns={columns}
-          rowKey={(edge, ) => `${edge.datasetId}:${edge.relation}:${edge.targetId}:${edge.projectId ?? ''}`}
+          rowKey={(edge) => `${edge.from}:${edge.relation}:${edge.to}:${edge.projectId}`}
           isLoading={usage.isLoading}
           isError={usage.isError}
           error={usage.error}
@@ -770,37 +842,52 @@ function RbacSection() {
   const matrix = useRbacMatrix();
   const [search, setSearch] = React.useState('');
 
-  const columns: Column<RbacMatrixEntry>[] = [
+  // Cells are self-describing: subject, resource, role, and whether the grant
+  // is direct or inherited from an organisation or an ownership.
+  const columns: Column<RbacCell>[] = [
     {
       id: 'subject',
       header: t('rbac.subject'),
-      sortValue: (entry) => entry.subjectId,
-      searchValue: (entry) => `${entry.subjectId} ${entry.resourceName ?? entry.resourceId}`,
-      cell: (entry) => (
+      sortValue: (cell) => cell.subjectName || cell.subjectId,
+      searchValue: (cell) => `${cell.subjectName} ${cell.subjectId} ${cell.resourceName}`,
+      cell: (cell) => (
         <div className="min-w-0">
-          <p className="truncate font-medium">{entry.subjectId}</p>
-          <p className="text-xs text-muted-foreground">{entry.subjectType}</p>
+          <p className="truncate font-medium">{cell.subjectName || cell.subjectId}</p>
+          <p className="text-xs text-muted-foreground">{cell.subjectType}</p>
         </div>
       ),
     },
     {
       id: 'resource',
       header: t('rbac.resource'),
-      sortValue: (entry) => entry.resourceName ?? entry.resourceId,
-      cell: (entry) => (
+      sortValue: (cell) => cell.resourceName || cell.resourceId,
+      cell: (cell) => (
         <div className="min-w-0">
-          <p className="truncate">{entry.resourceName ?? entry.resourceId}</p>
-          <p className="text-xs text-muted-foreground">{entry.resourceType}</p>
+          <p className="truncate">{cell.resourceName || cell.resourceId}</p>
+          <p className="text-xs text-muted-foreground">{cell.resourceType}</p>
         </div>
       ),
     },
     {
       id: 'role',
       header: t('common.role'),
-      sortValue: (entry) => entry.role,
-      cell: (entry) => <Badge tone="brand">{entry.role}</Badge>,
+      sortValue: (cell) => cell.role,
+      cell: (cell) => <Badge tone="brand">{presentRole(cell.role, locale)}</Badge>,
+    },
+    {
+      id: 'source',
+      header: t('ontologies.source'),
+      sortValue: (cell) => cell.source,
+      cell: (cell) => (
+        <span className="flex items-center gap-1.5">
+          <Badge tone="outline">{cell.source}</Badge>
+          {cell.inherited ? <Badge tone="neutral">{locale === 'fr' ? 'hérité' : 'inherited'}</Badge> : null}
+        </span>
+      ),
     },
   ];
+
+  const summary = matrix.data?.summary;
 
   return (
     <div className="space-y-4">
@@ -829,12 +916,44 @@ function RbacSection() {
           </div>
         }
       />
+
+      <StatGrid>
+        <Stat
+          icon={Users}
+          label={t('home.users')}
+          loading={matrix.isLoading}
+          value={formatNumber(summary?.users, locale)}
+        />
+        <Stat
+          icon={ShieldCheck}
+          label={t('rbac.organizations')}
+          loading={matrix.isLoading}
+          value={formatNumber(summary?.organizations, locale)}
+        />
+        <Stat
+          icon={Boxes}
+          label={t('home.projects')}
+          loading={matrix.isLoading}
+          value={formatNumber(summary?.projects, locale)}
+        />
+        <Stat
+          label={t('rbac.matrix')}
+          loading={matrix.isLoading}
+          value={formatNumber(summary?.grants, locale)}
+          hint={
+            summary?.inherited
+              ? `${formatNumber(summary.inherited, locale)} ${locale === 'fr' ? 'hérités' : 'inherited'}`
+              : undefined
+          }
+        />
+      </StatGrid>
+
       <Card>
         <DataTable
-          data={matrix.data}
+          data={matrix.data?.cells}
           columns={columns}
-          rowKey={(entry) =>
-            `${entry.subjectType}:${entry.subjectId}:${entry.resourceType}:${entry.resourceId}`
+          rowKey={(cell) =>
+            `${cell.subjectType}:${cell.subjectId}:${cell.resourceType}:${cell.resourceId}:${cell.role}`
           }
           isLoading={matrix.isLoading}
           isError={matrix.isError}
@@ -845,7 +964,6 @@ function RbacSection() {
           emptyState={<EmptyState title={t('rbac.empty')} description={t('rbac.emptyHint')} />}
         />
       </Card>
-      <p className="sr-only">{locale}</p>
     </div>
   );
 }

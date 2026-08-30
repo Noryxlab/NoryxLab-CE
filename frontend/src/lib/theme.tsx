@@ -37,11 +37,14 @@ function systemTheme(): ResolvedTheme {
 /**
  * Dark mode.
  *
- * The backend already persisted a `theme` user preference and the previous UI
- * called `PUT /api/v1/user/preferences` with it, but the stylesheet had zero
- * `prefers-color-scheme` rules, so the setting had no visual effect. Here the
- * preference drives `data-theme` on <html>, and the server value is used as
- * the cross-device default when the browser has no local choice.
+ * The previous UI called `PUT /api/v1/user/preferences` with a theme, but the
+ * stylesheet had zero `prefers-color-scheme` rules, so the setting had no
+ * visual effect. Verifying the contract against a running backend showed that
+ * endpoint returns organizations and accepts no theme at all; the
+ * platform-wide default is carried by `/api/v1/version` as `defaultTheme`.
+ *
+ * So the choice is local to the browser, and the server value is used only as
+ * the initial default when the viewer has expressed none.
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = React.useState<ThemePreference>(readStored);
@@ -60,20 +63,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset['theme'] = resolved;
   }, [resolved]);
 
-  // Adopt the server-side default only when the user has made no local choice.
+  // Adopt the platform default only when the viewer has made no local choice.
   React.useEffect(() => {
     let cancelled = false;
     if (readStored() !== 'system') return;
     void platformApi
-      .preferences()
-      .then((preferences) => {
+      .version()
+      .then((info) => {
         if (cancelled) return;
-        if (preferences.theme === 'light' || preferences.theme === 'dark') {
-          setPreferenceState(preferences.theme);
+        if (info.defaultTheme === 'light' || info.defaultTheme === 'dark') {
+          setPreferenceState(info.defaultTheme);
         }
       })
       .catch(() => {
-        /* preferences are a nicety; never block rendering on them */
+        /* a default theme is a nicety; never block rendering on it */
       });
     return () => {
       cancelled = true;
@@ -88,9 +91,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* private browsing: the choice applies for this session only */
     }
-    void platformApi.savePreferences({ theme: next }).catch(() => {
-      /* the local choice already applied; a failed sync is not worth a toast */
-    });
   }, []);
 
   const value = React.useMemo<ThemeContextValue>(
