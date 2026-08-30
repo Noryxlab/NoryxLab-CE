@@ -96,7 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [identity, setIdentity] = React.useState<Identity | null>(null);
   const [error, setError] = React.useState<unknown>(null);
   const keycloakRef = React.useRef<Keycloak | null>(null);
-  const loginInFlightRef = React.useRef(false);
 
   React.useEffect(() => {
     // Header mode is the local development path: the API trusts X-Noryx-User
@@ -188,15 +187,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       isAdmin: Boolean(identity?.roles.some((role) => ADMIN_ROLES.includes(role.toLowerCase()))),
       login: () => {
-        if (loginInFlightRef.current) return;
-        loginInFlightRef.current = true;
-        void keycloakRef.current
-          ?.login({ redirectUri: `${window.location.origin}/`, scope: ORGANIZATION_SCOPE })
-          .catch((cause: unknown) => {
-          loginInFlightRef.current = false;
+        const keycloak = keycloakRef.current;
+        if (!keycloak) {
+          setError(new Error("Le service d'authentification n'est pas encore initialise."));
+          setStatus('failed');
+          return;
+        }
+        try {
+          // Navigate explicitly rather than delegating to the adapter. This
+          // keeps the interaction reliable in Safari and guarantees that a
+          // user click always leaves the anonymous screen.
+          void keycloak
+            .createLoginUrl({
+              redirectUri: `${window.location.origin}/`,
+              scope: ORGANIZATION_SCOPE,
+            })
+            .then((url) => window.location.assign(url))
+            .catch((cause: unknown) => {
+              setError(cause);
+              setStatus('failed');
+            });
+        } catch (cause) {
           setError(cause);
           setStatus('failed');
-        });
+        }
       },
       logout: () => {
         void keycloakRef.current?.logout({ redirectUri: window.location.origin });
