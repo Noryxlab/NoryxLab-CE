@@ -21,7 +21,14 @@ import { formatBytes, formatDateTime, formatDuration, formatRelative } from './f
  * DOM element — so an extension never has to match CE's React version.
  */
 
-export type ExtensionMountPoint = 'admin.section' | 'project.section' | 'catalog.section';
+export type ExtensionMountPoint =
+  | 'admin.section'
+  | 'project.section'
+  | 'catalog.section'
+  // Floats above the shell on every screen. This is what an assistant
+  // launcher needs, and the reason it is a mount point rather than a CE
+  // feature: Community must not carry the code it cannot run.
+  | 'shell.overlay';
 
 export interface ExtensionHost {
   /** Authenticated API access, identical to what CE screens use. */

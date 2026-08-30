@@ -585,25 +585,8 @@ export interface UserPreferences {
   organizations: Organization[];
 }
 
-export interface AssistantMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
 
-export interface AssistantChatResponse {
-  reply?: string;
-  message?: string;
-  content?: string;
-  draft?: AssistantIssueDraft | null;
-}
 
-export interface AssistantIssueDraft {
-  title: string;
-  body: string;
-  labels?: string[];
-  repository?: string;
-  url?: string;
-}
 
 export interface SearchResult {
   kind: string;

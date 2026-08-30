@@ -627,21 +627,6 @@ export const fr = {
     lastUpdated: 'Dernière mise à jour',
   },
 
-  assistant: {
-    title: 'Assistant',
-    open: 'Ouvrir l’assistant',
-    greeting:
-      'Bonjour. Je peux expliquer la plateforme, retrouver un ticket existant et préparer une remontée de bug ou d’amélioration. Toute publication vous est soumise avant envoi.',
-    placeholder: 'Posez une question sur la plateforme…',
-    send: 'Envoyer',
-    thinking: 'Réflexion en cours…',
-    draftTitle: 'Remontée prête à être publiée',
-    draftHint: 'Relisez le contenu avant publication. Rien n’est envoyé sans votre confirmation.',
-    publish: 'Publier la remontée',
-    discard: 'Abandonner',
-    published: 'Remontée publiée.',
-    error: 'L’assistant est momentanément indisponible.',
-  },
 
   health: {
     title: 'Santé de la plateforme',

@@ -7,8 +7,6 @@ import type {
   App,
   AppRevision,
   AppUsage,
-  AssistantChatResponse,
-  AssistantMessage,
   AuditEvent,
   BackupConfigStatus,
   BackupRun,
@@ -417,7 +415,3 @@ export const adminApi = {
   backupReport: (runId: string) => api.get<string>(`${V1}/admin/backups/runs/${runId}/report`),
 };
 
-export const assistantApi = {
-  chat: (messages: AssistantMessage[], context?: Record<string, unknown>) =>
-    api.post<AssistantChatResponse>(`${V1}/assistant/chat`, { messages, context }),
-};

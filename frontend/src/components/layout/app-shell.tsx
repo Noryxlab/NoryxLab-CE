@@ -18,7 +18,8 @@ import { useAuth } from '@/lib/auth';
 import { useVersion } from '@/lib/api/queries';
 import { config } from '@/lib/config';
 import { cn } from '@/lib/utils';
-import { AssistantLauncher } from '@/features/assistant/assistant-panel';
+import { useExtensions } from '@/lib/extensions';
+import { ExtensionSlot } from '@/components/common/extension-slot';
 import { HealthIndicator } from '@/features/admin/health-indicator';
 import { CommandPalette } from '@/features/search/command-palette';
 
@@ -150,6 +151,7 @@ export function AppShell() {
   const t = useT();
   const [collapsed, toggle] = useCollapsedSidebar();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const overlays = useExtensions('shell.overlay');
 
   return (
     <div className="min-h-dvh bg-background">
@@ -204,7 +206,9 @@ export function AppShell() {
         </DialogContent>
       </Dialog>
 
-      <AssistantLauncher />
+      {overlays.map((module) => (
+        <ExtensionSlot key={module.id} module={module} />
+      ))}
     </div>
   );
 }

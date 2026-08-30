@@ -1,49 +1,50 @@
-# Enterprise Edition sources
+# The Enterprise boundary
 
-Files named `ee_*.go` anywhere in this backend are **not** covered by the
-MPL-2.0 licence at the repository root. They carry the proprietary notice in
-`ee/LICENSE` and each file repeats it in its header.
+This directory documents a boundary; it holds no Enterprise code, and it must
+never hold any.
 
-This is the arrangement MPL-2.0 is designed for. Its copyleft is file-scoped:
-MPL files stay MPL, and separate files may be combined with them in a larger
-work under different terms (see `ADR-028`). The Enterprise sources are separate
-files.
+## Why the code is not here
 
-## Two problems, two mechanisms
+NoryxLab-CE is public. Anything committed here can be read, copied and
+reimplemented by anyone, whatever a licence file says. A licence governs use
+and redistribution; it does not govern reading.
 
-**Licensing.** A proprietary header on each file. Being readable in a public
-repository is not the same as being usable: MPL grants nothing over files it
-does not cover, and these files grant nothing without a subscription
-agreement.
+That distinction was learned twice. The first arrangement put the whole
+Enterprise surface in Community files behind `NORYX_ENABLED_FEATURES`, so an
+environment variable unlocked paid features. The second put the Enterprise
+sources in this repository behind `//go:build enterprise`, which fixed the
+binary and not the leak: the Community image no longer contained the machine
+code, but every line of the source was still published, and a public checkout
+answered `go build -tags enterprise` with a working Enterprise server.
 
-**Distribution.** Every `ee_*.go` file carries `//go:build enterprise`. The
-Community binary is compiled without that tag, so the Enterprise code is not
-merely disabled in it — **it is not in it**. No environment variable, no
-feature flag and no configuration can enable a feature whose machine code was
-never linked.
+A build tag decides what gets compiled. It decides nothing about what gets
+read. So the boundary is now physical: Enterprise source lives in
+`NoryxLab-EE`, and this repository cannot produce an Enterprise binary because
+the files are absent.
 
-That distinction is the point. `NORYX_ENABLED_FEATURES` used to switch
-behaviour on inside a single binary that shipped to everyone, which meant the
-only thing standing between a Community deployment and the Enterprise features
-was an operator's willingness to set a variable.
+## What Community keeps
 
-## Building
+- **Stubs** (`ee_*_stub.go`), which are MPL and are the Community behaviour.
+  They make Enterprise routes return **404, not 403**: a Community deployment
+  should not advertise the existence of doors it has no key to.
+- **Extension points** (`internal/edition`, `frontend/src/lib/extensions.ts`),
+  which are the declared contract Enterprise plugs into.
 
-```sh
-go build ./cmd/noryx-api                     # Community
-go build -tags enterprise ./cmd/noryx-api    # Enterprise
-```
+Community code asks whether a capability is available. It never reasons about
+which Enterprise feature is licensed, and no MPL file names an Enterprise
+feature constant — `scripts/check-edition-boundary.sh` fails the build if one
+does.
 
-The container image selects an edition through the `NORYX_EDITION_BUILD` build
-argument.
+## How Enterprise is built
 
-## Rules
+From `NoryxLab-EE`, which carries `overlay/` — the Enterprise sources, laid out
+at the paths they occupy in a Community checkout. The private build copies the
+overlay over a checkout of this repository and compiles with the tag. Same
+lineage, no fork, and nothing published.
 
-- An Enterprise feature lives in an `ee_*.go` file. No exceptions: a feature
-  half-implemented in an MPL file is a feature given away.
-- Where Community code needs to call into an Enterprise capability, the
-  Community side declares an extension point with a no-op default in an
-  `ee_*_stub.go` file guarded by `//go:build !enterprise`. The stub is MPL and
-  does nothing; the implementation is proprietary.
-- `scripts/check-edition-boundary.sh` fails the build if an MPL file references
-  an Enterprise-only symbol.
+## Adding an Enterprise feature
+
+Put the code in `NoryxLab-EE/overlay/`. If it needs something from Community,
+add an extension point here and use it from there. If you find yourself wanting
+to add `//go:build enterprise` to a file in this repository, the boundary is
+closing again — that is precisely the shape of the second failure.

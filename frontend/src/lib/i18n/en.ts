@@ -622,21 +622,6 @@ export const en: Translations = {
     lastUpdated: 'Last updated',
   },
 
-  assistant: {
-    title: 'Assistant',
-    open: 'Open the assistant',
-    greeting:
-      'Hello. I can explain the platform, find an existing ticket and prepare a bug report or improvement request. Anything to be published is shown to you first.',
-    placeholder: 'Ask a question about the platform…',
-    send: 'Send',
-    thinking: 'Thinking…',
-    draftTitle: 'Report ready to publish',
-    draftHint: 'Review the content before publishing. Nothing is sent without your confirmation.',
-    publish: 'Publish report',
-    discard: 'Discard',
-    published: 'Report published.',
-    error: 'The assistant is temporarily unavailable.',
-  },
 
   health: {
     title: 'Platform health',
