@@ -136,6 +136,12 @@ func main() {
 	}
 
 	settingsResolver := settings.NewResolver(settingsStore)
+	// Facts, not settings: determined by the build and the deployment, shown in
+	// the administration screen so they are visible in one place, and refused
+	// for writing.
+	settingsResolver.SetFact(settings.KeyBackendVersion, cfg.BackendVersion)
+	settingsResolver.SetFact(settings.KeyEdition, cfg.Edition)
+	settingsResolver.SetFact(settings.KeyNamespace, cfg.KubernetesNamespace)
 
 	h := handlers.New(
 		projectStore,

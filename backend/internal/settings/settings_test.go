@@ -89,3 +89,33 @@ func TestUnknownKeyIsRejected(t *testing.T) {
 		t.Fatal("an undeclared key must be rejected rather than stored")
 	}
 }
+
+// A fact must be visible and unwritable: the version is determined by the
+// build, and an administrator able to edit it recreates exactly the drift this
+// design removes.
+func TestReadOnlyFactsAreVisibleButRefused(t *testing.T) {
+	r := NewResolver(&fakeStore{values: map[string]string{}})
+	r.SetFact(KeyBackendVersion, "0.5.200-ee.1")
+
+	if got := r.String(KeyBackendVersion); got != "0.5.200-ee.1" {
+		t.Fatalf("a fact must be readable, got %q", got)
+	}
+	if err := r.Set(KeyBackendVersion, "1.0.0-marketing", "tester"); err == nil {
+		t.Fatal("a read-only entry must refuse a write")
+	}
+	if got := r.String(KeyBackendVersion); got != "0.5.200-ee.1" {
+		t.Fatalf("the refused write must not have taken effect, got %q", got)
+	}
+
+	for _, entry := range r.Effective() {
+		if entry.Key != KeyBackendVersion {
+			continue
+		}
+		if entry.Overridable {
+			t.Fatal("a fact must not be presented as overridable")
+		}
+		if entry.Source != "build" {
+			t.Fatalf("expected source build, got %q", entry.Source)
+		}
+	}
+}

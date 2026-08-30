@@ -24,6 +24,9 @@ type Store interface {
 // the whole point of the store. A few seconds of staleness is the compromise.
 type Resolver struct {
 	store Store
+	// facts supply the values of read-only entries, which come from the binary
+	// or the deployment rather than from the store.
+	facts map[string]string
 
 	mu        sync.RWMutex
 	cache     map[string]string
@@ -35,10 +38,19 @@ type Resolver struct {
 func NewResolver(store Store) *Resolver {
 	return &Resolver{
 		store:     store,
+		facts:     map[string]string{},
 		cache:     map[string]string{},
 		cacheFor:  10 * time.Second,
 		cacheable: store != nil,
 	}
+}
+
+// SetFact records the value of a read-only entry. Called once at start-up by
+// the component that knows it.
+func (r *Resolver) SetFact(key, value string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.facts[key] = strings.TrimSpace(value)
 }
 
 // String returns the effective value, empty when nothing supplies one.
@@ -46,6 +58,11 @@ func (r *Resolver) String(key string) string {
 	definition, found := Lookup(key)
 	if !found {
 		return ""
+	}
+	if definition.ReadOnly {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		return r.facts[key]
 	}
 	if stored, ok := r.stored(key); ok && strings.TrimSpace(stored) != "" {
 		return strings.TrimSpace(stored)
@@ -85,6 +102,9 @@ func (r *Resolver) Set(key, value, actor string) error {
 	if !found {
 		return errUnknownSetting{key: key}
 	}
+	if definition.ReadOnly {
+		return errReadOnly{key: key}
+	}
 	if err := definition.Validate(value); err != nil {
 		return err
 	}
@@ -116,6 +136,13 @@ func (r *Resolver) Effective() []Effective {
 	for _, definition := range Definitions() {
 		value := ""
 		source := "default"
+		if definition.ReadOnly {
+			r.mu.RLock()
+			value = r.facts[definition.Key]
+			r.mu.RUnlock()
+			out = append(out, Effective{Definition: definition, Value: value, Source: "build", Overridable: false})
+			continue
+		}
 		if stored, ok := r.stored(definition.Key); ok && strings.TrimSpace(stored) != "" {
 			value, source = strings.TrimSpace(stored), "stored"
 		} else if definition.EnvVar != "" && strings.TrimSpace(os.Getenv(definition.EnvVar)) != "" {
@@ -174,6 +201,12 @@ type errUnknownSetting struct{ key string }
 
 func (e errUnknownSetting) Error() string {
 	return "réglage inconnu : " + e.key
+}
+
+type errReadOnly struct{ key string }
+
+func (e errReadOnly) Error() string {
+	return "ce reglage n'est pas modifiable : " + e.key + " est determine a la compilation ou au deploiement"
 }
 
 type errNoStore struct{}

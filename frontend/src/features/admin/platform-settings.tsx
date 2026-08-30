@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { RotateCcw, Save } from 'lucide-react';
+import { Lock, RotateCcw, Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ function sourceLabel(source: string, locale: 'fr' | 'en'): string {
     stored: { fr: 'Défini ici', en: 'Set here' },
     environment: { fr: 'Variable d’environnement', en: 'Environment variable' },
     default: { fr: 'Valeur par défaut', en: 'Default' },
+    build: { fr: 'Déterminé à la compilation', en: 'Set at build time' },
   };
   return labels[source]?.[locale] ?? source;
 }
@@ -54,6 +55,28 @@ function SettingRow({ setting }: { setting: EffectiveSetting }) {
   });
 
   const dirty = draft.trim() !== setting.value.trim();
+
+  // A fact is shown, never offered for editing. Rendering a disabled input
+  // would advertise a control that does not exist, which is the pattern the
+  // frontend rewrite removed elsewhere.
+  if (setting.readOnly) {
+    return (
+      <div className="space-y-1 border-b border-border py-4 last:border-0">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{setting.label}</p>
+            <p className="font-mono text-xs text-muted-foreground">{setting.key}</p>
+          </div>
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="size-3 text-muted-foreground" aria-hidden />
+            <Badge tone="outline">{sourceLabel(setting.source, locale)}</Badge>
+          </span>
+        </div>
+        <p className="font-mono text-sm">{setting.value || '—'}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">{setting.description}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2 border-b border-border py-4 last:border-0">

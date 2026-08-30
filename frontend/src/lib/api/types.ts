@@ -614,10 +614,13 @@ export interface EffectiveSetting {
   values?: string[];
   fallback: string;
   secret: boolean;
+  /** A fact rather than a setting: determined by the build or the deployment,
+   *  shown for visibility and refused for writing. */
+  readOnly: boolean;
   value: string;
   /** Where the current value comes from, so an operator can tell why it is
    *  what it is rather than guessing between manifest and environment. */
-  source: 'stored' | 'environment' | 'default';
+  source: 'stored' | 'environment' | 'default' | 'build';
   overridable: boolean;
 }
 

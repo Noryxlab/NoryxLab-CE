@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/buildinfo"
 )
 
 type Config struct {
@@ -82,7 +84,9 @@ type Config struct {
 }
 
 func Load() Config {
-	backendVersion := os.Getenv("NORYX_BACKEND_VERSION")
+	// Stamped at link time; the environment variable only labels an unstamped
+	// developer build and cannot mask a real one.
+	backendVersion := buildinfo.Resolve(os.Getenv("NORYX_BACKEND_VERSION"))
 	if backendVersion == "" {
 		backendVersion = "0.5.161"
 	}

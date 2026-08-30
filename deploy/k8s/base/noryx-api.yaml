@@ -25,8 +25,9 @@ spec:
           env:
             - name: NORYX_LISTEN_ADDR
               value: ":8080"
-            - name: NORYX_BACKEND_VERSION
-              value: "0.5.188-dev"
+            # The version is stamped into the binary at build time and cannot
+            # be set here: a version an operator can edit is a version that
+            # drifts from the image running it (ADR-034).
             - name: NORYX_EDITION
               value: "community"
             - name: NORYX_ORGANIZATION_REQUIRED

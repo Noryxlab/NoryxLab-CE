@@ -48,6 +48,11 @@ type Definition struct {
 	Fallback string `json:"fallback"`
 	// Secret marks a value that must never be returned to a client.
 	Secret bool `json:"secret"`
+	// ReadOnly marks a fact rather than a setting: something an administrator
+	// should be able to see in one place but cannot change, because it is
+	// determined elsewhere. The version is the archetype - it changes when the
+	// code changes, not when someone edits a field.
+	ReadOnly bool `json:"readOnly"`
 }
 
 // Keys of the settings this platform exposes. Declared rather than free-form:
@@ -58,6 +63,11 @@ const (
 	KeyAlertWebhookURL      = "alert.webhook_url"
 	KeyAlertInstanceName    = "alert.instance_name"
 	KeyDefaultTheme         = "ui.default_theme"
+
+	// Facts, exposed for visibility and refused for writing.
+	KeyBackendVersion = "platform.backend_version"
+	KeyEdition        = "platform.edition"
+	KeyNamespace      = "platform.namespace"
 )
 
 // Definitions is the complete registry.
@@ -95,6 +105,27 @@ func Definitions() []Definition {
 			Description: "Thème appliqué aux utilisateurs n'ayant pas exprimé de préférence.",
 			Values:      []string{"", "light", "dark"},
 			Fallback:    "",
+		},
+		{
+			Key:         KeyBackendVersion,
+			Kind:        KindString,
+			Label:       "Version du backend",
+			Description: "Estampillée dans le binaire à la compilation. Elle change avec le code, pas avec un réglage.",
+			ReadOnly:    true,
+		},
+		{
+			Key:         KeyEdition,
+			Kind:        KindString,
+			Label:       "Édition",
+			Description: "Déterminée par la configuration de déploiement.",
+			ReadOnly:    true,
+		},
+		{
+			Key:         KeyNamespace,
+			Kind:        KindString,
+			Label:       "Namespace Kubernetes",
+			Description: "Namespace hébergeant le plan de contrôle.",
+			ReadOnly:    true,
 		},
 	}
 }
