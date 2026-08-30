@@ -69,6 +69,7 @@ export const qk = {
   egressRules: ['admin', 'egress', 'rules'] as const,
 
   adminOverview: ['admin', 'overview'] as const,
+  adminHealth: ['admin', 'health'] as const,
   adminUsers: ['admin', 'users'] as const,
   adminExecutions: ['admin', 'executions'] as const,
   adminPods: ['admin', 'pods'] as const,
@@ -305,6 +306,18 @@ export const useAdminOverview = () =>
   useQuery({ queryKey: qk.adminOverview, queryFn: adminApi.overview, refetchInterval: 30_000 });
 
 export const useAdminUsers = () => useQuery({ queryKey: qk.adminUsers, queryFn: adminApi.users });
+
+/** Platform health, polled so a condition that appears between two visits is
+ *  still noticed. Failures are swallowed: an unreachable health endpoint must
+ *  not itself render as a platform alert. */
+export const usePlatformHealth = (enabled: boolean) =>
+  useQuery({
+    queryKey: qk.adminHealth,
+    queryFn: adminApi.health,
+    enabled,
+    refetchInterval: 60_000,
+    retry: false,
+  });
 
 export const useAdminExecutions = () =>
   useQuery({ queryKey: qk.adminExecutions, queryFn: adminApi.executions, refetchInterval: 15_000 });

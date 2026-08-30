@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
@@ -34,6 +35,7 @@ type Handlers struct {
 	rbacPolicyStore                  store.RBACPolicyStore
 	backupRunStore                   store.BackupRunStore
 	notifier                         *notify.Notifier
+	workspaceMaxLifetime             time.Duration
 	storageEndpointStore             store.StorageEndpointStore
 	runtime                          runtime.Runner
 	authVerifier                     auth.Verifier
@@ -116,8 +118,11 @@ type Options struct {
 	DefaultTheme                     string
 	// AlertWebhookURL and AlertInstanceName configure operator alerting.
 	// An empty URL disables it.
-	AlertWebhookURL              string
-	AlertInstanceName            string
+	AlertWebhookURL   string
+	AlertInstanceName string
+	// WorkspaceMaxLifetime is echoed here so the health report can tell which
+	// workspaces the reaper should already have reclaimed.
+	WorkspaceMaxLifetime         time.Duration
 	SecretsMasterKey             string
 	MinIOClient                  *minio.Client
 	MinIOEndpoint                string
@@ -198,6 +203,7 @@ func New(
 		rbacPolicyStore:                  rbacPolicyStore,
 		backupRunStore:                   backupRunStore,
 		notifier:                         notify.New(options.AlertWebhookURL, options.AlertInstanceName),
+		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

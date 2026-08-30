@@ -605,6 +605,24 @@ export interface AssistantIssueDraft {
   url?: string;
 }
 
+export type HealthSeverity = 'critical' | 'warning' | 'info';
+
+export interface HealthAlert {
+  severity: HealthSeverity;
+  source: string;
+  summary: string;
+  detail?: string;
+  since?: string;
+  /** Administration section an operator should open to act on this. */
+  action?: string;
+}
+
+export interface HealthReport {
+  generatedAt: string;
+  status: 'healthy' | 'degraded' | 'critical';
+  alerts: HealthAlert[];
+}
+
 export interface ModuleInfo {
   id: string;
   name: string;

@@ -638,6 +638,16 @@ export const en: Translations = {
     error: 'The assistant is temporarily unavailable.',
   },
 
+  health: {
+    title: 'Platform health',
+    subtitle: 'Conditions that need attention.',
+    checkedAt: 'Checked',
+    statusHealthy: 'All good',
+    statusDegraded: 'Degraded',
+    statusCritical: 'Critical',
+    allClear: 'No problem detected.',
+    indicator: 'Platform alerts',
+  },
   errors: {
     notFoundTitle: 'Page not found',
     notFoundHint: 'The link you followed does not exist, or no longer exists.',

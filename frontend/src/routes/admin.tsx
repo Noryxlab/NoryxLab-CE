@@ -68,6 +68,7 @@ import { isEnterprise } from '@/lib/config';
 import { useExtensions } from '@/lib/extensions';
 import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
+import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import type {
   AuditEvent,
   DataUsageEdge,
@@ -105,6 +106,7 @@ function OverviewSection() {
   return (
     <div className="space-y-4">
       <SectionHeader title={t('admin.overview')} description={t('admin.subtitle')} />
+      <PlatformHealthPanel enabled />
       <StatGrid>
         <Stat
           icon={Users}

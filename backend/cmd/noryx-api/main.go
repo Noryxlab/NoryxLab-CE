@@ -188,6 +188,7 @@ func main() {
 			DefaultTheme:                     cfg.DefaultTheme,
 			AlertWebhookURL:                  cfg.AlertWebhookURL,
 			AlertInstanceName:                cfg.AlertInstanceName,
+			WorkspaceMaxLifetime:             cfg.WorkspaceMaxLifetime,
 			EditionHooks: &edition.Hooks{
 				Feature: edition.FeatureGateFromCSV(cfg.EnabledFeatures),
 			},

@@ -643,6 +643,16 @@ export const fr = {
     error: 'L’assistant est momentanément indisponible.',
   },
 
+  health: {
+    title: 'Santé de la plateforme',
+    subtitle: 'Conditions nécessitant une intervention.',
+    checkedAt: 'Vérifié',
+    statusHealthy: 'Tout va bien',
+    statusDegraded: 'Dégradée',
+    statusCritical: 'Critique',
+    allClear: 'Aucun problème détecté.',
+    indicator: 'Alertes plateforme',
+  },
   errors: {
     notFoundTitle: 'Page introuvable',
     notFoundHint: 'Le lien que vous avez suivi n’existe pas ou n’existe plus.',

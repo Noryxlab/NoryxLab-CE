@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminOverview,
+  HealthReport,
   App,
   AppRevision,
   AppUsage,
@@ -354,6 +355,7 @@ export const egressApi = {
 
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
+  health: () => api.get<HealthReport>(`${V1}/admin/health`),
   users: () => api.list<PlatformUser>(`${V1}/admin/users`),
   inventory: () => api.get<AdminInventory>(`${V1}/admin/inventory`),
   modules: () => api.list<ModuleInfo>(`${V1}/admin/modules`),

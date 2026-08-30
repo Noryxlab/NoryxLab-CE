@@ -19,6 +19,7 @@ import { useVersion } from '@/lib/api/queries';
 import { config } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { AssistantLauncher } from '@/features/assistant/assistant-panel';
+import { HealthIndicator } from '@/features/admin/health-indicator';
 
 const SIDEBAR_KEY = 'noryx.sidebar.collapsed';
 
@@ -180,6 +181,7 @@ export function AppShell() {
               <Menu aria-hidden />
             </Button>
             <div className="flex-1" />
+            <HealthIndicator />
             <AccountMenu />
           </header>
 
