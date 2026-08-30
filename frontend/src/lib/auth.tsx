@@ -89,6 +89,7 @@ function toIdentity(claims: TokenClaims, clientId: string): Identity {
 }
 
 const ADMIN_ROLES = ['admin', 'noryx-admin', 'platform-admin', 'realm-admin'];
+const ORGANIZATION_SCOPE = 'openid profile email organization:*';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = React.useState<AuthStatus>('initialising');
@@ -130,6 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Do not let keycloak-js reuse a deep or stateful current URL as the
     // callback URL. Some browsers can grow it past Keycloak's URI limit.
     const redirectUri = `${window.location.origin}/`;
+    // Keycloak only emits organisation memberships when the organisation
+    // scope is explicitly requested. `organization:*` is intentionally used
+    // here: Noryx authorizes the returned memberships server-side and a user
+    // may legitimately belong to more than one organisation.
     configureAuth({
       getToken: async () => {
         // A request can happen while React is still mounting providers. Never
@@ -185,7 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login: () => {
         if (loginInFlightRef.current) return;
         loginInFlightRef.current = true;
-        void keycloakRef.current?.login({ redirectUri: `${window.location.origin}/` }).catch((cause: unknown) => {
+        void keycloakRef.current
+          ?.login({ redirectUri: `${window.location.origin}/`, scope: ORGANIZATION_SCOPE })
+          .catch((cause: unknown) => {
           loginInFlightRef.current = false;
           setError(cause);
           setStatus('failed');
