@@ -2,6 +2,7 @@ import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminOverview,
   EffectiveSetting,
+  SearchResult,
   HealthReport,
   App,
   AppRevision,
@@ -53,6 +54,12 @@ export const platformApi = {
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
   organizations: () => api.list<Organization>(`${V1}/organizations`),
+};
+
+export const searchApi = {
+  /** Results are scoped server-side by the same rules the listing endpoints
+   *  use, so this can never surface anything the caller could not open. */
+  search: (query: string) => api.list<SearchResult>(`${V1}/search`, { params: { q: query } }),
 };
 
 export const projectsApi = {

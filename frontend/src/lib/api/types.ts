@@ -605,6 +605,14 @@ export interface AssistantIssueDraft {
   url?: string;
 }
 
+export interface SearchResult {
+  kind: string;
+  id: string;
+  label: string;
+  sublabel?: string;
+  projectId?: string;
+}
+
 export interface EffectiveSetting {
   key: string;
   envVar: string;

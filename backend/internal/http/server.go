@@ -24,6 +24,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/user/preferences", h.GetUserPreferences)
 	mux.HandleFunc("GET /api/v1/organizations", h.ListAvailableOrganizations)
 	mux.HandleFunc("PUT /api/v1/user/preferences", h.UpdateUserPreferences)
+	mux.HandleFunc("GET /api/v1/search", h.Search)
 	mux.HandleFunc("GET /api/v1/projects", h.ListProjects)
 	mux.HandleFunc("POST /api/v1/projects", h.CreateProject)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}", h.UpdateProjectMetadata)

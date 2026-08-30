@@ -20,6 +20,7 @@ import { config } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { AssistantLauncher } from '@/features/assistant/assistant-panel';
 import { HealthIndicator } from '@/features/admin/health-indicator';
+import { CommandPalette } from '@/features/search/command-palette';
 
 const SIDEBAR_KEY = 'noryx.sidebar.collapsed';
 
@@ -180,6 +181,7 @@ export function AppShell() {
             >
               <Menu aria-hidden />
             </Button>
+            <CommandPalette />
             <div className="flex-1" />
             <HealthIndicator />
             <AccountMenu />
