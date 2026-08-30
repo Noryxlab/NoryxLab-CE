@@ -1,0 +1,10 @@
+---
+# Platform namespace. Referenced by the role's kubectl invocations *and*
+# hardcoded in deploy/k8s/base; the patch task below keeps the two in step.
+# Without this default the role fails on an undefined variable unless every
+# caller supplies one through a client vars file.
+noryx_namespace: noryx-ce
+
+# Workload namespace, deliberately separate from the control plane and not
+# currently parameterised.
+noryx_loads_namespace: noryx-loads

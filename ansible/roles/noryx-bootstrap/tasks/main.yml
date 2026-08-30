@@ -26,14 +26,25 @@
     (harbor_robot_username | default('')) in ['', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS'] or
     (harbor_robot_password | default('')) in ['', 'CHANGE_ME_WITH_ANSIBLE_VAULT_OR_EXTRA_VARS']
 
-- name: Patch deployment domain and registry placeholders
+- name: Patch deployment domain, registry and namespace placeholders
   ansible.builtin.shell: |
     set -euo pipefail
     find {{ noryx_deploy_path }}/deploy/k8s/base -type f -name '*.yaml' -print0 | xargs -0 sed -i \
       -e 's#datalab.example.local#{{ public_domain }}#g' \
-      -e 's#harbor.example.local#{{ harbor_registry_host }}#g'
+      -e 's#harbor.example.local#{{ harbor_registry_host }}#g' \
+      -e 's#^\( *\)namespace: noryx-ce$#\1namespace: {{ noryx_namespace }}#' \
+      -e 's#^\( *\)name: noryx-ce$#\1name: {{ noryx_namespace }}#'
   args:
     executable: /bin/bash
+
+- name: Verify no manifest still targets the default namespace
+  ansible.builtin.shell: |
+    set -euo pipefail
+    ! grep -rn '^ *namespace: noryx-ce$' {{ noryx_deploy_path }}/deploy/k8s/base
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: noryx_namespace != 'noryx-ce'
 
 - name: Patch secret values
   ansible.builtin.lineinfile:

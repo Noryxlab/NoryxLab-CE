@@ -16,8 +16,12 @@
 # Idempotent: safe to re-run. Re-running rotates the password.
 #
 # Usage:
-#   scripts/provision-ops-account.sh
-#   NORYX_OPS_ADMIN=0 scripts/provision-ops-account.sh   # without the admin role
+#   scripts/provision-ops-account.sh                    # user-scoped endpoints
+#   NORYX_OPS_ADMIN=1 scripts/provision-ops-account.sh   # also /api/v1/admin/*
+#
+# The admin role is opt-in: this account exists to exercise the API, and a
+# privileged account shipped by default is the pattern ADR-033 records as a
+# prerequisite to remove, not one to add.
 #
 set -euo pipefail
 
@@ -27,7 +31,7 @@ OPS_USER="${NORYX_OPS_USER:-noryxops}"
 OPS_ORG_NAME="${NORYX_OPS_ORG_NAME:-Noryx Ops}"
 OPS_ORG_ALIAS="${NORYX_OPS_ORG_ALIAS:-noryxops}"
 OPS_SECRET="${NORYX_OPS_SECRET:-noryx-ops-account}"
-GRANT_ADMIN="${NORYX_OPS_ADMIN:-1}"
+GRANT_ADMIN="${NORYX_OPS_ADMIN:-0}"
 ADMIN_ROLE="noryx-admin"
 
 command -v kubectl >/dev/null || { echo "kubectl introuvable" >&2; exit 1; }
