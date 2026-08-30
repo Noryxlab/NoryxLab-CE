@@ -108,10 +108,12 @@ export const projectsApi = {
 
 export interface CreateWorkspaceInput {
   projectId: string;
-  environmentId?: string;
-  image?: string;
-  kind?: string;
   name?: string;
+  /** jupyter | vscode | rstudio. Selects the default image when `image` is
+   *  omitted; the API rejects any other value. */
+  ide?: string;
+  /** Full image reference, taken from the chosen environment. */
+  image?: string;
   hardwareTier?: string;
   storageSize?: string;
 }
@@ -126,8 +128,8 @@ export const workspacesApi = {
 export interface CreateJobInput {
   projectId: string;
   name?: string;
-  image?: string;
-  environmentId?: string;
+  /** Required by the API: a job with no image is rejected with 400. */
+  image: string;
   command: string[];
   args?: string[];
   hardwareTier?: string;
@@ -153,18 +155,23 @@ export const cronJobsApi = {
   remove: (cronJobId: string) => api.delete<void>(`${V1}/cronjobs/${cronJobId}`),
 };
 
+/** The API validates this set exactly; anything else is rejected with 400. */
+export type AppAccessMode = 'private' | 'organization' | 'users' | 'public';
+
 export interface CreateAppInput {
   projectId: string;
   name?: string;
   slug?: string;
-  environmentId?: string;
-  image?: string;
+  image: string;
   command: string[];
   args?: string[];
   port: number;
   hardwareTier?: string;
-  accessMode?: string;
-  kind?: string;
+  accessMode?: AppAccessMode;
+  /** Required when accessMode is 'organization'. */
+  allowedOrganizations?: string[];
+  /** Required when accessMode is 'users'. */
+  allowedUsers?: string[];
 }
 
 export const appsApi = {

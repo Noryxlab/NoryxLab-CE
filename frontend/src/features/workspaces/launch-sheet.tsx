@@ -85,8 +85,10 @@ export function LaunchWorkspaceSheet({
     mutationFn: () =>
       workspacesApi.create({
         projectId,
-        environmentId,
-        kind: ide ?? undefined,
+        // The API has no environment id: it takes the image directly, and an
+        // ide that selects the default image when none is supplied.
+        image: environment?.destinationImage,
+        ide: ide ?? undefined,
         name: name.trim() || undefined,
         hardwareTier: tierId || undefined,
         storageSize: storage,

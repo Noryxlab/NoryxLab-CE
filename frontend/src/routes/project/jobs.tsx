@@ -97,10 +97,12 @@ function CreateJobSheet({
 
   const mutation = useMutation<Job | CronJob>({
     mutationFn: () => {
+      const environment = usable.find((candidate) => candidate.id === environmentId);
       const payload = {
         projectId,
         name: name.trim() || undefined,
-        environmentId,
+        // Required by the API; there is no environment id on the wire.
+        image: environment?.destinationImage ?? '',
         command: toArgv(command),
         hardwareTier: tierId || undefined,
       };

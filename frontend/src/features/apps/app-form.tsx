@@ -14,8 +14,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { useEnvironments, useHardwareTiers, qk, useInvalidate } from '@/lib/api/queries';
-import { appsApi, dashboardsApi } from '@/lib/api/endpoints';
+import { useEnvironments, useHardwareTiers, useOrganizations, qk, useInvalidate } from '@/lib/api/queries';
+import { appsApi, dashboardsApi, type AppAccessMode } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { findFramework, formatCommand, frameworkOptions, presentTier } from '@/lib/presenters';
 import { slugify } from '@/lib/format';
@@ -50,6 +50,7 @@ export function CreateAppSheet({
   const invalidate = useInvalidate();
   const environments = useEnvironments();
   const tiers = useHardwareTiers();
+  const organizations = useOrganizations();
 
   const [frameworkId, setFrameworkId] = React.useState('streamlit');
   const [name, setName] = React.useState('');
@@ -60,7 +61,8 @@ export function CreateAppSheet({
   const [customCommand, setCustomCommand] = React.useState('');
   const [environmentId, setEnvironmentId] = React.useState('');
   const [tierId, setTierId] = React.useState('');
-  const [accessMode, setAccessMode] = React.useState('private');
+  const [accessMode, setAccessMode] = React.useState<AppAccessMode>('private');
+  const [allowedOrganization, setAllowedOrganization] = React.useState('');
   const [touched, setTouched] = React.useState(false);
 
   const framework = findFramework(frameworkId);
@@ -107,20 +109,26 @@ export function CreateAppSheet({
   const slugError = touched && !slug.trim() ? t('common.required') : undefined;
   const commandError = touched && command.length === 0 ? t('common.required') : undefined;
 
-  const valid = Boolean(name.trim() && slug.trim() && command.length > 0 && environmentId);
+  const valid = Boolean(
+    name.trim() && slug.trim() && command.length > 0 && environmentId &&
+      (accessMode !== 'organization' || allowedOrganization),
+  );
 
   const mutation = useMutation({
     mutationFn: () => {
+      const environment = usable.find((candidate) => candidate.id === environmentId);
       const payload = {
         projectId,
         name: name.trim(),
         slug: slug.trim(),
-        environmentId,
+        // The API takes the image directly; there is no environment id.
+        image: environment?.destinationImage ?? '',
         command,
         port: portNumber,
         hardwareTier: tierId || undefined,
         accessMode,
-        kind: variant,
+        // Required by the API whenever access is scoped to an organisation.
+        ...(accessMode === 'organization' ? { allowedOrganizations: [allowedOrganization] } : {}),
       };
       return variant === 'dashboard'
         ? dashboardsApi.create({ ...payload, slug: slug.trim() })
@@ -253,14 +261,28 @@ export function CreateAppSheet({
             <Field label={t('apps.accessLabel')}>
               <Select
                 value={accessMode}
-                onValueChange={setAccessMode}
+                onValueChange={(value) => setAccessMode(value as AppAccessMode)}
                 options={[
                   { value: 'private', label: t('apps.accessPrivate') },
                   { value: 'organization', label: t('apps.accessOrganization') },
-                  { value: 'authenticated', label: t('apps.accessPublic') },
+                  { value: 'public', label: t('apps.accessPublic') },
                 ]}
               />
             </Field>
+
+            {accessMode === 'organization' ? (
+              <Field label={t('common.organization')} required>
+                <Select
+                  value={allowedOrganization}
+                  onValueChange={setAllowedOrganization}
+                  placeholder={t('common.search')}
+                  options={(organizations.data ?? []).map((organization) => ({
+                    value: organization.alias || organization.id,
+                    label: organization.name,
+                  }))}
+                />
+              </Field>
+            ) : null}
           </SheetBody>
 
           <SheetFooter>
