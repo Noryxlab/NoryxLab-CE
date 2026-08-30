@@ -130,18 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Do not let keycloak-js reuse a deep or stateful current URL as the
     // callback URL. Some browsers can grow it past Keycloak's URI limit.
     const redirectUri = `${window.location.origin}/`;
-    const startLogin = () => {
-      if (loginInFlightRef.current) return;
-      loginInFlightRef.current = true;
-      void keycloak.login({ redirectUri }).catch((cause: unknown) => {
-        loginInFlightRef.current = false;
-        setError(cause);
-        setStatus('failed');
-      });
-    };
-
     configureAuth({
       getToken: async () => {
+        // A request can happen while React is still mounting providers. Never
+        // ask keycloak-js to refresh a token before the initial OIDC callback
+        // has been processed: it can restart the authorization flow forever.
+        if (!keycloak.authenticated || !keycloak.token) return null;
         try {
           // Refresh when the token has under 30s left, so a long-running page
           // never sends an expired bearer.
@@ -152,7 +146,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return keycloak.token ?? null;
       },
       onUnauthorized: () => {
-        startLogin();
+        // A 401 is an application error, not an instruction to restart the
+        // browser navigation. Keeping the user on the sign-in screen makes a
+        // broken API audience or an expired session diagnosable and avoids an
+        // infinite Keycloak redirect loop.
+        keycloak.clearToken();
+        setIdentity(null);
+        setStatus('anonymous');
       },
     });
 
