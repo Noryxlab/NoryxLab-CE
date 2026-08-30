@@ -25,7 +25,8 @@ OPS_SECRET="${NORYX_OPS_SECRET:-noryx-ops-account}"
 BE_PORT="${NORYX_BE_PORT:-18090}"
 KC_PORT="${NORYX_KC_PORT:-18091}"
 DEPTH="${NORYX_DEPTH:-1}"   # 2 pour deplier les objets imbriques
-RAW="${NORYX_RAW:-0}"      # 1 pour afficher les valeurs, pour un controle operationnel
+RAW="${NORYX_RAW:-0}"
+METHOD="${NORYX_METHOD:-GET}"  # POST pour declencher une operation, usage operationnel      # 1 pour afficher les valeurs, pour un controle operationnel
 
 ENDPOINTS="${NORYX_ENDPOINTS:-version platform/overview admin/overview admin/inventory \
 hardware-tiers projects datasets datasources ontologies repositories secrets cronjobs jobs \
@@ -86,7 +87,7 @@ PYEOF
 for EP in $ENDPOINTS; do
   echo
   echo "### /api/v1/$EP"
-  BODY="$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $TOKEN" \
+  BODY="$(curl -s -X "$METHOD" -w '\n%{http_code}' -H "Authorization: Bearer $TOKEN" \
           "http://127.0.0.1:$BE_PORT/api/v1/$EP")"
   echo "  HTTP $(printf '%s' "$BODY" | tail -1)"
   if [ "$RAW" = "1" ]; then
