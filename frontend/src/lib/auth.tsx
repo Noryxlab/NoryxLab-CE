@@ -158,11 +158,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     keycloak
       .init({
-        onLoad: 'check-sso',
         pkceMethod: 'S256',
         checkLoginIframe: false,
         redirectUri,
-        silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
       })
       .then((authenticated) => {
         if (authenticated && keycloak.tokenParsed) {
