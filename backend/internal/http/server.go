@@ -11,6 +11,21 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", GetHome)
+
+	// An unknown /api path must not fall into the home page. `GET /` is the
+	// catch-all, so before this a missing API route answered 200 with HTML:
+	// alive in a browser, undebuggable from a client, and precisely what hid
+	// the Enterprise routes going unregistered for a whole release. More
+	// specific patterns still win, so every real route is unaffected.
+	//
+	// Scoped to GET because a bare "/api/" would be ambiguous against "GET /"
+	// and the mux refuses to register it. An unknown POST therefore gets 405
+	// rather than 404 - still an API-shaped answer, never the application.
+	mux.HandleFunc("GET /api/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"no such endpoint"}` + "\n"))
+	})
 	mux.HandleFunc("GET /healthz", h.GetHealth)
 	mux.HandleFunc("GET /api/v1/version", h.GetVersion)
 	mux.HandleFunc("GET /api/v1/platform/overview", h.GetPlatformOverview)
@@ -157,6 +172,17 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/organizations/{organizationID}/members", h.ListOrganizationMembers)
 	mux.HandleFunc("PUT /api/v1/admin/organizations/{organizationID}/members/{userID}", h.AddOrganizationMember)
 	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}/members/{userID}", h.RemoveOrganizationMember)
+
+	// The Enterprise surfaces, if this binary has them. In a Community build
+	// this call registers nothing, because the implementation it resolves to is
+	// the stub: the routes are absent rather than forbidden.
+	//
+	// The call site is Community and the implementation is Enterprise, which is
+	// the seam working as intended. Forgetting this line once already made every
+	// Enterprise route fall through to the SPA and return the application's HTML
+	// with a 200 - a shape that looks alive from a browser and is dead to every
+	// client.
+	registerEnterpriseRoutes(mux, h)
 
 	mux.HandleFunc("GET /swagger", GetSwaggerUI)
 	mux.HandleFunc("GET /swagger/", GetSwaggerUI)
