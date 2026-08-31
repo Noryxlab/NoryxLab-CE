@@ -8,14 +8,14 @@ import (
 )
 
 type Secret struct {
-	ID             string    `json:"id"`
-	UserID         string    `json:"userId"`
-	Name           string    `json:"name"`
-	Type           string    `json:"type"`
-	ValueEncrypted string    `json:"-"`
+	ID             string     `json:"id"`
+	UserID         string     `json:"userId"`
+	Name           string     `json:"name"`
+	Type           string     `json:"type"`
+	ValueEncrypted string     `json:"-"`
 	ExpiresAt      *time.Time `json:"expiresAt,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 }
 
 func New(userID, name, secretType, valueEncrypted string) Secret {
