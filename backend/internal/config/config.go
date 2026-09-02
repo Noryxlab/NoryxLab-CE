@@ -82,6 +82,9 @@ type Config struct {
 	AssistantInternalToken        string
 	AssistantDeveloperSigningKey  string
 	AssistantPublicURL            string
+	// PublicURL is the address users reach the platform at, used to check the
+	// certificate actually served to them.
+	PublicURL string
 }
 
 func Load() Config {
@@ -346,5 +349,18 @@ func Load() Config {
 		AssistantInternalToken:           os.Getenv("NORYX_ASSISTANT_INTERNAL_TOKEN"),
 		AssistantDeveloperSigningKey:     os.Getenv("NORYX_ASSISTANT_DEVELOPER_SIGNING_KEY"),
 		AssistantPublicURL:               os.Getenv("NORYX_ASSISTANT_PUBLIC_URL"),
+		// Falls back to the assistant public URL, which is the same address on
+		// every deployment that sets it, so this works before anyone updates
+		// a manifest.
+		PublicURL: firstNonEmpty(os.Getenv("NORYX_PUBLIC_URL"), os.Getenv("NORYX_ASSISTANT_PUBLIC_URL")),
 	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

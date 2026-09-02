@@ -69,6 +69,7 @@ func (h Handlers) GetPlatformHealth(w http.ResponseWriter, r *http.Request) {
 // reassuring one that gets believed.
 func (h Handlers) platformHealth() healthReport {
 	alerts := []healthAlert{}
+	alerts = append(alerts, h.certificateAlerts()...)
 	alerts = append(alerts, h.backupAlerts()...)
 	alerts = append(alerts, h.deploymentAlerts()...)
 	alerts = append(alerts, h.workspaceLifetimeAlerts()...)

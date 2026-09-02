@@ -14,17 +14,35 @@
 #   ./scripts/ops/smoke_deployment.sh https://datalab.example.local
 #
 # Options via environment:
-#   EXPECT_VERSION   fail unless the API reports this backend version
-#   EXPECT_EDITION   "community" or "enterprise"
-#   NAMESPACE        Kubernetes namespace, for the log checks (default noryx-ce)
-#   SKIP_CLUSTER     set to 1 to run the HTTP checks only
+#   EXPECT_VERSION           fail unless the API reports this backend version
+#   EXPECT_FRONTEND_VERSION  fail unless /version.json reports this one
+#   EXPECT_EDITION           "community" or "enterprise"
+#   NAMESPACE                Kubernetes namespace, for the log checks
+#   SKIP_CLUSTER             set to 1 to run the HTTP checks only
+#   SMOKE_INSECURE           set to 1 to accept an unverified certificate
 set -uo pipefail
 
 BASE=${1:-${BASE_URL:-}}
 NAMESPACE=${NAMESPACE:-noryx-ce}
 EXPECT_VERSION=${EXPECT_VERSION:-}
+EXPECT_FRONTEND_VERSION=${EXPECT_FRONTEND_VERSION:-}
 EXPECT_EDITION=${EXPECT_EDITION:-}
 SKIP_CLUSTER=${SKIP_CLUSTER:-0}
+SMOKE_INSECURE=${SMOKE_INSECURE:-0}
+
+# The certificate is verified by default.
+#
+# Every probe here used to pass -k, so the smoke proved a TLS connection was
+# possible and nothing about whether it was trustworthy: an expired chain, or
+# one issued for another name, would have gone through green. That is a
+# production outage this check exists to see coming.
+#
+# SMOKE_INSECURE=1 remains for installations with a private CA, and says so in
+# the output rather than passing silently.
+CURL_TLS=""
+if [ "$SMOKE_INSECURE" = "1" ]; then
+  CURL_TLS="-k"
+fi
 
 if [ -z "$BASE" ]; then
   echo "usage: $0 <base-url>   (or set BASE_URL)" >&2
@@ -38,17 +56,20 @@ pass() { printf '  ok    %s\n' "$1"; }
 
 # status METHOD PATH -> HTTP code
 status() {
-  curl -sk -o /dev/null -w '%{http_code}' --max-time 20 -X "$1" "${BASE}$2"
+  curl -s ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 -X "$1" "${BASE}$2"
 }
 # content_type PATH -> content type
 content_type() {
-  curl -sk -o /dev/null -w '%{content_type}' --max-time 20 "${BASE}$1"
+  curl -s ${CURL_TLS} -o /dev/null -w '%{content_type}' --max-time 20 "${BASE}$1"
 }
 body() {
-  curl -sk --max-time 20 "${BASE}$1"
+  curl -s ${CURL_TLS} --max-time 20 "${BASE}$1"
 }
 
 echo "Deployment smoke: ${BASE}"
+if [ "$SMOKE_INSECURE" = "1" ]; then
+  printf '  note  certificate verification is disabled (SMOKE_INSECURE=1)\n'
+fi
 
 # 0. Wait for the edge to settle before judging anything.
 #
@@ -113,6 +134,46 @@ if [ -n "$EXPECT_EDITION" ] && [ "$reported_edition" != "$EXPECT_EDITION" ]; the
   fail "edition is ${reported_edition:-unset}, expected ${EXPECT_EDITION}"
 fi
 
+# 3b. The interface actually served. The backend version says nothing about it:
+#     a frontend tag pointing at an older image serves a stale interface while
+#     every backend check passes.
+frontend_version=$(printf '%s' "$(body /version.json)" | sed -n 's/.*"version"[: ]*"\([^"]*\)".*/\1/p')
+if [ -z "$frontend_version" ]; then
+  fail "the interface does not report a version"
+elif [ -n "$EXPECT_FRONTEND_VERSION" ] && [ "$frontend_version" != "$EXPECT_FRONTEND_VERSION" ]; then
+  fail "the interface is ${frontend_version}, expected ${EXPECT_FRONTEND_VERSION}"
+else
+  pass "the interface is ${frontend_version}"
+fi
+
+# 3c. How long the certificate has left.
+#
+#     Traefik renews from ACME at roughly thirty days remaining, so this is not
+#     asking anyone to renew: it reports when renewal has stopped working. A
+#     certificate with three weeks left has already missed one, and that miss
+#     is the moment worth seeing - not the outage a fortnight later.
+if command -v openssl >/dev/null 2>&1; then
+  host=${BASE#https://}
+  host=${host%%/*}
+  not_after=$(echo | openssl s_client -servername "${host%%:*}" -connect "${host%%:*}:443" 2>/dev/null |
+    openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+  if [ -z "$not_after" ]; then
+    printf '  note  could not read the certificate expiry\n'
+  else
+    expiry_epoch=$(date -d "$not_after" +%s 2>/dev/null || date -j -f '%b %d %T %Y %Z' "$not_after" +%s 2>/dev/null)
+    if [ -n "$expiry_epoch" ]; then
+      days_left=$(( (expiry_epoch - $(date +%s)) / 86400 ))
+      if [ "$days_left" -le 7 ]; then
+        fail "the certificate expires in ${days_left} day(s) and has not renewed"
+      elif [ "$days_left" -le 21 ]; then
+        fail "the certificate expires in ${days_left} day(s): it has missed its renewal window"
+      else
+        pass "the certificate is valid for ${days_left} more day(s)"
+      fi
+    fi
+  fi
+fi
+
 # 4. An unknown API path must answer as an API. When it returned the home page
 #    with 200, a missing route was indistinguishable from a working one, which
 #    is what hid the Enterprise routes for a whole release.
@@ -124,7 +185,7 @@ esac
 
 # 5. Naming yourself in a header is not an identity. This was open, and any
 #    caller able to reach the backend could act as any user.
-bypass=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 20 \
+bypass=$(curl -s ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 \
   -H 'X-Noryx-User: smoke-test-probe' "${BASE}/api/v1/projects")
 if [ "$bypass" = "401" ]; then
   pass "the user header alone does not authenticate"

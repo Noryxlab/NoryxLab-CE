@@ -177,6 +177,7 @@ func main() {
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
 			OrganizationRequired:             cfg.OrganizationRequired,
 			HealthEventStore:                 healthEventStore,
+			PublicURL:                        cfg.PublicURL,
 			AuthMode:                         cfg.AuthMode,
 			ServiceToken:                     cfg.ServiceToken,
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
