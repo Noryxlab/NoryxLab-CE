@@ -85,7 +85,11 @@ requires at least one Keycloak organization membership. See
 
 Compatibility fallback:
 
-- If no bearer token is provided, API still accepts `X-Noryx-User` header (temporary bootstrap mode).
+- If no bearer token is provided, the API accepts `X-Noryx-User` **only** when
+  `NORYX_AUTH_MODE=header`. Under OIDC it answers 401: naming yourself in a
+  header is not authenticating, and it used to be enough - anything able to
+  reach the backend could act as any user.
+- Platform components present `X-Noryx-Service-Token` instead.
 
 Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 
@@ -147,17 +151,17 @@ BASE="https://datalab.example.local"
 
 PROJECT_ID=$(curl -sk -X POST "$BASE/api/v1/projects" \
   -H 'Content-Type: application/json' \
-  -H 'X-Noryx-User: alice' \
+  -H "Authorization: Bearer ${ALICE_TOKEN}" \
   -d '{"name":"demo"}' | jq -r '.id')
 
 curl -sk -X PUT "$BASE/api/v1/projects/$PROJECT_ID/members/bob/role" \
   -H 'Content-Type: application/json' \
-  -H 'X-Noryx-User: alice' \
+  -H "Authorization: Bearer ${ALICE_TOKEN}" \
   -d '{"role":"editor"}'
 
 curl -sk -X POST "$BASE/api/v1/builds" \
   -H 'Content-Type: application/json' \
-  -H 'X-Noryx-User: bob' \
+  -H "Authorization: Bearer ${BOB_TOKEN}" \
   -d '{
     "projectId":"'"$PROJECT_ID"'",
     "gitRepository":"https://github.com/docker-library/hello-world.git",
@@ -168,7 +172,7 @@ curl -sk -X POST "$BASE/api/v1/builds" \
 
 curl -sk -X POST "$BASE/api/v1/pods" \
   -H 'Content-Type: application/json' \
-  -H 'X-Noryx-User: bob' \
+  -H "Authorization: Bearer ${BOB_TOKEN}" \
   -d '{
     "projectId":"'"$PROJECT_ID"'",
     "image":"busybox:1.36",

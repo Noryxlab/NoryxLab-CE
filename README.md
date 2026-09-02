@@ -76,7 +76,9 @@ API endpoints:
 Auth:
 
 - preferred: `Authorization: Bearer <access_token>` (Keycloak OIDC)
-- temporary fallback: `X-Noryx-User` header (bootstrap mode)
+- `X-Noryx-User` header, accepted **only** when `NORYX_AUTH_MODE=header`
+  (development). Under OIDC it is refused.
+- `X-Noryx-Service-Token` for platform components that have no human behind them
 
 Project RBAC:
 

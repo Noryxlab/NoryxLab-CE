@@ -82,10 +82,10 @@ Using the temporary bootstrap header:
 ```bash
 BASE=https://datalab.example.local
 
-curl -sk -H 'X-Noryx-User: stef' \
+curl -sk -H "Authorization: Bearer ${TOKEN}" \
   "$BASE/api/v1/admin/organizations"
 
-curl -sk -i -H 'X-Noryx-User: user-without-org' \
+curl -sk -i -H "Authorization: Bearer ${TOKEN}" \
   "$BASE/api/v1/projects"
 ```
 
@@ -108,3 +108,5 @@ The second request must return:
 - Membership change not immediately visible: wait up to 30 seconds for the
   backend membership cache.
 - Organization deletion returns `409`: remove all members first.
+
+> **Authentication.** `X-Noryx-User` alone is no longer an identity. It is a development convenience gated on `NORYX_AUTH_MODE=header`; under OIDC the backend answers 401. Use a bearer token, or - for a platform component - the `X-Noryx-Service-Token` shared secret.
