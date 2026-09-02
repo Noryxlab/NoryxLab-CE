@@ -19,6 +19,20 @@ import { formatBytes, formatDateTime, formatDuration, formatRelative } from './f
  *
  * The contract is deliberately framework-agnostic — mount receives a plain
  * DOM element — so an extension never has to match CE's React version.
+ *
+ * **An extension must carry its own styles.** Tailwind emits only the
+ * utilities it finds while scanning *this* repository at build time, so a
+ * class an extension uses and Community happens not to use does not exist in
+ * the stylesheet. That is not a theoretical hazard: the Enterprise assistant
+ * asked for `bottom-4 right-4`, got `position: fixed` with no offsets, landed
+ * wherever the flow put it, and looked to the user like a feature that had
+ * disappeared — while every check said it was served and mounted.
+ *
+ * Extensions style themselves with an injected stylesheet and use the
+ * `--noryx-*` custom properties for colour, spacing and shadow. Those are the
+ * declared contract — the same ones brand overrides go through — so an
+ * extension follows the theme and a customer's palette without depending on
+ * what this application's build happened to emit.
  */
 
 export type { ExtensionDescriptor };
