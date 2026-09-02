@@ -10,7 +10,6 @@ import { JobsPage } from '@/routes/project/jobs';
 import { AppsPage } from '@/routes/project/apps';
 import { DashboardsPage } from '@/routes/project/dashboards';
 import { ProjectDataPage } from '@/routes/project/data';
-import { ProjectEnvironmentsPage } from '@/routes/project/environments';
 import { ProjectMembersPage } from '@/routes/project/members';
 import { ProjectSettingsPage } from '@/routes/project/settings';
 import { CatalogPage } from '@/routes/catalog';
@@ -43,7 +42,9 @@ export function AppRoutes() {
             <Route path="dashboards" element={<DashboardsPage />} />
             <Route path="data" element={<ProjectDataPage />} />
             <Route path="data/:section" element={<ProjectDataPage />} />
-            <Route path="environments" element={<ProjectEnvironmentsPage />} />
+            {/* Environments moved to the catalogue: they are platform-wide,
+                not owned by a project. Existing links keep working. */}
+            <Route path="environments" element={<Navigate to="/catalog/environments" replace />} />
             <Route path="members" element={<ProjectMembersPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>
@@ -60,7 +61,7 @@ export function AppRoutes() {
           {/* Legacy tab ids from the previous single-page UI, so links and
               bookmarks people already have keep working. */}
           <Route path="workspaces" element={<Navigate to="/projects" replace />} />
-          <Route path="environments" element={<Navigate to="/catalog" replace />} />
+          <Route path="environments" element={<Navigate to="/catalog/environments" replace />} />
           <Route path="data-datasets" element={<Navigate to="/catalog/datasets" replace />} />
           <Route path="data-datasources" element={<Navigate to="/catalog/datasources" replace />} />
           <Route path="data-ontology" element={<Navigate to="/catalog/ontologies" replace />} />

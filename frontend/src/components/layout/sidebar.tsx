@@ -7,7 +7,6 @@ import {
   Boxes,
   ChevronLeft,
   Database,
-  FolderGit2,
   Gauge,
   Home,
   LayoutDashboard,
@@ -53,7 +52,6 @@ function projectItems(projectId: string): NavItem[] {
     { to: `${base}/apps`, labelKey: 'nav.apps', icon: AppWindow },
     { to: `${base}/dashboards`, labelKey: 'nav.dashboards', icon: LayoutDashboard },
     { to: `${base}/data`, labelKey: 'nav.data', icon: Database },
-    { to: `${base}/environments`, labelKey: 'nav.environments', icon: FolderGit2 },
     { to: `${base}/members`, labelKey: 'nav.members', icon: Users },
     { to: `${base}/settings`, labelKey: 'nav.settings', icon: Settings },
   ];

@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
 import { Box, Hammer, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
@@ -33,16 +32,19 @@ import {
 } from '@/components/ui/sheet';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
-import { useDockerfile, useEnvironments, qk, useInvalidate } from '@/lib/api/queries';
+import { useDockerfile, useEnvironments, useProjects, qk, useInvalidate } from '@/lib/api/queries';
 import { environmentsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import { presentIdes } from '@/lib/presenters';
 import { slugify } from '@/lib/format';
-import type { Environment, EnvironmentRevision } from '@/lib/api/types';
+import type { Environment, EnvironmentRevision, Project } from '@/lib/api/types';
 
-const BLANK_DOCKERFILE = `# Environnement Noryx
-# Ajoutez vos bibliothèques ci-dessous, puis construisez une révision.
+// English, like the Dockerfile it seeds: this is file content the user edits
+// and ships, not interface copy, so it does not belong in the translation
+// catalogue and must not be French there either.
+const BLANK_DOCKERFILE = `# Noryx environment
+# Add your libraries below, then build a revision.
 FROM noryx-python:latest
 
 RUN pip install --no-cache-dir \\
@@ -50,13 +52,48 @@ RUN pip install --no-cache-dir \\
     scikit-learn
 `;
 
+/**
+ * Where a build runs. Required, and never silently defaulted to the first
+ * project: a build consumes that project's quota and its result is attributed
+ * to it, so guessing would spend someone's budget on their behalf.
+ */
+function BuildProjectField({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: Project[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const t = useT();
+  return (
+    <Field
+      label={t('environments.buildProject')}
+      description={t('environments.buildProjectHint')}
+      required
+    >
+      <Select
+        value={value}
+        onValueChange={onChange}
+        placeholder={t('environments.buildProjectPlaceholder')}
+        options={projects.map((project) => ({ value: project.id, label: project.name }))}
+      />
+    </Field>
+  );
+}
+
 function CreateEnvironmentSheet({
+  projects,
   projectId,
+  onProjectChange,
   environments,
   open,
   onOpenChange,
 }: {
+  projects: Project[];
   projectId: string;
+  onProjectChange: (value: string) => void;
   environments: Environment[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,6 +127,7 @@ function CreateEnvironmentSheet({
 
   const slug = slugify(name);
   const nameError = touched && !slug ? t('common.required') : undefined;
+  const projectError = touched && !projectId ? t('common.required') : undefined;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -100,7 +138,7 @@ function CreateEnvironmentSheet({
         contextPath: '.',
       }),
     onSuccess: () => {
-      invalidate(qk.environments(projectId), qk.environments(), qk.builds(projectId));
+      invalidate(qk.environments(), qk.builds(projectId));
       onOpenChange(false);
       toast.success(t('environments.buildStarted'), t('environments.title'));
     },
@@ -114,7 +152,7 @@ function CreateEnvironmentSheet({
           onSubmit={(event) => {
             event.preventDefault();
             setTouched(true);
-            if (slug) mutation.mutate();
+            if (slug && projectId) mutation.mutate();
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
@@ -123,6 +161,10 @@ function CreateEnvironmentSheet({
             <SheetDescription>{t('environments.createHint')}</SheetDescription>
           </SheetHeader>
           <SheetBody>
+            <BuildProjectField projects={projects} value={projectId} onChange={onProjectChange} />
+            {projectError ? (
+              <p className="text-xs text-danger">{projectError}</p>
+            ) : null}
             <Field
               label={t('environments.nameLabel')}
               description={t('environments.nameHint')}
@@ -162,7 +204,7 @@ function CreateEnvironmentSheet({
             <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" variant="primary" loading={mutation.isPending} disabled={!slug}>
+            <Button type="submit" variant="primary" loading={mutation.isPending} disabled={!slug || !projectId}>
               <Hammer aria-hidden />
               {t('environments.build')}
             </Button>
@@ -175,11 +217,15 @@ function CreateEnvironmentSheet({
 
 function EnvironmentDetail({
   environment,
+  projects,
   projectId,
+  onProjectChange,
   onClose,
 }: {
   environment: Environment;
+  projects: Project[];
   projectId: string;
+  onProjectChange: (value: string) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -198,7 +244,7 @@ function EnvironmentDetail({
         contextPath: environment.revisions?.[0]?.contextPath ?? '.',
       }),
     onSuccess: () => {
-      invalidate(qk.environments(projectId), qk.environments(), qk.builds(projectId));
+      invalidate(qk.environments(), qk.builds(projectId));
       setDraft(null);
       toast.success(t('environments.buildStarted'), environment.name);
     },
@@ -268,6 +314,7 @@ function EnvironmentDetail({
                 readOnly={dockerfile.isLoading}
               />
             </Field>
+            <BuildProjectField projects={projects} value={projectId} onChange={onProjectChange} />
             <div className="flex justify-end gap-2">
               {draft !== null ? (
                 <Button variant="secondary" onClick={() => setDraft(null)}>
@@ -278,7 +325,7 @@ function EnvironmentDetail({
                 variant="primary"
                 loading={rebuild.isPending}
                 onClick={() => rebuild.mutate()}
-                disabled={dockerfile.isLoading}
+                disabled={dockerfile.isLoading || !projectId}
               >
                 <Hammer aria-hidden />
                 {t('environments.build')}
@@ -314,10 +361,21 @@ function EnvironmentDetail({
   );
 }
 
-export function ProjectEnvironmentsPage() {
+/**
+ * Environment catalogue.
+ *
+ * Environments moved out of the project because they never belonged to one:
+ * `/api/v1/environments` is a platform endpoint with an optional project
+ * filter, and an image built in one project is used by workspaces, jobs and
+ * apps in others. Listing them per project made a shared asset look owned, and
+ * hid every environment a user could actually launch.
+ *
+ * Building still happens somewhere, so the project is now chosen in the form
+ * rather than inherited from the URL — the same decision, made visible.
+ */
+export function EnvironmentCatalog() {
   const t = useT();
   const { locale } = useI18n();
-  const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
   const invalidate = useInvalidate();
   const { dialog, ask } = useConfirm();
@@ -325,14 +383,18 @@ export function ProjectEnvironmentsPage() {
   const [search, setSearch] = React.useState('');
   const [creating, setCreating] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  // Which project a build runs in. Remembered across sheets so a user who
+  // builds several environments in a row does not re-answer every time.
+  const [buildProjectId, setBuildProjectId] = React.useState('');
 
-  const environments = useEnvironments(projectId);
+  const projects = useProjects();
+  const environments = useEnvironments();
   const selected = environments.data?.find((environment) => environment.id === selectedId) ?? null;
 
   const remove = useMutation({
     mutationFn: (environmentId: string) => environmentsApi.remove(environmentId),
     onSuccess: () => {
-      invalidate(qk.environments(projectId), qk.environments());
+      invalidate(qk.environments());
       setSelectedId(null);
     },
     onError: (error) => toast.error(error, t('environments.deleteTitle')),
@@ -466,22 +528,24 @@ export function ProjectEnvironmentsPage() {
         />
       </Card>
 
-      {selected && projectId ? (
+      {selected ? (
         <EnvironmentDetail
           environment={selected}
-          projectId={projectId}
+          projects={projects.data ?? []}
+          projectId={buildProjectId}
+          onProjectChange={setBuildProjectId}
           onClose={() => setSelectedId(null)}
         />
       ) : null}
 
-      {projectId ? (
-        <CreateEnvironmentSheet
-          projectId={projectId}
-          environments={environments.data ?? []}
-          open={creating}
-          onOpenChange={setCreating}
-        />
-      ) : null}
+      <CreateEnvironmentSheet
+        projects={projects.data ?? []}
+        projectId={buildProjectId}
+        onProjectChange={setBuildProjectId}
+        environments={environments.data ?? []}
+        open={creating}
+        onOpenChange={setCreating}
+      />
       {dialog}
     </div>
   );

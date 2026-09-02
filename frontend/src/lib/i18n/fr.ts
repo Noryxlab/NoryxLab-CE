@@ -298,6 +298,9 @@ export const fr = {
   },
 
   environments: {
+    buildProject: 'Projet de construction',
+    buildProjectHint: 'L’image est construite dans ce projet et consomme son quota. L’environnement, lui, reste utilisable par tous les projets auxquels vous avez accès.',
+    buildProjectPlaceholder: 'Choisissez un projet',
     title: 'Environnements',
     subtitle: 'Images reproductibles utilisées par vos workspaces, jobs et applications.',
     create: 'Nouvel environnement',

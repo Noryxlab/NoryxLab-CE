@@ -8,8 +8,16 @@ import { DatasourceCatalog } from '@/features/catalog/datasource-catalog';
 import { OntologyCatalog } from '@/features/catalog/ontology-catalog';
 import { RepositoryCatalog } from '@/features/catalog/repository-catalog';
 import { SecretCatalog } from '@/features/catalog/secret-catalog';
+import { EnvironmentCatalog } from '@/features/catalog/environment-catalog';
 
-const SECTIONS = ['datasets', 'datasources', 'ontologies', 'repositories', 'secrets'] as const;
+const SECTIONS = [
+  'datasets',
+  'datasources',
+  'ontologies',
+  'repositories',
+  'environments',
+  'secrets',
+] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -19,6 +27,11 @@ type Section = (typeof SECTIONS)[number];
  * live at the top level rather than inside one project — the Unity Catalog
  * shape. Projects attach what they need from here, which is what the
  * `/projects/:id/{datasets,datasources,ontologies}` endpoints already model.
+ *
+ * Environments belong here for the same reason, and the code always said so:
+ * `/api/v1/environments` is a platform endpoint with an optional project
+ * filter. Listing them inside a project made a shared asset look owned by one,
+ * and hid every environment a user could actually launch.
  */
 export function CatalogPage() {
   const t = useT();
@@ -44,6 +57,7 @@ export function CatalogPage() {
           <TabsTrigger value="datasources">{t('nav.datasources')}</TabsTrigger>
           <TabsTrigger value="ontologies">{t('nav.ontologies')}</TabsTrigger>
           <TabsTrigger value="repositories">{t('nav.repositories')}</TabsTrigger>
+          <TabsTrigger value="environments">{t('nav.environments')}</TabsTrigger>
           <TabsTrigger value="secrets">{t('nav.secrets')}</TabsTrigger>
         </TabsList>
 
@@ -66,6 +80,9 @@ export function CatalogPage() {
         </TabsContent>
         <TabsContent value="repositories">
           <RepositoryCatalog />
+        </TabsContent>
+        <TabsContent value="environments">
+          <EnvironmentCatalog />
         </TabsContent>
         <TabsContent value="secrets">
           <SecretCatalog />

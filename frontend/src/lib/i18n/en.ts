@@ -294,6 +294,9 @@ export const en: Translations = {
   },
 
   environments: {
+    buildProject: 'Build project',
+    buildProjectHint: 'The image is built in this project and uses its quota. The environment itself stays available to every project you can access.',
+    buildProjectPlaceholder: 'Choose a project',
     title: 'Environments',
     subtitle: 'Reproducible images used by your workspaces, jobs and apps.',
     create: 'New environment',
