@@ -28,6 +28,7 @@ type Config struct {
 	RegistryPullSecret               string
 	RegistryPushSecret               string
 	AuthMode                         string
+	ServiceToken                     string
 	OIDCIssuerURL                    string
 	OIDCJWKSURL                      string
 	OIDCAudience                     string
@@ -292,6 +293,7 @@ func Load() Config {
 		RegistryPullSecret:               pullSecret,
 		RegistryPushSecret:               pushSecret,
 		AuthMode:                         authMode,
+		ServiceToken:                     strings.TrimSpace(os.Getenv("NORYX_SERVICE_TOKEN")),
 		OIDCIssuerURL:                    oidcIssuer,
 		OIDCJWKSURL:                      os.Getenv("NORYX_OIDC_JWKS_URL"),
 		OIDCAudience:                     os.Getenv("NORYX_OIDC_AUDIENCE"),

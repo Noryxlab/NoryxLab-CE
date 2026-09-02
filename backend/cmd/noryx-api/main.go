@@ -174,6 +174,8 @@ func main() {
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
 			OrganizationRequired:             cfg.OrganizationRequired,
+			AuthMode:                         cfg.AuthMode,
+			ServiceToken:                     cfg.ServiceToken,
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
 			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
 			WorkspaceRStudioImage:            cfg.WorkspaceRStudioImage,

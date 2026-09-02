@@ -54,6 +54,8 @@ type Handlers struct {
 	bootstrapAdminUser               string
 	bootstrapAdminEmail              string
 	organizationRequired             bool
+	authMode                         string
+	serviceToken                     string
 	workspaceJupyterImage            string
 	workspaceVSCodeImage             string
 	workspaceRStudioImage            string
@@ -90,11 +92,16 @@ type Handlers struct {
 }
 
 type Options struct {
-	RegistryPullSecret               string
-	RegistryPushSecret               string
-	BootstrapAdminUser               string
-	BootstrapAdminEmail              string
-	OrganizationRequired             bool
+	RegistryPullSecret   string
+	RegistryPushSecret   string
+	BootstrapAdminUser   string
+	BootstrapAdminEmail  string
+	OrganizationRequired bool
+	// AuthMode gates the development header identity; see requireIdentity.
+	AuthMode string
+	// ServiceToken authenticates platform components that have no human
+	// behind them, such as the scheduled backup trigger.
+	ServiceToken                     string
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceRStudioImage            string
@@ -239,6 +246,8 @@ func New(
 		bootstrapAdminUser:               options.BootstrapAdminUser,
 		bootstrapAdminEmail:              options.BootstrapAdminEmail,
 		organizationRequired:             options.OrganizationRequired,
+		authMode:                         options.AuthMode,
+		serviceToken:                     options.ServiceToken,
 		workspaceJupyterImage:            options.WorkspaceJupyterImage,
 		workspaceVSCodeImage:             options.WorkspaceVSCodeImage,
 		workspaceRStudioImage:            options.WorkspaceRStudioImage,

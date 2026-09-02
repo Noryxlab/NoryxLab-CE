@@ -29,6 +29,10 @@ RUN npm init -y >/dev/null \
 
 FROM nginx:1.27-alpine
 
+# `auto` forks one worker per host CPU. On high-density Kubernetes workers this
+# can exceed the deliberately small frontend memory limit for a static site.
+RUN sed -i -E 's/worker_processes[[:space:]]+auto;/worker_processes 1;/' /etc/nginx/nginx.conf
+
 LABEL org.opencontainers.image.title="noryx-frontend"
 LABEL org.opencontainers.image.description="Noryx CE frontend"
 

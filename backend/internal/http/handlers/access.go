@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 const (
 	userHeader      = "X-Noryx-User"
+	serviceHeader   = "X-Noryx-Service-Token"
 	authHeader      = "Authorization"
 	globalAdminRole = "noryx-admin"
 	sessionCookie   = "noryx_session"
@@ -40,6 +42,32 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 		return identity, true
 	}
 
+	// A platform component with no human behind it - the scheduled backup
+	// trigger, the validation suite - presents a shared secret instead.
+	//
+	// It is deliberately exempt from the organization requirement: an
+	// organization is a tenancy fact about a person, and a service belongs to
+	// no tenant. Requiring one would mean inventing a Keycloak account for
+	// every internal component, which is how "platform-validator" ended up as
+	// a phantom user whose backups were refused for three nights.
+	//
+	// The token carries platform administrator rights, because triggering a
+	// backup needs them. Treat it as an administrator credential: it lives in
+	// a Secret, never in a manifest.
+	if identity, ok := h.serviceIdentity(r); ok {
+		return identity, true
+	}
+
+	// The user header is a development convenience and nothing else. It used
+	// to be honoured unconditionally, so any caller that could reach this
+	// service could act as any user simply by naming them - no token, no
+	// session. The bearer check above was added in front of it and this was
+	// never closed behind.
+	if !strings.EqualFold(strings.TrimSpace(h.authMode), "header") {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
+		return auth.Identity{}, false
+	}
+
 	userID := strings.TrimSpace(r.Header.Get(userHeader))
 	if userID == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
@@ -53,6 +81,35 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 		return auth.Identity{}, false
 	}
 	return identity, true
+}
+
+// serviceIdentity resolves a platform component's shared-secret credential.
+//
+// The comparison is constant-time, and an absent configuration matches
+// nothing: a deployment that forgets NORYX_SERVICE_TOKEN refuses its own
+// services rather than accepting an empty header from anyone.
+func (h Handlers) serviceIdentity(r *http.Request) (auth.Identity, bool) {
+	configured := strings.TrimSpace(h.serviceToken)
+	presented := strings.TrimSpace(r.Header.Get(serviceHeader))
+	if configured == "" || presented == "" {
+		return auth.Identity{}, false
+	}
+	if subtle.ConstantTimeCompare([]byte(configured), []byte(presented)) != 1 {
+		return auth.Identity{}, false
+	}
+
+	// The component may name itself, so a backup run records which one asked
+	// rather than attributing every automated action to the same opaque
+	// identity. It cannot name a *person*: this identity is a service whatever
+	// it calls itself, and the name only reaches the audit trail.
+	name := strings.TrimSpace(r.Header.Get(userHeader))
+	if name == "" {
+		name = "platform-service"
+	}
+	return auth.Identity{
+		Username: name,
+		Roles:    map[string]struct{}{globalAdminRole: {}},
+	}, true
 }
 
 func (h Handlers) requireUserID(w http.ResponseWriter, r *http.Request) (string, bool) {
