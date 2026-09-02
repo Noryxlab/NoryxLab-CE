@@ -2,9 +2,29 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
+	"log"
 	"net/http"
 	"strings"
 )
+
+// writeKeycloakError answers an identity-provider failure.
+//
+// A 404 from Keycloak means the organization does not exist and the caller
+// mistyped an identifier; everything else means the identity provider is
+// unreachable or refusing us. Reporting both as 502 sent an operator looking
+// for a Keycloak outage that was not happening.
+//
+// Keycloak's own response body goes to the log and never to the caller: it is
+// another system's internals, and nobody on the far side can act on it.
+func (h Handlers) writeKeycloakError(w http.ResponseWriter, action string, err error) {
+	log.Printf("keycloak: %s: %v", action, err)
+	if keycloak.IsNotFound(err) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such organization"})
+		return
+	}
+	writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to " + action})
+}
 
 func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requireAdminModule(w, r, "organizations"); !ok {
@@ -16,7 +36,7 @@ func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.keycloak.ListOrganizations()
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to fetch organizations from keycloak: " + err.Error()})
+		h.writeKeycloakError(w, "fetch organizations", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -32,7 +52,7 @@ func (h Handlers) ListAvailableOrganizations(w http.ResponseWriter, r *http.Requ
 	}
 	items, err := h.keycloak.ListOrganizations()
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to fetch organizations from keycloak"})
+		h.writeKeycloakError(w, "fetch organizations", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -53,7 +73,7 @@ func (h Handlers) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.keycloak.CreateOrganization(req.Name, req.Alias)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to create organization: " + err.Error()})
+		h.writeKeycloakError(w, "create organization", err)
 		return
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "organization.create", "organization", item.ID, "", "success", "", map[string]any{"name": item.Name, "alias": item.Alias})
@@ -72,7 +92,7 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 	members, err := h.keycloak.ListOrganizationMembers(organizationID)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to verify organization members: " + err.Error()})
+		h.writeKeycloakError(w, "verify organization members", err)
 		return
 	}
 	if len(members) > 0 {
@@ -91,7 +111,7 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err := h.keycloak.DeleteOrganization(organizationID); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete organization: " + err.Error()})
+		h.writeKeycloakError(w, "delete organization", err)
 		return
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "organization.delete", "organization", organizationID, "", "success", "", nil)
@@ -104,7 +124,7 @@ func (h Handlers) ListOrganizationMembers(w http.ResponseWriter, r *http.Request
 	}
 	items, err := h.keycloak.ListOrganizationMembers(r.PathValue("organizationID"))
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to fetch organization members: " + err.Error()})
+		h.writeKeycloakError(w, "fetch organization members", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -118,7 +138,7 @@ func (h Handlers) AddOrganizationMember(w http.ResponseWriter, r *http.Request) 
 	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
 	userID := strings.TrimSpace(r.PathValue("userID"))
 	if err := h.keycloak.AddOrganizationMember(organizationID, userID); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to add organization member: " + err.Error()})
+		h.writeKeycloakError(w, "add organization member", err)
 		return
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "organization.member.add", "organization", organizationID, "", "success", "", map[string]any{"userId": userID})
@@ -133,7 +153,7 @@ func (h Handlers) RemoveOrganizationMember(w http.ResponseWriter, r *http.Reques
 	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
 	userID := strings.TrimSpace(r.PathValue("userID"))
 	if err := h.keycloak.RemoveOrganizationMember(organizationID, userID); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to remove organization member: " + err.Error()})
+		h.writeKeycloakError(w, "remove organization member", err)
 		return
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "organization.member.remove", "organization", organizationID, "", "success", "", map[string]any{"userId": userID})

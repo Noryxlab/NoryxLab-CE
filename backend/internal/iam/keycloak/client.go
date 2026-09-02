@@ -3,6 +3,7 @@ package keycloak
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -244,12 +245,36 @@ func (c *Client) adminJSON(method, path string, payload any, output any) error {
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		responseBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("keycloak admin api %s status=%d body=%s", path, resp.StatusCode, string(responseBody))
+		return &APIError{Path: path, StatusCode: resp.StatusCode, Body: string(responseBody)}
 	}
 	if output == nil || resp.StatusCode == http.StatusNoContent {
 		return nil
 	}
 	return json.NewDecoder(resp.Body).Decode(output)
+}
+
+// APIError carries the status Keycloak answered with, so a caller can tell
+// "no such organization" from "the identity provider is unreachable".
+//
+// It used to be a formatted string. Every failure therefore became a 502, and
+// an operator who mistyped an identifier went looking for a Keycloak outage.
+type APIError struct {
+	Path       string
+	StatusCode int
+	// Body is Keycloak's own response. Useful in a log and never in an API
+	// response: it is another system's internals, and the caller cannot act on
+	// it.
+	Body string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("keycloak admin api %s status=%d body=%s", e.Path, e.StatusCode, e.Body)
+}
+
+// IsNotFound reports whether Keycloak answered 404.
+func IsNotFound(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
 }
 
 func (c *Client) adminToken() (string, error) {

@@ -51,7 +51,17 @@ fi
 #    reasons about which Enterprise feature is licensed. The list is derived
 #    from the declarations rather than guessed, so a feature added later is
 #    covered without editing this script.
-constants=$(grep -oE '^\tFeature[A-Za-z]+' "$BACKEND/internal/edition/hooks.go" | tr -d '\t' | paste -sd '|' -)
+# [[:space:]] rather than \t: GNU grep does not read \t as a tab inside an
+# extended pattern, so this matched nothing on Linux, exited non-zero, and
+# `set -e` killed the script mid-run - silently passing the two checks above
+# and never reaching the four below. That is how this file failed every CI run
+# since it was written while passing on a developer's macOS.
+constants=$(grep -oE '^[[:space:]]+Feature[A-Za-z]+' "$BACKEND/internal/edition/hooks.go" |
+  tr -d '[:space:]' | paste -sd '|' - || true)
+if [ -z "$constants" ]; then
+  fail "no Enterprise feature constants found in internal/edition/hooks.go"
+  constants='__none__'
+fi
 leaked=""
 while IFS= read -r file; do
   case "$file" in */internal/edition/*) continue ;; esac
