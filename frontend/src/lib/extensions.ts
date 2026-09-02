@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { api, downloadFile } from './api/client';
-import { config } from './config';
+import { config, type ExtensionDescriptor } from './config';
 import { formatBytes, formatDateTime, formatDuration, formatRelative } from './format';
 
 /**
@@ -20,6 +20,8 @@ import { formatBytes, formatDateTime, formatDuration, formatRelative } from './f
  * The contract is deliberately framework-agnostic — mount receives a plain
  * DOM element — so an extension never has to match CE's React version.
  */
+
+export type { ExtensionDescriptor };
 
 export type ExtensionMountPoint =
   | 'admin.section'
@@ -56,12 +58,6 @@ export interface ExtensionModule {
   unmount?: (element: HTMLElement) => void;
 }
 
-export interface ExtensionDescriptor {
-  id: string;
-  /** URL of an ES module whose default export is an ExtensionModule. */
-  url: string;
-}
-
 export function escapeHTML(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (character) => {
     switch (character) {
@@ -79,18 +75,10 @@ export function escapeHTML(value: unknown): string {
   });
 }
 
+// Declared extensions come from the runtime configuration, already validated
+// and narrowed to same-origin URLs by config.ts.
 function declaredExtensions(): ExtensionDescriptor[] {
-  const raw = (config as unknown as { extensions?: unknown }).extensions;
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const { id, url } = entry as Record<string, unknown>;
-    if (typeof id !== 'string' || typeof url !== 'string') return [];
-    // Only same-origin module URLs are loaded: an extension runs with the
-    // user's session, so it must be served by the platform itself.
-    if (!url.startsWith('/')) return [];
-    return [{ id, url }];
-  });
+  return config.extensions;
 }
 
 let loaded: Promise<ExtensionModule[]> | null = null;
