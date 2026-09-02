@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"net/http/httptest"
 	"testing"
 )
@@ -92,5 +94,37 @@ func TestAnUnconfiguredServiceTokenMatchesNothing(t *testing.T) {
 	}
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", recorder.Code)
+	}
+}
+
+// Both identity paths must behave the same way, or a platform component is
+// accepted on some routes and refused on others for reasons invisible from the
+// caller's side.
+func TestBothIdentityPathsAgreeOnTheServiceToken(t *testing.T) {
+	handlers := Handlers{authMode: "oidc", serviceToken: "s3cr3t"}
+	req := request(serviceHeader, "s3cr3t")
+	req.Header.Set(userHeader, "platform-validator")
+
+	direct, okDirect := handlers.requireIdentity(httptest.NewRecorder(), req)
+	session, okSession := handlers.requireIdentityFromSessionOrBearer(httptest.NewRecorder(), req)
+
+	if !okDirect || !okSession {
+		t.Fatalf("paths disagree: requireIdentity=%v, sessionOrBearer=%v", okDirect, okSession)
+	}
+	if direct.UserID() != session.UserID() {
+		t.Fatalf("identities differ: %q vs %q", direct.UserID(), session.UserID())
+	}
+}
+
+// And neither may accept a bare user header outside header auth mode.
+func TestNeitherIdentityPathTrustsTheUserHeader(t *testing.T) {
+	handlers := Handlers{authMode: "oidc"}
+	for name, resolve := range map[string]func(http.ResponseWriter, *http.Request) (auth.Identity, bool){
+		"requireIdentity":                    handlers.requireIdentity,
+		"requireIdentityFromSessionOrBearer": handlers.requireIdentityFromSessionOrBearer,
+	} {
+		if _, ok := resolve(httptest.NewRecorder(), request(userHeader, "stef")); ok {
+			t.Fatalf("%s authenticated a bare user header", name)
+		}
 	}
 }

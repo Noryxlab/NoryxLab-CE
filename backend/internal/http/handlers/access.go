@@ -210,6 +210,13 @@ func (h Handlers) identityHasOrganizationNoWrite(identity auth.Identity) bool {
 }
 
 func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
+	// Checked first, and on both identity paths, so a platform component is
+	// not accepted on some routes and refused on others for reasons nobody
+	// can see from the caller's side.
+	if identity, ok := h.serviceIdentity(r); ok {
+		return identity, true
+	}
+
 	token := strings.TrimSpace(r.Header.Get(authHeader))
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)

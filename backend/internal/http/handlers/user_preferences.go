@@ -26,11 +26,24 @@ func normalizeLanguage(raw string) string {
 	}
 }
 
+// normalizeTheme narrows the platform default to what the interface can act
+// on: "light", "dark", or empty for "no platform default, follow the viewer".
+//
+// It used to accept only "noryx"/"default" and map everything else to empty,
+// which rejected exactly the two values the setting offers and the interface
+// understands. An operator could pick a default theme, see it saved, and watch
+// nothing happen - three times over, since the setting also read a different
+// environment variable from the one it declared and never consulted its own
+// stored value.
+//
+// The legacy names are accepted and mean "no default": they were brand names,
+// and branding moved to config.js when the frontend was rewritten (ADR-015).
 func normalizeTheme(raw string) string {
-	theme := strings.ToLower(strings.TrimSpace(raw))
-	switch theme {
-	case "noryx", "noryx-default", "default":
-		return "noryx"
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "light":
+		return "light"
+	case "dark":
+		return "dark"
 	default:
 		return ""
 	}

@@ -95,9 +95,14 @@ func Load() Config {
 	if edition == "" {
 		edition = "community"
 	}
-	defaultTheme := os.Getenv("NORYX_UI_DEFAULT_THEME")
+	// Both spellings are read: the settings registry declares
+	// NORYX_DEFAULT_THEME while deployments in the field set
+	// NORYX_UI_DEFAULT_THEME, and a name mismatch is why this setting silently
+	// did nothing. No fallback value: an unset default means "follow the
+	// viewer", which is what an empty string tells the interface.
+	defaultTheme := os.Getenv("NORYX_DEFAULT_THEME")
 	if defaultTheme == "" {
-		defaultTheme = "noryx"
+		defaultTheme = os.Getenv("NORYX_UI_DEFAULT_THEME")
 	}
 	listenAddr := os.Getenv("NORYX_LISTEN_ADDR")
 	if listenAddr == "" {
