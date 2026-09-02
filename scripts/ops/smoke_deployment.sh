@@ -50,12 +50,26 @@ body() {
 
 echo "Deployment smoke: ${BASE}"
 
+# 0. Let the edge settle. This runs seconds after a rollout, and the load
+#    balancer can still be routing to a terminating pod. Without the wait the
+#    smoke reported a failure the platform had already recovered from - and
+#    re-probed for its own error message, so it printed "not served (HTTP 200)".
+settle=0
+until [ "$(status GET /)" = "200" ] || [ "$settle" -ge 12 ]; do
+  settle=$((settle + 1))
+  sleep 5
+done
+
 # 1. The edge answers at all, over TLS. An EE deployment once switched Traefik
 #    to plain HTTP while HAProxy was doing passthrough, and every page 404ed.
-if [ "$(status GET /)" = "200" ]; then
-  pass "the application is served"
+#
+#    Measured once. A failure message that re-probes reports a different
+#    moment from the one that failed, which is how a check contradicts itself.
+root_code=$(status GET /)
+if [ "$root_code" = "200" ]; then
+  pass "the application is served$([ "$settle" -gt 0 ] && printf ' (after %ss)' "$((settle * 5))")"
 else
-  fail "the application is not served (HTTP $(status GET /))"
+  fail "the application is not served (HTTP ${root_code})"
 fi
 
 # 2. Identity provider discovery. Authentication breaking is invisible from a
