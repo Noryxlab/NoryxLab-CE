@@ -51,7 +51,10 @@ type Notifier struct {
 	// resolve, when set, supplies the destination at send time so an
 	// administrator changing it takes effect without a restart.
 	resolve func() (webhookURL string, instance string)
-	client  *http.Client
+	// format is resolved per send, like the destination: an operator changing
+	// it must not have to restart the platform to see the effect.
+	format func() string
+	client *http.Client
 }
 
 // New returns a Notifier posting to webhookURL. An empty URL disables
@@ -80,6 +83,35 @@ func NewDynamic(resolve func() (string, string)) *Notifier {
 		resolve: resolve,
 		client:  &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+// WithFormat chooses how the alert is written on the wire.
+//
+// A format, deliberately, and not an integration. JSON carries the whole alert
+// and is what Slack, Teams and anything reading a field expect; plain text is
+// what a receiver that shows the body as-is needs, such as a self-hosted ntfy.
+// Adding one connector per vendor is how a product ends up maintaining eight of
+// them, so there are two shapes and a ten-line relay bridges anything else.
+func (n *Notifier) WithFormat(format func() string) *Notifier {
+	if n != nil {
+		n.format = format
+	}
+	return n
+}
+
+const (
+	FormatJSON = "json"
+	FormatText = "text"
+)
+
+func (n *Notifier) wireFormat() string {
+	if n == nil || n.format == nil {
+		return FormatJSON
+	}
+	if strings.EqualFold(strings.TrimSpace(n.format()), FormatText) {
+		return FormatText
+	}
+	return FormatJSON
 }
 
 func (n *Notifier) destination() (string, string) {
@@ -117,10 +149,18 @@ func (n *Notifier) Send(ctx context.Context, alert Alert) {
 	alert.Instance = instance
 	alert.SchemaVersi = "noryx-alert-v1"
 
-	body, err := json.Marshal(alert)
-	if err != nil {
-		log.Printf("alert %q could not be encoded: %v", alert.Event, err)
-		return
+	var body []byte
+	contentType := "application/json"
+	if n.wireFormat() == FormatText {
+		body = []byte(alert.Text)
+		contentType = "text/plain; charset=utf-8"
+	} else {
+		encoded, err := json.Marshal(alert)
+		if err != nil {
+			log.Printf("alert %q could not be encoded: %v", alert.Event, err)
+			return
+		}
+		body = encoded
 	}
 
 	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -130,7 +170,15 @@ func (n *Notifier) Send(ctx context.Context, alert Alert) {
 		log.Printf("alert %q could not be prepared: %v", alert.Event, err)
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
+
+	// Title and priority as headers. These are ntfy's, and any other receiver
+	// ignores them - which is why they cost nothing to send and are not an
+	// integration. Without a priority a critical alert arrives as quietly as an
+	// informational one, and a phone that does not ring for an expired
+	// certificate is a phone that told nobody.
+	req.Header.Set("X-Title", alertTitle(alert, instance))
+	req.Header.Set("X-Priority", alertPriority(alert.Severity))
 
 	resp, err := n.client.Do(req)
 	if err != nil {
@@ -152,6 +200,37 @@ func (n *Notifier) SendAsync(alert Alert) {
 		return
 	}
 	go n.Send(context.Background(), alert)
+}
+
+// alertTitle is what a phone shows on the lock screen, so it names the
+// installation: an operator running several must not have to open the message
+// to learn which one is unwell.
+func alertTitle(alert Alert, instance string) string {
+	title := "Noryx"
+	if instance != "" {
+		title += " " + instance
+	}
+	switch alert.Severity {
+	case SeverityCritical:
+		return title + " - critical"
+	case SeverityWarning:
+		return title + " - warning"
+	default:
+		return title
+	}
+}
+
+// alertPriority maps severity onto ntfy's 1-5 scale. Critical is 5, which
+// bypasses a phone's quiet hours; a warning is 4; anything else is the default.
+func alertPriority(severity Severity) string {
+	switch severity {
+	case SeverityCritical:
+		return "5"
+	case SeverityWarning:
+		return "4"
+	default:
+		return "3"
+	}
 }
 
 func (a Alert) render(instance string) string {

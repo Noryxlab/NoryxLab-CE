@@ -169,6 +169,8 @@ func newNotifier(options Options) *notify.Notifier {
 	return notify.NewDynamic(func() (string, string) {
 		return options.Settings.String(settings.KeyAlertWebhookURL),
 			options.Settings.String(settings.KeyAlertInstanceName)
+	}).WithFormat(func() string {
+		return options.Settings.String(settings.KeyAlertFormat)
 	})
 }
 

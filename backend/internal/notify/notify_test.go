@@ -94,3 +94,67 @@ func TestDetailsRenderInStableOrder(t *testing.T) {
 		t.Fatal("details must render in sorted order")
 	}
 }
+
+// The wire format is a format, not an integration: one JSON shape for anything
+// that reads fields, one plain-text shape for anything that shows the body.
+func TestTextFormatSendsTheRenderedAlertAsText(t *testing.T) {
+	var contentType, title, priority, body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		title = r.Header.Get("X-Title")
+		priority = r.Header.Get("X-Priority")
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	notifier := NewDynamic(func() (string, string) { return server.URL, "premyom" }).
+		WithFormat(func() string { return FormatText })
+	notifier.Send(context.Background(), Alert{
+		Severity: SeverityCritical,
+		Event:    "platform.health.raised",
+		Summary:  "the TLS certificate expires in less than a week",
+		Details:  map[string]any{"source": "certificate"},
+	})
+
+	if !strings.HasPrefix(contentType, "text/plain") {
+		t.Fatalf("content type = %q, want text/plain", contentType)
+	}
+	if strings.HasPrefix(strings.TrimSpace(body), "{") {
+		t.Fatalf("body is JSON in text mode: %q", body)
+	}
+	if !strings.Contains(body, "the TLS certificate expires in less than a week") {
+		t.Fatalf("body does not carry the summary: %q", body)
+	}
+	// A phone must say which installation is unwell without opening the message.
+	if !strings.Contains(title, "premyom") {
+		t.Fatalf("title = %q, want the instance name in it", title)
+	}
+	// A critical alert that arrives as quietly as an informational one is a
+	// phone that told nobody.
+	if priority != "5" {
+		t.Fatalf("priority = %q, want 5 for critical", priority)
+	}
+}
+
+func TestJSONRemainsTheDefault(t *testing.T) {
+	var contentType, body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		contentType = r.Header.Get("Content-Type")
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	NewDynamic(func() (string, string) { return server.URL, "premyom" }).
+		Send(context.Background(), Alert{Severity: SeverityInfo, Event: "e", Summary: "s"})
+
+	if !strings.HasPrefix(contentType, "application/json") {
+		t.Fatalf("content type = %q, want JSON by default", contentType)
+	}
+	if !strings.Contains(body, `"schemaVersion"`) {
+		t.Fatalf("the JSON contract is not intact: %q", body)
+	}
+}

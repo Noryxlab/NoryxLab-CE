@@ -64,6 +64,7 @@ const (
 	KeyWorkspaceMaxLifetime = "workspace.max_lifetime"
 	KeyAlertWebhookURL      = "alert.webhook_url"
 	KeyAlertInstanceName    = "alert.instance_name"
+	KeyAlertFormat          = "alert.format"
 	KeyDefaultTheme         = "ui.default_theme"
 
 	// Facts, exposed for visibility and refused for writing.
@@ -98,6 +99,17 @@ func Definitions() []Definition {
 			Label:       "Instance name",
 			Description: "Identifies this platform in alerts, to tell several installations apart.",
 			Fallback:    "",
+		},
+		{
+			Key:    KeyAlertFormat,
+			EnvVar: "NORYX_ALERT_FORMAT",
+			Kind:   KindEnum,
+			Label:  "Alert format",
+			Description: "JSON carries the whole alert and suits Slack, Teams and any " +
+				"integration that reads it. Plain text suits a receiver that shows the body " +
+				"as-is, such as a self-hosted ntfy.",
+			Values:   []string{"json", "text"},
+			Fallback: "json",
 		},
 		{
 			Key:         KeyDefaultTheme,
