@@ -1,3 +1,9 @@
+//go:build !enterprise
+
+// These assertions are about the *Community* build. Under the enterprise tag
+// the same routes are registered on purpose, so the file is excluded there -
+// the mirror assertion lives in NoryxLab-EE, where the code is.
+
 package http
 
 import (
