@@ -70,6 +70,7 @@ export const qk = {
 
   adminOverview: ['admin', 'overview'] as const,
   adminHealth: ['admin', 'health'] as const,
+  adminHealthHistory: (days: number) => ['admin', 'health', 'history', days] as const,
   adminSettings: ['admin', 'settings'] as const,
   adminUsers: ['admin', 'users'] as const,
   adminExecutions: ['admin', 'executions'] as const,
@@ -314,6 +315,14 @@ export const useAdminUsers = () => useQuery({ queryKey: qk.adminUsers, queryFn: 
 /** Platform health, polled so a condition that appears between two visits is
  *  still noticed. Failures are swallowed: an unreachable health endpoint must
  *  not itself render as a platform alert. */
+export const usePlatformHealthHistory = (days: number, enabled: boolean) =>
+  useQuery({
+    queryKey: qk.adminHealthHistory(days),
+    queryFn: () => adminApi.healthHistory(days),
+    enabled,
+    retry: false,
+  });
+
 export const usePlatformHealth = (enabled: boolean) =>
   useQuery({
     queryKey: qk.adminHealth,

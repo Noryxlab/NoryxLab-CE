@@ -627,6 +627,16 @@ export const en: Translations = {
 
 
   health: {
+    history: 'History',
+    historyHint: 'Technical conditions the platform observed about itself. Job failures are not here: they belong to whoever ran them.',
+    historyEmpty: 'No condition recorded over this period.',
+    notRecording: 'History is not recorded on this installation.',
+    ongoing: 'Ongoing',
+    resolvedAfter: 'Resolved after',
+    raised: 'Raised',
+    last30: '30 days',
+    last90: '90 days',
+    last365: '1 year',
     title: 'Platform health',
     subtitle: 'Conditions that need attention.',
     checkedAt: 'Checked',

@@ -25,6 +25,7 @@ func main() {
 	cfg := config.Load()
 
 	var projectStore store.ProjectStore = memory.NewProjectStore()
+	var healthEventStore store.HealthEventStore = memory.NewHealthEventStore()
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -63,6 +64,7 @@ func main() {
 				_ = pg.Close()
 			}()
 			projectStore = &postgres.ProjectStore{Store: pg}
+			healthEventStore = &postgres.HealthEventStore{Store: pg}
 			appStore = &postgres.AppStore{Store: pg}
 			buildStore = &postgres.BuildStore{Store: pg}
 			jobStore = &postgres.JobStore{Store: pg}
@@ -174,6 +176,7 @@ func main() {
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
 			OrganizationRequired:             cfg.OrganizationRequired,
+			HealthEventStore:                 healthEventStore,
 			AuthMode:                         cfg.AuthMode,
 			ServiceToken:                     cfg.ServiceToken,
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,

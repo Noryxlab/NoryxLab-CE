@@ -473,6 +473,24 @@ func (s *Store) migrate(ctx context.Context) error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_storage_endpoints_purpose ON storage_endpoints (purpose)`,
 		`CREATE INDEX IF NOT EXISTS idx_storage_endpoints_classification ON storage_endpoints (classification)`,
+		`CREATE TABLE IF NOT EXISTS platform_health_events (
+			id TEXT PRIMARY KEY,
+			key TEXT NOT NULL,
+			source TEXT NOT NULL,
+			severity TEXT NOT NULL,
+			summary TEXT NOT NULL,
+			detail TEXT NOT NULL DEFAULT '',
+			raised_at TIMESTAMPTZ NOT NULL,
+			resolved_at TIMESTAMPTZ
+		)`,
+		// One open row per condition. The watcher forgets what it announced
+		// when the process restarts and re-raises on its first sweep, so
+		// without this every deployment would fork a second interval and the
+		// history would claim the platform recovered and relapsed each time.
+		`CREATE UNIQUE INDEX IF NOT EXISTS platform_health_events_open_key
+			ON platform_health_events (key) WHERE resolved_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS platform_health_events_raised_at
+			ON platform_health_events (raised_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS backup_runs (
 			id TEXT PRIMARY KEY,
 			status TEXT NOT NULL,

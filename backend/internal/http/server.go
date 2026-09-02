@@ -152,6 +152,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/admin/executions/{kind}/{executionID}", h.StopAdminExecution)
 	mux.HandleFunc("GET /api/v1/admin/overview", h.GetAdminOverview)
 	mux.HandleFunc("GET /api/v1/admin/health", h.GetPlatformHealth)
+	mux.HandleFunc("GET /api/v1/admin/health/history", h.GetPlatformHealthHistory)
 	mux.HandleFunc("GET /api/v1/admin/settings", h.ListPlatformSettings)
 	mux.HandleFunc("PUT /api/v1/admin/settings/{key}", h.UpdatePlatformSetting)
 	mux.HandleFunc("GET /api/v1/admin/inventory", h.GetAdminInventory)

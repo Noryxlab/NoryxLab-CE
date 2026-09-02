@@ -619,6 +619,13 @@ export type HealthSeverity = 'critical' | 'warning' | 'info';
 
 export interface HealthAlert {
   severity: HealthSeverity;
+  /**
+   * Whose problem this is. A failed job belongs to whoever ran it and has
+   * context on their own screen; a platform condition belongs to whoever keeps
+   * the installation alive. Only platform conditions are alerted on and kept
+   * in the history.
+   */
+  scope: 'platform' | 'user';
   source: string;
   summary: string;
   detail?: string;
@@ -631,6 +638,30 @@ export interface HealthReport {
   generatedAt: string;
   status: 'healthy' | 'degraded' | 'critical';
   alerts: HealthAlert[];
+}
+
+/** One condition, from the moment it was observed to the moment it cleared. */
+export interface HealthEvent {
+  id: string;
+  key: string;
+  source: string;
+  severity: HealthSeverity;
+  summary: string;
+  detail?: string;
+  raisedAt: string;
+  /** Absent while the condition is still current. */
+  resolvedAt?: string;
+}
+
+export interface HealthHistory {
+  items: HealthEvent[];
+  since?: string;
+  /**
+   * False when no store is configured. Distinguished from an empty history on
+   * purpose: "nothing recorded" and "nothing happened" are different answers,
+   * and conflating them makes a silent platform read as a healthy one.
+   */
+  recording: boolean;
 }
 
 export interface ModuleInfo {

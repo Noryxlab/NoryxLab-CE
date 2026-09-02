@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  HealthHistory,
   AdminOverview,
   EffectiveSetting,
   SearchResult,
@@ -361,6 +362,8 @@ export const egressApi = {
 
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
+  healthHistory: (days?: number) =>
+    api.get<HealthHistory>(`${V1}/admin/health/history`, days ? { params: { days: String(days) } } : undefined),
   health: () => api.get<HealthReport>(`${V1}/admin/health`),
   settings: () => api.list<EffectiveSetting>(`${V1}/admin/settings`),
   updateSetting: (key: string, value: string) =>

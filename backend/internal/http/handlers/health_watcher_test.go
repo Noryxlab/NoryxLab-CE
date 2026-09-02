@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/health"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 )
 
@@ -66,7 +67,7 @@ func TestASweepAnnouncesANewConditionOnce(t *testing.T) {
 
 	since := time.Now().Add(-72 * time.Hour).UTC()
 	condition := healthAlert{
-		Severity: healthWarning, Source: "backup",
+		Scope: health.ScopePlatform, Severity: healthWarning, Source: "backup",
 		Summary: "no backup for more than two days", Since: &since, Action: "backups",
 	}
 
@@ -96,7 +97,10 @@ func TestRecoveryIsAnnouncedToo(t *testing.T) {
 	notifier, drain := captureWebhook(t)
 	handlers := Handlers{notifier: notifier}
 
-	condition := healthAlert{Severity: healthCritical, Source: "backup", Summary: "the latest backup failed"}
+	condition := healthAlert{
+		Scope: health.ScopePlatform, Severity: healthCritical,
+		Source: "backup", Summary: "the latest backup failed",
+	}
 	firing := map[string]healthAlert{}
 	handlers.applyHealth(firing, []healthAlert{condition})
 	handlers.applyHealth(firing, nil)
@@ -129,10 +133,12 @@ func TestAChangingDetailDoesNotReAnnounceTheSameCondition(t *testing.T) {
 
 	firing := map[string]healthAlert{}
 	handlers.applyHealth(firing, []healthAlert{
-		{Severity: healthCritical, Source: "backup", Summary: "the latest backup failed", Detail: "connection reset"},
+		{Scope: health.ScopePlatform, Severity: healthCritical, Source: "backup",
+			Summary: "the latest backup failed", Detail: "connection reset"},
 	})
 	handlers.applyHealth(firing, []healthAlert{
-		{Severity: healthCritical, Source: "backup", Summary: "the latest backup failed", Detail: "i/o timeout"},
+		{Scope: health.ScopePlatform, Severity: healthCritical, Source: "backup",
+			Summary: "the latest backup failed", Detail: "i/o timeout"},
 	})
 
 	if sent := drain(1); len(sent) != 1 {

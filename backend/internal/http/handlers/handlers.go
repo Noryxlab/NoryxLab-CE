@@ -54,6 +54,7 @@ type Handlers struct {
 	bootstrapAdminUser               string
 	bootstrapAdminEmail              string
 	organizationRequired             bool
+	healthEventStore                 store.HealthEventStore
 	authMode                         string
 	serviceToken                     string
 	workspaceJupyterImage            string
@@ -97,6 +98,8 @@ type Options struct {
 	BootstrapAdminUser   string
 	BootstrapAdminEmail  string
 	OrganizationRequired bool
+	// HealthEventStore records what the platform noticed about itself.
+	HealthEventStore store.HealthEventStore
 	// AuthMode gates the development header identity; see requireIdentity.
 	AuthMode string
 	// ServiceToken authenticates platform components that have no human
@@ -246,6 +249,7 @@ func New(
 		bootstrapAdminUser:               options.BootstrapAdminUser,
 		bootstrapAdminEmail:              options.BootstrapAdminEmail,
 		organizationRequired:             options.OrganizationRequired,
+		healthEventStore:                 options.HealthEventStore,
 		authMode:                         options.AuthMode,
 		serviceToken:                     options.ServiceToken,
 		workspaceJupyterImage:            options.WorkspaceJupyterImage,

@@ -632,6 +632,16 @@ export const fr = {
 
 
   health: {
+    history: 'Historique',
+    historyHint: 'Conditions techniques que la plateforme a constatées elle-même. Les échecs de jobs n’y figurent pas : ils appartiennent à qui les a lancés.',
+    historyEmpty: 'Aucune condition enregistrée sur cette période.',
+    notRecording: 'L’historique n’est pas enregistré sur cette installation.',
+    ongoing: 'En cours',
+    resolvedAfter: 'Résolue après',
+    raised: 'Levée',
+    last30: '30 jours',
+    last90: '90 jours',
+    last365: '1 an',
     title: 'Santé de la plateforme',
     subtitle: 'Conditions nécessitant une intervention.',
     checkedAt: 'Vérifié',

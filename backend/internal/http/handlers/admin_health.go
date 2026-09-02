@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/health"
 	"net/http"
 	"sort"
 	"strconv"
@@ -32,9 +33,15 @@ const (
 
 type healthAlert struct {
 	Severity healthSeverity `json:"severity"`
-	Source   string         `json:"source"`
-	Summary  string         `json:"summary"`
-	Detail   string         `json:"detail,omitempty"`
+	// Scope says whose problem this is. A failed job belongs to the person who
+	// ran it and has context on their own screen; "no backup for two days"
+	// belongs to whoever keeps the platform alive. Interleaving them buries
+	// the condition that costs the business everything under the ones that
+	// cost one person an afternoon.
+	Scope   health.Scope `json:"scope"`
+	Source  string       `json:"source"`
+	Summary string       `json:"summary"`
+	Detail  string       `json:"detail,omitempty"`
 	// Since is when the condition was last observed to start, when known.
 	Since *time.Time `json:"since,omitempty"`
 	// Action names the screen an operator should open, so the UI can link to it.
@@ -129,6 +136,7 @@ func (h Handlers) jobFailureAlerts() []healthAlert {
 		return nil
 	}
 	return []healthAlert{{
+		Scope:    health.ScopeUser,
 		Severity: healthWarning,
 		Source:   "jobs",
 		Summary:  strconv.Itoa(len(names)) + " job(s) failed in the last 24 hours",
@@ -146,6 +154,7 @@ func (h Handlers) deploymentAlerts() []healthAlert {
 	deployments, err := inspector.ListDeployments()
 	if err != nil {
 		return []healthAlert{{
+			Scope:    health.ScopePlatform,
 			Severity: healthWarning,
 			Source:   "runtime",
 			Summary:  "deployment status is unreadable",
@@ -163,6 +172,7 @@ func (h Handlers) deploymentAlerts() []healthAlert {
 			severity = healthCritical
 		}
 		alerts = append(alerts, healthAlert{
+			Scope:    health.ScopePlatform,
 			Severity: severity,
 			Source:   "runtime",
 			Summary:  "component unavailable: " + deployment.Name,
@@ -197,10 +207,65 @@ func (h Handlers) workspaceLifetimeAlerts() []healthAlert {
 		return nil
 	}
 	return []healthAlert{{
+		Scope:    health.ScopePlatform,
 		Severity: healthWarning,
 		Source:   "workspaces",
 		Summary:  strconv.Itoa(len(stale)) + " workspace(s) exceed their maximum lifetime without having been stopped",
 		Detail:   strings.Join(stale, ", "),
 		Action:   "activity",
 	}}
+}
+
+// healthHistoryDefaultDays bounds the default window. Ninety days of platform
+// conditions is a few dozen rows on a healthy installation.
+const (
+	healthHistoryDefaultDays = 30
+	healthHistoryMaxDays     = 365
+	healthHistoryMaxItems    = 500
+)
+
+// GetPlatformHealthHistory answers "what has this platform been complaining
+// about, and did it resolve".
+//
+// The health screen shows the present, and a webhook is fire-and-forget: if
+// nobody was in the channel, the event is gone. Three nights without a backup
+// left no consultable trace anywhere, which is the gap this closes.
+func (h Handlers) GetPlatformHealthHistory(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdminModule(w, r, "overview"); !ok {
+		return
+	}
+	if h.healthEventStore == nil {
+		// Distinguished from an empty history on purpose: "nothing recorded"
+		// and "nothing happened" are different answers, and conflating them is
+		// how a silent platform reads as a healthy one.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": []health.Event{}, "recording": false,
+		})
+		return
+	}
+
+	days := healthHistoryDefaultDays
+	if raw := strings.TrimSpace(r.URL.Query().Get("days")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 || parsed > healthHistoryMaxDays {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "days must be a positive integer of at most " + strconv.Itoa(healthHistoryMaxDays),
+			})
+			return
+		}
+		days = parsed
+	}
+
+	since := time.Now().UTC().AddDate(0, 0, -days)
+	events, err := h.healthEventStore.List(since, healthHistoryMaxItems)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read health history"})
+		return
+	}
+	if events == nil {
+		events = []health.Event{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": events, "since": since, "recording": true,
+	})
 }
