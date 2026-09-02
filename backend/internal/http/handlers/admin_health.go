@@ -53,6 +53,14 @@ func (h Handlers) GetPlatformHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	writeJSON(w, http.StatusOK, h.platformHealth())
+}
+
+// platformHealth computes the report. Shared with the watcher so the screen
+// and the alert can never disagree about the platform's state - two code paths
+// answering the same question eventually give two answers, and it is the
+// reassuring one that gets believed.
+func (h Handlers) platformHealth() healthReport {
 	alerts := []healthAlert{}
 	alerts = append(alerts, h.backupAlerts()...)
 	alerts = append(alerts, h.deploymentAlerts()...)
@@ -65,11 +73,11 @@ func (h Handlers) GetPlatformHealth(w http.ResponseWriter, r *http.Request) {
 		return rank[alerts[i].Severity] < rank[alerts[j].Severity]
 	})
 
-	writeJSON(w, http.StatusOK, healthReport{
+	return healthReport{
 		GeneratedAt: time.Now().UTC(),
 		Status:      overallHealth(alerts),
 		Alerts:      alerts,
-	})
+	}
 }
 
 func overallHealth(alerts []healthAlert) string {

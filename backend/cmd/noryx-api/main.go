@@ -230,6 +230,7 @@ func main() {
 	defer stopReaper()
 	h.StartWorkspaceReaper(reaperCtx)
 	h.StartJobWatcher(reaperCtx)
+	h.StartHealthWatcher(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)
 
