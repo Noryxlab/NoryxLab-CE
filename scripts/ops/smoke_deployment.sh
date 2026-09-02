@@ -50,15 +50,30 @@ body() {
 
 echo "Deployment smoke: ${BASE}"
 
-# 0. Let the edge settle. This runs seconds after a rollout, and the load
-#    balancer can still be routing to a terminating pod. Without the wait the
-#    smoke reported a failure the platform had already recovered from - and
-#    re-probed for its own error message, so it printed "not served (HTTP 200)".
+# 0. Wait for the edge to settle before judging anything.
+#
+#    This runs seconds after a rollout, while the load balancer can still be
+#    routing to a terminating pod. The first version waited only for the root
+#    page and only for that check, so everything after it passed by accident of
+#    wall-clock ordering - and it reported a 502 on a platform that was healthy
+#    a minute later.
+#
+#    Two consecutive successes, because a single one can catch the moment
+#    between two endpoint updates. Nothing below runs until this settles, so a
+#    failure means the deployment, not the timing.
 settle=0
-until [ "$(status GET /)" = "200" ] || [ "$settle" -ge 12 ]; do
-  settle=$((settle + 1))
-  sleep 5
+consecutive=0
+while [ "$consecutive" -lt 2 ] && [ "$settle" -lt 30 ]; do
+  if [ "$(status GET /)" = "200" ] && [ "$(status GET /config.js)" = "200" ]; then
+    consecutive=$((consecutive + 1))
+  else
+    consecutive=0
+  fi
+  [ "$consecutive" -lt 2 ] && { settle=$((settle + 1)); sleep 5; }
 done
+if [ "$consecutive" -lt 2 ]; then
+  fail "the platform never answered steadily within $((settle * 5))s; the checks below describe a moving target"
+fi
 
 # 1. The edge answers at all, over TLS. An EE deployment once switched Traefik
 #    to plain HTTP while HAProxy was doing passthrough, and every page 404ed.
