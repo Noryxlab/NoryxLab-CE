@@ -97,6 +97,37 @@ Only the current owner or a global administrator can transfer project
 ownership. A non-admin user can only transfer ownership to an organization they
 belong to.
 
+## Managing accounts
+
+An administrator creates accounts and resets passwords from the administration
+screen. Keycloak remains the source of truth for identity — nothing is stored
+here; the platform decides only who may ask.
+
+**The platform chooses the password, not the administrator.** Someone inventing
+one under time pressure picks weak and reused passwords. Twenty characters from
+an alphabet without `O/0` or `l/1/I`, which is beyond guessing and still safe to
+read aloud — a temporary password is dictated far more often than anyone admits.
+
+It is set `temporary`, so Keycloak adds the `UPDATE_PASSWORD` required action
+and the user must choose their own at first sign-in. The window in which the
+administrator's copy works therefore ends there. That required action must be
+enabled on the realm; if it is not, Keycloak ignores the flag silently and the
+administrator hands out permanent passwords believing otherwise.
+
+Creating an account asks for an organization. Where membership is mandatory, an
+account created without one signs in and can do nothing — the shape that left
+the nightly backup refused for three nights. It is required up front rather than
+discovered afterwards.
+
+Creating the account and setting its password are separate calls. A failure
+between them leaves an account nobody can sign into, rather than one whose
+password nobody recorded, and the error says so with the identifier.
+
+Not yet available: an emailed invitation or reset link. Keycloak supports it
+(`execute-actions-email`) and it needs SMTP on the realm; without SMTP the call
+succeeds while no message is sent, which is the kind of silence this platform is
+trying to remove.
+
 ## Personal API tokens
 
 A user calling the API outside a browser — a CI job, a notebook, a script —
