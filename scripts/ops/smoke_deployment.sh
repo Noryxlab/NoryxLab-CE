@@ -55,9 +55,14 @@ SMOKE_HOST=${BASE#https://}
 SMOKE_HOST=${SMOKE_HOST#http://}
 SMOKE_HOST=${SMOKE_HOST%%/*}
 SMOKE_HOST=${SMOKE_HOST%%:*}
-CURL_RESOLVE=()
+# A string rather than an array, for the same reason CURL_TLS is one: under
+# `set -u`, bash 3.2 - which is what macOS ships - treats an empty array
+# expansion as an unbound variable and kills the script. bash 4.4 and later do
+# not, so this breaks only on a developer's laptop and never on the Linux host
+# that runs it after a deployment.
+CURL_RESOLVE=""
 if [ -n "$SMOKE_RESOLVE_IP" ]; then
-  CURL_RESOLVE=(--resolve "${SMOKE_HOST}:443:${SMOKE_RESOLVE_IP}")
+  CURL_RESOLVE="--resolve ${SMOKE_HOST}:443:${SMOKE_RESOLVE_IP}"
 fi
 
 failures=0
@@ -66,14 +71,14 @@ pass() { printf '  ok    %s\n' "$1"; }
 
 # status METHOD PATH -> HTTP code
 status() {
-  curl -s "${CURL_RESOLVE[@]}" ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 -X "$1" "${BASE}$2"
+  curl -s ${CURL_RESOLVE} ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 -X "$1" "${BASE}$2"
 }
 # content_type PATH -> content type
 content_type() {
-  curl -s "${CURL_RESOLVE[@]}" ${CURL_TLS} -o /dev/null -w '%{content_type}' --max-time 20 "${BASE}$1"
+  curl -s ${CURL_RESOLVE} ${CURL_TLS} -o /dev/null -w '%{content_type}' --max-time 20 "${BASE}$1"
 }
 body() {
-  curl -s "${CURL_RESOLVE[@]}" ${CURL_TLS} --max-time 20 "${BASE}$1"
+  curl -s ${CURL_RESOLVE} ${CURL_TLS} --max-time 20 "${BASE}$1"
 }
 
 echo "Deployment smoke: ${BASE}"
@@ -167,7 +172,13 @@ if command -v openssl >/dev/null 2>&1; then
   connect_host=${SMOKE_RESOLVE_IP:-$host}
   # A cluster can resolve its public name to an edge it cannot hairpin through.
   # Do not let that optional expiry report block the whole deployment forever.
-  not_after=$(echo | timeout 15 openssl s_client -servername "$host" -connect "${connect_host}:443" 2>/dev/null |
+  # `timeout` is GNU and absent on macOS, where its absence made the whole
+  # pipeline fail and this check degrade to a note - on the one certificate it
+  # exists to watch. Used when present, skipped when not, because a bounded
+  # wait is worth having and a silent skip is not.
+  bounded=""
+  command -v timeout >/dev/null 2>&1 && bounded="timeout 15"
+  not_after=$(echo | $bounded openssl s_client -servername "$host" -connect "${connect_host}:443" 2>/dev/null |
     openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
   if [ -z "$not_after" ]; then
     printf '  note  could not read the certificate expiry\n'
@@ -197,7 +208,7 @@ esac
 
 # 5. Naming yourself in a header is not an identity. This was open, and any
 #    caller able to reach the backend could act as any user.
-bypass=$(curl -s "${CURL_RESOLVE[@]}" ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 \
+bypass=$(curl -s ${CURL_RESOLVE} ${CURL_TLS} -o /dev/null -w '%{http_code}' --max-time 20 \
   -H 'X-Noryx-User: smoke-test-probe' "${BASE}/api/v1/projects")
 if [ "$bypass" = "401" ]; then
   pass "the user header alone does not authenticate"
