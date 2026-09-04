@@ -4,10 +4,41 @@ metadata:
   name: noryx-backend
   namespace: noryx-ce
 ---
+# The backend used to hold every one of these rights in a ClusterRole, which
+# meant cluster-wide `secrets: list` - Longhorn's, Keycloak's, Harbor's, and
+# every other namespace's. A compromised backend was a compromised cluster.
+#
+# It actually talks to exactly two namespaces (the control namespace where it
+# runs, and the workload namespace where user pods live), so those rights are
+# now Roles bound in each. Only persistent volumes stay cluster-scoped, because
+# a PersistentVolume genuinely has no namespace.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: noryx-backend-runtime
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: noryx-backend-runtime
+subjects:
+  - kind: ServiceAccount
+    name: noryx-backend
+    namespace: noryx-ce
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: noryx-backend-runtime
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: noryx-backend-runtime
+  namespace: noryx-ce
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -20,9 +51,6 @@ rules:
     verbs: ["create", "get", "list", "watch", "delete"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["create", "get", "list", "watch", "delete"]
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
     verbs: ["create", "get", "list", "watch", "delete"]
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -41,14 +69,63 @@ rules:
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: noryx-backend-runtime
+  namespace: noryx-ce
 subjects:
   - kind: ServiceAccount
     name: noryx-backend
     namespace: noryx-ce
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
+  name: noryx-backend-runtime
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: noryx-backend-runtime
+  namespace: noryx-loads
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "get", "list", "watch", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "get", "list", "watch", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: noryx-backend-runtime
+  namespace: noryx-loads
+subjects:
+  - kind: ServiceAccount
+    name: noryx-backend
+    namespace: noryx-ce
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
   name: noryx-backend-runtime
