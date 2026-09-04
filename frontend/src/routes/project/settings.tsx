@@ -13,11 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useAdminUsers, useOrganizations, useProject, qk, useInvalidate } from '@/lib/api/queries';
 import { projectsApi } from '@/lib/api/endpoints';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { presentStorage, STORAGE_PRESETS } from '@/lib/presenters';
 import { useAuth } from '@/lib/auth';
 
 export function ProjectSettingsPage() {
   const t = useT();
+  const { locale } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
@@ -31,6 +33,7 @@ export function ProjectSettingsPage() {
 
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
+  const [storageSize, setStorageSize] = React.useState('default');
   const [ownerType, setOwnerType] = React.useState<'user' | 'organization'>('user');
   const [ownerId, setOwnerId] = React.useState('');
 
@@ -39,13 +42,18 @@ export function ProjectSettingsPage() {
     if (!project.data) return;
     setName(project.data.name);
     setDescription(project.data.description);
+    setStorageSize(project.data.workspaceStorageSize || 'default');
     setOwnerType(project.data.ownerType === 'organization' ? 'organization' : 'user');
     setOwnerId(project.data.ownerId);
   }, [project.data]);
 
   const save = useMutation({
     mutationFn: () =>
-      projectsApi.update(projectId as string, { name: name.trim(), description: description.trim() }),
+      projectsApi.update(projectId as string, {
+        name: name.trim(),
+        description: description.trim(),
+        workspaceStorageSize: storageSize,
+      }),
     onSuccess: () => {
       invalidate(qk.projects);
       toast.success(t('common.save'), t('projectOverview.settingsTitle'));
@@ -116,6 +124,22 @@ export function ProjectSettingsPage() {
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
               maxLength={500}
+            />
+          </Field>
+          <Field
+            label={t('projects.storageSizeLabel')}
+            description={t('projects.storageSizeHint')}
+          >
+            <Select
+              value={storageSize}
+              onValueChange={setStorageSize}
+              options={[
+                { value: 'default', label: t('projects.storageSizeDefault') },
+                ...STORAGE_PRESETS.map((preset) => ({
+                  value: preset.value,
+                  label: presentStorage(preset.gib, locale),
+                })),
+              ]}
             />
           </Field>
         </CardContent>

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
@@ -385,7 +386,7 @@ func validStorageSize(value string) bool {
 	return true
 }
 
-func dataServicePodSpec(name, pvcName, secretName, database, username string, definition datasource.ServiceDefinition, labels map[string]string, pullSecret string, tier hardwareTier) noryxruntime.PodSpec {
+func dataServicePodSpec(name, pvcName, secretName, database, username string, definition datasource.ServiceDefinition, labels map[string]string, pullSecret string, tier hardware.Tier) noryxruntime.PodSpec {
 	env := []noryxruntime.EnvVar{}
 	mountPath := "/var/lib/postgresql/data"
 	switch definition.Type {

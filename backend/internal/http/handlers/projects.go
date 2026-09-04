@@ -13,6 +13,11 @@ import (
 type createProjectRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	// WorkspaceStorageSize is optional. Absent leaves the project's current
+	// setting alone; an empty string sent explicitly cannot be distinguished
+	// from absent in JSON, so "platform default" is expressed by the literal
+	// value "default" rather than by emptiness.
+	WorkspaceStorageSize string `json:"workspaceStorageSize"`
 }
 
 type setProjectOwnerRequest struct {
@@ -136,6 +141,22 @@ func (h Handlers) UpdateProjectMetadata(w http.ResponseWriter, r *http.Request) 
 	if err := h.projectStore.UpdateMetadata(item.ID, req.Name, req.Description); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update project"})
 		return
+	}
+	if requested := strings.TrimSpace(req.WorkspaceStorageSize); requested != "" {
+		size := ""
+		if !strings.EqualFold(requested, "default") {
+			normalized, err := normalizeWorkspaceStorageSize(requested)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+				return
+			}
+			size = normalized
+		}
+		if err := h.projectStore.UpdateWorkspaceStorageSize(item.ID, size); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update project"})
+			return
+		}
+		h.emitAudit(r, userID, "project.storage.update", "project", item.ID, "", "success", "", map[string]any{"workspaceStorageSize": size})
 	}
 	updated, _, _ := h.projectByID(item.ID)
 	updated.CanManageOwner = true

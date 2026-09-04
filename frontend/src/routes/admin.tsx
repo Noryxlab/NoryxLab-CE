@@ -83,6 +83,7 @@ import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import { SoftwareInventorySection } from '@/features/admin/software-inventory';
 import { AccessGraph } from '@/features/admin/access-graph';
+import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -1756,7 +1757,13 @@ export function AdminPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <PlatformSettingsSection />
+          <div className="space-y-8">
+            <PlatformSettingsSection />
+            {/* Machine sizes sit with the platform settings rather than in a
+                tab of their own: an administrator arrives here to say how the
+                installation behaves, and the sizes it offers are part of that. */}
+            <HardwareTiersSection />
+          </div>
         </TabsContent>
         {isEnterprise() ? (
           <>

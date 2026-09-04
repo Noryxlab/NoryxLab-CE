@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  AdminHardwareTier,
   SoftwareInventory,
   CreatedUser,
   ProjectOrganizationRole,
@@ -73,7 +74,10 @@ export const searchApi = {
 export const projectsApi = {
   list: () => api.list<Project>(`${V1}/projects`),
   create: (input: { name: string; description?: string }) => api.post<Project>(`${V1}/projects`, input),
-  update: (projectId: string, input: { name?: string; description?: string }) =>
+  update: (
+    projectId: string,
+    input: { name?: string; description?: string; workspaceStorageSize?: string },
+  ) =>
     api.put<Project>(`${V1}/projects/${projectId}`, input),
   remove: (projectId: string) => api.delete<void>(`${V1}/projects/${projectId}`),
   setOwner: (projectId: string, input: { ownerType: string; ownerId: string }) =>
@@ -386,6 +390,11 @@ export const egressApi = {
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   softwareInventory: () => api.get<SoftwareInventory>(`${V1}/admin/software-inventory`),
+  hardwareTiers: () => api.list<AdminHardwareTier>(`${V1}/admin/hardware-tiers`),
+  saveHardwareTier: (tier: AdminHardwareTier) =>
+    api.put<AdminHardwareTier>(`${V1}/admin/hardware-tiers/${encodeURIComponent(tier.id)}`, tier),
+  removeHardwareTier: (tierId: string) =>
+    api.delete<void>(`${V1}/admin/hardware-tiers/${encodeURIComponent(tierId)}`),
   healthHistory: (days?: number) =>
     api.get<HealthHistory>(`${V1}/admin/health/history`, days ? { params: { days: String(days) } } : undefined),
   health: () => api.get<HealthReport>(`${V1}/admin/health`),

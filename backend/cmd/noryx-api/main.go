@@ -7,6 +7,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/config"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/edition"
 	nhttp "github.com/Noryxlab/NoryxLab-CE/backend/internal/http"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/http/handlers"
@@ -27,6 +28,7 @@ func main() {
 	var projectStore store.ProjectStore = memory.NewProjectStore()
 	var healthEventStore store.HealthEventStore = memory.NewHealthEventStore()
 	var apiTokenStore store.APITokenStore = memory.NewAPITokenStore()
+	var hardwareTierStore store.HardwareTierStore = memory.NewHardwareTierStore()
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -67,6 +69,17 @@ func main() {
 			projectStore = &postgres.ProjectStore{Store: pg}
 			healthEventStore = &postgres.HealthEventStore{Store: pg}
 			apiTokenStore = &postgres.APITokenStore{Store: pg}
+			hardwareTierStore = &postgres.HardwareTierStore{Store: pg}
+			// An installation upgrading into editable tiers keeps the four
+			// sizes it already ran, under the same ids: workspaces in flight
+			// refer to them by id.
+			if existing, err := hardwareTierStore.List(); err == nil && len(existing) == 0 {
+				for _, tier := range hardware.Defaults() {
+					if err := hardwareTierStore.Upsert(tier); err != nil {
+						log.Printf("seeding hardware tier %s failed: %v", tier.ID, err)
+					}
+				}
+			}
 			appStore = &postgres.AppStore{Store: pg}
 			buildStore = &postgres.BuildStore{Store: pg}
 			jobStore = &postgres.JobStore{Store: pg}
@@ -180,6 +193,7 @@ func main() {
 			OrganizationRequired:             cfg.OrganizationRequired,
 			HealthEventStore:                 healthEventStore,
 			APITokenStore:                    apiTokenStore,
+			HardwareTierStore:                hardwareTierStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,

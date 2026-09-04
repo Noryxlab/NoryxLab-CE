@@ -18,6 +18,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
@@ -126,6 +127,9 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+		// Empty means "follow the platform default", so every project that
+		// existed before this column keeps the size it already had.
+		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS workspace_storage_size TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS access_roles (
 			project_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -138,6 +142,23 @@ func (s *Store) migrate(ctx context.Context) error {
 			role TEXT NOT NULL,
 			PRIMARY KEY (project_id, organization_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS hardware_tiers (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			cpu_request TEXT NOT NULL,
+			cpu_limit TEXT NOT NULL,
+			memory_request TEXT NOT NULL,
+			memory_limit TEXT NOT NULL,
+			ephemeral_request TEXT NOT NULL DEFAULT '64Mi',
+			ephemeral_limit TEXT NOT NULL DEFAULT '4Gi',
+			is_default BOOLEAN NOT NULL DEFAULT FALSE,
+			position INTEGER NOT NULL DEFAULT 0
+		)`,
+		// At most one default. Enforced here rather than in the handler,
+		// because two defaults would make the preselected size depend on row
+		// order - a bug nobody would think to look for.
+		`CREATE UNIQUE INDEX IF NOT EXISTS hardware_tiers_single_default ON hardware_tiers ((is_default)) WHERE is_default`,
 		`CREATE TABLE IF NOT EXISTS api_tokens (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -539,7 +560,7 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 func (s *Store) List() ([]project.Project, error) {
-	rows, err := s.db.Query(`SELECT id, name, description, owner_type, owner_id, created_at, updated_at FROM projects ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, name, description, owner_type, owner_id, workspace_storage_size, created_at, updated_at FROM projects ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +568,7 @@ func (s *Store) List() ([]project.Project, error) {
 	out := []project.Project{}
 	for rows.Next() {
 		var p project.Project
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.OwnerType, &p.OwnerID, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.OwnerType, &p.OwnerID, &p.WorkspaceStorageSize, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -556,12 +577,57 @@ func (s *Store) List() ([]project.Project, error) {
 }
 
 func (s *Store) Create(p project.Project) error {
-	_, err := s.db.Exec(`INSERT INTO projects (id, name, description, owner_type, owner_id, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`, p.ID, p.Name, p.Description, p.OwnerType, p.OwnerID, p.CreatedAt, p.UpdatedAt)
+	_, err := s.db.Exec(`INSERT INTO projects (id, name, description, owner_type, owner_id, workspace_storage_size, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, p.ID, p.Name, p.Description, p.OwnerType, p.OwnerID, p.WorkspaceStorageSize, p.CreatedAt, p.UpdatedAt)
 	return err
 }
 
 func (s *Store) UpdateProjectMetadata(projectID, name, description string) error {
 	_, err := s.db.Exec(`UPDATE projects SET name=$2, description=$3, updated_at=NOW() WHERE id=$1`, strings.TrimSpace(projectID), strings.TrimSpace(name), strings.TrimSpace(description))
+	return err
+}
+
+func (s *Store) UpdateProjectWorkspaceStorageSize(projectID, size string) error {
+	_, err := s.db.Exec(`UPDATE projects SET workspace_storage_size=$2, updated_at=NOW() WHERE id=$1`, strings.TrimSpace(projectID), strings.TrimSpace(size))
+	return err
+}
+
+func (s *Store) ListHardwareTiers() ([]hardware.Tier, error) {
+	rows, err := s.db.Query(`SELECT id, name, description, cpu_request, cpu_limit, memory_request, memory_limit, ephemeral_request, ephemeral_limit, is_default, position FROM hardware_tiers ORDER BY position, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []hardware.Tier{}
+	for rows.Next() {
+		var tier hardware.Tier
+		if err := rows.Scan(&tier.ID, &tier.Name, &tier.Description, &tier.CPURequest, &tier.CPULimit, &tier.MemoryRequest, &tier.MemoryLimit, &tier.EphemeralStorageRequest, &tier.EphemeralStorageLimit, &tier.Default, &tier.Position); err != nil {
+			return nil, err
+		}
+		out = append(out, tier)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) UpsertHardwareTier(tier hardware.Tier) error {
+	// Clearing the other defaults first: the partial unique index refuses a
+	// second default outright, so the write would fail rather than silently
+	// leave two.
+	if tier.Default {
+		if _, err := s.db.Exec(`UPDATE hardware_tiers SET is_default=FALSE WHERE id<>$1`, tier.ID); err != nil {
+			return err
+		}
+	}
+	_, err := s.db.Exec(`INSERT INTO hardware_tiers (id, name, description, cpu_request, cpu_limit, memory_request, memory_limit, ephemeral_request, ephemeral_limit, is_default, position)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description, cpu_request=EXCLUDED.cpu_request, cpu_limit=EXCLUDED.cpu_limit,
+			memory_request=EXCLUDED.memory_request, memory_limit=EXCLUDED.memory_limit, ephemeral_request=EXCLUDED.ephemeral_request,
+			ephemeral_limit=EXCLUDED.ephemeral_limit, is_default=EXCLUDED.is_default, position=EXCLUDED.position`,
+		tier.ID, tier.Name, tier.Description, tier.CPURequest, tier.CPULimit, tier.MemoryRequest, tier.MemoryLimit, tier.EphemeralStorageRequest, tier.EphemeralStorageLimit, tier.Default, tier.Position)
+	return err
+}
+
+func (s *Store) DeleteHardwareTier(id string) error {
+	_, err := s.db.Exec(`DELETE FROM hardware_tiers WHERE id=$1`, strings.TrimSpace(id))
 	return err
 }
 

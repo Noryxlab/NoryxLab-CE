@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 )
 
 func TestValidStorageSize(t *testing.T) {
@@ -21,7 +22,7 @@ func TestValidStorageSize(t *testing.T) {
 
 func TestDataServicePodSpec(t *testing.T) {
 	for _, definition := range datasource.SystemServiceDefinitions() {
-		tier := defaultHardwareTiers()[1]
+		tier := hardware.Defaults()[1]
 		spec := dataServicePodSpec("dataservice-test", "dataservice-test-data", "dataservice-test-credentials", "app", "owner", definition, map[string]string{"test": "true"}, "pull-secret", tier)
 		if spec.Image != definition.Image || spec.RestartPolicy != "Always" || spec.ReadinessPort != definition.DefaultPort {
 			t.Fatalf("unexpected pod spec for %s: %#v", definition.ID, spec)

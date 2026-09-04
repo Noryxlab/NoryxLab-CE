@@ -61,6 +61,20 @@ func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
 	return nil
 }
 
+func (s *ProjectStore) UpdateWorkspaceStorageSize(projectID, size string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.items {
+		if s.items[i].ID == projectID {
+			s.items[i].WorkspaceStorageSize = size
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s *ProjectStore) DeleteProject(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

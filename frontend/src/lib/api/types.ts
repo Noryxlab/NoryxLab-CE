@@ -26,6 +26,9 @@ export interface Project {
   /** Whether the caller may change membership. Decided by the backend, which
    *  is also the thing that enforces it. */
   canManageMembers?: boolean;
+  /** Volume every workspace of this project gets, as a Kubernetes quantity.
+   *  Absent means the project follows the platform default. */
+  workspaceStorageSize?: string;
   createdAt: string;
   updatedAt: string;
   lastActivityAt: string;
@@ -320,6 +323,16 @@ export interface HardwareTier {
   memoryLimit: string;
   ephemeralStorageLimit: string;
   default: boolean;
+}
+
+/** What an administrator edits. Requests never reach the tier list a user
+ *  picks from: they are how the cluster is packed, not what the machine can
+ *  do. */
+export interface AdminHardwareTier extends HardwareTier {
+  cpuRequest: string;
+  memoryRequest: string;
+  ephemeralStorageRequest: string;
+  position: number;
 }
 
 export interface EgressRule {

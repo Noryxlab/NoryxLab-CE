@@ -62,7 +62,11 @@ export interface TierPresentation {
 }
 
 export function presentTier(tier: HardwareTier, locale: Locale = 'fr'): TierPresentation {
-  const named = TIER_NAMES[tier.id];
+  // Names are the administrator's since tiers became editable, so a stored
+  // name wins. The catalogue below survives for one case only: an installation
+  // whose tiers still carry `1x4` as their name, which is the id repeated and
+  // is what needed a help note in the first place.
+  const named = tier.name && tier.name !== tier.id ? undefined : TIER_NAMES[tier.id];
   const cores = tierCores(tier.cpuLimit);
   const memory = tierMemoryGiB(tier.memoryLimit);
 

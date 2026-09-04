@@ -81,7 +81,7 @@ type Handlers struct {
 	workspaceProfilePVCAccessMode    string
 	workspaceProfilePVCMountPath     string
 	projectFilesImage                string
-	hardwareTiers                    []hardwareTier
+	hardwareTierStore                store.HardwareTierStore
 	backendVersion                   string
 	edition                          string
 	defaultTheme                     string
@@ -106,6 +106,8 @@ type Options struct {
 	HealthEventStore store.HealthEventStore
 	// APITokenStore holds the credentials users present instead of a session.
 	APITokenStore store.APITokenStore
+	// HardwareTierStore holds the machine sizes an administrator maintains.
+	HardwareTierStore store.HardwareTierStore
 	// OIDCAudience is the audience this platform requires in a token.
 	OIDCAudience string
 	// OIDCFrontendClientID is the client whose tokens must carry it.
@@ -290,7 +292,7 @@ func New(
 		workspaceProfilePVCAccessMode:    options.WorkspaceProfilePVCAccessMode,
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
 		projectFilesImage:                strings.TrimSpace(options.ProjectFilesImage),
-		hardwareTiers:                    defaultHardwareTiers(),
+		hardwareTierStore:                options.HardwareTierStore,
 		backendVersion:                   options.BackendVersion,
 		edition:                          strings.TrimSpace(options.Edition),
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),

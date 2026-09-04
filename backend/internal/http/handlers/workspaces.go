@@ -331,13 +331,33 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 		pvcSize = normalizedDefaultSize
 
+		// Capacity is a project setting, not a launch option. The person
+		// starting a notebook was shown "10 Go" on every launch and had no
+		// basis on which to change it; whoever runs the project does.
+		if projectItem, found, err := h.projectByID(req.ProjectID); err == nil && found {
+			if configured := strings.TrimSpace(projectItem.WorkspaceStorageSize); configured != "" {
+				normalizedProjectSize, err := normalizeWorkspaceStorageSize(configured)
+				if err != nil {
+					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "the project has an invalid workspace storage size"})
+					return
+				}
+				pvcSize = normalizedProjectSize
+			}
+		}
+
+		// A caller that still sends storageSize is answered rather than
+		// silently ignored: a request whose field does nothing is worse than
+		// one that is refused, because the caller keeps believing it works.
 		if req.StorageSize != "" {
 			normalizedSize, err := normalizeWorkspaceStorageSize(req.StorageSize)
 			if err != nil {
 				writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 				return
 			}
-			pvcSize = normalizedSize
+			if normalizedSize != pvcSize {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"error": "storageSize is a project setting: update the project instead of the workspace"})
+				return
+			}
 		}
 	}
 
@@ -512,7 +532,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			CPULimit:                tier.CPULimit,
 			MemRequest:              tier.MemoryRequest,
 			MemLimit:                tier.MemoryLimit,
-			EphemeralStorageRequest: tier.EphemeralRequest,
+			EphemeralStorageRequest: tier.EphemeralStorageRequest,
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,

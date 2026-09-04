@@ -72,6 +72,7 @@ export const qk = {
   adminOverview: ['admin', 'overview'] as const,
   adminHealth: ['admin', 'health'] as const,
   softwareInventory: ['admin', 'software-inventory'] as const,
+  adminHardwareTiers: ['admin', 'hardware-tiers'] as const,
   apiTokens: ['user', 'api-tokens'] as const,
   projectOrganizationRoles: (projectId: string) =>
     ['projects', projectId, 'organization-roles'] as const,
@@ -374,6 +375,9 @@ export const useOrganizationMembers = (organizationId: string | undefined) =>
 export const useAuditEvents = () => useQuery({ queryKey: qk.adminAudit, queryFn: () => adminApi.audit() });
 
 export const useDataUsage = () => useQuery({ queryKey: qk.adminDataUsage, queryFn: adminApi.dataUsage });
+
+export const useAdminHardwareTiers = () =>
+  useQuery({ queryKey: qk.adminHardwareTiers, queryFn: adminApi.hardwareTiers });
 
 export const useRbacMatrix = () => useQuery({ queryKey: qk.adminRbacMatrix, queryFn: adminApi.rbacMatrix });
 

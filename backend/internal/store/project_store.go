@@ -7,5 +7,6 @@ type ProjectStore interface {
 	Create(p project.Project) error
 	UpdateMetadata(projectID, name, description string) error
 	UpdateOwner(projectID, ownerType, ownerID string) error
+	UpdateWorkspaceStorageSize(projectID, size string) error
 	DeleteProject(id string) error
 }

@@ -165,7 +165,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 			CPULimit:                tier.CPULimit,
 			MemRequest:              tier.MemoryRequest,
 			MemLimit:                tier.MemoryLimit,
-			EphemeralStorageRequest: tier.EphemeralRequest,
+			EphemeralStorageRequest: tier.EphemeralStorageRequest,
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,

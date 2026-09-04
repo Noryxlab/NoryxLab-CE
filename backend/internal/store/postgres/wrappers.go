@@ -11,6 +11,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
@@ -25,6 +26,11 @@ import (
 
 type ProjectStore struct{ *Store }
 type AccessStore struct{ *Store }
+type HardwareTierStore struct{ *Store }
+
+func (s *HardwareTierStore) List() ([]hardware.Tier, error)  { return s.Store.ListHardwareTiers() }
+func (s *HardwareTierStore) Upsert(tier hardware.Tier) error { return s.Store.UpsertHardwareTier(tier) }
+func (s *HardwareTierStore) Delete(id string) error          { return s.Store.DeleteHardwareTier(id) }
 
 func (s *ProjectStore) List() ([]project.Project, error) { return s.Store.List() }
 func (s *ProjectStore) Create(p project.Project) error   { return s.Store.Create(p) }
@@ -33,6 +39,9 @@ func (s *ProjectStore) UpdateMetadata(projectID, name, description string) error
 }
 func (s *ProjectStore) UpdateOwner(projectID, ownerType, ownerID string) error {
 	return s.Store.UpdateProjectOwner(projectID, ownerType, ownerID)
+}
+func (s *ProjectStore) UpdateWorkspaceStorageSize(projectID, size string) error {
+	return s.Store.UpdateProjectWorkspaceStorageSize(projectID, size)
 }
 func (s *ProjectStore) DeleteProject(id string) error { return s.Store.DeleteProject(id) }
 

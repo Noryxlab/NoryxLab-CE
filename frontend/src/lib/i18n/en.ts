@@ -129,6 +129,9 @@ export const en: Translations = {
   },
 
   projects: {
+    storageSizeLabel: 'Workspace capacity',
+    storageSizeHint: 'Volume mounted at /mnt in every workspace of this project, kept across restarts. Workspaces already running keep the volume they have.',
+    storageSizeDefault: 'Platform default',
     title: 'Projects',
     subtitle: 'A project holds your workspaces, runs, data and collaborators.',
     create: 'New project',
@@ -589,6 +592,21 @@ export const en: Translations = {
   },
 
   admin: {
+    hardwareTiers: 'Hardware tiers',
+    hardwareTiersHint: 'The sizes offered when launching a workspace, a job or an app.',
+    tierName: 'Display name',
+    tierId: 'Identifier',
+    tierIdHint: 'Referenced by the API and by existing workspaces: it does not change.',
+    tierRequest: 'Reserved',
+    tierLimit: 'Limit',
+    tierRequestHint: 'What the scheduler sets aside for the machine.',
+    tierLimitHint: 'What the machine may reach.',
+    tierDefault: 'Default',
+    tierAdd: 'Add a tier',
+    tierSaved: 'Tier saved',
+    tierRemoved: 'Tier removed',
+    tierRemoveConfirm: 'Remove this tier? Workspaces already running keep going; it simply disappears from the choices offered.',
+    tierRunningUnaffected: 'Editing a tier has no effect on workspaces already running: the change applies to the next start.',
     title: 'Administration',
     subtitle: 'Platform supervision and configuration.',
     overview: 'Overview',

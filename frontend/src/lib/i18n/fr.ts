@@ -132,6 +132,9 @@ export const fr = {
   },
 
   projects: {
+    storageSizeLabel: 'Capacité des workspaces',
+    storageSizeHint: 'Volume monté sur /mnt dans chaque workspace du projet, conservé entre les redémarrages. Les workspaces déjà lancés gardent leur volume.',
+    storageSizeDefault: 'Valeur par défaut de la plateforme',
     title: 'Projets',
     subtitle: 'Un projet regroupe vos workspaces, exécutions, données et collaborateurs.',
     create: 'Nouveau projet',
@@ -594,6 +597,21 @@ export const fr = {
   },
 
   admin: {
+    hardwareTiers: 'Gammes de machines',
+    hardwareTiersHint: 'Les tailles proposées au lancement d’un workspace, d’un job ou d’une application.',
+    tierName: 'Nom affiché',
+    tierId: 'Identifiant',
+    tierIdHint: 'Sert de référence dans l’API et les workspaces existants : il ne change pas.',
+    tierRequest: 'Réservé',
+    tierLimit: 'Plafond',
+    tierRequestHint: 'Ce que l’ordonnanceur met de côté pour la machine.',
+    tierLimitHint: 'Ce que la machine peut atteindre.',
+    tierDefault: 'Par défaut',
+    tierAdd: 'Ajouter une gamme',
+    tierSaved: 'Gamme enregistrée',
+    tierRemoved: 'Gamme retirée',
+    tierRemoveConfirm: 'Retirer cette gamme ? Les workspaces déjà lancés continuent de tourner ; elle disparaît simplement des choix proposés.',
+    tierRunningUnaffected: 'Modifier une gamme n’a pas d’effet sur les workspaces déjà lancés : le changement s’applique aux prochains démarrages.',
     title: 'Administration',
     subtitle: 'Supervision et configuration de la plateforme.',
     overview: 'Vue d’ensemble',

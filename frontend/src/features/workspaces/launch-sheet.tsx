@@ -18,7 +18,7 @@ import { useToast } from '@/components/ui/toast';
 import { useEnvironments, useHardwareTiers, qk, useInvalidate } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
-import { presentIde, presentStorage, presentTier, STORAGE_PRESETS } from '@/lib/presenters';
+import { presentIde, presentTier } from '@/lib/presenters';
 
 /**
  * Workspace launch.
@@ -27,8 +27,11 @@ import { presentIde, presentStorage, presentTier, STORAGE_PRESETS } from '@/lib/
  *
  *  - hardware tiers are presented by size name and specs, rather than the
  *    `1x4` id that needed a help note to explain it;
- *  - storage is a set of presets instead of a free-text field that expected a
- *    Kubernetes quantity ("Stockage (ex. 10Gi)");
+ *  - storage is gone from this form entirely. It was a preset list that read
+ *    the same on every launch, and an Essilor engineer asked for it to go:
+ *    capacity is infrastructure, decided once for the project, not a question
+ *    to put to whoever is opening a notebook. It now lives in the project's
+ *    settings and defaults to 10 Go;
  *  - the IDE is shown as a read-only property of the environment instead of a
  *    `<select disabled>`, which advertised a choice the user did not have.
  */
@@ -52,7 +55,6 @@ export function LaunchWorkspaceSheet({
   const [environmentId, setEnvironmentId] = React.useState('');
   const [tierId, setTierId] = React.useState('');
   const [name, setName] = React.useState('');
-  const [storage, setStorage] = React.useState('10Gi');
 
   const ready = environments.data ?? [];
   const usable = React.useMemo(
@@ -74,7 +76,6 @@ export function LaunchWorkspaceSheet({
   React.useEffect(() => {
     if (!open) {
       setName('');
-      setStorage('10Gi');
     }
   }, [open]);
 
@@ -91,7 +92,6 @@ export function LaunchWorkspaceSheet({
         ide: ide ?? undefined,
         name: name.trim() || undefined,
         hardwareTier: tierId || undefined,
-        storageSize: storage,
       }),
     onSuccess: () => {
       invalidate(qk.workspaces(projectId), qk.projects);
@@ -161,17 +161,6 @@ export function LaunchWorkspaceSheet({
                       const presented = presentTier(tier, locale);
                       return { value: tier.id, label: presented.name, hint: presented.specs };
                     })}
-                  />
-                </Field>
-
-                <Field label={t('workspaces.storageLabel')} description={t('workspaces.storageHint')}>
-                  <Select
-                    value={storage}
-                    onValueChange={setStorage}
-                    options={STORAGE_PRESETS.map((preset) => ({
-                      value: preset.value,
-                      label: presentStorage(preset.gib, locale),
-                    }))}
                   />
                 </Field>
 
