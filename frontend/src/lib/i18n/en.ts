@@ -79,11 +79,10 @@ export const en: Translations = {
     repositories: 'Git repositories',
     secrets: 'Secrets',
     network: 'Network and security',
-    rbac: 'RBAC and organisations',
+    rbac: 'Access',
     activity: 'Activity',
     audit: 'Audit',
     backups: 'Backups',
-    tokens: 'API tokens',
     identity: 'Users and organisations',
     dataGovernance: 'Data governance',
     validation: 'Validation',
@@ -555,8 +554,8 @@ export const en: Translations = {
   },
 
   rbac: {
-    title: 'RBAC and organisations',
-    subtitle: 'Who has access to what on the platform.',
+    title: 'Who has access to what',
+    subtitle: 'A read-only report. Each row says whether access is direct, inherited from an organization, or comes with ownership.',
     matrix: 'Permission matrix',
     matrixHint: 'Consolidated view of effective permissions by subject and resource.',
     subject: 'Subject',
@@ -633,6 +632,11 @@ export const en: Translations = {
     lastUpdated: 'Last updated',
   },
 
+
+  account: {
+    title: 'My account',
+    subtitle: 'Your API credentials and preferences.',
+  },
 
   tokens: {
     title: 'API tokens',

@@ -12,6 +12,7 @@ import { DashboardsPage } from '@/routes/project/dashboards';
 import { ProjectDataPage } from '@/routes/project/data';
 import { ProjectMembersPage } from '@/routes/project/members';
 import { ProjectSettingsPage } from '@/routes/project/settings';
+import { AccountPage } from '@/routes/account';
 import { CatalogPage } from '@/routes/catalog';
 import { ProductionPage } from '@/routes/production';
 import { AdminPage } from '@/routes/admin';
@@ -48,6 +49,8 @@ export function AppRoutes() {
             <Route path="members" element={<ProjectMembersPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>
+
+          <Route path="account" element={<AccountPage />} />
 
           <Route path="catalog" element={<CatalogPage />} />
           <Route path="catalog/:section" element={<CatalogPage />} />

@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { Outlet } from 'react-router';
-import { BookOpen, Check, Code2, LogOut, Menu, Moon, Monitor, Sun, User } from 'lucide-react';
+import { Link, Outlet } from 'react-router';
+import { BookOpen, Check, Code2, KeyRound, LogOut, Menu, Moon, Monitor, Sun, User } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -94,6 +94,14 @@ function AccountMenu() {
           </>
         ) : null}
 
+        <DropdownMenuItem asChild>
+          <Link to="/account">
+            <KeyRound aria-hidden />
+            {t('account.title')}
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>{t('nav.theme')}</DropdownMenuLabel>
         <ThemeMenuItem value="light" icon={Sun} label={t('nav.themeLight')} />
         <ThemeMenuItem value="dark" icon={Moon} label={t('nav.themeDark')} />

@@ -82,11 +82,10 @@ export const fr = {
     repositories: 'Dépôts Git',
     secrets: 'Secrets',
     network: 'Réseau et sécurité',
-    rbac: 'RBAC et organisations',
+    rbac: 'Accès',
     activity: 'Activité',
     audit: 'Audit',
     backups: 'Sauvegardes',
-    tokens: 'Jetons d’API',
     identity: 'Utilisateurs et organisations',
     dataGovernance: 'Gouvernance des données',
     validation: 'Validation',
@@ -560,8 +559,8 @@ export const fr = {
   },
 
   rbac: {
-    title: 'RBAC et organisations',
-    subtitle: 'Qui a accès à quoi sur la plateforme.',
+    title: 'Qui a accès à quoi',
+    subtitle: 'Rapport en lecture seule. Chaque ligne indique si l’accès est direct, hérité d’une organisation ou lié à une propriété.',
     matrix: 'Matrice des droits',
     matrixHint: 'Vue consolidée des droits effectifs par sujet et par ressource.',
     subject: 'Sujet',
@@ -638,6 +637,11 @@ export const fr = {
     lastUpdated: 'Dernière mise à jour',
   },
 
+
+  account: {
+    title: 'Mon compte',
+    subtitle: 'Vos identifiants d’accès à l’API et vos préférences.',
+  },
 
   tokens: {
     title: 'Jetons d’API',
