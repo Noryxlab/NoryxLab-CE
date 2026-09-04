@@ -639,6 +639,26 @@ export const fr = {
   },
 
 
+  graph: {
+    title: 'Graphe des accès',
+    focusSubject: 'Centrer sur une personne ou une organisation',
+    focusResource: 'Centrer sur une ressource',
+    resourceType: 'Type de ressource',
+    everyone: 'Tout le monde',
+    everything: 'Toutes les ressources',
+    allTypes: 'Tous les types',
+    showInherited: 'Afficher les accès hérités',
+    hideInherited: 'Masquer les accès hérités',
+    clear: 'Réinitialiser',
+    empty: 'Aucun accès ne correspond à ce filtre.',
+    tooMany: '{count} accès à afficher.',
+    tooManyHint: 'Choisissez une personne, une ressource ou un type : au-delà, le graphe devient illisible et ne répond plus à rien.',
+    legendDirect: 'Accès direct',
+    legendInherited: 'Hérité d’une organisation',
+    legendOwner: 'Propriétaire',
+    edges: '{count} accès affichés',
+  },
+
   inventory: {
     title: 'Logiciels et licences',
     subtitle: 'Ce que la plateforme embarque, avec la licence de chaque composant. Généré depuis le graphe de dépendances réel, pas tenu à la main.',

@@ -634,6 +634,26 @@ export const en: Translations = {
   },
 
 
+  graph: {
+    title: 'Access graph',
+    focusSubject: 'Focus on a person or organization',
+    focusResource: 'Focus on a resource',
+    resourceType: 'Resource type',
+    everyone: 'Everyone',
+    everything: 'Every resource',
+    allTypes: 'All types',
+    showInherited: 'Show inherited access',
+    hideInherited: 'Hide inherited access',
+    clear: 'Reset',
+    empty: 'No access matches this filter.',
+    tooMany: '{count} grants to draw.',
+    tooManyHint: 'Choose a person, a resource or a type: beyond this the graph is unreadable and answers nothing.',
+    legendDirect: 'Direct access',
+    legendInherited: 'Inherited from an organization',
+    legendOwner: 'Owner',
+    edges: '{count} grants shown',
+  },
+
   inventory: {
     title: 'Software and licences',
     subtitle: 'What the platform ships, with each component\'s licence. Generated from the resolved dependency graph rather than maintained by hand.',

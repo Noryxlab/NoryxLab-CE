@@ -82,6 +82,7 @@ import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import { SoftwareInventorySection } from '@/features/admin/software-inventory';
+import { AccessGraph } from '@/features/admin/access-graph';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -1133,6 +1134,11 @@ function RbacSection() {
           }
         />
       </StatGrid>
+
+      {/* The table answers "who has access"; an audit asks "why", which is a
+          question about paths. Drawn only once the data is filtered enough to
+          be readable - see AccessGraph. */}
+      {matrix.data ? <AccessGraph report={matrix.data} /> : null}
 
       <Card>
         <DataTable
