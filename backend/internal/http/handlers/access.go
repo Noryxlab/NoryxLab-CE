@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/subtle"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -45,6 +46,18 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 	if token != "" && h.authVerifier != nil {
 		identity, err := h.authVerifier.VerifyBearerToken(token)
 		if err != nil {
+			// Six different failures reach the caller as one opaque message -
+			// a missing key id, an unreachable JWKS, a rotated key, a wrong
+			// issuer, an expired token, a missing audience. The caller learns
+			// nothing on purpose, but the operator has to be able to tell them
+			// apart: without this line, diagnosing "invalid bearer token" is
+			// guesswork against a platform that knows the answer and will not
+			// say it.
+			//
+			// The token itself is never logged. Its length and the first
+			// characters of its key id are enough to correlate, and are not a
+			// credential.
+			log.Printf("bearer token refused on %s: %v", r.URL.Path, err)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid bearer token"})
 			return auth.Identity{}, false
 		}

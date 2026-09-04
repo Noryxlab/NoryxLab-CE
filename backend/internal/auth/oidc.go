@@ -105,7 +105,9 @@ func (v *OIDCVerifier) VerifyBearerToken(token string) (Identity, error) {
 
 	if v.audience != "" {
 		if !claimsHasAudience(claims, v.audience) {
-			return Identity{}, fmt.Errorf("invalid token audience")
+			return Identity{}, fmt.Errorf(
+				"token audience does not include %q; add an audience mapper for it on the client that issued this token",
+				v.audience)
 		}
 	}
 
@@ -156,7 +158,7 @@ func (v *OIDCVerifier) ensureKey(kid string) error {
 	}
 
 	if _, ok := v.getKey(kid); !ok {
-		return fmt.Errorf("key id %q not found in JWKS", kid)
+		return fmt.Errorf("key id %q not found in the JWKS at %s; the realm may have rotated its keys", kid, v.jwksURL)
 	}
 
 	return nil
