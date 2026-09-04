@@ -1,5 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  ProjectOrganizationRole,
+  ApiToken,
   HealthHistory,
   AdminOverview,
   EffectiveSetting,
@@ -52,6 +54,11 @@ export const platformApi = {
   overview: () => api.get<PlatformOverview>(`${V1}/platform/overview`),
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
+  apiTokens: () => api.list<ApiToken>(`${V1}/user/api-tokens`),
+  createApiToken: (input: { name: string; expiresInDays?: number }) =>
+    api.post<{ token: ApiToken; secret: string; note: string }>(`${V1}/user/api-tokens`, input),
+  revokeApiToken: (tokenId: string) =>
+    api.delete<void>(`${V1}/user/api-tokens/${encodeURIComponent(tokenId)}`),
   organizations: () => api.list<Organization>(`${V1}/organizations`),
 };
 
@@ -350,6 +357,20 @@ export const environmentsApi = {
   createBuild: (input: Record<string, unknown>) => api.post<Build>(`${V1}/builds`, input),
   cancelBuild: (buildId: string) => api.delete<void>(`${V1}/builds/${buildId}`),
   dockerfile: (buildId: string) => api.get<string>(`${V1}/builds/${buildId}/dockerfile`),
+};
+
+export const projectOrganizationRolesApi = {
+  list: (projectId: string) =>
+    api.list<ProjectOrganizationRole>(`${V1}/projects/${projectId}/organization-roles`),
+  grant: (projectId: string, organizationId: string, role: string) =>
+    api.put<ProjectOrganizationRole>(
+      `${V1}/projects/${projectId}/organization-roles/${encodeURIComponent(organizationId)}`,
+      { role },
+    ),
+  revoke: (projectId: string, organizationId: string) =>
+    api.delete<void>(
+      `${V1}/projects/${projectId}/organization-roles/${encodeURIComponent(organizationId)}`,
+    ),
 };
 
 export const egressApi = {

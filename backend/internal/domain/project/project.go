@@ -8,12 +8,19 @@ import (
 )
 
 type Project struct {
-	ID                string    `json:"id"`
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	OwnerType         string    `json:"ownerType"`
-	OwnerID           string    `json:"ownerId"`
-	CanManageOwner    bool      `json:"canManageOwner,omitempty"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	OwnerType      string `json:"ownerType"`
+	OwnerID        string `json:"ownerId"`
+	CanManageOwner bool   `json:"canManageOwner,omitempty"`
+	// Role is the caller's effective role on this project, personal and
+	// organization grants combined.
+	Role string `json:"role,omitempty"`
+	// CanManageMembers says whether the caller may change membership. Derived
+	// here rather than in the interface, which would have to re-implement the
+	// rule and would eventually disagree with the backend that enforces it.
+	CanManageMembers  bool      `json:"canManageMembers,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 	LastActivityAt    time.Time `json:"lastActivityAt"`

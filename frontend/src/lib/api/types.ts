@@ -21,6 +21,11 @@ export interface Project {
   ownerType: OwnerType | '';
   ownerId: string;
   canManageOwner?: boolean;
+  /** The caller's effective role, personal and organization grants combined. */
+  role?: ProjectRole | '';
+  /** Whether the caller may change membership. Decided by the backend, which
+   *  is also the thing that enforces it. */
+  canManageMembers?: boolean;
   createdAt: string;
   updatedAt: string;
   lastActivityAt: string;
@@ -662,6 +667,25 @@ export interface HealthHistory {
    * and conflating them makes a silent platform read as a healthy one.
    */
   recording: boolean;
+}
+
+/** A credential a user presents instead of a browser session. */
+export interface ApiToken {
+  id: string;
+  userId: string;
+  /** Named by its owner, so revoking the right one does not require guessing. */
+  name: string;
+  createdAt: string;
+  expiresAt?: string;
+  revokedAt?: string;
+  lastUsedAt?: string;
+}
+
+/** A project role held by every member of an organization. */
+export interface ProjectOrganizationRole {
+  organizationId: string;
+  organizationName?: string;
+  role: 'viewer' | 'editor' | 'admin';
 }
 
 export interface ModuleInfo {

@@ -38,6 +38,9 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 
 	for i := range items {
 		items[i].CanManageOwner = h.isGlobalAdminUserID(userID) || h.projectOwnedBy(items[i], userID)
+		role, _ := h.effectiveProjectRole(items[i].ID, userID)
+		items[i].Role = string(role)
+		items[i].CanManageMembers = items[i].CanManageOwner || actionManageMembers.permits(role)
 	}
 	if err := h.enrichProjectActivity(items); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project activity"})

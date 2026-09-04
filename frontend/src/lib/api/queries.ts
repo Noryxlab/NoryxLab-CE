@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
+  projectOrganizationRolesApi,
   adminApi,
   appsApi,
   cronJobsApi,
@@ -70,6 +71,9 @@ export const qk = {
 
   adminOverview: ['admin', 'overview'] as const,
   adminHealth: ['admin', 'health'] as const,
+  apiTokens: ['user', 'api-tokens'] as const,
+  projectOrganizationRoles: (projectId: string) =>
+    ['projects', projectId, 'organization-roles'] as const,
   adminHealthHistory: (days: number) => ['admin', 'health', 'history', days] as const,
   adminSettings: ['admin', 'settings'] as const,
   adminUsers: ['admin', 'users'] as const,
@@ -321,6 +325,16 @@ export const usePlatformHealthHistory = (days: number, enabled: boolean) =>
     queryFn: () => adminApi.healthHistory(days),
     enabled,
     retry: false,
+  });
+
+export const useApiTokens = () =>
+  useQuery({ queryKey: qk.apiTokens, queryFn: platformApi.apiTokens });
+
+export const useProjectOrganizationRoles = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectOrganizationRoles(projectId ?? ''),
+    queryFn: () => projectOrganizationRolesApi.list(projectId ?? ''),
+    enabled: Boolean(projectId),
   });
 
 export const usePlatformHealth = (enabled: boolean) =>

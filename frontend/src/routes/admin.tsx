@@ -69,6 +69,7 @@ import { useExtensions } from '@/lib/extensions';
 import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
+import { ApiTokensSection } from '@/features/admin/api-tokens';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -87,6 +88,7 @@ import type {
 const SECTIONS = [
   'overview',
   'identity',
+  'tokens',
   'activity',
   'data',
   'network',
@@ -1521,6 +1523,7 @@ export function AdminPage() {
         <TabsList>
           <TabsTrigger value="overview">{t('admin.overview')}</TabsTrigger>
           <TabsTrigger value="identity">{t('nav.identity')}</TabsTrigger>
+          <TabsTrigger value="tokens">{t('nav.tokens')}</TabsTrigger>
           <TabsTrigger value="activity">{t('nav.activity')}</TabsTrigger>
           <TabsTrigger value="network">{t('nav.network')}</TabsTrigger>
           <TabsTrigger value="rbac">{t('nav.rbac')}</TabsTrigger>
@@ -1546,6 +1549,10 @@ export function AdminPage() {
         <TabsContent value="overview">
           <OverviewSection />
         </TabsContent>
+        <TabsContent value="tokens">
+          <ApiTokensSection />
+        </TabsContent>
+
         <TabsContent value="identity">
           <IdentitySection />
         </TabsContent>
