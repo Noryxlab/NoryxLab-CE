@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
@@ -334,7 +333,7 @@ func (h Handlers) AttachProjectRepository(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and repositoryID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "repository attach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "repository attach") {
 		return
 	}
 	item, found, err := h.repositoryStore.GetByID(repositoryID)
@@ -379,7 +378,7 @@ func (h Handlers) DetachProjectRepository(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and repositoryID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "repository detach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "repository detach") {
 		return
 	}
 	if err := h.projectResourceStore.DetachRepository(projectID, repositoryID); err != nil {

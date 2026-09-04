@@ -3,9 +3,10 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 )
 
 // Authentication regression tests.

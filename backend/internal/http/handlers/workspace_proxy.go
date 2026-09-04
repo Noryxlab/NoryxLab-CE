@@ -5,8 +5,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
 
 func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +28,7 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !h.requireProjectRole(w, record.ProjectID, identity.UserID(), access.Role.CanLaunchPod, "workspace access") {
+	if !h.requireProjectRole(w, record.ProjectID, identity.UserID(), actionLaunch, "workspace access") {
 		return
 	}
 

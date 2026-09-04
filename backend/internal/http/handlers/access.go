@@ -30,6 +30,18 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)
 
+	// A personal token is checked before the identity provider: it looks like
+	// a bearer token, and asking Keycloak to verify something it never issued
+	// wastes a round trip to learn nothing.
+	if token != "" {
+		if identity, ok := h.identityFromAPIToken(token); ok {
+			if !h.requireOrganizationMembership(w, identity) {
+				return auth.Identity{}, false
+			}
+			return identity, true
+		}
+	}
+
 	if token != "" && h.authVerifier != nil {
 		identity, err := h.authVerifier.VerifyBearerToken(token)
 		if err != nil {
@@ -287,23 +299,60 @@ func (h Handlers) requireOrganizationMembership(w http.ResponseWriter, identity 
 	return true
 }
 
+// projectAction is what a caller is trying to do, and the rule that decides it.
+//
+// Both together, deliberately. The caller used to pass a *predicate* and a
+// human label, and the action was then inferred by calling the predicate with
+// two roles and searching the label for the substring "build". An authorization
+// decision therefore depended on the wording of an error message: renaming
+// "app restart" to "app rebuild" would have silently re-classified it, and
+// adding a fourth action would have made the guess worse. Nothing failed,
+// which is why it survived.
+type projectAction struct {
+	// id is what the Enterprise role matrix reasons about.
+	id string
+	// permits is the Community rule, and the fallback the matrix may override.
+	permits func(access.Role) bool
+}
+
+var (
+	actionRead = projectAction{
+		id:      projectActionRead,
+		permits: func(role access.Role) bool { return role != "" },
+	}
+	actionLaunch = projectAction{
+		id:      projectActionLaunch,
+		permits: access.Role.CanLaunchPod,
+	}
+	actionRunBuild = projectAction{
+		id:      projectActionRunBuild,
+		permits: access.Role.CanRunBuild,
+	}
+	actionManageMembers = projectAction{
+		id:      projectActionManageMember,
+		permits: func(role access.Role) bool { return role == access.RoleAdmin },
+	}
+)
+
 func (h Handlers) requireProjectRole(
 	w http.ResponseWriter,
 	projectID string,
 	userID string,
-	check func(access.Role) bool,
-	action string,
+	action projectAction,
+	// label names the operation in the error the caller receives. It is prose
+	// and never an input to the decision.
+	label string,
 ) bool {
 	if h.isGlobalAdminUserID(userID) {
 		return true
 	}
 	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
-		return check(access.RoleAdmin)
+		return action.permits(access.RoleAdmin)
 	}
-	role, ok := h.accessStore.GetRole(projectID, userID)
-	fallback := ok && check(role)
-	if !h.canProjectAction(userID, projectID, role, mapRoleCheckToAction(check, action), fallback) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + action})
+	role, ok := h.effectiveProjectRole(projectID, userID)
+	fallback := ok && action.permits(role)
+	if !h.canProjectAction(userID, projectID, role, action.id, fallback) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + label})
 		return false
 	}
 	return true
@@ -376,6 +425,52 @@ func (h Handlers) isGlobalAdminUserID(userID string) bool {
 	return false
 }
 
+// effectiveProjectRole is the strongest role a user holds on a project,
+// whether granted to them personally or to an organization they belong to.
+//
+// Grants add up rather than override. Removing someone from an organization
+// must not silently take away access they were given personally, and a
+// personal viewer role must not cap an organization's editor grant - either
+// behaviour would make an administrator's action have an effect they did not
+// ask for and cannot see.
+func (h Handlers) effectiveProjectRole(projectID, userID string) (access.Role, bool) {
+	direct, hasDirect := h.accessStore.GetRole(projectID, userID)
+	granted := h.organizationProjectRole(projectID, userID)
+
+	best := access.Strongest(direct, granted)
+	return best, best != "" || hasDirect
+}
+
+// organizationProjectRole is the strongest grant reaching this user through an
+// organization. Failing to reach Keycloak returns no role rather than an
+// error: a directory outage must not hand out access, and it must not remove
+// the access a user holds personally either.
+func (h Handlers) organizationProjectRole(projectID, userID string) access.Role {
+	if h.accessStore == nil || h.keycloak == nil {
+		return ""
+	}
+	grants, err := h.accessStore.ListOrganizationRoles(projectID)
+	if err != nil || len(grants) == 0 {
+		return ""
+	}
+	organizations, err := h.keycloak.ListUserOrganizations(strings.TrimSpace(userID))
+	if err != nil {
+		return ""
+	}
+	member := make(map[string]struct{}, len(organizations))
+	for _, organization := range organizations {
+		member[strings.TrimSpace(organization.ID)] = struct{}{}
+	}
+
+	best := access.Role("")
+	for _, grant := range grants {
+		if _, ok := member[strings.TrimSpace(grant.OrganizationID)]; ok {
+			best = access.Strongest(best, grant.Role)
+		}
+	}
+	return best
+}
+
 func (h Handlers) canProjectAction(userID, projectID string, role access.Role, action string, fallback bool) bool {
 	if action == "" {
 		action = projectActionRead
@@ -390,22 +485,6 @@ func (h Handlers) canProjectAction(userID, projectID string, role access.Role, a
 		action,
 		fallback,
 	)
-}
-
-func mapRoleCheckToAction(check func(access.Role) bool, actionLabel string) string {
-	switch {
-	case check == nil:
-		return projectActionRead
-	case check(access.RoleEditor) && check(access.RoleAdmin):
-		if strings.Contains(strings.ToLower(actionLabel), "build") {
-			return projectActionRunBuild
-		}
-		return projectActionLaunch
-	case check(access.RoleAdmin):
-		return projectActionManageMember
-	default:
-		return projectActionRead
-	}
 }
 
 func (h Handlers) projectExists(projectID string) (bool, error) {

@@ -42,6 +42,14 @@ func (s *AccessStore) SetRole(projectID, userID string, role access.Role) {
 func (s *AccessStore) GetRole(projectID, userID string) (access.Role, bool) {
 	return s.Store.GetRole(projectID, userID)
 }
+func (s *AccessStore) SetOrganizationRole(projectID, organizationID string, role access.Role) error {
+	return s.Store.SetProjectOrganizationRole(projectID, organizationID, role)
+}
+
+func (s *AccessStore) ListOrganizationRoles(projectID string) ([]store.ProjectOrganizationRole, error) {
+	return s.Store.ListProjectOrganizationRoles(projectID)
+}
+
 func (s *AccessStore) ListProjectRoles() ([]store.ProjectRole, error) {
 	return s.Store.ListProjectRoles()
 }

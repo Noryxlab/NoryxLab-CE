@@ -8,12 +8,42 @@ import (
 )
 
 type AccessStore struct {
-	mu      sync.RWMutex
-	project map[string]map[string]access.Role
+	mu           sync.RWMutex
+	project      map[string]map[string]access.Role
+	organization map[string]map[string]access.Role
 }
 
 func NewAccessStore() *AccessStore {
-	return &AccessStore{project: map[string]map[string]access.Role{}}
+	return &AccessStore{
+		project:      map[string]map[string]access.Role{},
+		organization: map[string]map[string]access.Role{},
+	}
+}
+
+func (s *AccessStore) SetOrganizationRole(projectID, organizationID string, role access.Role) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if role == "" {
+		delete(s.organization[projectID], organizationID)
+		return nil
+	}
+	if _, ok := s.organization[projectID]; !ok {
+		s.organization[projectID] = map[string]access.Role{}
+	}
+	s.organization[projectID][organizationID] = role
+	return nil
+}
+
+func (s *AccessStore) ListOrganizationRoles(projectID string) ([]storepkg.ProjectOrganizationRole, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []storepkg.ProjectOrganizationRole{}
+	for organizationID, role := range s.organization[projectID] {
+		out = append(out, storepkg.ProjectOrganizationRole{
+			ProjectID: projectID, OrganizationID: organizationID, Role: role,
+		})
+	}
+	return out, nil
 }
 
 func (s *AccessStore) SetRole(projectID, userID string, role access.Role) {

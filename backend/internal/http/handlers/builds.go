@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
@@ -83,7 +82,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanRunBuild, "build submission") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionRunBuild, "build submission") {
 		return
 	}
 

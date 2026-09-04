@@ -37,6 +37,50 @@ Dataset ACLs are managed by the dataset owner or a global admin. Attaching a
 dataset to a project remains a separate operation because it exposes the dataset
 to project workloads. Regulated HDS policies are an Enterprise Edition concern.
 
+### Project membership roles
+
+These are the roles an administrator assigns on the project members screen, and
+they are what `viewer`, `editor` and `admin` mean everywhere in the API. They
+were missing from this document for as long as the feature existed, so the one
+place a reader could learn what a contributor may do was the interface itself.
+
+| Role | May |
+|---|---|
+| `viewer` | read the project and the results of its work |
+| `editor` | everything a viewer may, plus launch workspaces, jobs and apps, run builds, and attach or detach catalogue objects |
+| `admin` | everything an editor may, plus manage members and organization grants |
+
+Four actions are decided against these roles, and they are the vocabulary the
+Enterprise role matrix extends:
+
+| Action | `viewer` | `editor` | `admin` |
+|---|---|---|---|
+| `project.read` | yes | yes | yes |
+| `project.launch` | no | yes | yes |
+| `project.build` | no | yes | yes |
+| `project.manage_members` | no | no | yes |
+
+A global administrator, and the owner of the project, pass every check.
+
+### Roles granted to an organization
+
+A role may be granted to a Keycloak organization instead of to a person. Every
+member of that organization then holds it, and membership changes take effect
+without touching the project.
+
+Grants **add up**: the strongest of a person's own role and any role reaching
+them through an organization applies. Removing someone from an organization
+never takes away access they were given personally, and a personal `viewer`
+role never caps an organization's `editor` grant — either behaviour would give
+an administrator's action an effect they did not ask for and cannot see.
+
+If the identity provider cannot be reached, organization grants resolve to
+nothing while personal roles still apply. A directory outage must not hand out
+access, and must not remove the access somebody already had.
+
+This is distinct from **owning** a project, below: an owning organization
+administers it outright, while a grant gives its members one specific role.
+
 ### Project ownership
 
 Every project has one owner:
@@ -52,6 +96,25 @@ to ownership.
 Only the current owner or a global administrator can transfer project
 ownership. A non-admin user can only transfer ownership to an organization they
 belong to.
+
+## Personal API tokens
+
+A user calling the API outside a browser — a CI job, a notebook, a script —
+presents a personal token as a bearer credential:
+
+    Authorization: Bearer noryx_<id>_<secret>
+
+The token **acts as its owner and holds no rights of its own**, so every check
+that would run for a browser session runs unchanged. That is what makes it safe
+to issue: a leak costs one account, not the platform. It is therefore a
+different thing from the platform service token, which identifies a component
+of the platform itself and does carry administrator rights.
+
+Only the hash of the secret is stored, so a copy of the database is not a set of
+working credentials, and the secret is shown exactly once — at creation.
+Revocation is a stamp rather than a deletion, so an auditor can say when access
+ended. A token names itself, because revoking the right one should not require
+guessing.
 
 ## EE (Enterprise Edition)
 

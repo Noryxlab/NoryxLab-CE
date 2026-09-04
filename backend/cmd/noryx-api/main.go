@@ -26,6 +26,7 @@ func main() {
 
 	var projectStore store.ProjectStore = memory.NewProjectStore()
 	var healthEventStore store.HealthEventStore = memory.NewHealthEventStore()
+	var apiTokenStore store.APITokenStore = memory.NewAPITokenStore()
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -65,6 +66,7 @@ func main() {
 			}()
 			projectStore = &postgres.ProjectStore{Store: pg}
 			healthEventStore = &postgres.HealthEventStore{Store: pg}
+			apiTokenStore = &postgres.APITokenStore{Store: pg}
 			appStore = &postgres.AppStore{Store: pg}
 			buildStore = &postgres.BuildStore{Store: pg}
 			jobStore = &postgres.JobStore{Store: pg}
@@ -177,6 +179,7 @@ func main() {
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
 			OrganizationRequired:             cfg.OrganizationRequired,
 			HealthEventStore:                 healthEventStore,
+			APITokenStore:                    apiTokenStore,
 			PublicURL:                        cfg.PublicURL,
 			AuthMode:                         cfg.AuthMode,
 			ServiceToken:                     cfg.ServiceToken,

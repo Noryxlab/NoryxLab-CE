@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 )
 
 // writeKeycloakError answers an identity-provider failure.

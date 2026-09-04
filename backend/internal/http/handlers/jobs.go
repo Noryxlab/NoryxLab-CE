@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -71,7 +70,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId and image are required"})
 		return
 	}
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanLaunchPod, "job launch") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "job launch") {
 		return
 	}
 	exists, err := h.projectExists(req.ProjectID)
@@ -191,7 +190,7 @@ func (h Handlers) DeleteJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job not found"})
 		return
 	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "job deletion") {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "job deletion") {
 		return
 	}
 	if h.runtime != nil {
@@ -230,7 +229,7 @@ func (h Handlers) GetJobLogs(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job not found"})
 		return
 	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "job logs access") {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "job logs access") {
 		return
 	}
 	logReader, ok := h.runtime.(noryxruntime.JobLogReader)

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
@@ -24,7 +23,7 @@ func (h Handlers) ProxyProjectFiles(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProjectMember(w, projectID, identity.UserID(), "project file access") {
 		return
 	}
-	if r.Method != http.MethodGet && !h.requireProjectRole(w, projectID, identity.UserID(), access.Role.CanLaunchPod, "project file modification") {
+	if r.Method != http.MethodGet && !h.requireProjectRole(w, projectID, identity.UserID(), actionLaunch, "project file modification") {
 		return
 	}
 	auditPath := strings.Trim(strings.TrimSpace(r.PathValue("path")), "/")

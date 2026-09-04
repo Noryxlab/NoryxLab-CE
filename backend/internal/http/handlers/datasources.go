@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -532,7 +531,7 @@ func (h Handlers) AttachProjectDatasource(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasourceID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "datasource attach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "datasource attach") {
 		return
 	}
 	item, found, err := h.datasourceStore.GetByID(datasourceID)
@@ -562,7 +561,7 @@ func (h Handlers) DetachProjectDatasource(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasourceID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "datasource detach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "datasource detach") {
 		return
 	}
 	if err := h.projectResourceStore.DetachDatasource(projectID, datasourceID); err != nil {

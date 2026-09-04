@@ -40,7 +40,7 @@ func (h Handlers) SetProjectMemberRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, projectID, callerID, func(role access.Role) bool { return role == access.RoleAdmin }, "role management") {
+	if !h.requireProjectRole(w, projectID, callerID, actionManageMembers, "role management") {
 		return
 	}
 
@@ -91,7 +91,7 @@ func (h Handlers) InviteProjectMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, projectID, callerID, func(role access.Role) bool { return role == access.RoleAdmin }, "project invitation") {
+	if !h.requireProjectRole(w, projectID, callerID, actionManageMembers, "project invitation") {
 		return
 	}
 

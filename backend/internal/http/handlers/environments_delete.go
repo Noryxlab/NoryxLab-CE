@@ -3,8 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strings"
-
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
 
 func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +16,7 @@ func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid environmentID"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanRunBuild, "environment deletion") {
+	if !h.requireProjectRole(w, projectID, userID, actionRunBuild, "environment deletion") {
 		return
 	}
 	if destinationImage == strings.TrimSpace(h.workspaceJupyterImage) || destinationImage == strings.TrimSpace(h.workspaceVSCodeImage) || destinationImage == strings.TrimSpace(h.workspaceRStudioImage) {

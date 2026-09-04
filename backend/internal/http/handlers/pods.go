@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
@@ -61,7 +60,7 @@ func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanLaunchPod, "pod launch") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "pod launch") {
 		return
 	}
 

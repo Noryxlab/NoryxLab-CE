@@ -8,7 +8,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"golang.org/x/text/unicode/norm"
@@ -186,7 +185,7 @@ func (h Handlers) requireAppOperation(w http.ResponseWriter, r *http.Request, op
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "app not found"})
 		return app.App{}, "", false
 	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, operation) {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, operation) {
 		return app.App{}, "", false
 	}
 	return record, userID, true
@@ -283,7 +282,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
 		return
 	}
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanLaunchPod, "app launch") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "app launch") {
 		return
 	}
 	if existing, found, err := h.appStore.GetBySlug(req.Slug); err == nil && found {
@@ -473,7 +472,7 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "app deletion") {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "app deletion") {
 		return
 	}
 	if h.runtime != nil {

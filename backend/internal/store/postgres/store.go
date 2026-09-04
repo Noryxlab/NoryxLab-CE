@@ -132,6 +132,23 @@ func (s *Store) migrate(ctx context.Context) error {
 			role TEXT NOT NULL,
 			PRIMARY KEY (project_id, user_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS access_organization_roles (
+			project_id TEXT NOT NULL,
+			organization_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			PRIMARY KEY (project_id, organization_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS api_tokens (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL DEFAULT '',
+			secret_hash BYTEA NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			expires_at TIMESTAMPTZ,
+			revoked_at TIMESTAMPTZ,
+			last_used_at TIMESTAMPTZ
+		)`,
+		`CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id)`,
 		`CREATE TABLE IF NOT EXISTS builds (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,

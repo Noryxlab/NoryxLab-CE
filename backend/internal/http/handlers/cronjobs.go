@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/google/uuid"
 )
@@ -76,7 +75,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "schedule must use the standard five-field cron format"})
 		return
 	}
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanLaunchPod, "cronjob creation") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "cronjob creation") {
 		return
 	}
 	exists, err := h.projectExists(req.ProjectID)
@@ -220,7 +219,7 @@ func (h Handlers) DeleteCronJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cronjob not found"})
 		return
 	}
-	if !h.requireProjectRole(w, target.ProjectID, userID, access.Role.CanLaunchPod, "cronjob deletion") {
+	if !h.requireProjectRole(w, target.ProjectID, userID, actionLaunch, "cronjob deletion") {
 		return
 	}
 	if err := h.runtime.DeleteCronJob(target.CronJobName); err != nil && !isNotFoundError(err) {

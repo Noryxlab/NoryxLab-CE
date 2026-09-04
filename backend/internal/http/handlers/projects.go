@@ -282,7 +282,7 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, projectID, userID, func(role access.Role) bool { return role == access.RoleAdmin }, "project deletion") {
+	if !h.requireProjectRole(w, projectID, userID, actionManageMembers, "project deletion") {
 		return
 	}
 

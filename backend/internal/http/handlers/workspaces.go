@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -279,7 +278,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, req.ProjectID, userID, access.Role.CanLaunchPod, "workspace launch") {
+	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "workspace launch") {
 		return
 	}
 
@@ -1273,7 +1272,7 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanLaunchPod, "workspace deletion") {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "workspace deletion") {
 		return
 	}
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 )
 
@@ -128,7 +127,7 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 			}
 		}
 	default:
-		return h.requireProjectRole(w, record.ProjectID, identity.UserID(), access.Role.CanLaunchPod, "app access")
+		return h.requireProjectRole(w, record.ProjectID, identity.UserID(), actionLaunch, "app access")
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "app access denied"})
 	return false

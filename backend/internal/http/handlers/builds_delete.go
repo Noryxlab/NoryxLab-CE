@@ -3,8 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strings"
-
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 )
 
 func (h Handlers) DeleteBuild(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +25,7 @@ func (h Handlers) DeleteBuild(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "build not found"})
 		return
 	}
-	if !h.requireProjectRole(w, record.ProjectID, userID, access.Role.CanRunBuild, "build deletion") {
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionRunBuild, "build deletion") {
 		return
 	}
 

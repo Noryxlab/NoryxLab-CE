@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
@@ -457,7 +456,7 @@ func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "ontology attach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "ontology attach") {
 		return
 	}
 	item, found, err := h.ontologyStore.GetByID(ontologyID)
@@ -487,7 +486,7 @@ func (h Handlers) DetachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, access.Role.CanLaunchPod, "ontology detach") {
+	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "ontology detach") {
 		return
 	}
 	if err := h.projectResourceStore.DetachOntology(projectID, ontologyID); err != nil {
@@ -507,7 +506,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, identity.UserID(), access.Role.CanLaunchPod, "ontology scan") {
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionLaunch, "ontology scan") {
 		return
 	}
 	var req ontologyScanRequest
