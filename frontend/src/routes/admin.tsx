@@ -6,10 +6,13 @@ import {
   AlertTriangle,
   Boxes,
   Check,
+  Copy,
   Cpu,
   Database,
   Download,
   HardDrive,
+  KeyRound,
+  UserPlus,
   MemoryStick,
   Play,
   Plus,
@@ -40,6 +43,15 @@ import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
@@ -148,6 +160,32 @@ function IdentitySection() {
   const { dialog, ask } = useConfirm();
 
   const users = useAdminUsers();
+  const [creatingUser, setCreatingUser] = React.useState(false);
+  const [newUser, setNewUser] = React.useState({
+    username: '', email: '', firstName: '', lastName: '', organizationId: '',
+  });
+  // Held in state and never refetched: the password exists in the creation
+  // response and nowhere else, ever again.
+  const [issuedPassword, setIssuedPassword] = React.useState<{ who: string; password: string } | null>(null);
+
+  const createUser = useMutation({
+    mutationFn: () => adminApi.createUser(newUser),
+    onSuccess: (result) => {
+      setIssuedPassword({ who: result.username ?? newUser.username, password: result.temporaryPassword });
+      setNewUser({ username: '', email: '', firstName: '', lastName: '', organizationId: '' });
+      setCreatingUser(false);
+      invalidate(qk.adminUsers);
+    },
+    onError: (error) => toast.error(error, t('identity.createUser')),
+  });
+
+  const resetPassword = useMutation({
+    mutationFn: (user: PlatformUser) => adminApi.resetUserPassword(user.id),
+    onSuccess: (result, user) => {
+      setIssuedPassword({ who: user.username || user.id, password: result.temporaryPassword });
+    },
+    onError: (error) => toast.error(error, t('identity.resetPassword')),
+  });
   const organizations = useAdminOrganizations();
   const [selectedOrganizationId, setSelectedOrganizationId] = React.useState<string | null>(null);
   const members = useOrganizationMembers(selectedOrganizationId ?? undefined);
@@ -222,6 +260,28 @@ function IdentitySection() {
           <Badge tone="success">{t('common.yes')}</Badge>
         ),
     },
+    {
+      id: 'actions',
+      header: '',
+      cell: (user) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          loading={resetPassword.isPending}
+          onClick={() =>
+            ask({
+              title: t('identity.resetPassword'),
+              description: t('identity.resetPasswordHint', { user: user.username || user.id }),
+              confirmLabel: t('identity.resetPassword'),
+              onConfirm: () => resetPassword.mutate(user),
+            })
+          }
+        >
+          <KeyRound aria-hidden />
+          {t('identity.resetPassword')}
+        </Button>
+      ),
+    },
   ];
 
   const organizationColumns: Column<Organization>[] = [
@@ -249,14 +309,132 @@ function IdentitySection() {
         title={t('admin.users')}
         description={t('admin.usersHint')}
         actions={
-          <SearchInput
-            value={search}
-            onValueChange={setSearch}
-            label={t('common.search')}
-            className="w-56"
-          />
+          <span className="flex items-center gap-2">
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              label={t('common.search')}
+              className="w-56"
+            />
+            <Button variant="primary" onClick={() => setCreatingUser(true)}>
+              <UserPlus aria-hidden />
+              {t('identity.createUser')}
+            </Button>
+          </span>
         }
       />
+
+      {/* The password exists here and nowhere else, ever again, so it stays on
+          screen until dismissed rather than in a toast that vanishes. */}
+      {issuedPassword ? (
+        <Card className="border-brand/40 bg-brand-subtle/40">
+          <CardHeader>
+            <CardHeaderText>
+              <CardTitle>{t('identity.passwordFor', { user: issuedPassword.who })}</CardTitle>
+              <CardDescription>{t('identity.passwordHint')}</CardDescription>
+            </CardHeaderText>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="break-all rounded-md bg-surface p-2 font-mono text-sm">{issuedPassword.password}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(issuedPassword.password);
+                  toast.success(t('identity.passwordCopied'), t('identity.createUser'));
+                }}
+              >
+                <Copy aria-hidden />
+                {t('tokens.copy')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setIssuedPassword(null)}>
+                {t('tokens.dismiss')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Sheet open={creatingUser} onOpenChange={setCreatingUser}>
+        <SheetContent aria-describedby={undefined}>
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (newUser.username.trim()) createUser.mutate();
+            }}
+          >
+            <SheetHeader>
+              <SheetTitle>{t('identity.createUser')}</SheetTitle>
+              <SheetDescription>{t('identity.createUserHint')}</SheetDescription>
+            </SheetHeader>
+            <SheetBody>
+              <Field label={t('identity.username')} required>
+                <Input
+                  value={newUser.username}
+                  onChange={(event) => setNewUser({ ...newUser, username: event.target.value })}
+                  autoFocus
+                  maxLength={64}
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={newUser.email}
+                  onChange={(event) => setNewUser({ ...newUser, email: event.target.value })}
+                />
+              </Field>
+              <div className="flex gap-2">
+                <Field label={t('identity.firstName')} className="flex-1">
+                  <Input
+                    value={newUser.firstName}
+                    onChange={(event) => setNewUser({ ...newUser, firstName: event.target.value })}
+                  />
+                </Field>
+                <Field label={t('identity.lastName')} className="flex-1">
+                  <Input
+                    value={newUser.lastName}
+                    onChange={(event) => setNewUser({ ...newUser, lastName: event.target.value })}
+                  />
+                </Field>
+              </div>
+              {/* Asked here rather than discovered later: on an installation
+                  that requires membership, an account without an organization
+                  signs in and can do nothing. */}
+              <Field
+                label={t('identity.organization')}
+                description={t('identity.organizationHint')}
+                required={isEnterprise()}
+              >
+                <Select
+                  value={newUser.organizationId}
+                  onValueChange={(value) => setNewUser({ ...newUser, organizationId: value })}
+                  placeholder={t('identity.organizationPlaceholder')}
+                  options={(organizations.data ?? []).map((organization) => ({
+                    value: organization.id,
+                    label: organization.name ?? organization.id,
+                  }))}
+                />
+              </Field>
+            </SheetBody>
+            <SheetFooter>
+              <Button variant="secondary" type="button" onClick={() => setCreatingUser(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={createUser.isPending}
+                disabled={!newUser.username.trim() || (isEnterprise() && !newUser.organizationId)}
+              >
+                {t('identity.createUser')}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
       <Card>
         <DataTable
           data={users.data}

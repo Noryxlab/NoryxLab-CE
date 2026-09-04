@@ -688,6 +688,15 @@ export interface ProjectOrganizationRole {
   role: 'viewer' | 'editor' | 'admin';
 }
 
+/** What the platform returns after creating an account or resetting a password. */
+export interface CreatedUser {
+  userId: string;
+  username?: string;
+  /** Shown once and not recoverable; the user must change it at first sign-in. */
+  temporaryPassword: string;
+  note?: string;
+}
+
 export interface ModuleInfo {
   id: string;
   name: string;

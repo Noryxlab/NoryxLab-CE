@@ -633,6 +633,22 @@ export const en: Translations = {
   },
 
 
+  identity: {
+    createUser: 'Create an account',
+    createUserHint: 'The account is created in Keycloak with a temporary password the user must change at first sign-in.',
+    username: 'Username',
+    firstName: 'First name',
+    lastName: 'Last name',
+    organization: 'Organization',
+    organizationHint: 'On an Enterprise installation membership is mandatory: without an organization the account signs in and can do nothing.',
+    organizationPlaceholder: 'Choose an organization',
+    resetPassword: 'Reset',
+    resetPasswordHint: 'A new temporary password will be generated for {user}. The old one stops working immediately.',
+    passwordFor: 'Temporary password for {user}',
+    passwordHint: 'Shown once and not recoverable. Pass it on; it must be changed at first sign-in.',
+    passwordCopied: 'Password copied.',
+  },
+
   account: {
     title: 'My account',
     subtitle: 'Your API credentials and preferences.',

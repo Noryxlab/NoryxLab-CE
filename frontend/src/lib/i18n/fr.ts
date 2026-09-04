@@ -638,6 +638,22 @@ export const fr = {
   },
 
 
+  identity: {
+    createUser: 'Créer un compte',
+    createUserHint: 'Le compte est créé dans Keycloak avec un mot de passe temporaire, que l’utilisateur devra changer à sa première connexion.',
+    username: 'Identifiant',
+    firstName: 'Prénom',
+    lastName: 'Nom',
+    organization: 'Organisation',
+    organizationHint: 'Sur une installation Enterprise, l’appartenance est obligatoire : sans organisation, le compte se connecte et ne peut rien faire.',
+    organizationPlaceholder: 'Choisissez une organisation',
+    resetPassword: 'Réinitialiser',
+    resetPasswordHint: 'Un nouveau mot de passe temporaire sera généré pour {user}. L’ancien cessera immédiatement de fonctionner.',
+    passwordFor: 'Mot de passe temporaire de {user}',
+    passwordHint: 'Affiché une seule fois et non récupérable. Transmettez-le, il devra être changé à la première connexion.',
+    passwordCopied: 'Mot de passe copié.',
+  },
+
   account: {
     title: 'Mon compte',
     subtitle: 'Vos identifiants d’accès à l’API et vos préférences.',

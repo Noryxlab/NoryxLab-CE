@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  CreatedUser,
   ProjectOrganizationRole,
   ApiToken,
   HealthHistory,
@@ -390,6 +391,15 @@ export const adminApi = {
   updateSetting: (key: string, value: string) =>
     api.put<{ items: EffectiveSetting[] }>(`${V1}/admin/settings/${encodeURIComponent(key)}`, { value }),
   users: () => api.list<PlatformUser>(`${V1}/admin/users`),
+  createUser: (input: {
+    username: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    organizationId?: string;
+  }) => api.post<CreatedUser>(`${V1}/admin/users`, input),
+  resetUserPassword: (userId: string) =>
+    api.post<CreatedUser>(`${V1}/admin/users/${encodeURIComponent(userId)}/password`, undefined),
   inventory: () => api.get<AdminInventory>(`${V1}/admin/inventory`),
   modules: () => api.list<ModuleInfo>(`${V1}/admin/modules`),
   executions: () => api.list<Execution>(`${V1}/admin/executions`),

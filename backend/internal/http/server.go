@@ -147,6 +147,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 		mux.HandleFunc(method+" /dashboards/{slug}/{path...}", h.ProxyApp)
 	}
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
+	mux.HandleFunc("POST /api/v1/admin/users", h.CreateUserAccount)
+	mux.HandleFunc("POST /api/v1/admin/users/{userID}/password", h.ResetUserPassword)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 	mux.HandleFunc("GET /api/v1/admin/executions", h.ListAdminExecutions)
 	mux.HandleFunc("DELETE /api/v1/admin/executions/{kind}/{executionID}", h.StopAdminExecution)

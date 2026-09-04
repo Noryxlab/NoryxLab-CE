@@ -33,10 +33,12 @@ type Client struct {
 }
 
 type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email,omitempty"`
-	Enabled  bool   `json:"enabled"`
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email,omitempty"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	Enabled   bool   `json:"enabled"`
 }
 
 type Organization struct {
@@ -117,6 +119,50 @@ func (c *Client) CreateOrganization(name, alias string) (Organization, error) {
 
 func (c *Client) DeleteOrganization(organizationID string) error {
 	return c.adminJSON(http.MethodDelete, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID)), nil, nil)
+}
+
+// CreateUser adds an account to the realm and returns its identifier.
+//
+// The account is created enabled and with no credential: a password is set
+// separately, so the two operations can be audited apart and so a caller that
+// fails halfway leaves an account that cannot be signed into rather than one
+// with a password nobody recorded.
+func (c *Client) CreateUser(user User) (string, error) {
+	payload := map[string]any{
+		"username":      strings.TrimSpace(user.Username),
+		"email":         strings.TrimSpace(user.Email),
+		"firstName":     strings.TrimSpace(user.FirstName),
+		"lastName":      strings.TrimSpace(user.LastName),
+		"enabled":       true,
+		"emailVerified": false,
+	}
+	if err := c.adminJSON(http.MethodPost, "users", payload, nil); err != nil {
+		return "", err
+	}
+	// Keycloak answers 201 with a Location header rather than a body, and the
+	// admin client here does not surface headers. Reading the account back is
+	// simpler than threading them through, and confirms it exists.
+	return c.resolveUserID(strings.TrimSpace(user.Username))
+}
+
+// SetTemporaryPassword replaces a user's credential with one they must change
+// at their next sign-in.
+//
+// Temporary on purpose. An administrator resetting a password necessarily
+// learns it, and a password only its owner knows is the only kind worth having:
+// forcing the change bounds how long the administrator's copy is valid.
+func (c *Client) SetTemporaryPassword(userID, password string) error {
+	return c.adminJSON(http.MethodPut,
+		"users/"+url.PathEscape(strings.TrimSpace(userID))+"/reset-password",
+		map[string]any{"type": "password", "value": password, "temporary": true}, nil)
+}
+
+// SetUserEnabled turns an account on or off. Disabling is preferred to
+// deletion: it stops access immediately and keeps the audit trail attributable.
+func (c *Client) SetUserEnabled(userID string, enabled bool) error {
+	return c.adminJSON(http.MethodPut,
+		"users/"+url.PathEscape(strings.TrimSpace(userID)),
+		map[string]any{"enabled": enabled}, nil)
 }
 
 func (c *Client) ListOrganizationMembers(organizationID string) ([]User, error) {
@@ -312,6 +358,13 @@ type APIError struct {
 
 func (e *APIError) Error() string {
 	return fmt.Sprintf("keycloak admin api %s status=%d body=%s", e.Path, e.StatusCode, e.Body)
+}
+
+// IsConflict reports whether Keycloak refused because the object already
+// exists - a username or email already taken, most often.
+func IsConflict(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict
 }
 
 // IsNotFound reports whether Keycloak answered 404.
