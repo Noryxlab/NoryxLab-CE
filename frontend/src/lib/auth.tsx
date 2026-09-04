@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Keycloak from 'keycloak-js';
 import { config } from './config';
-import { configureAuth } from './api/client';
+import { api, configureAuth } from './api/client';
 
 export interface Identity {
   subject: string;
@@ -10,6 +10,38 @@ export interface Identity {
   email: string | null;
   roles: string[];
   organizations: string[];
+}
+
+/**
+ * Exchanges the bearer token for a session cookie.
+ *
+ * A workspace or an app is opened by navigating to its URL in a new tab, and a
+ * navigation cannot carry an Authorization header. The proxy therefore
+ * authenticates those requests with a cookie, and something has to create it.
+ *
+ * The previous interface did this on every login. The rewrite did not, so the
+ * cookie never existed and every workspace answered "missing authenticated
+ * session" - the platform launched the workspace correctly and then refused to
+ * let anyone in.
+ *
+ * Failure is deliberately not fatal: the rest of the application uses bearer
+ * tokens and works without it. Only proxied access needs the cookie, and that
+ * is where the refusal will be visible.
+ */
+async function openBackendSession(): Promise<void> {
+  try {
+    await api.post('/api/v1/auth/session', undefined);
+  } catch (cause) {
+    console.error('could not open a backend session; workspace access will be refused', cause);
+  }
+}
+
+async function closeBackendSession(): Promise<void> {
+  try {
+    await api.delete('/api/v1/auth/session');
+  } catch {
+    // Signing out must not be blocked by a cookie that may already be gone.
+  }
 }
 
 export type AuthStatus = 'initialising' | 'authenticated' | 'anonymous' | 'failed';
@@ -163,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (authenticated && keycloak.tokenParsed) {
           setIdentity(toIdentity(keycloak.tokenParsed as TokenClaims, config.oidc?.clientId ?? ''));
           setStatus('authenticated');
+          void openBackendSession();
         } else {
           setStatus('anonymous');
         }
@@ -206,7 +239,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
       logout: () => {
-        void keycloakRef.current?.logout({ redirectUri: window.location.origin });
+        // Drop the proxy cookie first: signing out of the identity provider
+        // must not leave a session behind that still opens workspaces.
+        void closeBackendSession().finally(() => {
+          void keycloakRef.current?.logout({ redirectUri: window.location.origin });
+        });
       },
       accountUrl: keycloakRef.current?.createAccountUrl() ?? null,
     }),

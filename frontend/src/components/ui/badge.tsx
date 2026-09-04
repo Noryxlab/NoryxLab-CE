@@ -75,7 +75,12 @@ export function describeStatus(status: string | null | undefined, locale: 'fr' |
     };
   }
 
-  if (/(pending|creating|building|submitted|queued|scheduling|initializing|starting|progress)/.test(raw)) {
+  // "launching" is the status the backend gives a workspace between its pod
+  // being created and its service answering. It was in none of these lists, so
+  // it read as neither pending nor anything else: the list stopped polling and
+  // the screen stayed on "launching" until somebody reloaded the page, while
+  // the workspace had in fact started.
+  if (/(pending|creating|building|launching|submitted|queued|scheduling|initializing|starting|progress)/.test(raw)) {
     const building = /build/.test(raw);
     return {
       tone: 'warning',
