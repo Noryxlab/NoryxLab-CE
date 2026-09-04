@@ -56,6 +56,8 @@ type Handlers struct {
 	organizationRequired             bool
 	healthEventStore                 store.HealthEventStore
 	apiTokenStore                    store.APITokenStore
+	oidcAudience                     string
+	oidcFrontendClientID             string
 	publicURL                        string
 	authMode                         string
 	serviceToken                     string
@@ -104,6 +106,10 @@ type Options struct {
 	HealthEventStore store.HealthEventStore
 	// APITokenStore holds the credentials users present instead of a session.
 	APITokenStore store.APITokenStore
+	// OIDCAudience is the audience this platform requires in a token.
+	OIDCAudience string
+	// OIDCFrontendClientID is the client whose tokens must carry it.
+	OIDCFrontendClientID string
 	// PublicURL is the address users reach the platform at.
 	PublicURL string
 	// AuthMode gates the development header identity; see requireIdentity.
@@ -259,6 +265,8 @@ func New(
 		organizationRequired:             options.OrganizationRequired,
 		healthEventStore:                 options.HealthEventStore,
 		apiTokenStore:                    options.APITokenStore,
+		oidcAudience:                     strings.TrimSpace(options.OIDCAudience),
+		oidcFrontendClientID:             firstNonBlank(options.OIDCFrontendClientID, "noryx-frontend"),
 		publicURL:                        strings.TrimSpace(options.PublicURL),
 		authMode:                         options.AuthMode,
 		serviceToken:                     options.ServiceToken,
@@ -296,4 +304,14 @@ func New(
 		assistantDeveloperSigningKey:     strings.TrimSpace(options.AssistantDeveloperSigningKey),
 		assistantPublicURL:               strings.TrimRight(strings.TrimSpace(options.AssistantPublicURL), "/"),
 	}
+}
+
+// firstNonBlank returns the first value that is not empty after trimming.
+func firstNonBlank(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

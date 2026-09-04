@@ -180,6 +180,8 @@ func main() {
 			OrganizationRequired:             cfg.OrganizationRequired,
 			HealthEventStore:                 healthEventStore,
 			APITokenStore:                    apiTokenStore,
+			OIDCAudience:                     cfg.OIDCAudience,
+			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,
 			AuthMode:                         cfg.AuthMode,
 			ServiceToken:                     cfg.ServiceToken,

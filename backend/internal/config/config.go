@@ -10,28 +10,30 @@ import (
 )
 
 type Config struct {
-	BackendVersion                   string
-	Edition                          string
-	EnabledFeatures                  string
-	DefaultTheme                     string
-	ListenAddr                       string
-	StoreBackend                     string
-	DatabaseHost                     string
-	DatabasePort                     string
-	DatabaseName                     string
-	DatabaseUser                     string
-	DatabasePassword                 string
-	DatabaseSSLMode                  string
-	KubernetesNamespace              string
-	WorkloadNamespace                string
-	EnableK8sRuntime                 bool
-	RegistryPullSecret               string
-	RegistryPushSecret               string
-	AuthMode                         string
-	ServiceToken                     string
-	OIDCIssuerURL                    string
-	OIDCJWKSURL                      string
-	OIDCAudience                     string
+	BackendVersion      string
+	Edition             string
+	EnabledFeatures     string
+	DefaultTheme        string
+	ListenAddr          string
+	StoreBackend        string
+	DatabaseHost        string
+	DatabasePort        string
+	DatabaseName        string
+	DatabaseUser        string
+	DatabasePassword    string
+	DatabaseSSLMode     string
+	KubernetesNamespace string
+	WorkloadNamespace   string
+	EnableK8sRuntime    bool
+	RegistryPullSecret  string
+	RegistryPushSecret  string
+	AuthMode            string
+	ServiceToken        string
+	OIDCIssuerURL       string
+	OIDCJWKSURL         string
+	OIDCAudience        string
+	// OIDCFrontendClientID is the client whose tokens must carry that audience.
+	OIDCFrontendClientID             string
 	BootstrapAdminUser               string
 	BootstrapAdminEmail              string
 	KeycloakBaseURL                  string
@@ -305,6 +307,7 @@ func Load() Config {
 		OIDCIssuerURL:                    oidcIssuer,
 		OIDCJWKSURL:                      os.Getenv("NORYX_OIDC_JWKS_URL"),
 		OIDCAudience:                     os.Getenv("NORYX_OIDC_AUDIENCE"),
+		OIDCFrontendClientID:             firstNonEmpty(os.Getenv("NORYX_OIDC_FRONTEND_CLIENT_ID"), "noryx-frontend"),
 		BootstrapAdminUser:               os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
 		BootstrapAdminEmail:              os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
 		KeycloakBaseURL:                  keycloakBaseURL,

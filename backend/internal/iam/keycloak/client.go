@@ -189,6 +189,49 @@ func (c *Client) ListUserOrganizations(identifier string) ([]Organization, error
 	return organizations, nil
 }
 
+// ClientAudiences returns the audiences a client's mappers add to its tokens.
+//
+// The platform requires an audience and the realm has to be configured to
+// issue it. Nothing connected the two, so a realm missing that mapper produced
+// a platform that authenticated a user and then refused every request they
+// made, with no way to see why from either side.
+func (c *Client) ClientAudiences(clientID string) ([]string, error) {
+	var clients []struct {
+		ID string `json:"id"`
+	}
+	if err := c.adminJSON(http.MethodGet,
+		"clients?clientId="+url.QueryEscape(strings.TrimSpace(clientID)), nil, &clients); err != nil {
+		return nil, err
+	}
+	if len(clients) == 0 {
+		return nil, fmt.Errorf("no client %q in realm %s", clientID, c.realm)
+	}
+
+	var mappers []struct {
+		ProtocolMapper string            `json:"protocolMapper"`
+		Config         map[string]string `json:"config"`
+	}
+	if err := c.adminJSON(http.MethodGet,
+		"clients/"+url.PathEscape(clients[0].ID)+"/protocol-mappers/models", nil, &mappers); err != nil {
+		return nil, err
+	}
+
+	audiences := []string{}
+	for _, mapper := range mappers {
+		if mapper.ProtocolMapper != "oidc-audience-mapper" {
+			continue
+		}
+		// Keycloak stores the audience under one of two keys depending on
+		// whether it names a client or a free-form value.
+		for _, key := range []string{"included.client.audience", "included.custom.audience"} {
+			if value := strings.TrimSpace(mapper.Config[key]); value != "" {
+				audiences = append(audiences, value)
+			}
+		}
+	}
+	return audiences, nil
+}
+
 func (c *Client) resolveUserID(identifier string) (string, error) {
 	identifier = strings.TrimSpace(identifier)
 	if identifier == "" || looksLikeUUID(identifier) {
