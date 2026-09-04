@@ -42,6 +42,35 @@ jobs:
       - run: go -C backend vet ./...
       - run: go -C backend test ./...
 
+  inventory:
+    name: Software inventory
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      # A licence document that drifts from the dependencies it describes is
+      # worse than none: it is wrong and looks authoritative. Regenerating and
+      # comparing is the only way it stays true without anyone remembering to
+      # check.
+      - name: The committed inventory matches the dependencies
+        run: |
+          python3 scripts/ops/generate-software-inventory.py
+          if ! git diff --quiet -- backend/internal/inventory/software-inventory.json; then
+            echo "The software inventory is out of date. Regenerate it:" >&2
+            echo "  python3 scripts/ops/generate-software-inventory.py" >&2
+            git --no-pager diff -- backend/internal/inventory/software-inventory.json >&2
+            exit 1
+          fi
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

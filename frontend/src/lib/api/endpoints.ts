@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  SoftwareInventory,
   CreatedUser,
   ProjectOrganizationRole,
   ApiToken,
@@ -384,6 +385,7 @@ export const egressApi = {
 
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
+  softwareInventory: () => api.get<SoftwareInventory>(`${V1}/admin/software-inventory`),
   healthHistory: (days?: number) =>
     api.get<HealthHistory>(`${V1}/admin/health/history`, days ? { params: { days: String(days) } } : undefined),
   health: () => api.get<HealthReport>(`${V1}/admin/health`),

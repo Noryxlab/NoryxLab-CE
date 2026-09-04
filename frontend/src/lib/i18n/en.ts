@@ -86,6 +86,7 @@ export const en: Translations = {
     identity: 'Users and organisations',
     dataGovernance: 'Data governance',
     validation: 'Validation',
+    inventory: 'Software and licences',
     storage: 'Storage',
     backToProjects: 'All projects',
     documentation: 'Documentation',
@@ -632,6 +633,23 @@ export const en: Translations = {
     lastUpdated: 'Last updated',
   },
 
+
+  inventory: {
+    title: 'Software and licences',
+    subtitle: 'What the platform ships, with each component\'s licence. Generated from the resolved dependency graph rather than maintained by hand.',
+    component: 'Component',
+    version: 'Version',
+    licence: 'Licence',
+    partOf: 'Part of',
+    source: 'Source',
+    origin_detected: 'Read',
+    origin_declared: 'Declared',
+    origin_unresolved: 'Unresolved',
+    count: '{count} components',
+    unknownCount: '{count} licence(s) undetermined',
+    allKnown: 'Every licence is determined',
+    generated: 'Generated',
+  },
 
   identity: {
     createUser: 'Create an account',

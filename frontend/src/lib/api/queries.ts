@@ -71,6 +71,7 @@ export const qk = {
 
   adminOverview: ['admin', 'overview'] as const,
   adminHealth: ['admin', 'health'] as const,
+  softwareInventory: ['admin', 'software-inventory'] as const,
   apiTokens: ['user', 'api-tokens'] as const,
   projectOrganizationRoles: (projectId: string) =>
     ['projects', projectId, 'organization-roles'] as const,
@@ -335,6 +336,14 @@ export const useProjectOrganizationRoles = (projectId: string | undefined) =>
     queryKey: qk.projectOrganizationRoles(projectId ?? ''),
     queryFn: () => projectOrganizationRolesApi.list(projectId ?? ''),
     enabled: Boolean(projectId),
+  });
+
+export const useSoftwareInventory = () =>
+  useQuery({
+    queryKey: qk.softwareInventory,
+    queryFn: adminApi.softwareInventory,
+    // Generated at build time: it cannot change while the page is open.
+    staleTime: Infinity,
   });
 
 export const usePlatformHealth = (enabled: boolean) =>

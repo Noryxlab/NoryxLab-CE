@@ -89,6 +89,7 @@ export const fr = {
     identity: 'Utilisateurs et organisations',
     dataGovernance: 'Gouvernance des données',
     validation: 'Validation',
+    inventory: 'Logiciels et licences',
     storage: 'Stockage',
     backToProjects: 'Tous les projets',
     documentation: 'Documentation',
@@ -637,6 +638,23 @@ export const fr = {
     lastUpdated: 'Dernière mise à jour',
   },
 
+
+  inventory: {
+    title: 'Logiciels et licences',
+    subtitle: 'Ce que la plateforme embarque, avec la licence de chaque composant. Généré depuis le graphe de dépendances réel, pas tenu à la main.',
+    component: 'Composant',
+    version: 'Version',
+    licence: 'Licence',
+    partOf: 'Fait partie de',
+    source: 'Origine',
+    origin_detected: 'Lue',
+    origin_declared: 'Déclarée',
+    origin_unresolved: 'Non résolue',
+    count: '{count} composants',
+    unknownCount: '{count} licence(s) non déterminée(s)',
+    allKnown: 'Toutes les licences sont déterminées',
+    generated: 'Généré le',
+  },
 
   identity: {
     createUser: 'Créer un compte',

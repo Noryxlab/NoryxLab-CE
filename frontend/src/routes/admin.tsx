@@ -81,6 +81,7 @@ import { useExtensions } from '@/lib/extensions';
 import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
+import { SoftwareInventorySection } from '@/features/admin/software-inventory';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -104,6 +105,7 @@ const SECTIONS = [
   'network',
   'rbac',
   'storage',
+  'inventory',
   'backups',
   'audit',
   'settings',
@@ -1703,6 +1705,7 @@ export function AdminPage() {
           <TabsTrigger value="activity">{t('nav.activity')}</TabsTrigger>
           <TabsTrigger value="network">{t('nav.network')}</TabsTrigger>
           <TabsTrigger value="storage">{t('nav.storage')}</TabsTrigger>
+          <TabsTrigger value="inventory">{t('nav.inventory')}</TabsTrigger>
           <TabsTrigger value="audit">{t('nav.audit')}</TabsTrigger>
           <TabsTrigger value="settings">{t('common.settings')}</TabsTrigger>
           {/* Data-usage mapping and platform backups are Enterprise modules
@@ -1742,6 +1745,10 @@ export function AdminPage() {
         <TabsContent value="audit">
           <AuditSection />
         </TabsContent>
+        <TabsContent value="inventory">
+          <SoftwareInventorySection />
+        </TabsContent>
+
         <TabsContent value="settings">
           <PlatformSettingsSection />
         </TabsContent>

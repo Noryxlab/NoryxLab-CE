@@ -697,6 +697,26 @@ export interface CreatedUser {
   note?: string;
 }
 
+/** One piece of software the platform ships. */
+export interface InventoryItem {
+  name: string;
+  version: string;
+  licence: string;
+  /** platform, backend, frontend, infrastructure, or build tooling. */
+  component: string;
+  /** Where the licence came from: read from the dependency, stated by us, or unresolved. */
+  origin: 'detected' | 'declared' | 'unresolved';
+  role?: string;
+  upstream?: string;
+}
+
+export interface SoftwareInventory {
+  generatedAt: string;
+  note: string;
+  counts: { total: number; unknown: number };
+  items: InventoryItem[];
+}
+
 export interface ModuleInfo {
   id: string;
   name: string;

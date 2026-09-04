@@ -1,0 +1,638 @@
+{
+  "generatedAt": "2026-09-04T12:10:05+00:00",
+  "note": "Dependencies are read from the resolved graph; infrastructure licences are declared from their upstream project. Anything unreadable is reported as unknown rather than guessed.",
+  "counts": {
+    "total": 76,
+    "unknown": 1
+  },
+  "items": [
+    {
+      "name": "github.com/cespare/xxhash/v2",
+      "version": "v2.3.0",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE.txt"
+    },
+    {
+      "name": "github.com/davecgh/go-spew",
+      "version": "v1.1.1",
+      "licence": "ISC",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/dustin/go-humanize",
+      "version": "v1.0.1",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/go-ini/ini",
+      "version": "v1.67.0",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/golang-jwt/jwt/v5",
+      "version": "v5.3.1",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/google/uuid",
+      "version": "v1.6.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/klauspost/compress",
+      "version": "v1.18.2",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/klauspost/cpuid/v2",
+      "version": "v2.2.11",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/klauspost/crc32",
+      "version": "v1.3.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/lib/pq",
+      "version": "v1.12.3",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/minio/crc64nvme",
+      "version": "v1.1.1",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/minio/md5-simd",
+      "version": "v1.1.2",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/minio/minio-go/v7",
+      "version": "v7.1.0",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/philhofer/fwd",
+      "version": "v1.2.0",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE.md"
+    },
+    {
+      "name": "github.com/pmezard/go-difflib",
+      "version": "v1.0.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/rs/xid",
+      "version": "v1.6.0",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/stretchr/testify",
+      "version": "v1.9.0",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/tinylib/msgp",
+      "version": "v1.6.1",
+      "licence": "MIT",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/zeebo/assert",
+      "version": "v1.3.0",
+      "licence": "unknown",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "github.com/zeebo/xxh3",
+      "version": "v1.1.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "go.yaml.in/yaml/v3",
+      "version": "v3.0.4",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/crypto",
+      "version": "v0.46.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/mod",
+      "version": "v0.30.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/net",
+      "version": "v0.48.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/sync",
+      "version": "v0.19.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/sys",
+      "version": "v0.39.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/term",
+      "version": "v0.38.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/text",
+      "version": "v0.32.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/tools",
+      "version": "v0.39.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "gopkg.in/check.v1",
+      "version": "v0.0.0-20161208181325-20d25e280405",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "gopkg.in/yaml.v3",
+      "version": "v3.0.1",
+      "licence": "Apache-2.0",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "@eslint/js",
+      "version": "10.0.1",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@tailwindcss/vite",
+      "version": "4.3.3",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@types/node",
+      "version": "22.20.1",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@types/react",
+      "version": "19.2.18",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.2.5",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "version": "5.2.0",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "eslint",
+      "version": "10.9.1",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "globals",
+      "version": "17.11.0",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "tailwindcss",
+      "version": "4.3.3",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "typescript",
+      "version": "5.9.3",
+      "licence": "Apache-2.0",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "typescript-eslint",
+      "version": "8.68.0",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "vite",
+      "version": "8.2.2",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "vitest",
+      "version": "4.1.11",
+      "licence": "MIT",
+      "component": "build tooling",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-dialog",
+      "version": "1.1.23",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-dropdown-menu",
+      "version": "2.1.24",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-label",
+      "version": "2.1.15",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-popover",
+      "version": "1.1.23",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-select",
+      "version": "2.3.7",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-separator",
+      "version": "1.1.15",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-slot",
+      "version": "1.3.3",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-switch",
+      "version": "1.3.7",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-tabs",
+      "version": "1.1.21",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-toast",
+      "version": "1.2.23",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@radix-ui/react-tooltip",
+      "version": "1.2.16",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@tanstack/react-query",
+      "version": "5.102.8",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "class-variance-authority",
+      "version": "0.7.1",
+      "licence": "Apache-2.0",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "clsx",
+      "version": "2.1.1",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "keycloak-js",
+      "version": "26.2.4",
+      "licence": "Apache-2.0",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "lucide-react",
+      "version": "0.545.0",
+      "licence": "ISC",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "react",
+      "version": "19.2.8",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "react-dom",
+      "version": "19.2.8",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "react-router",
+      "version": "8.3.1",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "tailwind-merge",
+      "version": "3.6.0",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "code-server",
+      "version": "",
+      "licence": "MIT",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "VS Code workspace image",
+      "upstream": "https://github.com/coder/code-server"
+    },
+    {
+      "name": "HAProxy",
+      "version": "",
+      "licence": "GPL-2.0-or-later",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "edge load balancer",
+      "upstream": "https://www.haproxy.org/"
+    },
+    {
+      "name": "JupyterLab",
+      "version": "",
+      "licence": "BSD-3-Clause",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "notebook workspace image",
+      "upstream": "https://github.com/jupyterlab/jupyterlab"
+    },
+    {
+      "name": "k3s",
+      "version": "",
+      "licence": "Apache-2.0",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "kubernetes distribution",
+      "upstream": "https://github.com/k3s-io/k3s"
+    },
+    {
+      "name": "Keycloak",
+      "version": "",
+      "licence": "Apache-2.0",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "identity provider",
+      "upstream": "https://github.com/keycloak/keycloak"
+    },
+    {
+      "name": "Longhorn",
+      "version": "",
+      "licence": "Apache-2.0",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "block storage",
+      "upstream": "https://github.com/longhorn/longhorn"
+    },
+    {
+      "name": "MinIO",
+      "version": "",
+      "licence": "AGPL-3.0",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "object storage",
+      "upstream": "https://github.com/minio/minio"
+    },
+    {
+      "name": "nginx",
+      "version": "",
+      "licence": "BSD-2-Clause",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "frontend web server",
+      "upstream": "https://nginx.org/LICENSE"
+    },
+    {
+      "name": "PostgreSQL",
+      "version": "",
+      "licence": "PostgreSQL",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "database",
+      "upstream": "https://www.postgresql.org/about/licence/"
+    },
+    {
+      "name": "Traefik",
+      "version": "",
+      "licence": "MIT",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "ingress",
+      "upstream": "https://github.com/traefik/traefik"
+    },
+    {
+      "name": "NoryxLab Community Edition",
+      "version": "",
+      "licence": "MPL-2.0",
+      "component": "platform",
+      "origin": "declared",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "NoryxLab Enterprise Edition",
+      "version": "",
+      "licence": "Proprietary",
+      "component": "platform",
+      "origin": "declared",
+      "licenceFile": ""
+    }
+  ]
+}

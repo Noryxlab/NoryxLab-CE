@@ -160,6 +160,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/user/api-tokens", h.ListAPITokens)
 	mux.HandleFunc("POST /api/v1/user/api-tokens", h.CreateAPIToken)
 	mux.HandleFunc("DELETE /api/v1/user/api-tokens/{tokenID}", h.DeleteAPIToken)
+	mux.HandleFunc("GET /api/v1/admin/software-inventory", h.GetSoftwareInventory)
+	mux.HandleFunc("GET /api/v1/admin/software-inventory.csv", h.ExportSoftwareInventoryCSV)
 	mux.HandleFunc("GET /api/v1/admin/health/history", h.GetPlatformHealthHistory)
 	mux.HandleFunc("GET /api/v1/admin/settings", h.ListPlatformSettings)
 	mux.HandleFunc("PUT /api/v1/admin/settings/{key}", h.UpdatePlatformSetting)
