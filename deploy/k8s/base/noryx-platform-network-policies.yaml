@@ -41,6 +41,14 @@ spec:
         - podSelector:
             matchLabels:
               app: noryx-platform-validator
+        # The identity backup runs Keycloak's own exporter as a job, which
+        # reads the realm straight from the database. It is a platform
+        # component with a different name, and its first run was refused here -
+        # which is the policy working, and the reason it is named rather than
+        # worked around.
+        - podSelector:
+            matchLabels:
+              noryx.io/identity-backup: "true"
       ports:
         - protocol: TCP
           port: 5432
