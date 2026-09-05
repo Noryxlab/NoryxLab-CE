@@ -189,11 +189,18 @@ echo "6. Checking the deployments you are about to recreate"
 # the one that bit: the manifest named a subdirectory, the running Postgres used
 # the volume root, and the new pod ran initdb into the empty subdirectory and
 # came up as a pristine database beside the real one.
-if [ -f "$BACKUP_DIR/source-objects.yaml" ]; then
-  if ! grep -q "PGDATA" "$BACKUP_DIR/source-objects.yaml"; then
-    say "the deployment that was running set no PGDATA: the cluster is at the volume root"
-    say "make sure the manifest you deploy from does not set one either"
+if kubectl get deployment postgres -n "$SOURCE" >/dev/null 2>&1 || [ -f "$BACKUP_DIR/source-objects.yaml" ]; then
+  live_pgdata="$(kubectl -n "$SOURCE" get deployment postgres -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="PGDATA")].value}' 2>/dev/null || true)"
+  if [ -n "$live_pgdata" ]; then
+    say "the Postgres that was running used PGDATA=$live_pgdata"
+    say "the deployment you recreate MUST set the same value, or it will initdb an empty cluster beside the real one"
+  else
+    say "the Postgres that was running set no PGDATA: its cluster is at the volume root"
+    say "the deployment you recreate must not set one either, for the same reason"
   fi
+  # Both installations exist: the DC had no PGDATA, EMSE has one. Neither value
+  # can be assumed, which is why it is read from the deployment rather than
+  # printed from a manifest.
 fi
 
 echo
