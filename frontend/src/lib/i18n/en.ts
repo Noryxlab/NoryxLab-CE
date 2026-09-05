@@ -734,6 +734,17 @@ export const en: Translations = {
   },
 
   tokens: {
+    scopeLabel: 'Scope',
+    scopeHint: 'What the token may do, within your own rights.',
+    scopeRead: 'Read only',
+    scopeReadHint: 'Look, change nothing.',
+    scopeWorkspaces: 'Workspaces',
+    scopeWorkspacesHint: 'Start and stop workspaces, plus reading.',
+    scopeJobs: 'Jobs',
+    scopeJobsHint: 'Run jobs and builds — the continuous integration case.',
+    scopeFull: 'All your rights',
+    scopeFullHint: 'No restriction: the token may do anything you can.',
+    scopeColumn: 'Scope',
     title: 'API tokens',
     subtitle: 'For calling the API outside a browser: continuous integration, a notebook, a script.',
     createTitle: 'Create a token',

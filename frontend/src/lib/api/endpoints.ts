@@ -60,7 +60,7 @@ export const platformApi = {
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
   apiTokens: () => api.list<ApiToken>(`${V1}/user/api-tokens`),
-  createApiToken: (input: { name: string; expiresInDays?: number }) =>
+  createApiToken: (input: { name: string; expiresInDays?: number; scopes?: string[] }) =>
     api.post<{ token: ApiToken; secret: string; note: string }>(`${V1}/user/api-tokens`, input),
   revokeApiToken: (tokenId: string) =>
     api.delete<void>(`${V1}/user/api-tokens/${encodeURIComponent(tokenId)}`),

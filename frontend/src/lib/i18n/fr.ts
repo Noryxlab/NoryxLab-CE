@@ -739,6 +739,17 @@ export const fr = {
   },
 
   tokens: {
+    scopeLabel: 'Portée',
+    scopeHint: 'Ce que le jeton pourra faire, dans la limite de vos propres droits.',
+    scopeRead: 'Lecture seule',
+    scopeReadHint: 'Consulter, ne rien modifier.',
+    scopeWorkspaces: 'Workspaces',
+    scopeWorkspacesHint: 'Démarrer et arrêter des workspaces, plus la lecture.',
+    scopeJobs: 'Traitements',
+    scopeJobsHint: 'Lancer jobs et builds — le cas d’une intégration continue.',
+    scopeFull: 'Tous vos droits',
+    scopeFullHint: 'Aucune restriction : le jeton peut tout ce que vous pouvez.',
+    scopeColumn: 'Portée',
     title: 'Jetons d’API',
     subtitle: 'Pour appeler l’API hors navigateur : intégration continue, notebook, script.',
     createTitle: 'Créer un jeton',

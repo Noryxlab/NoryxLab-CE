@@ -170,6 +170,10 @@ func (s *Store) migrate(ctx context.Context) error {
 			last_used_at TIMESTAMPTZ
 		)`,
 		`CREATE INDEX IF NOT EXISTS api_tokens_user ON api_tokens (user_id)`,
+		// Empty means unrestricted, which is what every token issued before
+		// scopes existed is - and must remain, or an upgrade breaks a pipeline
+		// nobody connected to this change.
+		`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS scopes TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS builds (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,

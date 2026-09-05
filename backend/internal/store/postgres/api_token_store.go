@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/apitoken"
@@ -14,9 +15,10 @@ func (s *APITokenStore) Put(token apitoken.Token) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err := s.Store.db.ExecContext(ctx, `
-		INSERT INTO api_tokens (id, user_id, name, secret_hash, created_at, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`,
-		token.ID, token.UserID, token.Name, token.SecretHash, token.CreatedAt.UTC(), token.ExpiresAt)
+		INSERT INTO api_tokens (id, user_id, name, secret_hash, created_at, expires_at, scopes)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		token.ID, token.UserID, token.Name, token.SecretHash, token.CreatedAt.UTC(), token.ExpiresAt,
+		strings.Join(token.Scopes, ","))
 	return err
 }
 
@@ -24,7 +26,7 @@ func (s *APITokenStore) Get(id string) (apitoken.Token, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	row := s.Store.db.QueryRowContext(ctx, `
-		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
 		FROM api_tokens WHERE id = $1`, id)
 	token, err := scanToken(row)
 	if err == sql.ErrNoRows {
@@ -37,7 +39,7 @@ func (s *APITokenStore) ListByUser(userID string) ([]apitoken.Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	rows, err := s.Store.db.QueryContext(ctx, `
-		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
 		FROM api_tokens WHERE user_id = $1 ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -85,9 +87,13 @@ type scanner interface {
 func scanToken(row scanner) (apitoken.Token, error) {
 	var token apitoken.Token
 	var expiresAt, revokedAt, lastUsedAt sql.NullTime
+	var scopes string
 	if err := row.Scan(&token.ID, &token.UserID, &token.Name, &token.SecretHash,
-		&token.CreatedAt, &expiresAt, &revokedAt, &lastUsedAt); err != nil {
+		&token.CreatedAt, &expiresAt, &revokedAt, &lastUsedAt, &scopes); err != nil {
 		return apitoken.Token{}, err
+	}
+	if trimmed := strings.TrimSpace(scopes); trimmed != "" {
+		token.Scopes = strings.Split(trimmed, ",")
 	}
 	for stamp, target := range map[*sql.NullTime]**time.Time{
 		&expiresAt: &token.ExpiresAt, &revokedAt: &token.RevokedAt, &lastUsedAt: &token.LastUsedAt,

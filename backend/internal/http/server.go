@@ -208,7 +208,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /swagger/openapi.yaml", GetOpenAPI)
 
 	return &http.Server{
-		Addr:    cfg.ListenAddr,
-		Handler: h.AuditMutations(mux),
+		Addr: cfg.ListenAddr,
+		// Scope enforcement sits inside the audit middleware so a refusal is
+		// recorded like any other outcome: "this token tried and was stopped"
+		// is exactly what an audit is for.
+		Handler: h.AuditMutations(h.EnforceTokenScopes(mux)),
 	}
 }

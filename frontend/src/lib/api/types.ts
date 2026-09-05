@@ -712,6 +712,9 @@ export interface ApiToken {
   expiresAt?: string;
   revokedAt?: string;
   lastUsedAt?: string;
+  /** What the token may do, below what its owner may do. Absent or ["full"]
+   *  means unrestricted, which is what tokens were before scopes existed. */
+  scopes?: string[];
 }
 
 /** A project role held by every member of an organization. */

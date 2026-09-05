@@ -7,6 +7,10 @@ type Identity struct {
 	Username string
 	Email    string
 	Roles    map[string]struct{}
+	// Scopes is set when the caller authenticated with a restricted API token.
+	// Empty means unrestricted: a browser session, an OIDC bearer, or a token
+	// created before scopes existed.
+	Scopes []string
 }
 
 func (i Identity) UserID() string {

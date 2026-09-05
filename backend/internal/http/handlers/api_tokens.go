@@ -40,6 +40,9 @@ type createAPITokenRequest struct {
 	// nobody ever revisits, so the interface offers a default rather than
 	// forbidding it.
 	ExpiresInDays int `json:"expiresInDays,omitempty"`
+	// Scopes narrow the token below what its owner may do. Absent means
+	// unrestricted, which is what tokens were before scopes existed.
+	Scopes []string `json:"scopes,omitempty"`
 }
 
 func (h Handlers) ListAPITokens(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +98,21 @@ func (h Handlers) CreateAPIToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sum := sha256.Sum256([]byte(secret))
+	// An unknown scope is refused rather than dropped: a token silently
+	// narrower than the one somebody asked for fails in production, at night,
+	// in a pipeline whose author has stopped thinking about it.
+	for _, scope := range req.Scopes {
+		if !apitoken.ValidScope(scope) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "unknown scope " + strings.TrimSpace(scope),
+			})
+			return
+		}
+	}
+
 	token := apitoken.Token{
 		ID: id, UserID: identity.UserID(), Name: name,
+		Scopes:    apitoken.NormalizeScopes(req.Scopes),
 		CreatedAt: time.Now().UTC(), SecretHash: sum[:],
 	}
 	if req.ExpiresInDays > 0 {
@@ -171,7 +187,7 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 		return auth.Identity{}, false
 	}
 	h.touchAPIToken(token, now)
-	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}}, true
+	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}, Scopes: token.Scopes}, true
 }
 
 // touchAPIToken records use at most once a minute. Without the interval a busy

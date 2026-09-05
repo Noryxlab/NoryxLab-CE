@@ -54,6 +54,10 @@ export function ApiTokensSection() {
 
   const [name, setName] = React.useState('');
   const [expiresIn, setExpiresIn] = React.useState<string>('90');
+  // Least dangerous first, and 'read' preselected: the common case for a token
+  // is a dashboard or a report, and the default should be the one that cannot
+  // delete anything.
+  const [scope, setScope] = React.useState<string>('read');
   // Held in state, never refetched: the secret exists in the creation response
   // and nowhere else, ever again.
   const [issued, setIssued] = React.useState<string | null>(null);
@@ -63,6 +67,7 @@ export function ApiTokensSection() {
       platformApi.createApiToken({
         name: name.trim(),
         expiresInDays: Number(expiresIn) || undefined,
+        scopes: [scope],
       }),
     onSuccess: (result) => {
       setIssued(result.secret);
@@ -138,6 +143,22 @@ export function ApiTokensSection() {
                 maxLength={80}
               />
             </Field>
+            <Field
+              label={t('tokens.scopeLabel')}
+              description={t('tokens.scopeHint')}
+              className="min-w-48"
+            >
+              <Select
+                value={scope}
+                onValueChange={setScope}
+                options={[
+                  { value: 'read', label: t('tokens.scopeRead'), hint: t('tokens.scopeReadHint') },
+                  { value: 'workspaces', label: t('tokens.scopeWorkspaces'), hint: t('tokens.scopeWorkspacesHint') },
+                  { value: 'jobs', label: t('tokens.scopeJobs'), hint: t('tokens.scopeJobsHint') },
+                  { value: 'full', label: t('tokens.scopeFull'), hint: t('tokens.scopeFullHint') },
+                ]}
+              />
+            </Field>
             <Field label={t('tokens.expiryLabel')} className="min-w-40">
               <Select
                 value={expiresIn}
@@ -181,6 +202,20 @@ export function ApiTokensSection() {
                         ) : state === 'expired' ? (
                           <Badge tone="warning">{t('tokens.expired')}</Badge>
                         ) : null}
+                        {/* An unrestricted token is worth seeing at a glance:
+                            it is the one whose leak costs the most, and the
+                            one worth replacing with a narrower one. */}
+                        {(token.scopes ?? []).map((scope) => (
+                          <Badge key={scope} tone={scope === 'full' ? 'warning' : 'neutral'}>
+                            {scope === 'read'
+                              ? t('tokens.scopeRead')
+                              : scope === 'workspaces'
+                                ? t('tokens.scopeWorkspaces')
+                                : scope === 'jobs'
+                                  ? t('tokens.scopeJobs')
+                                  : t('tokens.scopeFull')}
+                          </Badge>
+                        ))}
                       </span>
                       <span className="block text-xs text-muted-foreground">
                         {t('tokens.created')} {formatDateTime(token.createdAt, locale)}

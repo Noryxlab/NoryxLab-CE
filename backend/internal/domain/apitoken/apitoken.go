@@ -23,6 +23,11 @@ type Token struct {
 	// require guessing. "gitlab-ci" beats "token 3".
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"createdAt"`
+	// Scopes narrow what this token may do, below what its owner may do. Empty
+	// means unrestricted, which is what every token created before scopes
+	// existed is - and what they must remain, or a running pipeline breaks on
+	// an upgrade nobody connected to it.
+	Scopes []string `json:"scopes,omitempty"`
 
 	ExpiresAt  *time.Time `json:"expiresAt,omitempty"`
 	RevokedAt  *time.Time `json:"revokedAt,omitempty"`
