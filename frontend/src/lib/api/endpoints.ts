@@ -1,6 +1,8 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
+  SmtpSettings,
+  SmtpState,
   SoftwareInventory,
   CreatedUser,
   ProjectOrganizationRole,
@@ -390,6 +392,13 @@ export const egressApi = {
 export const adminApi = {
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   softwareInventory: () => api.get<SoftwareInventory>(`${V1}/admin/software-inventory`),
+  smtp: () => api.get<SmtpState>(`${V1}/admin/smtp`),
+  updateSmtp: (input: Partial<SmtpSettings> & { password?: string }) =>
+    api.put<SmtpState>(`${V1}/admin/smtp`, input),
+  testSmtp: (input: Partial<SmtpSettings> & { password?: string; testRecipient: string }) =>
+    api.post<{ sent: boolean; recipient: string }>(`${V1}/admin/smtp/tests`, input),
+  sendPasswordResetEmail: (userId: string) =>
+    api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
   hardwareTiers: () => api.list<AdminHardwareTier>(`${V1}/admin/hardware-tiers`),
   saveHardwareTier: (tier: AdminHardwareTier) =>
     api.put<AdminHardwareTier>(`${V1}/admin/hardware-tiers/${encodeURIComponent(tier.id)}`, tier),

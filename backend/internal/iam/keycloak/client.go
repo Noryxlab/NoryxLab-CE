@@ -319,6 +319,10 @@ func (c *Client) adminJSON(method, path string, payload any, output any) error {
 		body = bytes.NewReader(encoded)
 	}
 	endpoint := fmt.Sprintf("%s/admin/realms/%s/%s", c.baseURL, url.PathEscape(c.realm), strings.TrimPrefix(path, "/"))
+	// An empty path addresses the realm itself. Left as it is the URL ends in a
+	// slash, which Keycloak answers with 404 - so the realm object would be
+	// unreachable through this helper for no reason anybody could see.
+	endpoint = strings.TrimSuffix(endpoint, "/")
 	req, err := http.NewRequest(method, endpoint, body)
 	if err != nil {
 		return err

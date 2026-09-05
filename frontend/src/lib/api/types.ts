@@ -328,6 +328,26 @@ export interface HardwareTier {
 /** What an administrator edits. Requests never reach the tier list a user
  *  picks from: they are how the cluster is packed, not what the machine can
  *  do. */
+export interface SmtpSettings {
+  host: string;
+  port: string;
+  from: string;
+  fromDisplayName: string;
+  replyTo: string;
+  user: string;
+  auth: boolean;
+  starttls: boolean;
+  ssl: boolean;
+  /** Whether a password is stored. The password itself never comes back. */
+  passwordSet: boolean;
+}
+
+export interface SmtpState {
+  settings: SmtpSettings;
+  /** A host and a sender: what it takes for the platform to actually send. */
+  configured: boolean;
+}
+
 export interface AdminHardwareTier extends HardwareTier {
   cpuRequest: string;
   memoryRequest: string;

@@ -12,6 +12,7 @@ import {
   Download,
   HardDrive,
   KeyRound,
+  Mail,
   UserPlus,
   MemoryStick,
   Play,
@@ -71,6 +72,7 @@ import {
   useStorageEndpoints,
   qk,
   useInvalidate,
+  useSmtp,
 } from '@/lib/api/queries';
 import { adminApi, egressApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
@@ -84,6 +86,7 @@ import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import { SoftwareInventorySection } from '@/features/admin/software-inventory';
 import { AccessGraph } from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
+import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -183,6 +186,14 @@ function IdentitySection() {
     onError: (error) => toast.error(error, t('identity.createUser')),
   });
 
+  const smtp = useSmtp();
+
+  const resetByEmail = useMutation({
+    mutationFn: (user: PlatformUser) => adminApi.sendPasswordResetEmail(user.id),
+    onSuccess: () => toast.success(t('admin.resetByEmailSent'), t('identity.resetPassword')),
+    onError: (error) => toast.error(error, t('admin.resetByEmail')),
+  });
+
   const resetPassword = useMutation({
     mutationFn: (user: PlatformUser) => adminApi.resetUserPassword(user.id),
     onSuccess: (result, user) => {
@@ -268,6 +279,27 @@ function IdentitySection() {
       id: 'actions',
       header: '',
       cell: (user) => (
+        <div className="flex items-center justify-end gap-1">
+        {/* Offered only when the realm can actually send: a button that fails
+            at the click teaches an administrator to distrust the screen. */}
+        {smtp.data?.configured ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={resetByEmail.isPending}
+            onClick={() =>
+              ask({
+                title: t('admin.resetByEmail'),
+                description: t('admin.resetByEmailHint', { user: user.username || user.id }),
+                confirmLabel: t('admin.resetByEmail'),
+                onConfirm: () => resetByEmail.mutateAsync(user),
+              })
+            }
+          >
+            <Mail aria-hidden />
+            {t('admin.resetByEmail')}
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"
@@ -284,6 +316,7 @@ function IdentitySection() {
           <KeyRound aria-hidden />
           {t('identity.resetPassword')}
         </Button>
+        </div>
       ),
     },
   ];
@@ -1759,6 +1792,7 @@ export function AdminPage() {
         <TabsContent value="settings">
           <div className="space-y-8">
             <PlatformSettingsSection />
+            <SmtpSettingsSection />
             {/* Machine sizes sit with the platform settings rather than in a
                 tab of their own: an administrator arrives here to say how the
                 installation behaves, and the sizes it offers are part of that. */}
