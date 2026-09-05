@@ -96,3 +96,33 @@ func TestRestartablePodRemovesServerAndDeletionMetadata(t *testing.T) {
 		t.Fatalf("restartable pod lost its name: %#v", metadata)
 	}
 }
+
+// Every workload a user can run must carry the label the network policies
+// select on. Without it the pod runs outside the fence meant to contain it -
+// and nothing anywhere says so, because an unfenced pod behaves like a working
+// one until somebody looks at what it can reach.
+func TestEveryUserWorkloadCarriesTheIsolationLabel(t *testing.T) {
+	for _, given := range []map[string]string{
+		nil,
+		{},
+		{"noryx.io/project-id": "p1"},
+	} {
+		labels := isolatedWorkloadLabels(given)
+		if labels["noryx.io/network-isolation"] != "user-workload" {
+			t.Errorf("labels %v produced %v, which the network policies do not select", given, labels)
+		}
+		for key, value := range given {
+			if labels[key] != value {
+				t.Errorf("the caller's label %s=%s was lost", key, value)
+			}
+		}
+	}
+	// The caller's map must not be modified: the same spec is reused to build
+	// the service and the pod, and a label leaking between them is the kind of
+	// bug that only shows up in production.
+	original := map[string]string{"noryx.io/project-id": "p1"}
+	_ = isolatedWorkloadLabels(original)
+	if _, mutated := original["noryx.io/network-isolation"]; mutated {
+		t.Error("isolatedWorkloadLabels must not modify the map it was given")
+	}
+}
