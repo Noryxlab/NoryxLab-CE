@@ -66,8 +66,14 @@ spec:
                   key: KEYCLOAK_ADMIN_PASSWORD
             - name: KC_DB
               value: postgres
+            # sslmode=prefer, not require: Keycloak holds the accounts, and it
+            # must keep starting on an installation whose Postgres has no
+            # certificate yet. Prefer encrypts whenever the server offers TLS,
+            # which it does as soon as scripts/ops/enable-postgres-tls.sh has
+            # run - so a platform gets encryption without an ordering rule
+            # somebody has to remember.
             - name: KC_DB_URL
-              value: jdbc:postgresql://postgres:5432/noryx
+              value: jdbc:postgresql://postgres:5432/noryx?sslmode=prefer
             - name: KC_DB_USERNAME
               value: noryx
             - name: KC_DB_PASSWORD
