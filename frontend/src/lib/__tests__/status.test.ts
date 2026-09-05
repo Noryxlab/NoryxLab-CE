@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { describeStatus } from '@/components/ui/badge';
 
@@ -37,5 +39,62 @@ describe('status descriptors', () => {
     const degraded = describeStatus('degraded');
     expect(degraded.tone).toBe('warning');
     expect(describeStatus('succeeded').tone).toBe('success');
+  });
+});
+
+/**
+ * The two halves, compared.
+ *
+ * The backend declares its vocabulary in Go; this interface classifies with
+ * regular expressions. Nothing connected them, which is how "launching" came to
+ * be emitted by one and unknown to the other. This reads the declaration and
+ * checks every status in it against the classification here - in the language
+ * the declaration is written in, because a copy of it on this side would be a
+ * third source of truth.
+ */
+describe('the vocabulary the backend declares', () => {
+  const declaration = readFileSync(
+    resolve(__dirname, '../../../../backend/internal/domain/status/status.go'),
+    'utf8',
+  );
+  const vocabulary = [...declaration.matchAll(/"([a-z][a-z-]*)":\s*Kind([A-Za-z]+),/g)].map(
+    (match) => ({ name: match[1] ?? '', kind: (match[2] ?? '').toLowerCase() }),
+  );
+
+  it('is not empty, or this test checks nothing', () => {
+    expect(vocabulary.length).toBeGreaterThan(8);
+  });
+
+  it('classifies every declared status the way the backend says to read it', () => {
+    const expectedPending: Record<string, boolean> = {
+      pending: true,
+      success: false,
+      failed: false,
+      degraded: false,
+      stopped: false,
+      unknown: false,
+    };
+    const expectedTone: Record<string, string> = {
+      pending: 'warning',
+      success: 'success',
+      failed: 'danger',
+      // Degraded is a warning on purpose: it finished, and not as asked.
+      degraded: 'warning',
+      stopped: 'neutral',
+      unknown: 'neutral',
+    };
+
+    for (const { name, kind } of vocabulary) {
+      const described = describeStatus(name);
+      expect(described.pending, `${name} (${kind}) polling`).toBe(expectedPending[kind]);
+      expect(described.tone, `${name} (${kind}) tone`).toBe(expectedTone[kind]);
+      // A status that falls through renders its raw backend word to a user.
+      expect(described.label, `${name} must have a human label`).not.toBe(name);
+    }
+  });
+
+  it('keeps polling a status it has never heard of, rather than freezing on it', () => {
+    const described = describeStatus('teleporting');
+    expect(described.pending).toBe(true);
   });
 });

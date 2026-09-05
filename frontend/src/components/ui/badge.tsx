@@ -98,7 +98,22 @@ export function describeStatus(status: string | null | undefined, locale: 'fr' |
     };
   }
 
-  return { tone: 'neutral', label: status ?? '', pending: false };
+  // A status the platform has no answer for yet - a check that has not run, a
+  // resource it cannot see. Not a failure: it says nothing about the thing.
+  if (/(unchecked|missing|unknown)/.test(raw)) {
+    return { tone: 'neutral', label: fr ? 'Inconnu' : 'Unknown', pending: false };
+  }
+
+  // Anything else is a status this interface has never heard of, and the
+  // honest reading is "still working on it": keeping `pending` true keeps the
+  // list polling, so a screen recovers on its own instead of freezing on a
+  // word - which is exactly what "launching" did. The warning is for whoever
+  // added the status without declaring it; backend/internal/domain/status is
+  // the list, and a test there fails when the two drift.
+  if (typeof console !== 'undefined') {
+    console.warn(`Unknown status "${raw}": treating it as in progress. Declare it in backend/internal/domain/status.`);
+  }
+  return { tone: 'neutral', label: status ?? '', pending: true };
 }
 
 export interface StatusBadgeProps {
