@@ -29,6 +29,24 @@ spec:
         - name: harbor-regcred
       containers:
         - name: postgres
+          # No securityContext here, and that is deliberate. Dropping ALL
+          # capabilities crashed this container on 2026-09-05: the official
+          # Postgres entrypoint starts as root to chown PGDATA and drop to the
+          # postgres user, so it needs CHOWN, FOWNER, SETUID and SETGID. Without
+          # them it fails with "chmod: Operation not permitted" and the platform
+          # loses its database.
+          #
+          # Restricting it properly means running the container as uid 999 with
+          # a volume already owned by it - a change to make on its own, with the
+          # volume, not as a line added to a hardening pass.
+          # Postgres holds the platform: it gets a floor worth scheduling on and a ceiling below the node.
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
           image: harbor.example.local/noryx-ce/postgres:16
           ports:
             - containerPort: 5432

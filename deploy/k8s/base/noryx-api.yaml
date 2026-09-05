@@ -18,6 +18,24 @@ spec:
         - name: harbor-regcred
       containers:
         - name: noryx-backend
+          # Conservative hardening: no privilege escalation, no Linux capabilities,
+          # the runtime's default seccomp profile. Deliberately not setting
+          # runAsNonRoot or a read-only root filesystem here - both depend on what
+          # each image expects, and a wrong guess is an outage rather than a denial.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          # A backend that leaks memory must hit a limit before it takes the node, and with it Postgres.
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
           image: harbor.example.local/noryx-ce/noryx-backend:0.5.188-dev
           imagePullPolicy: IfNotPresent
           ports:
@@ -166,6 +184,12 @@ spec:
               value: "ReadWriteMany"
             - name: NORYX_WORKSPACE_PROFILE_PVC_MOUNT_PATH
               value: "/home/noryx/.noryx-profile"
+            # The image the project-files pod runs. It must track the backend
+            # image above: it *is* the backend, started with a different
+            # command. Left at a stale value it silently ran an old dev build
+            # in production - 0.5.188-dev was still serving files on two
+            # platforms in September 2026, because deployment scripts updated
+            # the container image and never this string.
             - name: NORYX_PROJECT_FILES_IMAGE
               value: "harbor.example.local/noryx-ce/noryx-backend:0.5.188-dev"
 ---

@@ -29,6 +29,24 @@ spec:
         - name: harbor-regcred
       containers:
         - name: minio
+          # Conservative hardening: no privilege escalation, no Linux capabilities,
+          # the runtime's default seccomp profile. Deliberately not setting
+          # runAsNonRoot or a read-only root filesystem here - both depend on what
+          # each image expects, and a wrong guess is an outage rather than a denial.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          # MinIO buffers uploads in memory; a large upload with no limit is a node eviction.
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
           image: harbor.example.local/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z
           args: ["server", "/data", "--console-address", ":9001"]
           ports:

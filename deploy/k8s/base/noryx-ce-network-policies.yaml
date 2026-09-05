@@ -1,0 +1,123 @@
+# Who may talk to the data tier.
+#
+# Until now nothing in this namespace was isolated: any pod anywhere in the
+# cluster could open a connection to Postgres, MinIO or Keycloak. The user
+# workloads next door were fenced in carefully - and the databases they would
+# reach for were left open.
+#
+# These policies name the callers each service actually has, which was checked
+# against the code rather than assumed:
+#
+#   - Postgres is used by the backend, by Keycloak (KC_DB_URL) and by the
+#     platform validator. Not by MinIO, not by the frontend.
+#   - MinIO is reached by the backend and the validator, and *directly by user
+#     workspaces*: a mounted dataset hands the workspace the MinIO endpoint and
+#     credentials (see workspaces.go, attached.Endpoint). A policy that forgot
+#     noryx-loads would have broken every dataset mount.
+#   - Keycloak is served publicly at /auth, so Traefik must reach it too.
+#
+# Ingress only. Egress is deliberately not restricted here: it would need a
+# second pass over every outbound call these services make, and a half-checked
+# egress rule fails as an outage rather than as a denial.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-platform-clients
+  namespace: noryx-ce
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: noryx-backend
+        - podSelector:
+            matchLabels:
+              app: keycloak
+        - podSelector:
+            matchLabels:
+              app: noryx-platform-validator
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-allow-platform-and-workspaces
+  namespace: noryx-ce
+spec:
+  podSelector:
+    matchLabels:
+      app: minio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: noryx-backend
+        - podSelector:
+            matchLabels:
+              app: noryx-platform-validator
+        # Workspaces read their datasets straight from MinIO.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: noryx-loads
+      ports:
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 9001
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-allow-edge-and-platform
+  namespace: noryx-ce
+spec:
+  podSelector:
+    matchLabels:
+      app: keycloak
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # The edge: /auth is a public path, and a browser signing in reaches
+        # Keycloak through Traefik.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              app: noryx-backend
+        - podSelector:
+            matchLabels:
+              app: noryx-platform-validator
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: assistant-allow-backend-only
+  namespace: noryx-ce
+spec:
+  podSelector:
+    matchLabels:
+      app: noryx-assistant
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: noryx-backend
+      ports:
+        - protocol: TCP
+          port: 8080
