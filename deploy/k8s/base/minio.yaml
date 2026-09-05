@@ -17,6 +17,14 @@ metadata:
   namespace: noryx
 spec:
   replicas: 1
+  # Recreate, not RollingUpdate. This deployment owns a ReadWriteOnce volume,
+  # and a rolling update starts the new pod before stopping the old one: the
+  # volume is already attached, so the new pod waits on a Multi-Attach error
+  # until the rollout times out and the change silently never lands. It cost a
+  # ten-minute stall on EMSE, whose Longhorn volumes enforce this properly -
+  # the DC never showed it, because local-path volumes on one node do not.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: minio
