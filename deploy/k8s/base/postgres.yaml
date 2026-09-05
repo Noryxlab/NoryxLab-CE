@@ -35,6 +35,10 @@ spec:
     spec:
       imagePullSecrets:
         - name: harbor-regcred
+      securityContext:
+        # The postgres user's group, so a key mounted 0640 and owned by root is
+        # readable by the server and by nobody else.
+        fsGroup: 999
       containers:
         - name: postgres
           # No securityContext here, and that is deliberate. Dropping ALL
@@ -78,13 +82,47 @@ spec:
             # pristine database with one Keycloak realm. The real cluster was
             # untouched one directory above. Nothing was lost, and the ten
             # minutes spent proving that is the reason this line is gone.
+          # TLS if a certificate has been mounted, plain otherwise.
+          #
+          # The connection between the backend and its database crossed the
+          # cluster in the clear, with `sslmode=disable`, because the server had
+          # `ssl off` - and making the client stricter without the server
+          # supporting it is an outage, so neither half could move alone.
+          #
+          # Written as a condition rather than a flag: an installation with no
+          # certificate keeps starting exactly as before, and one that has been
+          # given a certificate uses it from the next restart. The secret comes
+          # from scripts/ops/enable-postgres-tls.sh.
+          #
+          # `ssl_key_file` must not be group- or world-readable unless it is
+          # owned by root, which is why the secret is mounted 0640 and the pod
+          # runs with fsGroup 999 - the postgres user's group.
+          command:
+            - sh
+            - -c
+            - |
+              if [ -f /etc/postgres-tls/tls.crt ] && [ -f /etc/postgres-tls/tls.key ]; then
+                exec docker-entrypoint.sh postgres \
+                  -c ssl=on \
+                  -c ssl_cert_file=/etc/postgres-tls/tls.crt \
+                  -c ssl_key_file=/etc/postgres-tls/tls.key
+              fi
+              exec docker-entrypoint.sh postgres
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: postgres-tls
+              mountPath: /etc/postgres-tls
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: postgres-data
+        - name: postgres-tls
+          secret:
+            secretName: postgres-tls
+            optional: true
+            defaultMode: 0640
 ---
 apiVersion: v1
 kind: Service

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -174,12 +173,7 @@ func (h Handlers) lookupImageSizeGiB(destinationImage string) string {
 		req.SetBasicAuth(user, pass)
 	}
 
-	client := &http.Client{Timeout: 4 * time.Second}
-	if h.harborInsecureSkipVerify {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		}
-	}
+	client := h.harborHTTPClient(4 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return ""
@@ -228,12 +222,7 @@ func (h Handlers) deleteImageFromHarbor(destinationImage string) error {
 		req.SetBasicAuth(user, pass)
 	}
 
-	client := &http.Client{Timeout: 6 * time.Second}
-	if h.harborInsecureSkipVerify {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		}
-	}
+	client := h.harborHTTPClient(6 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

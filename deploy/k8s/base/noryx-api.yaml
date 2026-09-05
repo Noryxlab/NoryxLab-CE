@@ -192,6 +192,20 @@ spec:
             # the container image and never this string.
             - name: NORYX_PROJECT_FILES_IMAGE
               value: "harbor.example.local/noryx-ce/noryx-backend:0.5.188-dev"
+          volumeMounts:
+            # Harbor's own certificate, so the platform can verify the
+            # registry instead of accepting whatever answers for it.
+            # Optional: an installation that has not mounted it keeps
+            # whatever NORYX_HARBOR_INSECURE_SKIP_VERIFY says, and the
+            # health check keeps reporting that.
+            - name: harbor-ca
+              mountPath: /etc/noryx/harbor
+              readOnly: true
+      volumes:
+        - name: harbor-ca
+          secret:
+            secretName: harbor-ca
+            optional: true
 ---
 apiVersion: v1
 kind: Service

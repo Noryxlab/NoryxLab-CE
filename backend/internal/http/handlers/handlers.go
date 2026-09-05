@@ -90,6 +90,7 @@ type Handlers struct {
 	harborUsername                   string
 	harborPassword                   string
 	harborInsecureSkipVerify         bool
+	harborCAFile                     string
 	assistantURL                     string
 	assistantInternalToken           string
 	assistantDeveloperSigningKey     string
@@ -164,6 +165,7 @@ type Options struct {
 	HarborUsername               string
 	HarborPassword               string
 	HarborInsecureSkipVerify     bool
+	HarborCAFile                 string
 	AssistantURL                 string
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
@@ -301,6 +303,7 @@ func New(
 		harborUsername:                   strings.TrimSpace(options.HarborUsername),
 		harborPassword:                   options.HarborPassword,
 		harborInsecureSkipVerify:         options.HarborInsecureSkipVerify,
+		harborCAFile:                     options.HarborCAFile,
 		assistantURL:                     strings.TrimRight(strings.TrimSpace(options.AssistantURL), "/"),
 		assistantInternalToken:           options.AssistantInternalToken,
 		assistantDeveloperSigningKey:     strings.TrimSpace(options.AssistantDeveloperSigningKey),

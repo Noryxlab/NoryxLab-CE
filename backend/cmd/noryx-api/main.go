@@ -240,6 +240,7 @@ func main() {
 			HarborUsername:               cfg.HarborUsername,
 			HarborPassword:               cfg.HarborPassword,
 			HarborInsecureSkipVerify:     cfg.HarborInsecureSkipVerify,
+			HarborCAFile:                 cfg.HarborCAFile,
 			AssistantURL:                 cfg.AssistantURL,
 			AssistantInternalToken:       cfg.AssistantInternalToken,
 			AssistantDeveloperSigningKey: cfg.AssistantDeveloperSigningKey,
