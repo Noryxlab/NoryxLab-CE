@@ -57,6 +57,13 @@ def main() -> int:
         # unlike its labels, which are themed per realm.
         page.wait_for_selector("#username", timeout=TIMEOUT)
         page.fill("#username", USERNAME)
+        # Keycloak asks for both on one page, or for the username first and the
+        # password on a second - depending on the realm's flow and its theme.
+        # Handling both rather than assuming, because the assumption breaks on
+        # somebody else's realm and the failure reads as "login is broken".
+        if page.locator("#password").count() == 0:
+            page.click("#kc-login", timeout=TIMEOUT)
+            page.wait_for_selector("#password", timeout=TIMEOUT)
         page.fill("#password", PASSWORD)
         page.click("#kc-login", timeout=TIMEOUT)
 
@@ -74,24 +81,40 @@ def main() -> int:
             failures.append("sign-in")
         page.keyboard.press("Escape")
 
-        # The session must reach the API. This is the check that would have
-        # caught the interface that authenticated and then never created the
-        # cookie the proxy needs: the screen looked fine, and every workspace
-        # refused entry.
-        response = page.request.get(BASE_URL + "/api/v1/projects")
-        if not check("the session reaches the API", response.status == 200, f"HTTP {response.status}"):
+        # The session must reach the API, and the check has to watch what the
+        # application actually does. Replaying a request from the test's own
+        # HTTP client sends the cookies and not the bearer the SPA holds in
+        # memory, so it comes back 401 while the application works perfectly -
+        # a false alarm that would teach whoever reads it to ignore this test.
+        api_calls = []
+        page.on(
+            "response",
+            lambda response: api_calls.append((response.url, response.status))
+            if "/api/v1/" in response.url
+            else None,
+        )
+        page.goto(BASE_URL + "/projects", wait_until="networkidle", timeout=TIMEOUT)
+
+        answered = [(url, status) for url, status in api_calls if status == 200]
+        refused = [(url, status) for url, status in api_calls if status in (401, 403)]
+        if not check(
+            "the application's API calls are answered",
+            len(answered) > 0 and len(refused) == 0,
+            f"{len(answered)} answered, {len(refused)} refused: {refused[:2]}",
+        ):
             failures.append("api")
 
-        # The list every user opens first. A 200 with an error body is still a
-        # failure here, which is why the payload is looked at.
-        workspaces = page.request.get(BASE_URL + "/api/v1/workspaces")
-        payload = workspaces.json() if workspaces.status == 200 else {}
+        # The proxy cookie. Its absence is the defect that let somebody sign in
+        # and then be refused entry to every workspace, with nothing on screen
+        # to say why: the interface authenticated and never asked the backend
+        # to open a session.
+        cookies = {cookie["name"] for cookie in context.cookies()}
         if not check(
-            "the workspace list loads",
-            workspaces.status == 200 and "items" in payload,
-            f"HTTP {workspaces.status}",
+            "the workspace proxy session cookie exists",
+            "noryx_session" in cookies,
+            f"cookies present: {sorted(cookies)}",
         ):
-            failures.append("workspaces")
+            failures.append("session cookie")
 
         browser.close()
 
