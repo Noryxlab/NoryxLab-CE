@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
+  OwnedResources,
   SmtpSettings,
   SmtpState,
   SoftwareInventory,
@@ -397,6 +398,17 @@ export const adminApi = {
     api.put<SmtpState>(`${V1}/admin/smtp`, input),
   testSmtp: (input: Partial<SmtpSettings> & { password?: string; testRecipient: string }) =>
     api.post<{ sent: boolean; recipient: string }>(`${V1}/admin/smtp/tests`, input),
+  ownedBy: (userId: string) =>
+    api.get<{ owns: OwnedResources; count: number }>(
+      `${V1}/admin/users/${encodeURIComponent(userId)}/owned`,
+    ),
+  deactivateUser: (userId: string, successorUserId: string) =>
+    api.post<{ disabled: string; transferred: OwnedResources; tokensRevoked: number }>(
+      `${V1}/admin/users/${encodeURIComponent(userId)}/deactivation`,
+      { successorUserId },
+    ),
+  reactivateUser: (userId: string) =>
+    api.delete<void>(`${V1}/admin/users/${encodeURIComponent(userId)}/deactivation`),
   sendPasswordResetEmail: (userId: string) =>
     api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
   hardwareTiers: () => api.list<AdminHardwareTier>(`${V1}/admin/hardware-tiers`),

@@ -13,6 +13,8 @@ import {
   HardDrive,
   KeyRound,
   Mail,
+  UserCheck,
+  UserX,
   UserPlus,
   MemoryStick,
   Play,
@@ -87,6 +89,7 @@ import { SoftwareInventorySection } from '@/features/admin/software-inventory';
 import { AccessGraph } from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
+import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -187,6 +190,16 @@ function IdentitySection() {
   });
 
   const smtp = useSmtp();
+  const [deactivating, setDeactivating] = React.useState<PlatformUser | null>(null);
+
+  const reactivate = useMutation({
+    mutationFn: (user: PlatformUser) => adminApi.reactivateUser(user.id),
+    onSuccess: () => {
+      invalidate(qk.adminUsers);
+      toast.success(t('admin.reactivate'), t('admin.users'));
+    },
+    onError: (error) => toast.error(error, t('admin.reactivate')),
+  });
 
   const resetByEmail = useMutation({
     mutationFn: (user: PlatformUser) => adminApi.sendPasswordResetEmail(user.id),
@@ -280,6 +293,20 @@ function IdentitySection() {
       header: '',
       cell: (user) => (
         <div className="flex items-center justify-end gap-1">
+        {/* Disabled accounts offer the opposite action, and nothing else:
+            resetting the password of an account that cannot sign in is a
+            button that does nothing anyone wanted. */}
+        {user.enabled === false ? (
+          <Button variant="ghost" size="sm" loading={reactivate.isPending} onClick={() => reactivate.mutate(user)}>
+            <UserCheck aria-hidden />
+            {t('admin.reactivate')}
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => setDeactivating(user)}>
+            <UserX aria-hidden />
+            {t('admin.deactivate')}
+          </Button>
+        )}
         {/* Offered only when the realm can actually send: a button that fails
             at the click teaches an administrator to distrust the screen. */}
         {smtp.data?.configured ? (
@@ -342,6 +369,13 @@ function IdentitySection() {
 
   return (
     <div className="space-y-5">
+      <DeactivateUserSheet
+        user={deactivating}
+        open={deactivating !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeactivating(null);
+        }}
+      />
       <SectionHeader
         title={t('admin.users')}
         description={t('admin.usersHint')}

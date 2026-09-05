@@ -328,6 +328,17 @@ export interface HardwareTier {
 /** What an administrator edits. Requests never reach the tier list a user
  *  picks from: they are how the cluster is packed, not what the machine can
  *  do. */
+/** What an account owns personally, by name. Listed rather than counted: an
+ *  administrator deciding who inherits a project needs to know which one. */
+export interface OwnedResources {
+  projects?: string[];
+  datasets?: string[];
+  ontologies?: string[];
+  apps?: string[];
+  datasources?: string[];
+  repositories?: string[];
+}
+
 export interface SmtpSettings {
   host: string;
   port: string;
