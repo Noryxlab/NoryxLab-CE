@@ -67,7 +67,10 @@ function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="max-w-56 gap-2">
+        {/* Test ids, not labels: the journey test has to find these in French
+            or English, and a selector built from a translated string breaks the
+            day somebody rewords a menu. */}
+        <Button variant="ghost" size="sm" className="max-w-56 gap-2" data-testid="account-menu">
           <User aria-hidden />
           <span className="truncate">{identity?.displayName ?? t('nav.signIn')}</span>
         </Button>
@@ -138,6 +141,7 @@ function AccountMenu() {
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          data-testid={status === 'authenticated' ? 'sign-out' : 'sign-in'}
           onSelect={() => (status === 'authenticated' ? logout() : login())}
           destructive={status === 'authenticated'}
         >
