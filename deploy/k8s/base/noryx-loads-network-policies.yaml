@@ -26,7 +26,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: noryx-ce
+              kubernetes.io/metadata.name: noryx
           podSelector:
             matchLabels:
               app: noryx-backend
@@ -98,7 +98,7 @@ spec:
               noryx.io/network-isolation: user-workload
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: noryx-ce
+              kubernetes.io/metadata.name: noryx
           podSelector:
             matchLabels:
               app: noryx-backend

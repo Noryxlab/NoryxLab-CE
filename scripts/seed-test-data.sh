@@ -16,7 +16,7 @@
 #
 set -euo pipefail
 
-NS="${NORYX_NAMESPACE:-noryx-ce}"
+NS="${NORYX_NAMESPACE:-noryx}"
 REALM="${NORYX_REALM:-noryx}"
 OPS_SECRET="${NORYX_OPS_SECRET:-noryx-ops-account}"
 BE_PORT="${NORYX_BE_PORT:-18090}"

@@ -12,7 +12,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: noryx-frontend-config
-  namespace: noryx-ce
+  namespace: noryx
   labels:
     app: noryx-frontend
 data:
@@ -49,7 +49,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: noryx-frontend
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   replicas: 1
   selector:
@@ -116,7 +116,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: noryx-frontend
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   selector:
     app: noryx-frontend

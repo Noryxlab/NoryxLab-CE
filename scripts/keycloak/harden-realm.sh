@@ -26,7 +26,7 @@
 # a realm this script has hardened, which is the point.
 set -euo pipefail
 
-NS="${NS:-noryx-ce}"
+NS="${NS:-noryx}"
 REALM="${REALM:-noryx}"
 API_CLIENT_ID="${API_CLIENT_ID:-noryx-api}"
 KUBECTL="${KUBECTL:-kubectl}"

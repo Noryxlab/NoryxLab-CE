@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: noryx-backend
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   replicas: 1
   selector:
@@ -134,7 +134,7 @@ spec:
                   name: noryx-secrets
                   key: NORYX_SECRETS_MASTER_KEY
             - name: NORYX_MINIO_ENDPOINT
-              value: "minio.noryx-ce.svc.cluster.local:9000"
+              value: "minio.noryx.svc.cluster.local:9000"
             - name: NORYX_MINIO_ACCESS_KEY
               value: "noryx"
             - name: NORYX_MINIO_SECRET_KEY
@@ -197,7 +197,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: noryx-backend
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   selector:
     app: noryx-backend

@@ -23,7 +23,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: postgres-allow-platform-clients
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   podSelector:
     matchLabels:
@@ -49,7 +49,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: minio-allow-platform-and-workspaces
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   podSelector:
     matchLabels:
@@ -78,7 +78,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: keycloak-allow-edge-and-platform
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   podSelector:
     matchLabels:
@@ -106,7 +106,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: assistant-allow-backend-only
-  namespace: noryx-ce
+  namespace: noryx
 spec:
   podSelector:
     matchLabels:

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: noryx-ce
+  name: noryx
 ---
 apiVersion: v1
 kind: Namespace

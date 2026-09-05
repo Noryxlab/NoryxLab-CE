@@ -25,7 +25,7 @@
 #
 set -euo pipefail
 
-NS="${NORYX_NAMESPACE:-noryx-ce}"
+NS="${NORYX_NAMESPACE:-noryx}"
 REALM="${NORYX_REALM:-noryx}"
 OPS_USER="${NORYX_OPS_USER:-noryxops}"
 OPS_ORG_NAME="${NORYX_OPS_ORG_NAME:-Noryx Ops}"

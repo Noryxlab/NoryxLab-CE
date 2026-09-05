@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-NS="${NS:-noryx-ce}"
+NS="${NS:-noryx}"
 REALM="${REALM:-noryx}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-change-me}"
