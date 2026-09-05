@@ -93,7 +93,10 @@ export function AuthGate() {
         title={config.brand.productName}
         description={t('errors.signedOutHint')}
         action={
-          <Button variant="primary" onClick={login}>
+          // The same test id as the menu item in the shell: a signed-out
+          // visitor never sees the shell, so the journey has to find the
+          // button that is actually on the screen in front of them.
+          <Button variant="primary" onClick={login} data-testid="sign-in">
             <LogIn aria-hidden />
             {t('nav.signIn')}
           </Button>
