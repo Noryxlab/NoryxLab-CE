@@ -27,6 +27,20 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: noryx
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: noryx
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U noryx"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -41,6 +55,16 @@ jobs:
           fi
       - run: go -C backend vet ./...
       - run: go -C backend test ./...
+
+      # The store that actually runs in production cannot be tested without a
+      # database: what is worth checking there is what Postgres enforces - a
+      # partial unique index, an ON CONFLICT clause, a column a migration added.
+      # These tests skip loudly when the DSN is absent, so without this service
+      # they would pass while checking nothing.
+      - name: Store tests against a real database
+        env:
+          NORYX_TEST_POSTGRES_DSN: postgres://noryx:test@127.0.0.1:5432/noryx?sslmode=disable
+        run: go -C backend test ./internal/store/postgres/ -v
 
   inventory:
     name: Software inventory
