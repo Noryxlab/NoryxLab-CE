@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link, Outlet } from 'react-router';
 import { BookOpen, Check, Code2, KeyRound, LogOut, Menu, Moon, Monitor, Sun, User } from 'lucide-react';
 import { Sidebar } from './sidebar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
@@ -61,7 +62,7 @@ function ThemeMenuItem({ value, icon: Icon, label }: { value: ThemePreference; i
 function AccountMenu() {
   const t = useT();
   const { locale, setLocale } = useI18n();
-  const { identity, logout, login, status } = useAuth();
+  const { identity, logout, login, status, isAdmin } = useAuth();
   const { data: version } = useVersion();
 
   return (
@@ -70,9 +71,24 @@ function AccountMenu() {
         {/* Test ids, not labels: the journey test has to find these in French
             or English, and a selector built from a translated string breaks the
             day somebody rewords a menu. */}
-        <Button variant="ghost" size="sm" className="max-w-56 gap-2" data-testid="account-menu">
+        {/* Who you are, and as what. The organisation sits next to the name
+            because the same person sees different data depending on it, and
+            the administrator badge because holding rights you have forgotten
+            about is how an accident happens - it is a reminder, not a
+            decoration. */}
+        <Button variant="ghost" size="sm" className="max-w-80 gap-2" data-testid="account-menu">
           <User aria-hidden />
-          <span className="truncate">{identity?.displayName ?? t('nav.signIn')}</span>
+          <span className="truncate">
+            {identity?.displayName ?? t('nav.signIn')}
+            {identity && identity.organizations.length > 0 ? (
+              <span className="text-muted-foreground"> ({identity.organizations.join(', ')})</span>
+            ) : null}
+          </span>
+          {isAdmin ? (
+            <Badge tone="warning" className="shrink-0 uppercase">
+              {t('nav.administrator')}
+            </Badge>
+          ) : null}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64">

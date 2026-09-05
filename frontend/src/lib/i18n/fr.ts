@@ -61,6 +61,7 @@ export const fr = {
   },
 
   nav: {
+    administrator: 'Admin',
     home: 'Accueil',
     projects: 'Projets',
     catalog: 'Catalogue',

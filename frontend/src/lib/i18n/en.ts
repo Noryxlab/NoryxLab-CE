@@ -58,6 +58,7 @@ export const en: Translations = {
   },
 
   nav: {
+    administrator: 'Admin',
     home: 'Home',
     projects: 'Projects',
     catalog: 'Catalog',
