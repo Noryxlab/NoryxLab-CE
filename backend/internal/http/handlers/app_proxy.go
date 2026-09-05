@@ -113,7 +113,10 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	}
 	switch mode {
 	case "private":
-		return false
+		// Falls through to the refusal below rather than returning here: an
+		// early return left the response untouched, so a refused private app
+		// answered 200 with an empty body. A browser showed a blank page and a
+		// client read it as success - the worst possible way to be denied.
 	case "users":
 		for _, userID := range record.AllowedUsers {
 			if appIdentityMatches(identity, userID) {
