@@ -60,8 +60,16 @@ spec:
                 secretKeyRef:
                   name: noryx-secrets
                   key: POSTGRES_PASSWORD
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
+            # No PGDATA. The manifest used to set it to a `pgdata` subdirectory
+            # while every running installation had its cluster at the volume
+            # root - the two had drifted, and nobody could see it because a
+            # deployment that is never reapplied never reveals a difference.
+            #
+            # It surfaced during the namespace migration on 2026-09-05: the new
+            # Postgres found `pgdata` empty, ran initdb, and came up as a
+            # pristine database with one Keycloak realm. The real cluster was
+            # untouched one directory above. Nothing was lost, and the ten
+            # minutes spent proving that is the reason this line is gone.
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data

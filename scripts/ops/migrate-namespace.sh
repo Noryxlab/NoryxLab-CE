@@ -64,7 +64,13 @@ echo
 echo "1. Backup"
 kubectl -n "$SOURCE" get secret,configmap,pvc,deployment,service,networkpolicy -o yaml >"$BACKUP_DIR/source-objects.yaml"
 say "objects: $(wc -l <"$BACKUP_DIR/source-objects.yaml") lines"
-if kubectl -n "$SOURCE" get deployment postgres >/dev/null 2>&1; then
+# A resumed migration finds the platform already stopped, so the dump cannot be
+# taken a second time - and does not need to be. SKIP_DUMP=1 says the operator
+# has one already; it names the file so the claim is checkable rather than
+# taken on trust.
+if [ "${SKIP_DUMP:-0}" = "1" ]; then
+  say "database dump skipped: ${EXISTING_DUMP:-taken by an earlier run}"
+elif kubectl -n "$SOURCE" get deployment postgres >/dev/null 2>&1; then
   kubectl -n "$SOURCE" exec deployment/postgres -- pg_dump -U noryx -d noryx >"$BACKUP_DIR/noryx.sql"
   size="$(wc -c <"$BACKUP_DIR/noryx.sql")"
   # An empty or truncated dump means the safety net does not exist, and the
@@ -112,6 +118,12 @@ kubectl create namespace "$TARGET" --dry-run=client -o yaml | kubectl apply -f -
 # Secrets and config maps are the only objects carrying values generated at
 # install time - the service token, the database password, the registry
 # credentials. Everything else is rebuilt from the manifests by the deployment.
+#
+# Server-side apply, not client-side: a client-side apply stores the whole
+# object in a last-applied-configuration annotation, and the frontend bundle's
+# config map is larger than the 256 KiB an annotation may hold. It failed on
+# that one map, and under `set -euo pipefail` took the migration down with it -
+# after the platform had been stopped and before the volumes were moved.
 kubectl -n "$SOURCE" get secret,configmap -o json |
   python3 -c '
 import json, sys
@@ -130,7 +142,7 @@ for item in document.get("items", []):
     metadata["namespace"] = sys.argv[1]
     kept.append(item)
 json.dump({"apiVersion": "v1", "kind": "List", "items": kept}, sys.stdout)
-' "$TARGET" | kubectl apply -f - | sed 's/^/  /'
+' "$TARGET" | kubectl apply --server-side --force-conflicts -f - | sed 's/^/  /'
 
 echo
 echo "5. Rebinding the volumes"
@@ -169,6 +181,20 @@ EOF
     exit 1
   fi
 done
+
+echo
+echo "6. Checking the deployments you are about to recreate"
+# A manifest that has drifted from the running deployment is invisible until
+# something is recreated from it - which is exactly what happens next. PGDATA is
+# the one that bit: the manifest named a subdirectory, the running Postgres used
+# the volume root, and the new pod ran initdb into the empty subdirectory and
+# came up as a pristine database beside the real one.
+if [ -f "$BACKUP_DIR/source-objects.yaml" ]; then
+  if ! grep -q "PGDATA" "$BACKUP_DIR/source-objects.yaml"; then
+    say "the deployment that was running set no PGDATA: the cluster is at the volume root"
+    say "make sure the manifest you deploy from does not set one either"
+  fi
+fi
 
 echo
 echo "Done. The data is in $TARGET; nothing runs there yet."
