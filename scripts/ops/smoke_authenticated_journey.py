@@ -49,7 +49,8 @@ def main() -> int:
         page = context.new_page()
 
         page.goto(BASE_URL + "/", wait_until="domcontentloaded", timeout=TIMEOUT)
-        page.get_by_test_id("account-menu").click(timeout=TIMEOUT)
+        # A signed-out visitor gets a card with one button, not the application
+        # shell: the shell and its account menu only exist once past the gate.
         page.get_by_test_id("sign-in").click(timeout=TIMEOUT)
 
         # Keycloak's own form. Its field names are part of its HTTP contract,
