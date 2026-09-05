@@ -157,6 +157,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/admin/users", h.CreateUserAccount)
 	mux.HandleFunc("POST /api/v1/admin/users/{userID}/password", h.ResetUserPassword)
 	mux.HandleFunc("POST /api/v1/admin/users/{userID}/password-reset-email", h.SendUserPasswordResetEmail)
+	// Disabling rather than deleting: it stops access at once and keeps the
+	// audit trail attributable, which deletion does not.
+	mux.HandleFunc("POST /api/v1/admin/users/{userID}/deactivation", h.DeactivateUserAccount)
+	mux.HandleFunc("DELETE /api/v1/admin/users/{userID}/deactivation", h.ReactivateUserAccount)
+	mux.HandleFunc("GET /api/v1/admin/users/{userID}/owned", h.GetUserOwnedResources)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 	mux.HandleFunc("GET /api/v1/admin/executions", h.ListAdminExecutions)
 	mux.HandleFunc("DELETE /api/v1/admin/executions/{kind}/{executionID}", h.StopAdminExecution)
