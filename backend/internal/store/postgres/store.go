@@ -1381,6 +1381,7 @@ func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
 			&w.Kind,
 			&w.Name,
 			&w.Image,
+			&w.ImageDigest,
 			&w.PodName,
 			&w.ServiceName,
 			&w.PVCName,
@@ -1409,6 +1410,7 @@ func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 		&w.Kind,
 		&w.Name,
 		&w.Image,
+		&w.ImageDigest,
 		&w.PodName,
 		&w.ServiceName,
 		&w.PVCName,
@@ -1432,12 +1434,13 @@ func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 }
 
 func (s *Store) CreateWorkspace(w workspace.Workspace) error {
-	_, err := s.db.Exec(`INSERT INTO workspaces (id, project_id, kind, name, image, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+	_, err := s.db.Exec(`INSERT INTO workspaces (id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
 		w.ID,
 		w.ProjectID,
 		w.Kind,
 		w.Name,
 		w.Image,
+		w.ImageDigest,
 		w.PodName,
 		w.ServiceName,
 		w.PVCName,

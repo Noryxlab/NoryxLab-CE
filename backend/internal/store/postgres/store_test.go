@@ -9,6 +9,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 )
 
 // The store that actually runs in production had no tests at all, while the
@@ -203,5 +204,42 @@ func TestMigrationsRunOnAnEmptyDatabase(t *testing.T) {
 	defer cancel()
 	if err := (&Store{db: fresh}).migrate(ctx); err != nil {
 		t.Fatalf("the migrations must run on an empty database: %v", err)
+	}
+}
+
+// A workspace written and read back.
+//
+// The column count and the scan destinations are two lists that must agree,
+// and nothing in Go checks that they do: adding image_digest to the query and
+// forgetting one Scan site produced "expected 18 destination arguments in
+// Scan, not 17" - which surfaced as a *degraded backup*, because the backup is
+// the only thing that reads every workspace at once.
+func TestAWorkspaceSurvivesAWriteAndReadBack(t *testing.T) {
+	store := testStore(t)
+	item := workspace.New("jupyter", "test-project", "round trip", "harbor/x:1", "pod", "svc", "1", "4Gi", "/w/1", "token")
+	item.ImageDigest = "sha256:1234"
+	if err := store.CreateWorkspace(item); err != nil {
+		t.Fatalf("creating the workspace: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteWorkspace(item.ID) })
+
+	// Both readers: the one that fetches a single workspace and the one the
+	// backup uses, which is the one that broke.
+	single, found, err := store.GetWorkspaceByID(item.ID)
+	if err != nil || !found {
+		t.Fatalf("reading it back: found=%v err=%v", found, err)
+	}
+	if single.ImageDigest != "sha256:1234" {
+		t.Errorf("the digest must survive, got %q", single.ImageDigest)
+	}
+
+	all, err := store.ListWorkspaces()
+	if err != nil {
+		t.Fatalf("listing workspaces: %v", err)
+	}
+	for _, candidate := range all {
+		if candidate.ID == item.ID && candidate.ImageDigest != "sha256:1234" {
+			t.Errorf("the listing lost the digest: %q", candidate.ImageDigest)
+		}
 	}
 }
