@@ -19,6 +19,24 @@ Noryx you need these.
 A third, optional: **`NORYX_IDENTITY_BACKUP_KEY`**. It is inside the credential
 bundle, so keeping it separately is belt and braces rather than a requirement.
 
+## Before any of this: the target has to exist
+
+An installation with no `noryx-backup-target` secret still schedules backup
+runs. The scheduler records them, nothing is ever written, and the platform
+looks backed up because something is on the calendar. EMSE ran that way from
+its installation until 2026-09-06: 34 scheduled runs, zero stored bytes.
+
+```sh
+ENDPOINT=https://cellar-c2.services.clever-cloud.com BUCKET=noryx-<site> \
+ACCESS_KEY=... SECRET_KEY=... \
+  ./scripts/ops/configure-backup-target.sh noryx
+```
+
+The script writes and deletes a probe object from inside the cluster before it
+stores anything, so credentials that only work from a laptop are refused. A
+bucket inside the cluster is refused too, unless `ALLOW_IN_CLUSTER_TARGET=1`:
+it covers a dropped table and covers nothing on the day the cluster is lost.
+
 ## The order
 
 **1. Open the credential bundle.** Needs a machine with `docker`, or with `mc`
