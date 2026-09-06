@@ -40,6 +40,187 @@ components:
       name: X-Noryx-User
 
   schemas:
+    VersionResponse:
+      type: object
+      description: What is running, as the platform reports it about itself.
+      properties:
+        backendVersion: { type: string }
+        edition: { type: string, enum: [community, enterprise] }
+    App:
+      type: object
+      properties:
+        id:
+          type: string
+    AppListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/App'
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+    JobListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+    Datasource:
+      type: object
+      properties:
+        id:
+          type: string
+    DatasourceListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Datasource'
+    Ontology:
+      type: object
+      properties:
+        id:
+          type: string
+    OntologyListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ontology'
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: string
+    ApiTokenListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiToken'
+    AdminHardwareTier:
+      type: object
+      properties:
+        id:
+          type: string
+    AdminHardwareTierListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminHardwareTier'
+    BackupRun:
+      type: object
+      properties:
+        id:
+          type: string
+    BackupRunListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BackupRun'
+    EgressRule:
+      type: object
+      properties:
+        id:
+          type: string
+    EgressRuleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EgressRule'
+    StorageEndpoint:
+      type: object
+      properties:
+        id:
+          type: string
+    StorageEndpointListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StorageEndpoint'
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+    OrganizationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+    PlatformUser:
+      type: object
+      properties:
+        id:
+          type: string
+    PlatformUserListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformUser'
+    HealthEvent:
+      type: object
+      properties:
+        id:
+          type: string
+    HealthEventListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthEvent'
+    AuditEventListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    SoftwareInventoryItem:
+      type: object
+      properties:
+        name:
+          type: string
+    SoftwareInventoryItemListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoftwareInventoryItem'
+    SoftwareInventory:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+    SoftwareInventoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoftwareInventory'
     ErrorResponse:
       type: object
       required: [error]
@@ -2160,6 +2341,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2286,6 +2471,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2337,6 +2526,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRunListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2353,6 +2546,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRunListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2375,6 +2572,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRunListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2397,6 +2598,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRunListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2530,6 +2735,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHardwareTierListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2546,6 +2755,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHardwareTierListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2568,6 +2781,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHardwareTier'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2589,6 +2806,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminHardwareTier'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2606,6 +2827,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEventListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2623,6 +2848,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEventListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2657,6 +2886,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2673,6 +2906,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2695,6 +2932,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2717,6 +2958,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2743,6 +2988,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2768,6 +3017,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2958,6 +3211,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoftwareInventoryListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2975,6 +3232,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoftwareInventoryListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2992,6 +3253,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEndpointListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3008,6 +3273,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEndpointListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3030,6 +3299,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEndpoint'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3051,6 +3324,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEndpoint'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3073,6 +3350,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEndpointListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3095,6 +3376,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3116,6 +3401,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3138,6 +3427,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3160,6 +3453,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3182,6 +3479,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3199,6 +3500,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3215,6 +3520,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3237,6 +3546,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3259,6 +3572,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3281,6 +3598,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3303,6 +3624,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3325,6 +3650,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3351,6 +3680,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3373,6 +3706,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3395,6 +3732,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3519,6 +3860,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3535,6 +3880,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3557,6 +3906,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3689,6 +4042,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3705,6 +4062,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3727,6 +4088,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3749,6 +4114,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3771,6 +4140,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3793,6 +4166,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3810,6 +4187,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressRuleListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3827,6 +4208,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EgressRuleListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3866,6 +4251,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3882,6 +4271,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3904,6 +4297,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3926,6 +4323,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3943,6 +4344,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3965,6 +4370,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3986,6 +4395,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4008,6 +4421,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4038,6 +4455,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4067,6 +4488,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4089,6 +4514,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4111,6 +4540,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4128,6 +4561,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4145,6 +4582,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4167,6 +4608,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4193,6 +4638,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4218,6 +4667,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4284,6 +4737,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4310,6 +4767,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4335,6 +4796,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4357,6 +4822,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4379,6 +4848,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4486,6 +4959,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4502,6 +4979,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4524,6 +5005,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiToken'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4574,6 +5059,10 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

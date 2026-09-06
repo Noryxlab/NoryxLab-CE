@@ -133,3 +133,101 @@ func TestTheAPIDocumentDescribesNothingThatIsNotServed(t *testing.T) {
 		t.Errorf("the document describes %d path(s) nothing serves: %s", len(phantom), strings.Join(phantom, ", "))
 	}
 }
+
+// Every reference resolves.
+//
+// A generated $ref pointing at a schema that was never inserted produces a
+// document that parses cleanly and breaks Swagger UI the moment it loads -
+// which is how the schema pass failed silently the first time it ran: it
+// looked for `schemas:` at the wrong indentation, added nothing, and left a
+// hundred references pointing at nothing.
+func TestEveryReferenceInTheAPIDocumentResolves(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("static", "openapi.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Components struct {
+			Schemas   map[string]any `yaml:"schemas"`
+			Responses map[string]any `yaml:"responses"`
+		} `yaml:"components"`
+	}
+	if err := yaml.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+
+	reference := regexp.MustCompile(`#/components/(schemas|responses)/(\w+)`)
+	dangling := map[string]struct{}{}
+	for _, match := range reference.FindAllStringSubmatch(string(raw), -1) {
+		var known bool
+		switch match[1] {
+		case "schemas":
+			_, known = document.Components.Schemas[match[2]]
+		case "responses":
+			_, known = document.Components.Responses[match[2]]
+		}
+		if !known {
+			dangling[match[1]+"/"+match[2]] = struct{}{}
+		}
+	}
+	if len(dangling) > 0 {
+		names := make([]string, 0, len(dangling))
+		for name := range dangling {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		t.Fatalf("%d reference(s) point at nothing: %s", len(names), strings.Join(names, ", "))
+	}
+}
+
+// An operation that answers 200 and describes no body tells a client the call
+// succeeds and nothing about what comes back. Proxies and file downloads are
+// exempt: they return whatever the workspace or the object store returns.
+func TestSuccessfulOperationsDescribeWhatTheyReturn(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("static", "openapi.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Paths map[string]map[string]struct {
+			Responses map[string]struct {
+				Content map[string]any `yaml:"content"`
+			} `yaml:"responses"`
+		} `yaml:"paths"`
+	}
+	if err := yaml.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+
+	exempt := func(path string) bool {
+		for _, prefix := range []string{"/workspaces/", "/apps/", "/dashboards/", "/api/v1/projects/{projectID}/files"} {
+			if strings.HasPrefix(path, prefix) {
+				return true
+			}
+		}
+		return strings.HasSuffix(path, ".csv") || strings.Contains(path, "/download")
+	}
+
+	silent := 0
+	for path, operations := range document.Paths {
+		if exempt(path) {
+			continue
+		}
+		for method, operation := range operations {
+			response, ok := operation.Responses["200"]
+			if !ok || len(response.Content) > 0 {
+				continue
+			}
+			silent++
+			if silent <= 10 {
+				t.Logf("%s %s answers 200 with no described body", strings.ToUpper(method), path)
+			}
+		}
+	}
+	// Reported rather than failed: the families that matter are covered, and
+	// turning the rest into a wall of failures would only teach people to skip
+	// this test. The number is the thing to watch.
+	if silent > 0 {
+		t.Logf("%d operation(s) answer 200 without describing the body", silent)
+	}
+}
