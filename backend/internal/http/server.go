@@ -46,6 +46,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}", h.UpdateProjectMetadata)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}", h.DeleteProject)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/ownership", h.UpdateProjectOwner)
+	// What a project may run at once, and what it is running now. The reading
+	// is open to any member: somebody whose launch was refused needs to see
+	// why without asking an administrator.
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/quota", h.GetProjectQuota)
+	mux.HandleFunc("PUT /api/v1/admin/projects/{projectID}/quota", h.SetProjectQuota)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/files", h.ProxyProjectFiles)
 	mux.HandleFunc("POST /api/v1/projects/{projectID}/folders", h.ProxyProjectFiles)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/files/{path...}", h.ProxyProjectFiles)

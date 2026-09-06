@@ -23,6 +23,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/quota"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
@@ -142,6 +143,19 @@ func (s *Store) migrate(ctx context.Context) error {
 			role TEXT NOT NULL,
 			PRIMARY KEY (project_id, organization_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS project_quotas (
+			project_id TEXT PRIMARY KEY,
+			max_vcpu DOUBLE PRECISION NOT NULL DEFAULT 0,
+			max_memory_gib DOUBLE PRECISION NOT NULL DEFAULT 0,
+			max_workspaces INTEGER NOT NULL DEFAULT 0,
+			max_jobs INTEGER NOT NULL DEFAULT 0,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		// The tier a workload runs on, kept on the record so a quota can be
+		// checked without asking Kubernetes what it is running - and so usage
+		// can be accounted for later without a second source of truth.
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS hardware_tiers (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -632,6 +646,52 @@ func (s *Store) UpsertHardwareTier(tier hardware.Tier) error {
 
 func (s *Store) DeleteHardwareTier(id string) error {
 	_, err := s.db.Exec(`DELETE FROM hardware_tiers WHERE id=$1`, strings.TrimSpace(id))
+	return err
+}
+
+func (s *Store) GetProjectQuota(projectID string) (quota.Quota, bool, error) {
+	row := s.db.QueryRow(`SELECT project_id, max_vcpu, max_memory_gib, max_workspaces, max_jobs FROM project_quotas WHERE project_id=$1`, strings.TrimSpace(projectID))
+	var item quota.Quota
+	if err := row.Scan(&item.ProjectID, &item.MaxVCPU, &item.MaxMemoryGiB, &item.MaxWorkspaces, &item.MaxJobs); err != nil {
+		if err == sql.ErrNoRows {
+			return quota.Quota{}, false, nil
+		}
+		return quota.Quota{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) ListProjectQuotas() ([]quota.Quota, error) {
+	rows, err := s.db.Query(`SELECT project_id, max_vcpu, max_memory_gib, max_workspaces, max_jobs FROM project_quotas ORDER BY project_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []quota.Quota{}
+	for rows.Next() {
+		var item quota.Quota
+		if err := rows.Scan(&item.ProjectID, &item.MaxVCPU, &item.MaxMemoryGiB, &item.MaxWorkspaces, &item.MaxJobs); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) SetProjectQuota(item quota.Quota) error {
+	if item.Empty() {
+		return s.DeleteProjectQuota(item.ProjectID)
+	}
+	_, err := s.db.Exec(`INSERT INTO project_quotas (project_id, max_vcpu, max_memory_gib, max_workspaces, max_jobs, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW())
+		ON CONFLICT (project_id) DO UPDATE SET max_vcpu=EXCLUDED.max_vcpu, max_memory_gib=EXCLUDED.max_memory_gib,
+			max_workspaces=EXCLUDED.max_workspaces, max_jobs=EXCLUDED.max_jobs, updated_at=NOW()`,
+		strings.TrimSpace(item.ProjectID), item.MaxVCPU, item.MaxMemoryGiB, item.MaxWorkspaces, item.MaxJobs)
+	return err
+}
+
+func (s *Store) DeleteProjectQuota(projectID string) error {
+	_, err := s.db.Exec(`DELETE FROM project_quotas WHERE project_id=$1`, strings.TrimSpace(projectID))
 	return err
 }
 

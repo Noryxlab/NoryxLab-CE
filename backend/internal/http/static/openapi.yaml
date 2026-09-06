@@ -5120,3 +5120,47 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/admin/projects/{projectID}/quota:
+    put:
+      tags: [Admin]
+      summary: Set a project limit (0 on a dimension means no limit)
+      operationId: setProjectQuota
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/quota:
+    get:
+      tags: [Projects]
+      summary: What this project may run at once, and what it is running now
+      operationId: getProjectQuota
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

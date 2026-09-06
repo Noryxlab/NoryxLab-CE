@@ -83,8 +83,16 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.withinProjectQuota(w, req.ProjectID, "job", hardwareTierLimits{CPULimit: tier.CPULimit, MemoryLimit: tier.MemoryLimit}) {
+		return
+	}
+
 	jobName := "job-" + shortID()
 	record := job.New(req.ProjectID, req.Name, req.Image, jobName, req.Command, req.Args)
+	// The tier is kept on the record: a quota measured from Kubernetes would
+	// need the cluster to answer, and what a finished job consumed would be
+	// lost with its pod.
+	record.HardwareTier = tier.ID
 
 	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {

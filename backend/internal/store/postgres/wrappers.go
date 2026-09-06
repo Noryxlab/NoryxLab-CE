@@ -16,6 +16,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/quota"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
@@ -27,6 +28,14 @@ import (
 type ProjectStore struct{ *Store }
 type AccessStore struct{ *Store }
 type HardwareTierStore struct{ *Store }
+type QuotaStore struct{ *Store }
+
+func (s *QuotaStore) Get(projectID string) (quota.Quota, bool, error) {
+	return s.Store.GetProjectQuota(projectID)
+}
+func (s *QuotaStore) List() ([]quota.Quota, error)  { return s.Store.ListProjectQuotas() }
+func (s *QuotaStore) Set(item quota.Quota) error    { return s.Store.SetProjectQuota(item) }
+func (s *QuotaStore) Delete(projectID string) error { return s.Store.DeleteProjectQuota(projectID) }
 
 func (s *HardwareTierStore) List() ([]hardware.Tier, error)  { return s.Store.ListHardwareTiers() }
 func (s *HardwareTierStore) Upsert(tier hardware.Tier) error { return s.Store.UpsertHardwareTier(tier) }

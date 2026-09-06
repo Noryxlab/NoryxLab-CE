@@ -2,6 +2,8 @@ import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
   OwnedResources,
+  ProjectQuota,
+  ProjectQuotaState,
   SmtpSettings,
   SmtpState,
   SoftwareInventory,
@@ -85,6 +87,8 @@ export const projectsApi = {
   remove: (projectId: string) => api.delete<void>(`${V1}/projects/${projectId}`),
   setOwner: (projectId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Project>(`${V1}/projects/${projectId}/ownership`, input),
+  quota: (projectId: string) =>
+    api.get<ProjectQuotaState>(`${V1}/projects/${encodeURIComponent(projectId)}/quota`),
   setMemberRole: (projectId: string, userId: string, role: string) =>
     api.put<void>(`${V1}/projects/${projectId}/members/${userId}/role`, { role }),
   invite: (projectId: string, input: { userId: string; role: string }) =>
@@ -411,6 +415,8 @@ export const adminApi = {
     api.delete<void>(`${V1}/admin/users/${encodeURIComponent(userId)}/deactivation`),
   sendPasswordResetEmail: (userId: string) =>
     api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
+  setProjectQuota: (projectId: string, input: Partial<ProjectQuota>) =>
+    api.put<ProjectQuotaState>(`${V1}/admin/projects/${encodeURIComponent(projectId)}/quota`, input),
   hardwareTiers: () => api.list<AdminHardwareTier>(`${V1}/admin/hardware-tiers`),
   saveHardwareTier: (tier: AdminHardwareTier) =>
     api.put<AdminHardwareTier>(`${V1}/admin/hardware-tiers/${encodeURIComponent(tier.id)}`, tier),

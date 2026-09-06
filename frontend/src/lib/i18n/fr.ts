@@ -597,6 +597,17 @@ export const fr = {
     kind: 'Type',
   },
 
+  quota: {
+    title: 'Quota du projet',
+    hint: 'Ce que ce projet peut faire tourner en même temps. Un lancement au-delà est refusé, en nommant la limite atteinte.',
+    unlimited: 'Aucune limite définie : ce projet peut lancer autant que le cluster le permet.',
+    vcpu: 'vCPU',
+    memory: 'Mémoire',
+    workspaces: 'Workspaces',
+    jobs: 'Traitements',
+    noLimit: 'illimité',
+    zeroMeansNoLimit: '0 signifie aucune limite sur cette dimension.',
+  },
   admin: {
     deactivate: 'Désactiver le compte',
     deactivateHint: 'Le compte ne pourra plus se connecter. Il n’est pas supprimé : la piste d’audit reste attribuable, et le compte peut être réactivé.',

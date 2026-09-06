@@ -29,6 +29,7 @@ func main() {
 	var healthEventStore store.HealthEventStore = memory.NewHealthEventStore()
 	var apiTokenStore store.APITokenStore = memory.NewAPITokenStore()
 	var hardwareTierStore store.HardwareTierStore = memory.NewHardwareTierStore()
+	var quotaStore store.QuotaStore = memory.NewQuotaStore()
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -70,6 +71,7 @@ func main() {
 			healthEventStore = &postgres.HealthEventStore{Store: pg}
 			apiTokenStore = &postgres.APITokenStore{Store: pg}
 			hardwareTierStore = &postgres.HardwareTierStore{Store: pg}
+			quotaStore = &postgres.QuotaStore{Store: pg}
 			// An installation upgrading into editable tiers keeps the four
 			// sizes it already ran, under the same ids: workspaces in flight
 			// refer to them by id.
@@ -194,6 +196,7 @@ func main() {
 			HealthEventStore:                 healthEventStore,
 			APITokenStore:                    apiTokenStore,
 			HardwareTierStore:                hardwareTierStore,
+			QuotaStore:                       quotaStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,

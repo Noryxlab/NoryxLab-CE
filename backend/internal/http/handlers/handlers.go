@@ -82,6 +82,7 @@ type Handlers struct {
 	workspaceProfilePVCMountPath     string
 	projectFilesImage                string
 	hardwareTierStore                store.HardwareTierStore
+	quotaStore                       store.QuotaStore
 	backendVersion                   string
 	edition                          string
 	defaultTheme                     string
@@ -109,6 +110,8 @@ type Options struct {
 	APITokenStore store.APITokenStore
 	// HardwareTierStore holds the machine sizes an administrator maintains.
 	HardwareTierStore store.HardwareTierStore
+	// QuotaStore holds what each project may run at once.
+	QuotaStore store.QuotaStore
 	// OIDCAudience is the audience this platform requires in a token.
 	OIDCAudience string
 	// OIDCFrontendClientID is the client whose tokens must carry it.
@@ -295,6 +298,7 @@ func New(
 		workspaceProfilePVCMountPath:     options.WorkspaceProfilePVCMountPath,
 		projectFilesImage:                strings.TrimSpace(options.ProjectFilesImage),
 		hardwareTierStore:                options.HardwareTierStore,
+		quotaStore:                       options.QuotaStore,
 		backendVersion:                   options.BackendVersion,
 		edition:                          strings.TrimSpace(options.Edition),
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),

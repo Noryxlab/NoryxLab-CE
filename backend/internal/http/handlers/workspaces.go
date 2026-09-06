@@ -320,6 +320,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selected environment is not accessible or compatible with " + req.IDE})
 		return
 	}
+	// The quota, before anything is created. Checked here rather than after the
+	// pod exists, so a refusal costs nothing and leaves nothing behind.
+	if !h.withinProjectQuota(w, req.ProjectID, "workspace", hardwareTierLimits{CPULimit: tier.CPULimit, MemoryLimit: tier.MemoryLimit}) {
+		return
+	}
+
 	workspaceCommand := []string{"/bin/sh", "/var/run/noryx/bootstrap/bootstrap.sh"}
 	workspaceArgs := []string{}
 	pvcSize := h.workspacePVCSize

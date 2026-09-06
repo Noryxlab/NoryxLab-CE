@@ -16,6 +16,7 @@ import { projectsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { presentStorage, STORAGE_PRESETS } from '@/lib/presenters';
 import { useAuth } from '@/lib/auth';
+import { ProjectQuotaCard } from '@/features/projects/project-quota';
 
 export function ProjectSettingsPage() {
   const t = useT();
@@ -154,6 +155,10 @@ export function ProjectSettingsPage() {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Shown to every member: the person whose launch was refused is the one
+          who needs to see the number. Editing stays with an administrator. */}
+      <ProjectQuotaCard projectId={projectId as string} canEdit={isAdmin} />
 
       {canManageOwner ? (
         <Card>

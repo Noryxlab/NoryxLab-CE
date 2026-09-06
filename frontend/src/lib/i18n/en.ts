@@ -592,6 +592,17 @@ export const en: Translations = {
     kind: 'Type',
   },
 
+  quota: {
+    title: 'Project quota',
+    hint: 'What this project may run at the same time. A launch beyond it is refused, naming the limit reached.',
+    unlimited: 'No limit set: this project can launch as much as the cluster allows.',
+    vcpu: 'vCPU',
+    memory: 'Memory',
+    workspaces: 'Workspaces',
+    jobs: 'Jobs',
+    noLimit: 'unlimited',
+    zeroMeansNoLimit: '0 means no limit on this dimension.',
+  },
   admin: {
     deactivate: 'Disable account',
     deactivateHint: 'The account can no longer sign in. It is not deleted: the audit trail stays attributable, and the account can be re-enabled.',

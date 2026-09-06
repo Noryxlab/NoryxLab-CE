@@ -330,6 +330,31 @@ export interface HardwareTier {
  *  do. */
 /** What an account owns personally, by name. Listed rather than counted: an
  *  administrator deciding who inherits a project needs to know which one. */
+/** What a project may run at the same time. 0 on a dimension means no limit -
+ *  which is what every project has until somebody sets one. */
+export interface ProjectQuota {
+  projectId: string;
+  maxVcpu: number;
+  maxMemoryGib: number;
+  maxWorkspaces: number;
+  maxJobs: number;
+}
+
+/** What it is running now. Always read together with the quota: a limit
+ *  without the current usage says nothing about whether anything can start. */
+export interface ProjectQuotaUsage {
+  vcpu: number;
+  memoryGib: number;
+  workspaces: number;
+  jobs: number;
+}
+
+export interface ProjectQuotaState {
+  quota: ProjectQuota;
+  usage: ProjectQuotaUsage;
+  limited: boolean;
+}
+
 export interface OwnedResources {
   projects?: string[];
   datasets?: string[];
