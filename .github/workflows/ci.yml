@@ -90,15 +90,12 @@ jobs:
       # worse than none: it is wrong and looks authoritative. Regenerating and
       # comparing is the only way it stays true without anyone remembering to
       # check.
+      # Compared by content, not by `git diff`: the document records when it was
+      # generated, so diffing the regenerated file against the committed one
+      # failed on every run whatever the dependencies were doing - and a check
+      # that always fails is one nobody reads.
       - name: The committed inventory matches the dependencies
-        run: |
-          python3 scripts/ops/generate-software-inventory.py
-          if ! git diff --quiet -- backend/internal/inventory/software-inventory.json; then
-            echo "The software inventory is out of date. Regenerate it:" >&2
-            echo "  python3 scripts/ops/generate-software-inventory.py" >&2
-            git --no-pager diff -- backend/internal/inventory/software-inventory.json >&2
-            exit 1
-          fi
+        run: python3 scripts/ops/generate-software-inventory.py --check
 
   frontend:
     name: Frontend

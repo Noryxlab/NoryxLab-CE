@@ -165,6 +165,7 @@ def platform_images() -> list[dict]:
 
 
 def main() -> int:
+    check_only = "--check" in sys.argv
     items = noryx_components() + go_dependencies() + npm_dependencies() + platform_images()
     items.sort(key=lambda item: (item["component"], item["name"].lower()))
 
@@ -180,6 +181,35 @@ def main() -> int:
         },
         "items": items,
     }
+
+    if check_only:
+        # Comparing everything except when it was generated.
+        #
+        # The check used to regenerate the file and run `git diff`, which meant
+        # it compared the timestamp too - so it failed on every single run,
+        # whatever the dependencies were doing, and sent a failure mail for each
+        # one. A check that always fails is a check nobody reads, and it takes
+        # the real signal down with it.
+        if not OUTPUT.exists():
+            print("the inventory has never been generated", file=sys.stderr)
+            return 1
+        committed = json.loads(OUTPUT.read_text())
+        for document in (committed, inventory):
+            document.pop("generatedAt", None)
+        if committed == inventory:
+            print(f"the committed inventory matches the {len(items)} components resolved now")
+            return 0
+        print("the software inventory no longer matches the dependencies.", file=sys.stderr)
+        print("  regenerate it: python3 scripts/ops/generate-software-inventory.py", file=sys.stderr)
+        was = {item["name"] for item in committed.get("items", [])}
+        now = {item["name"] for item in inventory["items"]}
+        for name in sorted(now - was):
+            print(f"  added:   {name}", file=sys.stderr)
+        for name in sorted(was - now):
+            print(f"  removed: {name}", file=sys.stderr)
+        if was == now:
+            print("  the components are the same; a licence or a version changed", file=sys.stderr)
+        return 1
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(inventory, indent=2, ensure_ascii=False) + "\n")
