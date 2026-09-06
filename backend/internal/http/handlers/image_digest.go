@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -34,7 +38,7 @@ func (h Handlers) resolveImageDigest(image string) string {
 	if image == "" || strings.Contains(image, "@sha256:") {
 		return ""
 	}
-	registry, repository, tag, ok := splitImageReference(image)
+	registry, repositoryPath, tag, ok := splitImageReference(image)
 	if !ok {
 		return ""
 	}
@@ -45,20 +49,31 @@ func (h Handlers) resolveImageDigest(image string) string {
 		return ""
 	}
 
-	endpoint := strings.TrimSuffix(h.harborURL, "/") + "/v2/" + repository + "/manifests/" + tag
-	request, err := http.NewRequest(http.MethodHead, endpoint, nil)
+	// Harbor's own API rather than the registry's.
+	//
+	// The registry endpoint (/v2/.../manifests/...) speaks the Docker token
+	// flow: basic credentials get a 401 and a WWW-Authenticate header, and the
+	// client is expected to fetch a bearer token and retry. Asking it with
+	// basic auth returns 401 forever - which is what the first version of this
+	// did against the real Harbor, silently recording no digest at all while
+	// every unit test passed against a fake that accepted basic auth.
+	//
+	// Harbor's API takes the credentials the platform already holds, and it is
+	// the same endpoint the environment catalogue already calls successfully.
+	project, repository, ok := splitHarborRepository(repositoryPath)
+	if !ok {
+		return ""
+	}
+	endpoint := fmt.Sprintf("%s/api/v2.0/projects/%s/repositories/%s/artifacts/%s",
+		strings.TrimSuffix(h.harborURL, "/"),
+		url.PathEscape(project),
+		url.PathEscape(repository),
+		url.PathEscape(tag),
+	)
+	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return ""
 	}
-	// Both media types: an image built by Kaniko is an OCI manifest, one
-	// pushed by Docker is a v2 manifest, and asking for only one gets a 404
-	// for the other.
-	request.Header.Set("Accept", strings.Join([]string{
-		"application/vnd.docker.distribution.manifest.v2+json",
-		"application/vnd.docker.distribution.manifest.list.v2+json",
-		"application/vnd.oci.image.manifest.v1+json",
-		"application/vnd.oci.image.index.v1+json",
-	}, ", "))
 	if user, password := strings.TrimSpace(h.harborUsername), strings.TrimSpace(h.harborPassword); user != "" && password != "" {
 		request.SetBasicAuth(user, password)
 	}
@@ -70,9 +85,29 @@ func (h Handlers) resolveImageDigest(image string) string {
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		log.Printf("image digest: registry answered %d for %s", response.StatusCode, image)
 		return ""
 	}
-	return strings.TrimSpace(response.Header.Get("Docker-Content-Digest"))
+	var artifact struct {
+		Digest string `json:"digest"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&artifact); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(artifact.Digest)
+}
+
+// splitHarborRepository separates the Harbor project from the repository
+// beneath it. Harbor nests repositories under a project, and its API takes the
+// two apart - `noryx-environments/noryx-jupyter` is project
+// `noryx-environments`, repository `noryx-jupyter`.
+func splitHarborRepository(path string) (project, repository string, ok bool) {
+	slash := strings.Index(path, "/")
+	if slash <= 0 || slash == len(path)-1 {
+		return "", "", false
+	}
+	// A repository deeper than one level is escaped as Harbor expects.
+	return path[:slash], strings.ReplaceAll(path[slash+1:], "/", "%252F"), true
 }
 
 // pinnedImage is what the pod should run: the digest when we have one, the tag

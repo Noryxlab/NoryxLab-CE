@@ -164,3 +164,44 @@ func readProject(t *testing.T, store *Store, id string) project.Project {
 	t.Fatalf("project %s was written and cannot be read back", id)
 	return project.Project{}
 }
+
+// A migration that runs on an empty database.
+//
+// The statements are executed in order, so an ALTER placed before the CREATE
+// it alters works on every existing platform and fails on every new one -
+// which is what happened: "relation \"jobs\" does not exist", and only a fresh
+// database ever showed it. This is that database.
+func TestMigrationsRunOnAnEmptyDatabase(t *testing.T) {
+	dsn := os.Getenv("NORYX_TEST_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("NORYX_TEST_POSTGRES_DSN is not set: no database to test against")
+	}
+	// A schema of its own, dropped afterwards: the point is to start from
+	// nothing, which the shared test database is not.
+	admin, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer admin.Close()
+
+	schema := "migration_check"
+	if _, err := admin.Exec("DROP SCHEMA IF EXISTS " + schema + " CASCADE"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec("CREATE SCHEMA " + schema); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _, _ = admin.Exec("DROP SCHEMA IF EXISTS " + schema + " CASCADE") })
+
+	fresh, err := sql.Open("postgres", dsn+"&search_path="+schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fresh.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	if err := (&Store{db: fresh}).migrate(ctx); err != nil {
+		t.Fatalf("the migrations must run on an empty database: %v", err)
+	}
+}

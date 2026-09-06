@@ -33,8 +33,7 @@ func TestTheDigestComesFromTheRegistry(t *testing.T) {
 	var asked string
 	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		asked = r.Method + " " + r.URL.Path
-		w.Header().Set("Docker-Content-Digest", "sha256:1234")
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"digest":"sha256:1234"}`))
 	}))
 	defer registry.Close()
 
@@ -45,7 +44,11 @@ func TestTheDigestComesFromTheRegistry(t *testing.T) {
 		t.Fatalf("digest = %q, want sha256:1234", digest)
 	}
 	// HEAD, not GET: the manifest body is not needed and can be large.
-	if asked != "HEAD /v2/noryx-environments/jupyter/manifests/0.1.0" {
+	// Harbor's API, not the registry protocol: the registry endpoint answers
+	// 401 to basic credentials and expects a bearer token flow, which is how
+	// the first version of this silently resolved nothing in production while
+	// passing against a fake that accepted basic auth.
+	if asked != "GET /api/v2.0/projects/noryx-environments/repositories/jupyter/artifacts/0.1.0" {
 		t.Errorf("asked %q", asked)
 	}
 }
@@ -71,7 +74,7 @@ func TestOnlyThePlatformsOwnRegistryIsAsked(t *testing.T) {
 	var reached bool
 	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		reached = true
-		w.Header().Set("Docker-Content-Digest", "sha256:nope")
+		_, _ = w.Write([]byte(`{"digest":"sha256:nope"}`))
 	}))
 	defer elsewhere.Close()
 
@@ -97,8 +100,7 @@ func TestAnUnparseableReferenceYieldsNoDigest(t *testing.T) {
 // while the tag is launched would be a lie that survives an audit.
 func TestALaunchRunsTheDigestItRecords(t *testing.T) {
 	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Docker-Content-Digest", "sha256:deadbeef")
-		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"digest":"sha256:deadbeef"}`))
 	}))
 	defer registry.Close()
 

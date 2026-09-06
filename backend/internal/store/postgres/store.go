@@ -167,10 +167,6 @@ func (s *Store) migrate(ctx context.Context) error {
 		// The tier a workload runs on, kept on the record so a quota can be
 		// checked without asking Kubernetes what it is running - and so usage
 		// can be accounted for later without a second source of truth.
-		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS hardware_tiers (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -301,6 +297,14 @@ func (s *Store) migrate(ctx context.Context) error {
 				completed_at TIMESTAMPTZ NULL,
 				created_at TIMESTAMPTZ NOT NULL
 			)`,
+		// After the tables they alter, not before. On an existing database the
+		// order made no difference; on a fresh one the platform refused to start
+		// with `relation "jobs" does not exist`. Every new installation would
+		// have failed, and no upgrade would ever have shown it.
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS result TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL`,
 		`CREATE TABLE IF NOT EXISTS sessions (
