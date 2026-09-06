@@ -1,9 +1,14 @@
 openapi: 3.0.3
 info:
   title: Noryx API
-  version: 0.5.155
+  version: 1.0.0
   description: |
-    Noryx CE backend API contract.
+    The Noryx backend API, in full: every route the platform serves is
+    described here, and a test fails the build when one is not.
+
+    Entries generated from the router carry a summary derived from the
+    handler's name; the ones that needed a human sentence have one. Both are
+    checked against the router, so neither can drift.
 
     Authentication modes:
     - `Bearer` token (OIDC / Keycloak)
@@ -705,6 +710,19 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
 paths:
+  /api/:
+    get:
+      tags: [Platform]
+      summary: Catch-all for unknown API paths
+      description: |
+        Answers 404 as JSON rather than letting an unknown /api path fall
+        through to the application's HTML. Before it existed, a missing route
+        returned 200 with a web page: alive in a browser, undebuggable from a
+        client, and it hid a whole release of Enterprise routes going
+        unregistered.
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/hardware-tiers:
     get:
       summary: List available hardware tiers
@@ -1454,6 +1472,27 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /api/v1/datasets/{datasetID}:
+    put:
+      tags: [Datasets]
+      summary: Update Dataset Metadata
+      operationId: updateDatasetMetadata
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Datasets]
       summary: Delete one dataset owned by current user
@@ -2111,6 +2150,22 @@ paths:
           description: Session deleted
 
   /api/v1/admin/users:
+    post:
+      tags: [Admin]
+      summary: Create User Account
+      operationId: createUserAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     get:
       tags: [Admin]
       summary: List users from Keycloak realm
@@ -2203,3 +2258,2376 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /:
+    get:
+      tags: [Platform]
+      summary: Get Home
+      operationId: getHome
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/audit.csv:
+    get:
+      tags: [Admin]
+      summary: Export Audit CSV
+      operationId: exportAuditCSV
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/backups/config:
+    put:
+      tags: [Backups]
+      summary: Update Admin Backup Config
+      operationId: updateAdminBackupConfig
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/backups/config/status:
+    get:
+      tags: [Backups]
+      summary: Get Admin Backup Config Status
+      operationId: getAdminBackupConfigStatus
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/backups/runs:
+    get:
+      tags: [Backups]
+      summary: List Admin Backup Runs
+      operationId: listAdminBackupRuns
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Backups]
+      summary: Take a backup now
+      operationId: createAdminBackupRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/backups/runs/{runID}/report:
+    get:
+      tags: [Backups]
+      summary: Get Admin Backup Run Report
+      operationId: getAdminBackupRunReport
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/backups/runs/{runID}/restore:
+    post:
+      tags: [Backups]
+      summary: "Read a backup back: report what is missing, or create it"
+      operationId: restoreAdminBackupRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/data-usage:
+    get:
+      tags: [Admin]
+      summary: Get Admin Data Usage
+      operationId: getAdminDataUsage
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/data-usage.csv:
+    get:
+      tags: [Admin]
+      summary: Export Admin Data Usage CSV
+      operationId: exportAdminDataUsageCSV
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/egress/rules:
+    get:
+      tags: [Admin]
+      summary: List Admin Egress Rules
+      operationId: listAdminEgressRules
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/egress/rules/{egressRuleID}:
+    put:
+      tags: [Admin]
+      summary: Decide Admin Egress Rule
+      operationId: decideAdminEgressRule
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: egressRuleID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/executions:
+    get:
+      tags: [Admin]
+      summary: List Admin Executions
+      operationId: listAdminExecutions
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/executions/{kind}/{executionID}:
+    delete:
+      tags: [Admin]
+      summary: Stop Admin Execution
+      operationId: stopAdminExecution
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { type: string }
+        - name: executionID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/hardware-tiers:
+    get:
+      tags: [Admin]
+      summary: List Admin Hardware Tiers
+      operationId: listAdminHardwareTiers
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Create or update a machine size
+      operationId: saveHardwareTier
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/hardware-tiers/{tierID}:
+    delete:
+      tags: [Admin]
+      summary: Remove a machine size (never the default, never the last)
+      operationId: deleteHardwareTier
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tierID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Create or update a machine size
+      operationId: saveHardwareTier
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tierID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/health:
+    get:
+      tags: [Admin]
+      summary: Get Platform Health
+      operationId: getPlatformHealth
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/health/history:
+    get:
+      tags: [Admin]
+      summary: Get Platform Health History
+      operationId: getPlatformHealthHistory
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/inventory:
+    get:
+      tags: [Admin]
+      summary: Get Admin Inventory
+      operationId: getAdminInventory
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations:
+    get:
+      tags: [Admin]
+      summary: List Organizations
+      operationId: listOrganizations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Create Organization
+      operationId: createOrganization
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}:
+    delete:
+      tags: [Admin]
+      summary: Delete Organization
+      operationId: deleteOrganization
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}/members:
+    get:
+      tags: [Admin]
+      summary: List Organization Members
+      operationId: listOrganizationMembers
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}/members/{userID}:
+    delete:
+      tags: [Admin]
+      summary: Remove Organization Member
+      operationId: removeOrganizationMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Add Organization Member
+      operationId: addOrganizationMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/overview:
+    get:
+      tags: [Admin]
+      summary: Get Admin Overview
+      operationId: getAdminOverview
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/rbac-matrix:
+    get:
+      tags: [Admin]
+      summary: Get Admin RBAC Matrix
+      operationId: getAdminRBACMatrix
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/rbac-matrix.csv:
+    get:
+      tags: [Admin]
+      summary: Export Admin RBAC Matrix CSV
+      operationId: exportAdminRBACMatrixCSV
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/rbac-policy:
+    get:
+      tags: [Admin]
+      summary: Get Admin RBAC Policy
+      operationId: getAdminRBACPolicy
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Update Admin RBAC Policy
+      operationId: updateAdminRBACPolicy
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/settings:
+    get:
+      tags: [Admin]
+      summary: List Platform Settings
+      operationId: listPlatformSettings
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/settings/{key}:
+    put:
+      tags: [Admin]
+      summary: Update Platform Setting
+      operationId: updatePlatformSetting
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/smtp:
+    get:
+      tags: [Admin]
+      summary: Get SMTP Settings
+      operationId: getSMTPSettings
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Set the mail server (the password is write-only)
+      operationId: updateSMTPSettings
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/smtp/tests:
+    post:
+      tags: [Admin]
+      summary: Send a test message without saving the settings
+      operationId: testSMTPSettings
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/software-inventory:
+    get:
+      tags: [Admin]
+      summary: Get Software Inventory
+      operationId: getSoftwareInventory
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/software-inventory.csv:
+    get:
+      tags: [Admin]
+      summary: Export Software Inventory CSV
+      operationId: exportSoftwareInventoryCSV
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/storage-endpoints:
+    get:
+      tags: [Admin]
+      summary: List Admin Storage Endpoints
+      operationId: listAdminStorageEndpoints
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Create Admin Storage Endpoint
+      operationId: createAdminStorageEndpoint
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/storage-endpoints/{endpointID}:
+    delete:
+      tags: [Admin]
+      summary: Delete Admin Storage Endpoint
+      operationId: deleteAdminStorageEndpoint
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: endpointID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Update Admin Storage Endpoint
+      operationId: updateAdminStorageEndpoint
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: endpointID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/storage-endpoints/{endpointID}/test:
+    post:
+      tags: [Admin]
+      summary: Test Admin Storage Endpoint
+      operationId: testAdminStorageEndpoint
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: endpointID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/users/{userID}/deactivation:
+    delete:
+      tags: [Admin]
+      summary: Re-enable a disabled account (its tokens stay revoked)
+      operationId: reactivateUserAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Disable an account and hand what it owns to a successor
+      operationId: deactivateUserAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/users/{userID}/owned:
+    get:
+      tags: [Admin]
+      summary: List what an account owns, before disabling it
+      operationId: getUserOwnedResources
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/users/{userID}/password:
+    post:
+      tags: [Admin]
+      summary: Issue a temporary password the user must change
+      operationId: resetUserPassword
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/users/{userID}/password-reset-email:
+    post:
+      tags: [Admin]
+      summary: Email a password reset link (needs SMTP on the realm)
+      operationId: sendUserPasswordResetEmail
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps:
+    get:
+      tags: [Workloads]
+      summary: List Apps
+      operationId: listApps
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Workloads]
+      summary: Create App
+      operationId: createApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}:
+    delete:
+      tags: [Workloads]
+      summary: Delete App
+      operationId: deleteApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/logs:
+    get:
+      tags: [Workloads]
+      summary: Get App Logs
+      operationId: getAppLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/publish:
+    post:
+      tags: [Workloads]
+      summary: Publish App
+      operationId: publishApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/restart:
+    post:
+      tags: [Workloads]
+      summary: Restart App
+      operationId: restartApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/revisions:
+    get:
+      tags: [Workloads]
+      summary: List App Revisions
+      operationId: listAppRevisions
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/revisions/{revisionID}/rollback:
+    post:
+      tags: [Workloads]
+      summary: Rollback App Revision
+      operationId: rollbackAppRevision
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: revisionID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/stop:
+    post:
+      tags: [Workloads]
+      summary: Stop App
+      operationId: stopApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/usage:
+    get:
+      tags: [Workloads]
+      summary: Get App Usage
+      operationId: getAppUsage
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/assistant/chat:
+    post:
+      tags: [Platform]
+      summary: Chat With Assistant
+      operationId: chatWithAssistant
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/assistant/developer/v1/chat/completions:
+    post:
+      tags: [Platform]
+      summary: Chat Completions With Developer Assistant
+      operationId: chatCompletionsWithDeveloperAssistant
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/assistant/developer/v1/completions:
+    post:
+      tags: [Platform]
+      summary: Completions With Developer Assistant
+      operationId: completionsWithDeveloperAssistant
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/assistant/developer/v1/models:
+    get:
+      tags: [Platform]
+      summary: List Developer Assistant Models
+      operationId: listDeveloperAssistantModels
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/auth/login:
+    get:
+      tags: [Auth]
+      summary: Direct Login
+      operationId: directLogin
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/builds/{buildID}:
+    delete:
+      tags: [Workloads]
+      summary: Delete Build
+      operationId: deleteBuild
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: buildID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dashboards:
+    get:
+      tags: [Workloads]
+      summary: List Dashboards
+      operationId: listDashboards
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Workloads]
+      summary: Create Dashboard
+      operationId: createDashboard
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dashboards/{dashboardID}:
+    delete:
+      tags: [Workloads]
+      summary: Delete Dashboard
+      operationId: deleteDashboard
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: dashboardID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dataservices:
+    post:
+      tags: [Platform]
+      summary: Create Data Service
+      operationId: createDataService
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete Dataset Access
+      operationId: deleteDatasetAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Set Dataset Access
+      operationId: setDatasetAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/ownership:
+    put:
+      tags: [Datasets]
+      summary: Update Dataset Owner
+      operationId: updateDatasetOwner
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasource-definitions:
+    get:
+      tags: [Platform]
+      summary: List Datasource Definitions
+      operationId: listDatasourceDefinitions
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources:
+    get:
+      tags: [Datasets]
+      summary: List Datasources
+      operationId: listDatasources
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Datasets]
+      summary: Create Datasource
+      operationId: createDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete Datasource
+      operationId: deleteDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}/logs:
+    get:
+      tags: [Datasets]
+      summary: Get Data Service Logs
+      operationId: getDataServiceLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}/restart:
+    post:
+      tags: [Datasets]
+      summary: Restart Data Service
+      operationId: restartDataService
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}/validate:
+    post:
+      tags: [Datasets]
+      summary: Validate Datasource
+      operationId: validateDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/egress/profiles:
+    get:
+      tags: [Governance]
+      summary: List Egress Profiles
+      operationId: listEgressProfiles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/egress/rules:
+    post:
+      tags: [Governance]
+      summary: Create Egress Rule
+      operationId: createEgressRule
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/environments/{environmentID}:
+    delete:
+      tags: [Platform]
+      summary: Delete Environment
+      operationId: deleteEnvironment
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: environmentID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/jobs:
+    get:
+      tags: [Workloads]
+      summary: List Jobs
+      operationId: listJobs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Workloads]
+      summary: Create Job
+      operationId: createJob
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/jobs/{jobID}:
+    delete:
+      tags: [Workloads]
+      summary: Delete Job
+      operationId: deleteJob
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: jobID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/jobs/{jobID}/logs:
+    get:
+      tags: [Workloads]
+      summary: Get Job Logs
+      operationId: getJobLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: jobID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies:
+    get:
+      tags: [Datasets]
+      summary: List Ontologies
+      operationId: listOntologies
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete Ontology
+      operationId: deleteOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Update Ontology Metadata
+      operationId: updateOntologyMetadata
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/access:
+    get:
+      tags: [Datasets]
+      summary: List Ontology Access
+      operationId: listOntologyAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/access/{subjectType}/{subjectID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete Ontology Access
+      operationId: deleteOntologyAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Set Ontology Access
+      operationId: setOntologyAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/ownership:
+    put:
+      tags: [Datasets]
+      summary: Update Ontology Owner
+      operationId: updateOntologyOwner
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/query:
+    post:
+      tags: [Datasets]
+      summary: Query Ontology
+      operationId: queryOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/organizations:
+    get:
+      tags: [Platform]
+      summary: List Available Organizations
+      operationId: listAvailableOrganizations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/production/apps:
+    get:
+      tags: [Platform]
+      summary: List Production Apps
+      operationId: listProductionApps
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/datasources:
+    get:
+      tags: [Projects]
+      summary: List Project Datasources
+      operationId: listProjectDatasources
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/datasources/{datasourceID}:
+    delete:
+      tags: [Projects]
+      summary: Detach Project Datasource
+      operationId: detachProjectDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Projects]
+      summary: Attach Project Datasource
+      operationId: attachProjectDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/egress/rules:
+    get:
+      tags: [Projects]
+      summary: List Project Egress Rules
+      operationId: listProjectEgressRules
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/invitations:
+    post:
+      tags: [Projects]
+      summary: Invite Project Member
+      operationId: inviteProjectMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/ontologies:
+    get:
+      tags: [Projects]
+      summary: List Project Ontologies
+      operationId: listProjectOntologies
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/ontologies/{ontologyID}:
+    delete:
+      tags: [Projects]
+      summary: Detach Project Ontology
+      operationId: detachProjectOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Projects]
+      summary: Attach Project Ontology
+      operationId: attachProjectOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/ontology:
+    get:
+      tags: [Projects]
+      summary: Get Project Ontology
+      operationId: getProjectOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/ontology/scans:
+    post:
+      tags: [Projects]
+      summary: Scan Project Ontology
+      operationId: scanProjectOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/organization-roles:
+    get:
+      tags: [Projects]
+      summary: List Project Organization Roles
+      operationId: listProjectOrganizationRoles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/organization-roles/{organizationID}:
+    delete:
+      tags: [Projects]
+      summary: Delete Project Organization Role
+      operationId: deleteProjectOrganizationRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Projects]
+      summary: Set Project Organization Role
+      operationId: setProjectOrganizationRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/search:
+    get:
+      tags: [Platform]
+      summary: Search
+      operationId: search
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/api-tokens:
+    get:
+      tags: [Account]
+      summary: List your API tokens (the secrets are not recoverable)
+      operationId: listAPITokens
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Account]
+      summary: Issue a personal API token, optionally scoped
+      operationId: createAPIToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/api-tokens/{tokenID}:
+    delete:
+      tags: [Account]
+      summary: Revoke a personal API token
+      operationId: deleteAPIToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tokenID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/preferences:
+    get:
+      tags: [Account]
+      summary: Get User Preferences
+      operationId: getUserPreferences
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Account]
+      summary: Update User Preferences
+      operationId: updateUserPreferences
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/version:
+    get:
+      tags: [Platform]
+      summary: Get Version
+      operationId: getVersion
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /swagger:
+    get:
+      tags: [Platform]
+      summary: Get Swagger U I
+      operationId: getSwaggerUI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /swagger/:
+    get:
+      tags: [Platform]
+      summary: Get Swagger U I
+      operationId: getSwaggerUI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /swagger/openapi.yaml:
+    get:
+      tags: [Platform]
+      summary: Get Open API
+      operationId: getOpenAPI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

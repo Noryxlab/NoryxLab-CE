@@ -54,6 +54,11 @@ jobs:
             echo "gofmt would change:"; echo "$unformatted"; exit 1
           fi
       - run: go -C backend vet ./...
+
+      # The API document against the router. It described a fifth of the API
+      # for months and nothing said so; this is what stops that returning.
+      - name: The API document covers every route
+        run: python3 scripts/ops/generate-openapi.py --check
       - run: go -C backend test ./...
 
       # The store that actually runs in production cannot be tested without a
