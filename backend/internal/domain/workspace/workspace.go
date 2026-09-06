@@ -8,11 +8,15 @@ import (
 )
 
 type Workspace struct {
-	ID           string    `json:"id"`
-	ProjectID    string    `json:"projectId"`
-	Kind         string    `json:"kind"`
-	Name         string    `json:"name"`
-	Image        string    `json:"image"`
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Image     string `json:"image"`
+	// ImageDigest is what actually ran. A tag moves; this does not. Empty
+	// means the registry could not be asked at launch - which is recorded as
+	// unknown rather than guessed.
+	ImageDigest  string    `json:"imageDigest,omitempty"`
 	PodName      string    `json:"podName"`
 	ServiceName  string    `json:"serviceName"`
 	PVCName      string    `json:"pvcName"`

@@ -320,6 +320,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selected environment is not accessible or compatible with " + req.IDE})
 		return
 	}
+	// What actually runs, pinned. Resolved before the quota check so a launch
+	// refused by a quota costs one registry HEAD and nothing else.
+	imageDigest := h.resolveImageDigest(workspaceImage)
+	workspaceImage = pinnedImage(workspaceImage, imageDigest)
+
 	// The quota, before anything is created. Checked here rather than after the
 	// pod exists, so a refusal costs nothing and leaves nothing behind.
 	if !h.withinProjectQuota(w, req.ProjectID, "workspace", hardwareTierLimits{CPULimit: tier.CPULimit, MemoryLimit: tier.MemoryLimit}) {
@@ -379,6 +384,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"",
 		accessToken,
 	)
+	record.ImageDigest = imageDigest
 	record.AccessURL = workspaceAccessURL(req.IDE, record.ID)
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass

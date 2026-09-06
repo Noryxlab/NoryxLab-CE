@@ -168,6 +168,8 @@ func (s *Store) migrate(ctx context.Context) error {
 		// checked without asking Kubernetes what it is running - and so usage
 		// can be accounted for later without a second source of truth.
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS hardware_tiers (
 			id TEXT PRIMARY KEY,
@@ -1204,7 +1206,7 @@ func (s *Store) DeleteBuild(id string) error {
 }
 
 func (s *Store) ListJobs() ([]job.Job, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, image, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1213,7 +1215,7 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 	for rows.Next() {
 		var item job.Job
 		var commandJSON, argsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &commandJSON, &argsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -1231,11 +1233,13 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	var item job.Job
 	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, image, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.Name,
 		&item.Image,
+		&item.ImageDigest,
+		&item.HardwareTier,
 		&commandJSON,
 		&argsJSON,
 		&item.JobName,
@@ -1263,11 +1267,13 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 func (s *Store) CreateJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
-	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, command_json, args_json, job_name, status, result, completed_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		item.ID,
 		item.ProjectID,
 		item.Name,
 		item.Image,
+		item.ImageDigest,
+		item.HardwareTier,
 		commandJSON,
 		argsJSON,
 		item.JobName,
@@ -1283,12 +1289,14 @@ func (s *Store) UpsertJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
 	_, err := s.db.Exec(`
-		INSERT INTO jobs (id, project_id, name, image, command_json, args_json, job_name, status, result, completed_at, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
 			image=EXCLUDED.image,
+			image_digest=EXCLUDED.image_digest,
+			hardware_tier=EXCLUDED.hardware_tier,
 			command_json=EXCLUDED.command_json,
 			args_json=EXCLUDED.args_json,
 			job_name=EXCLUDED.job_name,
@@ -1300,6 +1308,8 @@ func (s *Store) UpsertJob(item job.Job) error {
 		item.ProjectID,
 		item.Name,
 		item.Image,
+		item.ImageDigest,
+		item.HardwareTier,
 		commandJSON,
 		argsJSON,
 		item.JobName,
@@ -1353,7 +1363,7 @@ func (s *Store) CreatePod(p pod.Launch) error {
 }
 
 func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, kind, name, image, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1389,7 +1399,7 @@ func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
 
 func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 	var w workspace.Workspace
-	err := s.db.QueryRow(`SELECT id, project_id, kind, name, image, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&w.ID,
 		&w.ProjectID,
 		&w.Kind,
