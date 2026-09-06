@@ -26,7 +26,17 @@ if [ -z "${OBJECT}" ]; then
   echo "usage: $0 <object-key> [namespace]" >&2
   exit 2
 fi
-if [ -z "${NORYX_IDENTITY_BACKUP_KEY:-}" ]; then
+KEY_SECRET="${KEY_SECRET:-noryx-identity-backup-key}"
+
+# A real recovery has no cluster to read the key from, which is why it can be
+# handed in. A rehearsal on a live platform uses the secret that is already
+# there.
+if [ -n "${NORYX_IDENTITY_BACKUP_KEY:-}" ]; then
+  ${KUBECTL} -n "${NAMESPACE}" create secret generic "${KEY_SECRET}" \
+    --from-literal=key="${NORYX_IDENTITY_BACKUP_KEY}" \
+    --dry-run=client -o yaml | ${KUBECTL} apply -f - >/dev/null
+fi
+if ! ${KUBECTL} -n "${NAMESPACE}" get secret "${KEY_SECRET}" >/dev/null 2>&1; then
   echo "NORYX_IDENTITY_BACKUP_KEY is required: the object is encrypted and the key is not in the backup" >&2
   exit 2
 fi
@@ -93,7 +103,8 @@ spec:
             - { name: HOME, value: "/tmp" }
             - { name: BUCKET, value: "${BUCKET}" }
             - { name: OBJECT, value: "${OBJECT}" }
-            - { name: BACKUP_KEY, value: "${NORYX_IDENTITY_BACKUP_KEY}" }
+            - name: BACKUP_KEY
+              valueFrom: { secretKeyRef: { name: ${KEY_SECRET}, key: key } }
             - name: MC_HOST_target
               value: "${ENDPOINT_SCHEME}://${ACCESS_KEY}:${SECRET_KEY_ESCAPED}@${ENDPOINT_HOST}"
           volumeMounts: [{ name: export, mountPath: /export }]

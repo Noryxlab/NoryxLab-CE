@@ -14,9 +14,14 @@
 # therefore a password database in a file, and it is encrypted before it leaves
 # the cluster, with a key that is not in the backup.
 #
-# The key is NORYX_IDENTITY_BACKUP_KEY. Losing it means losing the ability to
-# restore accounts; storing it beside the backup means the encryption bought
-# nothing. Keep it where the Keycloak admin password is kept.
+# The key lives in a Kubernetes secret, `noryx-identity-backup-key`, and is
+# mounted into the job rather than passed as an environment variable: a value
+# in a job's spec is readable with `kubectl get job -o yaml` by anybody with
+# read access to the namespace, for as long as the job exists.
+#
+# Keep a copy outside the cluster, where the Keycloak admin password is kept.
+# The cluster is what the backup exists to survive, so a key that only lives
+# there is a key you have already lost in the scenario that matters.
 set -euo pipefail
 
 NAMESPACE="${1:-${NAMESPACE:-noryx}}"
@@ -26,8 +31,17 @@ IMAGE="${IDENTITY_BACKUP_IMAGE:-harbor.lan/noryx-ce/noryx-identity-backup:0.1.0}
 KEYCLOAK_IMAGE="${KEYCLOAK_IMAGE:-}"
 STAMP="$(date -u +%Y/%m/%d/%H%M%SZ)"
 
-if [ -z "${NORYX_IDENTITY_BACKUP_KEY:-}" ]; then
-  echo "NORYX_IDENTITY_BACKUP_KEY is required: it is what keeps a file of password hashes from being readable off-site" >&2
+KEY_SECRET="${KEY_SECRET:-noryx-identity-backup-key}"
+
+# The key may be handed in for a first run; after that it lives in the secret.
+if [ -n "${NORYX_IDENTITY_BACKUP_KEY:-}" ]; then
+  ${KUBECTL} -n "${NAMESPACE}" create secret generic "${KEY_SECRET}" \
+    --from-literal=key="${NORYX_IDENTITY_BACKUP_KEY}" \
+    --dry-run=client -o yaml | ${KUBECTL} apply -f - >/dev/null
+fi
+if ! ${KUBECTL} -n "${NAMESPACE}" get secret "${KEY_SECRET}" >/dev/null 2>&1; then
+  echo "no ${KEY_SECRET} secret and no NORYX_IDENTITY_BACKUP_KEY: without a key this export is a password database in the clear" >&2
+  echo "  create one:  openssl rand -hex 32" >&2
   exit 2
 fi
 if [ -z "${KEYCLOAK_IMAGE}" ]; then
@@ -104,7 +118,8 @@ spec:
             - { name: OBJECT, value: "${OBJECT}" }
             - name: MC_HOST_target
               value: "${ENDPOINT_SCHEME}://${ACCESS_KEY}:${SECRET_KEY_ESCAPED}@${ENDPOINT_HOST}"
-            - { name: BACKUP_KEY, value: "${NORYX_IDENTITY_BACKUP_KEY}" }
+            - name: BACKUP_KEY
+              valueFrom: { secretKeyRef: { name: ${KEY_SECRET}, key: key } }
           volumeMounts: [{ name: export, mountPath: /export, readOnly: true }]
 EOF
 
@@ -124,4 +139,4 @@ done
 }
 ${KUBECTL} -n "${NAMESPACE}" logs "job/${job}" -c ship --tail=3 | sed 's/^/  /'
 ${KUBECTL} -n "${NAMESPACE}" delete "job/${job}" >/dev/null 2>&1 || true
-echo "  keep NORYX_IDENTITY_BACKUP_KEY: without it this object is noise"
+echo "  the key is in the ${KEY_SECRET} secret; keep a copy outside the cluster or this object is noise"
