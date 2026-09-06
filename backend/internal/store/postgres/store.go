@@ -28,6 +28,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/storageendpoint"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/usage"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	storepkg "github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 	_ "github.com/lib/pq"
@@ -143,6 +144,18 @@ func (s *Store) migrate(ctx context.Context) error {
 			role TEXT NOT NULL,
 			PRIMARY KEY (project_id, organization_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS usage_samples (
+			project_id TEXT NOT NULL,
+			at TIMESTAMPTZ NOT NULL,
+			vcpu DOUBLE PRECISION NOT NULL,
+			memory_gib DOUBLE PRECISION NOT NULL,
+			workspaces INTEGER NOT NULL,
+			jobs INTEGER NOT NULL,
+			PRIMARY KEY (project_id, at)
+		)`,
+		// Every query is "this project, this window", so the index follows the
+		// question rather than the table.
+		`CREATE INDEX IF NOT EXISTS usage_samples_at ON usage_samples (at)`,
 		`CREATE TABLE IF NOT EXISTS project_quotas (
 			project_id TEXT PRIMARY KEY,
 			max_vcpu DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -693,6 +706,73 @@ func (s *Store) SetProjectQuota(item quota.Quota) error {
 func (s *Store) DeleteProjectQuota(projectID string) error {
 	_, err := s.db.Exec(`DELETE FROM project_quotas WHERE project_id=$1`, strings.TrimSpace(projectID))
 	return err
+}
+
+func (s *Store) RecordUsageSamples(samples []usage.Sample) error {
+	if len(samples) == 0 {
+		return nil
+	}
+	transaction, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = transaction.Rollback() }()
+	statement, err := transaction.Prepare(`INSERT INTO usage_samples (project_id, at, vcpu, memory_gib, workspaces, jobs)
+		VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (project_id, at) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+	for _, sample := range samples {
+		if _, err := statement.Exec(sample.ProjectID, sample.At.UTC(), sample.VCPU, sample.MemoryGiB, sample.Workspaces, sample.Jobs); err != nil {
+			return err
+		}
+	}
+	return transaction.Commit()
+}
+
+func (s *Store) ListUsageSamplesByProject(projectID string, from, to time.Time) ([]usage.Sample, error) {
+	rows, err := s.db.Query(`SELECT project_id, at, vcpu, memory_gib, workspaces, jobs
+		FROM usage_samples WHERE project_id=$1 AND at >= $2 AND at <= $3 ORDER BY at`,
+		strings.TrimSpace(projectID), from.UTC(), to.UTC())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []usage.Sample{}
+	for rows.Next() {
+		var sample usage.Sample
+		if err := rows.Scan(&sample.ProjectID, &sample.At, &sample.VCPU, &sample.MemoryGiB, &sample.Workspaces, &sample.Jobs); err != nil {
+			return nil, err
+		}
+		out = append(out, sample)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ListUsageProjects(from, to time.Time) ([]string, error) {
+	rows, err := s.db.Query(`SELECT DISTINCT project_id FROM usage_samples WHERE at >= $1 AND at <= $2 ORDER BY project_id`, from.UTC(), to.UTC())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) DeleteUsageSamplesBefore(cutoff time.Time) (int64, error) {
+	result, err := s.db.Exec(`DELETE FROM usage_samples WHERE at < $1`, cutoff.UTC())
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 func (s *Store) UpdateProjectOwner(projectID, ownerType, ownerID string) error {

@@ -608,6 +608,16 @@ export const fr = {
     noLimit: 'illimité',
     zeroMeansNoLimit: '0 signifie aucune limite sur cette dimension.',
   },
+  usage: {
+    title: 'Consommation par projet',
+    hint: 'Ce que chaque projet a réellement consommé sur les 30 derniers jours. Mesuré par échantillonnage toutes les 5 minutes ; une interruption de la plateforme n’est pas facturée.',
+    project: 'Projet',
+    vcpuHours: 'vCPU·heures',
+    memoryHours: 'Gio·heures',
+    peak: 'Pic',
+    samples: 'Mesures',
+    empty: 'Aucune consommation enregistrée sur la période.',
+  },
   admin: {
     deactivate: 'Désactiver le compte',
     deactivateHint: 'Le compte ne pourra plus se connecter. Il n’est pas supprimé : la piste d’audit reste attribuable, et le compte peut être réactivé.',

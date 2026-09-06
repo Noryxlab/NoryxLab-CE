@@ -90,6 +90,7 @@ import { AccessGraph } from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
+import { PlatformUsageSection } from '@/features/admin/platform-usage';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
   AuditEvent,
@@ -1780,6 +1781,7 @@ export function AdminPage() {
           <TabsTrigger value="network">{t('nav.network')}</TabsTrigger>
           <TabsTrigger value="storage">{t('nav.storage')}</TabsTrigger>
           <TabsTrigger value="inventory">{t('nav.inventory')}</TabsTrigger>
+          <TabsTrigger value="usage">{t('usage.title')}</TabsTrigger>
           <TabsTrigger value="audit">{t('nav.audit')}</TabsTrigger>
           <TabsTrigger value="settings">{t('common.settings')}</TabsTrigger>
           {/* Data-usage mapping and platform backups are Enterprise modules
@@ -1821,6 +1823,9 @@ export function AdminPage() {
         </TabsContent>
         <TabsContent value="inventory">
           <SoftwareInventorySection />
+        </TabsContent>
+        <TabsContent value="usage">
+          <PlatformUsageSection />
         </TabsContent>
 
         <TabsContent value="settings">

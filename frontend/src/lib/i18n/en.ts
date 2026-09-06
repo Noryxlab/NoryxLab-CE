@@ -603,6 +603,16 @@ export const en: Translations = {
     noLimit: 'unlimited',
     zeroMeansNoLimit: '0 means no limit on this dimension.',
   },
+  usage: {
+    title: 'Consumption by project',
+    hint: 'What each project actually consumed over the last 30 days. Sampled every 5 minutes; a platform outage is not billed.',
+    project: 'Project',
+    vcpuHours: 'vCPU-hours',
+    memoryHours: 'GiB-hours',
+    peak: 'Peak',
+    samples: 'Samples',
+    empty: 'No consumption recorded over this period.',
+  },
   admin: {
     deactivate: 'Disable account',
     deactivateHint: 'The account can no longer sign in. It is not deleted: the audit trail stays attributable, and the account can be re-enabled.',

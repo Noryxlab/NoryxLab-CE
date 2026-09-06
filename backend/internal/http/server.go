@@ -50,6 +50,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// is open to any member: somebody whose launch was refused needs to see
 	// why without asking an administrator.
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/quota", h.GetProjectQuota)
+	// What a project consumed. Open to its members for the same reason the
+	// quota is: the people spending the capacity are the ones who can act on
+	// the number.
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/usage", h.GetProjectUsage)
+	mux.HandleFunc("GET /api/v1/admin/usage", h.GetPlatformUsage)
+	mux.HandleFunc("GET /api/v1/admin/usage.csv", h.GetPlatformUsageCSV)
 	mux.HandleFunc("PUT /api/v1/admin/projects/{projectID}/quota", h.SetProjectQuota)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/files", h.ProxyProjectFiles)
 	mux.HandleFunc("POST /api/v1/projects/{projectID}/folders", h.ProxyProjectFiles)

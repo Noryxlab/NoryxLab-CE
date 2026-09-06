@@ -355,6 +355,31 @@ export interface ProjectQuotaState {
   limited: boolean;
 }
 
+/** What a project consumed over a window. vCPU-hours is the number that means
+ *  something across machines of different sizes: two cores for three hours is
+ *  six. */
+export interface UsageTotal {
+  projectId: string;
+  from: string;
+  to: string;
+  vcpuHours: number;
+  memoryGibHours: number;
+  /** How many measurements the total rests on: three samples and a month of
+   *  them should not read the same. */
+  samples: number;
+  peakVcpu: number;
+  peakMemoryGib: number;
+}
+
+export interface UsageSample {
+  projectId: string;
+  at: string;
+  vcpu: number;
+  memoryGib: number;
+  workspaces: number;
+  jobs: number;
+}
+
 export interface OwnedResources {
   projects?: string[];
   datasets?: string[];

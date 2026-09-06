@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
@@ -21,6 +22,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/storageendpoint"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/usage"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
@@ -29,6 +31,18 @@ type ProjectStore struct{ *Store }
 type AccessStore struct{ *Store }
 type HardwareTierStore struct{ *Store }
 type QuotaStore struct{ *Store }
+type UsageStore struct{ *Store }
+
+func (s *UsageStore) Record(samples []usage.Sample) error { return s.Store.RecordUsageSamples(samples) }
+func (s *UsageStore) ListByProject(projectID string, from, to time.Time) ([]usage.Sample, error) {
+	return s.Store.ListUsageSamplesByProject(projectID, from, to)
+}
+func (s *UsageStore) ListProjects(from, to time.Time) ([]string, error) {
+	return s.Store.ListUsageProjects(from, to)
+}
+func (s *UsageStore) DeleteBefore(cutoff time.Time) (int64, error) {
+	return s.Store.DeleteUsageSamplesBefore(cutoff)
+}
 
 func (s *QuotaStore) Get(projectID string) (quota.Quota, bool, error) {
 	return s.Store.GetProjectQuota(projectID)

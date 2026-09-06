@@ -30,6 +30,7 @@ func main() {
 	var apiTokenStore store.APITokenStore = memory.NewAPITokenStore()
 	var hardwareTierStore store.HardwareTierStore = memory.NewHardwareTierStore()
 	var quotaStore store.QuotaStore = memory.NewQuotaStore()
+	var usageStore store.UsageStore = memory.NewUsageStore()
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -72,6 +73,7 @@ func main() {
 			apiTokenStore = &postgres.APITokenStore{Store: pg}
 			hardwareTierStore = &postgres.HardwareTierStore{Store: pg}
 			quotaStore = &postgres.QuotaStore{Store: pg}
+			usageStore = &postgres.UsageStore{Store: pg}
 			// An installation upgrading into editable tiers keeps the four
 			// sizes it already ran, under the same ids: workspaces in flight
 			// refer to them by id.
@@ -197,6 +199,7 @@ func main() {
 			APITokenStore:                    apiTokenStore,
 			HardwareTierStore:                hardwareTierStore,
 			QuotaStore:                       quotaStore,
+			UsageStore:                       usageStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,
@@ -258,6 +261,7 @@ func main() {
 	h.StartWorkspaceReaper(reaperCtx)
 	h.StartJobWatcher(reaperCtx)
 	h.StartHealthWatcher(reaperCtx)
+	h.StartUsageSampler(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)
 
