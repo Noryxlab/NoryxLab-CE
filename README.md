@@ -121,6 +121,7 @@ Keycloak bootstrap helper:
 scripts/keycloak/bootstrap-realm.sh
 ```
 
+API, supported and internal: `docs/API.md` - Swagger UI at `/swagger`.
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Direct S3 dataset mounts: `docs/S3_DATASET_MOUNTS.md`.

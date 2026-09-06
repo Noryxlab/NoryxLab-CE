@@ -1,3 +1,7 @@
+# The supported Noryx API: every endpoint an integration may build on.
+# Generated from openapi.yaml by scripts/ops/generate-openapi.py - the
+# operations marked x-noryx-internal are the interface's own and are not
+# here, because they change with the screens that use them.
 openapi: 3.0.3
 info:
   title: Noryx API
@@ -1088,20 +1092,6 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
 paths:
-  /api/:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Catch-all for unknown API paths
-      description: |
-        Answers 404 as JSON rather than letting an unknown /api path fall
-        through to the application's HTML. Before it existed, a missing route
-        returned 200 with a web page: alive in a browser, undebuggable from a
-        client, and it hid a whole release of Enterprise routes going
-        unregistered.
-      responses:
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/hardware-tiers:
     get:
       summary: List available hardware tiers
@@ -1112,23 +1102,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HardwareTierListResponse'
-  /api/v1/platform/overview:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Return aggregate platform activity metrics for the home page
-      description: Returns aggregate counts, workload requests and measurable non-HDS S3 storage without exposing resource details.
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Aggregate platform overview
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
   /healthz:
     get:
       tags: [Health]
@@ -1320,72 +1293,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /api/v1/projects/{projectID}/files:
-    get:
-      x-noryx-internal: true
-      tags: [Projects]
-      summary: List files at the root of the persistent project volume
-      parameters:
-        - in: path
-          name: projectID
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Project files
-        '403':
-          $ref: '#/components/responses/Forbidden'
-
-  /api/v1/projects/{projectID}/files/{path}:
-    get:
-      x-noryx-internal: true
-      tags: [Projects]
-      summary: List a project folder or download a project file
-      parameters:
-        - in: path
-          name: projectID
-          required: true
-          schema: { type: string }
-        - in: path
-          name: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Folder listing or file content
-    put:
-      x-noryx-internal: true
-      tags: [Projects]
-      summary: Create or replace a project file
-      parameters:
-        - in: path
-          name: projectID
-          required: true
-          schema: { type: string }
-        - in: path
-          name: path
-          required: true
-          schema: { type: string }
-      responses:
-        '201':
-          description: File saved
-    delete:
-      x-noryx-internal: true
-      tags: [Projects]
-      summary: Delete a project file or folder
-      parameters:
-        - in: path
-          name: projectID
-          required: true
-          schema: { type: string }
-        - in: path
-          name: path
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: File or folder deleted
-
   /api/v1/projects/{projectID}/folders:
     post:
       tags: [Projects]
@@ -1505,53 +1412,6 @@ paths:
                 $ref: '#/components/schemas/EnvironmentListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/v1/pods:
-    get:
-      x-noryx-internal: true
-      tags: [Workloads]
-      summary: List pod launches (current implementation is not auth-filtered)
-      responses:
-        '200':
-          description: Pod launch list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PodLaunchListResponse'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    post:
-      x-noryx-internal: true
-      tags: [Workloads]
-      summary: Launch pod in a project
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreatePodRequest'
-      responses:
-        '201':
-          description: Pod launch submitted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PodLaunch'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '502':
-          $ref: '#/components/responses/UpstreamError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -2673,24 +2533,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Home
-      operationId: getHome
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/admin/audit.csv:
     get:
       tags: [Admin]
@@ -2847,42 +2689,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/admin/data-usage:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Get Admin Data Usage
-      operationId: getAdminDataUsage
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/data-usage.csv:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Export Admin Data Usage CSV
-      operationId: exportAdminDataUsageCSV
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/admin/egress/rules:
     get:
       tags: [Admin]
@@ -2924,51 +2730,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EgressRule'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/executions:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: List Admin Executions
-      operationId: listAdminExecutions
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/executions/{kind}/{executionID}:
-    delete:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Stop Admin Execution
-      operationId: stopAdminExecution
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      parameters:
-        - name: kind
-          in: path
-          required: true
-          schema: { type: string }
-        - name: executionID
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3103,24 +2864,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthEventListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/inventory:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Get Admin Inventory
-      operationId: getAdminInventory
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3273,60 +3016,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Organization'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/overview:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Get Admin Overview
-      operationId: getAdminOverview
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/rbac-matrix:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Get Admin RBAC Matrix
-      operationId: getAdminRBACMatrix
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/admin/rbac-matrix.csv:
-    get:
-      x-noryx-internal: true
-      tags: [Admin]
-      summary: Export Admin RBAC Matrix CSV
-      operationId: exportAdminRBACMatrixCSV
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4019,24 +3708,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /api/v1/assistant/chat:
-    post:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Chat With Assistant
-      operationId: chatWithAssistant
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5260,24 +4931,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/search:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Search
-      operationId: search
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/user/api-tokens:
     get:
       tags: [Account]
@@ -5345,41 +4998,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/user/preferences:
-    get:
-      x-noryx-internal: true
-      tags: [Account]
-      summary: Get User Preferences
-      operationId: getUserPreferences
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-    put:
-      x-noryx-internal: true
-      tags: [Account]
-      summary: Update User Preferences
-      operationId: updateUserPreferences
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /api/v1/version:
     get:
       tags: [Platform]
@@ -5395,60 +5013,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /swagger:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Swagger U I
-      operationId: getSwaggerUI
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /swagger/:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Swagger U I
-      operationId: getSwaggerUI
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /swagger/openapi.yaml:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Open API
-      operationId: getOpenAPI
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5568,47 +5132,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectUsageResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /swagger/assets/{file}:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Swagger Asset
-      operationId: getSwaggerAsset
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      parameters:
-        - name: file
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Success
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /swagger/openapi.public.yaml:
-    get:
-      x-noryx-internal: true
-      tags: [Platform]
-      summary: Get Public Open A P I
-      operationId: getPublicOpenAPI
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      responses:
-        '200':
-          description: Success
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

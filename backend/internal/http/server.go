@@ -222,6 +222,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /swagger", GetSwaggerUI)
 	mux.HandleFunc("GET /swagger/", GetSwaggerUI)
 	mux.HandleFunc("GET /swagger/openapi.yaml", GetOpenAPI)
+	mux.HandleFunc("GET /swagger/openapi.public.yaml", GetPublicOpenAPI)
+	mux.HandleFunc("GET /swagger/assets/{file}", GetSwaggerAsset)
 
 	return &http.Server{
 		Addr: cfg.ListenAddr,

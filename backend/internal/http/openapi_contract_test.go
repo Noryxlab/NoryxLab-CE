@@ -142,7 +142,17 @@ func TestTheAPIDocumentDescribesNothingThatIsNotServed(t *testing.T) {
 // looked for `schemas:` at the wrong indentation, added nothing, and left a
 // hundred references pointing at nothing.
 func TestEveryReferenceInTheAPIDocumentResolves(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("static", "openapi.yaml"))
+	// Both documents: the supported one is derived, and a derivation that
+	// drops a schema somebody still points at breaks Swagger UI on load with
+	// no error anywhere.
+	for _, name := range []string{"openapi.yaml", "openapi.public.yaml"} {
+		t.Run(name, func(t *testing.T) { assertReferencesResolve(t, name) })
+	}
+}
+
+func assertReferencesResolve(t *testing.T, name string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("static", name))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,8 +193,12 @@ func TestEveryReferenceInTheAPIDocumentResolves(t *testing.T) {
 // An operation that answers 200 and describes no body tells a client the call
 // succeeds and nothing about what comes back. Proxies and file downloads are
 // exempt: they return whatever the workspace or the object store returns.
-func TestSuccessfulOperationsDescribeWhatTheyReturn(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("static", "openapi.yaml"))
+func TestEverySupportedOperationDescribesWhatItReturns(t *testing.T) {
+	// The supported document is the contract. An operation in it that answers
+	// 200 and says nothing about the body is a route somebody can call and
+	// nobody can generate a client for - which is how the API ended up with 42
+	// of them while the document looked complete.
+	raw, err := os.ReadFile(filepath.Join("static", "openapi.public.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,35 +213,69 @@ func TestSuccessfulOperationsDescribeWhatTheyReturn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exempt := func(path string) bool {
-		for _, prefix := range []string{"/workspaces/", "/apps/", "/dashboards/", "/api/v1/projects/{projectID}/files"} {
-			if strings.HasPrefix(path, prefix) {
-				return true
-			}
-		}
-		return strings.HasSuffix(path, ".csv") || strings.Contains(path, "/download")
-	}
-
-	silent := 0
 	for path, operations := range document.Paths {
-		if exempt(path) {
-			continue
-		}
 		for method, operation := range operations {
 			response, ok := operation.Responses["200"]
 			if !ok || len(response.Content) > 0 {
 				continue
 			}
-			silent++
-			if silent <= 10 {
-				t.Logf("%s %s answers 200 with no described body", strings.ToUpper(method), path)
+			t.Errorf("%s %s answers 200 with no described body; declare it in RESPONSES "+
+				"or OTHER_RESPONSES in scripts/ops/generate-openapi.py, or mark the "+
+				"endpoint internal if only the interface calls it",
+				strings.ToUpper(method), path)
+		}
+	}
+}
+
+func TestTheSupportedDocumentHoldsNothingInternal(t *testing.T) {
+	// Two documents, one source: the supported one is the full one minus the
+	// operations marked internal. If an internal operation appears here, the
+	// interface's own endpoints have become somebody's integration.
+	full := readAPIDocument(t, "openapi.yaml")
+	public := readAPIDocument(t, "openapi.public.yaml")
+
+	internal := 0
+	for path, operations := range full {
+		for method, operation := range operations {
+			if !operation.Internal {
+				if _, ok := public[path][method]; !ok {
+					t.Errorf("%s %s is served and supported but missing from the supported document", strings.ToUpper(method), path)
+				}
+				continue
+			}
+			internal++
+			if _, ok := public[path][method]; ok {
+				t.Errorf("%s %s is marked internal and is in the supported document", strings.ToUpper(method), path)
 			}
 		}
 	}
-	// Reported rather than failed: the families that matter are covered, and
-	// turning the rest into a wall of failures would only teach people to skip
-	// this test. The number is the thing to watch.
-	if silent > 0 {
-		t.Logf("%d operation(s) answer 200 without describing the body", silent)
+	for path, operations := range public {
+		for method, operation := range operations {
+			if operation.Internal {
+				t.Errorf("%s %s carries x-noryx-internal in the supported document", strings.ToUpper(method), path)
+			}
+		}
 	}
+	if internal == 0 {
+		t.Error("no operation is marked internal; the classification has been lost")
+	}
+}
+
+type documentedOperation struct {
+	Internal bool `yaml:"x-noryx-internal"`
+}
+
+func readAPIDocument(t *testing.T, name string) map[string]map[string]documentedOperation {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("static", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		Paths map[string]map[string]documentedOperation `yaml:"paths"`
+	}
+	if err := yaml.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	return document.Paths
 }
