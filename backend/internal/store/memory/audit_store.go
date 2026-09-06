@@ -62,3 +62,19 @@ func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 	}
 	return out, nil
 }
+
+// Stream visits the same events List would return, in the same order. The
+// in-memory store could hand back a slice, but the interface exists so a
+// backup never has to know which store it is talking to.
+func (s *AuditStore) Stream(filter store.AuditFilter, visit func(audit.Event) error) error {
+	events, err := s.List(filter)
+	if err != nil {
+		return err
+	}
+	for _, event := range events {
+		if err := visit(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}

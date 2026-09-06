@@ -1500,6 +1500,83 @@ func (s *Store) CreateAuditEvent(event audit.Event) error {
 	return err
 }
 
+// auditQuery builds the same filter for both the paged read and the stream, so
+// a backup cannot silently apply different rules from the screen.
+func auditQuery(filter storepkg.AuditFilter, limited bool) (string, []any) {
+	clauses := []string{"1=1"}
+	args := []any{}
+	nextArg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	if filter.Since != nil {
+		clauses = append(clauses, "occurred_at >= "+nextArg(*filter.Since))
+	}
+	if filter.Until != nil {
+		clauses = append(clauses, "occurred_at <= "+nextArg(*filter.Until))
+	}
+	if v := strings.TrimSpace(filter.Action); v != "" {
+		clauses = append(clauses, "action = "+nextArg(v))
+	}
+	if v := strings.TrimSpace(filter.ActorUserID); v != "" {
+		clauses = append(clauses, "actor_user_id = "+nextArg(v))
+	}
+	if v := strings.TrimSpace(filter.ResourceID); v != "" {
+		clauses = append(clauses, "resource_id = "+nextArg(v))
+	}
+	if v := strings.TrimSpace(filter.ProjectID); v != "" {
+		clauses = append(clauses, "project_id = "+nextArg(v))
+	}
+	query := `SELECT id, occurred_at, actor_user_id, actor_ip, actor_user_agent, action, resource_type, resource_id, project_id, outcome, error_code, details_json
+		FROM audit_events
+		WHERE ` + strings.Join(clauses, " AND ") + `
+		ORDER BY occurred_at DESC`
+	if limited {
+		limit := filter.Limit
+		if limit <= 0 || limit > 500 {
+			limit = 200
+		}
+		query += "\n\t\tLIMIT " + nextArg(limit)
+	}
+	return query, args
+}
+
+func scanAuditEvent(rows interface{ Scan(...any) error }) (audit.Event, error) {
+	var item audit.Event
+	var detailsJSON []byte
+	if err := rows.Scan(
+		&item.ID, &item.OccurredAt, &item.ActorUserID, &item.ActorIP, &item.ActorAgent,
+		&item.Action, &item.ResourceType, &item.ResourceID, &item.ProjectID,
+		&item.Outcome, &item.ErrorCode, &detailsJSON,
+	); err != nil {
+		return audit.Event{}, err
+	}
+	if len(detailsJSON) > 0 {
+		_ = json.Unmarshal(detailsJSON, &item.Details)
+	}
+	return item, nil
+}
+
+// StreamAuditEvents walks every matching event without building a slice.
+func (s *Store) StreamAuditEvents(filter storepkg.AuditFilter, visit func(audit.Event) error) error {
+	query, args := auditQuery(filter, false)
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		item, err := scanAuditEvent(rows)
+		if err != nil {
+			return err
+		}
+		if err := visit(item); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
 func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, error) {
 	limit := filter.Limit
 	if limit <= 0 || limit > 500 {

@@ -14,6 +14,10 @@ type APITokenStore interface {
 	Put(token apitoken.Token) error
 	Get(id string) (apitoken.Token, bool, error)
 	ListByUser(userID string) ([]apitoken.Token, error)
+	// ListAll is for the backup. A restore that brings back every project and
+	// no credential leaves every pipeline broken on a platform that otherwise
+	// looks recovered.
+	ListAll() ([]apitoken.Token, error)
 	// Revoke stamps rather than deletes: a token that vanishes leaves its
 	// owner wondering whether it ever existed, and an auditor unable to say
 	// when access ended.

@@ -105,3 +105,24 @@ func scanToken(row scanner) (apitoken.Token, error) {
 	}
 	return token, nil
 }
+
+func (s *APITokenStore) ListAll() ([]apitoken.Token, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	rows, err := s.Store.db.QueryContext(ctx, `
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
+		FROM api_tokens ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []apitoken.Token{}
+	for rows.Next() {
+		token, err := scanToken(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, token)
+	}
+	return out, rows.Err()
+}

@@ -148,6 +148,9 @@ type AuditStore struct{ *Store }
 type EgressRuleStore struct{ *Store }
 
 func (s *AuditStore) Create(event audit.Event) error { return s.Store.CreateAuditEvent(event) }
+func (s *AuditStore) Stream(filter store.AuditFilter, visit func(audit.Event) error) error {
+	return s.Store.StreamAuditEvents(filter, visit)
+}
 func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 	return s.Store.ListAuditEvents(filter)
 }

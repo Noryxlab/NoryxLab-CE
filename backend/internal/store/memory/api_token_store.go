@@ -73,3 +73,14 @@ func (s *APITokenStore) Touch(id string, at time.Time) error {
 	s.byID[id] = token
 	return nil
 }
+
+func (s *APITokenStore) ListAll() ([]apitoken.Token, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]apitoken.Token, 0, len(s.byID))
+	for _, item := range s.byID {
+		out = append(out, item)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
