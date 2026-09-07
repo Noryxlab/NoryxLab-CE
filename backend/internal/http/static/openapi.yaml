@@ -5615,3 +5615,24 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/user/organizations:
+    get:
+      tags: [Account]
+      summary: The organizations the caller belongs to, read from the identity provider
+      operationId: listMyOrganizations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

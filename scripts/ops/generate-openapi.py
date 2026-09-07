@@ -202,6 +202,7 @@ RESPONSES = {
     ("GET", "/api/v1/projects/{projectID}/organization-roles"): "ProjectOrganizationRoleListResponse",
     ("PUT", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): "ProjectOrganizationRole",
     ("GET", "/api/v1/assistant/developer/v1/models"): "AssistantModelListResponse",
+    ("GET", "/api/v1/user/organizations"): "OrganizationListResponse",
 }
 
 # Operations that answer with something other than a JSON 200.

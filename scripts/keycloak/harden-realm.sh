@@ -29,6 +29,7 @@ set -euo pipefail
 NS="${NS:-noryx}"
 REALM="${REALM:-noryx}"
 API_CLIENT_ID="${API_CLIENT_ID:-noryx-api}"
+FRONTEND_CLIENT_ID="${FRONTEND_CLIENT_ID:-noryx-frontend}"
 KUBECTL="${KUBECTL:-kubectl}"
 # Passwords already in use are not affected; this is what new ones must meet.
 PASSWORD_POLICY="${PASSWORD_POLICY:-length(12) and notUsername and notEmail and passwordHistory(3)}"
@@ -37,12 +38,13 @@ FAILURE_FACTOR="${FAILURE_FACTOR:-10}"
 pod="$(${KUBECTL} -n "${NS}" get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')"
 
 ${KUBECTL} -n "${NS}" exec -i "${pod}" -- bash -s -- \
-  "${REALM}" "${API_CLIENT_ID}" "${PASSWORD_POLICY}" "${FAILURE_FACTOR}" <<'INNER'
+  "${REALM}" "${API_CLIENT_ID}" "${PASSWORD_POLICY}" "${FAILURE_FACTOR}" "${FRONTEND_CLIENT_ID}" <<'INNER'
 set -euo pipefail
 REALM="$1"
 API_CLIENT_ID="$2"
 PASSWORD_POLICY="$3"
 FAILURE_FACTOR="$4"
+FRONTEND_CLIENT_ID="$5"
 
 KC=/opt/keycloak/bin/kcadm.sh
 CFG=/tmp/kcadm-harden.config
@@ -66,6 +68,40 @@ CFG=/tmp/kcadm-harden.config
   -s minimumQuickLoginWaitSeconds=60 \
   -s "passwordPolicy=$PASSWORD_POLICY" >/dev/null
 printf 'Realm %s: brute force detection on (%s attempts), password policy set.\n' "$REALM" "$FAILURE_FACTOR"
+
+
+# Keycloak binds its `organization` client scope as *optional*, so the claim
+# only appears when a client asks for it by name. The interface asks for
+# `openid profile email`, so it never arrived: every user saw a platform where
+# they belonged to no organization, while Keycloak held the memberships all
+# along. Making it a default scope puts the claim in the token every time.
+frontend_client_id="$(
+  {
+    "$KC" get "clients?clientId=$FRONTEND_CLIENT_ID" -r "$REALM" --config "$CFG" --fields id |
+      sed -n 's/.*"id" : "\([^"]*\)".*/\1/p' |
+      head -n 1
+  } || true
+)"
+organization_scope_id="$(
+  {
+    "$KC" get client-scopes -r "$REALM" --config "$CFG" --fields id,name |
+      tr -d ' \n' |
+      sed -n 's/.*{"id":"\([^"]*\)","name":"organization"}.*/\1/p' |
+      head -n 1
+  } || true
+)"
+if [[ -n "$frontend_client_id" && -n "$organization_scope_id" ]]; then
+  # A scope cannot be in both lists: Keycloak accepts the second call and
+  # silently keeps the first binding, which is how this looked applied while
+  # the token still carried nothing. Remove it from the optional list first.
+  "$KC" delete "clients/$frontend_client_id/optional-client-scopes/$organization_scope_id" \
+    -r "$REALM" --config "$CFG" >/dev/null 2>&1 || true
+  "$KC" update "clients/$frontend_client_id/default-client-scopes/$organization_scope_id" \
+    -r "$REALM" --config "$CFG" >/dev/null 2>&1 || true
+  printf 'Client %s now carries the organization claim by default.\n' "$FRONTEND_CLIENT_ID"
+else
+  printf 'No organization client scope in realm %s; the interface will show no organizations.\n' "$REALM" >&2
+fi
 
 # `|| true`: the lookup ends in a grep, which exits 1 when the client is
 # absent. Under `set -euo pipefail` that would abort here instead of reporting

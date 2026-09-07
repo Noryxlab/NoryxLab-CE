@@ -31,6 +31,7 @@ export const qk = {
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
+  myOrganizations: ['organizations', 'mine'] as const,
 
   projects: ['projects'] as const,
   project: (projectId: string) => ['projects', projectId] as const,
@@ -123,6 +124,13 @@ export const useHardwareTiers = () =>
 
 export const useOrganizations = () =>
   useQuery({ queryKey: qk.organizations, queryFn: platformApi.organizations, staleTime: 120_000 });
+
+export const useMyOrganizations = () =>
+  useQuery({
+    queryKey: qk.myOrganizations,
+    queryFn: platformApi.myOrganizations,
+    staleTime: 120_000,
+  });
 
 /* -- projects -------------------------------------------------------------- */
 

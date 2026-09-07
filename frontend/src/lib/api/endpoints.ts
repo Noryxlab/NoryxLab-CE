@@ -70,6 +70,10 @@ export const platformApi = {
   revokeApiToken: (tokenId: string) =>
     api.delete<void>(`${V1}/user/api-tokens/${encodeURIComponent(tokenId)}`),
   organizations: () => api.list<Organization>(`${V1}/organizations`),
+  /** The caller's own memberships, read from the identity provider rather than
+   *  from the token: a realm that does not put the claim in the token, or a
+   *  membership granted since sign-in, would otherwise show as none. */
+  myOrganizations: () => api.list<Organization>(`${V1}/user/organizations`),
 };
 
 export const searchApi = {

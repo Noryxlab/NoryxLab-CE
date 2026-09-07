@@ -16,7 +16,7 @@ import {
 import { useI18n, useT } from '@/lib/i18n';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import { useAuth } from '@/lib/auth';
-import { useVersion } from '@/lib/api/queries';
+import { useMyOrganizations, useVersion } from '@/lib/api/queries';
 import { config } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { useExtensions } from '@/lib/extensions';
@@ -64,6 +64,15 @@ function AccountMenu() {
   const { locale, setLocale } = useI18n();
   const { identity, logout, login, status, isAdmin } = useAuth();
   const { data: version } = useVersion();
+  // The platform is asked rather than the token: a realm that binds the
+  // organization scope as optional puts no claim in the token at all, and a
+  // membership granted this morning would otherwise wait for a sign-out. The
+  // token's own list stays as the fallback for an unreachable API.
+  const { data: memberships } = useMyOrganizations();
+  const organizations =
+    memberships && memberships.length > 0
+      ? memberships.map((organization) => organization.name)
+      : (identity?.organizations ?? []);
 
   return (
     <DropdownMenu>
@@ -80,8 +89,8 @@ function AccountMenu() {
           <User aria-hidden />
           <span className="truncate">
             {identity?.displayName ?? t('nav.signIn')}
-            {identity && identity.organizations.length > 0 ? (
-              <span className="text-muted-foreground"> ({identity.organizations.join(', ')})</span>
+            {identity && organizations.length > 0 ? (
+              <span className="text-muted-foreground"> ({organizations.join(', ')})</span>
             ) : null}
           </span>
           {isAdmin ? (
@@ -103,9 +112,9 @@ function AccountMenu() {
                   {identity.email}
                 </span>
               ) : null}
-              {identity.organizations.length > 0 ? (
+              {organizations.length > 0 ? (
                 <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
-                  {identity.organizations.join(', ')}
+                  {organizations.join(', ')}
                 </span>
               ) : null}
             </DropdownMenuLabel>

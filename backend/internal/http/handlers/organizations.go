@@ -45,6 +45,41 @@ func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// ListMyOrganizations answers with the organizations the caller belongs to,
+// as the identity provider holds them right now.
+//
+// The interface used to read this from the token, which meant it depended on a
+// realm binding the `organization` client scope as a default rather than an
+// optional one. Where that binding was missing - and it was missing on both
+// production installations - every user saw a platform where they belonged to
+// nothing, while Keycloak held the memberships all along. It also meant a
+// membership granted this morning only appeared after the person signed out
+// and back in.
+//
+// Asking the platform is the fix: it holds administrator credentials on the
+// realm and can simply look.
+func (h Handlers) ListMyOrganizations(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		return
+	}
+	items, err := h.keycloak.ListUserOrganizations(identity.UserID())
+	if err != nil {
+		// Silent on purpose, like the other identity lookups: an unreachable
+		// directory is an outage, and reporting it as "you belong to no
+		// organization" would send somebody looking for a membership that is
+		// there.
+		log.Printf("organizations: cannot read the memberships of %q: %v", identity.UserID(), err)
+		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func (h Handlers) ListAvailableOrganizations(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requireIdentity(w, r); !ok {
 		return

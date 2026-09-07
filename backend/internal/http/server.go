@@ -37,6 +37,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/admin/hardware-tiers", h.SaveHardwareTier)
 	mux.HandleFunc("PUT /api/v1/admin/hardware-tiers/{tierID}", h.SaveHardwareTier)
 	mux.HandleFunc("DELETE /api/v1/admin/hardware-tiers/{tierID}", h.DeleteHardwareTier)
+	mux.HandleFunc("GET /api/v1/user/organizations", h.ListMyOrganizations)
 	mux.HandleFunc("GET /api/v1/user/preferences", h.GetUserPreferences)
 	mux.HandleFunc("GET /api/v1/organizations", h.ListAvailableOrganizations)
 	mux.HandleFunc("PUT /api/v1/user/preferences", h.UpdateUserPreferences)
