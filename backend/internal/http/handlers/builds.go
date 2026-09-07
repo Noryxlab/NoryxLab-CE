@@ -103,12 +103,17 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.DestinationImage = derived
-	} else if imageRepository(req.DestinationImage) == req.DestinationImage {
-		// A repository with no tag: a rebuild naming the environment it
-		// belongs to. The platform adds the tag, because a client inventing
-		// one would either collide with an existing revision or invent a
-		// naming scheme of its own.
-		req.DestinationImage = fmt.Sprintf("%s:%d", req.DestinationImage, time.Now().UTC().Unix())
+	}
+	// The tag is the revision number, and `latest` follows the newest build.
+	// A workload that pins a revision keeps the image it was built against;
+	// one that does not gets the current environment. Both are pushed in the
+	// same pass, so the second tag costs a manifest and not a copy of the
+	// layers - which is the whole reason this is affordable.
+	extraDestinations := []string(nil)
+	if imageRepository(req.DestinationImage) == req.DestinationImage {
+		repository := req.DestinationImage
+		req.DestinationImage = repository + ":" + h.nextRevisionTag(req.ProjectID, repository)
+		extraDestinations = append(extraDestinations, repository+":latest")
 	}
 	if req.DockerfilePath == "" {
 		req.DockerfilePath = "Dockerfile"
@@ -150,6 +155,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 			DockerfileContent:  req.DockerfileContent,
 			ContextPath:        req.ContextPath,
 			DestinationImage:   req.DestinationImage,
+			ExtraDestinations:  extraDestinations,
 			PullSecret:         h.registryPullSecret,
 			RegistrySecretName: h.registryPushSecret,
 			Labels: map[string]string{
@@ -305,7 +311,22 @@ func (h Handlers) deriveEnvironmentImage(projectID, name string) (string, error)
 	if len(project) > 12 {
 		project = project[:12]
 	}
-	return fmt.Sprintf("%s/%s-%s:%d", registryProject, project, slug, time.Now().UTC().Unix()), nil
+	return fmt.Sprintf("%s/%s-%s", registryProject, project, slug), nil
+}
+
+// nextRevisionTag counts the revisions this environment already has and names
+// the next one. `r3` rather than a Unix timestamp: it is what the screen shows
+// and what somebody says out loud, and it sorts the way a person expects.
+func (h Handlers) nextRevisionTag(projectID, repository string) string {
+	revisions := 0
+	if builds, err := h.buildStore.List(); err == nil {
+		for _, item := range builds {
+			if item.ProjectID == projectID && imageRepository(strings.TrimSpace(item.DestinationImage)) == repository {
+				revisions++
+			}
+		}
+	}
+	return fmt.Sprintf("r%d", revisions+1)
 }
 
 // environmentSlug reduces a name to what a registry accepts in a repository

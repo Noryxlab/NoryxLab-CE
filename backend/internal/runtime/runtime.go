@@ -51,6 +51,10 @@ type BuildSpec struct {
 	DockerfileContent  string
 	ContextPath        string
 	DestinationImage   string
+	// ExtraDestinations are pushed in the same pass. Kaniko builds once and
+	// pushes each: a moving `latest` beside the numbered revision costs a
+	// manifest, not a copy of the layers.
+	ExtraDestinations []string
 	PullSecret         string
 	RegistrySecretName string
 	Labels             map[string]string

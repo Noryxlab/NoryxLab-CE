@@ -759,6 +759,11 @@ func kanikoBuildArgs(spec noryxruntime.BuildSpec) ([]string, string) {
 		"--insecure",
 		"--skip-tls-verify",
 	}
+	for _, destination := range spec.ExtraDestinations {
+		if trimmed := strings.TrimSpace(destination); trimmed != "" && trimmed != spec.DestinationImage {
+			args = append(args, "--destination="+trimmed)
+		}
+	}
 	if spec.ContextPath != "" && strings.TrimSpace(spec.DockerfileContent) == "" {
 		args = append(args, "--context-sub-path="+spec.ContextPath)
 	}
