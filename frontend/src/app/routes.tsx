@@ -53,6 +53,9 @@ export function AppRoutes() {
           <Route path="account" element={<AccountPage />} />
 
           <Route path="catalog" element={<CatalogPage />} />
+          {/* Before the dynamic segment: /catalog/secrets is a redirect, not a
+              section. */}
+          <Route path="catalog/secrets" element={<Navigate to="/account" replace />} />
           <Route path="catalog/:section" element={<CatalogPage />} />
           <Route path="catalog/:section/:resourceId" element={<CatalogPage />} />
 
@@ -69,7 +72,10 @@ export function AppRoutes() {
           <Route path="data-datasources" element={<Navigate to="/catalog/datasources" replace />} />
           <Route path="data-ontology" element={<Navigate to="/catalog/ontologies" replace />} />
           <Route path="data-git" element={<Navigate to="/catalog/repositories" replace />} />
-          <Route path="data-secrets" element={<Navigate to="/catalog/secrets" replace />} />
+          {/* Secrets are personal, so they live on the account page. Both
+              older links land there rather than on a tab that no longer
+              exists. */}
+          <Route path="data-secrets" element={<Navigate to="/account" replace />} />
           <Route path="ops" element={<Navigate to="/admin" replace />} />
           <Route path="govern-rbac" element={<Navigate to="/admin/rbac" replace />} />
           <Route path="govern-network" element={<Navigate to="/admin/network" replace />} />
