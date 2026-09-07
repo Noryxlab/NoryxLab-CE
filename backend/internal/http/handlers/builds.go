@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -12,6 +14,10 @@ import (
 
 type createBuildRequest struct {
 	ProjectID         string `json:"projectId"`
+	// Name is what the interface sends when somebody writes a Dockerfile in
+	// the environment screen: there is no repository to clone and no registry
+	// address a browser could know, so the platform derives both.
+	Name              string `json:"name"`
 	GitRepository     string `json:"gitRepository"`
 	GitRef            string `json:"gitRef"`
 	DockerfilePath    string `json:"dockerfilePath"`
@@ -64,9 +70,39 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	req.GitRepository = strings.TrimSpace(req.GitRepository)
 	req.DestinationImage = strings.TrimSpace(req.DestinationImage)
 	req.DockerfileContent = strings.TrimSpace(req.DockerfileContent)
-	if req.ProjectID == "" || req.GitRepository == "" || req.DestinationImage == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId, gitRepository and destinationImage are required"})
+	req.Name = strings.TrimSpace(req.Name)
+
+	// A build has to come from somewhere and go somewhere. There are two ways
+	// to say it, and only one of them was accepted:
+	//
+	//   - a repository to clone and an image to push, which is what a build
+	//     driven by an API client sends;
+	//   - a Dockerfile written in the environment screen, where there is no
+	//     repository at all and where a browser cannot know the registry the
+	//     platform pushes to.
+	//
+	// The second was refused with "projectId, gitRepository and
+	// destinationImage are required" - a message naming three fields, two of
+	// which the person had no way to provide. So the platform now fills them
+	// in: the Dockerfile is the source, and the destination is derived from
+	// the registry this installation already pulls its own environments from.
+	if req.ProjectID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
 		return
+	}
+	if req.GitRepository == "" && req.DockerfileContent == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "a build needs either a gitRepository to clone or a dockerfileContent to build",
+		})
+		return
+	}
+	if req.DestinationImage == "" {
+		derived, err := h.deriveEnvironmentImage(req.ProjectID, req.Name)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		req.DestinationImage = derived
 	}
 	if req.DockerfilePath == "" {
 		req.DockerfilePath = "Dockerfile"
@@ -228,4 +264,58 @@ func (h Handlers) syncBuildsFromRuntime() {
 			_ = h.buildStore.Upsert(item)
 		}
 	}
+}
+
+// deriveEnvironmentImage answers with where a custom environment's image goes.
+//
+// The registry is taken from the images this installation already runs - the
+// platform pulls noryx-vscode from it, so it is the registry this cluster can
+// reach and the one the build's push secret is for. Nothing here is a name a
+// browser could have invented, which is why the interface was never able to
+// send it.
+//
+// The tag is the project and the environment, so two projects building an
+// environment called "training" do not overwrite each other's image, and so
+// somebody reading a workload's image can tell whose environment it is.
+func (h Handlers) deriveEnvironmentImage(projectID, name string) (string, error) {
+	slug := environmentSlug(name)
+	if slug == "" {
+		return "", fmt.Errorf("a name is required to build an environment")
+	}
+	reference := strings.TrimSpace(h.workspaceVSCodeImage)
+	if reference == "" {
+		reference = strings.TrimSpace(h.workspaceJupyterImage)
+	}
+	if reference == "" {
+		return "", fmt.Errorf("this installation has no environment registry configured")
+	}
+	repository, _, _ := strings.Cut(reference, ":")
+	registryProject := path.Dir(repository)
+	if registryProject == "." || registryProject == "/" {
+		return "", fmt.Errorf("this installation has no environment registry configured")
+	}
+	project := environmentSlug(projectID)
+	if len(project) > 12 {
+		project = project[:12]
+	}
+	return fmt.Sprintf("%s/%s-%s:%d", registryProject, project, slug, time.Now().UTC().Unix()), nil
+}
+
+// environmentSlug reduces a name to what a registry accepts in a repository
+// path: lower case, digits, dashes.
+func environmentSlug(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var out strings.Builder
+	previousDash := false
+	for _, r := range value {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			out.WriteRune(r)
+			previousDash = false
+		case out.Len() > 0 && !previousDash:
+			out.WriteRune('-')
+			previousDash = true
+		}
+	}
+	return strings.Trim(out.String(), "-")
 }

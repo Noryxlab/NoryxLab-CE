@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/sheet';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
-import { useDockerfile, useEnvironments, useProjects, qk, useInvalidate } from '@/lib/api/queries';
+import { useBuildLogs, useDockerfile, useEnvironments, useProjects, qk, useInvalidate } from '@/lib/api/queries';
 import { environmentsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -108,14 +108,21 @@ function CreateEnvironmentSheet({
   const [touched, setTouched] = React.useState(false);
 
   const base = environments.find((environment) => environment.id === baseId);
-  const baseDockerfile = useDockerfile(base?.latestBuildId);
 
-  // Forking an environment pulls its definition in, so the user starts from
-  // the libraries they already have rather than a blank file.
+  // Building *on* the base rather than copying it. Pasting the base's whole
+  // Dockerfile lost the parentage - nothing afterwards said what this
+  // environment derived from - and rebuilt every one of its layers from
+  // scratch, which on the platform's own Python image is several minutes of
+  // pip for a line somebody wanted to add at the end. A FROM against the
+  // image already in the registry says where it comes from and builds in
+  // seconds.
   React.useEffect(() => {
-    if (baseId && baseDockerfile.data) setDockerfile(baseDockerfile.data);
+    if (baseId && base?.destinationImage) {
+      setDockerfile(`FROM ${base.destinationImage}\n\n# ${t('environments.forkHint')}\n`);
+      return;
+    }
     if (!baseId) setDockerfile(BLANK_DOCKERFILE);
-  }, [baseId, baseDockerfile.data]);
+  }, [baseId, base?.destinationImage, base?.name]);
 
   React.useEffect(() => {
     if (!open) {
@@ -234,6 +241,12 @@ function EnvironmentDetail({
   const invalidate = useInvalidate();
   const dockerfile = useDockerfile(environment.latestBuildId);
   const [draft, setDraft] = React.useState<string | null>(null);
+  // The build this panel started, so its output can be shown here rather than
+  // left in a pod nobody can reach. A build that fails is the normal case when
+  // somebody is editing a Dockerfile, and "failed" on its own is not a message
+  // anybody can act on.
+  const [startedBuildId, setStartedBuildId] = React.useState<string | null>(null);
+  const buildLogs = useBuildLogs(startedBuildId ?? undefined);
 
   const rebuild = useMutation({
     mutationFn: () =>
@@ -243,9 +256,10 @@ function EnvironmentDetail({
         dockerfileContent: draft ?? dockerfile.data ?? '',
         contextPath: environment.revisions?.[0]?.contextPath ?? '.',
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       invalidate(qk.environments(), qk.builds(projectId));
       setDraft(null);
+      setStartedBuildId(created?.id ?? null);
       toast.success(t('environments.buildStarted'), environment.name);
     },
     onError: (error) => toast.error(error, t('environments.build')),
@@ -331,6 +345,29 @@ function EnvironmentDetail({
                 {t('environments.build')}
               </Button>
             </div>
+
+            {/* What the build is doing, here, while it does it. A rebuild used
+                to end at a toast: a failure - a package that does not exist, a
+                base image the cluster cannot pull - left nothing on the screen
+                and the reason died with the pod. */}
+            {startedBuildId ? (
+              <div className="mt-4 rounded-md border border-border">
+                <div className="flex items-center gap-2 border-b border-border px-3 py-2 text-xs">
+                  <span className="font-medium">{t('environments.buildOutput')}</span>
+                  {buildLogs.data?.status ? (
+                    <Badge tone={buildLogs.data.status === 'failed' ? 'danger' : 'neutral'}>
+                      {buildLogs.data.status}
+                    </Badge>
+                  ) : null}
+                  {buildLogs.data?.pending ? (
+                    <span className="text-muted-foreground">{t('environments.buildRunning')}</span>
+                  ) : null}
+                </div>
+                <pre className="max-h-72 overflow-auto px-3 py-2 font-mono text-[11px] leading-relaxed">
+                  {buildLogs.data?.logs || buildLogs.data?.unavailable || t('common.loading')}
+                </pre>
+              </div>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="revisions">

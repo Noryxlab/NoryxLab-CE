@@ -172,6 +172,11 @@ ENVELOPES = {
         "updatedBy": "string", "updatedAt": "date-time",
     },
     "ProjectVariableListResponse": {"items": "[$ProjectVariable]", "canReadValues": "boolean"},
+    "BuildLogsResponse": {
+        "buildId": "string", "jobName": "string", "projectId": "string",
+        "status": "string", "podName": "string", "logs": "string",
+        "pending": "boolean", "unavailable": "string",
+    },
     "InvitationResponse": {"projectId": "string", "userId": "string", "role": "string", "status": "string"},
 }
 
@@ -209,6 +214,7 @@ RESPONSES = {
     ("GET", "/api/v1/assistant/developer/v1/models"): "AssistantModelListResponse",
     ("GET", "/api/v1/user/organizations"): "OrganizationListResponse",
     ("GET", "/api/v1/projects/{projectID}/variables"): "ProjectVariableListResponse",
+    ("GET", "/api/v1/builds/{buildID}/logs"): "BuildLogsResponse",
     ("PUT", "/api/v1/projects/{projectID}/variables/{name}"): "ProjectVariable",
 }
 

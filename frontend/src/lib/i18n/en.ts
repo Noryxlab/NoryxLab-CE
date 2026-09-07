@@ -331,6 +331,9 @@ export const en: Translations = {
     deleteTitle: 'Delete environment',
     deleteWarning:
       'Workspaces and jobs using it will no longer start. Running executions are not interrupted.',
+    forkHint: 'Add what this environment adds to the base image, for example: RUN pip install --no-cache-dir pandas',
+    buildOutput: 'Build output',
+    buildRunning: 'building…',
     buildStarted: 'Build started. You can follow its progress here.',
     technicalDetails: 'Technical details',
   },

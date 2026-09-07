@@ -40,6 +40,17 @@ components:
       name: X-Noryx-User
 
   schemas:
+    BuildLogsResponse:
+      type: object
+      properties:
+        buildId: { type: string }
+        jobName: { type: string }
+        projectId: { type: string }
+        status: { type: string }
+        podName: { type: string }
+        logs: { type: string }
+        pending: { type: boolean }
+        unavailable: { type: string }
     ProjectVariable:
       type: object
       properties:
@@ -5752,6 +5763,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectVariable'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/builds/{buildID}/logs:
+    get:
+      tags: [Workloads]
+      summary: What a build printed, so a failed one can be read
+      operationId: getBuildLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: buildID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildLogsResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

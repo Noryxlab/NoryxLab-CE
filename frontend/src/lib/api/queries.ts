@@ -33,6 +33,7 @@ export const qk = {
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
   projectVariables: (projectId: string) => ['projects', projectId, 'variables'] as const,
+  buildLogs: (buildId: string) => ['builds', buildId, 'logs'] as const,
   myOrganizations: ['organizations', 'mine'] as const,
 
   projects: ['projects'] as const,
@@ -123,6 +124,16 @@ export const usePlatformOverview = () =>
 
 export const useHardwareTiers = () =>
   useQuery({ queryKey: qk.hardwareTiers, queryFn: platformApi.hardwareTiers, staleTime: 600_000 });
+
+/** Polled while the build is still running, so somebody watching a rebuild
+ *  sees it progress rather than a frozen panel. */
+export const useBuildLogs = (buildId: string | undefined, enabled = true) =>
+  useQuery({
+    queryKey: qk.buildLogs(buildId ?? ''),
+    queryFn: () => environmentsApi.buildLogs(buildId as string),
+    enabled: Boolean(buildId) && enabled,
+    refetchInterval: ({ state }) => (state.data?.pending ? 4000 : false),
+  });
 
 export const useProjectVariables = (projectId: string | undefined) =>
   useQuery({

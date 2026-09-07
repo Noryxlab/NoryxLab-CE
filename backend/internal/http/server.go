@@ -83,6 +83,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
 	mux.HandleFunc("DELETE /api/v1/dashboards/{dashboardID}", h.DeleteDashboard)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/dockerfile", h.GetBuildDockerfile)
+	mux.HandleFunc("GET /api/v1/builds/{buildID}/logs", h.GetBuildLogs)
 	mux.HandleFunc("GET /api/v1/environments", h.ListEnvironments)
 	mux.HandleFunc("DELETE /api/v1/environments/{environmentID}", h.DeleteEnvironment)
 	mux.HandleFunc("GET /api/v1/pods", h.ListPods)

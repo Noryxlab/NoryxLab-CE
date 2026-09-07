@@ -395,7 +395,23 @@ export const environmentsApi = {
   remove: (environmentId: string) => api.delete<void>(`${V1}/environments/${environmentId}`),
   builds: (projectId?: string) =>
     api.list<Build>(`${V1}/builds`, projectId ? { params: { projectId } } : undefined),
-  createBuild: (input: Record<string, unknown>) => api.post<Build>(`${V1}/builds`, input),
+  /** Typed on purpose: this took `Record<string, unknown>`, so a form that
+   *  sent none of the fields the API requires compiled cleanly and failed at
+   *  the click. Either a repository to clone or a Dockerfile to build. */
+  createBuild: (input: {
+    projectId: string;
+    name?: string;
+    dockerfileContent?: string;
+    gitRepository?: string;
+    gitRef?: string;
+    dockerfilePath?: string;
+    contextPath?: string;
+    destinationImage?: string;
+  }) => api.post<Build>(`${V1}/builds`, input),
+  buildLogs: (buildId: string) =>
+    api.get<{ status: string; logs: string; pending?: boolean; unavailable?: string }>(
+      `${V1}/builds/${buildId}/logs`,
+    ),
   cancelBuild: (buildId: string) => api.delete<void>(`${V1}/builds/${buildId}`),
   /** The API answers with the file *and* where it came from - repository, ref,
    *  path, source URL. The screen shows the file, so unwrap it here rather than

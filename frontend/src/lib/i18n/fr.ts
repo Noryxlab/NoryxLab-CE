@@ -335,6 +335,9 @@ export const fr = {
     deleteTitle: 'Supprimer l’environnement',
     deleteWarning:
       'Les workspaces et jobs qui l’utilisent ne pourront plus démarrer. Les exécutions en cours ne sont pas interrompues.',
+    forkHint: 'Ajoutez ici ce que cet environnement ajoute à l’image de base, par exemple : RUN pip install --no-cache-dir pandas',
+    buildOutput: 'Sortie de la construction',
+    buildRunning: 'construction en cours…',
     buildStarted: 'Construction lancée. Vous pouvez suivre son avancement ici.',
     technicalDetails: 'Détails techniques',
   },
