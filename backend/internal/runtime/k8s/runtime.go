@@ -1460,12 +1460,21 @@ func (r *Runtime) GetJobLogs(jobName string, tailLines int) (noryxruntime.JobLog
 		return noryxruntime.JobLogs{}, fmt.Errorf("job pod not found for %s", jobName)
 	}
 
+	// The container is asked for by name, and not every job's is called "main":
+	// a build's is "kaniko". Naming the wrong one is a 400 from the API server,
+	// which reached the screen as "no logs yet" - so a build that had already
+	// failed looked like a build still starting, for ever. Ask the pod what it
+	// holds instead of assuming.
+	container := jobLogContainer(body, selected)
 	logPath := fmt.Sprintf(
-		"/api/v1/namespaces/%s/pods/%s/log?container=main&tailLines=%s",
+		"/api/v1/namespaces/%s/pods/%s/log?tailLines=%s",
 		r.workloadNamespace,
 		url.PathEscape(selected),
 		url.QueryEscape(strconv.Itoa(tailLines)),
 	)
+	if container != "" {
+		logPath += "&container=" + url.QueryEscape(container)
+	}
 	logBody, err := r.get(logPath)
 	if err != nil {
 		return noryxruntime.JobLogs{}, err
@@ -1474,6 +1483,46 @@ func (r *Runtime) GetJobLogs(jobName string, tailLines int) (noryxruntime.JobLog
 		PodName: selected,
 		Logs:    string(logBody),
 	}, nil
+}
+
+// jobLogContainer answers with the container to read, taken from the pod
+// listing the caller already has. An empty answer means "let the API server
+// choose", which is right when a pod has exactly one container.
+func jobLogContainer(podListBody []byte, podName string) string {
+	var pods struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Spec struct {
+				Containers []struct {
+					Name string `json:"name"`
+				} `json:"containers"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+	if json.Unmarshal(podListBody, &pods) != nil {
+		return ""
+	}
+	for _, item := range pods.Items {
+		if strings.TrimSpace(item.Metadata.Name) != strings.TrimSpace(podName) {
+			continue
+		}
+		if len(item.Spec.Containers) == 1 {
+			return strings.TrimSpace(item.Spec.Containers[0].Name)
+		}
+		// More than one: prefer the one the platform calls "main", which is
+		// what a workspace or a job runs its command in.
+		for _, container := range item.Spec.Containers {
+			if strings.TrimSpace(container.Name) == "main" {
+				return "main"
+			}
+		}
+		if len(item.Spec.Containers) > 0 {
+			return strings.TrimSpace(item.Spec.Containers[0].Name)
+		}
+	}
+	return ""
 }
 
 func parseKanikoBuildArgs(args []string) (repo, ref, dockerfilePath, contextPath, destinationImage string) {

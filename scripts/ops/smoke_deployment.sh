@@ -333,6 +333,31 @@ if [ "$SKIP_CLUSTER" != "1" ] && command -v kubectl >/dev/null 2>&1; then
       *)          printf '  note  could not tell whether %s is pullable within a minute\n' "${image##*/}" ;;
     esac
   done
+
+  # Pulling is the kubelet's job and resolving is the pod's, and they do not
+  # use the same resolver. A registry named only in the nodes' /etc/hosts pulls
+  # perfectly and cannot be reached from inside a pod, so every in-cluster
+  # build fails at the push while everything else looks healthy.
+  registry_host="$(printf '%s\n' $images | head -1 | cut -d/ -f1)"
+  if [ -n "$registry_host" ] && printf '%s' "$registry_host" | grep -q '\.'; then
+    probe="noryx-dns-check-$(date +%s)"
+    resolved=""
+    if kubectl -n "$NAMESPACE" run "$probe" --image=busybox:1.36 --restart=Never --quiet \
+         --command -- nslookup "$registry_host" >/dev/null 2>&1; then
+      for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+        phase=$(kubectl -n "$NAMESPACE" get "pod/$probe" -o jsonpath='{.status.phase}' 2>/dev/null)
+        [ "$phase" = "Succeeded" ] && { resolved=yes; break; }
+        [ "$phase" = "Failed" ] && break
+        sleep 2
+      done
+    fi
+    kubectl -n "$NAMESPACE" delete "pod/$probe" --wait=false >/dev/null 2>&1 || true
+    if [ -n "$resolved" ]; then
+      pass "a pod can resolve ${registry_host}"
+    else
+      fail "a pod cannot resolve ${registry_host}: images pull, and every in-cluster build will fail at the push"
+    fi
+  fi
 fi
 
 echo
