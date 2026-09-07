@@ -215,7 +215,6 @@ func (s *Store) migrate(ctx context.Context) error {
 		)`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS dockerfile_content TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
-		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS token_excess_scopes TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -455,8 +454,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			validation_error TEXT NOT NULL DEFAULT '',
 			last_validated_at TIMESTAMPTZ,
 			created_at TIMESTAMPTZ NOT NULL,
-			updated_at TIMESTAMPTZ NOT NULL
+			updated_at TIMESTAMPTZ NOT NULL,
+			token_excess_scopes TEXT NOT NULL DEFAULT ''
 		)`,
+		// After the table, never before it: an ALTER that runs first fails on
+		// an empty database, which is every new installation.
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS token_excess_scopes TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS auth_type TEXT NOT NULL DEFAULT 'none'`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS git_author_name TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS git_author_email TEXT NOT NULL DEFAULT ''`,
