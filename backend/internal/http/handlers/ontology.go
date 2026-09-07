@@ -302,9 +302,13 @@ func (h Handlers) SetOntologyAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be reader or writer"})
 		return
 	}
-	if subjectType == "organization" && !h.organizationExists(subjectID) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
-		return
+	if subjectType == "organization" {
+		organization, found := h.resolveOrganization(subjectID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + subjectID})
+			return
+		}
+		subjectID = organization.ID
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner role cannot be changed"})
@@ -376,9 +380,13 @@ func (h Handlers) UpdateOntologyOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
 		return
 	}
-	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
-		return
+	if req.OwnerType == "organization" {
+		organization, found := h.resolveOrganization(req.OwnerID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
+			return
+		}
+		req.OwnerID = organization.ID
 	}
 	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
 		isMember := false

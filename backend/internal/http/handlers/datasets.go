@@ -19,6 +19,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -831,9 +832,13 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "role must be reader or writer"})
 		return
 	}
-	if subjectType == "organization" && !h.organizationExists(subjectID) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
-		return
+	if subjectType == "organization" {
+		organization, found := h.resolveOrganization(subjectID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + subjectID})
+			return
+		}
+		subjectID = organization.ID
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, 400, map[string]string{"error": "owner role cannot be changed"})
@@ -911,9 +916,13 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
 		return
 	}
-	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
-		return
+	if req.OwnerType == "organization" {
+		organization, found := h.resolveOrganization(req.OwnerID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
+			return
+		}
+		req.OwnerID = organization.ID
 	}
 	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
 		isMember := false
@@ -938,19 +947,40 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) organizationExists(organizationID string) bool {
-	if h.keycloak == nil {
-		return false
+	_, found := h.resolveOrganization(organizationID)
+	return found
+}
+
+// resolveOrganization accepts whichever handle the caller has - the
+// identifier or the alias - and answers with the organization itself.
+//
+// Keycloak gives an organization both, and the interface offers the alias
+// because that is what a person recognises: "imt", not
+// 57c801a4-f273-4844-97c6-28307872a480. Every check here compared against the
+// identifier alone, so transferring a project to an organization that plainly
+// exists was refused with "organization does not exist" - the platform telling
+// somebody their own organization is imaginary.
+//
+// Callers use the resolved ID from here on, so what gets stored is always the
+// identifier, whatever the caller typed.
+func (h Handlers) resolveOrganization(identifier string) (keycloak.Organization, bool) {
+	identifier = strings.TrimSpace(identifier)
+	if h.keycloak == nil || identifier == "" {
+		return keycloak.Organization{}, false
 	}
 	organizations, err := h.keycloak.ListOrganizations()
 	if err != nil {
-		return false
+		return keycloak.Organization{}, false
 	}
 	for _, organization := range organizations {
-		if organization.ID == strings.TrimSpace(organizationID) && organization.Enabled {
-			return true
+		if !organization.Enabled {
+			continue
+		}
+		if organization.ID == identifier || strings.EqualFold(organization.Alias, identifier) {
+			return organization, true
 		}
 	}
-	return false
+	return keycloak.Organization{}, false
 }
 
 func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {

@@ -226,11 +226,13 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedOrganizations is required for organization access"})
 		return
 	}
-	for _, organizationID := range req.AllowedOrganizations {
-		if !h.organizationExists(strings.TrimSpace(organizationID)) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowed organization does not exist: " + strings.TrimSpace(organizationID)})
+	for index, organizationID := range req.AllowedOrganizations {
+		organization, found := h.resolveOrganization(organizationID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + strings.TrimSpace(organizationID)})
 			return
 		}
+		req.AllowedOrganizations[index] = organization.ID
 	}
 	if req.AccessMode == "users" && len(req.AllowedUsers) == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedUsers is required for users access"})

@@ -261,9 +261,16 @@ func (h Handlers) UpdateProjectOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
 		return
 	}
-	if req.OwnerType == "organization" && !h.organizationExists(req.OwnerID) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization does not exist"})
-		return
+	if req.OwnerType == "organization" {
+		// The interface offers the alias, because that is the handle a person
+		// recognises. Resolve it here and store the identifier, so ownership
+		// is recorded the same way whichever handle was used.
+		organization, found := h.resolveOrganization(req.OwnerID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
+			return
+		}
+		req.OwnerID = organization.ID
 	}
 	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) && !h.userBelongsToOrganization(identity.UserID(), req.OwnerID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
