@@ -281,6 +281,9 @@ export interface Secret {
 }
 
 export interface EnvironmentRevision {
+  /** What a person refers to: revision 3 of "training", not a449755a. Counted
+   *  per environment, oldest first, so a pinned revision keeps its meaning. */
+  number: number;
   buildId: string;
   jobName: string;
   status: string;

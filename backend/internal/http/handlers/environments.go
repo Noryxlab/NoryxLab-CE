@@ -12,6 +12,11 @@ import (
 )
 
 type environmentRevision struct {
+	// Number is what a person refers to: revision 3 of "training", not
+	// a449755a. Counted per environment, oldest first, so it never changes
+	// once assigned and a workload pinned to revision 2 keeps meaning the
+	// same thing.
+	Number           int       `json:"number"`
 	BuildID          string    `json:"buildId"`
 	JobName          string    `json:"jobName"`
 	Status           string    `json:"status"`
@@ -111,9 +116,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]environmentItem, 0, len(itemsByKey))
 	for _, item := range itemsByKey {
-		sort.SliceStable(item.Revisions, func(i, j int) bool {
-			return item.Revisions[i].CreatedAt.After(item.Revisions[j].CreatedAt)
-		})
+		numberEnvironmentRevisions(item)
 		if len(item.Revisions) > 0 {
 			latest := item.Revisions[0]
 			item.LatestBuildID = latest.BuildID
@@ -377,12 +380,33 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 	},
 }
 
+// numberEnvironmentRevisions counts forward from the first build, then leaves
+// the list newest first for the screen. The number has to mean "the third time
+// this was built", which only counting forwards gives - and it must not move
+// when a fourth build arrives, or a workload pinned to revision 2 would
+// quietly come to mean something else.
+func numberEnvironmentRevisions(item *environmentItem) {
+	sort.SliceStable(item.Revisions, func(i, j int) bool {
+		return item.Revisions[i].CreatedAt.Before(item.Revisions[j].CreatedAt)
+	})
+	for index := range item.Revisions {
+		item.Revisions[index].Number = index + 1
+	}
+	sort.SliceStable(item.Revisions, func(i, j int) bool {
+		return item.Revisions[i].CreatedAt.After(item.Revisions[j].CreatedAt)
+	})
+}
+
 func addSystemEnvironment(items map[string]*environmentItem, projectID, image string, definition systemEnvironmentDefinition) {
 	image = strings.TrimSpace(image)
 	if image == "" {
 		return
 	}
-	key := projectID + "|" + image
+	// The same key builds use: the repository, not the reference. Keying this
+	// one on the full image while builds keyed on the repository produced
+	// three rows for noryx-vscode:0.1.2 - the system definition, and the
+	// rebuilds of it, none of them merging.
+	key := projectID + "|" + imageRepository(image)
 	revision := environmentRevision{
 		BuildID:          definition.BuildID,
 		Status:           "succeeded",

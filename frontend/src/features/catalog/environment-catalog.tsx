@@ -276,7 +276,15 @@ function EnvironmentDetail({
       header: t('production.revision'),
       cell: (revision) => (
         <span className="flex items-center gap-2">
-          <span className="font-mono text-xs">{revision.buildId.slice(0, 8)}</span>
+          {/* The number, then the build it came from. "a449755a" is what the
+              platform calls it; "révision 3" is what a person calls it, and
+              only one of the two is worth reading first. */}
+          <span className="font-medium">
+            {t('environments.revisionNumber', { number: String(revision.number) })}
+          </span>
+          <span className="font-mono text-[0.6875rem] text-muted-foreground">
+            {revision.buildId.slice(0, 8)}
+          </span>
           {revision.buildId === environment.latestBuildId ? (
             <Badge tone="success">{t('environments.activeRevision')}</Badge>
           ) : null}
