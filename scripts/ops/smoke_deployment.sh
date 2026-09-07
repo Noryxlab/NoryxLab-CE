@@ -283,6 +283,58 @@ if [ "$SKIP_CLUSTER" != "1" ] && command -v kubectl >/dev/null 2>&1; then
   fi
 fi
 
+# 9. The images the platform will ask Kubernetes to pull.
+#
+#    A workspace image named in the deployment and missing from the registry is
+#    invisible until somebody launches a workspace: the platform is healthy,
+#    the deployment is green, and the person waiting gets ImagePullBackOff. It
+#    happened on the day of an upgrade - the backend asked for
+#    noryx-vscode:0.1.2 and the registry only held 0.1.0.
+#
+#    Checked from a cluster node, because that is who has to pull it: a tag
+#    that resolves from a laptop and not from the node is the same outage.
+if [ "$SKIP_CLUSTER" != "1" ] && command -v kubectl >/dev/null 2>&1; then
+  images=$(kubectl -n "$NAMESPACE" get deployment noryx-backend \
+    -o jsonpath='{range .spec.template.spec.containers[0].env[*]}{.name}={.value}{"\n"}{end}' 2>/dev/null |
+    grep -E '^NORYX_(WORKSPACE_[A-Z]+|PROJECT_FILES)_IMAGE=.+' | cut -d= -f2- | sort -u)
+  for image in $images; do
+    [ -z "$image" ] && continue
+    probe="noryx-image-check-$(date +%s)-$$"
+    kubectl -n "$NAMESPACE" run "$probe" --image="$image" --restart=Never --quiet \
+      --overrides='{"spec":{"imagePullSecrets":[{"name":"harbor-regcred"}]}}' \
+      --command -- /bin/true >/dev/null 2>&1 || true
+    # Poll rather than wait on a condition: the probe exits immediately when
+    # the pull works, so "not ready" is true both for a pod that pulled and
+    # finished and for one that cannot pull at all.
+    verdict="timeout"
+    attempt=0
+    while [ "$attempt" -lt 30 ]; do
+      reason=$(kubectl -n "$NAMESPACE" get "pod/$probe" \
+        -o jsonpath='{.status.containerStatuses[0].state.waiting.reason}' 2>/dev/null)
+      phase=$(kubectl -n "$NAMESPACE" get "pod/$probe" -o jsonpath='{.status.phase}' 2>/dev/null)
+      case "$reason" in
+        ImagePullBackOff|ErrImagePull|InvalidImageName) verdict="unpullable"; break ;;
+      esac
+      case "$phase" in
+        Running|Succeeded) verdict="pullable"; break ;;
+      esac
+      if kubectl -n "$NAMESPACE" get "pod/$probe" \
+           -o jsonpath='{.status.containerStatuses[0].state.terminated.reason}' 2>/dev/null |
+         grep -q .; then
+        verdict="pullable"; break
+      fi
+      attempt=$((attempt + 1))
+      sleep 2
+    done
+    kubectl -n "$NAMESPACE" delete "pod/$probe" --wait=false >/dev/null 2>&1 || true
+    case "$verdict" in
+      pullable)   pass "the cluster can pull ${image##*/}" ;;
+      unpullable) fail "the cluster cannot pull ${image}: nothing that needs it will ever start" ;;
+      *)          printf '  note  could not tell whether %s is pullable within a minute\n' "${image##*/}" ;;
+    esac
+  done
+fi
+
 echo
 if [ "$failures" -gt 0 ]; then
   echo "${failures} check(s) failed"
