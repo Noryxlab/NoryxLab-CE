@@ -40,7 +40,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
-  const confirm = useConfirm();
+  const { dialog, ask } = useConfirm();
   const variables = useProjectVariables(projectId);
 
   const [open, setOpen] = React.useState(false);
@@ -129,11 +129,15 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
           />
         ) : (
           <DataTable
-            items={items}
+            data={items}
             columns={columns}
-            getRowId={(item) => item.name}
-            loading={variables.isLoading}
-            actions={
+            rowKey={(item) => item.name}
+            isLoading={variables.isLoading}
+            isError={variables.isError}
+            error={variables.error}
+            onRetry={() => void variables.refetch()}
+            defaultSort={{ columnId: 'name', direction: 'asc' }}
+            rowActions={
               canWrite
                 ? (item) => (
                     <>
@@ -149,18 +153,15 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         destructive
-                        onSelect={async () => {
-                          if (
-                            await confirm({
-                              title: t('projectVariables.removeTitle'),
-                              description: t('projectVariables.removeHint', { name: item.name }),
-                              confirmLabel: t('common.delete'),
-                              destructive: true,
-                            })
-                          ) {
-                            remove.mutate(item);
-                          }
-                        }}
+                        onSelect={() =>
+                          ask({
+                            title: t('projectVariables.removeTitle'),
+                            description: t('projectVariables.removeHint', { name: item.name }),
+                            confirmLabel: t('common.delete'),
+                            destructive: true,
+                            onConfirm: () => remove.mutateAsync(item),
+                          })
+                        }
                       >
                         <Trash2 aria-hidden />
                         {t('common.delete')}
@@ -219,6 +220,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+      {dialog}
     </Card>
   );
 }
