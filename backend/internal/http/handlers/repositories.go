@@ -171,19 +171,30 @@ func setRepositoryValidation(item *repository.Repository, validationErr error) {
 	}
 }
 
+// normalizeRepositoryAuthType settles what kind of token a repository uses.
+//
+// The platform records two: a personal access token and a repository one. The
+// interface used to send "secret", meaning "a token kept in a secret", and was
+// refused with "authType must be persat or prat" - words nobody had ever been
+// shown, about a distinction the form never offered. The form offers it now,
+// and the plain words are accepted too, because an API client saying "token"
+// means the obvious thing.
 func normalizeRepositoryAuthType(w http.ResponseWriter, authType, authSecretName string) (string, bool) {
 	if strings.TrimSpace(authSecretName) == "" {
 		return "none", true
 	}
-	authType = strings.ToLower(strings.TrimSpace(authType))
-	if authType == "" {
+	switch strings.ToLower(strings.TrimSpace(authType)) {
+	case "", "secret", "token", "pat", "persat":
 		return "persat", true
-	}
-	if authType != "persat" && authType != "prat" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "authType must be persat or prat when an auth secret is configured"})
+	case "prat", "repository", "deploy":
+		return "prat", true
+	default:
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "a repository with a secret is authenticated by a personal token (persat) " +
+				"or a repository token (prat)",
+		})
 		return "", false
 	}
-	return authType, true
 }
 
 func (h Handlers) ValidateRepository(w http.ResponseWriter, r *http.Request) {

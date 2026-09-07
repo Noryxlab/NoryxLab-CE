@@ -457,6 +457,8 @@ export const en: Translations = {
     urlHint: 'HTTPS or SSH address of the repository.',
     defaultRefLabel: 'Default branch',
     authTypeLabel: 'Authentication',
+    authPersonalToken: 'Personal access token',
+    authRepositoryToken: 'Repository access token',
     authNone: 'Public repository',
     authSecret: 'Token stored in a secret',
     authSecretLabel: 'Secret holding the token',

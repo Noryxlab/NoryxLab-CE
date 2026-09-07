@@ -462,6 +462,8 @@ export const fr = {
     urlHint: 'Adresse HTTPS ou SSH du dépôt.',
     defaultRefLabel: 'Branche par défaut',
     authTypeLabel: 'Authentification',
+    authPersonalToken: 'Jeton personnel (PAT)',
+    authRepositoryToken: 'Jeton de dépôt (PRAT)',
     authNone: 'Dépôt public',
     authSecret: 'Jeton stocké dans un secret',
     authSecretLabel: 'Secret contenant le jeton',

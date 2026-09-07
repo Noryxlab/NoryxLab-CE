@@ -66,7 +66,7 @@ export function RepositoryCatalog() {
         url: url.trim(),
         defaultRef: defaultRef.trim() || 'main',
         authType,
-        authSecretName: authType === 'secret' ? authSecretName : '',
+        authSecretName: authType === 'none' ? '' : authSecretName,
         gitAuthorName: authorName.trim(),
         gitAuthorEmail: authorEmail.trim(),
       }),
@@ -267,11 +267,12 @@ export function RepositoryCatalog() {
                   onValueChange={setAuthType}
                   options={[
                     { value: 'none', label: t('repositories.authNone') },
-                    { value: 'secret', label: t('repositories.authSecret') },
+                    { value: 'persat', label: t('repositories.authPersonalToken') },
+                    { value: 'prat', label: t('repositories.authRepositoryToken') },
                   ]}
                 />
               </Field>
-              {authType === 'secret' ? (
+              {authType !== 'none' ? (
                 <Field label={t('repositories.authSecretLabel')} required>
                   <Select
                     value={authSecretName}
