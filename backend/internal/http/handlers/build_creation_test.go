@@ -42,11 +42,11 @@ func TestAnInstallationWithNoRegistrySaysSo(t *testing.T) {
 
 func TestANameThatIsNotARepositoryPathIsReduced(t *testing.T) {
 	for input, expected := range map[string]string{
-		"Training GPU":  "training-gpu",
-		"  spaces  ":    "spaces",
-		"Accentué!":     "accentu",
-		"UPPER_snake":   "upper-snake",
-		"--dashes--":    "dashes",
+		"Training GPU": "training-gpu",
+		"  spaces  ":   "spaces",
+		"Accentué!":    "accentu",
+		"UPPER_snake":  "upper-snake",
+		"--dashes--":   "dashes",
 	} {
 		if got := environmentSlug(input); got != expected {
 			t.Errorf("%q became %q, expected %q", input, got, expected)
