@@ -86,6 +86,22 @@ export function AuthGate() {
     );
   }
 
+  if (status === 'expired') {
+    return (
+      <CentredCard
+        icon={LogIn}
+        title={t('errors.sessionExpiredTitle')}
+        description={t('errors.sessionExpiredHint')}
+        action={
+          <Button variant="primary" onClick={login} data-testid="sign-in">
+            <LogIn aria-hidden />
+            {t('nav.signIn')}
+          </Button>
+        }
+      />
+    );
+  }
+
   if (status === 'anonymous') {
     return (
       <CentredCard

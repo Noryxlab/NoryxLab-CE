@@ -879,6 +879,8 @@ export const fr = {
     reload: 'Recharger la page',
     projectNotFound: 'Projet introuvable',
     projectNotFoundHint: 'Ce projet n’existe plus ou vous n’y avez plus accès.',
+    sessionExpiredTitle: 'Votre session a expiré',
+    sessionExpiredHint: 'Reconnectez-vous pour reprendre. Le travail en cours dans vos espaces n’est pas affecté : ils continuent de tourner.',
     signedOutTitle: 'Session expirée',
     signedOutHint: 'Reconnectez-vous pour reprendre votre travail.',
     noOrganizationTitle: 'Une organisation est requise',

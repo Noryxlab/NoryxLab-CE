@@ -44,7 +44,10 @@ async function closeBackendSession(): Promise<void> {
   }
 }
 
-export type AuthStatus = 'initialising' | 'authenticated' | 'anonymous' | 'failed';
+// `expired` is distinct from `anonymous`: somebody who never signed in is
+// invited to; somebody whose session ended in the middle of their work is told
+// that is what happened, because otherwise the platform looks broken.
+export type AuthStatus = 'initialising' | 'authenticated' | 'anonymous' | 'expired' | 'failed';
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -153,6 +156,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // One place decides that the session is over, so the reason is recorded
+    // once and every path - a failed refresh, an explicit refresh error from
+    // keycloak-js - lands on the same screen.
+    let ended = false;
+    const endSession = () => {
+      if (ended) return;
+      ended = true;
+      setIdentity(null);
+      setStatus('expired');
+    };
+
     const keycloak = new Keycloak({
       url: config.oidc.url,
       realm: config.oidc.realm,
@@ -173,6 +187,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // never sends an expired bearer.
           await keycloak.updateToken(30);
         } catch {
+          // The session is over: the refresh token was rejected, which happens
+          // when it has expired or when the identity provider no longer holds
+          // the session - a Keycloak restart drops every session it keeps in
+          // memory, so this is what a person sees after a platform upgrade.
+          //
+          // Returning null alone sent the request with no Authorization header
+          // and let the screen render the API's answer: "missing bearer
+          // token". That is the platform explaining its own internals to
+          // somebody who left the page open for five minutes. Say the session
+          // ended, and show the sign-in screen.
+          endSession();
           return null;
         }
         return keycloak.token ?? null;
@@ -192,6 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectUri,
       })
       .then((authenticated) => {
+        // keycloak-js reports its own refresh failures here, including the
+        // background ones no request asked for.
+        keycloak.onAuthRefreshError = endSession;
+        keycloak.onAuthLogout = endSession;
         if (authenticated && keycloak.tokenParsed) {
           setIdentity(toIdentity(keycloak.tokenParsed as TokenClaims, config.oidc?.clientId ?? ''));
           setStatus('authenticated');

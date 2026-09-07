@@ -874,6 +874,8 @@ export const en: Translations = {
     reload: 'Reload the page',
     projectNotFound: 'Project not found',
     projectNotFoundHint: 'This project no longer exists, or you no longer have access to it.',
+    sessionExpiredTitle: 'Your session has expired',
+    sessionExpiredHint: 'Sign in again to carry on. Work in your workspaces is unaffected: they keep running.',
     signedOutTitle: 'Session expired',
     signedOutHint: 'Sign in again to resume your work.',
     noOrganizationTitle: 'An organisation is required',

@@ -36,8 +36,19 @@ spec:
               cpu: "2"
               memory: "2Gi"
           image: harbor.example.local/noryx-ce/keycloak:26.6.2
+          # `start`, not `start-dev`. Development mode keeps every session in
+          # memory: restarting Keycloak - a platform upgrade, a node drain -
+          # signs every user out, and the interface could only report that its
+          # refresh token was refused. Production mode stores sessions in the
+          # database, so an upgrade no longer costs everybody their session.
+          #
+          # `--http-enabled=true` because TLS is terminated at the edge and the
+          # hop from the proxy to this pod stays inside the cluster; production
+          # mode refuses plain HTTP otherwise, which is the right default and
+          # the wrong one here.
           args:
-            - "start-dev"
+            - "start"
+            - "--http-enabled=true"
             - "--http-relative-path=/auth"
             - "--proxy-headers=xforwarded"
             - "--hostname=datalab.example.local"
