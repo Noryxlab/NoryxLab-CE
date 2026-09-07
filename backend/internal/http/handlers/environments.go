@@ -131,7 +131,22 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		items = append(items, *item)
 	}
 
+	// Most recently updated first, except that the platform's own environments
+	// lead, VS Code at the top. The launch sheet preselects whatever comes
+	// first, so this order is a default somebody lives with on every workspace
+	// they open - and it was decided by which system image happened to be
+	// rebuilt last.
+	systemRank := map[string]int{"system-vscode": 0, "system-jupyter": 1, "system-rstudio": 2}
+	rank := func(item environmentItem) int {
+		if position, ok := systemRank[item.LatestBuildID]; ok {
+			return position
+		}
+		return len(systemRank)
+	}
 	sort.SliceStable(items, func(i, j int) bool {
+		if rank(items[i]) != rank(items[j]) {
+			return rank(items[i]) < rank(items[j])
+		}
 		return items[i].UpdatedAt.After(items[j].UpdatedAt)
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -381,14 +396,18 @@ func getSystemEnvironmentDefinition(buildID string) (systemEnvironmentDefinition
 	return definition, ok
 }
 
+// The order is the order the interface offers, and its first entry is what a
+// launch uses when nobody chooses: VS Code comes first because it is what most
+// people here open, and a default that matches the common case saves a click
+// on every workspace.
 func deriveWorkspaceIDEs(values ...string) []string {
 	joined := strings.ToLower(strings.Join(values, "\n"))
 	ides := []string{}
-	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "jupyter") {
-		ides = append(ides, "jupyter")
-	}
 	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "vscode") || strings.Contains(joined, "openvscode") {
 		ides = append(ides, "vscode")
+	}
+	if strings.Contains(joined, "noryx-python") || strings.Contains(joined, "jupyter") {
+		ides = append(ides, "jupyter")
 	}
 	if strings.Contains(joined, "rstudio") || strings.Contains(joined, "rocker/") {
 		ides = append(ides, "rstudio")
