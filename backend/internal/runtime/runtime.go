@@ -44,17 +44,17 @@ type ServiceSpec struct {
 }
 
 type BuildSpec struct {
-	JobName            string
-	ContextGitURL      string
-	GitRef             string
-	DockerfilePath     string
-	DockerfileContent  string
-	ContextPath        string
-	DestinationImage   string
+	JobName           string
+	ContextGitURL     string
+	GitRef            string
+	DockerfilePath    string
+	DockerfileContent string
+	ContextPath       string
+	DestinationImage  string
 	// ExtraDestinations are pushed in the same pass. Kaniko builds once and
 	// pushes each: a moving `latest` beside the numbered revision costs a
 	// manifest, not a copy of the layers.
-	ExtraDestinations []string
+	ExtraDestinations  []string
 	PullSecret         string
 	RegistrySecretName string
 	Labels             map[string]string
