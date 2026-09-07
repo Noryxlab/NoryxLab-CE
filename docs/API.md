@@ -8,7 +8,8 @@ Two documents describe it, generated from the router by
 | `openapi.public.yaml` | `/swagger/openapi.public.yaml` | the supported API: 168 operations an integration may build on |
 | `openapi.yaml` | `/swagger/openapi.yaml` | everything the platform serves, 187 operations, internal ones included |
 
-Swagger UI is at `/swagger` and offers both, the supported one first. It is
+Swagger UI is at `/swagger`, which loads the supported document; `/swagger?spec=full`
+loads the other, and each page links to the other. It is
 served by the platform - no request leaves the installation to render it.
 
 ## Supported and internal

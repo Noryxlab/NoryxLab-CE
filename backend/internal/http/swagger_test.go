@@ -41,6 +41,41 @@ func TestSwaggerAssetsStayInsideTheirDirectory(t *testing.T) {
 	}
 }
 
+// The page has to hand Swagger UI a document it will actually load. Passing a
+// list of them to SwaggerUIBundle without the standalone preset renders "No
+// API definition provided" on a blank page, which is what the first reader of
+// this page got.
+func TestTheSwaggerPageNamesOneDocumentToLoad(t *testing.T) {
+	for _, testCase := range []struct {
+		query, expected, other string
+	}{
+		{"/swagger", "/swagger/openapi.public.yaml", "url: '/swagger/openapi.yaml'"},
+		{"/swagger?spec=full", "/swagger/openapi.yaml", "url: '/swagger/openapi.public.yaml'"},
+	} {
+		recorder := httptest.NewRecorder()
+		GetSwaggerUI(recorder, httptest.NewRequest(http.MethodGet, testCase.query, nil))
+		body := recorder.Body.String()
+		if !strings.Contains(body, "url: '"+testCase.expected+"'") {
+			t.Errorf("%s does not load %s", testCase.query, testCase.expected)
+		}
+		if strings.Contains(body, testCase.other) {
+			t.Errorf("%s loads the other document as well", testCase.query)
+		}
+		if strings.Contains(body, "urls:") {
+			t.Errorf("%s passes a list of documents, which this page's setup ignores", testCase.query)
+		}
+		if strings.Contains(body, "SPEC_URL") || strings.Contains(body, "SPEC_NOTE") {
+			t.Errorf("%s left a placeholder in the page", testCase.query)
+		}
+		// Both documents stay reachable from the page, whichever is loaded.
+		for _, link := range []string{`href="/swagger"`, `href="/swagger?spec=full"`} {
+			if !strings.Contains(body, link) {
+				t.Errorf("%s does not offer %s", testCase.query, link)
+			}
+		}
+	}
+}
+
 // Two documents are served: the supported contract, and the same with the
 // interface's own endpoints.
 func TestBothAPIDocumentsAreServed(t *testing.T) {

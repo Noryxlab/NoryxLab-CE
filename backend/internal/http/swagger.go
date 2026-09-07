@@ -27,22 +27,44 @@ var openAPIPublicSpec []byte
 //go:embed static/swagger-ui
 var swaggerUIAssets embed.FS
 
+// The page picks its document from the query string rather than handing
+// Swagger UI a list of them. `urls` is only read by the standalone preset's
+// topbar, which this page does not load: passing it to SwaggerUIBundle alone
+// makes it render "No API definition provided" on a blank page - which is what
+// the first reader of this page got. A link that reloads with ?spec=full needs
+// nothing but the bundle, and says in our words what the two documents are.
 const swaggerUIHTML = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <title>Noryx API</title>
     <link rel="stylesheet" href="/swagger/assets/swagger-ui.css" />
+    <style>
+      body { margin: 0; }
+      .noryx-bar {
+        display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+        padding: 14px 20px; background: #1b1b26; color: #d7dce5;
+        font: 400 13px/1.5 system-ui, -apple-system, sans-serif;
+      }
+      .noryx-bar b { color: #fff; font-weight: 600; }
+      .noryx-bar span { color: #98a2b3; }
+      .noryx-bar a { color: #7cc0ff; text-decoration: none; }
+      .noryx-bar a:hover { text-decoration: underline; }
+      .noryx-bar a[aria-current] { color: #fff; font-weight: 600; text-decoration: none; }
+    </style>
   </head>
   <body>
+    <div class="noryx-bar">
+      <b>Noryx API</b>
+      <a href="/swagger" SUPPORTED_CURRENT>Supported API</a>
+      <a href="/swagger?spec=full" FULL_CURRENT>Including internal endpoints</a>
+      <span>SPEC_NOTE</span>
+    </div>
     <div id="swagger-ui"></div>
     <script src="/swagger/assets/swagger-ui-bundle.js"></script>
     <script>
       window.ui = SwaggerUIBundle({
-        urls: [
-          { name: 'Noryx API (supported)', url: '/swagger/openapi.public.yaml' },
-          { name: 'Noryx API including internal endpoints', url: '/swagger/openapi.yaml' }
-        ],
+        url: 'SPEC_URL',
         dom_id: '#swagger-ui'
       });
     </script>
@@ -62,10 +84,28 @@ func GetPublicOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(openAPIPublicSpec)
 }
 
-func GetSwaggerUI(w http.ResponseWriter, _ *http.Request) {
+func GetSwaggerUI(w http.ResponseWriter, r *http.Request) {
+	full := r.URL.Query().Get("spec") == "full"
+	page := swaggerUIHTML
+	if full {
+		page = strings.NewReplacer(
+			"SPEC_URL", "/swagger/openapi.yaml",
+			"SUPPORTED_CURRENT", "",
+			"FULL_CURRENT", `aria-current="page"`,
+			"SPEC_NOTE", "Everything the platform serves. The endpoints marked "+
+				"x-noryx-internal are the interface's own and carry no compatibility promise.",
+		).Replace(page)
+	} else {
+		page = strings.NewReplacer(
+			"SPEC_URL", "/swagger/openapi.public.yaml",
+			"SUPPORTED_CURRENT", `aria-current="page"`,
+			"FULL_CURRENT", "",
+			"SPEC_NOTE", "The API an integration may build on. Every operation says what it returns.",
+		).Replace(page)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(swaggerUIHTML))
+	_, _ = w.Write([]byte(page))
 }
 
 func GetSwaggerAsset(w http.ResponseWriter, r *http.Request) {
