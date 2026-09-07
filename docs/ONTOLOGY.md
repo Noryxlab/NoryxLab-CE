@@ -1,4 +1,16 @@
-# Semantic Catalog / Ontology MVP
+# Content catalogue (was: Semantic Catalog / Ontology MVP)
+
+**What this is, in one line:** it reads a dataset's object *paths* and works out
+what the dataset contains. It is a profiler, not an ontology - the interface
+now says so, because calling it an ontology promised objects, relations and
+natural-language queries that do not exist, and nobody could tell what the
+feature was for.
+
+A real ontology - declared objects with properties and links, everything else
+expressed in their terms - would start from this scan rather than replace it:
+the inference proposes Study, Subject, Visit and Modality, and a person
+confirms, renames and links them. That decision is open.
+
 
 NoryxLab can generate a first semantic catalog from datasets attached to the active project. The UI entry point belongs to the Data domain, not to the project resource panel, while the stored manifest remains project-scoped for RBAC and dataset attachment checks.
 

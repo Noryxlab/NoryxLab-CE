@@ -76,7 +76,7 @@ export const en: Translations = {
     settings: 'Settings',
     datasets: 'Datasets',
     datasources: 'Data sources',
-    ontologies: 'Ontologies',
+    ontologies: 'Content catalogues',
     repositories: 'Git repositories',
     secrets: 'Secrets',
     network: 'Network and security',
@@ -430,22 +430,24 @@ export const en: Translations = {
   },
 
   ontologies: {
-    title: 'Ontologies',
-    subtitle: 'Semantic models describing your business objects and their relations.',
-    empty: 'No ontologies',
+    title: 'Content catalogues',
+    subtitle: 'What a dataset holds: studies, subjects, visits, modalities and volumes, inferred from its object paths.',
+    empty: 'No catalogue',
     emptyHint:
-      'An ontology describes your business objects on top of raw data, so the platform can be queried in natural language.',
-    scan: 'Scan source',
+      'A catalogue reads a dataset\u2019s object paths - never their content - and works out ' +
+      'what is in there: how many subjects, which modalities, which visits. Enough to know what ' +
+      'a bucket of 40,000 files contains without listing one.',
+    scan: 'Scan the source',
     scanning: 'Scanning',
-    query: 'Query',
-    queryLabel: 'Question',
-    queryHint: 'Ask a natural-language question about the objects in this ontology.',
-    queryPlaceholder: 'How many orders were placed last month?',
+    query: 'Filter',
+    queryLabel: 'Filter',
+    queryHint: 'Filter the catalogue\u2019s objects by subject, visit or modality.',
+    queryPlaceholder: 'ANTERION',
     source: 'Source',
     profile: 'Inference profile',
     manifest: 'Manifest',
-    deleteTitle: 'Delete ontology',
-    deleteWarning: 'Attached projects will lose access to this semantic model.',
+    deleteTitle: 'Delete the catalogue',
+    deleteWarning: 'Attached projects will lose access to this catalogue.',
   },
 
   repositories: {
