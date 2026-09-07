@@ -34,17 +34,28 @@ KUBECTL="${KUBECTL:-kubectl}"
 # Passwords already in use are not affected; this is what new ones must meet.
 PASSWORD_POLICY="${PASSWORD_POLICY:-length(12) and notUsername and notEmail and passwordHistory(3)}"
 FAILURE_FACTOR="${FAILURE_FACTOR:-10}"
+# How long a session survives with nothing happening, and how long it may last
+# at all. Keycloak's default idle timeout is 30 minutes, which is a reasonable
+# posture for a bank and a poor one here: "nothing happening" means no request,
+# not no human, so reading one screen for half an hour ended the session and
+# the next click landed on a sign-in page. Four hours covers a working session;
+# the ten-hour ceiling still forces a fresh sign-in every day.
+SESSION_IDLE_SECONDS="${SESSION_IDLE_SECONDS:-14400}"
+SESSION_MAX_SECONDS="${SESSION_MAX_SECONDS:-36000}"
 
 pod="$(${KUBECTL} -n "${NS}" get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')"
 
 ${KUBECTL} -n "${NS}" exec -i "${pod}" -- bash -s -- \
-  "${REALM}" "${API_CLIENT_ID}" "${PASSWORD_POLICY}" "${FAILURE_FACTOR}" "${FRONTEND_CLIENT_ID}" <<'INNER'
+  "${REALM}" "${API_CLIENT_ID}" "${PASSWORD_POLICY}" "${FAILURE_FACTOR}" "${FRONTEND_CLIENT_ID}" \
+  "${SESSION_IDLE_SECONDS}" "${SESSION_MAX_SECONDS}" <<'INNER'
 set -euo pipefail
 REALM="$1"
 API_CLIENT_ID="$2"
 PASSWORD_POLICY="$3"
 FAILURE_FACTOR="$4"
 FRONTEND_CLIENT_ID="$5"
+SESSION_IDLE_SECONDS="$6"
+SESSION_MAX_SECONDS="$7"
 
 KC=/opt/keycloak/bin/kcadm.sh
 CFG=/tmp/kcadm-harden.config
@@ -66,8 +77,11 @@ CFG=/tmp/kcadm-harden.config
   -s maxFailureWaitSeconds=900 \
   -s quickLoginCheckMilliSeconds=1000 \
   -s minimumQuickLoginWaitSeconds=60 \
-  -s "passwordPolicy=$PASSWORD_POLICY" >/dev/null
+  -s "passwordPolicy=$PASSWORD_POLICY" \
+  -s ssoSessionIdleTimeout="$SESSION_IDLE_SECONDS" \
+  -s ssoSessionMaxLifespan="$SESSION_MAX_SECONDS" >/dev/null
 printf 'Realm %s: brute force detection on (%s attempts), password policy set.\n' "$REALM" "$FAILURE_FACTOR"
+printf 'Sessions: %sh idle, %sh maximum.\n' "$((SESSION_IDLE_SECONDS / 3600))" "$((SESSION_MAX_SECONDS / 3600))"
 
 
 # Keycloak binds its `organization` client scope as *optional*, so the claim
