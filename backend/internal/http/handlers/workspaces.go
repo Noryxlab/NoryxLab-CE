@@ -90,9 +90,17 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The same filter every other family applies. Without it a project's
+	// workspace screen listed every workspace the caller could see anywhere:
+	// the interface asked for one project, the API answered with all of them,
+	// and a brand-new project opened showing somebody else's work.
+	projectFilter := strings.TrimSpace(r.URL.Query().Get("projectId"))
 	filtered := make([]workspace.Workspace, 0, len(items))
 	readiness, hasReadiness := h.runtime.(noryxruntime.WorkspaceReadiness)
 	for _, item := range items {
+		if projectFilter != "" && item.ProjectID != projectFilter {
+			continue
+		}
 		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
