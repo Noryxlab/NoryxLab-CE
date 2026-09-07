@@ -59,6 +59,9 @@ jobs:
       # for months and nothing said so; this is what stops that returning.
       - name: The API document covers every route
         run: python3 scripts/ops/generate-openapi.py --check
+
+      - name: The embedded system Dockerfiles match environments/
+        run: python3 scripts/ops/embed-system-dockerfiles.py --check
       - run: go -C backend test ./...
 
       # The store that actually runs in production cannot be tested without a

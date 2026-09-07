@@ -35,10 +35,18 @@ func (h Handlers) GetBuildDockerfile(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "build not found"})
 			return
 		}
-		content, sourceURL, err := fetchDockerfileContent(definition.GitRepository, definition.GitRef, definition.DockerfilePath)
-		if err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dockerfile fetch failed: " + err.Error()})
-			return
+		// The copy that shipped with this binary, before the network: it is
+		// the file this platform was built from, and it is there on an
+		// installation with no route out - which is where the fetch used to
+		// answer "dockerfile fetch failed" for the platform's own environment.
+		content, sourceURL := embeddedDockerfile(definition.DockerfilePath)
+		if content == "" {
+			var err error
+			content, sourceURL, err = fetchDockerfileContent(definition.GitRepository, definition.GitRef, definition.DockerfilePath)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dockerfile fetch failed: " + err.Error()})
+				return
+			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"buildId":        definition.BuildID,
@@ -197,4 +205,15 @@ func buildRawDockerfileURL(host, repoPath, gitRef, dockerfilePath string) (strin
 	default:
 		return "", fmt.Errorf("unsupported git host: %s", host)
 	}
+}
+
+// embeddedDockerfile answers with the Dockerfile shipped in this binary, and
+// where it says it came from. An empty answer means this path is not one of
+// the platform's own environments.
+func embeddedDockerfile(dockerfilePath string) (string, string) {
+	content, ok := systemDockerfiles[strings.TrimSpace(dockerfilePath)]
+	if !ok {
+		return "", ""
+	}
+	return content, "embedded://" + strings.TrimSpace(dockerfilePath)
 }
