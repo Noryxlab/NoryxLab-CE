@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/states';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -62,16 +63,17 @@ function AttachBar<T extends { id: string; name: string }>({
   return (
     <div className="flex flex-wrap items-end gap-2">
       <div className="min-w-56 flex-1">
-        <label className="mb-1.5 block text-xs font-medium" htmlFor="attach-select">
-          {label}
-        </label>
-        <Select
-          value={selection}
-          onValueChange={setSelection}
-          options={options}
-          placeholder={options.length ? t('common.search') : t('common.none')}
-          aria-label={label}
-        />
+        {/* A real Field: the label and the control are wired together, and
+            the screen no longer depends on a control tolerating its absence. */}
+        <Field label={label}>
+          <Select
+            value={selection}
+            onValueChange={setSelection}
+            options={options}
+            placeholder={options.length ? t('common.search') : t('common.none')}
+            aria-label={label}
+          />
+        </Field>
       </div>
       <Button
         variant="primary"

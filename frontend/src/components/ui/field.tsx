@@ -28,19 +28,23 @@ interface FieldContextValue {
 
 const FieldContext = React.createContext<FieldContextValue | null>(null);
 
-function useFieldContext(): FieldContextValue {
-  const ctx = React.useContext(FieldContext);
-  if (!ctx) throw new Error('Field subcomponents must be used inside <Field>');
-  return ctx;
-}
 
 /** Wires aria attributes onto whichever control the field wraps. */
 export function useFieldControlProps(): {
-  id: string;
+  id: string | undefined;
   'aria-describedby': string | undefined;
   'aria-invalid': boolean | undefined;
 } {
-  const { id, descriptionId, errorId, hasError, hasDescription } = useFieldContext();
+  // A control outside a Field is legitimate - an inline filter, a picker in a
+  // toolbar - and it used to bring the whole screen down: the context threw,
+  // nothing caught it, and clicking "Data" in a project rendered "an
+  // unexpected error occurred". A control with no field simply has no field
+  // wiring; it is not a programming error worth an outage.
+  const ctx = React.useContext(FieldContext);
+  if (!ctx) {
+    return { id: undefined, 'aria-describedby': undefined, 'aria-invalid': undefined };
+  }
+  const { id, descriptionId, errorId, hasError, hasDescription } = ctx;
   const describedBy = [hasDescription ? descriptionId : null, hasError ? errorId : null]
     .filter(Boolean)
     .join(' ');
