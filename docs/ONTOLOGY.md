@@ -1,15 +1,27 @@
-# Content catalogue (was: Semantic Catalog / Ontology MVP)
+# Ontology
 
-**What this is, in one line:** it reads a dataset's object *paths* and works out
-what the dataset contains. It is a profiler, not an ontology - the interface
-now says so, because calling it an ontology promised objects, relations and
-natural-language queries that do not exist, and nobody could tell what the
-feature was for.
+**Where this is today, in one line:** it reads a dataset's object *paths* -
+never their content - and infers a first draft of the objects in it: a study,
+its pseudonymised subjects, their visits, modalities, formats and volumes.
 
-A real ontology - declared objects with properties and links, everything else
-expressed in their terms - would start from this scan rather than replace it:
-the inference proposes Study, Subject, Visit and Modality, and a person
-confirms, renames and links them. That decision is open.
+The name stays. "Ontology" is the category the product is aiming at and the
+word a buyer recognises, and renaming the feature to match what it does today
+would trade the ambition for accuracy about a version that will not last.
+
+What had to go were the specific promises around it. The empty screen said the
+ontology was there "to query the platform in natural language"; the query
+filters a manifest by subject, visit and modality, so the screen now says
+filter and the field offers `ANTERION` rather than "how many orders were
+placed last month". A word that names a direction is fair; a sentence that
+describes a capability nobody built is not.
+
+**What makes the word true**, and it is open: declared objects with properties
+and links, bound to data, with this scan as their first step rather than their
+competitor - the inference proposes Study, Subject, Visit and Modality, and a
+person confirms, renames and links them. The test of whether it is worth
+building is in the backlog: it has to turn a selection into a mount, so that
+"the ANTERION files of subjects in PREMYOM1000" becomes a dataset a workspace
+mounts without anybody writing an S3 path.
 
 
 NoryxLab can generate a first semantic catalog from datasets attached to the active project. The UI entry point belongs to the Data domain, not to the project resource panel, while the stored manifest remains project-scoped for RBAC and dataset attachment checks.

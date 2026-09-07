@@ -76,7 +76,7 @@ export const en: Translations = {
     settings: 'Settings',
     datasets: 'Datasets',
     datasources: 'Data sources',
-    ontologies: 'Content catalogues',
+    ontologies: 'Ontologies',
     repositories: 'Git repositories',
     secrets: 'Secrets',
     network: 'Network and security',
@@ -432,24 +432,21 @@ export const en: Translations = {
   },
 
   ontologies: {
-    title: 'Content catalogues',
-    subtitle: 'What a dataset holds: studies, subjects, visits, modalities and volumes, inferred from its object paths.',
-    empty: 'No catalogue',
-    emptyHint:
-      'A catalogue reads a dataset\u2019s object paths - never their content - and works out ' +
-      'what is in there: how many subjects, which modalities, which visits. Enough to know what ' +
-      'a bucket of 40,000 files contains without listing one.',
+    title: 'Ontologies',
+    subtitle: 'Your business objects above the raw data. Today, a first draft inferred from a dataset\u2019s object paths.',
+    empty: 'No ontology',
+    emptyHint: 'An ontology describes your business objects above the data. Noryx builds a first draft by reading a dataset\u2019s object paths - never their content: studies, subjects, visits, modalities, volumes.',
     scan: 'Scan the source',
     scanning: 'Scanning',
     query: 'Filter',
     queryLabel: 'Filter',
-    queryHint: 'Filter the catalogue\u2019s objects by subject, visit or modality.',
+    queryHint: 'Filter the objects by subject, visit or modality.',
     queryPlaceholder: 'ANTERION',
     source: 'Source',
     profile: 'Inference profile',
     manifest: 'Manifest',
-    deleteTitle: 'Delete the catalogue',
-    deleteWarning: 'Attached projects will lose access to this catalogue.',
+    deleteTitle: 'Delete the ontology',
+    deleteWarning: 'Attached projects will lose access to this model.',
   },
 
   repositories: {
