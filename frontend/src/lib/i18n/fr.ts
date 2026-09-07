@@ -459,6 +459,8 @@ export const fr = {
     createTitle: 'Ajouter un dépôt Git',
     createHint: 'Le dépôt est cloné automatiquement dans /repos au démarrage de vos workspaces.',
     urlLabel: 'Adresse du dépôt',
+    tokenTooBroad: 'Ce jeton peut aussi :',
+    tokenTooBroadDanger: 'Ce jeton peut détruire ou administrer :',
     urlHint: 'Adresse HTTPS du dépôt. L’authentification se fait par jeton ; les adresses SSH ne sont pas encore prises en charge.',
     defaultRefLabel: 'Branche par défaut',
     authTypeLabel: 'Authentification',

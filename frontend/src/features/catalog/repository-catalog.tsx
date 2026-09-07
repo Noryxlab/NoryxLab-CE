@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { CheckCircle2, FolderGit2, Plus, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, FolderGit2, Plus, ShieldAlert, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
+import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
@@ -27,6 +28,66 @@ import { repositoriesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import type { Repository } from '@/lib/api/types';
+
+/**
+ * What this repository's token can do beyond cloning.
+ *
+ * Cloning needs `repo`. A token carrying delete_repo, admin:org or
+ * admin:enterprise can destroy every repository in the organisation, and the
+ * platform injects it as an environment variable into every workspace its
+ * owner launches - where any notebook prints it with `env`. The platform makes
+ * the call that reveals this anyway, so it says so.
+ *
+ * A warning, never a refusal: the scopes belong to whoever created the token,
+ * and a platform that refused would be telling people how to run their GitHub
+ * account.
+ */
+function TokenScopeWarning({ repository }: { repository: Repository }) {
+  const t = useT();
+  const excess = repository.tokenExcessScopes ?? [];
+  if (excess.length === 0) return null;
+  const destructive = excess.some((scope) => DESTRUCTIVE_SCOPES.has(scope.toLowerCase()));
+  const shown = excess.slice(0, 4).join(', ');
+  return (
+    <p
+      className={cn(
+        'mt-1 flex items-start gap-1.5 text-xs',
+        destructive ? 'text-danger' : 'text-muted-foreground',
+      )}
+      title={excess.join(', ')}
+    >
+      <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+      <span>
+        {destructive ? t('repositories.tokenTooBroadDanger') : t('repositories.tokenTooBroad')}{' '}
+        <span className="font-mono">{shown}</span>
+        {excess.length > 4 ? ` +${excess.length - 4}` : ''}
+      </span>
+    </p>
+  );
+}
+
+/** Named here as well as in the API so the row can colour itself without a
+ *  second round trip; the API decides what counts as excess. */
+const DESTRUCTIVE_SCOPES = new Set([
+  'delete_repo',
+  'admin:org',
+  'admin:enterprise',
+  'admin:public_key',
+  'admin:ssh_signing_key',
+  'admin:org_hook',
+  'admin:repo_hook',
+  'admin:gpg_key',
+  'delete:packages',
+  'write:packages',
+  'write:org',
+  'write:network_configurations',
+  'workflow',
+  'user',
+  'gist',
+  'codespace',
+  'project',
+  'audit_log',
+]);
 
 export function RepositoryCatalog() {
   const t = useT();
@@ -104,6 +165,7 @@ export function RepositoryCatalog() {
         <div className="min-w-0">
           <p className="truncate font-medium">{repository.name}</p>
           <p className="truncate font-mono text-xs text-muted-foreground">{repository.url}</p>
+          <TokenScopeWarning repository={repository} />
         </div>
       ),
     },

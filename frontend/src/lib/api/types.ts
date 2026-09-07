@@ -257,6 +257,10 @@ export interface Repository {
   defaultRef: string;
   authSecretName?: string;
   authType: string;
+  /** What this repository's token can do beyond cloning, most alarming first.
+   *  Empty when the provider does not say - a fine-grained GitHub token
+   *  reports nothing, and silence is not evidence of anything. */
+  tokenExcessScopes?: string[];
   gitAuthorName?: string;
   gitAuthorEmail?: string;
   reachable: boolean;

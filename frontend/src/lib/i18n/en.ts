@@ -454,6 +454,8 @@ export const en: Translations = {
     createTitle: 'Add a Git repository',
     createHint: 'The repository is cloned automatically into /repos when your workspaces start.',
     urlLabel: 'Repository address',
+    tokenTooBroad: 'This token can also:',
+    tokenTooBroadDanger: 'This token can destroy or administer:',
     urlHint: 'HTTPS address of the repository. Authentication is by token; SSH addresses are not supported yet.',
     defaultRefLabel: 'Default branch',
     authTypeLabel: 'Authentication',

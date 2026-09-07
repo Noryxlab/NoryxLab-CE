@@ -8,10 +8,18 @@ import (
 	"time"
 )
 
+// validateRepositoryConnectivity checks the repository answers, and reports
+// what the token is allowed to do while it is there: the call is made anyway,
+// and the provider says so in a header.
 func validateRepositoryConnectivity(repoURL, secretValue string) error {
+	_, err := checkRepository(repoURL, secretValue)
+	return err
+}
+
+func checkRepository(repoURL, secretValue string) ([]string, error) {
 	host, repoPath, err := parseRepoLocation(repoURL)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	client := &http.Client{Timeout: 12 * time.Second}
@@ -29,26 +37,27 @@ func validateRepositoryConnectivity(repoURL, secretValue string) error {
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
-		return fmt.Errorf("invalid validation request")
+		return nil, fmt.Errorf("invalid validation request")
 	}
 	req.Header.Set("User-Agent", "noryx-ce-repo-validator")
 	applyRepositoryAuthHeaders(req, host, secretValue)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("unreachable")
+		return nil, fmt.Errorf("unreachable")
 	}
 	_ = resp.Body.Close()
+	scopes := tokenScopesFromResponse(resp)
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		return nil
+		return scopes, nil
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return fmt.Errorf("authentication failed (status=%d)", resp.StatusCode)
+		return scopes, fmt.Errorf("authentication failed (status=%d)", resp.StatusCode)
 	case http.StatusNotFound:
-		return fmt.Errorf("repository not found")
+		return scopes, fmt.Errorf("repository not found")
 	default:
-		return fmt.Errorf("unexpected status=%d", resp.StatusCode)
+		return scopes, fmt.Errorf("unexpected status=%d", resp.StatusCode)
 	}
 }
 

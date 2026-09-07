@@ -215,6 +215,7 @@ func (s *Store) migrate(ctx context.Context) error {
 		)`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS dockerfile_content TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE repositories ADD COLUMN IF NOT EXISTS token_excess_scopes TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -2206,7 +2207,7 @@ func (s *Store) DeleteDatasource(id string) error {
 
 // ListAllRepositories returns every repository across users, for backup.
 func (s *Store) ListAllRepositories() ([]repository.Repository, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories ORDER BY owner_user_id, name`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at, token_excess_scopes FROM repositories ORDER BY owner_user_id, name`)
 	if err != nil {
 		return nil, err
 	}
@@ -2214,16 +2215,18 @@ func (s *Store) ListAllRepositories() ([]repository.Repository, error) {
 	out := []repository.Repository{}
 	for rows.Next() {
 		var item repository.Repository
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var scopes string
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt, &scopes); err != nil {
 			return nil, err
 		}
+		item.TokenExcessScopes = splitStoredScopes(scopes)
 		out = append(out, item)
 	}
 	return out, rows.Err()
 }
 
 func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	rows, err := s.db.Query(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at, token_excess_scopes FROM repositories WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -2231,9 +2234,11 @@ func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, 
 	out := []repository.Repository{}
 	for rows.Next() {
 		var item repository.Repository
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var scopes string
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.URL, &item.DefaultRef, &item.AuthSecretName, &item.AuthType, &item.GitAuthorName, &item.GitAuthorEmail, &item.Reachable, &item.ValidationError, &item.LastValidatedAt, &item.CreatedAt, &item.UpdatedAt, &scopes); err != nil {
 			return nil, err
 		}
+		item.TokenExcessScopes = splitStoredScopes(scopes)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2241,7 +2246,8 @@ func (s *Store) ListRepositoriesByUser(userID string) ([]repository.Repository, 
 
 func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error) {
 	var item repository.Repository
-	err := s.db.QueryRow(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at FROM repositories WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var storedScopes string
+	err := s.db.QueryRow(`SELECT id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at, token_excess_scopes FROM repositories WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.Name,
@@ -2256,6 +2262,7 @@ func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error
 		&item.LastValidatedAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
+		&storedScopes,
 	)
 	if err == sql.ErrNoRows {
 		return repository.Repository{}, false, nil
@@ -2263,11 +2270,12 @@ func (s *Store) GetRepositoryByID(id string) (repository.Repository, bool, error
 	if err != nil {
 		return repository.Repository{}, false, err
 	}
+	item.TokenExcessScopes = splitStoredScopes(storedScopes)
 	return item, true, nil
 }
 
 func (s *Store) CreateRepository(item repository.Repository) error {
-	_, err := s.db.Exec(`INSERT INTO repositories (id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+	_, err := s.db.Exec(`INSERT INTO repositories (id, owner_user_id, name, url, default_ref, auth_secret_name, auth_type, git_author_name, git_author_email, reachable, validation_error, last_validated_at, created_at, updated_at, token_excess_scopes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		item.ID,
 		item.OwnerUserID,
 		item.Name,
@@ -2282,12 +2290,13 @@ func (s *Store) CreateRepository(item repository.Repository) error {
 		item.LastValidatedAt,
 		item.CreatedAt,
 		item.UpdatedAt,
+		joinStoredScopes(item.TokenExcessScopes),
 	)
 	return err
 }
 
 func (s *Store) UpdateRepository(item repository.Repository) error {
-	_, err := s.db.Exec(`UPDATE repositories SET name=$2, url=$3, default_ref=$4, auth_secret_name=$5, auth_type=$6, git_author_name=$7, git_author_email=$8, reachable=$9, validation_error=$10, last_validated_at=$11, updated_at=$12 WHERE id=$1`,
+	_, err := s.db.Exec(`UPDATE repositories SET name=$2, url=$3, default_ref=$4, auth_secret_name=$5, auth_type=$6, git_author_name=$7, git_author_email=$8, reachable=$9, validation_error=$10, last_validated_at=$11, updated_at=$12, token_excess_scopes=$13 WHERE id=$1`,
 		item.ID,
 		item.Name,
 		item.URL,
@@ -2300,6 +2309,7 @@ func (s *Store) UpdateRepository(item repository.Repository) error {
 		item.ValidationError,
 		item.LastValidatedAt,
 		item.UpdatedAt,
+		joinStoredScopes(item.TokenExcessScopes),
 	)
 	return err
 }
@@ -2798,3 +2808,21 @@ func (s *Store) DeleteProjectVariable(projectID, name string) error {
 		strings.TrimSpace(projectID), strings.TrimSpace(name))
 	return err
 }
+
+// Scopes are stored as one comma-separated string: a list of short strings
+// nothing queries by, which is not worth a table of its own.
+func splitStoredScopes(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	out := []string{}
+	for _, scope := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(scope); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func joinStoredScopes(scopes []string) string { return strings.Join(scopes, ",") }

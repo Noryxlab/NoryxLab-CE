@@ -74,13 +74,15 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
+	scopes, err := checkRepository(req.URL, secretValue)
+	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
 		return
 	}
 
 	item := repository.New(userID, req.Name, req.URL, req.DefaultRef, req.AuthSecretName, authType, req.GitAuthorName, req.GitAuthorEmail)
 	setRepositoryValidation(&item, nil)
+	item.TokenExcessScopes = excessiveTokenScopes(scopes)
 	if err := h.repositoryStore.Create(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create repository"})
 		return
@@ -134,7 +136,8 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
+	updatedScopes, err := checkRepository(req.URL, secretValue)
+	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
 		return
 	}
@@ -146,6 +149,7 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	item.GitAuthorName = req.GitAuthorName
 	item.GitAuthorEmail = req.GitAuthorEmail
 	setRepositoryValidation(&item, nil)
+	item.TokenExcessScopes = excessiveTokenScopes(updatedScopes)
 	item.UpdatedAt = time.Now().UTC()
 	if err := h.repositoryStore.Update(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update repository"})
