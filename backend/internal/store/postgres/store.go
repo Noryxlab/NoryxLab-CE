@@ -214,6 +214,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL
 		)`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS dockerfile_content TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -869,7 +870,7 @@ func (s *Store) ListProjectRoles() ([]storepkg.ProjectRole, error) {
 }
 
 func (s *Store) ListBuilds() ([]build.Build, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at FROM builds ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name FROM builds ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +878,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 	out := []build.Build{}
 	for rows.Next() {
 		var b build.Build
-		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.DockerfileContent, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.DockerfileContent, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt, &b.Name); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -1146,7 +1147,7 @@ func (s *Store) ActivateAppRevision(appID, revisionID string) error {
 
 func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 	var b build.Build
-	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&b.ID,
 		&b.ProjectID,
 		&b.GitRepository,
@@ -1158,6 +1159,7 @@ func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 		&b.JobName,
 		&b.Status,
 		&b.CreatedAt,
+		&b.Name,
 	)
 	if err == sql.ErrNoRows {
 		return build.Build{}, false, nil
@@ -1169,7 +1171,7 @@ func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 }
 
 func (s *Store) CreateBuild(b build.Build) error {
-	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 		b.ID,
 		b.ProjectID,
 		b.GitRepository,
@@ -1181,6 +1183,7 @@ func (s *Store) CreateBuild(b build.Build) error {
 		b.JobName,
 		b.Status,
 		b.CreatedAt,
+		b.Name,
 	)
 	return err
 }

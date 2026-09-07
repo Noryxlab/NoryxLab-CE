@@ -46,10 +46,17 @@ export function formatCpu(millicores: number | null | undefined, locale: 'fr' | 
   return `${formatted} vCPU`;
 }
 
+/** Go's zero time. It arrives as 0001-01-01T00:00:00Z whenever a record has a
+ *  timestamp nobody set - a system environment has no build date - and it is a
+ *  date, so it formats: the environment list read "il y a 2 055 ans". It is an
+ *  absent value and it is treated as one. */
+const ZERO_TIME_YEAR = 1;
+
 export function parseDate(value: string | number | Date | null | undefined): Date | null {
   if (value === null || value === undefined || value === '') return null;
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getUTCFullYear() <= ZERO_TIME_YEAR ? null : date;
 }
 
 export function formatDateTime(

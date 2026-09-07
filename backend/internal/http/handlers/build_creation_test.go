@@ -56,3 +56,34 @@ func TestANameThatIsNotARepositoryPathIsReduced(t *testing.T) {
 		t.Error("a name with nothing usable in it must reduce to nothing, so the caller is told")
 	}
 }
+
+// A rebuild names the environment's repository and lets the platform tag it.
+// Keying an environment on the full reference made every rebuild a new
+// environment: the list filled with what is one thing built twice.
+func TestARebuildStaysInTheSameRepository(t *testing.T) {
+	if got := imageRepository("harbor.emse.local/noryx-environments/proj-training:1788808618"); got != "harbor.emse.local/noryx-environments/proj-training" {
+		t.Errorf("the tag should be dropped, got %s", got)
+	}
+	if got := imageRepository("harbor.emse.local/noryx-environments/proj-training@sha256:abc"); got != "harbor.emse.local/noryx-environments/proj-training" {
+		t.Errorf("a digest should be dropped, got %s", got)
+	}
+	// A registry with a port must not lose it: the colon there is not a tag.
+	if got := imageRepository("registry.local:5000/team/image"); got != "registry.local:5000/team/image" {
+		t.Errorf("a registry port is not a tag, got %s", got)
+	}
+	if got := imageRepository("registry.local:5000/team/image:v2"); got != "registry.local:5000/team/image" {
+		t.Errorf("the tag should be dropped and the port kept, got %s", got)
+	}
+}
+
+// The name somebody typed is what the screen shows. Without it the only
+// identity left is the image reference.
+func TestTheEnvironmentShowsTheNameSomebodyTyped(t *testing.T) {
+	if got := environmentDisplayName("test-stef", "harbor/x/1cf6b279-114-test-stef:1788808618"); got != "test-stef" {
+		t.Errorf("expected the typed name, got %s", got)
+	}
+	// Built before the platform remembered names: fall back to the reference.
+	if got := environmentDisplayName("", "harbor/x/noryx-vscode:0.1.2"); got != "noryx-vscode:0.1.2" {
+		t.Errorf("expected the image as a fallback, got %s", got)
+	}
+}

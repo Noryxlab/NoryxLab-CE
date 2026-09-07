@@ -103,6 +103,12 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.DestinationImage = derived
+	} else if imageRepository(req.DestinationImage) == req.DestinationImage {
+		// A repository with no tag: a rebuild naming the environment it
+		// belongs to. The platform adds the tag, because a client inventing
+		// one would either collide with an existing revision or invent a
+		// naming scheme of its own.
+		req.DestinationImage = fmt.Sprintf("%s:%d", req.DestinationImage, time.Now().UTC().Unix())
 	}
 	if req.DockerfilePath == "" {
 		req.DockerfilePath = "Dockerfile"
@@ -133,6 +139,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 		jobName,
 	)
 	record.DockerfileContent = req.DockerfileContent
+	record.Name = req.Name
 
 	if h.runtime != nil {
 		err = h.runtime.CreateBuild(noryxruntime.BuildSpec{

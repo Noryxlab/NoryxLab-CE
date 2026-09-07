@@ -68,13 +68,17 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		if destination == "" {
 			continue
 		}
-		key := b.ProjectID + "|" + destination
+		// Keyed by the repository and not the full reference. Every rebuild
+		// pushes a new tag, so keying on the reference made each rebuild a
+		// separate environment - the list filled up with what is one thing
+		// built twice.
+		key := b.ProjectID + "|" + imageRepository(destination)
 		item, exists := itemsByKey[key]
 		if !exists {
 			item = &environmentItem{
 				ID:               key,
 				ProjectID:        b.ProjectID,
-				Name:             deriveEnvironmentName(destination),
+				Name:             environmentDisplayName(b.Name, destination),
 				Category:         deriveEnvironmentCategory(destination),
 				WorkspaceIDEs:    deriveWorkspaceIDEs(destination, b.DockerfilePath, b.DockerfileContent),
 				DestinationImage: destination,
@@ -293,6 +297,30 @@ func splitHarborImageRef(image string) (host, project, repository, reference str
 		return "", "", "", "", false
 	}
 	return host, project, repository, reference, true
+}
+
+// imageRepository is an image reference without its tag or digest: what stays
+// the same across rebuilds of one environment.
+func imageRepository(reference string) string {
+	reference = strings.TrimSpace(reference)
+	if at := strings.Index(reference, "@"); at > 0 {
+		reference = reference[:at]
+	}
+	slash := strings.LastIndex(reference, "/")
+	if colon := strings.LastIndex(reference, ":"); colon > slash {
+		reference = reference[:colon]
+	}
+	return reference
+}
+
+// environmentDisplayName prefers the name somebody typed. The image reference
+// is the fallback for everything built before the platform remembered it, and
+// for a build submitted through the API with no name at all.
+func environmentDisplayName(name, destination string) string {
+	if trimmed := strings.TrimSpace(name); trimmed != "" {
+		return trimmed
+	}
+	return deriveEnvironmentName(destination)
 }
 
 func deriveEnvironmentName(destination string) string {

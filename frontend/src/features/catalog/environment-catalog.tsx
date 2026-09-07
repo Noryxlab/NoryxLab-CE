@@ -255,6 +255,11 @@ function EnvironmentDetail({
         name: environment.name,
         dockerfileContent: draft ?? dockerfile.data ?? '',
         contextPath: environment.revisions?.[0]?.contextPath ?? '.',
+        // The repository this environment already lives in, without a tag: a
+        // rebuild is a new revision of one environment, not a new one. The
+        // platform adds the tag - a browser inventing one would either collide
+        // with a revision or invent a naming scheme of its own.
+        destinationImage: environment.destinationImage.replace(/:[^:/]+$/, ''),
       }),
     onSuccess: (created) => {
       invalidate(qk.environments(), qk.builds(projectId));
