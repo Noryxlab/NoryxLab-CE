@@ -30,8 +30,12 @@ Bundled Python/Data Science tooling:
 
 Auto-update:
 
-- At workspace startup, Noryx runs `noryx-sync-ide-tooling` once per day per user profile.
-- Disable with env var `NORYX_AUTO_UPDATE_IDE=0`.
+- At workspace startup, Noryx can run `noryx-sync-ide-tooling` once per day per user
+  profile. It is **off by default**: it reinstalls the extensions from the
+  marketplace while the person is waiting for their editor, needs an outbound
+  route the installation may not have, and makes a pinned image produce
+  different tooling from one day to the next.
+- Enable with env var `NORYX_AUTO_UPDATE_IDE=1`.
 
 Target image:
 

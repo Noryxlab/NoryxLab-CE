@@ -979,7 +979,11 @@ func workspaceBootstrapScript(
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", projectMountPath, workspaceReposPath, workspaceDatasetsPath),
-		fmt.Sprintf("if [ -d %s/lost+found ]; then (chmod 755 %s/lost+found || sudo chmod 755 %s/lost+found || true); fi", projectMountPath, projectMountPath, projectMountPath),
+		// 2>/dev/null: the directory belongs to root on a Longhorn volume and the
+		// workspace user cannot chmod it. The attempt is harmless and the failure
+		// is not worth the line it printed at the top of every workspace log, on
+		// a screen somebody reads when they are already worried.
+		fmt.Sprintf("if [ -d %s/lost+found ]; then (chmod 755 %s/lost+found 2>/dev/null || sudo chmod 755 %s/lost+found 2>/dev/null || true); fi", projectMountPath, projectMountPath, projectMountPath),
 		"echo NORYX_WS_BOOTSTRAP_V2 >/tmp/noryx-bootstrap-version || true",
 		fmt.Sprintf("echo repos=%d datasets=%d >/tmp/noryx-resource-count || true", len(attachedRepos), datasetMountCount),
 		fmt.Sprintf("mkdir -p %s %s %s %s %s",
@@ -1079,7 +1083,17 @@ func workspaceBootstrapScript(
 			"  }",
 			"}",
 			"EOF",
-			"if [ \"${NORYX_AUTO_UPDATE_IDE:-1}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
+			// Off by default. The tool reinstalls eight extensions from the
+			// marketplace and upgrades nine Python packages, and it did it while
+			// somebody was waiting for their editor: it rewrites the extensions
+			// directory VS Code is reading, so the workbench sat blank for three
+			// and a half minutes on the first launch of the day. It also needs
+			// the marketplace and PyPI, which an air-gapped installation does not
+			// have, and it makes the same pinned image produce different tooling
+			// depending on the day - the opposite of what pinning images by
+			// digest is for. Everything it installs is already baked into the
+			// image; rebuilding the image is how it moves.
+			"if [ \"${NORYX_AUTO_UPDATE_IDE:-0}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
 			"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 			"fi",
 			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
@@ -1117,7 +1131,7 @@ func workspaceBootstrapScript(
 	}
 
 	lines = append(lines,
-		"if [ \"${NORYX_AUTO_UPDATE_IDE:-1}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
+		"if [ \"${NORYX_AUTO_UPDATE_IDE:-0}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
 		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 		"fi",
 		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
