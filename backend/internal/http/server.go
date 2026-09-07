@@ -173,6 +173,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// audit trail attributable, which deletion does not.
 	mux.HandleFunc("POST /api/v1/admin/users/{userID}/deactivation", h.DeactivateUserAccount)
 	mux.HandleFunc("DELETE /api/v1/admin/users/{userID}/deactivation", h.ReactivateUserAccount)
+	mux.HandleFunc("DELETE /api/v1/admin/users/{userID}", h.DeleteUserAccount)
 	mux.HandleFunc("GET /api/v1/admin/users/{userID}/owned", h.GetUserOwnedResources)
 	mux.HandleFunc("GET /api/v1/admin/modules", h.GetModulesStatus)
 	mux.HandleFunc("GET /api/v1/admin/executions", h.ListAdminExecutions)

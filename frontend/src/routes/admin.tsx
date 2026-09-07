@@ -298,10 +298,19 @@ function IdentitySection() {
             resetting the password of an account that cannot sign in is a
             button that does nothing anyone wanted. */}
         {user.enabled === false ? (
-          <Button variant="ghost" size="sm" loading={reactivate.isPending} onClick={() => reactivate.mutate(user)}>
-            <UserCheck aria-hidden />
-            {t('admin.reactivate')}
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" loading={reactivate.isPending} onClick={() => reactivate.mutate(user)}>
+              <UserCheck aria-hidden />
+              {t('admin.reactivate')}
+            </Button>
+            {/* Deletion is offered only here, on an account already disabled:
+                the first click stops access and keeps the record, the second
+                removes the account. */}
+            <Button variant="ghost" size="sm" onClick={() => setDeactivating(user)}>
+              <Trash2 aria-hidden />
+              {t('admin.deleteAccount')}
+            </Button>
+          </>
         ) : (
           <Button variant="ghost" size="sm" onClick={() => setDeactivating(user)}>
             <UserX aria-hidden />

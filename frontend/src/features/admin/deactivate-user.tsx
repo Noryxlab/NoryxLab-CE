@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { UserX } from 'lucide-react';
+import { Trash2, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
@@ -23,6 +23,12 @@ import type { PlatformUser } from '@/lib/api/types';
  * The consequences that are easy to forget are stated on the screen and not
  * only in the API's answer: the account's API tokens are revoked, and its
  * personal secrets stay with it.
+ *
+ * The same sheet removes an account for good, and only once it is already
+ * disabled - which is why the two live together. Deletion asks the same
+ * question about ownership, warns that it cannot be undone, and says the one
+ * thing that differs: personal secrets are deleted rather than left behind,
+ * because there is no longer an account to leave them with.
  */
 export function DeactivateUserSheet({
   user,
@@ -38,6 +44,10 @@ export function DeactivateUserSheet({
   const invalidate = useInvalidate();
   const users = useAdminUsers();
   const [successor, setSuccessor] = React.useState('');
+  // Disabling comes first and deletion second, so the account's own state
+  // decides which of the two this sheet is: an enabled account can only be
+  // disabled, and the API refuses to delete one anyway.
+  const removing = user?.enabled === false;
 
   const owned = useQuery({
     queryKey: ['admin', 'owned', user?.id ?? ''],
@@ -73,6 +83,20 @@ export function DeactivateUserSheet({
     onError: (error) => toast.error(error, t('admin.deactivate')),
   });
 
+  const remove = useMutation({
+    mutationFn: () => adminApi.deleteUser(user?.id ?? '', successor),
+    onSuccess: (result) => {
+      invalidate(qk.adminUsers);
+      onOpenChange(false);
+      setSuccessor('');
+      toast.success(
+        t('admin.deletedHint', { count: String(result.secretsDeleted) }),
+        t('admin.deleteAccount'),
+      );
+    },
+    onError: (error) => toast.error(error, t('admin.deleteAccount')),
+  });
+
   const candidates = (users.data ?? [])
     .filter((candidate) => candidate.id !== user?.id && candidate.enabled !== false)
     .map((candidate) => ({
@@ -86,11 +110,14 @@ export function DeactivateUserSheet({
       <SheetContent aria-describedby={undefined}>
         <SheetHeader>
           <SheetTitle>
-            {t('admin.deactivate')} · {user?.username ?? user?.id}
+            {removing ? t('admin.deleteAccount') : t('admin.deactivate')} ·{' '}
+            {user?.username ?? user?.id}
           </SheetTitle>
         </SheetHeader>
         <SheetBody className="space-y-4">
-          <p className="text-sm text-muted-foreground">{t('admin.deactivateHint')}</p>
+          <p className="text-sm text-muted-foreground">
+            {removing ? t('admin.deleteHint') : t('admin.deactivateHint')}
+          </p>
 
           {owned.isLoading ? (
             <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
@@ -117,22 +144,35 @@ export function DeactivateUserSheet({
               forget and neither is reversible by re-enabling the account. */}
           <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
             <li>{t('admin.deactivateTokens')}</li>
-            <li>{t('admin.deactivateSecrets')}</li>
+            <li>{removing ? t('admin.deleteSecrets') : t('admin.deactivateSecrets')}</li>
+            {removing ? <li>{t('admin.deleteAudit')}</li> : null}
           </ul>
         </SheetBody>
         <SheetFooter>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
             {t('common.cancel')}
           </Button>
-          <Button
-            variant="danger-outline"
-            loading={deactivate.isPending}
-            disabled={ownsSomething && !successor}
-            onClick={() => deactivate.mutate()}
-          >
-            <UserX aria-hidden />
-            {t('admin.deactivate')}
-          </Button>
+          {removing ? (
+            <Button
+              variant="danger"
+              loading={remove.isPending}
+              disabled={ownsSomething && !successor}
+              onClick={() => remove.mutate()}
+            >
+              <Trash2 aria-hidden />
+              {t('admin.deleteAccount')}
+            </Button>
+          ) : (
+            <Button
+              variant="danger-outline"
+              loading={deactivate.isPending}
+              disabled={ownsSomething && !successor}
+              onClick={() => deactivate.mutate()}
+            >
+              <UserX aria-hidden />
+              {t('admin.deactivate')}
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

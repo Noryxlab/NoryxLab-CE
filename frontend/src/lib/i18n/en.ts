@@ -614,6 +614,11 @@ export const en: Translations = {
     empty: 'No consumption recorded over this period.',
   },
   admin: {
+    deleteAccount: 'Delete account',
+    deleteHint: 'Deleting removes the account from the identity provider for good. It cannot be undone: re-enabling will no longer be possible.',
+    deleteSecrets: 'Its personal secrets are deleted: they belong to a person, not to a role, and are not inherited.',
+    deleteAudit: 'The audit trail keeps the events this account produced, under its identifier.',
+    deletedHint: 'Account deleted, {count} personal secret(s) removed.',
     deactivate: 'Disable account',
     deactivateHint: 'The account can no longer sign in. It is not deleted: the audit trail stays attributable, and the account can be re-enabled.',
     deactivateTokens: 'Its API tokens are revoked — a token acts as its owner, so an account disabled while its tokens work is not disabled.',

@@ -619,6 +619,11 @@ export const fr = {
     empty: 'Aucune consommation enregistrée sur la période.',
   },
   admin: {
+    deleteAccount: 'Supprimer le compte',
+    deleteHint: 'La suppression retire définitivement le compte du fournisseur d’identité. Elle n’est pas réversible : réactiver ne sera plus possible.',
+    deleteSecrets: 'Ses secrets personnels sont supprimés : ils appartiennent à une personne, pas à un rôle, et ne s’héritent pas.',
+    deleteAudit: 'La piste d’audit conserve les événements produits par ce compte, sous son identifiant.',
+    deletedHint: 'Compte supprimé, {count} secret(s) personnel(s) effacé(s).',
     deactivate: 'Désactiver le compte',
     deactivateHint: 'Le compte ne pourra plus se connecter. Il n’est pas supprimé : la piste d’audit reste attribuable, et le compte peut être réactivé.',
     deactivateTokens: 'Ses jetons d’API sont révoqués — un jeton agit comme son porteur, un compte désactivé dont les jetons fonctionnent encore ne l’est pas.',

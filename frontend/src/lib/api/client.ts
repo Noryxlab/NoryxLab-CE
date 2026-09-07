@@ -194,8 +194,11 @@ export const api = {
     request<T>(path, { ...options, method: 'POST', body }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PUT', body }),
-  delete: <T>(path: string, options?: RequestOptions) =>
-    request<T>(path, { ...options, method: 'DELETE' }),
+  // A body on DELETE: unusual, and correct here - removing an account has to
+  // say who inherits what it owned, and that belongs in the request, not in a
+  // query string where it would land in every access log.
+  delete: <T>(path: string, options?: RequestOptions, body?: unknown) =>
+    request<T>(path, { ...options, method: 'DELETE', ...(body === undefined ? {} : { body }) }),
 };
 
 /** Encodes an S3-style object key for use in a path segment while keeping

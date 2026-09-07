@@ -423,6 +423,18 @@ export const adminApi = {
     ),
   reactivateUser: (userId: string) =>
     api.delete<void>(`${V1}/admin/users/${encodeURIComponent(userId)}/deactivation`),
+  /** Removes the account for good. The API refuses unless it is already
+   *  disabled, and unless what it owns has somewhere to go. */
+  deleteUser: (userId: string, successorUserId?: string) =>
+    api.delete<{
+      deleted: string;
+      username: string;
+      successor: string;
+      tokensRevoked: number;
+      secretsDeleted: number;
+    }>(`${V1}/admin/users/${encodeURIComponent(userId)}`, undefined, {
+      successorUserId: successorUserId ?? '',
+    }),
   sendPasswordResetEmail: (userId: string) =>
     api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
   usage: () => api.get<{ from: string; to: string; items: UsageTotal[] }>(`${V1}/admin/usage`),

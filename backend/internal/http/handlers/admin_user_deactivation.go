@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 )
 
 // Turning an account off, and handing on what it owned.
@@ -386,4 +388,160 @@ func (h Handlers) GetUserOwnedResources(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"owns": owned, "count": owned.count()})
+}
+
+// Deleting the account for good.
+//
+// Disabling is the right default and stays the default: it keeps the audit
+// trail attributable. But an account sometimes has to go - a person exercising
+// their right to erasure, a test account, a mistake made at creation - and
+// until now there was no way to remove one at all. An administrator could
+// disable it and then watch it hold an organization open forever, invisible on
+// every screen that hides disabled users.
+//
+// Three rules make this safe enough to expose:
+//
+//   - the account must already be disabled. Deletion is the second step, never
+//     the first, so nobody removes an active colleague with one click.
+//   - what it owns is transferred first, exactly as a deactivation does, or the
+//     request is refused with the list of what would have been orphaned.
+//   - the audit event records the username, because the account it names is
+//     about to stop existing and the trail has to stay readable without it.
+//
+// Personal secrets are deleted rather than left behind: they belong to a person
+// who is being removed, and an inherited secret is somebody else's credential.
+func (h Handlers) DeleteUserAccount(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireAdminModule(w, r, "users")
+	if !ok {
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "keycloak admin client is not configured"})
+		return
+	}
+	target := strings.TrimSpace(r.PathValue("userID"))
+	if target == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a user is required"})
+		return
+	}
+	if strings.EqualFold(target, identity.UserID()) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "you cannot delete your own account"})
+		return
+	}
+
+	account, found, err := h.findUser(target)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to read the account: " + err.Error()})
+		return
+	}
+	if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such account"})
+		return
+	}
+	if account.Enabled {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error": "disable the account before deleting it: deletion removes the account, disabling stops access and keeps the record",
+			"code":  "disable_first",
+		})
+		return
+	}
+
+	var req deactivateUserRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&req) != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a valid successor is required"})
+			return
+		}
+	}
+	successor := strings.TrimSpace(req.SuccessorUserID)
+
+	owned, err := h.ownedBy(target)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read what this account owns"})
+		return
+	}
+	if owned.count() > 0 && successor == "" {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error": fmt.Sprintf("this account still owns %d resource(s); name a successor to receive them", owned.count()),
+			"code":  "successor_required",
+			"owns":  owned,
+		})
+		return
+	}
+	if successor != "" && strings.EqualFold(successor, target) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "the successor cannot be the account being deleted"})
+		return
+	}
+
+	transferred := transferReport{}
+	if successor != "" && owned.count() > 0 {
+		transferred, err = h.transferOwnership(target, successor)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "transfer failed, the account was left in place: " + err.Error()})
+			return
+		}
+	}
+
+	revoked := h.revokeAllTokens(target)
+	secretsRemoved := h.deleteAllSecrets(target)
+
+	// Last, and only once everything above succeeded: this is the step that
+	// cannot be undone.
+	if err := h.keycloak.DeleteUser(target); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the identity provider refused to delete the account: " + err.Error()})
+		return
+	}
+
+	h.emitAudit(r, identity.UserID(), "user.delete", "user", target, "", "success", "", map[string]any{
+		"username":       account.Username,
+		"email":          account.Email,
+		"successor":      successor,
+		"transferred":    transferred.count(),
+		"tokensRevoked":  revoked,
+		"secretsDeleted": secretsRemoved,
+	})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"deleted":        target,
+		"username":       account.Username,
+		"successor":      successor,
+		"transferred":    transferred,
+		"tokensRevoked":  revoked,
+		"secretsDeleted": secretsRemoved,
+		"note":           "the audit trail keeps the events this account produced, under its identifier",
+	})
+}
+
+// findUser looks an account up by id or by username, the way every other admin
+// route accepts either.
+func (h Handlers) findUser(identifier string) (keycloak.User, bool, error) {
+	users, err := h.keycloak.ListUsers()
+	if err != nil {
+		return keycloak.User{}, false, err
+	}
+	for _, user := range users {
+		if strings.EqualFold(user.ID, identifier) || strings.EqualFold(user.Username, identifier) {
+			return user, true, nil
+		}
+	}
+	return keycloak.User{}, false, nil
+}
+
+// deleteAllSecrets removes the personal secrets of an account being deleted.
+// They are not transferred: a secret belongs to a person, and handing one on
+// would give a successor a credential issued to somebody else.
+func (h Handlers) deleteAllSecrets(userID string) int {
+	if h.secretStore == nil {
+		return 0
+	}
+	items, err := h.secretStore.ListByUser(userID)
+	if err != nil {
+		return 0
+	}
+	removed := 0
+	for _, item := range items {
+		if h.secretStore.Delete(userID, item.Name) == nil {
+			removed++
+		}
+	}
+	return removed
 }

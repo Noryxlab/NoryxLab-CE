@@ -151,6 +151,18 @@ func (c *Client) CreateUser(user User) (string, error) {
 // Temporary on purpose. An administrator resetting a password necessarily
 // learns it, and a password only its owner knows is the only kind worth having:
 // forcing the change bounds how long the administrator's copy is valid.
+// DeleteUser removes the account from the realm. The caller is responsible for
+// what the account owned: Keycloak knows nothing about projects or datasets,
+// and will happily delete the only owner of half a platform.
+func (c *Client) DeleteUser(identifier string) error {
+	userID, err := c.resolveUserID(identifier)
+	if err != nil {
+		return err
+	}
+	c.invalidateMembership(identifier)
+	return c.adminJSON(http.MethodDelete, "/users/"+url.PathEscape(userID), nil, nil)
+}
+
 func (c *Client) SetTemporaryPassword(userID, password string) error {
 	return c.adminJSON(http.MethodPut,
 		"users/"+url.PathEscape(strings.TrimSpace(userID))+"/reset-password",
