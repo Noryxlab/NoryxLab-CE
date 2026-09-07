@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
   Sheet,
@@ -59,13 +60,23 @@ export function SecretCatalog() {
   const [name, setName] = React.useState('');
   const [value, setValue] = React.useState('');
   const [expiresAt, setExpiresAt] = React.useState('');
+  // A token has a lifetime somebody else decides - GitHub and GitLab both cap
+  // theirs at a year - and the platform can only warn about a date it was
+  // given. So the form asks, and "it does not expire" is an answer rather than
+  // an empty field.
+  const [kind, setKind] = React.useState('generic');
+  const [neverExpires, setNeverExpires] = React.useState(false);
   const [touched, setTouched] = React.useState(false);
+  const isToken = kind !== 'generic';
+  const expiryMissing = isToken && !neverExpires && !expiresAt;
 
   React.useEffect(() => {
     if (!creating) {
       setName('');
       setValue('');
       setExpiresAt('');
+      setKind('generic');
+      setNeverExpires(false);
       setTouched(false);
     }
   }, [creating]);
@@ -75,7 +86,9 @@ export function SecretCatalog() {
       secretsApi.create({
         name,
         value,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+        type: kind,
+        expiresAt: expiresAt && !neverExpires ? new Date(expiresAt).toISOString() : null,
+        neverExpires,
       }),
     onSuccess: () => {
       invalidate(qk.secrets);
@@ -198,7 +211,7 @@ export function SecretCatalog() {
             onSubmit={(event) => {
               event.preventDefault();
               setTouched(true);
-              if (name && value) create.mutate();
+              if (name && value && !expiryMissing) create.mutate();
             }}
             className="flex min-h-0 flex-1 flex-col"
           >
@@ -236,13 +249,43 @@ export function SecretCatalog() {
                   autoComplete="new-password"
                 />
               </Field>
-              <Field label={t('secrets.expiresLabel')} description={t('secrets.expiresHint')}>
+              <Field label={t('secrets.kindLabel')} description={t('secrets.kindHint')}>
+                <Select
+                  value={kind}
+                  onValueChange={setKind}
+                  options={[
+                    { value: 'generic', label: t('secrets.kindGeneric') },
+                    { value: 'pat', label: t('secrets.kindPersonalToken') },
+                    { value: 'prat', label: t('secrets.kindRepositoryToken') },
+                  ]}
+                />
+              </Field>
+              <Field
+                label={t('secrets.expiresLabel')}
+                description={isToken ? t('secrets.expiresRequiredHint') : t('secrets.expiresHint')}
+                required={isToken && !neverExpires}
+                error={touched && expiryMissing ? t('secrets.expiryAnswerRequired') : undefined}
+              >
                 <Input
                   type="date"
                   value={expiresAt}
+                  disabled={neverExpires}
                   onChange={(event) => setExpiresAt(event.target.value)}
                 />
               </Field>
+              {isToken ? (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={neverExpires}
+                    onChange={(event) => {
+                      setNeverExpires(event.target.checked);
+                      if (event.target.checked) setExpiresAt('');
+                    }}
+                  />
+                  {t('secrets.neverExpires')}
+                </label>
+              ) : null}
             </SheetBody>
             <SheetFooter>
               <Button type="button" variant="secondary" onClick={() => setCreating(false)}>

@@ -384,8 +384,15 @@ export const repositoriesApi = {
 export const secretsApi = {
   list: () => api.list<Secret>(`${V1}/secrets`),
   get: (name: string) => api.get<Secret>(`${V1}/secrets/${encodeURIComponent(name)}`),
-  create: (input: { name: string; value: string; type?: string; expiresAt?: string | null }) =>
-    api.post<Secret>(`${V1}/secrets`, input),
+  create: (input: {
+    name: string;
+    value: string;
+    type?: string;
+    expiresAt?: string | null;
+    /** Says the lifetime question was answered, rather than left blank. The
+     *  API requires one or the other for a token. */
+    neverExpires?: boolean;
+  }) => api.post<Secret>(`${V1}/secrets`, input),
   remove: (name: string) => api.delete<void>(`${V1}/secrets/${encodeURIComponent(name)}`),
 };
 

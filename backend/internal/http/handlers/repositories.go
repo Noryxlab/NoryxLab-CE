@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -69,6 +70,10 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := refuseUnsupportedTransport(req.URL); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
 		return
@@ -123,6 +128,10 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	}
 	secretValue, ok := h.resolveRepositorySecretValue(w, userID, req.AuthSecretName)
 	if !ok {
+		return
+	}
+	if err := refuseUnsupportedTransport(req.URL); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	if err := validateRepositoryConnectivity(req.URL, secretValue); err != nil {
@@ -397,4 +406,20 @@ func (h Handlers) DetachProjectRepository(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// refuseUnsupportedTransport turns away what the platform cannot clone.
+//
+// The form invited "an HTTPS or SSH address" and the platform has no SSH key
+// material at all: no storage, no injection, no known_hosts. An SSH URL was
+// accepted, validated against an API that does not care about transport, and
+// then failed at clone time inside a workspace - the one place nobody was
+// watching. Refusing here says the true thing at the moment somebody can act
+// on it.
+func refuseUnsupportedTransport(repoURL string) error {
+	trimmed := strings.TrimSpace(repoURL)
+	if strings.HasPrefix(trimmed, "git@") || strings.HasPrefix(strings.ToLower(trimmed), "ssh://") {
+		return errors.New("this platform clones over HTTPS with a token; an SSH address cannot be used yet")
+	}
+	return nil
 }

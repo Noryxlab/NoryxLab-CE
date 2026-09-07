@@ -18,6 +18,40 @@ type upsertSecretRequest struct {
 	Type      string `json:"type"`
 	Value     string `json:"value"`
 	ExpiresAt string `json:"expiresAt"`
+	// NeverExpires is how somebody says "there is no date" on purpose, rather
+	// than by leaving a field blank. A token is required to answer the
+	// question one way or the other; see requireTokenExpiry.
+	NeverExpires bool `json:"neverExpires"`
+}
+
+// Token kinds. These are credentials with a lifetime somebody else decides:
+// GitHub caps a fine-grained token at a year, GitLab caps its project tokens
+// at a year, and the platform finds out on the morning it stops working.
+func isTokenSecret(secretType string) bool {
+	switch strings.ToLower(strings.TrimSpace(secretType)) {
+	case "pat", "prat", "persat", "token":
+		return true
+	}
+	return false
+}
+
+// requireTokenExpiry makes the lifetime an explicit answer.
+//
+// Leaving the date blank was free, so it was always left blank, and a
+// repository stopped cloning one morning with nothing anywhere having said it
+// would. Now a token carries a date or an explicit "this one does not expire"
+// - which stays possible, because a classic GitHub token really can be
+// perpetual, and refusing to record that would only push people to invent a
+// date they do not believe.
+func requireTokenExpiry(req upsertSecretRequest) error {
+	if !isTokenSecret(req.Type) {
+		return nil
+	}
+	if strings.TrimSpace(req.ExpiresAt) != "" || req.NeverExpires {
+		return nil
+	}
+	return fmt.Errorf("a token needs its expiry date, or neverExpires if it has none: " +
+		"the platform warns before it stops working, and cannot warn about a date it was never told")
 }
 
 func (h Handlers) resolveUserSecretEnv(userID string) (map[string]string, error) {
@@ -138,6 +172,10 @@ func (h Handlers) UpsertSecret(w http.ResponseWriter, r *http.Request) {
 	req.Value = strings.TrimSpace(req.Value)
 	if req.Name == "" || req.Value == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name and value are required"})
+		return
+	}
+	if err := requireTokenExpiry(req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	if managedSecret(secret.Secret{Name: req.Name, Type: req.Type}) {
