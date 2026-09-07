@@ -347,6 +347,21 @@ var (
 	}
 )
 
+// allowsProjectAction answers the same question as requireProjectRole without
+// writing a refusal: a screen that shows names to everyone and values to those
+// who may launch has to ask before it renders, not refuse after.
+func (h Handlers) allowsProjectAction(projectID, userID string, action projectAction) bool {
+	if h.isGlobalAdminUserID(userID) {
+		return true
+	}
+	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
+		return action.permits(access.RoleAdmin)
+	}
+	role, ok := h.effectiveProjectRole(projectID, userID)
+	fallback := ok && action.permits(role)
+	return h.canProjectAction(userID, projectID, role, action.id, fallback)
+}
+
 func (h Handlers) requireProjectRole(
 	w http.ResponseWriter,
 	projectID string,

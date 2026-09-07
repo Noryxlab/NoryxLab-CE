@@ -180,6 +180,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/admin/executions/{kind}/{executionID}", h.StopAdminExecution)
 	mux.HandleFunc("GET /api/v1/admin/overview", h.GetAdminOverview)
 	mux.HandleFunc("GET /api/v1/admin/health", h.GetPlatformHealth)
+	// A project's environment variables: the settings the work needs, as
+	// opposed to the credentials a person carries.
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/variables", h.ListProjectVariables)
+	mux.HandleFunc("PUT /api/v1/projects/{projectID}/variables/{name}", h.UpsertProjectVariable)
+	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/variables/{name}", h.DeleteProjectVariable)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/organization-roles", h.ListProjectOrganizationRoles)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/organization-roles/{organizationID}", h.SetProjectOrganizationRole)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/organization-roles/{organizationID}", h.DeleteProjectOrganizationRole)

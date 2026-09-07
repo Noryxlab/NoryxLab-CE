@@ -153,6 +153,8 @@ export const en: Translations = {
     deleteWarning:
       'This cannot be undone. Workspaces, jobs and apps in this project will be stopped and deleted.',
     transferOwnership: 'Transfer ownership',
+    ownedByUser: 'Owned by a person',
+    ownedByOrganization: 'Owned by an organization',
     ownerTypeLabel: 'Owner type',
     ownerLabel: 'New owner',
     viewMode: 'View',
@@ -770,6 +772,45 @@ export const en: Translations = {
     passwordHint: 'Shown once and not recoverable. Pass it on; it must be changed at first sign-in.',
     passwordCopied: 'Password copied.',
   },
+
+  projectVariables: {
+
+    title: 'Environment variables',
+
+    hint: 'The settings the work needs, shared by everyone on the project and injected into workloads under their own names. For a personal credential use a secret: that follows you, these follow the project.',
+
+    add: 'Add a variable',
+
+    nameColumn: 'Name',
+
+    nameHint: 'Letters, digits and underscores, as a shell wants them. Names starting with NORYX_ belong to the platform.',
+
+    valueColumn: 'Value',
+
+    descriptionColumn: 'Description',
+
+    descriptionHint: 'What it is for, for whoever reads it in six months.',
+
+    updatedColumn: 'Updated',
+
+    hidden: 'Hidden',
+
+    saved: 'Variable saved.',
+
+    removed: 'Variable removed.',
+
+    emptyTitle: 'No variables',
+
+    emptyHint: 'Add a tracking server address, a bucket name, a registry URL - whatever your workloads expect in their environment.',
+
+    formHint: 'The value is encrypted at rest and readable by the members who can launch workloads.',
+
+    removeTitle: 'Remove the variable',
+
+    removeHint: '{name} will no longer be injected into this project\u2019s workloads.',
+
+  },
+
 
   account: {
     title: 'My account',

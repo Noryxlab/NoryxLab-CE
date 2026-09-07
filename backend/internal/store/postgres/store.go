@@ -23,6 +23,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/projectvar"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/quota"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
@@ -355,6 +356,16 @@ func (s *Store) migrate(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_egress_rules_project ON egress_rules (project_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_egress_rules_subject ON egress_rules (subject_type, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_egress_rules_status ON egress_rules (status)`,
+		`CREATE TABLE IF NOT EXISTS project_variables (
+			project_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			value_encrypted TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			updated_by TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (project_id, name)
+		)`,
 		`CREATE TABLE IF NOT EXISTS user_secrets (
 			id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -2709,4 +2720,78 @@ func nullableTime(value time.Time) any {
 		return nil
 	}
 	return value
+}
+
+// --- project variables ------------------------------------------------------
+//
+// A project's settings, as opposed to a person's credentials. Encrypted at
+// rest like a secret is, because people put connection strings in these
+// whatever the screen says.
+
+func (s *Store) ListProjectVariables(projectID string) ([]projectvar.Variable, error) {
+	rows, err := s.db.Query(`SELECT project_id, name, value_encrypted, description, updated_by, created_at, updated_at
+		FROM project_variables WHERE project_id=$1 ORDER BY name`, strings.TrimSpace(projectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanProjectVariables(rows)
+}
+
+func (s *Store) ListAllProjectVariables() ([]projectvar.Variable, error) {
+	rows, err := s.db.Query(`SELECT project_id, name, value_encrypted, description, updated_by, created_at, updated_at
+		FROM project_variables ORDER BY project_id, name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanProjectVariables(rows)
+}
+
+func scanProjectVariables(rows *sql.Rows) ([]projectvar.Variable, error) {
+	out := []projectvar.Variable{}
+	for rows.Next() {
+		var item projectvar.Variable
+		if err := rows.Scan(&item.ProjectID, &item.Name, &item.ValueEncrypted, &item.Description,
+			&item.UpdatedBy, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetProjectVariable(projectID, name string) (projectvar.Variable, bool, error) {
+	var item projectvar.Variable
+	err := s.db.QueryRow(`SELECT project_id, name, value_encrypted, description, updated_by, created_at, updated_at
+		FROM project_variables WHERE project_id=$1 AND name=$2`,
+		strings.TrimSpace(projectID), strings.TrimSpace(name)).Scan(
+		&item.ProjectID, &item.Name, &item.ValueEncrypted, &item.Description,
+		&item.UpdatedBy, &item.CreatedAt, &item.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return projectvar.Variable{}, false, nil
+	}
+	if err != nil {
+		return projectvar.Variable{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) UpsertProjectVariable(item projectvar.Variable) error {
+	_, err := s.db.Exec(`
+		INSERT INTO project_variables (project_id, name, value_encrypted, description, updated_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (project_id, name) DO UPDATE SET
+			value_encrypted=EXCLUDED.value_encrypted,
+			description=EXCLUDED.description,
+			updated_by=EXCLUDED.updated_by,
+			updated_at=EXCLUDED.updated_at`,
+		item.ProjectID, item.Name, item.ValueEncrypted, item.Description, item.UpdatedBy, item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) DeleteProjectVariable(projectID, name string) error {
+	_, err := s.db.Exec(`DELETE FROM project_variables WHERE project_id=$1 AND name=$2`,
+		strings.TrimSpace(projectID), strings.TrimSpace(name))
+	return err
 }

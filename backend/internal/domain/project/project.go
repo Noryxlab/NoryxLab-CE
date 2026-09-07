@@ -13,6 +13,13 @@ type Project struct {
 	Description string `json:"description"`
 	OwnerType   string `json:"ownerType"`
 	OwnerID     string `json:"ownerId"`
+	// OwnerName is what a screen shows. An organization is stored by its
+	// identifier, and 57c801a4-f273-4844-97c6-28307872a480 tells a reader
+	// nothing; the platform knows the name, so it resolves it here rather
+	// than making every screen ask separately - and an interface that cannot
+	// list organizations, which a non-administrator cannot, would show the
+	// identifier for ever.
+	OwnerName string `json:"ownerName,omitempty"`
 	// WorkspaceStorageSize is the volume every workspace of this project gets,
 	// as a Kubernetes quantity. Empty means the platform default: a project
 	// that never sets it keeps following the installation.

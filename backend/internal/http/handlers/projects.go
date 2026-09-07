@@ -51,6 +51,7 @@ func (h Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project activity"})
 		return
 	}
+	h.nameProjectOwners(items)
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
@@ -365,4 +366,40 @@ func (h Handlers) deleteProjectWorkspaces(projectID string) error {
 		}
 	}
 	return nil
+}
+
+// nameProjectOwners fills in what a screen shows for an owner.
+//
+// A user is stored by their username, which reads perfectly well. An
+// organization is stored by its identifier, which reads as nothing at all, so
+// the names are resolved here - once for the whole list rather than once per
+// project, and silently, because a directory that cannot be reached is a
+// reason to show the identifier and not a reason to fail the page.
+func (h Handlers) nameProjectOwners(items []project.Project) {
+	needsOrganization := false
+	for _, item := range items {
+		if strings.EqualFold(item.OwnerType, "organization") {
+			needsOrganization = true
+			break
+		}
+	}
+	names := map[string]string{}
+	if needsOrganization && h.keycloak != nil {
+		if organizations, err := h.keycloak.ListOrganizations(); err == nil {
+			for _, organization := range organizations {
+				names[organization.ID] = organization.Name
+			}
+		}
+	}
+	for index := range items {
+		if !strings.EqualFold(items[index].OwnerType, "organization") {
+			items[index].OwnerName = items[index].OwnerID
+			continue
+		}
+		if name, ok := names[items[index].OwnerID]; ok && strings.TrimSpace(name) != "" {
+			items[index].OwnerName = name
+			continue
+		}
+		items[index].OwnerName = items[index].OwnerID
+	}
 }

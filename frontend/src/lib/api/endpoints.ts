@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
+  ProjectVariable,
   DockerfileResponse,
   OwnedResources,
   ProjectQuota,
@@ -156,6 +157,22 @@ export interface CreateWorkspaceInput {
   hardwareTier?: string;
   storageSize?: string;
 }
+
+export const projectVariablesApi = {
+  /** The answer carries `canReadValues`, which the screen needs before it
+   *  renders: a viewer sees names, an editor sees values. */
+  list: async (projectId: string) =>
+    api.get<{ items: ProjectVariable[]; canReadValues: boolean }>(
+      `${V1}/projects/${projectId}/variables`,
+    ),
+  set: (projectId: string, name: string, value: string, description?: string) =>
+    api.put<ProjectVariable>(`${V1}/projects/${projectId}/variables/${encodeURIComponent(name)}`, {
+      value,
+      description: description ?? '',
+    }),
+  remove: (projectId: string, name: string) =>
+    api.delete<void>(`${V1}/projects/${projectId}/variables/${encodeURIComponent(name)}`),
+};
 
 export const workspacesApi = {
   list: (projectId?: string) =>

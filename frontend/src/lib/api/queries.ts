@@ -14,6 +14,7 @@ import {
   platformApi,
   productionApi,
   projectsApi,
+  projectVariablesApi,
   repositoriesApi,
   secretsApi,
   workspacesApi,
@@ -31,6 +32,7 @@ export const qk = {
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
+  projectVariables: (projectId: string) => ['projects', projectId, 'variables'] as const,
   myOrganizations: ['organizations', 'mine'] as const,
 
   projects: ['projects'] as const,
@@ -121,6 +123,13 @@ export const usePlatformOverview = () =>
 
 export const useHardwareTiers = () =>
   useQuery({ queryKey: qk.hardwareTiers, queryFn: platformApi.hardwareTiers, staleTime: 600_000 });
+
+export const useProjectVariables = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectVariables(projectId ?? ''),
+    queryFn: () => projectVariablesApi.list(projectId as string),
+    enabled: Boolean(projectId),
+  });
 
 export const useOrganizations = () =>
   useQuery({ queryKey: qk.organizations, queryFn: platformApi.organizations, staleTime: 120_000 });

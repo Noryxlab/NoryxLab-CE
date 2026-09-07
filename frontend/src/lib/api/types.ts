@@ -20,6 +20,10 @@ export interface Project {
   description: string;
   ownerType: OwnerType | '';
   ownerId: string;
+  /** What a screen shows for the owner: a username, or an organization's name
+   *  rather than its identifier. Resolved by the platform, because a member
+   *  who is not an administrator cannot list organizations to resolve it. */
+  ownerName?: string;
   canManageOwner?: boolean;
   /** The caller's effective role, personal and organization grants combined. */
   role?: ProjectRole | '';
@@ -833,4 +837,14 @@ export interface DockerfileResponse {
   dockerfilePath?: string;
   sourceUrl?: string;
   content: string;
+}
+
+/** A project's environment variable: what the work needs, as opposed to what a
+ *  person carries. `value` is absent for a member who may not read it. */
+export interface ProjectVariable {
+  name: string;
+  value?: string;
+  description?: string;
+  updatedBy?: string;
+  updatedAt: string;
 }

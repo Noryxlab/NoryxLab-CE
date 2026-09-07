@@ -44,6 +44,21 @@ components:
       name: X-Noryx-User
 
   schemas:
+    ProjectVariable:
+      type: object
+      properties:
+        name: { type: string }
+        value: { type: string }
+        description: { type: string }
+        updatedBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+    ProjectVariableListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectVariable' }
+        canReadValues: { type: boolean }
     UsageSample:
       type: object
       properties:
@@ -5179,6 +5194,87 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlatformUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/variables:
+    get:
+      tags: [Projects]
+      summary: A project's environment variables; values only for members who may launch
+      operationId: listProjectVariables
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectVariableListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/variables/{name}:
+    delete:
+      tags: [Projects]
+      summary: Remove a project environment variable
+      operationId: deleteProjectVariable
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Variable removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Projects]
+      summary: Set a project environment variable
+      operationId: upsertProjectVariable
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectVariable'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

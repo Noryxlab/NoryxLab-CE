@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
+import { ProjectVariablesSection } from '@/features/projects/project-variables';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -155,6 +156,8 @@ export function ProjectSettingsPage() {
           </Button>
         </CardFooter>
       </Card>
+
+      <ProjectVariablesSection projectId={projectId as string} />
 
       {/* Shown to every member: the person whose launch was refused is the one
           who needs to see the number. Editing stays with an administrator. */}

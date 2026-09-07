@@ -26,6 +26,7 @@ type Handlers struct {
 	egressRuleStore                  store.EgressRuleStore
 	accessStore                      store.AccessStore
 	secretStore                      store.SecretStore
+	projectVariableStore             store.ProjectVariableStore
 	datasetStore                     store.DatasetStore
 	datasourceStore                  store.DatasourceStore
 	ontologyStore                    store.OntologyStore
@@ -205,6 +206,7 @@ func New(
 	egressRuleStore store.EgressRuleStore,
 	accessStore store.AccessStore,
 	secretStore store.SecretStore,
+	projectVariableStore store.ProjectVariableStore,
 	datasetStore store.DatasetStore,
 	datasourceStore store.DatasourceStore,
 	ontologyStore store.OntologyStore,
@@ -245,6 +247,7 @@ func New(
 		egressRuleStore:                  egressRuleStore,
 		accessStore:                      accessStore,
 		secretStore:                      secretStore,
+		projectVariableStore:             projectVariableStore,
 		datasetStore:                     datasetStore,
 		datasourceStore:                  datasourceStore,
 		ontologyStore:                    ontologyStore,

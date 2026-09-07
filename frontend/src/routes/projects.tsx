@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { SkeletonCards } from '@/components/ui/skeleton';
 import { BareSelect } from '@/components/ui/select';
 import { useProjects } from '@/lib/api/queries';
+import { ProjectOwner } from '@/features/projects/project-owner';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import { CreateProjectSheet } from '@/features/projects/project-form';
@@ -59,6 +60,7 @@ function ProjectCard({ project }: { project: Project }) {
             {project.description}
           </p>
         ) : null}
+        <ProjectOwner project={project} className="mt-2" />
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5">
         <ResourceCount icon={Terminal} count={project.runningWorkspaces} label={t('nav.workspaces')} />
@@ -125,6 +127,7 @@ export function ProjectsPage() {
           {project.description ? (
             <p className="truncate text-xs text-muted-foreground">{project.description}</p>
           ) : null}
+          <ProjectOwner project={project} className="mt-0.5" />
         </div>
       ),
     },

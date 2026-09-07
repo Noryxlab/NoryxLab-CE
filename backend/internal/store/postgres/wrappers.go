@@ -17,6 +17,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/projectvar"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/quota"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
@@ -383,3 +384,21 @@ func (s *SettingsStore) Set(key, value, actor string) error {
 	return s.Store.SetSetting(key, value, actor)
 }
 func (s *SettingsStore) List() (map[string]string, error) { return s.Store.ListSettings() }
+
+type ProjectVariableStore struct{ *Store }
+
+func (s *ProjectVariableStore) ListByProject(projectID string) ([]projectvar.Variable, error) {
+	return s.Store.ListProjectVariables(projectID)
+}
+func (s *ProjectVariableStore) ListAll() ([]projectvar.Variable, error) {
+	return s.Store.ListAllProjectVariables()
+}
+func (s *ProjectVariableStore) GetByName(projectID, name string) (projectvar.Variable, bool, error) {
+	return s.Store.GetProjectVariable(projectID, name)
+}
+func (s *ProjectVariableStore) Upsert(item projectvar.Variable) error {
+	return s.Store.UpsertProjectVariable(item)
+}
+func (s *ProjectVariableStore) Delete(projectID, name string) error {
+	return s.Store.DeleteProjectVariable(projectID, name)
+}

@@ -156,6 +156,8 @@ export const fr = {
     deleteWarning:
       'Cette action est irréversible. Les workspaces, jobs et applications du projet seront arrêtés et supprimés.',
     transferOwnership: 'Transférer la propriété',
+    ownedByUser: 'Projet personnel',
+    ownedByOrganization: 'Projet d’organisation',
     ownerTypeLabel: 'Type de propriétaire',
     ownerLabel: 'Nouveau propriétaire',
     viewMode: 'Affichage',
@@ -775,6 +777,45 @@ export const fr = {
     passwordHint: 'Affiché une seule fois et non récupérable. Transmettez-le, il devra être changé à la première connexion.',
     passwordCopied: 'Mot de passe copié.',
   },
+
+  projectVariables: {
+
+    title: 'Variables d’environnement',
+
+    hint: 'Les réglages dont le travail a besoin, partagés par tous les membres du projet et injectés dans les workloads sous leur propre nom. Pour un identifiant personnel, utilisez un secret : il vous suit, celles-ci suivent le projet.',
+
+    add: 'Ajouter une variable',
+
+    nameColumn: 'Nom',
+
+    nameHint: 'Lettres, chiffres et tirets bas, comme dans un shell. Les noms commençant par NORYX_ sont réservés à la plateforme.',
+
+    valueColumn: 'Valeur',
+
+    descriptionColumn: 'Description',
+
+    descriptionHint: 'À quoi elle sert, pour celui qui la lira dans six mois.',
+
+    updatedColumn: 'Modifiée',
+
+    hidden: 'Masquée',
+
+    saved: 'Variable enregistrée.',
+
+    removed: 'Variable supprimée.',
+
+    emptyTitle: 'Aucune variable',
+
+    emptyHint: 'Ajoutez l’adresse d’un serveur de suivi, un nom de bucket, une URL de registre — ce que vos workloads attendent dans leur environnement.',
+
+    formHint: 'La valeur est chiffrée au repos et lisible par les membres qui peuvent lancer des workloads.',
+
+    removeTitle: 'Supprimer la variable',
+
+    removeHint: '{name} ne sera plus injectée dans les workloads de ce projet.',
+
+  },
+
 
   account: {
     title: 'Mon compte',

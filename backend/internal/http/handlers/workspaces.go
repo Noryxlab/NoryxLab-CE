@@ -409,7 +409,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
 		return
 	}
-	userSecretData, err := h.resolveUserSecretEnv(userID)
+	userSecretData, err := h.workloadEnvData(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
 		return

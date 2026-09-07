@@ -41,6 +41,7 @@ func main() {
 	var egressRuleStore store.EgressRuleStore = memory.NewEgressRuleStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
+	var projectVariableStore store.ProjectVariableStore = memory.NewProjectVariableStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
 	var datasourceStore store.DatasourceStore = memory.NewDatasourceStore()
 	var ontologyStore store.OntologyStore = memory.NewOntologyObjectStore()
@@ -94,6 +95,7 @@ func main() {
 			egressRuleStore = &postgres.EgressRuleStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
+			projectVariableStore = &postgres.ProjectVariableStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
 			datasourceStore = &postgres.DatasourceStore{Store: pg}
 			ontologyStore = &postgres.OntologyStore{Store: pg}
@@ -176,6 +178,7 @@ func main() {
 		egressRuleStore,
 		accessStore,
 		secretStore,
+		projectVariableStore,
 		datasetStore,
 		datasourceStore,
 		ontologyStore,

@@ -167,6 +167,11 @@ ENVELOPES = {
     "DatasourceDefinitionListResponse": {"items": "[$DatasourceDefinition]"},
     "HardwareTierListResponse": {"items": "[$HardwareTier]"},
     "CronJobListResponse": {"items": "[$Job]"},
+    "ProjectVariable": {
+        "name": "string", "value": "string", "description": "string",
+        "updatedBy": "string", "updatedAt": "date-time",
+    },
+    "ProjectVariableListResponse": {"items": "[$ProjectVariable]", "canReadValues": "boolean"},
     "InvitationResponse": {"projectId": "string", "userId": "string", "role": "string", "status": "string"},
 }
 
@@ -203,6 +208,8 @@ RESPONSES = {
     ("PUT", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): "ProjectOrganizationRole",
     ("GET", "/api/v1/assistant/developer/v1/models"): "AssistantModelListResponse",
     ("GET", "/api/v1/user/organizations"): "OrganizationListResponse",
+    ("GET", "/api/v1/projects/{projectID}/variables"): "ProjectVariableListResponse",
+    ("PUT", "/api/v1/projects/{projectID}/variables/{name}"): "ProjectVariable",
 }
 
 # Operations that answer with something other than a JSON 200.
@@ -212,6 +219,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
+    ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("POST", "/api/v1/projects/{projectID}/invitations"): ("201", "Member invited", "application/json", "InvitationResponse"),
     ("POST", "/api/v1/dataservices"): ("201", "Data service created", "application/json", "Datasource"),
     ("GET", "/api/v1/auth/login"): ("200", "The sign-in page", "text/html", None),
