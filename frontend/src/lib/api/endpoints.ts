@@ -392,7 +392,11 @@ export const secretsApi = {
 export const environmentsApi = {
   list: (projectId?: string) =>
     api.list<Environment>(`${V1}/environments`, projectId ? { params: { projectId } } : undefined),
-  remove: (environmentId: string) => api.delete<void>(`${V1}/environments/${environmentId}`),
+  /** Encoded: an environment's identifier carries the image reference, so it
+   *  holds slashes. Sent raw it became extra path segments and the router
+   *  answered "Method Not Allowed" to somebody deleting an environment. */
+  remove: (environmentId: string) =>
+    api.delete<void>(`${V1}/environments/${encodeURIComponent(environmentId)}`),
   builds: (projectId?: string) =>
     api.list<Build>(`${V1}/builds`, projectId ? { params: { projectId } } : undefined),
   /** Typed on purpose: this took `Record<string, unknown>`, so a form that

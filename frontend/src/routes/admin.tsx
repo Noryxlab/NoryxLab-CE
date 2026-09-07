@@ -1782,26 +1782,13 @@ export function AdminPage() {
       <PageHeader title={t('admin.title')} description={t('admin.subtitle')} />
 
       <Tabs value={active} onValueChange={(value) => navigate(`/admin/${value}`)}>
+        {/* The sections live in the sidebar, grouped: twelve of them on one
+            horizontal bar ran off the side of the screen and put "Audit" next
+            to "Network" as though they were the same kind of thing. What stays
+            here is the overview and whatever an Enterprise module adds, which
+            is a short list by construction. */}
         <TabsList>
           <TabsTrigger value="overview">{t('admin.overview')}</TabsTrigger>
-          <TabsTrigger value="identity">{t('nav.identity')}</TabsTrigger>
-          <TabsTrigger value="rbac">{t('nav.rbac')}</TabsTrigger>
-          <TabsTrigger value="activity">{t('nav.activity')}</TabsTrigger>
-          <TabsTrigger value="network">{t('nav.network')}</TabsTrigger>
-          <TabsTrigger value="storage">{t('nav.storage')}</TabsTrigger>
-          <TabsTrigger value="inventory">{t('nav.inventory')}</TabsTrigger>
-          <TabsTrigger value="usage">{t('usage.title')}</TabsTrigger>
-          <TabsTrigger value="audit">{t('nav.audit')}</TabsTrigger>
-          <TabsTrigger value="settings">{t('common.settings')}</TabsTrigger>
-          {/* Data-usage mapping and platform backups are Enterprise modules
-              (ADR-026), so the tabs only exist where the module is deployed
-              instead of rendering a section the API will refuse. */}
-          {isEnterprise() ? (
-            <>
-              <TabsTrigger value="data">{t('nav.dataGovernance')}</TabsTrigger>
-              <TabsTrigger value="backups">{t('nav.backups')}</TabsTrigger>
-            </>
-          ) : null}
           {extensions.map((module) => (
             <TabsTrigger key={module.id} value={module.id}>
               {module.title[locale]}

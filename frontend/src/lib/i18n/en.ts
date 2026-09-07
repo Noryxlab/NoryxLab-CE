@@ -776,6 +776,21 @@ export const en: Translations = {
     passwordCopied: 'Password copied.',
   },
 
+  adminNav: {
+
+    people: 'People and access',
+
+    resources: 'Resources',
+
+    operations: 'Operations',
+
+    compliance: 'Compliance',
+
+    configuration: 'Configuration',
+
+  },
+
+
   projectVariables: {
 
     title: 'Environment variables',

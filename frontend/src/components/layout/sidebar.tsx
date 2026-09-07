@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { NavLink, useParams } from 'react-router';
+import { NavLink, useLocation, useParams } from 'react-router';
 import {
   Activity,
   AppWindow,
+  Archive,
   ArrowLeft,
   Boxes,
   ChevronLeft,
@@ -11,9 +12,12 @@ import {
   Home,
   LayoutDashboard,
   Library,
+  Network,
   PanelLeft,
   Rocket,
+  ScrollText,
   Settings,
+  Share2,
   Shield,
   Terminal,
   Users,
@@ -21,7 +25,7 @@ import {
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useProject } from '@/lib/api/queries';
-import { config } from '@/lib/config';
+import { config, isEnterprise } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -33,6 +37,9 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   end?: boolean;
   adminOnly?: boolean;
+  /** Enterprise modules: the section exists only where the module is
+   *  deployed, so the link is absent rather than leading to a refusal. */
+  enterpriseOnly?: boolean;
 }
 
 const GLOBAL_ITEMS: NavItem[] = [
@@ -56,6 +63,53 @@ function projectItems(projectId: string): NavItem[] {
     { to: `${base}/settings`, labelKey: 'nav.settings', icon: Settings },
   ];
 }
+
+/**
+ * Administration, grouped.
+ *
+ * Twelve sections sat on one horizontal tab bar, which ran off the side of the
+ * screen and put "Audit" beside "Réseau" as though they were the same kind of
+ * thing. They are not: some are about people, some about what the platform is
+ * running, some about what an auditor will ask for. The groups say which is
+ * which, and the sidebar is where this application already puts a second level
+ * of navigation - a project does exactly this.
+ */
+const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
+  {
+    labelKey: 'adminNav.people',
+    items: [
+      { to: '/admin/identity', labelKey: 'nav.identity', icon: Users },
+      { to: '/admin/rbac', labelKey: 'nav.rbac', icon: Shield },
+    ],
+  },
+  {
+    labelKey: 'adminNav.resources',
+    items: [
+      { to: '/admin/storage', labelKey: 'nav.storage', icon: Database },
+      { to: '/admin/network', labelKey: 'nav.network', icon: Network },
+    ],
+  },
+  {
+    labelKey: 'adminNav.operations',
+    items: [
+      { to: '/admin/activity', labelKey: 'nav.activity', icon: Activity },
+      { to: '/admin/usage', labelKey: 'usage.title', icon: Gauge },
+      { to: '/admin/backups', labelKey: 'nav.backups', icon: Archive, enterpriseOnly: true },
+    ],
+  },
+  {
+    labelKey: 'adminNav.compliance',
+    items: [
+      { to: '/admin/audit', labelKey: 'nav.audit', icon: ScrollText },
+      { to: '/admin/inventory', labelKey: 'nav.inventory', icon: Boxes },
+      { to: '/admin/data', labelKey: 'nav.dataGovernance', icon: Share2, enterpriseOnly: true },
+    ],
+  },
+  {
+    labelKey: 'adminNav.configuration',
+    items: [{ to: '/admin/settings', labelKey: 'common.settings', icon: Settings }],
+  },
+];
 
 function NavRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const t = useT();
@@ -105,6 +159,8 @@ export function Sidebar({
   const t = useT();
   const { isAdmin } = useAuth();
   const { projectId } = useParams<{ projectId: string }>();
+  const location = useLocation();
+  const inAdministration = location.pathname.startsWith('/admin');
   const { data: project, isLoading: projectLoading } = useProject(projectId);
 
   const globalItems = GLOBAL_ITEMS.filter((item) => !item.adminOnly || isAdmin);
@@ -149,6 +205,34 @@ export function Sidebar({
         {globalItems.map((item) => (
           <NavRow key={item.to} item={item} collapsed={collapsed} />
         ))}
+
+        {inAdministration ? (
+          <div className="pt-3">
+            <div className="mb-1 border-t border-sidebar-border pt-3">
+              {collapsed ? null : (
+                <p className="px-2.5 pb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-sidebar-muted">
+                  {t('nav.administration')}
+                </p>
+              )}
+            </div>
+            {ADMIN_GROUPS.map((group) => {
+              const items = group.items.filter((item) => !item.enterpriseOnly || isEnterprise());
+              if (items.length === 0) return null;
+              return (
+                <div key={group.labelKey} className="mb-2 space-y-1">
+                  {collapsed ? null : (
+                    <p className="px-2.5 pt-1 text-[0.625rem] uppercase tracking-wide text-sidebar-muted/70">
+                      {t(group.labelKey)}
+                    </p>
+                  )}
+                  {items.map((item) => (
+                    <NavRow key={item.to} item={item} collapsed={collapsed} />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
 
         {projectId ? (
           <div className="pt-3">

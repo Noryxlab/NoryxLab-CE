@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 )
@@ -30,19 +31,34 @@ func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Compared by repository, not by full reference: an environment is one
+	// repository and every rebuild pushed a new tag, so matching the reference
+	// deleted the row and left every other revision behind.
+	target := imageRepository(destinationImage)
+	deleted := 0
 	for _, b := range builds {
-		if b.ProjectID != projectID || strings.TrimSpace(b.DestinationImage) != destinationImage {
+		if b.ProjectID != projectID || imageRepository(strings.TrimSpace(b.DestinationImage)) != target {
 			continue
 		}
+		deleted++
 		if h.runtime != nil && strings.TrimSpace(b.JobName) != "" {
 			_ = h.runtime.DeleteJob(b.JobName)
 		}
 		_ = h.buildStore.Delete(b.ID)
 	}
 
-	if err := h.deleteImageFromHarbor(destinationImage); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "registry image delete failed: " + err.Error()})
+	if deleted == 0 {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no environment named " + destinationImage + " in this project"})
 		return
+	}
+
+	// The registry copy is best effort: an environment removed from the
+	// platform and left in Harbor is untidy, and a registry that refuses the
+	// delete - no credentials, retention policy, another project sharing the
+	// repository - must not leave the environment half-removed on a screen
+	// that already said it was gone.
+	if err := h.deleteImageFromHarbor(destinationImage); err != nil {
+		log.Printf("environment %s removed; its registry image was kept: %v", destinationImage, err)
 	}
 
 	w.WriteHeader(http.StatusNoContent)

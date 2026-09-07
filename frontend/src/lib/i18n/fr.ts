@@ -781,6 +781,21 @@ export const fr = {
     passwordCopied: 'Mot de passe copié.',
   },
 
+  adminNav: {
+
+    people: 'Personnes et accès',
+
+    resources: 'Ressources',
+
+    operations: 'Exploitation',
+
+    compliance: 'Conformité',
+
+    configuration: 'Configuration',
+
+  },
+
+
   projectVariables: {
 
     title: 'Variables d’environnement',
