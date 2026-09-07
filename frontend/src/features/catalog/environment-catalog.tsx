@@ -450,6 +450,34 @@ export function EnvironmentCatalog() {
     onError: (error) => toast.error(error, t('environments.deleteTitle')),
   });
 
+/**
+ * What the registry found in the image.
+ *
+ * Rebuilding weekly picks up the base image's security fixes, and that is a
+ * ritual until somebody can see whether it worked: "we rebuild" is an
+ * intention, "3 critical" is a fact. Nothing here blocks anything - an image
+ * with findings still runs.
+ */
+function Vulnerabilities({ environment }: { environment: Environment }) {
+  const t = useT();
+  const report = environment.vulnerabilities;
+  // No report is not a clean report: a registry that does not scan says
+  // nothing, and the screen says nothing back.
+  if (!report) return <span className="text-xs text-muted-foreground">—</span>;
+  if (report.total === 0) {
+    return <Badge tone="success">{t('environments.noVulnerabilities')}</Badge>;
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {report.critical > 0 ? <Badge tone="danger">{report.critical} critical</Badge> : null}
+      {report.high > 0 ? <Badge tone="warning">{report.high} high</Badge> : null}
+      {report.critical === 0 && report.high === 0 ? (
+        <Badge tone="outline">{report.total}</Badge>
+      ) : null}
+    </span>
+  );
+}
+
   const columns: Column<Environment>[] = [
     {
       id: 'name',
@@ -480,6 +508,15 @@ export function EnvironmentCatalog() {
       header: t('common.status'),
       sortValue: (environment) => environment.latestStatus,
       cell: (environment) => <StatusBadge status={environment.latestStatus} locale={locale} />,
+    },
+    {
+      id: 'vulnerabilities',
+      header: t('environments.vulnerabilities'),
+      sortValue: (environment) =>
+        environment.vulnerabilities
+          ? environment.vulnerabilities.critical * 1000 + environment.vulnerabilities.high
+          : -1,
+      cell: (environment) => <Vulnerabilities environment={environment} />,
     },
     {
       id: 'revisions',

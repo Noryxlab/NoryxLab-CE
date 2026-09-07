@@ -29,20 +29,24 @@ type environmentRevision struct {
 }
 
 type environmentItem struct {
-	ID               string                `json:"id"`
-	ProjectID        string                `json:"projectId"`
-	Name             string                `json:"name"`
-	Category         string                `json:"category"`
-	WorkspaceIDEs    []string              `json:"workspaceIdes"`
-	DestinationImage string                `json:"destinationImage"`
-	LatestBuildID    string                `json:"latestBuildId"`
-	LatestStatus     string                `json:"latestStatus"`
-	LatestGitRepo    string                `json:"latestGitRepository"`
-	LatestGitRef     string                `json:"latestGitRef"`
-	LatestDockerfile string                `json:"latestDockerfilePath"`
-	LatestImageSize  string                `json:"latestImageSizeGiB,omitempty"`
-	UpdatedAt        time.Time             `json:"updatedAt"`
-	Revisions        []environmentRevision `json:"revisions"`
+	ID               string   `json:"id"`
+	ProjectID        string   `json:"projectId"`
+	Name             string   `json:"name"`
+	Category         string   `json:"category"`
+	WorkspaceIDEs    []string `json:"workspaceIdes"`
+	DestinationImage string   `json:"destinationImage"`
+	LatestBuildID    string   `json:"latestBuildId"`
+	LatestStatus     string   `json:"latestStatus"`
+	LatestGitRepo    string   `json:"latestGitRepository"`
+	LatestGitRef     string   `json:"latestGitRef"`
+	LatestDockerfile string   `json:"latestDockerfilePath"`
+	LatestImageSize  string   `json:"latestImageSizeGiB,omitempty"`
+	// Vulnerabilities is what the registry found in the image this environment
+	// runs. Absent when the registry does not scan: an empty report must never
+	// read as a clean one.
+	Vulnerabilities *imageVulnerabilities `json:"vulnerabilities,omitempty"`
+	UpdatedAt       time.Time             `json:"updatedAt"`
+	Revisions       []environmentRevision `json:"revisions"`
 }
 
 func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +66,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 
 	itemsByKey := map[string]*environmentItem{}
 	sizeCache := map[string]string{}
+	scanCache := map[string]*imageVulnerabilities{}
 	for _, b := range builds {
 		if projectFilter != "" && b.ProjectID != projectFilter {
 			continue
@@ -133,6 +138,13 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 				size := h.lookupImageSizeGiB(item.DestinationImage)
 				sizeCache[item.DestinationImage] = size
 				item.LatestImageSize = size
+			}
+			if cached, ok := scanCache[item.DestinationImage]; ok {
+				item.Vulnerabilities = cached
+			} else {
+				report := h.resolveImageVulnerabilities(item.DestinationImage)
+				scanCache[item.DestinationImage] = report
+				item.Vulnerabilities = report
 			}
 		}
 		items = append(items, *item)

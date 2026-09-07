@@ -296,6 +296,19 @@ export interface EnvironmentRevision {
 }
 
 export interface Environment {
+  /** What the registry found in this environment's image. Absent when the
+   *  registry does not scan - an empty report must never read as a clean
+   *  one, so the screen shows nothing rather than zero. */
+  vulnerabilities?: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+    unknown: number;
+    total: number;
+    severity?: string;
+    scannedAt?: string;
+  };
   id: string;
   projectId: string;
   name: string;

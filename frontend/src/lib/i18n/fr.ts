@@ -325,6 +325,8 @@ export const fr = {
     building: 'Construction en cours',
     revisions: 'Révisions',
     revisionsHint: 'Chaque construction produit une révision utilisable.',
+    vulnerabilities: 'Vulnérabilités',
+    noVulnerabilities: 'Aucune',
     revisionNumber: 'Révision {number}',
     activeRevision: 'Révision active',
     empty: 'Aucun environnement',

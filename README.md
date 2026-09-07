@@ -122,6 +122,7 @@ scripts/keycloak/bootstrap-realm.sh
 ```
 
 API, supported and internal: `docs/API.md` - Swagger UI at `/swagger`.
+Keeping environment images current: `docs/IMAGE_SECURITY.md`.
 Reference: `docs/BACKEND_RUNTIME_API.md`, `docs/KEYCLOAK_SETUP.md`.
 Workspace module: `docs/WORKSPACES.md`.
 Direct S3 dataset mounts: `docs/S3_DATASET_MOUNTS.md`.

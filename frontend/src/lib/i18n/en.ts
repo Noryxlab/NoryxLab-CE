@@ -321,6 +321,8 @@ export const en: Translations = {
     building: 'Building',
     revisions: 'Revisions',
     revisionsHint: 'Each build produces a usable revision.',
+    vulnerabilities: 'Vulnerabilities',
+    noVulnerabilities: 'None',
     revisionNumber: 'Revision {number}',
     activeRevision: 'Active revision',
     empty: 'No environments',
