@@ -821,3 +821,16 @@ export interface ModuleInfo {
   version?: string;
 }
 
+
+/** What `GET /builds/{id}/dockerfile` answers: the file, and where it was read
+ *  from. A system environment reads it from the repository the platform was
+ *  built from, so `sourceUrl` points at that file rather than at a build. */
+export interface DockerfileResponse {
+  buildId: string;
+  projectId?: string;
+  gitRepository?: string;
+  gitRef?: string;
+  dockerfilePath?: string;
+  sourceUrl?: string;
+  content: string;
+}

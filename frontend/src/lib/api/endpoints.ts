@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
+  DockerfileResponse,
   OwnedResources,
   ProjectQuota,
   UsageSample,
@@ -379,7 +380,16 @@ export const environmentsApi = {
     api.list<Build>(`${V1}/builds`, projectId ? { params: { projectId } } : undefined),
   createBuild: (input: Record<string, unknown>) => api.post<Build>(`${V1}/builds`, input),
   cancelBuild: (buildId: string) => api.delete<void>(`${V1}/builds/${buildId}`),
-  dockerfile: (buildId: string) => api.get<string>(`${V1}/builds/${buildId}/dockerfile`),
+  /** The API answers with the file *and* where it came from - repository, ref,
+   *  path, source URL. The screen shows the file, so unwrap it here rather than
+   *  letting a caller render the envelope: typing this as a string was how the
+   *  editor came to display "[object Object]". */
+  dockerfile: async (buildId: string) => {
+    const answer = await api.get<DockerfileResponse | string>(
+      `${V1}/builds/${buildId}/dockerfile`,
+    );
+    return typeof answer === 'string' ? answer : (answer?.content ?? '');
+  },
 };
 
 export const projectOrganizationRolesApi = {
