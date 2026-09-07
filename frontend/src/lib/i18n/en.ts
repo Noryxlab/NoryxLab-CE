@@ -768,7 +768,7 @@ export const en: Translations = {
 
   account: {
     title: 'My account',
-    subtitle: 'Your API credentials and preferences.',
+    subtitle: 'Your API credentials, your secrets and your preferences.',
   },
 
   tokens: {

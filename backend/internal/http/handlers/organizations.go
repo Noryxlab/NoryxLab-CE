@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
@@ -81,6 +83,39 @@ func (h Handlers) CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, item)
 }
 
+// Naming the members is the difference between a refusal an administrator can
+// act on and one they have to investigate. A disabled account still counts as
+// a member, and that is exactly the case that looks like a bug: the account
+// was deactivated, so it no longer appears on screens that hide disabled
+// users, and it still blocks the organization from being deleted.
+func memberLabels(members []keycloak.User) []string {
+	names := make([]string, 0, len(members))
+	for _, member := range members {
+		label := strings.TrimSpace(member.Username)
+		if label == "" {
+			label = strings.TrimSpace(member.Email)
+		}
+		if label == "" {
+			label = member.ID
+		}
+		if !member.Enabled {
+			label += " (disabled)"
+		}
+		names = append(names, label)
+	}
+	return names
+}
+
+func blockingMembersMessage(names []string) string {
+	shown := names
+	if len(shown) > 5 {
+		shown = append(shown[:5:5], fmt.Sprintf("and %d more", len(names)-5))
+	}
+	return "the organization still has " + strconv.Itoa(len(names)) + " member(s): " +
+		strings.Join(shown, ", ") + ". Remove them from the organization first; " +
+		"a disabled account is still a member."
+}
+
 func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireAdminModule(w, r, "organizations")
 	if !ok {
@@ -97,7 +132,11 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(members) > 0 {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "organization must have no members before deletion"})
+		names := memberLabels(members)
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error":   blockingMembersMessage(names),
+			"members": names,
+		})
 		return
 	}
 	projects, err := h.projectStore.List()
@@ -107,7 +146,10 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, item := range projects {
 		if strings.EqualFold(item.OwnerType, "organization") && strings.EqualFold(item.OwnerID, organizationID) {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "organization must own no projects before deletion"})
+			writeJSON(w, http.StatusConflict, map[string]string{
+				"error": "the organization still owns the project " + item.Name +
+					". Transfer it to another owner first.",
+			})
 			return
 		}
 	}

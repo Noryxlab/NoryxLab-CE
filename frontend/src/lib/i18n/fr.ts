@@ -773,7 +773,7 @@ export const fr = {
 
   account: {
     title: 'Mon compte',
-    subtitle: 'Vos identifiants d’accès à l’API et vos préférences.',
+    subtitle: 'Vos identifiants d’accès à l’API, vos secrets et vos préférences.',
   },
 
   tokens: {
