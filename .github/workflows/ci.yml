@@ -193,19 +193,15 @@ jobs:
           docker build -t noryx-backend:ci backend
           docker build -t noryx-frontend:ci frontend
       - name: Scan backend image for critical vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: noryx-backend:ci
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.74.0 image --exit-code 1 --severity CRITICAL
+          --ignore-unfixed noryx-backend:ci
       - name: Scan frontend image for critical vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: noryx-frontend:ci
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.74.0 image --exit-code 1 --severity CRITICAL
+          --ignore-unfixed noryx-frontend:ci
 
   kubernetes:
     name: Kubernetes manifest admission
