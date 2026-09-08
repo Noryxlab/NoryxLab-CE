@@ -54,6 +54,10 @@ type datasetObjectItem struct {
 	Size         int64     `json:"size"`
 	LastModified time.Time `json:"lastModified"`
 	ContentType  string    `json:"contentType,omitempty"`
+	// IsPrefix marks a folder. Without it the browser had to infer folders
+	// from full keys, which only works when it has been handed every key in
+	// the bucket - the thing that made this unusable on a real dataset.
+	IsPrefix bool `json:"isPrefix,omitempty"`
 }
 
 type setDatasetAccessRequest struct {
@@ -511,24 +515,42 @@ func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefix := strings.Trim(item.Prefix, "/")
-	if prefix != "" {
-		prefix += "/"
+	// One directory at a time.
+	//
+	// This listed the whole bucket, recursively, in a single response, and
+	// ignored the folder the browser asked for. On a test bucket that is
+	// invisible; on HDS-For it is 24,179 objects and 400 GB of metadata behind
+	// a 30-second timeout, so the explorer simply never finished - and the
+	// folder the user clicked was sent to the *download* route, because the
+	// client addressed a listing as `objects/<path>`.
+	base := strings.Trim(item.Prefix, "/")
+	if base != "" {
+		base += "/"
 	}
+	requested := sanitizeDatasetPrefix(r.URL.Query().Get("prefix"))
+	prefix := base + requested
+
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	objects := []datasetObjectItem{}
-	for obj := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+	truncated := false
+	for obj := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: false}) {
 		if obj.Err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object listing failed: " + obj.Err.Error()})
 			return
 		}
 		relPath := obj.Key
-		if prefix != "" && strings.HasPrefix(relPath, prefix) {
-			relPath = strings.TrimPrefix(relPath, prefix)
+		if base != "" && strings.HasPrefix(relPath, base) {
+			relPath = strings.TrimPrefix(relPath, base)
 		}
-		if relPath == "" {
+		if relPath == "" || relPath == requested {
 			continue
+		}
+		if len(objects) >= datasetObjectPageSize {
+			// Said out loud rather than silently cut: a folder that shows 2,000
+			// of its 40,000 files and does not say so is a lie about the data.
+			truncated = true
+			break
 		}
 		objects = append(objects, datasetObjectItem{
 			Path:         relPath,
@@ -536,9 +558,30 @@ func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
 			Size:         obj.Size,
 			LastModified: obj.LastModified,
 			ContentType:  obj.ContentType,
+			IsPrefix:     strings.HasSuffix(obj.Key, "/"),
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": objects})
+	writeJSON(w, http.StatusOK, map[string]any{"items": objects, "prefix": requested, "truncated": truncated})
+}
+
+// datasetObjectPageSize caps one directory's listing. A folder with more
+// entries than this is rare and a browser that tries to render 40,000 rows
+// helps nobody.
+const datasetObjectPageSize = 2000
+
+// sanitizeDatasetPrefix keeps a request inside the dataset it names: a prefix
+// is a folder path under the dataset root, never a way out of it.
+func sanitizeDatasetPrefix(raw string) string {
+	cleaned := strings.Trim(strings.TrimSpace(raw), "/")
+	if cleaned == "" {
+		return ""
+	}
+	for _, segment := range strings.Split(cleaned, "/") {
+		if segment == ".." || segment == "." {
+			return ""
+		}
+	}
+	return cleaned + "/"
 }
 
 func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {

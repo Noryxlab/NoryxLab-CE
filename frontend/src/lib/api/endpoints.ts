@@ -299,11 +299,14 @@ export const datasetsApi = {
   revoke: (datasetId: string, subjectType: string, subjectId: string) =>
     api.delete<void>(`${V1}/datasets/${datasetId}/access/${subjectType}/${encodeURIComponent(subjectId)}`),
 
+  /** A listing, addressed as one. `objects/<path>` is the route that *fetches*
+   *  an object, so navigating into a folder used to ask the platform to
+   *  download it - the folder came back as an error and the explorer looked
+   *  broken. The folder is a query parameter, and the server returns that one
+   *  directory rather than the whole bucket. */
   objects: (datasetId: string, prefix?: string) =>
     api.list<StorageObject>(
-      prefix
-        ? `${V1}/datasets/${datasetId}/objects/${encodeObjectPath(prefix)}`
-        : `${V1}/datasets/${datasetId}/objects`,
+      `${V1}/datasets/${datasetId}/objects${prefix ? `?prefix=${encodeURIComponent(prefix)}` : ''}`,
     ),
   createFolder: (datasetId: string, path: string) =>
     api.post<void>(`${V1}/datasets/${datasetId}/folders`, { path }),
