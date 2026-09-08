@@ -41,4 +41,8 @@ func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
 	if !strings.Contains(script, "exec streamlit run app.py") {
 		t.Fatalf("the launch command is not exec'd:\n%s", script)
 	}
+	// And it runs from the project, where the file it names actually is.
+	if !strings.Contains(script, "cd /mnt") {
+		t.Fatalf("the app does not start in the project directory:\n%s", script)
+	}
 }

@@ -563,6 +563,15 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
 		"export PATH=$HOME/.local/bin:$PATH",
 		fmt.Sprintf("export PORT=%d NORYX_APP_PORT=%d", port, port),
+		// The project directory is the application's working directory.
+		//
+		// The launch command is written the way anybody writes one - `streamlit
+		// run weather_app.py` - and was run from wherever the image happens to
+		// start, so a file sitting in the project failed with "File does not
+		// exist" while being right there. The static-server fallback already
+		// served /mnt and /mnt/app.sh was already the other entrypoint; the
+		// user's own command was the one case that did not get the same footing.
+		fmt.Sprintf("cd %s || true", workspaceProjectMountPath),
 		"if [ -n "+shellQuote(userLaunch)+" ]; then",
 		"  echo '[bootstrap] using UI command entrypoint'",
 		// exec: the command becomes the container's process, so a stop signal
