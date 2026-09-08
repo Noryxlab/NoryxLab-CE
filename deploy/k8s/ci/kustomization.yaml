@@ -1,0 +1,59 @@
+# CI-only composition. It is never applied to a customer cluster.
+#
+# It removes Traefik CRDs, replaces private Harbor references with images that a
+# GitHub-hosted Kind cluster can obtain, and removes the private image pull
+# secret. This exercises the same resource graph without embedding registry
+# credentials in the public repository.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+images:
+  - name: harbor.example.local/noryx-ce/noryx-backend
+    newName: noryx-backend
+    newTag: ci
+  - name: harbor.example.local/noryx-ce/noryx-frontend
+    newName: noryx-frontend
+    newTag: ci
+  - name: harbor.example.local/noryx-ce/postgres
+    newName: postgres
+    newTag: "16"
+  - name: harbor.example.local/noryx-ce/keycloak
+    newName: quay.io/keycloak/keycloak
+    newTag: "26.6.2"
+  - name: harbor.example.local/noryx-ce/minio
+    newName: minio/minio
+    newTag: "RELEASE.2025-02-18T16-25-55Z"
+
+patches:
+  # A stock Kind cluster has no Traefik CRDs. They are validated in the
+  # deployment environment; this smoke validates the portable CE resource set.
+  - target:
+      group: traefik.io
+      version: v1alpha1
+      kind: Middleware
+    patch: |-
+      $patch: delete
+      apiVersion: traefik.io/v1alpha1
+      kind: Middleware
+      metadata:
+        name: ignored-by-ci
+  - target:
+      group: traefik.io
+      version: v1alpha1
+      kind: IngressRoute
+    patch: |-
+      $patch: delete
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: ignored-by-ci
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+    patch: |-
+      - op: remove
+        path: /spec/template/spec/imagePullSecrets

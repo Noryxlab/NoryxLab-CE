@@ -17,7 +17,7 @@ jobs:
     name: CE/EE boundary
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
@@ -42,7 +42,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
@@ -64,6 +64,16 @@ jobs:
         run: python3 scripts/ops/embed-system-dockerfiles.py --check
       - run: go -C backend test ./...
 
+      # The initial floor is intentionally below the 18% baseline measured on
+      # the public tree. It prevents a silent collapse while new tests raise
+      # coverage; every increase is a deliberate pull-request change.
+      - name: Backend coverage does not regress below 15 percent
+        run: |
+          go -C backend test -coverpkg=./... -coverprofile=coverage.out ./...
+          coverage=$(go -C backend tool cover -func=coverage.out | awk '/^total:/ { sub("%", "", $3); print $3 }')
+          echo "Backend statement coverage: ${coverage}%"
+          awk -v coverage="$coverage" 'BEGIN { exit !(coverage >= 15) }'
+
       # The store that actually runs in production cannot be tested without a
       # database: what is worth checking there is what Postgres enforces - a
       # partial unique index, an ON CONFLICT clause, a column a migration added.
@@ -78,7 +88,7 @@ jobs:
     name: Software inventory
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
@@ -107,7 +117,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -121,3 +131,87 @@ jobs:
       # Asserts the built output rather than the sources: the 2026-05-04
       # incident shipped a bundle that no source-level check would have caught.
       - run: npm run smoke
+
+  security:
+    name: Security
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # The CLI is deliberately used instead of gitleaks-action: the latter
+      # requires a commercial key for GitHub organisations. Scanning the full
+      # checkout still catches a secret committed then removed later.
+      - name: Scan Git history for secrets
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" gitleaks/gitleaks:8.30.0 detect --source=/repo --log-opts="--all" --redact
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+      - name: Scan Go dependencies for known vulnerabilities
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          (cd backend && govulncheck ./...)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - name: Scan production npm dependencies for known vulnerabilities
+        run: npm audit --prefix frontend --omit=dev --audit-level=high
+
+      - name: Scan repository configuration for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  container-security:
+    name: Container security
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Community images
+        run: |
+          docker build -t noryx-backend:ci backend
+          docker build -t noryx-frontend:ci frontend
+      - name: Scan backend image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: noryx-backend:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Scan frontend image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: noryx-frontend:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  kubernetes:
+    name: Kubernetes manifest admission
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create isolated Kubernetes cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: noryx-ci
+          wait: 90s
+      - name: Render and admit Community manifests
+        run: ./scripts/ci/kind-smoke.sh
