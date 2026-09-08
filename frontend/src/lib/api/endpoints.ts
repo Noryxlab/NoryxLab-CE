@@ -44,6 +44,7 @@ import type {
   Ontology,
   OntologyAccess,
   OntologyFreshness,
+  OntologyCompleteness,
   Organization,
   OrganizationMember,
   PlatformOverview,
@@ -363,6 +364,8 @@ export const ontologiesApi = {
    *  writes nothing back. */
   freshness: (ontologyId: string) =>
     api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
+  completeness: (ontologyId: string) =>
+    api.get<OntologyCompleteness>(`${V1}/ontologies/${ontologyId}/completeness`),
   access: (ontologyId: string) => api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
   grant: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
     api.put<OntologyAccess>(

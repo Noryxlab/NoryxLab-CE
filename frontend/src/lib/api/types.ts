@@ -895,3 +895,20 @@ export interface OntologyFreshness {
   stale: boolean;
   checkedAt: string;
 }
+
+/** Who the study covers, and who a cohort assembled by modality would leave
+ *  out. Computed from the stored manifest, so it answers for ontologies
+ *  scanned months ago too. */
+export interface OntologyModalityCoverage {
+  name: string;
+  subjects: number;
+  objects: number;
+  missingSubjects: string[];
+}
+
+export interface OntologyCompleteness {
+  subjects: number;
+  modalities: OntologyModalityCoverage[];
+  completeSubjects: number;
+}
+

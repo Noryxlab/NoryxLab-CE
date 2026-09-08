@@ -28,7 +28,13 @@ import {
   TableWrapper,
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
-import { useOntologies, useOntologyFreshness, qk, useInvalidate } from '@/lib/api/queries';
+import {
+  useOntologies,
+  useOntologyFreshness,
+  useOntologyCompleteness,
+  qk,
+  useInvalidate,
+} from '@/lib/api/queries';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatNumber, formatRelative } from '@/lib/format';
@@ -198,6 +204,73 @@ function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
   );
 }
 
+/**
+ * Who the study covers, and who a cohort would leave out.
+ *
+ * "31 subjects" was the only number on the screen, and it averaged together
+ * the subjects who carry a corneal wavefront and those who do not. Anyone
+ * assembling a cohort by modality needs the second list by name, before they
+ * publish an n.
+ */
+function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const coverage = useOntologyCompleteness(ontologyId);
+  const data = coverage.data;
+  if (!data || data.modalities.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.completeness')}</CardTitle>
+          <CardDescription>{t('ontologies.completenessHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          {t('ontologies.completenessSubjects', {
+            complete: formatNumber(data.completeSubjects, locale),
+            total: formatNumber(data.subjects, locale),
+          })}
+        </p>
+        <TableWrapper className="rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('ontologies.completenessModality')}</TableHead>
+                <TableHead className="text-right">{t('ontologies.completenessHolders')}</TableHead>
+                <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
+                <TableHead>{t('ontologies.completenessMissing')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.modalities.map((modality) => (
+                <TableRow key={modality.name}>
+                  <TableCell className="font-mono text-xs">{modality.name}</TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {formatNumber(modality.subjects, locale)} / {formatNumber(data.subjects, locale)}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {formatNumber(modality.objects, locale)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {modality.missingSubjects.length === 0 ? (
+                      t('ontologies.completenessNoGap')
+                    ) : (
+                      <span className="font-mono">{modality.missingSubjects.join(', ')}</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableWrapper>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function OntologyCatalog() {
   const t = useT();
   const { locale } = useI18n();
@@ -317,6 +390,7 @@ export function OntologyCatalog() {
       </Card>
 
       {selected ? <OntologyQuery ontology={selected} /> : null}
+      {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
       {dialog}
     </div>
   );

@@ -64,6 +64,8 @@ export const qk = {
   datasourceDefinitions: ['datasource-definitions'] as const,
   ontologies: ['ontologies'] as const,
   ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
+  ontologyCompleteness: (ontologyId: string) =>
+    ['ontologies', ontologyId, 'completeness'] as const,
   repositories: ['repositories'] as const,
   secrets: ['secrets'] as const,
 
@@ -307,6 +309,13 @@ export const useOntologyFreshness = (ontologyId: string | undefined) =>
     queryFn: () => ontologiesApi.freshness(ontologyId as string),
     enabled: Boolean(ontologyId),
     staleTime: 5 * 60 * 1000,
+  });
+
+export const useOntologyCompleteness = (ontologyId: string | undefined) =>
+  useQuery({
+    queryKey: qk.ontologyCompleteness(ontologyId ?? ''),
+    queryFn: () => ontologiesApi.completeness(ontologyId as string),
+    enabled: Boolean(ontologyId),
   });
 
 export const useRepositories = () => useQuery({ queryKey: qk.repositories, queryFn: repositoriesApi.list });
