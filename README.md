@@ -102,6 +102,13 @@ npm --prefix frontend run build
 ./scripts/check-edition-boundary.sh
 ```
 
+GitHub Actions also scans the complete Git history for secrets, reachable Go
+vulnerabilities, production npm dependencies, Kubernetes configuration and the
+two built container images. It boots the CE manifests in an isolated Kind
+cluster and checks the backend health endpoint. The Kind overlay is CI-only:
+it replaces private registry references and removes ingress CRDs, without
+changing the deployment manifests used by installations.
+
 ## Deploy on Kubernetes
 
 The reference topology requires:
