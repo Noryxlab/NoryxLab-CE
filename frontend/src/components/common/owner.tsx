@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Building2, User } from 'lucide-react';
+import { Building2, ShieldCheck, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
@@ -20,6 +21,8 @@ export interface ResourceOwnership {
   ownerType?: string;
   ownerId?: string;
   ownerName?: string;
+  /** On screen only because the viewer administers the platform. */
+  adminVisible?: boolean;
 }
 
 export function ResourceOwner({
@@ -36,12 +39,23 @@ export function ResourceOwner({
 
   const Icon = isOrganization ? Building2 : User;
   return (
-    <span
-      className={`inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground ${className ?? ''}`}
-      title={isOrganization ? t('projects.ownedByOrganization') : t('projects.ownedByUser')}
-    >
-      <Icon className="size-3 shrink-0" aria-hidden />
-      <span className="truncate">{label}</span>
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <span
+        className={`inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground ${className ?? ''}`}
+        title={isOrganization ? t('projects.ownedByOrganization') : t('projects.ownedByUser')}
+      >
+        <Icon className="size-3 shrink-0" aria-hidden />
+        <span className="truncate">{label}</span>
+      </span>
+      {/* Seeing across every project and organization is real power over
+          regulated data. A screen that shows it without saying so invites
+          people to forget they are using it. */}
+      {owner.adminVisible ? (
+        <Badge tone="outline" title={t('admin.visibleAsAdminHint')}>
+          <ShieldCheck className="size-3" aria-hidden />
+          {t('admin.visibleAsAdmin')}
+        </Badge>
+      ) : null}
     </span>
   );
 }

@@ -175,7 +175,7 @@ func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity))
+	items, err := h.ontologiesVisibleTo(identity)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list ontologies"})
 		return

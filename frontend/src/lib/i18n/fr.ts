@@ -685,6 +685,8 @@ export const fr = {
     empty: 'Aucune consommation enregistrée sur la période.',
   },
   admin: {
+    visibleAsAdmin: 'admin',
+    visibleAsAdminHint: 'Visible parce que vous administrez la plateforme : vous n’avez aucun droit propre sur cet objet.',
     deleteAccount: 'Supprimer le compte',
     deleteHint: 'La suppression retire définitivement le compte du fournisseur d’identité. Elle n’est pas réversible : réactiver ne sera plus possible.',
     deleteSecrets: 'Ses secrets personnels sont supprimés : ils appartiennent à une personne, pas à un rôle, et ne s’héritent pas.',

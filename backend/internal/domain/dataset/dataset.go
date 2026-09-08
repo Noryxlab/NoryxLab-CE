@@ -14,7 +14,12 @@ type Dataset struct {
 	OwnerID     string `json:"ownerId"`
 	// OwnerName is what a screen shows. An organization is stored by its
 	// identifier, which reads as nothing at all on a list.
-	OwnerName        string    `json:"ownerName,omitempty"`
+	OwnerName string `json:"ownerName,omitempty"`
+	// AdminVisible marks a row a platform administrator can see only because
+	// they administer the platform - they hold no grant on it. Seeing
+	// everything is real power over regulated data; the least it can do is say
+	// when it is the reason something is on screen.
+	AdminVisible     bool      `json:"adminVisible,omitempty"`
 	Name             string    `json:"name"`
 	Description      string    `json:"description"`
 	Bucket           string    `json:"bucket"`

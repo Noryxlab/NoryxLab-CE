@@ -20,6 +20,9 @@ type Project struct {
 	// list organizations, which a non-administrator cannot, would show the
 	// identifier for ever.
 	OwnerName string `json:"ownerName,omitempty"`
+	// AdminVisible marks a project visible only through the platform admin
+	// role, with no membership behind it.
+	AdminVisible bool `json:"adminVisible,omitempty"`
 	// WorkspaceStorageSize is the volume every workspace of this project gets,
 	// as a Kubernetes quantity. Empty means the platform default: a project
 	// that never sets it keeps following the installation.

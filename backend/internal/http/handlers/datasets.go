@@ -172,7 +172,7 @@ func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := h.datasetStore.ListBySubjects(h.datasetSubjects(identity))
+	items, err := h.datasetsVisibleTo(identity)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return

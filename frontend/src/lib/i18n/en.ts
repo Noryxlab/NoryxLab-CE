@@ -680,6 +680,8 @@ export const en: Translations = {
     empty: 'No consumption recorded over this period.',
   },
   admin: {
+    visibleAsAdmin: 'admin',
+    visibleAsAdminHint: 'On your screen because you administer the platform: you hold no grant of your own on it.',
     deleteAccount: 'Delete account',
     deleteHint: 'Deleting removes the account from the identity provider for good. It cannot be undone: re-enabling will no longer be possible.',
     deleteSecrets: 'Its personal secrets are deleted: they belong to a person, not to a role, and are not inherited.',

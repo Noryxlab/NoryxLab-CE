@@ -15,7 +15,12 @@ type Ontology struct {
 	OwnerID     string `json:"ownerId"`
 	// OwnerName is what a screen shows, resolved from the directory for an
 	// organization and equal to the username for a person.
-	OwnerName        string          `json:"ownerName,omitempty"`
+	OwnerName string `json:"ownerName,omitempty"`
+	// AdminVisible marks a row a platform administrator can see only because
+	// they administer the platform - they hold no grant on it. Seeing
+	// everything is real power over regulated data; the least it can do is say
+	// when it is the reason something is on screen.
+	AdminVisible     bool            `json:"adminVisible,omitempty"`
 	Name             string          `json:"name"`
 	Description      string          `json:"description"`
 	SourceType       string          `json:"sourceType"`

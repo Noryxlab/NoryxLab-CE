@@ -39,6 +39,9 @@ export interface Project {
   runningApps: number;
   runningJobs: number;
   runningWorkspaces: number;
+  /** True when this row is on your screen only because you administer the
+   *  platform - you hold no grant on it. */
+  adminVisible?: boolean;
 }
 
 export interface ProjectMember {
@@ -161,6 +164,9 @@ export interface Dataset {
   accessRole?: AccessRole;
   createdAt: string;
   updatedAt: string;
+  /** True when this row is on your screen only because you administer the
+   *  platform - you hold no grant on it. */
+  adminVisible?: boolean;
 }
 
 export interface DatasetAccess {
@@ -241,6 +247,9 @@ export interface Ontology {
   accessRole?: AccessRole;
   createdAt: string;
   updatedAt: string;
+  /** True when this row is on your screen only because you administer the
+   *  platform - you hold no grant on it. */
+  adminVisible?: boolean;
 }
 
 export interface OntologyAccess {

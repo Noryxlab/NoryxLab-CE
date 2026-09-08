@@ -61,11 +61,17 @@ func (h Handlers) listProjectsForUser(userID string) ([]project.Project, error) 
 	if err != nil {
 		return nil, err
 	}
+	// A platform administrator sees every project, and each one they are not a
+	// member of says so. Without this, an administrator's own screen hid work
+	// they were nonetheless responsible for.
+	admin := h.isGlobalAdminUserID(userID)
 	filtered := make([]project.Project, 0, len(projects))
 	for _, item := range projects {
-		if !h.hasProjectMembership(userID, item.ID) {
+		member := h.hasProjectMembership(userID, item.ID)
+		if !member && !admin {
 			continue
 		}
+		item.AdminVisible = !member
 		filtered = append(filtered, item)
 	}
 	return filtered, nil
