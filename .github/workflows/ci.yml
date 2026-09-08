@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.13'
           cache-dependency-path: backend/go.sum
       - run: ./scripts/check-edition-boundary.sh
 
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.13'
           cache-dependency-path: backend/go.sum
       - name: Formatting
         run: |
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.13'
           cache-dependency-path: backend/go.sum
       - uses: actions/setup-node@v4
         with:
@@ -150,7 +150,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.25.13'
           cache-dependency-path: backend/go.sum
       - name: Scan Go dependencies for known vulnerabilities
         run: |

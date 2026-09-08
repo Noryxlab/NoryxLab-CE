@@ -1,4 +1,4 @@
-FROM golang:1.25 AS builder
+FROM golang:1.25.13 AS builder
 
 # The version is stamped into the binary rather than supplied as an environment
 # variable, so it cannot drift from the image that carries it.
