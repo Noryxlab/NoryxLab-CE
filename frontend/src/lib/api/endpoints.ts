@@ -42,6 +42,7 @@ import type {
   Job,
   ModuleInfo,
   DatasetUsage,
+  LogsResponse,
   Ontology,
   OntologyAccess,
   OntologyManifestSummary,
@@ -209,7 +210,12 @@ export const jobsApi = {
     api.list<Job>(`${V1}/jobs`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateJobInput) => api.post<Job>(`${V1}/jobs`, input),
   remove: (jobId: string) => api.delete<void>(`${V1}/jobs/${jobId}`),
-  logs: (jobId: string) => api.get<string>(`${V1}/jobs/${jobId}/logs`),
+  /** Every log endpoint answers `{..., logs}`; this used to be typed as a bare
+   *  string, so the viewer received the envelope object and threw on
+   *  `content.split`. The panel then rendered nothing at all - the logs looked
+   *  missing when they had been fetched successfully. */
+  logs: (jobId: string) =>
+    api.get<LogsResponse>(`${V1}/jobs/${jobId}/logs`).then((response) => response?.logs ?? ''),
 };
 
 export interface CreateCronJobInput extends CreateJobInput {
@@ -252,7 +258,8 @@ export const appsApi = {
   stop: (appId: string) => api.post<App>(`${V1}/apps/${appId}/stop`),
   publish: (appId: string, input?: { accessMode?: string; allowedUsers?: string[]; allowedOrganizations?: string[] }) =>
     api.post<App>(`${V1}/apps/${appId}/publish`, input ?? {}),
-  logs: (appId: string) => api.get<string>(`${V1}/apps/${appId}/logs`),
+  logs: (appId: string) =>
+    api.get<LogsResponse>(`${V1}/apps/${appId}/logs`).then((response) => response?.logs ?? ''),
   revisions: (appId: string) => api.list<AppRevision>(`${V1}/apps/${appId}/revisions`),
   rollback: (appId: string, revisionId: string) =>
     api.post<App>(`${V1}/apps/${appId}/revisions/${revisionId}/rollback`),
@@ -362,7 +369,8 @@ export const datasourcesApi = {
   validate: (datasourceId: string) =>
     api.post<{ reachable: boolean; error?: string }>(`${V1}/datasources/${datasourceId}/validate`),
   restart: (datasourceId: string) => api.post<Datasource>(`${V1}/datasources/${datasourceId}/restart`),
-  logs: (datasourceId: string) => api.get<string>(`${V1}/datasources/${datasourceId}/logs`),
+  logs: (datasourceId: string) =>
+    api.get<LogsResponse>(`${V1}/datasources/${datasourceId}/logs`).then((response) => response?.logs ?? ''),
   createService: (input: Record<string, unknown>) => api.post<Datasource>(`${V1}/dataservices`, input),
 };
 

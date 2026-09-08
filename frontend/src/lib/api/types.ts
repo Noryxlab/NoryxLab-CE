@@ -956,3 +956,11 @@ export interface DatasetUsage {
   measuredAt: string;
 }
 
+/** What every log endpoint answers with. The payload carries the identifiers
+ *  alongside the text, so a caller that wants the text has to reach for it. */
+export interface LogsResponse {
+  logs?: string;
+  pending?: boolean;
+  persisted?: boolean;
+}
+
