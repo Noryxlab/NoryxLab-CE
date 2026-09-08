@@ -1,12 +1,31 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { AppWindow, ExternalLink, History, Plus, RotateCw, Square, Trash2, Upload } from 'lucide-react';
+import {
+  AppWindow,
+  ExternalLink,
+  Eye,
+  History,
+  Plus,
+  RotateCw,
+  Square,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { EmptyState } from '@/components/common/states';
 import { LogViewer } from '@/components/common/log-viewer';
+import { Stat, StatGrid } from '@/components/common/stat';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { CopyButton } from '@/components/common/copy-button';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardHeaderText,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge, StatusBadge, describeStatus } from '@/components/ui/badge';
 import { SkeletonCards } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/states';
@@ -17,11 +36,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DataTable, type Column } from '@/components/common/data-table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableWrapper,
+} from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
 import { appsApi, dashboardsApi } from '@/lib/api/endpoints';
-import { useAppLogs, useAppRevisions, qk, useInvalidate } from '@/lib/api/queries';
+import { useAppLogs, useAppRevisions, useAppUsage, qk, useInvalidate } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatDateTime, formatRelative } from '@/lib/format';
+import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { presentAccessMode } from '@/lib/presenters';
 import { MoreHorizontal } from 'lucide-react';
 import type { App, AppRevision } from '@/lib/api/types';
@@ -55,9 +83,11 @@ export function AppList({
 
   const [logsFor, setLogsFor] = React.useState<App | null>(null);
   const [revisionsFor, setRevisionsFor] = React.useState<App | null>(null);
+  const [usageFor, setUsageFor] = React.useState<App | null>(null);
 
   const logs = useAppLogs(logsFor?.id);
   const revisions = useAppRevisions(revisionsFor?.id);
+  const usage = useAppUsage(usageFor?.id);
 
   const refresh = () =>
     invalidate(qk.apps(projectId), qk.dashboards(projectId), qk.production, qk.projects);
@@ -216,6 +246,10 @@ export function AppList({
                     <DropdownMenuItem onSelect={() => setLogsFor(app)}>
                       {t('common.viewLogs')}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setUsageFor(app)}>
+                      <Eye aria-hidden />
+                      {t('apps.usage')}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setRevisionsFor(app)}>
                       <History aria-hidden />
                       {t('apps.revisions')}
@@ -265,6 +299,81 @@ export function AppList({
           );
         })}
       </div>
+
+      {usageFor ? (
+        <Card>
+          <CardHeader>
+            <CardHeaderText>
+              <CardTitle>
+                {t('apps.usage')} — {usageFor.name || usageFor.slug}
+              </CardTitle>
+              <CardDescription>
+                {t('apps.usageHint', { days: String(usage.data?.periodDays ?? 30) })}
+              </CardDescription>
+            </CardHeaderText>
+            <Button variant="ghost" size="sm" onClick={() => setUsageFor(null)}>
+              {t('common.close')}
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <StatGrid className="sm:grid-cols-3">
+              <Stat
+                label={t('apps.usageViews')}
+                value={usage.data ? formatNumber(usage.data.totalViews, locale) : '—'}
+                hint={
+                  usage.data?.anonymousViews
+                    ? t('apps.usageAnonymous', {
+                        count: formatNumber(usage.data.anonymousViews, locale),
+                      })
+                    : undefined
+                }
+                loading={usage.isLoading}
+              />
+              <Stat
+                label={t('apps.usageVisitors')}
+                value={usage.data ? formatNumber(usage.data.identifiedVisitors, locale) : '—'}
+                loading={usage.isLoading}
+              />
+              <Stat
+                label={t('apps.usageLastView')}
+                value={
+                  usage.data?.lastViewedAt ? formatRelative(usage.data.lastViewedAt, locale) : '—'
+                }
+                loading={usage.isLoading}
+              />
+            </StatGrid>
+
+            {usage.data?.visitors?.length ? (
+              <TableWrapper className="rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('common.user')}</TableHead>
+                      <TableHead className="text-right">{t('apps.usageViews')}</TableHead>
+                      <TableHead>{t('apps.usageLastView')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {usage.data.visitors.map((visitor) => (
+                      <TableRow key={visitor.userId}>
+                        <TableCell className="text-xs">{visitor.userId}</TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">
+                          {formatNumber(visitor.views, locale)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatRelative(visitor.lastViewAt, locale)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableWrapper>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t('apps.usageEmpty')}</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {logsFor ? (
         <Card>

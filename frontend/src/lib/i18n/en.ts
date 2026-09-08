@@ -248,6 +248,13 @@ export const en: Translations = {
   },
 
   apps: {
+    usage: 'Consultation',
+    usageHint: 'Who opened this application, over the last {days} days.',
+    usageViews: 'Views',
+    usageVisitors: 'Identified visitors',
+    usageLastView: 'Last view',
+    usageAnonymous: 'including {count} anonymous',
+    usageEmpty: 'Nobody has opened this application yet.',
     logsStarting: 'The application is starting: its dependencies are installing. Logs will follow.',
     title: 'Apps',
     subtitle: 'Web applications served from this project.',
@@ -671,6 +678,9 @@ export const en: Translations = {
     zeroMeansNoLimit: '0 means no limit on this dimension.',
   },
   usage: {
+    consumption: 'Consumption',
+    consumptionHint: 'What the project actually consumed, sampled every five minutes and kept for a hundred days.',
+    restsOn: 'Total built from {samples} measurements.',
     title: 'Consumption by project',
     hint: 'What each project actually consumed over the last 30 days. Sampled every 5 minutes; a platform outage is not billed.',
     project: 'Project',

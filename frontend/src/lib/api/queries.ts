@@ -51,6 +51,8 @@ export const qk = {
   cronJobs: (projectId?: string) => ['cronjobs', projectId ?? 'all'] as const,
   apps: (projectId?: string) => ['apps', projectId ?? 'all'] as const,
   appLogs: (appId: string) => ['apps', 'logs', appId] as const,
+  appUsage: (appId: string) => ['apps', appId, 'usage'] as const,
+  projectUsage: (projectId: string) => ['projects', projectId, 'usage'] as const,
   appRevisions: (appId: string) => ['apps', appId, 'revisions'] as const,
   dashboards: (projectId?: string) => ['dashboards', projectId ?? 'all'] as const,
   production: ['production', 'apps'] as const,
@@ -257,6 +259,23 @@ export const useAppLogs = (appId: string | undefined) =>
     queryFn: () => appsApi.logs(appId as string),
     enabled: Boolean(appId),
     refetchInterval: ({ state }) => (state.data?.pending ? 4000 : false),
+  });
+
+/** Who consulted an application, and when. The endpoint has always been there
+ *  and no screen ever called it. */
+export const useAppUsage = (appId: string | undefined) =>
+  useQuery({
+    queryKey: qk.appUsage(appId ?? ''),
+    queryFn: () => appsApi.usage(appId as string),
+    enabled: Boolean(appId),
+  });
+
+/** What the project actually consumed, in the unit a bill is written in. */
+export const useProjectUsage = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectUsage(projectId ?? ''),
+    queryFn: () => projectsApi.usage(projectId as string),
+    enabled: Boolean(projectId),
   });
 
 export const useAppRevisions = (appId: string | undefined) =>

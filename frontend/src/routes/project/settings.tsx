@@ -18,6 +18,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { presentStorage, STORAGE_PRESETS } from '@/lib/presenters';
 import { useAuth } from '@/lib/auth';
 import { ProjectQuotaCard } from '@/features/projects/project-quota';
+import { ProjectConsumptionCard } from '@/features/projects/project-consumption';
 
 export function ProjectSettingsPage() {
   const t = useT();
@@ -162,6 +163,9 @@ export function ProjectSettingsPage() {
       {/* Shown to every member: the person whose launch was refused is the one
           who needs to see the number. Editing stays with an administrator. */}
       <ProjectQuotaCard projectId={projectId as string} canEdit={isAdmin} />
+
+      {/* What it is allowed to run, then what it actually ran. */}
+      <ProjectConsumptionCard projectId={projectId as string} />
 
       {canManageOwner ? (
         <Card>

@@ -154,6 +154,7 @@ func (s *Store) migrate(ctx context.Context) error {
 			jobs INTEGER NOT NULL,
 			PRIMARY KEY (project_id, at)
 		)`,
+		`ALTER TABLE usage_samples ADD COLUMN IF NOT EXISTS apps INTEGER NOT NULL DEFAULT 0`,
 		// Every query is "this project, this window", so the index follows the
 		// question rather than the table.
 		`CREATE INDEX IF NOT EXISTS usage_samples_at ON usage_samples (at)`,
@@ -785,14 +786,14 @@ func (s *Store) RecordUsageSamples(samples []usage.Sample) error {
 		return err
 	}
 	defer func() { _ = transaction.Rollback() }()
-	statement, err := transaction.Prepare(`INSERT INTO usage_samples (project_id, at, vcpu, memory_gib, workspaces, jobs)
-		VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (project_id, at) DO NOTHING`)
+	statement, err := transaction.Prepare(`INSERT INTO usage_samples (project_id, at, vcpu, memory_gib, workspaces, jobs, apps)
+		VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (project_id, at) DO NOTHING`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 	for _, sample := range samples {
-		if _, err := statement.Exec(sample.ProjectID, sample.At.UTC(), sample.VCPU, sample.MemoryGiB, sample.Workspaces, sample.Jobs); err != nil {
+		if _, err := statement.Exec(sample.ProjectID, sample.At.UTC(), sample.VCPU, sample.MemoryGiB, sample.Workspaces, sample.Jobs, sample.Apps); err != nil {
 			return err
 		}
 	}
@@ -800,7 +801,7 @@ func (s *Store) RecordUsageSamples(samples []usage.Sample) error {
 }
 
 func (s *Store) ListUsageSamplesByProject(projectID string, from, to time.Time) ([]usage.Sample, error) {
-	rows, err := s.db.Query(`SELECT project_id, at, vcpu, memory_gib, workspaces, jobs
+	rows, err := s.db.Query(`SELECT project_id, at, vcpu, memory_gib, workspaces, jobs, apps
 		FROM usage_samples WHERE project_id=$1 AND at >= $2 AND at <= $3 ORDER BY at`,
 		strings.TrimSpace(projectID), from.UTC(), to.UTC())
 	if err != nil {
@@ -810,7 +811,7 @@ func (s *Store) ListUsageSamplesByProject(projectID string, from, to time.Time) 
 	out := []usage.Sample{}
 	for rows.Next() {
 		var sample usage.Sample
-		if err := rows.Scan(&sample.ProjectID, &sample.At, &sample.VCPU, &sample.MemoryGiB, &sample.Workspaces, &sample.Jobs); err != nil {
+		if err := rows.Scan(&sample.ProjectID, &sample.At, &sample.VCPU, &sample.MemoryGiB, &sample.Workspaces, &sample.Jobs, &sample.Apps); err != nil {
 			return nil, err
 		}
 		out = append(out, sample)

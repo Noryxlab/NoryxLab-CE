@@ -135,11 +135,32 @@ export interface AppRevision {
   active: boolean;
 }
 
+/** Who consulted an application, and when.
+ *
+ *  This was declared by hand and never met its endpoint: it named `views`,
+ *  `uniqueUsers` and `lastAccessedAt` while the API answers `totalViews`,
+ *  `identifiedVisitors` and `lastViewedAt`. Nothing rendered, so nobody wired
+ *  it, so nobody noticed - a type that lies is worse than no type. */
+export interface AppUsageVisitor {
+  userId: string;
+  views: number;
+  lastViewAt: string;
+}
+
+export interface AppUsageDay {
+  date: string;
+  views: number;
+}
+
 export interface AppUsage {
   appId: string;
-  views?: number;
-  lastAccessedAt?: string | null;
-  uniqueUsers?: number;
+  periodDays: number;
+  totalViews: number;
+  identifiedVisitors: number;
+  anonymousViews: number;
+  lastViewedAt?: string | null;
+  visitors: AppUsageVisitor[];
+  daily: AppUsageDay[];
 }
 
 export type DatasetClassification = 'hds' | 'non-hds';
@@ -415,6 +436,7 @@ export interface UsageSample {
   memoryGib: number;
   workspaces: number;
   jobs: number;
+  apps?: number;
 }
 
 export interface OwnedResources {

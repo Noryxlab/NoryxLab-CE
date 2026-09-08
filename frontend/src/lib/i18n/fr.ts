@@ -252,6 +252,13 @@ export const fr = {
   },
 
   apps: {
+    usage: 'Consultation',
+    usageHint: 'Qui a consulté cette application, sur les {days} derniers jours.',
+    usageViews: 'Consultations',
+    usageVisitors: 'Visiteurs identifiés',
+    usageLastView: 'Dernière consultation',
+    usageAnonymous: 'dont {count} anonymes',
+    usageEmpty: 'Personne n’a encore consulté cette application.',
     logsStarting: 'L’application démarre : ses dépendances s’installent. Les journaux arrivent.',
     title: 'Applications',
     subtitle: 'Applications web servies depuis ce projet.',
@@ -676,6 +683,9 @@ export const fr = {
     zeroMeansNoLimit: '0 signifie aucune limite sur cette dimension.',
   },
   usage: {
+    consumption: 'Consommation',
+    consumptionHint: 'Ce que le projet a réellement consommé, mesuré toutes les cinq minutes et conservé cent jours.',
+    restsOn: 'Total établi sur {samples} mesures.',
     title: 'Consommation par projet',
     hint: 'Ce que chaque projet a réellement consommé sur les 30 derniers jours. Mesuré par échantillonnage toutes les 5 minutes ; une interruption de la plateforme n’est pas facturée.',
     project: 'Projet',

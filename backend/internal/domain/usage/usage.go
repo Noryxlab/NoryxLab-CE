@@ -22,6 +22,10 @@ type Sample struct {
 	MemoryGiB  float64   `json:"memoryGib"`
 	Workspaces int       `json:"workspaces"`
 	Jobs       int       `json:"jobs"`
+	// Apps hold a pod for as long as they are published. They were absent from
+	// the sample as they were absent from the quota, so a project running only
+	// applications recorded nothing at all.
+	Apps int `json:"apps"`
 }
 
 // Total is consumption over a window, in the units a bill is written in.

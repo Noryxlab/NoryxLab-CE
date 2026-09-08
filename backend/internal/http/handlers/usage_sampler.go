@@ -79,7 +79,7 @@ func (h Handlers) sampleUsage() {
 		// idle project every five minutes fills a table with the absence of
 		// information, and the integration treats a missing sample as zero
 		// anyway.
-		if current.VCPU == 0 && current.MemoryGiB == 0 && current.Workspaces == 0 && current.Jobs == 0 {
+		if current.VCPU == 0 && current.MemoryGiB == 0 && current.Workspaces == 0 && current.Jobs == 0 && current.Apps == 0 {
 			continue
 		}
 		samples = append(samples, usage.Sample{
@@ -89,6 +89,7 @@ func (h Handlers) sampleUsage() {
 			MemoryGiB:  current.MemoryGiB,
 			Workspaces: current.Workspaces,
 			Jobs:       current.Jobs,
+			Apps:       current.Apps,
 		})
 	}
 	if len(samples) == 0 {
