@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-08T10:03:38+00:00",
+  "generatedAt": "2026-09-08T10:17:54+00:00",
   "note": "Dependencies are read from the resolved graph; infrastructure licences are declared from their upstream project. Anything unreadable is reported as unknown rather than guessed.",
   "counts": {
     "total": 76,
@@ -176,22 +176,6 @@
     },
     {
       "name": "golang.org/x/crypto",
-      "version": "v0.51.0",
-      "licence": "BSD",
-      "component": "backend",
-      "origin": "detected",
-      "licenceFile": "LICENSE"
-    },
-    {
-      "name": "golang.org/x/mod",
-      "version": "v0.37.0",
-      "licence": "BSD",
-      "component": "backend",
-      "origin": "detected",
-      "licenceFile": "LICENSE"
-    },
-    {
-      "name": "golang.org/x/net",
       "version": "v0.55.0",
       "licence": "BSD",
       "component": "backend",
@@ -199,8 +183,24 @@
       "licenceFile": "LICENSE"
     },
     {
+      "name": "golang.org/x/mod",
+      "version": "v0.38.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
+      "name": "golang.org/x/net",
+      "version": "v0.57.0",
+      "licence": "BSD",
+      "component": "backend",
+      "origin": "detected",
+      "licenceFile": "LICENSE"
+    },
+    {
       "name": "golang.org/x/sync",
-      "version": "v0.21.0",
+      "version": "v0.22.0",
       "licence": "BSD",
       "component": "backend",
       "origin": "detected",
@@ -208,7 +208,7 @@
     },
     {
       "name": "golang.org/x/sys",
-      "version": "v0.45.0",
+      "version": "v0.47.0",
       "licence": "BSD",
       "component": "backend",
       "origin": "detected",
@@ -216,7 +216,7 @@
     },
     {
       "name": "golang.org/x/term",
-      "version": "v0.43.0",
+      "version": "v0.45.0",
       "licence": "BSD",
       "component": "backend",
       "origin": "detected",
@@ -224,7 +224,7 @@
     },
     {
       "name": "golang.org/x/text",
-      "version": "v0.39.0",
+      "version": "v0.41.0",
       "licence": "BSD",
       "component": "backend",
       "origin": "detected",
@@ -232,7 +232,7 @@
     },
     {
       "name": "golang.org/x/tools",
-      "version": "v0.47.0",
+      "version": "v0.48.0",
       "licence": "BSD",
       "component": "backend",
       "origin": "detected",
