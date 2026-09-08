@@ -142,6 +142,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/freshness", h.GetOntologyFreshness)
 	// Who the study covers, and who a cohort would silently leave out.
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/completeness", h.GetOntologyCompleteness)
+	// A cohort: a named selection of files, frozen when it is declared, so the
+	// same question asked next month still names the same study.
+	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/cohorts", h.CreateCohort)
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/cohorts", h.ListOntologyCohorts)
+	mux.HandleFunc("GET /api/v1/cohorts/{cohortID}/members", h.GetCohortMembers)
+	mux.HandleFunc("DELETE /api/v1/cohorts/{cohortID}", h.DeleteCohort)
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/query", h.QueryOntology)
 	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}", h.UpdateOntologyMetadata)
 	mux.HandleFunc("DELETE /api/v1/ontologies/{ontologyID}", h.DeleteOntology)

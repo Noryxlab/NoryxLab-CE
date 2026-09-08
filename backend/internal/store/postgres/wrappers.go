@@ -241,6 +241,15 @@ func (s *OntologyStore) SetAccess(item ontology.Access) error {
 func (s *OntologyStore) DeleteAccess(ontologyID, subjectType, subjectID string) error {
 	return s.Store.DeleteOntologyAccess(ontologyID, subjectType, subjectID)
 }
+func (s *OntologyStore) ReplaceObjects(ontologyID string, objects []ontology.Object) error {
+	return s.Store.ReplaceOntologyObjects(ontologyID, objects)
+}
+func (s *OntologyStore) ListObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
+	return s.Store.ListOntologyObjects(ontologyID, filter)
+}
+func (s *OntologyStore) CountObjects(ontologyID string) (int, error) {
+	return s.Store.CountOntologyObjects(ontologyID)
+}
 
 type DatasourceStore struct{ *Store }
 
@@ -337,6 +346,9 @@ func (s *ProjectResourceStore) AttachOntology(projectID, ontologyID string) erro
 }
 func (s *ProjectResourceStore) DetachOntology(projectID, ontologyID string) error {
 	return s.Store.DetachOntology(projectID, ontologyID)
+}
+func (s *ProjectResourceStore) ListOntologyProjectIDs(ontologyID string) ([]string, error) {
+	return s.Store.ListOntologyProjectIDs(ontologyID)
 }
 func (s *ProjectResourceStore) ListProjectOntologyIDs(projectID string) ([]string, error) {
 	return s.Store.ListProjectOntologyIDs(projectID)

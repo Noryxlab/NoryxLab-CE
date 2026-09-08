@@ -486,6 +486,16 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// A cohort mounts as a tree of links over the dataset that is already
+		// mounted: nothing is copied, and the source stays read-only.
+		cohortEntries := h.cohortMountEntries(req.ProjectID, attachedDatasets)
+		cohortManifest, cohortFits := encodeCohortManifest(cohortEntries)
+		cohortRefused := 0
+		if !cohortFits {
+			cohortRefused = len(cohortEntries)
+			cohortManifest = ""
+		}
+
 		bootstrapScript := workspaceBootstrapScript(
 			req.IDE,
 			record.ID,
@@ -498,12 +508,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			attachedRepos,
 			len(attachedDatasets),
 			continueConfig,
+			cohortManifest != "",
+			cohortRefused,
 		)
 		workspaceArgs = nil
 		bootstrapSecretName := podName + "-bootstrap"
 		err = h.runtime.CreateSecret(noryxruntime.SecretSpec{
 			Name: bootstrapSecretName,
-			Data: map[string]string{"bootstrap.sh": bootstrapScript},
+			Data: bootstrapSecretData(bootstrapScript, cohortManifest),
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "noryx-workspace-bootstrap",
 				"noryx.io/workspace-id":  record.ID,
@@ -983,6 +995,8 @@ func workspaceBootstrapScript(
 	attachedRepos []workspaceAttachedRepo,
 	datasetMountCount int,
 	continueConfig string,
+	hasCohortManifest bool,
+	refusedCohortFiles int,
 ) string {
 	lines := []string{
 		"set -e",
@@ -1031,6 +1045,7 @@ func workspaceBootstrapScript(
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
+	lines = append(lines, cohortBootstrapLines(projectMountPath, hasCohortManifest, refusedCohortFiles)...)
 
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
@@ -1377,4 +1392,15 @@ func isNotFoundError(err error) bool {
 	}
 	msg := strings.ToLower(strings.TrimSpace(err.Error()))
 	return strings.Contains(msg, "not found") || strings.Contains(msg, "404")
+}
+
+// bootstrapSecretData carries the script and, when a project has cohorts, the
+// file list they froze. Both live in the same secret because they are read at
+// the same moment by the same script.
+func bootstrapSecretData(script, cohortManifest string) map[string]string {
+	data := map[string]string{"bootstrap.sh": script}
+	if strings.TrimSpace(cohortManifest) != "" {
+		data["cohorts.b64"] = cohortManifest
+	}
+	return data
 }

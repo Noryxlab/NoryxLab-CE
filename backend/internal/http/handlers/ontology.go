@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 	"regexp"
@@ -534,6 +535,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	sourceType := strings.ToLower(strings.TrimSpace(req.SourceType))
 	inferenceProfile := strings.TrimSpace(req.InferenceProfile)
 	var manifest ontologyManifest
+	var scannedObjects []ontologydomain.Object
 	if sourceType == "" {
 		switch {
 		case datasetID != "":
@@ -569,7 +571,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 			return
 		}
-		manifest, err = h.buildDatasetOntologyManifest(r.Context(), projectID, item, client, identity.UserID())
+		manifest, scannedObjects, err = h.buildDatasetOntologyManifest(r.Context(), projectID, item, client, identity.UserID())
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
 			return
@@ -612,6 +614,15 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	if err := h.ontologyStore.Create(object); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
 		return
+	}
+	// Best effort, and said out loud when it fails: an ontology whose paths
+	// were not stored still describes the study correctly, it just cannot have
+	// a cohort built from it - which is a thing to log, not a reason to throw
+	// away a scan that took minutes.
+	if len(scannedObjects) > 0 {
+		if err := h.ontologyStore.ReplaceObjects(object.ID, scannedObjects); err != nil {
+			log.Printf("ontology %s stored without its file list; cohorts cannot be built from it: %v", object.ID, err)
+		}
 	}
 	if err := h.projectResourceStore.AttachOntology(projectID, object.ID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
@@ -818,7 +829,11 @@ func queryLimit(limit int) int {
 	return limit
 }
 
-func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, error) {
+// The scan returns the file list alongside the manifest. The manifest keeps
+// three sample paths per modality - enough to show what the data looks like,
+// never enough to build a cohort from - so the recognised paths are handed back
+// to be stored, and a cohort declared next month can still name the same files.
+func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, []ontologydomain.Object, error) {
 	prefix := strings.Trim(item.Prefix, "/")
 	if prefix != "" {
 		prefix += "/"
@@ -837,9 +852,10 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	var totalBytes int64
 	truncated := false
 
+	recognised := []ontologydomain.Object{}
 	for obj := range client.ListObjects(scanCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if obj.Err != nil {
-			return ontologyManifest{}, obj.Err
+			return ontologyManifest{}, nil, obj.Err
 		}
 		relPath := obj.Key
 		if prefix != "" && strings.HasPrefix(relPath, prefix) {
@@ -901,6 +917,13 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		if len(acc.samplePaths) < 3 {
 			acc.samplePaths = append(acc.samplePaths, relPath)
 		}
+		recognised = append(recognised, ontologydomain.Object{
+			Path:      relPath,
+			SubjectID: subjectID,
+			Visit:     visitDate,
+			Modality:  modalityName,
+			SizeBytes: obj.Size,
+		})
 	}
 	if study == "" {
 		study = strings.TrimSpace(item.Name)
@@ -930,7 +953,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		GeneratedBy: generatedBy,
 		GeneratedAt: time.Now().UTC(),
 		Truncated:   truncated,
-	}, nil
+	}, recognised, nil
 }
 
 func (h Handlers) buildDatasourceOntologyManifest(projectID string, item datasource.Datasource, generatedBy string) ontologyManifest {

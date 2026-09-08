@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"sort"
 	"strings"
 	"sync"
 )
@@ -172,5 +173,19 @@ func (s *ProjectResourceStore) ListProjectOntologyIDs(projectID string) ([]strin
 	for id := range m {
 		out = append(out, id)
 	}
+	return out, nil
+}
+
+func (s *ProjectResourceStore) ListOntologyProjectIDs(ontologyID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	wanted := strings.TrimSpace(ontologyID)
+	out := []string{}
+	for projectID, ontologies := range s.projectOntologies {
+		if _, linked := ontologies[wanted]; linked {
+			out = append(out, projectID)
+		}
+	}
+	sort.Strings(out)
 	return out, nil
 }

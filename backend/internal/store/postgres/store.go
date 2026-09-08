@@ -518,6 +518,52 @@ func (s *Store) migrate(ctx context.Context) error {
 			PRIMARY KEY (ontology_id, subject_type, subject_id)
 		)`,
 		`UPDATE ontology_access SET subject_id=user_id WHERE subject_id=''`,
+		// The paths a scan recognised, kept because a cohort is a list of
+		// files and has to name the same files a year later. Created after
+		// `ontologies` so the foreign key has something to point at - a
+		// statement ordered before its own table is a migration that only
+		// fails on a fresh database, which is the one nobody runs.
+		`CREATE TABLE IF NOT EXISTS ontology_objects (
+			ontology_id TEXT NOT NULL REFERENCES ontologies(id) ON DELETE CASCADE,
+			path TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			visit TEXT NOT NULL,
+			modality TEXT NOT NULL,
+			size_bytes BIGINT NOT NULL DEFAULT 0,
+			PRIMARY KEY (ontology_id, path)
+		)`,
+		`CREATE INDEX IF NOT EXISTS ontology_objects_subject_idx ON ontology_objects (ontology_id, subject_id)`,
+		`CREATE INDEX IF NOT EXISTS ontology_objects_modality_idx ON ontology_objects (ontology_id, modality)`,
+		// A cohort is frozen when it is declared: the filter is kept for the
+		// record, and the resolved file list is what a mount and a rerun use.
+		// A cohort that silently followed its source would make last month's n
+		// unreproducible.
+		`CREATE TABLE IF NOT EXISTS cohorts (
+			id TEXT PRIMARY KEY,
+			ontology_id TEXT NOT NULL REFERENCES ontologies(id) ON DELETE CASCADE,
+			project_id TEXT NOT NULL,
+			owner_user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			subjects_json JSONB NOT NULL DEFAULT '[]',
+			modalities_json JSONB NOT NULL DEFAULT '[]',
+			visits_json JSONB NOT NULL DEFAULT '[]',
+			object_count INTEGER NOT NULL DEFAULT 0,
+			total_bytes BIGINT NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS cohort_members (
+			cohort_id TEXT NOT NULL REFERENCES cohorts(id) ON DELETE CASCADE,
+			path TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			visit TEXT NOT NULL,
+			modality TEXT NOT NULL,
+			size_bytes BIGINT NOT NULL DEFAULT 0,
+			PRIMARY KEY (cohort_id, path)
+		)`,
+		`CREATE INDEX IF NOT EXISTS cohorts_project_idx ON cohorts (project_id)`,
+
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
 			ontology_id TEXT NOT NULL,
@@ -2133,6 +2179,84 @@ func (s *Store) DeleteOntologyAccess(ontologyID, subjectType, subjectID string) 
 	return err
 }
 
+// ReplaceOntologyObjects swaps a scan's file list for the new one in a single
+// transaction: a rescan that failed halfway must leave the previous cohort
+// definitions resolvable, not a half-emptied table.
+func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Object) error {
+	id := strings.TrimSpace(ontologyID)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM ontology_objects WHERE ontology_id=$1`, id); err != nil {
+		return err
+	}
+	statement, err := tx.Prepare(`INSERT INTO ontology_objects (ontology_id, path, subject_id, visit, modality, size_bytes) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (ontology_id, path) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+	for _, object := range objects {
+		if _, err := statement.Exec(id, object.Path, object.SubjectID, object.Visit, object.Modality, object.SizeBytes); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
+	query := `SELECT ontology_id, path, subject_id, visit, modality, size_bytes FROM ontology_objects WHERE ontology_id=$1`
+	args := []any{strings.TrimSpace(ontologyID)}
+	// An empty axis is "no constraint", never "nothing" - a cohort named by
+	// modality alone spans every subject that carries it.
+	for _, axis := range []struct {
+		column string
+		values []string
+	}{
+		{"subject_id", filter.Subjects},
+		{"modality", filter.Modalities},
+		{"visit", filter.Visits},
+	} {
+		if len(axis.values) == 0 {
+			continue
+		}
+		placeholders := make([]string, 0, len(axis.values))
+		for _, value := range axis.values {
+			args = append(args, value)
+			placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
+		}
+		query += fmt.Sprintf(" AND %s IN (%s)", axis.column, strings.Join(placeholders, ","))
+	}
+	query += ` ORDER BY subject_id, visit, modality, path`
+	if filter.Limit > 0 {
+		args = append(args, filter.Limit)
+		query += fmt.Sprintf(" LIMIT $%d", len(args))
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ontology.Object{}
+	for rows.Next() {
+		var item ontology.Object
+		if err := rows.Scan(&item.OntologyID, &item.Path, &item.SubjectID, &item.Visit, &item.Modality, &item.SizeBytes); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CountOntologyObjects(ontologyID string) (int, error) {
+	count := 0
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM ontology_objects WHERE ontology_id=$1`, strings.TrimSpace(ontologyID)).Scan(&count)
+	return count, err
+}
+
 func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, error) {
 	rows, err := s.db.Query(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
@@ -2441,6 +2565,23 @@ func (s *Store) UpsertProjectOntology(projectID, datasetID string, manifest json
 
 func (s *Store) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
 	rows, err := s.db.Query(`SELECT project_id FROM project_datasources WHERE datasource_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(datasourceID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) ListOntologyProjectIDs(ontologyID string) ([]string, error) {
+	rows, err := s.db.Query(`SELECT project_id FROM project_ontology_links WHERE ontology_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(ontologyID))
 	if err != nil {
 		return nil, err
 	}

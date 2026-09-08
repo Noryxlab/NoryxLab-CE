@@ -18,10 +18,42 @@ describes a capability nobody built is not.
 **What makes the word true**, and it is open: declared objects with properties
 and links, bound to data, with this scan as their first step rather than their
 competitor - the inference proposes Study, Subject, Visit and Modality, and a
-person confirms, renames and links them. The test of whether it is worth
-building is in the backlog: it has to turn a selection into a mount, so that
-"the ANTERION files of subjects in PREMYOM1000" becomes a dataset a workspace
-mounts without anybody writing an S3 path.
+person confirms, renames and links them.
+
+The test of whether it is worth building was that it had to turn a selection
+into a mount, and that part now exists. Three properties hold it up.
+
+**Freshness.** An ontology is a photograph and the screen presented it as a
+fact: the June scan of PREMYOM1000 read "18,738 objects, 20 subjects" in the
+same typeface as September's 24,179 and 31, with nothing in between to say the
+study had recruited eleven subjects. Opening an ontology now counts what the
+source holds today and states the difference in objects. The count is a
+listing: the platform reads how many objects are there and writes nothing back.
+
+**Coverage.** "31 subjects" averaged together the subjects who carry a corneal
+wavefront and those who do not. Coverage names them - how many subjects hold
+each modality, sparsest first, and the identifiers of those who do not - so a
+cohort's owner learns what it excludes before publishing an n rather than after.
+
+**Cohorts.** A cohort is a named selection, resolved to an explicit list of
+files at the moment it is declared and kept that way: a cohort that re-ran its
+filter would return a different study every month. It duplicates nothing. The
+frozen paths point into the dataset where the data already lives, and a
+workspace mounts the cohort as a tree of symlinks at
+`/mnt/cohorts/<name>/<subject>/<visit>/<modality>` over the read-only dataset
+mount. The file list travels in the workspace bootstrap secret, which caps a
+cohort at roughly 700 KB of compressed paths; past that the bootstrap log says
+the cohort was not mounted rather than building a partial tree that would
+silently be a different study.
+
+Storing the paths is what made cohorts possible - the manifest keeps three
+sample paths per modality, which shows a person what the data looks like and
+could never define a study. Ontologies scanned before this refuse to produce a
+cohort and ask for a rescan, rather than returning an empty selection that
+looks like a legitimate answer.
+
+Throughout, the source bucket is read-only to the platform: it is listed, and
+never written, copied or modified.
 
 
 NoryxLab can generate a first semantic catalog from datasets attached to the active project. The UI entry point belongs to the Data domain, not to the project resource panel, while the stored manifest remains project-scoped for RBAC and dataset attachment checks.

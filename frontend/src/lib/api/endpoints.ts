@@ -45,6 +45,7 @@ import type {
   OntologyAccess,
   OntologyFreshness,
   OntologyCompleteness,
+  Cohort,
   Organization,
   OrganizationMember,
   PlatformOverview,
@@ -366,6 +367,10 @@ export const ontologiesApi = {
     api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
   completeness: (ontologyId: string) =>
     api.get<OntologyCompleteness>(`${V1}/ontologies/${ontologyId}/completeness`),
+  cohorts: (ontologyId: string) => api.list<Cohort>(`${V1}/ontologies/${ontologyId}/cohorts`),
+  createCohort: (ontologyId: string, input: Record<string, unknown>) =>
+    api.post<Cohort>(`${V1}/ontologies/${ontologyId}/cohorts`, input),
+  deleteCohort: (cohortId: string) => api.delete<void>(`${V1}/cohorts/${cohortId}`),
   access: (ontologyId: string) => api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
   grant: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
     api.put<OntologyAccess>(

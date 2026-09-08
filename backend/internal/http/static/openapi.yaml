@@ -40,6 +40,42 @@ components:
       name: X-Noryx-User
 
   schemas:
+    Cohort:
+      type: object
+      properties:
+        id:
+          type: string
+    CohortListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cohort'
+    CohortMember:
+      type: object
+      properties:
+        cohortId:
+          type: string
+    CohortMemberListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CohortMember'
+    CohortMembersResponse:
+      type: object
+      properties:
+        cohort: { $ref: '#/components/schemas/Cohort' }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/CohortMember' }
+        subjects:
+          type: array
+          items: { type: string }
+        shown: { type: integer }
+        total: { type: integer }
     BuildLogsResponse:
       type: object
       properties:
@@ -5841,6 +5877,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OntologyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cohorts/{cohortID}:
+    delete:
+      tags: [Datasets]
+      summary: Delete Cohort
+      operationId: deleteCohort
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: cohortID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Cohort removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/cohorts/{cohortID}/members:
+    get:
+      tags: [Datasets]
+      summary: Get Cohort Members
+      operationId: getCohortMembers
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: cohortID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The files the cohort froze
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CohortMembersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/cohorts:
+    get:
+      tags: [Datasets]
+      summary: List Ontology Cohorts
+      operationId: listOntologyCohorts
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Datasets]
+      summary: Create Cohort
+      operationId: createCohort
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Cohort created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cohort'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

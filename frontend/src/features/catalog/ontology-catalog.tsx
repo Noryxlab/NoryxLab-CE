@@ -32,12 +32,13 @@ import {
   useOntologies,
   useOntologyFreshness,
   useOntologyCompleteness,
+  useOntologyCohorts,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatNumber, formatRelative } from '@/lib/format';
+import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
 
 /**
@@ -271,6 +272,160 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
   );
 }
 
+/**
+ * Cohorts: the subset a study is actually run on.
+ *
+ * Declaring one resolves the selection to an explicit list of files and keeps
+ * it. A cohort that re-ran its filter would return a different study every
+ * month, and last month's n would stop being reproducible.
+ *
+ * Nothing is duplicated: the frozen paths point into the dataset where the data
+ * already lives, and a workspace mounts the cohort as a tree of links over it.
+ */
+function OntologyCohorts({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const { dialog, ask } = useConfirm();
+  const cohorts = useOntologyCohorts(ontology.id);
+  const [name, setName] = React.useState('');
+  const [modalities, setModalities] = React.useState('');
+  const [subjects, setSubjects] = React.useState('');
+
+  const asList = (raw: string) =>
+    raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+  const create = useMutation({
+    mutationFn: () =>
+      ontologiesApi.createCohort(ontology.id, {
+        name: name.trim(),
+        // Left to the server when the ontology belongs to exactly one project;
+        // it refuses with an explanation when the answer is ambiguous, which is
+        // better than filing the cohort under a project that will never mount it.
+        modalities: asList(modalities),
+        subjects: asList(subjects),
+      }),
+    onSuccess: (created) => {
+      toast.success(t('ontologies.cohortCreated', { count: formatNumber(created.objectCount, locale) }));
+      setName('');
+      setModalities('');
+      setSubjects('');
+      invalidate(qk.ontologyCohorts(ontology.id));
+    },
+    onError: (error) => toast.error(error, t('ontologies.cohortCreate')),
+  });
+
+  const remove = useMutation({
+    mutationFn: (cohortId: string) => ontologiesApi.deleteCohort(cohortId),
+    onSuccess: () => invalidate(qk.ontologyCohorts(ontology.id)),
+    onError: (error) => toast.error(error, t('ontologies.cohortDeleteTitle')),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.cohorts')}</CardTitle>
+          <CardDescription>{t('ontologies.cohortsHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (name.trim()) create.mutate();
+          }}
+          className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
+        >
+          <Field label={t('ontologies.cohortName')}>
+            <Input value={name} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          <Field label={t('ontologies.cohortModalities')}>
+            <Input
+              value={modalities}
+              onChange={(event) => setModalities(event.target.value)}
+              placeholder="Cornea_Wavefront"
+            />
+          </Field>
+          <Field label={t('ontologies.cohortSubjects')}>
+            <Input
+              value={subjects}
+              onChange={(event) => setSubjects(event.target.value)}
+              placeholder="PREMYOM1000-001"
+            />
+          </Field>
+          <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
+            {t('ontologies.cohortCreate')}
+          </Button>
+        </form>
+
+        {cohorts.data?.length ? (
+          <TableWrapper className="rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('ontologies.cohortName')}</TableHead>
+                  <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
+                  <TableHead className="text-right">{t('common.size')}</TableHead>
+                  <TableHead>{t('common.createdAt')}</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cohorts.data.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="text-xs font-medium">
+                      {item.name}
+                      {item.modalities.length ? (
+                        <span className="ml-2 font-mono text-xs text-muted-foreground">
+                          {item.modalities.join(', ')}
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">
+                      {formatNumber(item.objectCount, locale)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs tabular-nums">
+                      {formatBytes(item.totalBytes, locale)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatRelative(item.createdAt, locale)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          ask({
+                            title: t('ontologies.cohortDeleteTitle'),
+                            description: t('ontologies.cohortDeleteWarning'),
+                            confirmLabel: t('common.delete'),
+                            destructive: true,
+                            onConfirm: () => remove.mutateAsync(item.id),
+                          })
+                        }
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableWrapper>
+        ) : (
+          <p className="text-xs text-muted-foreground">{t('ontologies.cohortEmpty')}</p>
+        )}
+        <p className="text-xs text-muted-foreground">{t('ontologies.cohortMountHint')}</p>
+      </CardContent>
+      {dialog}
+    </Card>
+  );
+}
+
 export function OntologyCatalog() {
   const t = useT();
   const { locale } = useI18n();
@@ -391,6 +546,7 @@ export function OntologyCatalog() {
 
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
+      {selected ? <OntologyCohorts ontology={selected} /> : null}
       {dialog}
     </div>
   );

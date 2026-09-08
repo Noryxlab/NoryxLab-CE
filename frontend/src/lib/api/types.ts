@@ -912,3 +912,22 @@ export interface OntologyCompleteness {
   completeSubjects: number;
 }
 
+/** A named selection of files, frozen when it is declared. It duplicates
+ *  nothing: the paths point into the dataset where the data already lives, and
+ *  a mount builds a tree of links over them. */
+export interface Cohort {
+  id: string;
+  ontologyId: string;
+  projectId: string;
+  ownerUserId: string;
+  name: string;
+  description: string;
+  subjects: string[];
+  modalities: string[];
+  visits: string[];
+  objectCount: number;
+  totalBytes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

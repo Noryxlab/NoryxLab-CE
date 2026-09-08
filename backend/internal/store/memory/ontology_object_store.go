@@ -9,13 +9,14 @@ import (
 )
 
 type OntologyObjectStore struct {
-	mu     sync.RWMutex
-	items  []ontology.Ontology
-	access []ontology.Access
+	mu      sync.RWMutex
+	items   []ontology.Ontology
+	access  []ontology.Access
+	objects map[string][]ontology.Object
 }
 
 func NewOntologyObjectStore() *OntologyObjectStore {
-	return &OntologyObjectStore{items: []ontology.Ontology{}, access: []ontology.Access{}}
+	return &OntologyObjectStore{items: []ontology.Ontology{}, access: []ontology.Access{}, objects: map[string][]ontology.Object{}}
 }
 
 func (s *OntologyObjectStore) ListBySubjects(subjects []ontology.Subject) ([]ontology.Ontology, error) {
@@ -174,4 +175,51 @@ func (s *OntologyObjectStore) DeleteAccess(ontologyID, subjectType, subjectID st
 	}
 	s.access = out
 	return nil
+}
+
+func (s *OntologyObjectStore) ReplaceObjects(ontologyID string, objects []ontology.Object) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.objects == nil {
+		s.objects = map[string][]ontology.Object{}
+	}
+	s.objects[strings.TrimSpace(ontologyID)] = append([]ontology.Object(nil), objects...)
+	return nil
+}
+
+func (s *OntologyObjectStore) ListObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []ontology.Object{}
+	for _, object := range s.objects[strings.TrimSpace(ontologyID)] {
+		if !matchesAxis(filter.Subjects, object.SubjectID) ||
+			!matchesAxis(filter.Modalities, object.Modality) ||
+			!matchesAxis(filter.Visits, object.Visit) {
+			continue
+		}
+		out = append(out, object)
+		if filter.Limit > 0 && len(out) >= filter.Limit {
+			break
+		}
+	}
+	return out, nil
+}
+
+func (s *OntologyObjectStore) CountObjects(ontologyID string) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.objects[strings.TrimSpace(ontologyID)]), nil
+}
+
+// An empty axis is "no constraint", never "nothing".
+func matchesAxis(wanted []string, value string) bool {
+	if len(wanted) == 0 {
+		return true
+	}
+	for _, candidate := range wanted {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }

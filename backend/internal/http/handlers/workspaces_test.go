@@ -50,6 +50,8 @@ func TestWorkspaceBootstrapDoesNotSynchronizeDirectDatasetMounts(t *testing.T) {
 		nil,
 		2,
 		"",
+		false,
+		0,
 	)
 
 	if strings.Contains(script, "from minio import Minio") || strings.Contains(script, "initial_sync") {
@@ -78,6 +80,8 @@ func TestWorkspaceBootstrapConfiguresRepositoryGitIdentity(t *testing.T) {
 		}},
 		0,
 		"",
+		false,
+		0,
 	)
 	for _, expected := range []string{
 		"git -C '/repos/example' config user.name 'Git Author'",
@@ -137,7 +141,7 @@ func TestDeriveWorkspaceIDEsFromSystemAndForkedImages(t *testing.T) {
 }
 
 func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
-	script := workspaceBootstrapScript("rstudio", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "")
+	script := workspaceBootstrapScript("rstudio", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0)
 	for _, expected := range []string{"rserver", "--www-root-path=/workspaces/workspace-id", "--server-user=noryx"} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("RStudio bootstrap missing %s", expected)
@@ -146,7 +150,7 @@ func TestRStudioBootstrapUsesWorkspaceRootPath(t *testing.T) {
 }
 
 func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
-	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "")
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0)
 	for _, expected := range []string{
 		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.name 'stef'",
 		"git config --file '/home/noryx/.noryx-profile/gitconfig' user.email 'admin@example.org'",
@@ -160,7 +164,7 @@ func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
 
 func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 	config := continueDeveloperAssistantConfig("https://datalab.example.org/", "developer-token")
-	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config)
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config, false, 0)
 	for _, expected := range []string{
 		"/opt/noryx-vscode/extensions",
 		"chmod 755 /mnt/lost+found",

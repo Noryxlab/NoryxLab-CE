@@ -60,3 +60,33 @@ func New(ownerUserID, name, description, sourceType, sourceID, sourceName, infer
 		UpdatedAt:        now,
 	}
 }
+
+// Object is one file the scan recognised, kept with the subject, visit and
+// modality it was filed under.
+//
+// The manifest keeps three sample paths per modality, which is enough to show
+// someone what the data looks like and not nearly enough to build a cohort
+// from: a cohort is a list of files, it has to be frozen at the moment it is
+// declared, and it has to still name the same files when someone reproduces
+// the study a year later. So the paths are kept.
+//
+// Only the key and its size are stored - never the contents. The platform's
+// business with a regulated bucket is to say what is in it.
+type Object struct {
+	OntologyID string `json:"ontologyId"`
+	Path       string `json:"path"`
+	SubjectID  string `json:"subjectId"`
+	Visit      string `json:"visit"`
+	Modality   string `json:"modality"`
+	SizeBytes  int64  `json:"sizeBytes"`
+}
+
+// ObjectFilter selects the files a cohort is made of. An empty list means "no
+// constraint on this axis", never "nothing": a cohort defined by modality
+// alone must span every subject that carries it.
+type ObjectFilter struct {
+	Subjects   []string
+	Modalities []string
+	Visits     []string
+	Limit      int
+}
