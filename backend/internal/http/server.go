@@ -137,6 +137,9 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/repositories/{repositoryID}/validate", h.ValidateRepository)
 	mux.HandleFunc("DELETE /api/v1/repositories/{repositoryID}", h.DeleteRepository)
 	mux.HandleFunc("GET /api/v1/ontologies", h.ListOntologies)
+	// Whether an ontology still describes its source: it is a photograph, and
+	// it was presented as a fact.
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/freshness", h.GetOntologyFreshness)
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/query", h.QueryOntology)
 	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}", h.UpdateOntologyMetadata)
 	mux.HandleFunc("DELETE /api/v1/ontologies/{ontologyID}", h.DeleteOntology)

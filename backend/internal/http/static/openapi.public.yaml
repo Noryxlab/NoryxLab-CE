@@ -5318,3 +5318,29 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/freshness:
+    get:
+      tags: [Datasets]
+      summary: Get Ontology Freshness
+      operationId: getOntologyFreshness
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

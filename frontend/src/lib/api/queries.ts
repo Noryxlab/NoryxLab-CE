@@ -63,6 +63,7 @@ export const qk = {
   datasources: ['datasources'] as const,
   datasourceDefinitions: ['datasource-definitions'] as const,
   ontologies: ['ontologies'] as const,
+  ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
   repositories: ['repositories'] as const,
   secrets: ['secrets'] as const,
 
@@ -297,6 +298,16 @@ export const useDatasourceDefinitions = () =>
   });
 
 export const useOntologies = () => useQuery({ queryKey: qk.ontologies, queryFn: ontologiesApi.list });
+
+/** Asked only when an ontology is opened: the answer means listing the source
+ *  bucket, which is seconds of work for a large study. */
+export const useOntologyFreshness = (ontologyId: string | undefined) =>
+  useQuery({
+    queryKey: qk.ontologyFreshness(ontologyId ?? ''),
+    queryFn: () => ontologiesApi.freshness(ontologyId as string),
+    enabled: Boolean(ontologyId),
+    staleTime: 5 * 60 * 1000,
+  });
 
 export const useRepositories = () => useQuery({ queryKey: qk.repositories, queryFn: repositoriesApi.list });
 

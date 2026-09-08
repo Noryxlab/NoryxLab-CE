@@ -881,3 +881,17 @@ export interface OntologyQueryItem {
   count: number;
   bytes: number;
 }
+
+/** Whether an ontology still describes its source. An ontology is a
+ *  photograph presented as a fact: the June scan of a study said "18,738
+ *  objects" with the same confidence as September's 24,179, and nothing on
+ *  screen said the study had gained eleven subjects in between. */
+export interface OntologyFreshness {
+  generatedAt: string;
+  ageDays: number;
+  manifestObjects: number;
+  sourceObjects: number;
+  drift: number;
+  stale: boolean;
+  checkedAt: string;
+}

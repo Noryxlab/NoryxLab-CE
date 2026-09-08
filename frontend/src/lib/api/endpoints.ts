@@ -43,6 +43,7 @@ import type {
   ModuleInfo,
   Ontology,
   OntologyAccess,
+  OntologyFreshness,
   Organization,
   OrganizationMember,
   PlatformOverview,
@@ -357,6 +358,11 @@ export const ontologiesApi = {
   remove: (ontologyId: string) => api.delete<void>(`${V1}/ontologies/${ontologyId}`),
   setOwner: (ontologyId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Ontology>(`${V1}/ontologies/${ontologyId}/ownership`, input),
+  /** Counts what the source holds now and compares it with the manifest. The
+   *  count is a listing: the platform reads how many objects are there and
+   *  writes nothing back. */
+  freshness: (ontologyId: string) =>
+    api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
   access: (ontologyId: string) => api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
   grant: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
     api.put<OntologyAccess>(

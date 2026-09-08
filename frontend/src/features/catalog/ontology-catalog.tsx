@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Network, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Network, Search, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -28,10 +28,10 @@ import {
   TableWrapper,
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
-import { useOntologies, qk, useInvalidate } from '@/lib/api/queries';
+import { useOntologies, useOntologyFreshness, qk, useInvalidate } from '@/lib/api/queries';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatRelative } from '@/lib/format';
+import { formatNumber, formatRelative } from '@/lib/format';
 import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
 
 /**
@@ -75,6 +75,7 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-4">
+        <OntologyFreshnessNote ontologyId={ontology.id} />
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -135,6 +136,65 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Whether the ontology still describes its source.
+ *
+ * An ontology is a photograph, and the screen presented it as a fact: the June
+ * scan of the study read "18,738 objects, 20 subjects" in exactly the same
+ * typeface as this morning's 24,179 and 31, and nothing said the study had
+ * recruited eleven subjects in between. Everything built on an ontology - a
+ * cohort above all - silently inherits that gap, so the count is checked
+ * against the source and the difference is stated in objects.
+ */
+function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const freshness = useOntologyFreshness(ontologyId);
+  const data = freshness.data;
+  if (!data) return null;
+
+  const measured =
+    data.ageDays > 0
+      ? t('ontologies.freshnessMeasured', {
+          days: String(data.ageDays),
+          objects: formatNumber(data.manifestObjects, locale),
+        })
+      : t('ontologies.freshnessMeasuredToday', {
+          objects: formatNumber(data.manifestObjects, locale),
+        });
+
+  // A source that could not be reached leaves the count unknown rather than
+  // zero: "24,179 fewer objects" would be a frightening lie.
+  const drift =
+    data.sourceObjects === 0 && data.manifestObjects > 0
+      ? t('ontologies.freshnessUnknown')
+      : data.drift > 0
+        ? t('ontologies.freshnessGrown', { drift: formatNumber(data.drift, locale) })
+        : data.drift < 0
+          ? t('ontologies.freshnessShrunk', { drift: formatNumber(-data.drift, locale) })
+          : t('ontologies.freshnessAligned');
+
+  return (
+    <div
+      className={
+        data.stale
+          ? 'flex items-start gap-2 rounded-md border border-warning/40 bg-warning-subtle px-3 py-2'
+          : 'flex items-start gap-2 rounded-md border border-border px-3 py-2'
+      }
+    >
+      {data.stale ? (
+        <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0 text-warning-foreground" />
+      ) : null}
+      <p className={data.stale ? 'text-xs leading-relaxed text-warning-foreground' : 'text-xs text-muted-foreground'}>
+        {data.stale ? (
+          <span className="font-medium">{t('ontologies.freshnessStale')} — </span>
+        ) : null}
+        {measured} {drift}
+      </p>
+    </div>
   );
 }
 
