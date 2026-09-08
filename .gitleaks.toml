@@ -1,0 +1,20 @@
+title = "NoryxLab CE secret scanning"
+
+[extend]
+useDefault = true
+
+# These six historical revisions trigger the broad generic-api-key heuristic,
+# but contain only test data, a password alphabet, or generated UI constants.
+# Keep this commit-scoped: a new secret in the same files must still fail CI.
+[[rules]]
+id = "generic-api-key"
+  [[rules.allowlists]]
+  description = "Reviewed historical false positives"
+  commits = [
+    "d156a717dc1d16ef222319a77b300361f5145636",
+    "d43a92faf3c86e595ad3ca131c9e462230ae9e5f",
+    "c0b47b6561a4149b2ac85d8046ded0363e1f8bbd",
+    "879c6e936676c095ac68691f0a240507a2143892",
+    "5a6a0f500b01fcc4f8ad3681ec4c272606489550",
+    "7fdb097fd6d946751a89282ca2296f4cbb5a3746",
+  ]

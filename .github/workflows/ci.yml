@@ -146,7 +146,7 @@ jobs:
       # requires a commercial key for GitHub organisations. Scanning the full
       # checkout still catches a secret committed then removed later.
       - name: Scan Git history for secrets
-        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 detect --source=/repo --log-opts="--all" --redact
+        run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 detect --config=/repo/.gitleaks.toml --source=/repo --log-opts="--all" --redact
 
       - uses: actions/setup-go@v5
         with:
