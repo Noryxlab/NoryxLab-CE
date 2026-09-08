@@ -971,5 +971,7 @@ export interface LogsResponse {
   logs?: string;
   pending?: boolean;
   persisted?: boolean;
+  /** Set when the pod is gone and its output cannot be recovered. */
+  unavailable?: string;
 }
 

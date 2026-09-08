@@ -21,15 +21,18 @@ describe('log endpoints', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('hands the viewer the text and not the envelope', async () => {
-    for (const call of [
-      () => appsApi.logs('app-1'),
-      () => jobsApi.logs('job-1'),
-      () => datasourcesApi.logs('ds-1'),
-    ]) {
+  it('hands the viewer text, not the envelope, where it asks for text', async () => {
+    for (const call of [() => jobsApi.logs('job-1'), () => datasourcesApi.logs('ds-1')]) {
       const logs = await call();
       expect(typeof logs).toBe('string');
-      expect(logs.split('\n')).toHaveLength(2);
+      expect((logs as string).split('\n')).toHaveLength(2);
     }
+  });
+
+  // Apps keep the envelope: a launch has a `pending` state to poll on, the way
+  // an environment build does.
+  it('keeps the envelope for apps so a launch can be watched', async () => {
+    const response = await appsApi.logs('app-1');
+    expect(response.logs?.split('\n')).toHaveLength(2);
   });
 });

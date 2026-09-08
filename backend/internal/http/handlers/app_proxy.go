@@ -9,6 +9,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
+	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
 func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +87,20 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		req.Host = r.Host
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
+		// An app that has not finished starting is not a broken app.
+		//
+		// The dependencies in requirements.txt are installed at every launch,
+		// before anything listens, so for the first minute the proxy dialled a
+		// closed port and reported it verbatim: "dial tcp 10.43.59.108:8501:
+		// connect: connection refused". That reads like a platform fault, and
+		// the only cure was to know to wait.
+		if h.appIsStarting(record) {
+			writeJSON(rw, http.StatusServiceUnavailable, map[string]string{
+				"error":  "the application is still starting; its dependencies are being installed",
+				"status": "starting",
+			})
+			return
+		}
 		writeJSON(rw, http.StatusBadGateway, map[string]string{"error": "app proxy failed: " + err.Error()})
 	}
 	proxy.ServeHTTP(w, r)
@@ -158,4 +173,30 @@ func redirectToInteractiveLogin(w http.ResponseWriter, r *http.Request) {
 		target = "/"
 	}
 	http.Redirect(w, r, "/api/v1/auth/login?returnTo="+url.QueryEscape(target), http.StatusFound)
+}
+
+// appIsStarting reports whether the pod exists but is not serving yet, which
+// is the difference between "wait a moment" and "this is broken".
+func (h Handlers) appIsStarting(record app.App) bool {
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok || strings.TrimSpace(record.PodName) == "" {
+		return false
+	}
+	status, err := operator.GetPodStatus(record.PodName)
+	if err != nil {
+		return false
+	}
+	phase := strings.ToLower(strings.TrimSpace(status.Phase))
+	return phase == "pending" || phase == "running"
+}
+
+// appIsServing reports whether the app's service has a ready endpoint behind
+// it, which is the moment its logs stop being a live event.
+func (h Handlers) appIsServing(record app.App) bool {
+	readiness, ok := h.runtime.(noryxruntime.WorkspaceReadiness)
+	if !ok || strings.TrimSpace(record.ServiceName) == "" {
+		return false
+	}
+	ready, err := readiness.IsServiceReady(record.ServiceName)
+	return err == nil && ready
 }

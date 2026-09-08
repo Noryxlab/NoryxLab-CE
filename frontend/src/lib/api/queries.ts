@@ -248,11 +248,15 @@ export function useApps(projectId: string | undefined) {
   });
 }
 
+/** Polled while the application is still starting, so somebody watching a
+ *  launch sees the dependency install progress rather than a frozen panel -
+ *  the behaviour environment builds have always had. */
 export const useAppLogs = (appId: string | undefined) =>
   useQuery({
     queryKey: qk.appLogs(appId ?? ''),
     queryFn: () => appsApi.logs(appId as string),
     enabled: Boolean(appId),
+    refetchInterval: ({ state }) => (state.data?.pending ? 4000 : false),
   });
 
 export const useAppRevisions = (appId: string | undefined) =>

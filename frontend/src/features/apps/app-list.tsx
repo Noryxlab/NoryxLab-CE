@@ -280,9 +280,14 @@ export function AppList({
           </CardHeader>
           <CardContent>
             <LogViewer
-              content={logs.data}
+              content={logs.data?.logs}
               isLoading={logs.isLoading}
               downloadName={`${logsFor.slug}.log`}
+              emptyLabel={
+                logs.data?.pending
+                  ? t('apps.logsStarting')
+                  : (logs.data?.unavailable ?? undefined)
+              }
             />
           </CardContent>
         </Card>

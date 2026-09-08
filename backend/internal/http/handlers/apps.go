@@ -124,11 +124,30 @@ func (h Handlers) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	logs, err := operator.GetPodLogs(record.PodName, tailLines)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to read app logs: " + err.Error()})
+		// An app whose pod is gone still has something to say, and one that has
+		// not started yet is not an error - the same distinction build logs
+		// have always made, and the reason a rebuild can be watched while an
+		// app could only be refreshed by hand.
+		if h.appIsStarting(record) {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"appId": record.ID, "podName": record.PodName,
+				"logs": "", "pending": true,
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"appId": record.ID, "podName": record.PodName, "logs": "",
+			"unavailable": "the application's pod is gone, so its output is no longer available",
+		})
 		return
 	}
 	h.emitAudit(r, userID, "app.logs.read", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
-	writeJSON(w, http.StatusOK, map[string]any{"appId": record.ID, "podName": record.PodName, "logs": logs})
+	// pending while the pod runs but has not been declared ready: the launch
+	// command has not printed its last line yet, so a watcher keeps polling.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"appId": record.ID, "podName": record.PodName, "logs": logs,
+		"pending": h.appIsStarting(record) && !h.appIsServing(record),
+	})
 }
 
 func (h Handlers) RestartApp(w http.ResponseWriter, r *http.Request) {

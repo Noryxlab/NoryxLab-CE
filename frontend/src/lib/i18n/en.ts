@@ -248,6 +248,7 @@ export const en: Translations = {
   },
 
   apps: {
+    logsStarting: 'The application is starting: its dependencies are installing. Logs will follow.',
     title: 'Apps',
     subtitle: 'Web applications served from this project.',
     create: 'New app',

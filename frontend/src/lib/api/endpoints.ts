@@ -258,8 +258,9 @@ export const appsApi = {
   stop: (appId: string) => api.post<App>(`${V1}/apps/${appId}/stop`),
   publish: (appId: string, input?: { accessMode?: string; allowedUsers?: string[]; allowedOrganizations?: string[] }) =>
     api.post<App>(`${V1}/apps/${appId}/publish`, input ?? {}),
-  logs: (appId: string) =>
-    api.get<LogsResponse>(`${V1}/apps/${appId}/logs`).then((response) => response?.logs ?? ''),
+  /** The envelope, kept: an app that has not started yet is `pending`, and a
+   *  watcher polls until it is not - the same contract build logs have. */
+  logs: (appId: string) => api.get<LogsResponse>(`${V1}/apps/${appId}/logs`),
   revisions: (appId: string) => api.list<AppRevision>(`${V1}/apps/${appId}/revisions`),
   rollback: (appId: string, revisionId: string) =>
     api.post<App>(`${V1}/apps/${appId}/revisions/${revisionId}/rollback`),

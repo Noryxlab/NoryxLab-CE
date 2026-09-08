@@ -252,6 +252,7 @@ export const fr = {
   },
 
   apps: {
+    logsStarting: 'L’application démarre : ses dépendances s’installent. Les journaux arrivent.',
     title: 'Applications',
     subtitle: 'Applications web servies depuis ce projet.',
     create: 'Nouvelle application',
