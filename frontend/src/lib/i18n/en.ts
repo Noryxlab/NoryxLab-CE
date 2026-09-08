@@ -371,6 +371,7 @@ export const en: Translations = {
     emptyHint: 'Create a dataset to store your files and share them with your team.',
     files: 'Files',
     filesCount: 'Files',
+    inThisFolder: 'In this folder: {files} files, {size}',
     totalSize: 'Total size',
     explorer: 'File explorer',
     upload: 'Upload',

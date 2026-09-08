@@ -30,11 +30,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
-import { useDatasetObjects, qk, useInvalidate } from '@/lib/api/queries';
+import { useDatasetObjects, useDatasetUsage, qk, useInvalidate } from '@/lib/api/queries';
 import { datasetsApi } from '@/lib/api/endpoints';
 import { getAuthHeaders } from '@/lib/api/client';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatBytes, formatDateTime } from '@/lib/format';
+import { formatBytes, formatDateTime, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Dataset, StorageObject } from '@/lib/api/types';
 
@@ -165,8 +165,15 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
     [objects.data, prefix],
   );
 
-  const totalSize = entries.reduce((sum, entry) => sum + (entry.object.size ?? 0), 0);
-  const fileCount = entries.filter((entry) => !entry.isFolder).length;
+  // The tiles say "total", so they have to mean the dataset - and they come
+  // from the same measurement the catalogue shows, or the two screens disagree
+  // about the same bucket. They used to be summed from the listing, which was
+  // the whole bucket until the explorer started fetching one directory at a
+  // time; then they silently became "the files sitting in this folder" under a
+  // heading that still said total: 2 files and 67.6 KB for a 381 GB dataset.
+  const usage = useDatasetUsage(dataset.id);
+  const folderFiles = entries.filter((entry) => !entry.isFolder).length;
+  const folderSize = entries.reduce((sum, entry) => sum + (entry.object.size ?? 0), 0);
 
   const segments = prefix.split('/').filter(Boolean);
 
@@ -283,13 +290,17 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
         <StatGrid className="sm:grid-cols-2 lg:grid-cols-2">
           <Stat
             label={t('datasets.filesCount')}
-            value={fileCount}
-            loading={objects.isLoading}
+            value={usage.data ? formatNumber(usage.data.objects, locale) : '—'}
+            hint={t('datasets.inThisFolder', {
+              files: formatNumber(folderFiles, locale),
+              size: formatBytes(folderSize, locale),
+            })}
+            loading={usage.isLoading}
           />
           <Stat
             label={t('datasets.totalSize')}
-            value={formatBytes(totalSize, locale)}
-            loading={objects.isLoading}
+            value={usage.data ? formatBytes(usage.data.totalBytes, locale) : '—'}
+            loading={usage.isLoading}
           />
         </StatGrid>
 

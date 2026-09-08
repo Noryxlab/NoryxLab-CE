@@ -375,6 +375,7 @@ export const fr = {
     emptyHint: 'Créez un dataset pour stocker vos fichiers et les partager avec votre équipe.',
     files: 'Fichiers',
     filesCount: 'Fichiers',
+    inThisFolder: 'Dans ce dossier : {files} fichiers, {size}',
     totalSize: 'Volume total',
     explorer: 'Explorateur de fichiers',
     upload: 'Téléverser',
