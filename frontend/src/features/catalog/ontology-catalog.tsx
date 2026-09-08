@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { AlertTriangle, Network, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Network, Radar, Search, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
@@ -33,10 +34,12 @@ import {
   useOntologyFreshness,
   useOntologyCompleteness,
   useOntologyCohorts,
+  useProjects,
+  useProjectDatasets,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
-import { ontologiesApi } from '@/lib/api/endpoints';
+import { ontologiesApi, projectsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
@@ -426,6 +429,110 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
   );
 }
 
+/**
+ * Launching a scan.
+ *
+ * The endpoint existed, the API client had a function for it, and no screen
+ * called either - so an installation with no ontology had no way to make one
+ * except by hand against the API, and the empty state said "no ontology" as if
+ * that were a fact about the data rather than a missing button. The client also
+ * sent no body, and the scan needs to be told which dataset to read.
+ *
+ * The scan reads object *paths*, never their content, and creates a new
+ * ontology rather than replacing one: a scan is a photograph, and photographs
+ * do not overwrite each other.
+ */
+function OntologyScan() {
+  const t = useT();
+  const { locale } = useI18n();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const projects = useProjects();
+  const [projectId, setProjectId] = React.useState('');
+  const [datasetId, setDatasetId] = React.useState('');
+  const datasets = useProjectDatasets(projectId || undefined);
+
+  const scan = useMutation({
+    mutationFn: () => projectsApi.scanOntology(projectId, { datasetId }),
+    onSuccess: (response) => {
+      const summary = response.manifest?.summary;
+      toast.success(
+        t('ontologies.scanDone', {
+          objects: formatNumber(summary?.objects ?? 0, locale),
+          subjects: formatNumber(summary?.subjects ?? 0, locale),
+        }),
+      );
+      invalidate(qk.ontologies);
+    },
+    onError: (error) => toast.error(error, t('ontologies.scanTitle')),
+  });
+
+  const datasetOptions = (datasets.data ?? []).map((item) => ({
+    value: item.id,
+    label: item.name,
+    hint: item.bucket,
+  }));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.scanTitle')}</CardTitle>
+          <CardDescription>{t('ontologies.scanHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (projectId && datasetId) scan.mutate();
+          }}
+          className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+        >
+          <Field label={t('ontologies.scanProject')}>
+            <Select
+              value={projectId}
+              onValueChange={(value) => {
+                setProjectId(value);
+                setDatasetId('');
+              }}
+              placeholder={t('ontologies.scanProject')}
+              options={(projects.data ?? []).map((project) => ({
+                value: project.id,
+                label: project.name,
+              }))}
+            />
+          </Field>
+          <Field label={t('ontologies.scanDataset')}>
+            <Select
+              value={datasetId}
+              onValueChange={setDatasetId}
+              placeholder={t('ontologies.scanDataset')}
+              disabled={!projectId || datasetOptions.length === 0}
+              options={datasetOptions}
+            />
+          </Field>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={scan.isPending}
+            disabled={!projectId || !datasetId}
+          >
+            <Radar aria-hidden />
+            {t('ontologies.scan')}
+          </Button>
+        </form>
+        {projectId && datasetOptions.length === 0 && !datasets.isLoading ? (
+          <p className="text-xs text-muted-foreground">{t('ontologies.scanNoDataset')}</p>
+        ) : null}
+        {/* What the profile actually matches, where somebody can read it before
+            wondering why half their objects came back unrecognised. */}
+        <p className="text-xs text-muted-foreground">{t('ontologies.scanProfileHint')}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function OntologyCatalog() {
   const t = useT();
   const { locale } = useI18n();
@@ -499,6 +606,8 @@ export function OntologyCatalog() {
   return (
     <div className="space-y-4">
       <SectionHeader title={t('ontologies.title')} description={t('ontologies.subtitle')} />
+
+      <OntologyScan />
 
       <Card>
         <DataTable

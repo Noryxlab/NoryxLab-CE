@@ -43,6 +43,7 @@ import type {
   ModuleInfo,
   Ontology,
   OntologyAccess,
+  OntologyManifestSummary,
   OntologyFreshness,
   OntologyCompleteness,
   Cohort,
@@ -128,7 +129,14 @@ export const projectsApi = {
   detachOntology: (projectId: string, ontologyId: string) =>
     api.delete<void>(`${V1}/projects/${projectId}/ontologies/${ontologyId}`),
   ontology: (projectId: string) => api.get<Ontology>(`${V1}/projects/${projectId}/ontology`),
-  scanOntology: (projectId: string) => api.post<Ontology>(`${V1}/projects/${projectId}/ontology/scans`),
+  /** The scan needs to be told which dataset to read: without a datasetId the
+   *  API answers 400, and the previous signature sent no body at all - which is
+   *  one reason no screen could launch a scan. */
+  scanOntology: (projectId: string, input: { datasetId: string; inferenceProfile?: string }) =>
+    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology }>(
+      `${V1}/projects/${projectId}/ontology/scans`,
+      input,
+    ),
 
   repositories: (projectId: string) => api.list<Repository>(`${V1}/projects/${projectId}/repositories`),
   attachRepository: (projectId: string, repositoryId: string) =>

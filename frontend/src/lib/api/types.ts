@@ -931,3 +931,15 @@ export interface Cohort {
   updatedAt: string;
 }
 
+/** What a scan reports back about what it just read. */
+export interface OntologyManifestSummary {
+  study?: string;
+  summary?: {
+    subjects?: number;
+    visits?: number;
+    modalities?: number;
+    objects?: number;
+    unrecognised?: number;
+  };
+}
+
