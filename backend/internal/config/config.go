@@ -93,6 +93,12 @@ type Config struct {
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
 	AssistantPublicURL           string
+	// AssistantWorkspaceURL is the address a *workspace* reaches the assistant
+	// at, which is not the address a browser uses: a pod cannot reach the
+	// cluster's own public name - the packet leaves for the NAT address and
+	// does not come back - so the IDE client is pointed at the in-cluster
+	// service instead.
+	AssistantWorkspaceURL string
 	// PublicURL is the address users reach the platform at, used to check the
 	// certificate actually served to them.
 	PublicURL string
@@ -363,6 +369,10 @@ func Load() Config {
 		AssistantInternalToken:           os.Getenv("NORYX_ASSISTANT_INTERNAL_TOKEN"),
 		AssistantDeveloperSigningKey:     os.Getenv("NORYX_ASSISTANT_DEVELOPER_SIGNING_KEY"),
 		AssistantPublicURL:               os.Getenv("NORYX_ASSISTANT_PUBLIC_URL"),
+		AssistantWorkspaceURL: firstNonEmpty(
+			os.Getenv("NORYX_ASSISTANT_WORKSPACE_URL"),
+			"http://noryx-backend."+namespace+".svc.cluster.local:8080",
+		),
 		// Falls back to the assistant public URL, which is the same address on
 		// every deployment that sets it, so this works before anyone updates
 		// a manifest.

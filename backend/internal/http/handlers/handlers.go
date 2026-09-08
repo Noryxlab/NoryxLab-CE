@@ -100,6 +100,7 @@ type Handlers struct {
 	assistantInternalToken           string
 	assistantDeveloperSigningKey     string
 	assistantPublicURL               string
+	assistantWorkspaceURL            string
 }
 
 type Options struct {
@@ -181,6 +182,7 @@ type Options struct {
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
 	AssistantPublicURL           string
+	AssistantWorkspaceURL        string
 }
 
 // newNotifier resolves the webhook from the settings store when one exists, so
@@ -326,6 +328,7 @@ func New(
 		assistantInternalToken:           options.AssistantInternalToken,
 		assistantDeveloperSigningKey:     strings.TrimSpace(options.AssistantDeveloperSigningKey),
 		assistantPublicURL:               strings.TrimRight(strings.TrimSpace(options.AssistantPublicURL), "/"),
+		assistantWorkspaceURL:            strings.TrimRight(strings.TrimSpace(options.AssistantWorkspaceURL), "/"),
 	}
 }
 

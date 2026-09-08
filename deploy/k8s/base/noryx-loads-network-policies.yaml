@@ -80,6 +80,43 @@ spec:
         - protocol: TCP
           port: 27017
 ---
+# The IDE assistant, and nothing else on the platform.
+#
+# A workspace could reach the internet and not the platform that runs it, so
+# the assistant configured into every VS Code workspace had no route to the
+# endpoint it was pointed at: the public address times out from inside the
+# cluster (a packet leaving for the cluster's own NAT address does not come
+# back), and the service address is a private one, which the public-egress rule
+# deliberately excludes.
+#
+# This opens exactly one destination: the backend, on its API port. The
+# endpoint behind it is authenticated with a token signed for one user, one
+# project and one workspace, so a workspace reaching it can only ever act as
+# itself. Everything else about the platform - Keycloak, Postgres, Harbor, the
+# other namespaces - stays closed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-workloads-allow-platform-api
+  namespace: noryx-loads
+spec:
+  podSelector:
+    matchLabels:
+      noryx.io/network-isolation: user-workload
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: noryx
+          podSelector:
+            matchLabels:
+              app: noryx-backend
+      ports:
+        - protocol: TCP
+          port: 8080
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

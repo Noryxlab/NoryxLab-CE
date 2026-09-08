@@ -261,3 +261,14 @@ func TestContinueConfigFallsBackToNoryx(t *testing.T) {
 		t.Fatal("an unnamed installation must fall back to Noryx")
 	}
 }
+
+// The address the IDE is pointed at has to be one a pod can reach. Pointed at
+// the platform's public name, Continue had no route at all: from inside the
+// cluster that name times out on its own NAT address, and the private service
+// address is excluded by the workspace egress policy.
+func TestContinueConfigUsesAReachableEndpoint(t *testing.T) {
+	config := continueDeveloperAssistantConfig("http://noryx-backend.noryx.svc.cluster.local:8080", "token", "Premyom")
+	if !strings.Contains(config, "apiBase: 'http://noryx-backend.noryx.svc.cluster.local:8080/api/v1/assistant/developer/v1'") {
+		t.Fatalf("Continue config does not point at the in-cluster endpoint:\n%s", config)
+	}
+}

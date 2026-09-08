@@ -258,6 +258,7 @@ func main() {
 			AssistantInternalToken:       cfg.AssistantInternalToken,
 			AssistantDeveloperSigningKey: cfg.AssistantDeveloperSigningKey,
 			AssistantPublicURL:           cfg.AssistantPublicURL,
+			AssistantWorkspaceURL:        cfg.AssistantWorkspaceURL,
 		},
 	)
 
