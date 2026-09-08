@@ -24,10 +24,18 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { useDatasetAccess, useDatasets, useOrganizations, useAdminUsers, qk, useInvalidate } from '@/lib/api/queries';
+import {
+  useDatasetAccess,
+  useDatasets,
+  useDatasetUsage,
+  useOrganizations,
+  useAdminUsers,
+  qk,
+  useInvalidate,
+} from '@/lib/api/queries';
 import { datasetsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatRelative } from '@/lib/format';
+import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { presentRole } from '@/lib/presenters';
 import { useAuth } from '@/lib/auth';
 import { DatasetExplorer } from './dataset-explorer';
@@ -244,6 +252,31 @@ function CreateDatasetSheet({
  * good - and a bucket that belongs to a person who leaves is a bucket nobody
  * can administer.
  */
+/**
+ * How big a dataset is.
+ *
+ * The catalogue showed a bucket path under "storage" and no size anywhere, so
+ * the first question anybody asks about a dataset had no answer. Measuring
+ * means listing the bucket - 24,179 objects for HDS-For - so it is asked for
+ * per row, cached, and shows a dash rather than a zero while it is unknown: a
+ * confident "0 B" on a 400 GB dataset is worse than no answer.
+ */
+function DatasetSize({ dataset }: { dataset: Dataset }) {
+  const { locale } = useI18n();
+  const usage = useDatasetUsage(dataset.id);
+  if (usage.isLoading) return <span className="text-xs text-muted-foreground">…</span>;
+  if (usage.isError || !usage.data) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <span className="text-xs tabular-nums text-muted-foreground">
+      {formatBytes(usage.data.totalBytes, locale)}
+      <span className="ml-1 opacity-70">
+        ({formatNumber(usage.data.objects, locale)}
+        {usage.data.truncated ? '+' : ''})
+      </span>
+    </span>
+  );
+}
+
 function DatasetOwnership({ dataset }: { dataset: Dataset }) {
   const t = useT();
   const toast = useToast();
@@ -460,12 +493,6 @@ export function DatasetCatalog({
       ),
     },
     {
-      id: 'owner',
-      header: t('common.owner'),
-      sortValue: (dataset) => dataset.ownerName || dataset.ownerId,
-      cell: (dataset) => <ResourceOwner owner={dataset} />,
-    },
-    {
       id: 'classification',
       header: t('datasets.classification'),
       sortValue: (dataset) => dataset.classification,
@@ -487,10 +514,18 @@ export function DatasetCatalog({
       ),
     },
     {
+      id: 'size',
+      header: t('common.size'),
+      cell: (dataset) => <DatasetSize dataset={dataset} />,
+    },
+    {
       id: 'owner',
       header: t('common.owner'),
-      sortValue: (dataset) => dataset.ownerId,
-      cell: (dataset) => <span className="text-xs text-muted-foreground">{dataset.ownerId || '—'}</span>,
+      sortValue: (dataset) => dataset.ownerName || dataset.ownerId,
+      // This printed the stored identifier, which is a username for a person
+      // and a UUID for an organization - the reason the same organization read
+      // as "Imt" on the project list and as 0f2c8a1e-... here.
+      cell: (dataset) => <ResourceOwner owner={dataset} />,
     },
     {
       id: 'updatedAt',

@@ -133,6 +133,12 @@ EXTRA_SCHEMAS = [
 # reference to another schema, `[$Name]` an array of them.
 ENVELOPES = {
     "HealthResponse": {"status": "string"},
+    "DatasetUsage": {
+        "objects": "integer",
+        "totalBytes": "integer",
+        "truncated": "boolean",
+        "measuredAt": "string",
+    },
     "CohortMembersResponse": {
         "cohort": "$Cohort",
         "members": "[$CohortMember]",
@@ -235,6 +241,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("DELETE", "/api/v1/cohorts/{cohortID}"): ("204", "Cohort removed", None, None),
+    ("GET", "/api/v1/datasets/{datasetID}/usage"): ("200", "How much the dataset holds", "application/json", "DatasetUsage"),
     ("GET", "/api/v1/cohorts/{cohortID}/members"): ("200", "The files the cohort froze", "application/json", "CohortMembersResponse"),
     ("POST", "/api/v1/ontologies/{ontologyID}/cohorts"): ("201", "Cohort created", "application/json", "Cohort"),
     ("POST", "/api/v1/projects/{projectID}/invitations"): ("201", "Member invited", "application/json", "InvitationResponse"),

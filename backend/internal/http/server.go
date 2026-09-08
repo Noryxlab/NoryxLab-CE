@@ -111,6 +111,9 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}", h.UpdateDatasetMetadata)
 	mux.HandleFunc("DELETE /api/v1/datasets/{datasetID}", h.DeleteDataset)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/objects", h.ListDatasetObjects)
+	// How big it is: nothing stores that, an object store only knows by being
+	// listed, so it is measured on demand and remembered for a while.
+	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/usage", h.GetDatasetUsage)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/folders", h.CreateDatasetFolder)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/objects/{path...}", h.GetDatasetObject)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/objects/{path...}", h.PutDatasetObject)

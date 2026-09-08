@@ -57,6 +57,7 @@ export const qk = {
 
   datasets: ['datasets'] as const,
   datasetAccess: (datasetId: string) => ['datasets', datasetId, 'access'] as const,
+  datasetUsage: (datasetId: string) => ['datasets', datasetId, 'usage'] as const,
   datasetObjects: (datasetId: string, prefix: string) =>
     ['datasets', datasetId, 'objects', prefix] as const,
 
@@ -289,6 +290,17 @@ export const useDatasetObjects = (datasetId: string | undefined, prefix: string)
     queryKey: qk.datasetObjects(datasetId ?? '', prefix),
     queryFn: () => datasetsApi.objects(datasetId as string, prefix),
     enabled: Boolean(datasetId),
+  });
+
+/** Measuring means listing the bucket, so the answer is kept for the session
+ *  and the server keeps its own short cache on top. */
+export const useDatasetUsage = (datasetId: string | undefined) =>
+  useQuery({
+    queryKey: qk.datasetUsage(datasetId ?? ''),
+    queryFn: () => datasetsApi.usage(datasetId as string),
+    enabled: Boolean(datasetId),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
   });
 
 export const useDatasources = () => useQuery({ queryKey: qk.datasources, queryFn: datasourcesApi.list });

@@ -947,3 +947,12 @@ export interface OntologyManifestSummary {
   };
 }
 
+/** How big a dataset is. Nothing stores it - an object store knows its size
+ *  only by being listed - so it is measured on demand and cached. */
+export interface DatasetUsage {
+  objects: number;
+  totalBytes: number;
+  truncated: boolean;
+  measuredAt: string;
+}
+

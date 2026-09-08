@@ -44,6 +44,13 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetUsage:
+      type: object
+      properties:
+        objects: { type: integer }
+        totalBytes: { type: integer }
+        truncated: { type: boolean }
+        measuredAt: { type: string }
     Cohort:
       type: object
       properties:
@@ -5499,6 +5506,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cohort'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/usage:
+    get:
+      tags: [Datasets]
+      summary: Get Dataset Usage
+      operationId: getDatasetUsage
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: How much the dataset holds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetUsage'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

@@ -41,6 +41,7 @@ import type {
   HardwareTier,
   Job,
   ModuleInfo,
+  DatasetUsage,
   Ontology,
   OntologyAccess,
   OntologyManifestSummary,
@@ -308,6 +309,7 @@ export const datasetsApi = {
     api.list<StorageObject>(
       `${V1}/datasets/${datasetId}/objects${prefix ? `?prefix=${encodeURIComponent(prefix)}` : ''}`,
     ),
+  usage: (datasetId: string) => api.get<DatasetUsage>(`${V1}/datasets/${datasetId}/usage`),
   createFolder: (datasetId: string, path: string) =>
     api.post<void>(`${V1}/datasets/${datasetId}/folders`, { path }),
   deleteObject: (datasetId: string, path: string) =>
