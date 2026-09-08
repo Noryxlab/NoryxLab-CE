@@ -868,3 +868,16 @@ export interface ProjectVariable {
   updatedBy?: string;
   updatedAt: string;
 }
+
+/** One row of an ontology filter: the object, what it is, and what it holds.
+ *  The API answers with these; it does not answer with columns and rows. */
+export interface OntologyQueryItem {
+  object: string;
+  type: string;
+  parent: string;
+  attributes?: string[];
+  references?: string[];
+  links?: string[];
+  count: number;
+  bytes: number;
+}

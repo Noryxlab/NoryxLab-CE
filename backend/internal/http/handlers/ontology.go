@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path"
 	"regexp"
@@ -93,6 +94,13 @@ type ontologySummary struct {
 	TotalBytes        int64    `json:"totalBytes"`
 	Formats           []string `json:"formats"`
 	MeasurementTables []string `json:"measurementTables"`
+	// Unrecognised counts the objects whose path matched no subject, and
+	// LayoutSamples describes the shape of a few of them. Without these a scan
+	// of a dataset laid out differently reported "24,179 objects, 0 subjects"
+	// and read as a broken feature rather than as "this layout is not the one
+	// the profile knows".
+	Unrecognised  int      `json:"unrecognisedObjects"`
+	LayoutSamples []string `json:"layoutSamples,omitempty"`
 }
 
 type ontologySubject struct {
@@ -824,6 +832,8 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	modalities := map[string]struct{}{}
 	study := ""
 	objects := 0
+	unrecognised := 0
+	layouts := map[string]int{}
 	var totalBytes int64
 	truncated := false
 
@@ -847,6 +857,15 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		}
 		subjectID, visitDate, modalityName := inferOntologyPath(relPath)
 		if subjectID == "" {
+			// Counted and described, never dropped in silence. The shape is
+			// recorded rather than the path: these are health-context
+			// metadata, and a diagnosis does not need the identifiers.
+			unrecognised++
+			if len(layouts) < 8 {
+				layouts[describePathShape(relPath)]++
+			} else if _, known := layouts[describePathShape(relPath)]; known {
+				layouts[describePathShape(relPath)]++
+			}
 			continue
 		}
 		if study == "" {
@@ -901,6 +920,8 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			TotalBytes:        totalBytes,
 			Formats:           sortedKeys(formats),
 			MeasurementTables: sortedKeys(tables),
+			Unrecognised:      unrecognised,
+			LayoutSamples:     describeLayouts(layouts),
 		},
 		Subjects:    manifestSubjects,
 		GeneratedBy: generatedBy,
@@ -984,6 +1005,74 @@ func inferOntologyPath(relPath string) (subjectID, visitDate, modality string) {
 		return subjectID, visitDate, modality
 	}
 	return "", "", ""
+}
+
+// describePathShape says what a path looks like without saying what it says:
+// "8 levels: word/word/id-0000/date/word/word/word/file.dcm" becomes
+// "8 levels · text/text/subject/date/text/text/text/DICOM". A layout that the
+// profile does not understand can then be read at a glance, and nothing
+// identifying leaves the scan.
+func describePathShape(relPath string) string {
+	parts := strings.Split(strings.Trim(relPath, "/"), "/")
+	shapes := make([]string, 0, len(parts))
+	for index, part := range parts {
+		switch {
+		case index == len(parts)-1 && strings.Contains(part, "."):
+			if format := inferObjectFormat(part); format != "" {
+				shapes = append(shapes, format)
+			} else {
+				shapes = append(shapes, "file")
+			}
+		case ontologySubjectPattern.MatchString(part):
+			shapes = append(shapes, "subject")
+		case ontologyDatePattern.MatchString(strings.TrimPrefix(part, "visit_")):
+			shapes = append(shapes, "date")
+		case isAllDigits(part):
+			shapes = append(shapes, "number")
+		default:
+			shapes = append(shapes, "text")
+		}
+	}
+	return fmt.Sprintf("%d levels · %s", len(parts), strings.Join(shapes, "/"))
+}
+
+func isAllDigits(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// describeLayouts returns the most common shapes first: the point is to show
+// somebody the convention their data actually follows.
+func describeLayouts(layouts map[string]int) []string {
+	if len(layouts) == 0 {
+		return nil
+	}
+	type entry struct {
+		shape string
+		count int
+	}
+	entries := make([]entry, 0, len(layouts))
+	for shape, count := range layouts {
+		entries = append(entries, entry{shape: shape, count: count})
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		if entries[i].count != entries[j].count {
+			return entries[i].count > entries[j].count
+		}
+		return entries[i].shape < entries[j].shape
+	})
+	out := make([]string, 0, len(entries))
+	for _, item := range entries {
+		out = append(out, fmt.Sprintf("%s (%d)", item.shape, item.count))
+	}
+	return out
 }
 
 func inferStudy(subjectID string) string {

@@ -32,7 +32,7 @@ import { useOntologies, qk, useInvalidate } from '@/lib/api/queries';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
-import type { Ontology } from '@/lib/api/types';
+import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
 
 /**
  * Ontology catalogue (ADR-025).
@@ -45,7 +45,11 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const toast = useToast();
   const [question, setQuestion] = React.useState('');
-  const [result, setResult] = React.useState<{ columns?: string[]; rows?: unknown[][] } | null>(null);
+  const [result, setResult] = React.useState<{
+    items?: OntologyQueryItem[];
+    count?: number;
+    limited?: boolean;
+  } | null>(null);
 
   const run = useMutation({
     mutationFn: () => ontologiesApi.query(ontology.id, question.trim()),
@@ -91,29 +95,43 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
           </Button>
         </form>
 
-        {result?.rows?.length ? (
-          <TableWrapper className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {(result.columns ?? []).map((column) => (
-                    <TableHead key={column}>{column}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {result.rows.slice(0, 100).map((row, rowIndex) => (
-                  <TableRow key={rowIndex}>
-                    {row.map((cell, cellIndex) => (
-                      <TableCell key={cellIndex} className="font-mono text-xs">
-                        {cell === null || cell === undefined ? '—' : String(cell)}
-                      </TableCell>
+        {result ? (
+          result.items?.length ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                {t('ontologies.matches', {
+                  shown: String(result.items.length),
+                  total: String(result.count ?? result.items.length),
+                })}
+              </p>
+              <TableWrapper className="rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('ontologies.object')}</TableHead>
+                      <TableHead>{t('ontologies.objectType')}</TableHead>
+                      <TableHead>{t('ontologies.parent')}</TableHead>
+                      <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {result.items.map((item) => (
+                      <TableRow key={`${item.parent}/${item.object}/${item.type}`}>
+                        <TableCell className="font-mono text-xs">{item.object}</TableCell>
+                        <TableCell className="text-xs">{item.type}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {item.parent || '—'}
+                        </TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">{item.count}</TableCell>
+                      </TableRow>
                     ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableWrapper>
+                  </TableBody>
+                </Table>
+              </TableWrapper>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t('ontologies.noMatch')}</p>
+          )
         ) : null}
       </CardContent>
     </Card>

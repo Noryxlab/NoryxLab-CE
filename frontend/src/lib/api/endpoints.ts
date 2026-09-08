@@ -1,6 +1,7 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AdminHardwareTier,
+  OntologyQueryItem,
   ProjectVariable,
   DockerfileResponse,
   OwnedResources,
@@ -364,10 +365,15 @@ export const ontologiesApi = {
     ),
   revoke: (ontologyId: string, subjectType: string, subjectId: string) =>
     api.delete<void>(`${V1}/ontologies/${ontologyId}/access/${subjectType}/${encodeURIComponent(subjectId)}`),
-  query: (ontologyId: string, query: string) =>
-    api.post<{ columns?: string[]; rows?: unknown[][]; error?: string }>(
+  /** The API filters on `object`, which it also matches against the object's
+   *  type and parent. It was sent `{ query }` - a field the request struct does
+   *  not have - so every question decoded to an empty filter and came back with
+   *  the whole manifest. The screen then displayed that as the answer, which is
+   *  worse than an error: it looks like a reply. */
+  query: (ontologyId: string, filter: string) =>
+    api.post<{ items?: OntologyQueryItem[]; count?: number; limited?: boolean; error?: string }>(
       `${V1}/ontologies/${ontologyId}/query`,
-      { query },
+      { object: filter, limit: 100 },
     ),
 };
 
