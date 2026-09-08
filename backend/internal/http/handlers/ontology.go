@@ -861,10 +861,13 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			// recorded rather than the path: these are health-context
 			// metadata, and a diagnosis does not need the identifiers.
 			unrecognised++
-			if len(layouts) < 8 {
-				layouts[describePathShape(relPath)]++
-			} else if _, known := layouts[describePathShape(relPath)]; known {
-				layouts[describePathShape(relPath)]++
+			// Every shape is counted, and the frequent ones are what get
+			// shown. Keeping only the first few *encountered* made the sample
+			// unrepresentative: on HDS-For it reported six shapes totalling 14
+			// objects out of 2,550, which says nothing about the 2,536 others.
+			// The cap is on distinct shapes, which is bounded in practice.
+			if shape := describePathShape(relPath); len(layouts) < 64 || layouts[shape] > 0 {
+				layouts[shape]++
 			}
 			continue
 		}
@@ -1068,6 +1071,9 @@ func describeLayouts(layouts map[string]int) []string {
 		}
 		return entries[i].shape < entries[j].shape
 	})
+	if len(entries) > 8 {
+		entries = entries[:8]
+	}
 	out := make([]string, 0, len(entries))
 	for _, item := range entries {
 		out = append(out, fmt.Sprintf("%s (%d)", item.shape, item.count))

@@ -34,6 +34,22 @@ func TestAPathTheProfileCannotReadIsDescribedRatherThanDropped(t *testing.T) {
 	}
 }
 
+// Only the frequent shapes are worth showing, and a long tail must not push
+// them off the list.
+func TestOnlyTheFrequentShapesAreShown(t *testing.T) {
+	layouts := map[string]int{}
+	for index := 0; index < 20; index++ {
+		layouts[strings.Repeat("x", index+1)] = index + 1
+	}
+	described := describeLayouts(layouts)
+	if len(described) != 8 {
+		t.Fatalf("expected the eight commonest, got %d", len(described))
+	}
+	if !strings.Contains(described[0], "(20)") {
+		t.Errorf("the commonest should lead: %s", described[0])
+	}
+}
+
 func TestTheCommonestUnreadableLayoutComesFirst(t *testing.T) {
 	described := describeLayouts(map[string]int{
 		"4 levels · text/text/text/file":                                 12,
