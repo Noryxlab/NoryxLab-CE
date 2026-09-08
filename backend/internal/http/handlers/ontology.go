@@ -180,6 +180,7 @@ func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list ontologies"})
 		return
 	}
+	h.nameOntologyOwners(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 

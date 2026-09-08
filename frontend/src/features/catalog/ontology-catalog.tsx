@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { AlertTriangle, Network, Radar, Search, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
+import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
@@ -533,6 +534,43 @@ function OntologyScan() {
   );
 }
 
+/** Handing an ontology over, in the same form and the same words as a dataset
+ *  or a project: transferring is one gesture, not three to learn. */
+function OntologyOwnership({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) =>
+      ontologiesApi.setOwner(ontology.id, input),
+    onSuccess: () => {
+      invalidate(qk.ontologies);
+      toast.success(t('projects.transferOwnership'));
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('projects.transferOwnership')}</CardTitle>
+          <CardDescription>{t('ontologies.ownershipHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <OwnerTransfer
+          owner={ontology}
+          pending={transfer.isPending}
+          onTransfer={(input) => transfer.mutate(input)}
+          label={t('projects.transferOwnership')}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function OntologyCatalog() {
   const t = useT();
   const { locale } = useI18n();
@@ -577,6 +615,12 @@ export function OntologyCatalog() {
           <span className="truncate text-xs text-muted-foreground">{ontology.sourceName}</span>
         </span>
       ),
+    },
+    {
+      id: 'owner',
+      header: t('common.owner'),
+      sortValue: (ontology) => ontology.ownerName || ontology.ownerId,
+      cell: (ontology) => <ResourceOwner owner={ontology} />,
     },
     {
       id: 'profile',
@@ -656,6 +700,7 @@ export function OntologyCatalog() {
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
       {selected ? <OntologyCohorts ontology={selected} /> : null}
+      {selected ? <OntologyOwnership ontology={selected} /> : null}
       {dialog}
     </div>
   );

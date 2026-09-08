@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Database, Plus, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
+import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { SearchInput } from '@/components/common/search-input';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
@@ -235,6 +236,49 @@ function CreateDatasetSheet({
   );
 }
 
+/**
+ * Handing a dataset over.
+ *
+ * The API has accepted a new owner since the first day and no screen ever
+ * asked for one, so in practice a dataset belonged to whoever created it, for
+ * good - and a bucket that belongs to a person who leaves is a bucket nobody
+ * can administer.
+ */
+function DatasetOwnership({ dataset }: { dataset: Dataset }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) =>
+      datasetsApi.setOwner(dataset.id, input),
+    onSuccess: () => {
+      invalidate(qk.datasets);
+      toast.success(t('projects.transferOwnership'));
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('projects.transferOwnership')}</CardTitle>
+          <CardDescription>{t('datasets.ownershipHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <OwnerTransfer
+          owner={dataset}
+          pending={transfer.isPending}
+          onTransfer={(input) => transfer.mutate(input)}
+          label={t('projects.transferOwnership')}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 function DatasetPermissions({ dataset }: { dataset: Dataset }) {
   const t = useT();
   const { locale } = useI18n();
@@ -416,6 +460,12 @@ export function DatasetCatalog({
       ),
     },
     {
+      id: 'owner',
+      header: t('common.owner'),
+      sortValue: (dataset) => dataset.ownerName || dataset.ownerId,
+      cell: (dataset) => <ResourceOwner owner={dataset} />,
+    },
+    {
       id: 'classification',
       header: t('datasets.classification'),
       sortValue: (dataset) => dataset.classification,
@@ -526,6 +576,7 @@ export function DatasetCatalog({
       {selected ? (
         <>
           <DatasetExplorer dataset={selected} />
+          <DatasetOwnership dataset={selected} />
           <DatasetPermissions dataset={selected} />
         </>
       ) : null}

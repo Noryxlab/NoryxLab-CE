@@ -156,8 +156,8 @@ export const fr = {
     deleteWarning:
       'Cette action est irréversible. Les workspaces, jobs et applications du projet seront arrêtés et supprimés.',
     transferOwnership: 'Transférer la propriété',
-    ownedByUser: 'Projet personnel',
-    ownedByOrganization: 'Projet d’organisation',
+    ownedByUser: 'Appartient à une personne',
+    ownedByOrganization: 'Appartient à une organisation',
     ownerTypeLabel: 'Type de propriétaire',
     ownerLabel: 'Nouveau propriétaire',
     viewMode: 'Affichage',
@@ -392,6 +392,7 @@ export const fr = {
     selectedCountPlural: '{count} éléments sélectionnés',
     preview: 'Aperçu',
     permissions: 'Permissions',
+    ownershipHint: 'Le propriétaire administre le dataset et ses droits. Une organisation survit au départ de la personne qui l’a créé.',
     permissionsHint:
       'Le propriétaire gère la ressource. Writer : lecture et écriture. Reader : lecture seule.',
     grant: 'Accorder un accès',
@@ -494,6 +495,7 @@ export const fr = {
     freshnessShrunk: 'La source contient {drift} objets de moins depuis cette mesure.',
     freshnessUnknown: 'Source non consultée : impossible de dire si cette mesure est toujours juste.',
     freshnessStale: 'Cette ontologie ne décrit plus sa source',
+    ownershipHint: 'Le propriétaire administre l’ontologie et ses droits. Une organisation survit au départ de la personne qui l’a créée.',
     deleteTitle: 'Supprimer l’ontologie',
     deleteWarning: 'Les projets rattachés perdront l’accès à ce modèle.',
   },

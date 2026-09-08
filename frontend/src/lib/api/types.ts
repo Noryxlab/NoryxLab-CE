@@ -147,6 +147,9 @@ export interface Dataset {
   ownerUserId: string;
   ownerType: OwnerType | '';
   ownerId: string;
+  /** What a screen shows: an organization is stored by its identifier, which
+   *  reads as nothing at all on a list. */
+  ownerName?: string;
   name: string;
   description: string;
   bucket: string;
@@ -226,6 +229,7 @@ export interface Ontology {
   ownerUserId: string;
   ownerType: OwnerType | '';
   ownerId: string;
+  ownerName?: string;
   name: string;
   description: string;
   sourceType: string;

@@ -177,7 +177,9 @@ func (h Handlers) ListDatasets(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasets"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": h.filterDatasetsForEdition(items)})
+	visible := h.filterDatasetsForEdition(items)
+	h.nameDatasetOwners(visible)
+	writeJSON(w, http.StatusOK, map[string]any{"items": visible})
 }
 
 func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {

@@ -12,6 +12,9 @@ type Dataset struct {
 	OwnerUserID      string    `json:"ownerUserId"`
 	OwnerType        string    `json:"ownerType"`
 	OwnerID          string    `json:"ownerId"`
+	// OwnerName is what a screen shows. An organization is stored by its
+	// identifier, which reads as nothing at all on a list.
+	OwnerName string `json:"ownerName,omitempty"`
 	Name             string    `json:"name"`
 	Description      string    `json:"description"`
 	Bucket           string    `json:"bucket"`
