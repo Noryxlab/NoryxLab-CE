@@ -33,8 +33,13 @@ type Config struct {
 	OIDCJWKSURL         string
 	OIDCAudience        string
 	// OIDCFrontendClientID is the client whose tokens must carry that audience.
-	OIDCFrontendClientID             string
-	BootstrapAdminUser               string
+	OIDCFrontendClientID string
+	BootstrapAdminUser   string
+	// ProductName is what this installation calls itself. Branding is runtime
+	// configuration (ADR-015): the same binary serves every customer, and the
+	// IDE assistant must not present itself as Noryx on a platform branded
+	// otherwise.
+	ProductName                      string
 	BootstrapAdminEmail              string
 	KeycloakBaseURL                  string
 	KeycloakRealm                    string
@@ -313,6 +318,7 @@ func Load() Config {
 		OIDCAudience:                     os.Getenv("NORYX_OIDC_AUDIENCE"),
 		OIDCFrontendClientID:             firstNonEmpty(os.Getenv("NORYX_OIDC_FRONTEND_CLIENT_ID"), "noryx-frontend"),
 		BootstrapAdminUser:               os.Getenv("NORYX_BOOTSTRAP_ADMIN_USER"),
+		ProductName:                      firstNonEmpty(os.Getenv("NORYX_PRODUCT_NAME"), "Noryx"),
 		BootstrapAdminEmail:              os.Getenv("NORYX_BOOTSTRAP_ADMIN_EMAIL"),
 		KeycloakBaseURL:                  keycloakBaseURL,
 		KeycloakRealm:                    keycloakRealm,

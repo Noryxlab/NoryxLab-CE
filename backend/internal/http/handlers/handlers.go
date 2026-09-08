@@ -56,6 +56,7 @@ type Handlers struct {
 	bootstrapAdminUser               string
 	bootstrapAdminEmail              string
 	organizationRequired             bool
+	productName                      string
 	healthEventStore                 store.HealthEventStore
 	apiTokenStore                    store.APITokenStore
 	oidcAudience                     string
@@ -107,6 +108,8 @@ type Options struct {
 	BootstrapAdminUser   string
 	BootstrapAdminEmail  string
 	OrganizationRequired bool
+	// ProductName is what this installation calls itself (ADR-015).
+	ProductName string
 	// HealthEventStore records what the platform noticed about itself.
 	HealthEventStore store.HealthEventStore
 	// APITokenStore holds the credentials users present instead of a session.
@@ -279,6 +282,7 @@ func New(
 		bootstrapAdminUser:               options.BootstrapAdminUser,
 		bootstrapAdminEmail:              options.BootstrapAdminEmail,
 		organizationRequired:             options.OrganizationRequired,
+		productName:                      options.ProductName,
 		healthEventStore:                 options.HealthEventStore,
 		apiTokenStore:                    options.APITokenStore,
 		oidcAudience:                     strings.TrimSpace(options.OIDCAudience),

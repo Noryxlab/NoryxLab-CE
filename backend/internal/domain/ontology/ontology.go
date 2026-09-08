@@ -9,13 +9,13 @@ import (
 )
 
 type Ontology struct {
-	ID               string          `json:"id"`
-	OwnerUserID      string          `json:"ownerUserId"`
-	OwnerType        string          `json:"ownerType"`
-	OwnerID          string          `json:"ownerId"`
+	ID          string `json:"id"`
+	OwnerUserID string `json:"ownerUserId"`
+	OwnerType   string `json:"ownerType"`
+	OwnerID     string `json:"ownerId"`
 	// OwnerName is what a screen shows, resolved from the directory for an
 	// organization and equal to the username for a person.
-	OwnerName string `json:"ownerName,omitempty"`
+	OwnerName        string          `json:"ownerName,omitempty"`
 	Name             string          `json:"name"`
 	Description      string          `json:"description"`
 	SourceType       string          `json:"sourceType"`

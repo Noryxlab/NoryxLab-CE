@@ -163,7 +163,7 @@ func TestWorkspaceBootstrapConfiguresPersistentGitIdentity(t *testing.T) {
 }
 
 func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
-	config := continueDeveloperAssistantConfig("https://datalab.example.org/", "developer-token")
+	config := continueDeveloperAssistantConfig("https://datalab.example.org/", "developer-token", "Premyom")
 	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, config, false, 0)
 	for _, expected := range []string{
 		"/opt/noryx-vscode/extensions",
@@ -178,7 +178,7 @@ func TestWorkspaceBootstrapConfiguresContinueAssistant(t *testing.T) {
 		"tool_use",
 		"provider: code",
 		"/repos",
-		"Git credentials are provisioned by Noryx",
+		"Git credentials are provisioned by Premyom",
 	} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("workspace bootstrap missing Continue assistant config: %s", expected)
@@ -237,5 +237,27 @@ func TestWorkspaceProxyTargetPath(t *testing.T) {
 		if actual := workspaceProxyTargetPath(test.kind, "workspace-id", test.rest); actual != test.expected {
 			t.Fatalf("%s proxy target: got %q, want %q", test.kind, actual, test.expected)
 		}
+	}
+}
+
+// What a person reads in the IDE assistant panel follows the installation's
+// name. It said "Noryx Assistant" on a platform branded Premyom, which is the
+// same branding leak as the greeting, one layer down.
+func TestContinueConfigCarriesTheProductName(t *testing.T) {
+	config := continueDeveloperAssistantConfig("https://datalab.example.org", "token", "Premyom")
+	for _, expected := range []string{"name: Premyom Workspace", "  - name: Premyom Assistant"} {
+		if !strings.Contains(config, expected) {
+			t.Fatalf("Continue config missing %q:\n%s", expected, config)
+		}
+	}
+	if strings.Contains(config, "Noryx Assistant") {
+		t.Fatal("Continue config still names Noryx on a Premyom install")
+	}
+}
+
+// An unnamed installation keeps the default rather than an empty name.
+func TestContinueConfigFallsBackToNoryx(t *testing.T) {
+	if !strings.Contains(continueDeveloperAssistantConfig("https://x", "t", " "), "name: Noryx Workspace") {
+		t.Fatal("an unnamed installation must fall back to Noryx")
 	}
 }

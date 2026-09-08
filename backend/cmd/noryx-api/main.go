@@ -201,6 +201,7 @@ func main() {
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,
 			BootstrapAdminEmail:              cfg.BootstrapAdminEmail,
 			OrganizationRequired:             cfg.OrganizationRequired,
+			ProductName:                      cfg.ProductName,
 			HealthEventStore:                 healthEventStore,
 			APITokenStore:                    apiTokenStore,
 			HardwareTierStore:                hardwareTierStore,

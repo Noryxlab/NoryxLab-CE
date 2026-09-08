@@ -1173,14 +1173,21 @@ func workspaceBootstrapScript(
 	return strings.Join(lines, "\n")
 }
 
-func continueDeveloperAssistantConfig(publicURL, token string) string {
+// The names in this file are what a person reads in the IDE's assistant panel.
+// Branding is runtime configuration (ADR-015), so they follow the installation
+// rather than saying Noryx on a platform called something else.
+func continueDeveloperAssistantConfig(publicURL, token, productName string) string {
 	apiBase := strings.TrimRight(strings.TrimSpace(publicURL), "/") + "/api/v1/assistant/developer/v1"
+	product := strings.TrimSpace(productName)
+	if product == "" {
+		product = "Noryx"
+	}
 	return strings.Join([]string{
-		"name: Noryx Workspace",
+		"name: " + product + " Workspace",
 		"version: 0.0.1",
 		"schema: v1",
 		"models:",
-		"  - name: Noryx Assistant",
+		"  - name: " + product + " Assistant",
 		"    provider: openai",
 		"    model: noryx-workspace",
 		"    apiBase: " + yamlSingleQuoted(apiBase),
@@ -1196,9 +1203,9 @@ func continueDeveloperAssistantConfig(publicURL, token string) string {
 		"  - provider: code",
 		"  - provider: diff",
 		"rules:",
-		"  - Always respect Noryx workspace boundaries. You may use Continue tools inside the current workspace filesystem only, including /mnt, /repos, and /datasets when present.",
+		"  - Always respect " + product + " workspace boundaries. You may use Continue tools inside the current workspace filesystem only, including /mnt, /repos, and /datasets when present.",
 		"  - When the user asks about Git, repositories, commits, or pushes, inspect /repos and the relevant .git directory before saying a repository or remote is unavailable.",
-		"  - Git credentials are provisioned by Noryx when a repository is attached to the project; use normal git commands from the repository directory instead of asking the user for credentials.",
+		"  - Git credentials are provisioned by " + product + " when a repository is attached to the project; use normal git commands from the repository directory instead of asking the user for credentials.",
 		"  - Do not ask for secrets, credentials, host paths, Kubernetes access, platform internals, or data from other workspaces.",
 	}, "\n")
 }

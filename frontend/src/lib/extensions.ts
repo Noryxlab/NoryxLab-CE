@@ -58,6 +58,11 @@ export interface ExtensionHost {
   };
   locale: 'fr' | 'en';
   edition: 'ce' | 'ee';
+  /** What this installation is called. Branding is runtime configuration
+   *  (ADR-015): the same Enterprise bundle serves every customer, and the next
+   *  one is not called Premyom. An extension that hard-codes a product name
+   *  brands somebody else's platform wrong. */
+  productName: string;
   /** Escapes text for safe insertion into innerHTML. */
   escapeHTML: (value: unknown) => string;
   notify: (message: string, tone?: 'info' | 'success' | 'warning' | 'error') => void;
@@ -154,6 +159,7 @@ export function createHost(
     },
     locale,
     edition: config.edition,
+    productName: config.brand.productName,
     escapeHTML,
     notify,
   };
