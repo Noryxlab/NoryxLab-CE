@@ -10,6 +10,18 @@ cleanup() {
     kill "$port_forward_pid" 2>/dev/null || true
   fi
 }
+
+diagnose_failure() {
+  echo "=== Kubernetes smoke diagnostics ===" >&2
+  kubectl -n "$NAMESPACE" get pods -o wide >&2 || true
+  kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp >&2 || true
+  for pod in $(kubectl -n "$NAMESPACE" get pods -o name 2>/dev/null); do
+    kubectl -n "$NAMESPACE" describe "$pod" >&2 || true
+    kubectl -n "$NAMESPACE" logs "$pod" --all-containers --tail=100 >&2 || true
+  done
+}
+
+trap diagnose_failure ERR
 trap cleanup EXIT
 
 kubectl kustomize deploy/k8s/ci >/dev/null
