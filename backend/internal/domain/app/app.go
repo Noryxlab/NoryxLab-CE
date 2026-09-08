@@ -32,6 +32,11 @@ type App struct {
 	Published            bool       `json:"published"`
 	ActiveRevision       int        `json:"activeRevision,omitempty"`
 	PublishedAt          *time.Time `json:"publishedAt,omitempty"`
+	// HardwareTier is what the app was launched with. The column has existed
+	// since apps did and was never written or read, so a running application
+	// held a pod that counted for nothing in its project's consumption or its
+	// quota - an app was free, and only an app.
+	HardwareTier string `json:"hardwareTier,omitempty"`
 }
 
 type Revision struct {

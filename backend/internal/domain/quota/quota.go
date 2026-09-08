@@ -46,6 +46,10 @@ type Usage struct {
 	MemoryGiB  float64 `json:"memoryGib"`
 	Workspaces int     `json:"workspaces"`
 	Jobs       int     `json:"jobs"`
+	// Apps are counted because they hold a pod for as long as they are
+	// published. They were not, so an application consumed a project's cluster
+	// share without appearing anywhere in its consumption.
+	Apps int `json:"apps"`
 }
 
 // Refusal explains which limit stops a launch, in the words an operator needs:

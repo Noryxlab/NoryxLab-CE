@@ -55,6 +55,25 @@ func (h Handlers) projectUsage(projectID string) (quota.Usage, error) {
 			}
 		}
 	}
+	// Apps hold a pod for as long as they are published, and counted for
+	// nothing: the hardware tier they are launched with was never stored, so a
+	// Streamlit application was free and only an application was.
+	if h.appStore != nil {
+		apps, err := h.appStore.List()
+		if err != nil {
+			return usage, err
+		}
+		for _, item := range apps {
+			if item.ProjectID != projectID || !occupiesTheCluster(item.Status) {
+				continue
+			}
+			usage.Apps++
+			if tier, found := h.resolveHardwareTier(item.HardwareTier); found && strings.TrimSpace(item.HardwareTier) != "" {
+				usage.VCPU += cpuCores(tier.CPULimit)
+				usage.MemoryGiB += memoryBytes(tier.MemoryLimit) / (1 << 30)
+			}
+		}
+	}
 	return usage, nil
 }
 

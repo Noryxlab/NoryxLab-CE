@@ -348,6 +348,8 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	record.AccessMode = req.AccessMode
 	record.AllowedUsers = normalizeAppSubjects(req.AllowedUsers)
 	record.AllowedOrganizations = normalizeAppSubjects(req.AllowedOrganizations)
+	// Kept, so the app's share of the cluster can be counted while it runs.
+	record.HardwareTier = tier.ID
 	if kind == "dashboard" {
 		record.AccessMode = "project"
 	}

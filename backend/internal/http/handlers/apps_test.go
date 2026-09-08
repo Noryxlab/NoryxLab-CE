@@ -3,6 +3,9 @@ package handlers
 import (
 	"strings"
 	"testing"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
 func TestNormalizeAppSlugRemovesAccents(t *testing.T) {
@@ -44,5 +47,32 @@ func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
 	// And it runs from the project, where the file it names actually is.
 	if !strings.Contains(script, "cd /mnt") {
 		t.Fatalf("the app does not start in the project directory:\n%s", script)
+	}
+}
+
+// An application holds a pod for as long as it is published, and held it for
+// free: the hardware tier it was launched with was never stored, so it counted
+// for nothing in its project's consumption or against its quota. Workspaces and
+// jobs were counted all along - an app was the one workload that was invisible.
+func TestProjectUsageCountsRunningApps(t *testing.T) {
+	apps := memory.NewAppStore()
+	record := app.NewWithKind("app", "project-1", "meteo", "meteo", "image", nil, nil, 8501, "pod", "svc", "/apps/meteo")
+	record.Status = "running"
+	record.HardwareTier = "small"
+	if err := apps.Create(record); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	h := Handlers{
+		appStore:          apps,
+		workspaceStore:    memory.NewWorkspaceStore(),
+		hardwareTierStore: memory.NewHardwareTierStore(),
+	}
+	usage, err := h.projectUsage("project-1")
+	if err != nil {
+		t.Fatalf("usage: %v", err)
+	}
+	if usage.Apps != 1 {
+		t.Fatalf("project usage counts %d apps, want 1", usage.Apps)
 	}
 }
