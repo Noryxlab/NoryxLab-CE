@@ -1120,6 +1120,8 @@ func workspaceBootstrapScript(
 			"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 			"fi",
 			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+			// pip --user puts console scripts here, and this was missing too.
+			"export PATH=$HOME/.local/bin:$PATH",
 			ideCommandPrefix+"openvscode-server \\",
 			"  --host 0.0.0.0 \\",
 			"  --port 8888 \\",
@@ -1158,6 +1160,8 @@ func workspaceBootstrapScript(
 		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 		"fi",
 		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+		// pip --user puts console scripts here, and this was missing too.
+		"export PATH=$HOME/.local/bin:$PATH",
 		ideCommandPrefix+"python3 -m jupyterlab \\",
 		"  --ip=0.0.0.0 \\",
 		"  --port=8888 \\",

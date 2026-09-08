@@ -552,10 +552,22 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 	userLaunch = strings.TrimSpace(userLaunch)
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
 	lines = append(lines,
+		// Where the requirements were just installed.
+		//
+		// Without this the platform installed streamlit and then ran a command
+		// that could not find it: pip puts console scripts in the project venv
+		// and in ~/.local/bin, neither of which is on PATH by default. The
+		// workspace bootstrap has always done this; the app bootstrap did not,
+		// so the same requirements.txt worked in a workspace and failed in an
+		// app with "streamlit: not found" - after installing streamlit.
+		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+		"export PATH=$HOME/.local/bin:$PATH",
 		fmt.Sprintf("export PORT=%d NORYX_APP_PORT=%d", port, port),
 		"if [ -n "+shellQuote(userLaunch)+" ]; then",
 		"  echo '[bootstrap] using UI command entrypoint'",
-		"  "+userLaunch,
+		// exec: the command becomes the container's process, so a stop signal
+		// reaches the server instead of the shell that started it.
+		"  exec "+userLaunch,
 		"elif [ -f /mnt/app.sh ]; then",
 		"  echo '[bootstrap] using /mnt/app.sh entrypoint'",
 		"  chmod +x /mnt/app.sh || true",
