@@ -40,6 +40,20 @@ components:
       name: X-Noryx-User
 
   schemas:
+    WorkspaceStartupStep:
+      type: object
+      properties:
+        key: { type: string }
+        state: { type: string }
+        detail: { type: string }
+        technical: { type: string }
+    WorkspaceStartup:
+      type: object
+      properties:
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/WorkspaceStartupStep' }
+        stuck: { type: boolean }
     ProjectTokenResponse:
       type: object
       properties:
@@ -6155,6 +6169,32 @@ paths:
       responses:
         '204':
           description: Endpoint removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workspaces/{workspaceID}/startup:
+    get:
+      tags: [Workloads]
+      summary: Get Workspace Startup
+      operationId: getWorkspaceStartup
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workspaceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Where the workspace is in its start
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceStartup'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

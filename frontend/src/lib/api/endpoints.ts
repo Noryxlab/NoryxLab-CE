@@ -43,6 +43,7 @@ import type {
   ModuleInfo,
   DatasetUsage,
   LogsResponse,
+  WorkspaceStartup,
   ProjectToken,
   Ontology,
   OntologyAccess,
@@ -190,6 +191,8 @@ export const projectVariablesApi = {
 };
 
 export const workspacesApi = {
+  startup: (workspaceId: string) =>
+    api.get<WorkspaceStartup>(`${V1}/workspaces/${workspaceId}/startup`),
   list: (projectId?: string) =>
     api.list<Workspace>(`${V1}/workspaces`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateWorkspaceInput) => api.post<Workspace>(`${V1}/workspaces`, input),

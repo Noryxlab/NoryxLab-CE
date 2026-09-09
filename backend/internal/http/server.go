@@ -101,6 +101,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/workspaces", h.ListWorkspaces)
 	mux.HandleFunc("POST /api/v1/workspaces", h.CreateWorkspace)
 	mux.HandleFunc("DELETE /api/v1/workspaces/{workspaceID}", h.DeleteWorkspace)
+	// Where a workspace is in its start, and where it stopped if it stopped.
+	mux.HandleFunc("GET /api/v1/workspaces/{workspaceID}/startup", h.GetWorkspaceStartup)
 	mux.HandleFunc("GET /api/v1/jobs", h.ListJobs)
 	mux.HandleFunc("POST /api/v1/jobs", h.CreateJob)
 	mux.HandleFunc("GET /api/v1/jobs/{jobID}/logs", h.GetJobLogs)

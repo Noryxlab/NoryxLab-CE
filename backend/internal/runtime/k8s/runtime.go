@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -442,6 +443,51 @@ func (r *Runtime) DeletePod(name string) error {
 		return fmt.Errorf("pod name is required")
 	}
 	return r.delete(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, name))
+}
+
+// GetPodEvents reads what Kubernetes recorded about a pod: scheduling, image
+// pulls, volume attachments and their failures. It is the only place that says
+// why a pod is not starting - the pod's own status shows "Pending" and nothing
+// more.
+func (r *Runtime) GetPodEvents(name string) ([]noryxruntime.PodEvent, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("pod name is required")
+	}
+	body, err := r.get(fmt.Sprintf(
+		"/api/v1/namespaces/%s/events?fieldSelector=involvedObject.name=%s&limit=50",
+		r.workloadNamespace, url.QueryEscape(name)))
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Items []struct {
+			Reason        string `json:"reason"`
+			Message       string `json:"message"`
+			Type          string `json:"type"`
+			Count         int    `json:"count"`
+			LastTimestamp string `json:"lastTimestamp"`
+			EventTime     string `json:"eventTime"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	events := make([]noryxruntime.PodEvent, 0, len(payload.Items))
+	for _, item := range payload.Items {
+		event := noryxruntime.PodEvent{
+			Reason: item.Reason, Message: item.Message, Type: item.Type, Count: item.Count,
+		}
+		for _, stamp := range []string{item.LastTimestamp, item.EventTime} {
+			if parsed, err := time.Parse(time.RFC3339, stamp); err == nil {
+				event.At = parsed
+				break
+			}
+		}
+		events = append(events, event)
+	}
+	sort.Slice(events, func(i, j int) bool { return events[i].At.Before(events[j].At) })
+	return events, nil
 }
 
 func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {

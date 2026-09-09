@@ -1012,3 +1012,19 @@ export interface ProjectToken {
   lastUsedAt?: string | null;
 }
 
+/** Où en est le démarrage d'un workspace, et où il s'est arrêté. Cinq étapes
+ *  plutôt qu'une traduction de Kubernetes : personne ne devrait avoir à lire
+ *  des événements de pod pour savoir que c'est le stockage qui coince. */
+export interface WorkspaceStartupStep {
+  key: 'requested' | 'scheduled' | 'image' | 'storage' | 'environment';
+  state: 'done' | 'running' | 'failed' | 'waiting';
+  detail?: string;
+  technical?: string;
+}
+
+export interface WorkspaceStartup {
+  steps: WorkspaceStartupStep[];
+  /** Le démarrage ne progressera pas tout seul : inutile d'attendre. */
+  stuck: boolean;
+}
+

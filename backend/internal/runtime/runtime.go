@@ -188,6 +188,22 @@ type PodStatus struct {
 	StartedAt    time.Time `json:"startedAt,omitempty"`
 }
 
+// PodEvent is one thing Kubernetes recorded about a pod, in its own words. The
+// translation into something a person can act on happens above this layer.
+type PodEvent struct {
+	Reason  string    `json:"reason"`
+	Message string    `json:"message"`
+	Type    string    `json:"type"`
+	At      time.Time `json:"at"`
+	Count   int       `json:"count"`
+}
+
+// PodEventReader is optional: a runtime that cannot report events still runs
+// workloads, it just cannot explain why one is not starting.
+type PodEventReader interface {
+	GetPodEvents(name string) ([]PodEvent, error)
+}
+
 type PodOperator interface {
 	GetPodStatus(name string) (PodStatus, error)
 	GetPodLogs(name string, tailLines int) (string, error)

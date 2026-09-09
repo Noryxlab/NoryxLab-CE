@@ -53,6 +53,7 @@ export const qk = {
   cronJobs: (projectId?: string) => ['cronjobs', projectId ?? 'all'] as const,
   apps: (projectId?: string) => ['apps', projectId ?? 'all'] as const,
   appLogs: (appId: string) => ['apps', 'logs', appId] as const,
+  workspaceStartup: (id: string) => ['workspaces', id, 'startup'] as const,
   appUsage: (appId: string) => ['apps', appId, 'usage'] as const,
   projectUsage: (projectId: string) => ['projects', projectId, 'usage'] as const,
   appRevisions: (appId: string) => ['apps', appId, 'revisions'] as const,
@@ -287,6 +288,16 @@ export const useAppRevisions = (appId: string | undefined) =>
     queryKey: qk.appRevisions(appId ?? ''),
     queryFn: () => appsApi.revisions(appId as string),
     enabled: Boolean(appId),
+  });
+
+/** Interrogé tant que le workspace n'est pas prêt : c'est pendant l'attente que
+ *  la question « où ça en est » se pose. */
+export const useWorkspaceStartup = (workspaceId: string | undefined, enabled = true) =>
+  useQuery({
+    queryKey: qk.workspaceStartup(workspaceId ?? ''),
+    queryFn: () => workspacesApi.startup(workspaceId as string),
+    enabled: Boolean(workspaceId) && enabled,
+    refetchInterval: ({ state }) => (state.data?.stuck ? false : 4000),
   });
 
 export function useApis(projectId: string | undefined) {

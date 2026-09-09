@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/toast';
 import { useWorkspaces, qk, useInvalidate } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
+import { WorkspaceStartup } from '@/features/workspaces/workspace-startup';
 import { formatDuration, formatQuantity } from '@/lib/format';
 import { presentIde } from '@/lib/presenters';
 import { LaunchWorkspaceSheet } from '@/features/workspaces/launch-sheet';
@@ -83,6 +84,9 @@ function WorkspaceCard({
           {t('workspaces.stop')}
         </Button>
       </CardFooter>
+      {/* Pendant l'attente seulement : une fois ouvert, il n'y a plus rien à
+          expliquer, et le panneau se retire. */}
+      {!running ? <WorkspaceStartup workspaceId={workspace.id} ready={running} /> : null}
     </Card>
   );
 }
