@@ -992,6 +992,7 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 		&item.Published,
 		&item.ActiveRevision,
 		&item.PublishedAt,
+		&item.HardwareTier,
 	)
 	if err == sql.ErrNoRows {
 		return app.App{}, false, nil
@@ -1035,6 +1036,7 @@ func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 		&item.Published,
 		&item.ActiveRevision,
 		&item.PublishedAt,
+		&item.HardwareTier,
 	)
 	if err == sql.ErrNoRows {
 		return app.App{}, false, nil

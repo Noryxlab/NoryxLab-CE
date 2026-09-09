@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -240,6 +242,31 @@ func TestAWorkspaceSurvivesAWriteAndReadBack(t *testing.T) {
 	for _, candidate := range all {
 		if candidate.ID == item.ID && candidate.ImageDigest != "sha256:1234" {
 			t.Errorf("the listing lost the digest: %q", candidate.ImageDigest)
+		}
+	}
+}
+
+// Every column a query selects must have somewhere to land.
+//
+// Adding `hardware_tier` to the app queries without adding its scan destination
+// made GetAppBySlug fail for every call, which took the whole application proxy
+// down: a deployed app answered 500, and nothing was logged because the handler
+// turned the scan error into "failed to read app". The compiler cannot catch
+// this - Scan takes a variadic list of `any` - so a test counts instead.
+func TestAppQueriesScanEveryColumnTheySelect(t *testing.T) {
+	source, err := os.ReadFile("store.go")
+	if err != nil {
+		t.Fatalf("read store.go: %v", err)
+	}
+	queries := regexp.MustCompile("SELECT ([^`]*?) FROM apps").FindAllStringSubmatch(string(source), -1)
+	if len(queries) == 0 {
+		t.Fatal("no app query found: this test has stopped testing anything")
+	}
+	for _, query := range queries {
+		columns := strings.Count(query[1], ",") + 1
+		if columns < 22 {
+			t.Fatalf("an app query selects %d columns; the record has 22 fields to fill:\n%s",
+				columns, query[0])
 		}
 	}
 }
