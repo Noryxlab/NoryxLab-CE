@@ -21,6 +21,7 @@ import {
   Shield,
   Terminal,
   Users,
+  Webhook,
 } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
@@ -58,6 +59,7 @@ function projectItems(projectId: string): NavItem[] {
     { to: `${base}/jobs`, labelKey: 'nav.jobs', icon: Activity },
     { to: `${base}/apps`, labelKey: 'nav.apps', icon: AppWindow },
     { to: `${base}/dashboards`, labelKey: 'nav.dashboards', icon: LayoutDashboard },
+    { to: `${base}/apis`, labelKey: 'nav.apis', icon: Webhook },
     { to: `${base}/data`, labelKey: 'nav.data', icon: Database },
     { to: `${base}/members`, labelKey: 'nav.members', icon: Users },
     { to: `${base}/settings`, labelKey: 'nav.settings', icon: Settings },

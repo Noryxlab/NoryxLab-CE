@@ -13,12 +13,17 @@ import (
 )
 
 func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
-	isDashboardRoute := strings.HasPrefix(r.URL.Path, "/dashboards/")
+	// Three natures behind one proxy: an application with a face, a dashboard,
+	// and an endpoint another system calls. They differ in what the platform
+	// shows around them, not in how a request reaches them - so the routing is
+	// the same and only the prefix changes.
 	expectedKind := "app"
 	forwardedPrefix := "/apps/"
-	if isDashboardRoute {
-		expectedKind = "dashboard"
-		forwardedPrefix = "/dashboards/"
+	switch {
+	case strings.HasPrefix(r.URL.Path, "/dashboards/"):
+		expectedKind, forwardedPrefix = "dashboard", "/dashboards/"
+	case strings.HasPrefix(r.URL.Path, "/apis/"):
+		expectedKind, forwardedPrefix = "api", "/apis/"
 	}
 
 	slug := normalizeAppSlug(r.PathValue("slug"))

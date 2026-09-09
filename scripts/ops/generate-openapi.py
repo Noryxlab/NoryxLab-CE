@@ -243,6 +243,8 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("DELETE", "/api/v1/cohorts/{cohortID}"): ("204", "Cohort removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
+    ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
+    ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
     ("GET", "/api/v1/datasets/{datasetID}/usage"): ("200", "How much the dataset holds", "application/json", "DatasetUsage"),
     ("GET", "/api/v1/cohorts/{cohortID}/members"): ("200", "The files the cohort froze", "application/json", "CohortMembersResponse"),
@@ -400,6 +402,7 @@ def property_lines(go_type, indent):
 FAMILIES = [
     ("/api/v1/apps", "App", "internal/domain/app", {"App": "App"}),
     ("/api/v1/dashboards", "App", "internal/domain/app", {"App": "App"}),
+    ("/api/v1/apis", "App", "internal/domain/app", {"App": "App"}),
     ("/api/v1/jobs", "Job", "internal/domain/job", {"Job": "Job"}),
     ("/api/v1/cronjobs", "Job", "internal/domain/job", {"Job": "Job"}),
     ("/api/v1/datasources", "Datasource", "internal/domain/datasource", {"Datasource": "Datasource"}),

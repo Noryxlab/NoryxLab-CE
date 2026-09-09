@@ -56,7 +56,7 @@ import type { App, AppRevision } from '@/lib/api/types';
 
 interface AppListProps {
   projectId: string;
-  variant: 'app' | 'dashboard';
+  variant: 'app' | 'dashboard' | 'api';
   data: App[] | undefined;
   isLoading: boolean;
   isError: boolean;

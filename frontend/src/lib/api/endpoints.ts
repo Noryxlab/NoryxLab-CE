@@ -43,6 +43,7 @@ import type {
   ModuleInfo,
   DatasetUsage,
   LogsResponse,
+  ProjectToken,
   Ontology,
   OntologyAccess,
   OntologyManifestSummary,
@@ -272,6 +273,26 @@ export const dashboardsApi = {
     api.list<App>(`${V1}/dashboards`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateAppInput & { slug: string }) => api.post<App>(`${V1}/dashboards`, input),
   remove: (dashboardId: string) => api.delete<void>(`${V1}/dashboards/${dashboardId}`),
+};
+
+/** Un endpoint appelé par une autre application. Même charge qu'une app ;
+ *  ce qui change est que personne ne l'ouvre dans un navigateur. */
+export const apisApi = {
+  list: (projectId?: string) =>
+    api.list<App>(`${V1}/apis`, projectId ? { params: { projectId } } : undefined),
+  create: (input: CreateAppInput & { slug: string }) => api.post<App>(`${V1}/apis`, input),
+  remove: (apiId: string) => api.delete<void>(`${V1}/apis/${apiId}`),
+};
+
+export const projectTokensApi = {
+  list: (projectId: string) => api.list<ProjectToken>(`${V1}/projects/${projectId}/tokens`),
+  create: (projectId: string, input: { name: string; expiresInDays?: number }) =>
+    api.post<{ token: ProjectToken; secret: string; note: string }>(
+      `${V1}/projects/${projectId}/tokens`,
+      input,
+    ),
+  remove: (projectId: string, tokenId: string) =>
+    api.delete<void>(`${V1}/projects/${projectId}/tokens/${tokenId}`),
 };
 
 export const productionApi = {

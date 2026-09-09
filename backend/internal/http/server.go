@@ -82,6 +82,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/dashboards", h.ListDashboards)
 	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
 	mux.HandleFunc("DELETE /api/v1/dashboards/{dashboardID}", h.DeleteDashboard)
+	// An endpoint another system calls. Same workload as an application; what
+	// differs is that nobody opens it in a browser, so the platform shows a
+	// call example rather than a preview.
+	mux.HandleFunc("GET /api/v1/apis", h.ListAPIs)
+	mux.HandleFunc("POST /api/v1/apis", h.CreateAPI)
+	mux.HandleFunc("DELETE /api/v1/apis/{apiID}", h.DeleteAPI)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/dockerfile", h.GetBuildDockerfile)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/logs", h.GetBuildLogs)
 	mux.HandleFunc("GET /api/v1/environments", h.ListEnvironments)
@@ -183,6 +189,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 		mux.HandleFunc(method+" /apps/{slug}/{path...}", h.ProxyApp)
 		mux.HandleFunc(method+" /dashboards/{slug}", h.ProxyApp)
 		mux.HandleFunc(method+" /dashboards/{slug}/{path...}", h.ProxyApp)
+		mux.HandleFunc(method+" /apis/{slug}", h.ProxyApp)
+		mux.HandleFunc(method+" /apis/{slug}/{path...}", h.ProxyApp)
 	}
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("POST /api/v1/admin/users", h.CreateUserAccount)

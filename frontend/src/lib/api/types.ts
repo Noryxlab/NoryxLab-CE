@@ -997,3 +997,18 @@ export interface LogsResponse {
   unavailable?: string;
 }
 
+/** Un jeton qui appartient au projet et non à une personne : il survit au
+ *  départ de celui qui l'a créé, et ne sait qu'appeler les applications de son
+ *  projet. */
+export interface ProjectToken {
+  id: string;
+  userId: string;
+  projectId: string;
+  name: string;
+  scopes?: string[];
+  createdAt: string;
+  expiresAt?: string | null;
+  revokedAt?: string | null;
+  lastUsedAt?: string | null;
+}
+

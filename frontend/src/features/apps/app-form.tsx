@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { useEnvironments, useHardwareTiers, useOrganizations, qk, useInvalidate } from '@/lib/api/queries';
-import { appsApi, dashboardsApi, type AppAccessMode } from '@/lib/api/endpoints';
+import { apisApi, appsApi, dashboardsApi, type AppAccessMode } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { findFramework, formatCommand, frameworkOptions, presentTier } from '@/lib/presenters';
 import { slugify } from '@/lib/format';
@@ -33,6 +33,18 @@ import { slugify } from '@/lib/format';
  * derived, shown read-only as a preview, and still editable through the
  * "custom command" option for the cases that need it.
  */
+type AppVariant = 'app' | 'dashboard' | 'api';
+
+const titleKey = (variant: AppVariant = 'app') =>
+  variant === 'dashboard' ? 'dashboards.title' : variant === 'api' ? 'apis.title' : 'apps.title';
+
+const createTitleKey = (variant: AppVariant = 'app') =>
+  variant === 'dashboard'
+    ? 'dashboards.createTitle'
+    : variant === 'api'
+      ? 'apis.create'
+      : 'apps.createTitle';
+
 export function CreateAppSheet({
   projectId,
   open,
@@ -42,7 +54,7 @@ export function CreateAppSheet({
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  variant?: 'app' | 'dashboard';
+  variant?: 'app' | 'dashboard' | 'api';
 }) {
   const t = useT();
   const { locale } = useI18n();
@@ -130,17 +142,19 @@ export function CreateAppSheet({
         // Required by the API whenever access is scoped to an organisation.
         ...(accessMode === 'organization' ? { allowedOrganizations: [allowedOrganization] } : {}),
       };
-      return variant === 'dashboard'
-        ? dashboardsApi.create({ ...payload, slug: slug.trim() })
-        : appsApi.create(payload);
+      // Les trois natures partagent la charge et le formulaire ; seul le point
+      // de création diffère, parce que c'est lui qui fixe l'adresse publique.
+      if (variant === 'dashboard') return dashboardsApi.create({ ...payload, slug: slug.trim() });
+      if (variant === 'api') return apisApi.create({ ...payload, slug: slug.trim() });
+      return appsApi.create(payload);
     },
     onSuccess: () => {
-      invalidate(qk.apps(projectId), qk.dashboards(projectId), qk.projects, qk.production);
+      invalidate(qk.apps(projectId), qk.dashboards(projectId), qk.apis(projectId), qk.projects, qk.production);
       onOpenChange(false);
-      toast.success(name.trim(), variant === 'dashboard' ? t('dashboards.title') : t('apps.title'));
+      toast.success(name.trim(), t(titleKey(variant)));
     },
     onError: (error) =>
-      toast.error(error, variant === 'dashboard' ? t('dashboards.createTitle') : t('apps.createTitle')),
+      toast.error(error, t(createTitleKey(variant))),
   });
 
   return (
@@ -156,7 +170,7 @@ export function CreateAppSheet({
         >
           <SheetHeader>
             <SheetTitle>
-              {variant === 'dashboard' ? t('dashboards.createTitle') : t('apps.createTitle')}
+              {t(createTitleKey(variant))}
             </SheetTitle>
             <SheetDescription>
               {variant === 'dashboard' ? t('dashboards.createHint') : t('apps.createHint')}

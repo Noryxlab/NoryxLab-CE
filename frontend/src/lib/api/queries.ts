@@ -4,7 +4,9 @@ import {
   adminApi,
   appsApi,
   cronJobsApi,
+  apisApi,
   dashboardsApi,
+  projectTokensApi,
   datasetsApi,
   datasourcesApi,
   egressApi,
@@ -55,6 +57,8 @@ export const qk = {
   projectUsage: (projectId: string) => ['projects', projectId, 'usage'] as const,
   appRevisions: (appId: string) => ['apps', appId, 'revisions'] as const,
   dashboards: (projectId?: string) => ['dashboards', projectId ?? 'all'] as const,
+  apis: (projectId?: string) => ['apis', projectId ?? 'all'] as const,
+  projectTokens: (projectId: string) => ['projects', projectId, 'tokens'] as const,
   production: ['production', 'apps'] as const,
 
   datasets: ['datasets'] as const,
@@ -283,6 +287,22 @@ export const useAppRevisions = (appId: string | undefined) =>
     queryKey: qk.appRevisions(appId ?? ''),
     queryFn: () => appsApi.revisions(appId as string),
     enabled: Boolean(appId),
+  });
+
+export function useApis(projectId: string | undefined) {
+  return useQuery({
+    queryKey: qk.apis(projectId),
+    queryFn: () => apisApi.list(projectId),
+    enabled: Boolean(projectId),
+    refetchInterval: ({ state }) => pollWhilePending(state.data),
+  });
+}
+
+export const useProjectTokens = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectTokens(projectId ?? ''),
+    queryFn: () => projectTokensApi.list(projectId as string),
+    enabled: Boolean(projectId),
   });
 
 export function useDashboards(projectId: string | undefined) {

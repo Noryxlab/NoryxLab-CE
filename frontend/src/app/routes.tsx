@@ -9,6 +9,7 @@ import { WorkspacesPage } from '@/routes/project/workspaces';
 import { JobsPage } from '@/routes/project/jobs';
 import { AppsPage } from '@/routes/project/apps';
 import { DashboardsPage } from '@/routes/project/dashboards';
+import { ApisPage } from '@/routes/project/apis';
 import { ProjectDataPage } from '@/routes/project/data';
 import { ProjectMembersPage } from '@/routes/project/members';
 import { ProjectSettingsPage } from '@/routes/project/settings';
@@ -41,6 +42,7 @@ export function AppRoutes() {
             <Route path="jobs" element={<JobsPage />} />
             <Route path="apps" element={<AppsPage />} />
             <Route path="dashboards" element={<DashboardsPage />} />
+            <Route path="apis" element={<ApisPage />} />
             <Route path="data" element={<ProjectDataPage />} />
             <Route path="data/:section" element={<ProjectDataPage />} />
             {/* Environments moved to the catalogue: they are platform-wide,

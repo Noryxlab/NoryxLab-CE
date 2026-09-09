@@ -6098,3 +6098,66 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/apis:
+    get:
+      tags: [Platform]
+      summary: List A P Is
+      operationId: listAPIs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: Create A P I
+      operationId: createAPI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Endpoint deployed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apis/{apiID}:
+    delete:
+      tags: [Platform]
+      summary: Delete A P I
+      operationId: deleteAPI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: apiID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Endpoint removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

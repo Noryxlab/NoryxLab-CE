@@ -37,6 +37,10 @@ func (h Handlers) ListDashboards(w http.ResponseWriter, r *http.Request) {
 	h.listAppsByKind(w, r, "dashboard")
 }
 
+func (h Handlers) ListAPIs(w http.ResponseWriter, r *http.Request) {
+	h.listAppsByKind(w, r, "api")
+}
+
 func (h Handlers) listAppsByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
@@ -218,6 +222,10 @@ func (h Handlers) CreateDashboard(w http.ResponseWriter, r *http.Request) {
 	h.createAppByKind(w, r, "dashboard")
 }
 
+func (h Handlers) CreateAPI(w http.ResponseWriter, r *http.Request) {
+	h.createAppByKind(w, r, "api")
+}
+
 func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -318,8 +326,13 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	podName := prefix + "-" + shortID()
 	serviceName := podName
 	accessURL := "/apps/" + req.Slug + "/"
-	if kind == "dashboard" {
+	switch kind {
+	case "dashboard":
 		accessURL = "/dashboards/" + req.Slug + "/"
+	case "api":
+		// No trailing slash: this address is pasted into another system's
+		// configuration, and a caller appends its own path to it.
+		accessURL = "/apis/" + req.Slug
 	}
 
 	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
@@ -468,6 +481,10 @@ func (h Handlers) DeleteApp(w http.ResponseWriter, r *http.Request) {
 
 func (h Handlers) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
 	h.deleteAppByKind(w, r, "dashboard")
+}
+
+func (h Handlers) DeleteAPI(w http.ResponseWriter, r *http.Request) {
+	h.deleteAppByKind(w, r, "api")
 }
 
 func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
