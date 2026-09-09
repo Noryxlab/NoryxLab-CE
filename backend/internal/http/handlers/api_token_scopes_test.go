@@ -86,3 +86,41 @@ func TestUnknownScopesAreRefusedRatherThanDropped(t *testing.T) {
 		t.Errorf("scopes must be trimmed and deduplicated, got %v", got)
 	}
 }
+
+// A token handed to another system reaches the deployed applications and
+// nothing else. The other scopes inherit a blanket read - a person automating
+// their own work must be able to read what they started - but an invoking
+// credential has no business listing projects or reading dataset metadata, and
+// an auditor who finds that it could stops reading there.
+func TestInvokeTokenReachesApplicationsAndNothingElse(t *testing.T) {
+	invoke := []string{"invoke"}
+	allowed := [][2]string{
+		{"POST", "/apps/scoring"},
+		{"POST", "/apps/scoring/v1/predict"},
+		{"GET", "/dashboards/reporting"},
+	}
+	for _, call := range allowed {
+		if !apitoken.Permits(invoke, call[0], call[1]) {
+			t.Fatalf("invoke refused %s %s", call[0], call[1])
+		}
+	}
+	refused := [][2]string{
+		{"GET", "/api/v1/projects"},
+		{"GET", "/api/v1/datasets"},
+		{"POST", "/api/v1/workspaces"},
+		{"GET", "/api/v1/admin/users"},
+	}
+	for _, call := range refused {
+		if apitoken.Permits(invoke, call[0], call[1]) {
+			t.Fatalf("invoke allowed %s %s, which is not an application", call[0], call[1])
+		}
+	}
+}
+
+// Combined with another scope it stops being invoke-only, and the ordinary
+// rules apply again: someone who asked for both meant both.
+func TestInvokeCombinedWithReadKeepsTheOrdinaryRules(t *testing.T) {
+	if !apitoken.Permits([]string{"invoke", "read"}, "GET", "/api/v1/projects") {
+		t.Fatal("invoke+read should still read")
+	}
+}

@@ -201,6 +201,10 @@ func (s *Store) migrate(ctx context.Context) error {
 		// scopes existed is - and must remain, or an upgrade breaks a pipeline
 		// nobody connected to this change.
 		`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS scopes TEXT NOT NULL DEFAULT ''`,
+		// A token that belongs to a project rather than to the person who made
+		// it. Empty is the ordinary personal token, which is every token that
+		// existed before this column.
+		`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS builds (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,

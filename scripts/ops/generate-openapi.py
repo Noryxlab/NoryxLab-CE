@@ -133,6 +133,7 @@ EXTRA_SCHEMAS = [
 # reference to another schema, `[$Name]` an array of them.
 ENVELOPES = {
     "HealthResponse": {"status": "string"},
+    "ProjectTokenResponse": {"token": "$ApiToken", "secret": "string", "note": "string"},
     "DatasetUsage": {
         "objects": "integer",
         "totalBytes": "integer",
@@ -241,6 +242,8 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("DELETE", "/api/v1/cohorts/{cohortID}"): ("204", "Cohort removed", None, None),
+    ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
+    ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
     ("GET", "/api/v1/datasets/{datasetID}/usage"): ("200", "How much the dataset holds", "application/json", "DatasetUsage"),
     ("GET", "/api/v1/cohorts/{cohortID}/members"): ("200", "The files the cohort froze", "application/json", "CohortMembersResponse"),
     ("POST", "/api/v1/ontologies/{ontologyID}/cohorts"): ("201", "Cohort created", "application/json", "Cohort"),
@@ -404,6 +407,7 @@ FAMILIES = [
     ("/api/v1/cohorts", "Cohort", "internal/domain/cohort", {"Cohort": "Cohort", "Member": "CohortMember"}),
     ("/api/v1/ontologies/{ontologyID}/cohorts", "Cohort", "internal/domain/cohort", {"Cohort": "Cohort"}),
     ("/api/v1/user/api-tokens", "ApiToken", "internal/domain/apitoken", {"Token": "ApiToken"}),
+    ("/api/v1/projects/{projectID}/tokens", "ApiToken", "internal/domain/apitoken", {"Token": "ApiToken"}),
     ("/api/v1/admin/hardware-tiers", "AdminHardwareTier", "internal/domain/hardware", {"Tier": "AdminHardwareTier"}),
     ("/api/v1/admin/backups/runs", "BackupRun", "internal/domain/backup", {"Run": "BackupRun"}),
     ("/api/v1/egress", "EgressRule", "internal/domain/egress", {"Rule": "EgressRule"}),

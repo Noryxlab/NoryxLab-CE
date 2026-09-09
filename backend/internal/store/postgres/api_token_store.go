@@ -15,10 +15,10 @@ func (s *APITokenStore) Put(token apitoken.Token) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err := s.Store.db.ExecContext(ctx, `
-		INSERT INTO api_tokens (id, user_id, name, secret_hash, created_at, expires_at, scopes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		INSERT INTO api_tokens (id, user_id, name, secret_hash, created_at, expires_at, scopes, project_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		token.ID, token.UserID, token.Name, token.SecretHash, token.CreatedAt.UTC(), token.ExpiresAt,
-		strings.Join(token.Scopes, ","))
+		strings.Join(token.Scopes, ","), token.ProjectID)
 	return err
 }
 
@@ -26,7 +26,7 @@ func (s *APITokenStore) Get(id string) (apitoken.Token, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	row := s.Store.db.QueryRowContext(ctx, `
-		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes, project_id
 		FROM api_tokens WHERE id = $1`, id)
 	token, err := scanToken(row)
 	if err == sql.ErrNoRows {
@@ -39,7 +39,7 @@ func (s *APITokenStore) ListByUser(userID string) ([]apitoken.Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	rows, err := s.Store.db.QueryContext(ctx, `
-		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes, project_id
 		FROM api_tokens WHERE user_id = $1 ORDER BY created_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func scanToken(row scanner) (apitoken.Token, error) {
 	var expiresAt, revokedAt, lastUsedAt sql.NullTime
 	var scopes string
 	if err := row.Scan(&token.ID, &token.UserID, &token.Name, &token.SecretHash,
-		&token.CreatedAt, &expiresAt, &revokedAt, &lastUsedAt, &scopes); err != nil {
+		&token.CreatedAt, &expiresAt, &revokedAt, &lastUsedAt, &scopes, &token.ProjectID); err != nil {
 		return apitoken.Token{}, err
 	}
 	if trimmed := strings.TrimSpace(scopes); trimmed != "" {
@@ -110,7 +110,7 @@ func (s *APITokenStore) ListAll() ([]apitoken.Token, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	rows, err := s.Store.db.QueryContext(ctx, `
-		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes
+		SELECT id, user_id, name, secret_hash, created_at, expires_at, revoked_at, last_used_at, scopes, project_id
 		FROM api_tokens ORDER BY created_at`)
 	if err != nil {
 		return nil, err

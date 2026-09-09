@@ -120,6 +120,22 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
 		return false
 	}
+	// A project token reaches its own project's applications, and stops there.
+	//
+	// This is the credential another system holds, so it is checked before
+	// anything that could widen it: it never becomes an administrator, and it
+	// never inherits the rights of the person who created it. If the token
+	// belongs to project A, an application of project B answers as if the token
+	// were unknown.
+	if project := strings.TrimSpace(identity.TokenProjectID); project != "" {
+		if project == strings.TrimSpace(record.ProjectID) {
+			return true
+		}
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "this token belongs to another project",
+		})
+		return false
+	}
 	if h.isGlobalAdmin(identity) {
 		return true
 	}

@@ -187,7 +187,7 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 		return auth.Identity{}, false
 	}
 	h.touchAPIToken(token, now)
-	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}, Scopes: token.Scopes}, true
+	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}, Scopes: token.Scopes, TokenProjectID: token.ProjectID}, true
 }
 
 // touchAPIToken records use at most once a minute. Without the interval a busy

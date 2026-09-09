@@ -19,6 +19,16 @@ import "time"
 type Token struct {
 	ID     string `json:"id"`
 	UserID string `json:"userId"`
+	// ProjectID marks a token that belongs to a project rather than to the
+	// person who created it.
+	//
+	// A personal token dies with its owner: the day a developer leaves, every
+	// endpoint their token was calling stops answering, and nobody connects the
+	// two events. That is tolerable for a handful of scripts and untenable for
+	// a system where other applications are the callers - which is what an API
+	// endpoint is for. A project token outlives whoever created it and is
+	// revoked by name, not by chasing a departure.
+	ProjectID string `json:"projectId,omitempty"`
 	// Name is what the owner called it, so revoking the right one does not
 	// require guessing. "gitlab-ci" beats "token 3".
 	Name      string    `json:"name"`

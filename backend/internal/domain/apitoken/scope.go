@@ -28,6 +28,12 @@ const (
 	ScopeWorkspaces Scope = "workspaces"
 	// ScopeJobs allows running jobs and builds - the CI case.
 	ScopeJobs Scope = "jobs"
+	// ScopeInvoke allows calling the deployed applications of one project, and
+	// nothing else on the platform. It is the scope a caller in another system
+	// needs: an application asking a model for a score has no business starting
+	// a workspace or reading a dataset, and an auditor who sees that it could
+	// stops reading there.
+	ScopeInvoke Scope = "invoke"
 	// ScopeFull is what every token had before scopes existed: everything its
 	// owner may do. Kept explicit so an unrestricted token is a choice
 	// somebody made rather than a default nobody noticed.
@@ -37,7 +43,7 @@ const (
 // AllScopes is what an interface offers, in the order it should offer them:
 // least dangerous first.
 func AllScopes() []Scope {
-	return []Scope{ScopeRead, ScopeWorkspaces, ScopeJobs, ScopeFull}
+	return []Scope{ScopeRead, ScopeInvoke, ScopeWorkspaces, ScopeJobs, ScopeFull}
 }
 
 // ValidScope reports whether a string names a scope this platform knows. An
@@ -90,6 +96,19 @@ func Permits(scopes []string, method, path string) bool {
 			return true
 		}
 	}
+
+	// Invoke is the one scope that does not inherit the blanket read.
+	//
+	// The others belong to a person automating their own work, and refusing
+	// them the right to read the result of what they just started would only
+	// push them back to an unrestricted token. An invoke token is different: it
+	// is handed to another system, which has no business listing projects or
+	// reading dataset metadata. So a token that holds invoke and nothing else
+	// reaches the deployed applications and nothing at all besides.
+	if onlyInvoke(scopes) {
+		return underAny(path, "/apps", "/dashboards")
+	}
+
 	if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
 		return true
 	}
@@ -102,6 +121,10 @@ func Permits(scopes []string, method, path string) bool {
 			}
 		case ScopeJobs:
 			if underAny(path, "/api/v1/jobs", "/api/v1/builds", "/api/v1/cronjobs") {
+				return true
+			}
+		case ScopeInvoke:
+			if underAny(path, "/apps", "/dashboards") {
 				return true
 			}
 		}
@@ -131,4 +154,19 @@ func underAny(path string, prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+// onlyInvoke reports that a token was given the calling scope and no other, so
+// it can be held to the applications alone.
+func onlyInvoke(scopes []string) bool {
+	found := false
+	for _, scope := range scopes {
+		switch Scope(scope) {
+		case ScopeInvoke:
+			found = true
+		default:
+			return false
+		}
+	}
+	return found
 }

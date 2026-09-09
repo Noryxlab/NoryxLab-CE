@@ -180,6 +180,17 @@ func (h Handlers) identityFromSessionOrBearerNoWrite(r *http.Request) (auth.Iden
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)
 	if token != "" {
+		// A platform token, before asking the identity provider about something
+		// it never issued.
+		//
+		// This path is what makes a deployed application callable by another
+		// system. Until now the proxy accepted only a browser session or an
+		// OIDC bearer, so an endpoint could be deployed and then reached by
+		// nobody but a person with a browser - which is not what an endpoint is
+		// for.
+		if identity, ok := h.identityFromAPIToken(token); ok {
+			return identity, true
+		}
 		if h.authVerifier == nil {
 			return auth.Identity{}, false
 		}

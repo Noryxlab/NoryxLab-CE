@@ -207,6 +207,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/organization-roles", h.ListProjectOrganizationRoles)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/organization-roles/{organizationID}", h.SetProjectOrganizationRole)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/organization-roles/{organizationID}", h.DeleteProjectOrganizationRole)
+	// Tokens that belong to a project, for callers that are not people.
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/tokens", h.ListProjectTokens)
+	mux.HandleFunc("POST /api/v1/projects/{projectID}/tokens", h.CreateProjectToken)
+	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/tokens/{tokenID}", h.DeleteProjectToken)
 	mux.HandleFunc("GET /api/v1/user/api-tokens", h.ListAPITokens)
 	mux.HandleFunc("POST /api/v1/user/api-tokens", h.CreateAPIToken)
 	mux.HandleFunc("DELETE /api/v1/user/api-tokens/{tokenID}", h.DeleteAPIToken)

@@ -11,6 +11,10 @@ type Identity struct {
 	// Empty means unrestricted: a browser session, an OIDC bearer, or a token
 	// created before scopes existed.
 	Scopes []string
+	// TokenProjectID is set when the caller authenticated with a token that
+	// belongs to a project rather than to a person. It is what keeps an
+	// invoking credential inside the project that issued it.
+	TokenProjectID string
 }
 
 func (i Identity) UserID() string {

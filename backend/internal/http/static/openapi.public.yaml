@@ -44,6 +44,12 @@ components:
       name: X-Noryx-User
 
   schemas:
+    ProjectTokenResponse:
+      type: object
+      properties:
+        token: { $ref: '#/components/schemas/ApiToken' }
+        secret: { type: string }
+        note: { type: string }
     DatasetUsage:
       type: object
       properties:
@@ -5532,6 +5538,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetUsage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/tokens:
+    get:
+      tags: [Projects]
+      summary: List Project Tokens
+      operationId: listProjectTokens
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Projects]
+      summary: Create Project Token
+      operationId: createProjectToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Token created; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/tokens/{tokenID}:
+    delete:
+      tags: [Projects]
+      summary: Delete Project Token
+      operationId: deleteProjectToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: tokenID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Token revoked
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
