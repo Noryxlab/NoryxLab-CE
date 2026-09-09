@@ -91,6 +91,14 @@ func (h Handlers) enrichAppRuntimeStatus(item app.App) app.App {
 				item.Status = "launching"
 			case "running":
 				item.Status = "unhealthy"
+			case "unknown":
+				// Kubernetes says it cannot reach the pod's node, so it does not
+				// know whether the application is alive. Left unhandled, this
+				// case fell through and the stored value survived: applications
+				// whose node had been gone for forty-four days were still
+				// reported as running, and a call to them answered 502 from a
+				// screen that said everything was fine.
+				item.Status = "unchecked"
 			}
 		} else if isNotFoundError(err) {
 			item.Status = "stopped"
@@ -395,12 +403,21 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		}
 		volumes = append(volumes, datasetVolumes...)
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
-			PodName:                 podName,
-			Image:                   record.Image,
-			Command:                 command,
-			Args:                    args,
-			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
-			Ports:                   []int{record.Port},
+			PodName: podName,
+			Image:   record.Image,
+			Command: command,
+			Args:    args,
+			Env:     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
+			Ports:   []int{record.Port},
+			// The service only routes here once something answers on the port.
+			//
+			// Without it, an application is an endpoint of its service from the
+			// instant the container starts - which is minutes before anything
+			// listens, because the dependencies are installed first. Every call
+			// in that window reached a closed port and came back as a connection
+			// refused, and the platform had no way to tell "starting" from
+			// "broken" because Kubernetes reported the pod as running either way.
+			ReadinessPort:           record.Port,
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,
 			MemRequest:              tier.MemoryRequest,

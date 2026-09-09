@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
+	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
@@ -74,5 +75,41 @@ func TestProjectUsageCountsRunningApps(t *testing.T) {
 	}
 	if usage.Apps != 1 {
 		t.Fatalf("project usage counts %d apps, want 1", usage.Apps)
+	}
+}
+
+// An application whose node Kubernetes cannot reach is not a running one.
+//
+// The phase switch handled failed, succeeded, pending and running, and let
+// "unknown" fall through - so the stored value survived and applications whose
+// node had been gone for weeks were still reported as running. A call to them
+// answered 502 from a screen that said everything was fine, which is the worst
+// combination: the platform asserting health it has no evidence for.
+// L'interface est encastree plutot que reimplementee : le test ne s'interesse
+// qu'a la phase du pod, et toute autre methode appelee par erreur produira une
+// panique explicite au lieu d'un zero silencieux.
+type stubPodStatus struct {
+	noryxruntime.Runner
+	phase string
+}
+
+func (s stubPodStatus) GetPodStatus(string) (noryxruntime.PodStatus, error) {
+	return noryxruntime.PodStatus{Phase: s.phase}, nil
+}
+func (s stubPodStatus) GetPodLogs(string, int) (string, error) { return "", nil }
+func (s stubPodStatus) RestartPod(string) error                { return nil }
+
+func TestUnreachableApplicationIsNotReportedAsRunning(t *testing.T) {
+	for phase, want := range map[string]string{
+		"unknown":   "unchecked",
+		"failed":    "failed",
+		"succeeded": "stopped",
+		"pending":   "launching",
+	} {
+		h := Handlers{runtime: stubPodStatus{phase: phase}}
+		item := h.enrichAppRuntimeStatus(app.App{PodName: "app-1", Status: "running"})
+		if item.Status != want {
+			t.Fatalf("pod phase %q reported as %q, want %q", phase, item.Status, want)
+		}
 	}
 }
