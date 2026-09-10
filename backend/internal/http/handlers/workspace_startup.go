@@ -68,6 +68,27 @@ func (h Handlers) GetWorkspaceStartup(w http.ResponseWriter, r *http.Request) {
 // buildStartupReport turns a pod's phase and its events into the five steps.
 // Kept free of the request so it can be tested on the situations that actually
 // happen, which is how the volume case below was written.
+// mentionsVolume reports whether a scheduling failure is really about storage.
+//
+// Matched on the vocabulary Kubernetes uses rather than on an exact sentence:
+// the wording has changed between versions, and a diagnosis that breaks on an
+// upgrade is a diagnosis nobody can rely on.
+func mentionsVolume(message string) bool {
+	lowered := strings.ToLower(message)
+	for _, marker := range []string{
+		"persistentvolumeclaim",
+		"unbound immediate",
+		"volume node affinity",
+		"had volume node affinity conflict",
+		"volume attachment",
+	} {
+		if strings.Contains(lowered, marker) {
+			return true
+		}
+	}
+	return false
+}
+
 func buildStartupReport(recorded string, status noryxruntime.PodStatus, events []noryxruntime.PodEvent) startupReport {
 	report := startupReport{Steps: []startupStep{
 		{Key: "requested", State: "done"},
@@ -90,9 +111,33 @@ func buildStartupReport(recorded string, status noryxruntime.PodStatus, events [
 		case "Scheduled":
 			at("scheduled").State = "done"
 		case "FailedScheduling":
-			at("scheduled").State = "failed"
-			at("scheduled").Detail = "no_capacity"
-			at("scheduled").Technical = event.Message
+			// Kubernetes reports a pod waiting on a volume as unschedulable,
+			// which is true and useless: the reader is told the cluster is
+			// full when a dataset volume is the thing that failed. It says so
+			// in the message - "unbound immediate PersistentVolumeClaims" -
+			// so the message is what decides which step failed.
+			//
+			// This mattered more than a wording detail. A researcher whose
+			// dataset could not be provisioned was told to wait for capacity
+			// that was already there, and a confidently wrong cause is worse
+			// than none: it sends everybody, humans and any assistant reading
+			// this report, after the wrong thing.
+			if mentionsVolume(event.Message) {
+				at("storage").State = "failed"
+				at("storage").Detail = "storage_unavailable"
+				at("storage").Technical = event.Message
+			} else {
+				at("scheduled").State = "failed"
+				at("scheduled").Detail = "no_capacity"
+				at("scheduled").Technical = event.Message
+			}
+			report.Stuck = true
+		case "ProvisioningFailed":
+			// The volume was never created, so there is nothing to attach and
+			// FailedMount will never come.
+			at("storage").State = "failed"
+			at("storage").Detail = "storage_unavailable"
+			at("storage").Technical = event.Message
 			report.Stuck = true
 		case "Pulling":
 			at("scheduled").State = "done"

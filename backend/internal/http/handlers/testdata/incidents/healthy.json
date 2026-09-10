@@ -1,0 +1,46 @@
+{
+  "events": [
+    {
+      "at": "2026-09-09T20:00:46.569926Z",
+      "count": 1,
+      "message": "Successfully assigned noryx-incidents/healthy to noryxlab-master",
+      "reason": "Scheduled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T20:00:46Z",
+      "count": 1,
+      "message": "Container image \"busybox:1.36\" already present on machine",
+      "reason": "Pulled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T20:00:47Z",
+      "count": 1,
+      "message": "Created container workload",
+      "reason": "Created",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T20:00:47Z",
+      "count": 1,
+      "message": "Started container workload",
+      "reason": "Started",
+      "type": "Normal"
+    }
+  ],
+  "expect": {
+    "detail": "",
+    "step": "environment",
+    "stuck": false
+  },
+  "id": "healthy",
+  "label": "A workspace that starts normally",
+  "recorded": "launching",
+  "status": {
+    "message": "",
+    "phase": "Running",
+    "reason": "",
+    "restartCount": 0
+  }
+}

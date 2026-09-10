@@ -1,0 +1,60 @@
+{
+  "events": [
+    {
+      "at": "2026-09-09T19:54:26.571767Z",
+      "count": 1,
+      "message": "Successfully assigned noryx-incidents/image-unavailable to noryxlab-master",
+      "reason": "Scheduled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:54:26Z",
+      "count": 1,
+      "message": "Pulling image \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\"",
+      "reason": "Pulling",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:54:27Z",
+      "count": 1,
+      "message": "Failed to pull image \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\": failed to pull and unpack image \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\": failed to resolve reference \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\": pull access denied, repository does not exist or may require authorization: authorization failed: no basic auth credentials",
+      "reason": "Failed",
+      "type": "Warning"
+    },
+    {
+      "at": "2026-09-09T19:54:27Z",
+      "count": 1,
+      "message": "Error: ErrImagePull",
+      "reason": "Failed",
+      "type": "Warning"
+    },
+    {
+      "at": "2026-09-09T19:54:27Z",
+      "count": 1,
+      "message": "Back-off pulling image \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\"",
+      "reason": "BackOff",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:54:27Z",
+      "count": 1,
+      "message": "Error: ImagePullBackOff",
+      "reason": "Failed",
+      "type": "Warning"
+    }
+  ],
+  "expect": {
+    "detail": "image_unavailable",
+    "step": "image",
+    "stuck": true
+  },
+  "id": "image-unavailable",
+  "label": "The environment image does not exist in the registry",
+  "recorded": "launching",
+  "status": {
+    "message": "failed to pull and unpack image \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\": failed to resolve reference \"harbor.lan/noryx-environments/noryx-vscode:does-not-exist\": pull access denied, repository does not exist or may require authorization: authorization failed: no basic auth credentials",
+    "phase": "Pending",
+    "reason": "ErrImagePull",
+    "restartCount": 0
+  }
+}

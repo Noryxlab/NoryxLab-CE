@@ -1,0 +1,53 @@
+{
+  "events": [
+    {
+      "at": "2026-09-09T19:58:41.125775Z",
+      "count": 1,
+      "message": "Successfully assigned noryx-incidents/environment-restarting to noryxlab-master",
+      "reason": "Scheduled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:59:24Z",
+      "count": 4,
+      "message": "Container image \"busybox:1.36\" already present on machine",
+      "reason": "Pulled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:59:24Z",
+      "count": 4,
+      "message": "Created container workload",
+      "reason": "Created",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:59:24Z",
+      "count": 4,
+      "message": "Started container workload",
+      "reason": "Started",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:59:25Z",
+      "count": 4,
+      "message": "Back-off restarting failed container workload in pod environment-restarting_noryx-incidents(71da0352-9bbc-46ad-b5ac-4b6c91c69687)",
+      "reason": "BackOff",
+      "type": "Warning"
+    }
+  ],
+  "expect": {
+    "detail": "environment_restarting",
+    "step": "environment",
+    "stuck": true
+  },
+  "id": "environment-restarting",
+  "label": "The environment restarts in a loop",
+  "recorded": "launching",
+  "status": {
+    "message": "",
+    "phase": "Running",
+    "reason": "Error",
+    "restartCount": 3
+  }
+}

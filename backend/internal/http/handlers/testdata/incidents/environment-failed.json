@@ -1,0 +1,46 @@
+{
+  "events": [
+    {
+      "at": "2026-09-09T19:58:35.536315Z",
+      "count": 1,
+      "message": "Successfully assigned noryx-incidents/environment-failed to noryxlab-master",
+      "reason": "Scheduled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:58:35Z",
+      "count": 1,
+      "message": "Container image \"busybox:1.36\" already present on machine",
+      "reason": "Pulled",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:58:35Z",
+      "count": 1,
+      "message": "Created container workload",
+      "reason": "Created",
+      "type": "Normal"
+    },
+    {
+      "at": "2026-09-09T19:58:36Z",
+      "count": 1,
+      "message": "Started container workload",
+      "reason": "Started",
+      "type": "Normal"
+    }
+  ],
+  "expect": {
+    "detail": "environment_failed",
+    "step": "environment",
+    "stuck": true
+  },
+  "id": "environment-failed",
+  "label": "The environment starts and exits immediately",
+  "recorded": "launching",
+  "status": {
+    "message": "",
+    "phase": "Failed",
+    "reason": "Error",
+    "restartCount": 0
+  }
+}

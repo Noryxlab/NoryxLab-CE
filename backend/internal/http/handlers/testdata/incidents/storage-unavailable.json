@@ -1,0 +1,32 @@
+{
+  "events": [
+    {
+      "at": "2026-09-09T19:54:33.450838Z",
+      "count": 1,
+      "message": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+      "reason": "FailedScheduling",
+      "type": "Warning"
+    },
+    {
+      "at": "2026-09-09T19:58:29Z",
+      "count": 17,
+      "message": "storageclass.storage.k8s.io \"does-not-exist\" not found",
+      "reason": "ProvisioningFailed",
+      "type": "Warning"
+    }
+  ],
+  "expect": {
+    "detail": "storage_unavailable",
+    "step": "storage",
+    "stuck": true
+  },
+  "id": "storage-unavailable",
+  "label": "A dataset volume that can never be attached",
+  "recorded": "launching",
+  "status": {
+    "message": "",
+    "phase": "Pending",
+    "reason": "",
+    "restartCount": 0
+  }
+}
