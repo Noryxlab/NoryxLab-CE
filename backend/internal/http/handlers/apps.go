@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"golang.org/x/text/unicode/norm"
@@ -162,24 +164,200 @@ func (h Handlers) GetAppLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RestartApp relaunches an application from what the platform knows about it,
+// rather than from the pod that happens to be running.
+//
+// It used to read the live pod and put it back. Two consequences, both met in
+// production on the same afternoon:
+//
+//   - an application that had been *stopped* could never start again. Stopping
+//     deletes the pod, so the read failed and the restart answered 502 forever.
+//     The only way back was to delete the application and recreate it, losing
+//     its identity and its history.
+//   - a restart reused the dataset volumes exactly as they were. The S3
+//     endpoint is resolved to an address when the volume is written, because
+//     the mounter runs on the host and cannot resolve cluster DNS; when the
+//     MinIO service was recreated with a new address, every restart rebuilt a
+//     pod pointing at an address nobody answered. The button that exists to
+//     repair an application could not repair that one.
+//
+// Relaunching from the record fixes both: the volumes are re-resolved the way
+// creation resolves them, and nothing depends on a pod still being there.
 func (h Handlers) RestartApp(w http.ResponseWriter, r *http.Request) {
-	record, userID, ok := h.requireAppOperation(w, r, "app restart")
+	h.restartAppByKind(w, r, "app")
+}
+
+// RestartDashboard is the same operation for a dashboard.
+//
+// Dashboards had no restart at all - no stop, no logs, no revisions either -
+// so a dashboard whose pod died could only be deleted and recreated, under a
+// new identity. They are the same workload as an application and now share its
+// lifecycle.
+func (h Handlers) RestartDashboard(w http.ResponseWriter, r *http.Request) {
+	h.restartAppByKind(w, r, "dashboard")
+}
+
+// RestartAPI is the same operation for a deployed endpoint.
+func (h Handlers) RestartAPI(w http.ResponseWriter, r *http.Request) {
+	h.restartAppByKind(w, r, "api")
+}
+
+func (h Handlers) restartAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	record, userID, ok := h.requireAppOperation(w, r, kind+" restart")
 	if !ok {
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "app restart is not supported by runtime"})
 		return
 	}
-	if err := operator.RestartPod(record.PodName); err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to restart app: " + err.Error()})
+	if h.runtime == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "restart is not supported by runtime"})
+		return
+	}
+	if err := h.relaunchApp(record, identity, userID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to restart: " + err.Error()})
 		return
 	}
 	record.Status = "launching"
 	_ = h.appStore.Upsert(record)
-	h.emitAudit(r, userID, "app.restart", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
+	h.emitAudit(r, userID, record.Kind+".restart", record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{"name": record.Name})
 	writeJSON(w, http.StatusAccepted, record)
+}
+
+// waitForPodToDisappear blocks until the pod's name is free again.
+//
+// Bounded: a pod that will not go is a condition to report, not one to wait on
+// forever while a caller holds a request open.
+func (h Handlers) waitForPodToDisappear(podName string) error {
+	operator, ok := h.runtime.(noryxruntime.PodOperator)
+	if !ok {
+		return nil
+	}
+	deadline := time.Now().Add(podDeletionTimeout)
+	for {
+		if _, err := operator.GetPodStatus(podName); err != nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the previous instance is still terminating after %s", podDeletionTimeout)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// podDeletionTimeout is generous: a container with a long stop hook legitimately
+// takes seconds, and the alternative to waiting is a restart that fails.
+const podDeletionTimeout = 45 * time.Second
+
+// relaunchApp rebuilds the workload from the stored record.
+//
+// The bootstrap script itself is reused rather than regenerated: the record
+// keeps the generated script, not the command the user typed, so regenerating
+// it is not possible. What must be rebuilt is everything around it - above all
+// the dataset volumes, whose endpoint goes stale.
+func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID string) error {
+	tier, _ := h.resolveHardwareTier(record.HardwareTier)
+
+	_, attachedDatasets, err := h.resolveProjectWorkspaceResources(record.ProjectID, identity, true)
+	if err != nil {
+		return fmt.Errorf("resolve project resources: %w", err)
+	}
+	datasourceEnv, err := h.resolveProjectDatasourceEnv(record.ProjectID, userID)
+	if err != nil {
+		return fmt.Errorf("resolve project datasources: %w", err)
+	}
+	userSecretData, err := h.workloadEnvData(record.ProjectID, userID)
+	if err != nil {
+		return fmt.Errorf("resolve user secrets: %w", err)
+	}
+
+	userSecretName := record.PodName + "-user-secrets"
+	if len(userSecretData) > 0 {
+		if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+			Name: userSecretName,
+			Data: userSecretData,
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "noryx-workload-user-secrets",
+				"noryx.io/app-id":        record.ID,
+			},
+		}); err != nil {
+			return fmt.Errorf("user secret: %w", err)
+		}
+	}
+	volumes, err := h.ensureProjectVolume(record.ProjectID)
+	if err != nil {
+		return fmt.Errorf("project volume: %w", err)
+	}
+	// The reason this function exists: the endpoint is re-resolved here.
+	datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
+	if err != nil {
+		return fmt.Errorf("dataset mounts: %w", err)
+	}
+	volumes = append(volumes, datasetVolumes...)
+
+	// Deleting first, and tolerating its absence: a stopped application has no
+	// pod, and that is the case this whole function exists to serve.
+	_ = h.runtime.DeletePod(record.PodName)
+	// And waiting for it to be gone. Deletion is asynchronous: the pod keeps
+	// its name while it terminates, so recreating it immediately came back as
+	// "already exists" and the restart failed with a 409 wrapped in a 502 -
+	// which reads like a broken cluster and is nothing but impatience.
+	if err := h.waitForPodToDisappear(record.PodName); err != nil {
+		return err
+	}
+
+	if err := h.runtime.CreatePod(noryxruntime.PodSpec{
+		PodName:                 record.PodName,
+		Image:                   record.Image,
+		Command:                 record.Command,
+		Args:                    record.Args,
+		Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
+		Ports:                   []int{record.Port},
+		ReadinessPort:           record.Port,
+		CPURequest:              tier.CPURequest,
+		CPULimit:                tier.CPULimit,
+		MemRequest:              tier.MemoryRequest,
+		MemLimit:                tier.MemoryLimit,
+		EphemeralStorageRequest: tier.EphemeralStorageRequest,
+		EphemeralStorageLimit:   tier.EphemeralStorageLimit,
+		PullSecret:              h.registryPullSecret,
+		Volumes:                 volumes,
+		Labels: map[string]string{
+			"app.kubernetes.io/name": "noryx-app",
+			"noryx.io/project-id":    record.ProjectID,
+			"noryx.io/app-id":        record.ID,
+			"noryx.io/app-kind":      record.Kind,
+			"noryx.io/app-slug":      record.Slug,
+			"noryx.io/app-pod":       record.PodName,
+			"noryx.io/hardware-tier": tier.ID,
+		},
+	}); err != nil {
+		return fmt.Errorf("pod: %w", err)
+	}
+
+	// The service outlives a stop, so it is normally already there - and an
+	// application restarted after its service was removed must come back whole.
+	// Both cases are the same instruction: make sure it exists.
+	//
+	// Its presence is therefore not an error. Treating the conflict as a
+	// failure meant a restart recreated the pod, failed on the service that was
+	// fine, and reported a broken cluster while leaving the application
+	// half-relaunched.
+	err = h.runtime.CreateService(noryxruntime.ServiceSpec{
+		Name:     record.ServiceName,
+		Selector: map[string]string{"noryx.io/app-pod": record.PodName},
+		Port:     record.Port,
+	})
+	if err != nil && !isAlreadyExists(err) {
+		return fmt.Errorf("service: %w", err)
+	}
+	return nil
+}
+
+// isAlreadyExists reports the one Kubernetes refusal that means "nothing to do".
+func isAlreadyExists(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "status=409")
 }
 
 func (h Handlers) StopApp(w http.ResponseWriter, r *http.Request) {
@@ -202,19 +380,59 @@ func (h Handlers) StopApp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, record)
 }
 
+// kindFromRoute names the workload kind the matched route addresses, taken
+// from which id segment the route declared.
+func kindFromRoute(r *http.Request) string {
+	switch {
+	case strings.TrimSpace(r.PathValue("dashboardID")) != "":
+		return "dashboard"
+	case strings.TrimSpace(r.PathValue("apiID")) != "":
+		return "api"
+	case strings.TrimSpace(r.PathValue("appID")) != "":
+		return "app"
+	}
+	return ""
+}
+
+// requireAppOperation resolves the workload an operation addresses.
+//
+// It reads whichever id the route carries, because the three kinds are the same
+// workload under three names and each has its own path segment. It used to read
+// only "appID", which is why a dashboard or an API route could never have found
+// its own record even once its handler existed.
 func (h Handlers) requireAppOperation(w http.ResponseWriter, r *http.Request, operation string) (app.App, string, bool) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
 		return app.App{}, "", false
 	}
-	record, found, err := h.appStore.GetByID(strings.TrimSpace(r.PathValue("appID")))
+	id := ""
+	for _, name := range []string{"appID", "dashboardID", "apiID"} {
+		if value := strings.TrimSpace(r.PathValue(name)); value != "" {
+			id = value
+			break
+		}
+	}
+	record, found, err := h.appStore.GetByID(id)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read app"})
 		return app.App{}, "", false
 	}
-	if !found || (strings.TrimSpace(record.Kind) != "" && record.Kind != "app") {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "app not found"})
+	if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 		return app.App{}, "", false
+	}
+	// The route says which kind it addresses, and a record of another kind is
+	// not found rather than refused: /api/v1/dashboards/<id of an app> must not
+	// operate on that application.
+	if expectedKind := kindFromRoute(r); expectedKind != "" {
+		actual := strings.TrimSpace(record.Kind)
+		if actual == "" {
+			actual = "app"
+		}
+		if actual != expectedKind {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+			return app.App{}, "", false
+		}
 	}
 	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, operation) {
 		return app.App{}, "", false
@@ -253,7 +471,15 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	if req.AccessMode == "" {
 		req.AccessMode = "private"
 	}
-	if req.AccessMode != "public" && req.AccessMode != "organization" && req.AccessMode != "users" && req.AccessMode != "private" {
+	// A dashboard's access is decided below, not by the caller, so its value is
+	// not judged here.
+	//
+	// The platform stored every dashboard as "project" and then refused that
+	// same value on the way in, which made a stored dashboard impossible to
+	// recreate from what the platform itself had recorded about it.
+	if kind == "dashboard" {
+		req.AccessMode = "project"
+	} else if req.AccessMode != "public" && req.AccessMode != "organization" && req.AccessMode != "users" && req.AccessMode != "private" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "accessMode must be public, organization, users, or private"})
 		return
 	}
@@ -360,8 +586,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	}
 
 	command := []string{"/bin/sh", "-lc"}
-	userLaunch := strings.TrimSpace(strings.Join(append(req.Command, req.Args...), " "))
-	bootstrapScript := appBootstrapScript(req.Port, userLaunch, attachedRepos)
+	bootstrapScript := appBootstrapScript(req.Port, append(append([]string{}, req.Command...), req.Args...), attachedRepos)
 	args := []string{bootstrapScript}
 
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
@@ -579,7 +804,26 @@ func normalizeAppSlug(raw string) string {
 	return out
 }
 
-func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAttachedRepo) string {
+// appBootstrapScript writes the script the container runs.
+//
+// launchArgv is the launch command as *words*, which is what both callers
+// actually hold: the form splits what the user typed on whitespace, and the
+// API takes command and args as arrays. Joining them into one line and letting
+// the shell split it again lost every word boundary that mattered - an
+// application declared as {"command":["/bin/sh","-lc"],"args":["FOO=1 run.sh"]}
+// became `exec /bin/sh -lc FOO=1 run.sh`, where sh takes only the first word as
+// its command string. It ran the assignment, exited 0, and the platform showed
+// a container that had "succeeded".
+// boolShell renders a constant test, so the branch is decided here rather than
+// by a string comparison the shell has to redo at every launch.
+func boolShell(yes bool) string {
+	if yes {
+		return "true"
+	}
+	return "false"
+}
+
+func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspaceAttachedRepo) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -604,7 +848,12 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 	}
-	userLaunch = strings.TrimSpace(userLaunch)
+	launch := make([]string, 0, len(launchArgv))
+	for _, word := range launchArgv {
+		if strings.TrimSpace(word) != "" {
+			launch = append(launch, shellQuote(word))
+		}
+	}
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
 	lines = append(lines,
 		// Where the requirements were just installed.
@@ -627,11 +876,12 @@ func appBootstrapScript(port int, userLaunch string, attachedRepos []workspaceAt
 		// served /mnt and /mnt/app.sh was already the other entrypoint; the
 		// user's own command was the one case that did not get the same footing.
 		fmt.Sprintf("cd %s || true", workspaceProjectMountPath),
-		"if [ -n "+shellQuote(userLaunch)+" ]; then",
+		"if [ "+boolShell(len(launch) > 0)+" ]; then",
 		"  echo '[bootstrap] using UI command entrypoint'",
 		// exec: the command becomes the container's process, so a stop signal
-		// reaches the server instead of the shell that started it.
-		"  exec "+userLaunch,
+		// reaches the server instead of the shell that started it. Each word is
+		// quoted, so a word carrying spaces stays one word.
+		"  exec "+strings.Join(launch, " "),
 		"elif [ -f /mnt/app.sh ]; then",
 		"  echo '[bootstrap] using /mnt/app.sh entrypoint'",
 		"  chmod +x /mnt/app.sh || true",

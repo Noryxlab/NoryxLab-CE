@@ -81,12 +81,21 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/production/apps", h.ListProductionApps)
 	mux.HandleFunc("GET /api/v1/dashboards", h.ListDashboards)
 	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
+	// The same lifecycle as an application: a dashboard is the same workload,
+	// and having only create and delete meant one whose pod died could never be
+	// brought back - only deleted and rebuilt under a new identity.
+	mux.HandleFunc("GET /api/v1/dashboards/{dashboardID}/logs", h.GetAppLogs)
+	mux.HandleFunc("POST /api/v1/dashboards/{dashboardID}/restart", h.RestartDashboard)
+	mux.HandleFunc("POST /api/v1/dashboards/{dashboardID}/stop", h.StopApp)
 	mux.HandleFunc("DELETE /api/v1/dashboards/{dashboardID}", h.DeleteDashboard)
 	// An endpoint another system calls. Same workload as an application; what
 	// differs is that nobody opens it in a browser, so the platform shows a
 	// call example rather than a preview.
 	mux.HandleFunc("GET /api/v1/apis", h.ListAPIs)
 	mux.HandleFunc("POST /api/v1/apis", h.CreateAPI)
+	mux.HandleFunc("GET /api/v1/apis/{apiID}/logs", h.GetAppLogs)
+	mux.HandleFunc("POST /api/v1/apis/{apiID}/restart", h.RestartAPI)
+	mux.HandleFunc("POST /api/v1/apis/{apiID}/stop", h.StopApp)
 	mux.HandleFunc("DELETE /api/v1/apis/{apiID}", h.DeleteAPI)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/dockerfile", h.GetBuildDockerfile)
 	mux.HandleFunc("GET /api/v1/builds/{buildID}/logs", h.GetBuildLogs)

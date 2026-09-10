@@ -5724,3 +5724,159 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/apis/{apiID}/logs:
+    get:
+      tags: [Platform]
+      summary: Get App Logs
+      operationId: getAppLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: apiID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apis/{apiID}/restart:
+    post:
+      tags: [Platform]
+      summary: Restart A P I
+      operationId: restartAPI
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: apiID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apis/{apiID}/stop:
+    post:
+      tags: [Platform]
+      summary: Stop App
+      operationId: stopApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: apiID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dashboards/{dashboardID}/logs:
+    get:
+      tags: [Workloads]
+      summary: Get App Logs
+      operationId: getAppLogs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: dashboardID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dashboards/{dashboardID}/restart:
+    post:
+      tags: [Workloads]
+      summary: Restart Dashboard
+      operationId: restartDashboard
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: dashboardID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/dashboards/{dashboardID}/stop:
+    post:
+      tags: [Workloads]
+      summary: Stop App
+      operationId: stopApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: dashboardID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

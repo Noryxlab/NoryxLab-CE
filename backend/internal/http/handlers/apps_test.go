@@ -31,7 +31,7 @@ func TestNormalizeAppSlugRemovesAccents(t *testing.T) {
 // the app one never did, which is why the same file worked in one and not the
 // other.
 func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
-	script := appBootstrapScript(8501, "streamlit run app.py --server.port 8501", nil)
+	script := appBootstrapScript(8501, []string{"streamlit", "run", "app.py", "--server.port", "8501"}, nil)
 	for _, expected := range []string{
 		"export PATH=/mnt/.venv/bin:$PATH",
 		"export PATH=$HOME/.local/bin:$PATH",
@@ -42,7 +42,7 @@ func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
 	}
 	// The launch command becomes the container's process, so a stop signal
 	// reaches the server rather than the shell that started it.
-	if !strings.Contains(script, "exec streamlit run app.py") {
+	if !strings.Contains(script, "exec 'streamlit' 'run' 'app.py'") {
 		t.Fatalf("the launch command is not exec'd:\n%s", script)
 	}
 	// And it runs from the project, where the file it names actually is.
@@ -111,5 +111,38 @@ func TestUnreachableApplicationIsNotReportedAsRunning(t *testing.T) {
 		if item.Status != want {
 			t.Fatalf("pod phase %q reported as %q, want %q", phase, item.Status, want)
 		}
+	}
+}
+
+// A launch word carrying spaces stays one word.
+//
+// The bootstrap used to join command and args into a single line and hand it
+// to the shell, which split it again. An application declared the way the API
+// documents it - {"command":["/bin/sh","-lc"],"args":["FOO=1 run.sh"]} - became
+// `exec /bin/sh -lc FOO=1 run.sh`; sh took "FOO=1" as its whole command
+// string, ran an assignment, and exited 0. Kubernetes then reported a
+// container that had "succeeded", and the application never started.
+func TestAppBootstrapKeepsLaunchWordsIntact(t *testing.T) {
+	script := appBootstrapScript(9000, []string{"/bin/sh", "-lc", "FOO=1 exec /repos/app/run.sh"}, nil)
+
+	if !strings.Contains(script, "exec '/bin/sh' '-lc' 'FOO=1 exec /repos/app/run.sh'") {
+		t.Fatalf("the multi-word argument was split by the shell:\n%s", script)
+	}
+	// A quote inside a word must not end the quoting and turn the rest into
+	// shell code.
+	hostile := appBootstrapScript(9000, []string{"sh", "-c", "echo 'a'; rm -rf /"}, nil)
+	if strings.Contains(hostile, "exec 'sh' '-c' 'echo 'a'; rm -rf /'") {
+		t.Fatalf("a quote inside an argument escaped its quoting:\n%s", hostile)
+	}
+}
+
+// An application with no launch command falls through to the other entrypoints.
+func TestAppBootstrapWithoutACommandFallsThrough(t *testing.T) {
+	script := appBootstrapScript(9000, nil, nil)
+	if !strings.Contains(script, "if [ false ]; then") {
+		t.Fatalf("an app with no command must not take the command branch:\n%s", script)
+	}
+	if !strings.Contains(script, "/mnt/app.sh") {
+		t.Fatalf("the /mnt/app.sh fallback is gone:\n%s", script)
 	}
 }

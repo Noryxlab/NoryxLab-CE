@@ -23,6 +23,7 @@ type recordingRuntime struct {
 	mu     sync.Mutex
 	pods   []noryxruntime.PodSpec
 	claims []noryxruntime.PersistentVolumeClaimSpec
+	s3     []noryxruntime.S3VolumeSpec
 	jobs   []noryxruntime.JobSpec
 }
 
@@ -40,13 +41,18 @@ func (r *recordingRuntime) CreatePersistentVolumeClaim(spec noryxruntime.Persist
 	return nil
 }
 
-func (r *recordingRuntime) DeletePersistentVolumeClaim(string) error       { return nil }
-func (r *recordingRuntime) EnsureS3Volume(noryxruntime.S3VolumeSpec) error { return nil }
-func (r *recordingRuntime) DeleteS3Volume(string) error                    { return nil }
-func (r *recordingRuntime) DeletePod(string) error                         { return nil }
-func (r *recordingRuntime) CreateService(noryxruntime.ServiceSpec) error   { return nil }
-func (r *recordingRuntime) DeleteService(string) error                     { return nil }
-func (r *recordingRuntime) CreateBuild(noryxruntime.BuildSpec) error       { return nil }
+func (r *recordingRuntime) DeletePersistentVolumeClaim(string) error { return nil }
+func (r *recordingRuntime) EnsureS3Volume(spec noryxruntime.S3VolumeSpec) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.s3 = append(r.s3, spec)
+	return nil
+}
+func (r *recordingRuntime) DeleteS3Volume(string) error                  { return nil }
+func (r *recordingRuntime) DeletePod(string) error                       { return nil }
+func (r *recordingRuntime) CreateService(noryxruntime.ServiceSpec) error { return nil }
+func (r *recordingRuntime) DeleteService(string) error                   { return nil }
+func (r *recordingRuntime) CreateBuild(noryxruntime.BuildSpec) error     { return nil }
 func (r *recordingRuntime) CreateJob(spec noryxruntime.JobSpec) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

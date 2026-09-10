@@ -39,6 +39,20 @@ func (h Handlers) PublishApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to publish app"})
 		return
 	}
+	// Publishing has to say so on the application itself.
+	//
+	// It only ever wrote the revision, and the production listing filters on
+	// the application's Published flag - so an application could be published,
+	// answer 201, hold its revision, and never appear in production. Only a
+	// rollback set the flag, which meant the state was reachable by undoing
+	// something but not by doing it.
+	record.Published = true
+	record.ActiveRevision = revision.Number
+	record.PublishedAt = &revision.PublishedAt
+	if err := h.appStore.Upsert(record); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to record the publication"})
+		return
+	}
 	h.emitAudit(r, userID, "app.publish", "app", record.ID, record.ProjectID, "success", "", map[string]any{"revision": revision.Number, "name": record.Name})
 	writeJSON(w, http.StatusCreated, revision)
 }
