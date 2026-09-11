@@ -270,3 +270,42 @@ func TestAppQueriesScanEveryColumnTheySelect(t *testing.T) {
 		}
 	}
 }
+
+// A column added to the model has to reach the schema and both queries.
+//
+// The component field was added to the token struct and nowhere else: it was
+// written by the insert, never read back, and every component token came back
+// as a nameless personal one - so the credential authenticated and then failed
+// every authorisation, for a reason nothing in the code pointed at. The field
+// existed, the behaviour did not.
+func TestTokenQueriesCarryTheComponent(t *testing.T) {
+	schema, err := os.ReadFile("store.go")
+	if err != nil {
+		t.Fatalf("read store.go: %v", err)
+	}
+	if !strings.Contains(string(schema), "api_tokens ADD COLUMN IF NOT EXISTS component") {
+		t.Fatal("api_tokens has no component column: a field the schema does not know is written and never read")
+	}
+
+	source, err := os.ReadFile("api_token_store.go")
+	if err != nil {
+		t.Fatalf("read api_token_store.go: %v", err)
+	}
+	text := string(source)
+
+	selects := regexp.MustCompile("(?s)SELECT ([^`]*?)\\s+FROM api_tokens").FindAllStringSubmatch(text, -1)
+	if len(selects) == 0 {
+		t.Fatal("no token query found: this test has stopped testing anything")
+	}
+	for _, query := range selects {
+		if !strings.Contains(query[1], "component") {
+			t.Fatalf("a token query does not select the component:\n%s", strings.TrimSpace(query[1]))
+		}
+	}
+	if !strings.Contains(text, "&token.Component") {
+		t.Fatal("the component is selected and never scanned: it comes back empty on every read")
+	}
+	if !strings.Contains(text, "token.Component)") {
+		t.Fatal("the component is never written: it is empty from the moment it is stored")
+	}
+}

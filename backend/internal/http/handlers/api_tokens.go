@@ -187,6 +187,34 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 		return auth.Identity{}, false
 	}
 	h.touchAPIToken(token, now)
+
+	// A component's token is a service, and says so.
+	//
+	// It carries no person's name, so nothing downstream resolves a user from
+	// it and no audit entry reads as somebody's work. It becomes a global
+	// administrator only if it was explicitly given the full scope - which is
+	// what the single shared secret was, implicitly, for every component at
+	// once.
+	if component := strings.TrimSpace(token.Component); component != "" {
+		// A component acts as the platform, and its scope is what narrows it.
+		//
+		// That is the layering the scope gate was built for: it can refuse a
+		// request, never allow one that would otherwise have been refused. So
+		// the credential carries the platform's authority and the scope decides
+		// which endpoints it reaches - a backup runner holding "operate" is
+		// admin-capable on backups and refused on everything else, by the same
+		// middleware that covers a person's token.
+		//
+		// Without the authority it authenticated and could do nothing at all,
+		// which is not a narrower credential but a useless one - and a useless
+		// credential is replaced by the shared secret it was meant to retire.
+		return auth.Identity{
+			Username:   auth.ServiceUsername,
+			DeclaredBy: component,
+			Roles:      map[string]struct{}{globalAdminRole: {}},
+			Scopes:     token.Scopes,
+		}, true
+	}
 	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}, Scopes: token.Scopes, TokenProjectID: token.ProjectID}, true
 }
 

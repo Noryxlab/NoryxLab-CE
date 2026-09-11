@@ -34,6 +34,11 @@ const (
 	// a workspace or reading a dataset, and an auditor who sees that it could
 	// stops reading there.
 	ScopeInvoke Scope = "invoke"
+	// ScopeOperate allows the platform's own operations: backups, restore
+	// rehearsals, health validation. It is what a component needs and what a
+	// person almost never does, which is why it is separate from the scopes
+	// offered to a user.
+	ScopeOperate Scope = "operate"
 	// ScopeFull is what every token had before scopes existed: everything its
 	// owner may do. Kept explicit so an unrestricted token is a choice
 	// somebody made rather than a default nobody noticed.
@@ -43,7 +48,7 @@ const (
 // AllScopes is what an interface offers, in the order it should offer them:
 // least dangerous first.
 func AllScopes() []Scope {
-	return []Scope{ScopeRead, ScopeInvoke, ScopeWorkspaces, ScopeJobs, ScopeFull}
+	return []Scope{ScopeRead, ScopeInvoke, ScopeWorkspaces, ScopeJobs, ScopeOperate, ScopeFull}
 }
 
 // ValidScope reports whether a string names a scope this platform knows. An
@@ -125,6 +130,11 @@ func Permits(scopes []string, method, path string) bool {
 			}
 		case ScopeInvoke:
 			if underAny(path, "/apps", "/dashboards") {
+				return true
+			}
+		case ScopeOperate:
+			if underAny(path, "/api/v1/admin/backups", "/api/v1/admin/restore",
+				"/api/v1/admin/health", "/api/v1/admin/validation") {
 				return true
 			}
 		}

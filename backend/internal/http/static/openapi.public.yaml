@@ -44,6 +44,21 @@ components:
       name: X-Noryx-User
 
   schemas:
+    ComponentTokenList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ApiToken' }
+        scopes:
+          type: array
+          items: { type: string }
+    ComponentTokenResponse:
+      type: object
+      properties:
+        token: { $ref: '#/components/schemas/ApiToken' }
+        secret: { type: string }
+        note: { type: string }
     WorkspaceStartupStep:
       type: object
       properties:
@@ -3620,7 +3635,7 @@ paths:
   /api/v1/apps/{appID}/logs:
     get:
       tags: [Workloads]
-      summary: Get App Logs
+      summary: Read a workload's recent output
       operationId: getAppLogs
       security:
         - bearerAuth: []
@@ -3754,7 +3769,7 @@ paths:
   /api/v1/apps/{appID}/stop:
     post:
       tags: [Workloads]
-      summary: Stop App
+      summary: Stop a workload, keeping its definition
       operationId: stopApp
       security:
         - bearerAuth: []
@@ -5727,7 +5742,7 @@ paths:
   /api/v1/apis/{apiID}/logs:
     get:
       tags: [Platform]
-      summary: Get App Logs
+      summary: Read a workload's recent output
       operationId: getAppLogs
       security:
         - bearerAuth: []
@@ -5753,7 +5768,7 @@ paths:
   /api/v1/apis/{apiID}/restart:
     post:
       tags: [Platform]
-      summary: Restart A P I
+      summary: Relaunch a deployed endpoint from its stored definition
       operationId: restartAPI
       security:
         - bearerAuth: []
@@ -5779,7 +5794,7 @@ paths:
   /api/v1/apis/{apiID}/stop:
     post:
       tags: [Platform]
-      summary: Stop App
+      summary: Stop a workload, keeping its definition
       operationId: stopApp
       security:
         - bearerAuth: []
@@ -5805,7 +5820,7 @@ paths:
   /api/v1/dashboards/{dashboardID}/logs:
     get:
       tags: [Workloads]
-      summary: Get App Logs
+      summary: Read a workload's recent output
       operationId: getAppLogs
       security:
         - bearerAuth: []
@@ -5831,7 +5846,7 @@ paths:
   /api/v1/dashboards/{dashboardID}/restart:
     post:
       tags: [Workloads]
-      summary: Restart Dashboard
+      summary: Relaunch a dashboard from its stored definition
       operationId: restartDashboard
       security:
         - bearerAuth: []
@@ -5857,7 +5872,7 @@ paths:
   /api/v1/dashboards/{dashboardID}/stop:
     post:
       tags: [Workloads]
-      summary: Stop App
+      summary: Stop a workload, keeping its definition
       operationId: stopApp
       security:
         - bearerAuth: []
@@ -5874,6 +5889,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AppListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/component-tokens:
+    get:
+      tags: [Admin]
+      summary: List the credentials held by platform components
+      operationId: listComponentTokens
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The credentials platform components hold, and the scopes available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Issue a scoped credential for one platform component
+      operationId: createComponentToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Credential issued; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/component-tokens/{tokenID}:
+    delete:
+      tags: [Admin]
+      summary: Revoke one component's credential without touching the others
+      operationId: deleteComponentToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tokenID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Credential revoked
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

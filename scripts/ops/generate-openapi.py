@@ -136,6 +136,8 @@ ENVELOPES = {
     "WorkspaceStartupStep": {"key": "string", "state": "string", "detail": "string", "technical": "string"},
     "WorkspaceStartup": {"steps": "[$WorkspaceStartupStep]", "stuck": "boolean"},
     "ProjectTokenResponse": {"token": "$ApiToken", "secret": "string", "note": "string"},
+    "ComponentTokenList": {"items": "[$ApiToken]", "scopes": "[string]"},
+    "ComponentTokenResponse": {"token": "$ApiToken", "secret": "string", "note": "string"},
     "DatasetUsage": {
         "objects": "integer",
         "totalBytes": "integer",
@@ -248,6 +250,9 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
     ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
+    ("GET", "/api/v1/admin/component-tokens"): ("200", "The credentials platform components hold, and the scopes available", "application/json", "ComponentTokenList"),
+    ("POST", "/api/v1/admin/component-tokens"): ("201", "Credential issued; the secret is shown once", "application/json", "ComponentTokenResponse"),
+    ("DELETE", "/api/v1/admin/component-tokens/{tokenID}"): ("204", "Credential revoked", None, None),
     ("GET", "/api/v1/workspaces/{workspaceID}/startup"): ("200", "Where the workspace is in its start", "application/json", "WorkspaceStartup"),
     ("GET", "/api/v1/datasets/{datasetID}/usage"): ("200", "How much the dataset holds", "application/json", "DatasetUsage"),
     ("GET", "/api/v1/cohorts/{cohortID}/members"): ("200", "The files the cohort froze", "application/json", "CohortMembersResponse"),

@@ -205,6 +205,11 @@ func (s *Store) migrate(ctx context.Context) error {
 		// it. Empty is the ordinary personal token, which is every token that
 		// existed before this column.
 		`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT ''`,
+		// Which platform component holds this credential, empty for a person's
+		// token. Added with the column rather than only in the struct: a field
+		// the schema does not know is a field that is written, never read back,
+		// and silently turns every component token into a nameless personal one.
+		`ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS component TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS builds (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,

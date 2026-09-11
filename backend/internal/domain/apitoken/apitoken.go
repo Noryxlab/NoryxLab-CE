@@ -29,6 +29,15 @@ type Token struct {
 	// endpoint is for. A project token outlives whoever created it and is
 	// revoked by name, not by chasing a departure.
 	ProjectID string `json:"projectId,omitempty"`
+	// Component marks a token that belongs to a platform component rather than
+	// to a person or a project - the backup runner, the validator.
+	//
+	// Those ran on one shared secret held by every component at once: it could
+	// not be revoked for one of them, its use could not be told apart in an
+	// audit, and it carried the global administrator role whatever the
+	// component actually needed. A named component token is revoked alone,
+	// read alone in the trail, and holds only the scopes it was given.
+	Component string `json:"component,omitempty"`
 	// Name is what the owner called it, so revoking the right one does not
 	// require guessing. "gitlab-ci" beats "token 3".
 	Name      string    `json:"name"`
