@@ -1080,6 +1080,28 @@ func workspaceBootstrapScript(
 			fmt.Sprintf("  cp /opt/noryx-vscode/data/Machine/settings.json %s || true", shellQuote(profileMountPath+"/vscode/data/Machine/settings.json")),
 			"fi",
 		)
+		// The assistant's memory belongs to the person, not to the pod.
+		//
+		// Continue keeps its codebase index and every conversation in
+		// ~/.continue, which is the container's home: both die when the
+		// workspace is stopped or reaped. A researcher coming back the next
+		// morning waits for the whole repository to be embedded again and finds
+		// no trace of what they asked yesterday - which is how an assistant
+		// stops being used.
+		//
+		// The profile volume already holds the git config, the pip cache and
+		// the editor's settings for exactly this reason. Continue was the one
+		// that was missed.
+		lines = append(lines,
+			fmt.Sprintf("mkdir -p %s", shellQuote(profileMountPath+"/continue")),
+			"if [ ! -L /home/noryx/.continue ]; then",
+			// An index already built in the pod is moved rather than thrown
+			// away, so the first launch after this change costs nothing.
+			fmt.Sprintf("  [ -d /home/noryx/.continue ] && cp -a /home/noryx/.continue/. %s/ 2>/dev/null || true", shellQuote(profileMountPath+"/continue")),
+			"  rm -rf /home/noryx/.continue",
+			fmt.Sprintf("  ln -sfn %s /home/noryx/.continue", shellQuote(profileMountPath+"/continue")),
+			"fi",
+		)
 		if strings.TrimSpace(continueConfig) != "" {
 			lines = append(lines,
 				"mkdir -p /home/noryx/.continue",

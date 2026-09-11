@@ -263,3 +263,38 @@ func TestAViewerCannotRunAJob(t *testing.T) {
 		t.Fatalf("a viewer must not run a job, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 }
+
+// The assistant's memory outlives the pod.
+//
+// Continue keeps its codebase index and every conversation in ~/.continue,
+// which is the container's home: both died when a workspace was stopped or
+// reaped. Coming back the next morning meant waiting for the whole repository
+// to be embedded again and finding no trace of yesterday's questions - which is
+// how an assistant stops being used. The profile volume already held the git
+// config, the pip cache and the editor settings for exactly this reason.
+func TestWorkspaceKeepsTheAssistantMemoryOnTheProfileVolume(t *testing.T) {
+	script := workspaceBootstrapScript("vscode", "w1", "token", "Someone", "someone@example.org",
+		false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "models: []", false, 0)
+
+	for _, expected := range []string{
+		"mkdir -p '/home/noryx/.noryx-profile/continue'",
+		"ln -sfn '/home/noryx/.noryx-profile/continue' /home/noryx/.continue",
+	} {
+		if !strings.Contains(script, expected) {
+			t.Fatalf("the bootstrap never links Continue to the profile volume, missing %q:\n%s", expected, script)
+		}
+	}
+
+	// An index already built inside a pod is carried over rather than thrown
+	// away, so the first launch after this change costs nothing.
+	if !strings.Contains(script, "cp -a /home/noryx/.continue/.") {
+		t.Fatal("an existing index is destroyed instead of moved: the first launch re-embeds everything")
+	}
+
+	// And the link is made before the configuration is written into it.
+	link := strings.Index(script, "ln -sfn '/home/noryx/.noryx-profile/continue'")
+	config := strings.Index(script, "/home/noryx/.continue/config.yaml")
+	if link < 0 || config < 0 || link > config {
+		t.Fatal("the configuration is written before the link exists, so it lands in the pod and disappears with it")
+	}
+}
