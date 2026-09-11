@@ -638,6 +638,32 @@ func (s *Store) migrate(ctx context.Context) error {
 			ON platform_health_events (key) WHERE resolved_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS platform_health_events_raised_at
 			ON platform_health_events (raised_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS agents (
+			id TEXT PRIMARY KEY,
+			owner_user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL,
+			mission TEXT NOT NULL,
+			schedule TEXT NOT NULL,
+			actions_json TEXT NOT NULL DEFAULT '[]',
+			enabled BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			last_run_at TIMESTAMPTZ,
+			last_report TEXT NOT NULL DEFAULT '',
+			last_quiet BOOLEAN NOT NULL DEFAULT FALSE
+		)`,
+		`CREATE TABLE IF NOT EXISTS agent_runs (
+			id TEXT PRIMARY KEY,
+			agent_id TEXT NOT NULL,
+			report TEXT NOT NULL DEFAULT '',
+			quiet BOOLEAN NOT NULL DEFAULT FALSE,
+			actions_json TEXT NOT NULL DEFAULT '[]',
+			error TEXT NOT NULL DEFAULT '',
+			started_at TIMESTAMPTZ NOT NULL,
+			finished_at TIMESTAMPTZ
+		)`,
+		`CREATE INDEX IF NOT EXISTS agent_runs_by_agent ON agent_runs (agent_id, started_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS backup_runs (
 			id TEXT PRIMARY KEY,
 			status TEXT NOT NULL,

@@ -53,6 +53,10 @@ func main() {
 	var rbacPolicyStore store.RBACPolicyStore = memory.NewRBACPolicyStore()
 	var settingsStore settings.Store = memory.NewSettingsStore()
 	var backupRunStore store.BackupRunStore = memory.NewBackupRunStore()
+	// Agents exist only where they can be remembered. Without a database the
+	// platform keeps none: an agent that forgets its instructions on restart is
+	// worse than an absent feature, because somebody relied on it.
+	var agentStore store.AgentStore
 	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
@@ -108,6 +112,7 @@ func main() {
 			rbacPolicyStore = &postgres.RBACPolicyStore{Store: pg}
 			settingsStore = &postgres.SettingsStore{Store: pg}
 			backupRunStore = &postgres.BackupRunStore{Store: pg}
+			agentStore = &postgres.AgentStore{Store: pg}
 			storageEndpointStore = &postgres.StorageEndpointStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
@@ -196,6 +201,7 @@ func main() {
 		verifier,
 		keycloakClient,
 		handlers.Options{
+			AgentStore:                       agentStore,
 			RegistryPullSecret:               cfg.RegistryPullSecret,
 			RegistryPushSecret:               cfg.RegistryPushSecret,
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,

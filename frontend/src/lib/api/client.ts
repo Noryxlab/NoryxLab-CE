@@ -194,6 +194,11 @@ export const api = {
     request<T>(path, { ...options, method: 'POST', body }),
   put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PUT', body }),
+  // PATCH, for the resources where a request carries only what changed. PUT
+  // would oblige every caller to send the whole object back, and a caller that
+  // forgets a field silently clears it.
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>(path, { ...options, method: 'PATCH', body }),
   // A body on DELETE: unusual, and correct here - removing an account has to
   // say who inherits what it owned, and that belongs in the request, not in a
   // query string where it would land in every access log.

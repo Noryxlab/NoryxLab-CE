@@ -1,6 +1,9 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AIServicesStatus,
+  Agent,
+  AgentInput,
+  AgentRun,
   AdminHardwareTier,
   OntologyQueryItem,
   ProjectVariable,
@@ -75,6 +78,12 @@ export const platformApi = {
   version: () => api.get<VersionInfo>(`${V1}/version`),
   overview: () => api.get<PlatformOverview>(`${V1}/platform/overview`),
   aiServices: () => api.get<AIServicesStatus>(`${V1}/ai-services/status`),
+  agents: () => api.list<Agent>(`${V1}/agents`),
+  createAgent: (body: AgentInput) => api.post<Agent>(`${V1}/agents`, body),
+  updateAgent: (id: string, body: Partial<AgentInput>) => api.patch<Agent>(`${V1}/agents/${id}`, body),
+  deleteAgent: (id: string) => api.delete<void>(`${V1}/agents/${id}`),
+  agentRuns: (id: string) => api.list<AgentRun>(`${V1}/agents/${id}/runs`),
+  runAgent: (id: string) => api.post<AgentRun>(`${V1}/agents/${id}/run`, {}),
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
   apiTokens: () => api.list<ApiToken>(`${V1}/user/api-tokens`),

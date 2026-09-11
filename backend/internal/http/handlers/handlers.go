@@ -37,6 +37,7 @@ type Handlers struct {
 	userPreferenceStore              store.UserPreferenceStore
 	rbacPolicyStore                  store.RBACPolicyStore
 	backupRunStore                   store.BackupRunStore
+	agentStore                       store.AgentStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
 	settings                         *settings.Resolver
@@ -106,6 +107,11 @@ type Handlers struct {
 }
 
 type Options struct {
+	// AgentStore holds the standing instructions users have left with the
+	// platform. Passed here rather than as one more positional argument: the
+	// constructor already takes more than anybody can read, and a store added
+	// to that list is a store somebody wires in the wrong position.
+	AgentStore           store.AgentStore
 	RegistryPullSecret   string
 	RegistryPushSecret   string
 	BootstrapAdminUser   string
@@ -272,6 +278,7 @@ func New(
 		notifier:                         newNotifier(options),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
 		settings:                         options.Settings,
+		agentStore:                       options.AgentStore,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

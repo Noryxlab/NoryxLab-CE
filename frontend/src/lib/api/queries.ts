@@ -32,6 +32,8 @@ export const qk = {
   version: ['version'] as const,
   platformOverview: ['platform', 'overview'] as const,
   aiServices: ['ai-services', 'status'] as const,
+  agents: ['agents'] as const,
+  agentRuns: (id: string) => ['agents', id, 'runs'] as const,
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
@@ -139,6 +141,19 @@ export const usePlatformOverview = () =>
  *  sur un service éteint est pire que pas de bandeau du tout. */
 export const useAIServices = () =>
   useQuery({ queryKey: qk.aiServices, queryFn: platformApi.aiServices, refetchInterval: 60_000 });
+
+/** Rafraichi regulierement : un agent horaire travaille pendant que la page est
+ *  ouverte, et un tableau fige donne l'impression qu'il ne fait rien. */
+export const useAgents = () =>
+  useQuery({ queryKey: qk.agents, queryFn: platformApi.agents, refetchInterval: 30_000 });
+
+export const useAgentRuns = (agentId: string | undefined) =>
+  useQuery({
+    queryKey: qk.agentRuns(agentId ?? ''),
+    queryFn: () => platformApi.agentRuns(agentId as string),
+    enabled: Boolean(agentId),
+    refetchInterval: 30_000,
+  });
 
 export const useHardwareTiers = () =>
   useQuery({ queryKey: qk.hardwareTiers, queryFn: platformApi.hardwareTiers, staleTime: 600_000 });

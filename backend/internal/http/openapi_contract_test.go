@@ -123,7 +123,8 @@ func TestTheAPIDocumentDescribesNothingThatIsNotServed(t *testing.T) {
 			continue
 		}
 		if strings.Contains(path, "/admin/backups") || strings.Contains(path, "/egress") ||
-			strings.Contains(path, "/assistant") || strings.Contains(path, "/admin/audit") {
+			strings.Contains(path, "/assistant") || strings.Contains(path, "/admin/audit") ||
+			strings.Contains(path, "/agents") {
 			continue
 		}
 		phantom = append(phantom, path)

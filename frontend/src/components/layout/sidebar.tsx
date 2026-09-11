@@ -3,6 +3,7 @@ import { NavLink, useLocation, useParams } from 'react-router';
 import {
   Activity,
   AppWindow,
+  Bot,
   Archive,
   ArrowLeft,
   Boxes,
@@ -47,6 +48,7 @@ const GLOBAL_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: Home, end: true },
   { to: '/projects', labelKey: 'nav.projects', icon: Boxes },
   { to: '/catalog', labelKey: 'nav.catalog', icon: Library },
+  { to: '/agents', labelKey: 'nav.agents', icon: Bot, enterpriseOnly: true },
   { to: '/production', labelKey: 'nav.production', icon: Rocket },
   { to: '/admin', labelKey: 'nav.administration', icon: Shield, adminOnly: true },
 ];

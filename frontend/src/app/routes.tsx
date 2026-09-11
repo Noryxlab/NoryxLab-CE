@@ -14,6 +14,7 @@ import { ProjectDataPage } from '@/routes/project/data';
 import { ProjectMembersPage } from '@/routes/project/members';
 import { ProjectSettingsPage } from '@/routes/project/settings';
 import { AccountPage } from '@/routes/account';
+import { AgentsPage } from '@/routes/agents';
 import { CatalogPage } from '@/routes/catalog';
 import { ProductionPage } from '@/routes/production';
 import { AdminPage } from '@/routes/admin';
@@ -51,6 +52,8 @@ export function AppRoutes() {
             <Route path="members" element={<ProjectMembersPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>
+
+          <Route path="agents" element={<AgentsPage />} />
 
           <Route path="account" element={<AccountPage />} />
 

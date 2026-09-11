@@ -1034,6 +1034,51 @@ export interface WorkspaceStartup {
 
 /** L'état des services d'IA : l'assistant, l'assistant de code et les agents
  *  répondent tous par la même passerelle de modèles, donc ils partagent un état. */
+/** Une instruction permanente laissee a la plateforme, ecrite par son auteur
+ *  dans ses propres mots. La mission n'est jamais interpretee par la
+ *  plateforme : elle part telle quelle au modele. */
+export interface Agent {
+  id: string;
+  ownerUserId: string;
+  projectId?: string;
+  name: string;
+  mission: string;
+  schedule: 'manual' | 'hourly' | 'daily';
+  /** Ce que l'agent a le droit de changer. Vide veut dire qu'il regarde et
+   *  rapporte, ce qui est le defaut. */
+  actions: string[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastRunAt?: string;
+  lastReport?: string;
+  /** Le dernier passage n'a rien trouve a signaler. Distingue d'un agent
+   *  casse, qui ressemble exactement au meme silence. */
+  lastQuiet: boolean;
+}
+
+export interface AgentRun {
+  id: string;
+  agentId: string;
+  report: string;
+  quiet: boolean;
+  /** Ce qui a reellement eu lieu, releve des appels qui ont abouti et non lu
+   *  dans le rapport, qui est la seule partie qui peut se tromper avec aplomb. */
+  actions: string[];
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
+}
+
+export interface AgentInput {
+  name: string;
+  mission: string;
+  schedule: Agent['schedule'];
+  projectId?: string;
+  actions: string[];
+  enabled?: boolean;
+}
+
 export interface AIServicesStatus {
   /** Faux là où aucune passerelle n'est déployée : l'interface masque alors la
    *  brique au lieu d'afficher une panne pour ce qui n'a jamais été installé. */

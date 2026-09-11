@@ -94,6 +94,10 @@ INTERNAL = [
     # (/api/v1/assistant/developer/...) is deliberately public: it is
     # OpenAI-compatible and exists to be called from outside.
     "= /api/v1/assistant/chat",
+    # The assistant's own callback. Only that component calls it, with a
+    # credential this platform signed for one conversation turn; it is not a
+    # door anybody else can usefully knock on.
+    "= /api/v1/assistant/tools",
     # Proxies: the response is whatever the workload behind them returns.
     "/api/v1/projects/{projectID}/files",
     "/workspaces/",
@@ -251,6 +255,13 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
     ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
+    ("GET", "/api/v1/agents"): ("200", "The agents this user has left standing instructions with", "application/json", "AgentListResponse"),
+    ("POST", "/api/v1/agents"): ("201", "Agent created", "application/json", "Agent"),
+    ("PATCH", "/api/v1/agents/{agentID}"): ("200", "Agent updated", "application/json", "Agent"),
+    ("DELETE", "/api/v1/agents/{agentID}"): ("204", "Agent removed, with its history", None, None),
+    ("GET", "/api/v1/agents/{agentID}/runs"): ("200", "What the agent has reported, newest first", "application/json", "AgentRunListResponse"),
+    ("POST", "/api/v1/agents/{agentID}/run"): ("200", "The run that just happened", "application/json", "AgentRun"),
+    ("POST", "/api/v1/assistant/tools"): ("200", "What the tool returned, as the assistant receives it", "application/json", "object"),
     ("GET", "/api/v1/ai-services/status"): ("200", "What the AI services can do right now", "application/json", "AIServicesStatus"),
     ("GET", "/api/v1/admin/component-tokens"): ("200", "The credentials platform components hold, and the scopes available", "application/json", "ComponentTokenList"),
     ("POST", "/api/v1/admin/component-tokens"): ("201", "Credential issued; the secret is shown once", "application/json", "ComponentTokenResponse"),

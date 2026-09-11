@@ -44,6 +44,51 @@ components:
       name: X-Noryx-User
 
   schemas:
+    Agent:
+      type: object
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        mission: { type: string, description: The assignment, in the words its author wrote }
+        schedule: { type: string, enum: [manual, hourly, daily] }
+        actions:
+          type: array
+          description: What this agent may change. Empty means it only looks and reports.
+          items: { type: string, enum: [restart_app] }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastRunAt: { type: string, format: date-time }
+        lastReport: { type: string }
+        lastQuiet: { type: boolean, description: The last run found nothing worth reporting }
+    AgentListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Agent' }
+    AgentRun:
+      type: object
+      properties:
+        id: { type: string }
+        agentId: { type: string }
+        report: { type: string }
+        quiet: { type: boolean }
+        actions:
+          type: array
+          description: What the agent actually did, recorded from the calls that succeeded rather than read out of the report.
+          items: { type: string }
+        error: { type: string }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+    AgentRunListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AgentRun' }
     AIServicesStatus:
       type: object
       properties:
@@ -5969,7 +6014,7 @@ paths:
   /api/v1/ai-services/status:
     get:
       tags: [Platform]
-      summary: Get A I Services Status
+      summary: Report what the AI services can do right now
       operationId: getAIServicesStatus
       security:
         - bearerAuth: []
@@ -5981,6 +6026,146 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AIServicesStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agents:
+    get:
+      tags: [Platform]
+      summary: The agents this user has left standing instructions with
+      operationId: listAgents
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The agents this user has left standing instructions with
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: Give the platform a standing instruction, written in plain language
+      operationId: createAgent
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agents/{agentID}:
+    delete:
+      tags: [Platform]
+      summary: Remove an agent and its history
+      operationId: deleteAgent
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: agentID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Agent removed, with its history
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Platform]
+      summary: Change an agent's assignment, hours, or what it may do
+      operationId: updateAgent
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: agentID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Agent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agents/{agentID}/run:
+    post:
+      tags: [Platform]
+      summary: Make an agent do its work now, rather than waiting for its hours
+      operationId: runAgent
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: agentID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The run that just happened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agents/{agentID}/runs:
+    get:
+      tags: [Platform]
+      summary: What an agent has reported, newest first
+      operationId: listAgentRuns
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: agentID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: What the agent has reported, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
