@@ -195,6 +195,10 @@ export interface DatasetAccess {
   userId?: string;
   subjectType: OwnerType;
   subjectId: string;
+  /** Qui porte cet identifiant. Resolu par le serveur : l'ecran affichait
+   *  l'identifiant brut, donc verifier qui accede a un dataset de sante
+   *  revenait a lire quatre UUID et a savoir lequel etait lequel. */
+  subjectName?: string;
   role: AccessRole;
   createdAt: string;
   updatedAt: string;

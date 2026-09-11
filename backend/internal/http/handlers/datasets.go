@@ -840,7 +840,9 @@ func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	owner := dataset.Access{DatasetID: item.ID, UserID: item.OwnerID, SubjectType: item.OwnerType, SubjectID: item.OwnerID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-	writeJSON(w, 200, map[string]any{"items": append([]dataset.Access{owner}, items...), "canManage": h.canManageDatasetAccess(item, identity)})
+	all := append([]dataset.Access{owner}, items...)
+	h.nameAccessSubjects(all)
+	writeJSON(w, 200, map[string]any{"items": all, "canManage": h.canManageDatasetAccess(item, identity)})
 }
 
 func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {

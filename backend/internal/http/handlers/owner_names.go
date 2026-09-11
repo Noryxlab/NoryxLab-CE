@@ -81,3 +81,35 @@ func (h Handlers) nameOntologyOwners(items []ontologydomain.Ontology) {
 	}
 	h.nameOwners(owners)
 }
+
+// nameAccessSubjects fills in who each identifier belongs to.
+//
+// Same resolution as an owner's name, on the other side of the same screen:
+// the owner row was readable and every permission row below it was a UUID.
+func (h Handlers) nameAccessSubjects(items []datasetdomain.Access) {
+	organizations := map[string]string{}
+	for _, item := range items {
+		if strings.EqualFold(item.SubjectType, "organization") {
+			if h.keycloak != nil {
+				if listed, err := h.keycloak.ListOrganizations(); err == nil {
+					for _, organization := range listed {
+						organizations[organization.ID] = organization.Name
+					}
+				}
+			}
+			break
+		}
+	}
+	for index := range items {
+		subject := strings.TrimSpace(items[index].SubjectID)
+		if strings.EqualFold(items[index].SubjectType, "organization") {
+			if name, ok := organizations[subject]; ok && strings.TrimSpace(name) != "" {
+				items[index].SubjectName = name
+				continue
+			}
+		}
+		// A name that cannot be resolved falls back to the identifier: an
+		// unreadable row is better than a missing one.
+		items[index].SubjectName = subject
+	}
+}

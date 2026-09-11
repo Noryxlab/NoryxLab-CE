@@ -36,10 +36,17 @@ type Dataset struct {
 }
 
 type Access struct {
-	DatasetID   string    `json:"datasetId"`
-	UserID      string    `json:"userId,omitempty"`
-	SubjectType string    `json:"subjectType"`
-	SubjectID   string    `json:"subjectId"`
+	DatasetID   string `json:"datasetId"`
+	UserID      string `json:"userId,omitempty"`
+	SubjectType string `json:"subjectType"`
+	SubjectID   string `json:"subjectId"`
+	// SubjectName is who that identifier belongs to, resolved for display.
+	//
+	// The permissions screen showed the raw identifier, so deciding whether
+	// the right people had access to a health dataset meant reading four
+	// UUIDs and knowing which was which. An access list nobody can read is an
+	// access list nobody checks.
+	SubjectName string    `json:"subjectName,omitempty"`
 	Role        string    `json:"role"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

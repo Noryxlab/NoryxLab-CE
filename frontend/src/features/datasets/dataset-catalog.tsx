@@ -345,7 +345,20 @@ function DatasetPermissions({ dataset }: { dataset: Dataset }) {
     {
       id: 'subject',
       header: t('rbac.subject'),
-      cell: (entry) => <span className="font-medium">{entry.subjectId || entry.userId}</span>,
+      cell: (entry) => {
+        const name = entry.subjectName?.trim();
+        const identifier = entry.subjectId || entry.userId || '';
+        return (
+          <div className="min-w-0">
+            <span className="font-medium">{name || identifier}</span>
+            {/* L'identifiant reste visible sous le nom : c'est lui qu'on
+                recopie dans une commande ou dans un ticket. */}
+            {name && name !== identifier ? (
+              <div className="truncate font-mono text-xs text-muted-foreground">{identifier}</div>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: 'type',
