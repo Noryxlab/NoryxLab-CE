@@ -17,6 +17,10 @@ NAMESPACE="${1:-${NAMESPACE:-noryx}}"
 KUBECTL="${KUBECTL:-kubectl}"
 DATABASE="${DATABASE:-noryx_restore_rehearsal}"
 IMAGE="${IMAGE:-}"
+# The throwaway HTTP client. It is pulled from the public registry by default
+# and overridden on an installation that mirrors its own images, which is every
+# installation with no route to the internet.
+CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.10.1}"
 
 say() { printf '  %s\n' "$*"; }
 cleanup() {
@@ -46,17 +50,31 @@ REHEARSAL_SECRET="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom 
 # issued with the "operate" scope reaches backups and restores and is refused
 # everywhere else.
 if [ -n "${RESTORE_REHEARSAL_TOKEN:-}" ]; then
-  AUTH_HEADER="--header=Authorization:Bearer\ ${RESTORE_REHEARSAL_TOKEN}"
+  AUTH_HEADER="Authorization: Bearer ${RESTORE_REHEARSAL_TOKEN}"
 else
-  AUTH_HEADER="--header=X-Noryx-Service-Token:\ ${NORYX_SERVICE_TOKEN:-}"
+  AUTH_HEADER="X-Noryx-Service-Token: ${NORYX_SERVICE_TOKEN:-}"
 fi
 
 # The object to restore. Read from the live platform's own record, which is the
 # realistic case for a drill; a real recovery passes objectKey by hand.
-run_json="$(${KUBECTL} -n "${NAMESPACE}" exec deployment/noryx-backend -- \
-  wget -qO- ${AUTH_HEADER} \
-  http://127.0.0.1:8080/api/v1/admin/backups/runs 2>/dev/null || true)"
-object_key="${OBJECT_KEY:-$(printf '%s' "${run_json}" | sed -n 's/.*"objectKey":"\([^"]*\)".*/\1/p' | head -n 1)}"
+#
+# Asked over the network from a client pod rather than by exec-ing into the
+# backend: the backend image is distroless and carries no HTTP client at all,
+# so the exec failed, the list came back empty, and the drill stopped with "no
+# backup object to restore" - which reads like a missing backup and was a
+# missing binary. A drill whose normal path cannot run is not a drill.
+run_json="$(${KUBECTL} -n "${NAMESPACE}" run "rehearsal-reader-$$" --rm -i --restart=Never \
+  --image="${CURL_IMAGE}" --quiet -- \
+  curl -s -H "${AUTH_HEADER}" \
+  http://noryx-backend:8080/api/v1/admin/backups/runs 2>/dev/null || true)"
+#
+# grep -o, not sed: the runs arrive newest first on a single line, and a greedy
+# ".*" anchors on the LAST objectKey of that line rather than the first. The
+# drill was therefore rehearsing the oldest backup on record - on this platform
+# an empty manual manifest from three months earlier - and reporting the empty
+# tables that produced as a restore failure. It was reading the wrong object,
+# faithfully.
+object_key="${OBJECT_KEY:-$(printf '%s' "${run_json}" | grep -o '"objectKey":"[^"]*"' | head -n 1 | cut -d'"' -f4)}"
 if [ -z "${object_key}" ]; then
   echo "no backup object to restore; set OBJECT_KEY" >&2
   exit 1
@@ -144,10 +162,25 @@ ${KUBECTL} -n "${NAMESPACE}" rollout status deployment/noryx-restore-rehearsal -
 
 # The same generated secret the copy was started with. It exists for the length
 # of this drill and nowhere else.
-${KUBECTL} -n "${NAMESPACE}" run "rehearsal-client-$$" --rm -i --restart=Never --image=curlimages/curl:8.10.1 --quiet -- \
-  curl -s -X POST -H "X-Noryx-Service-Token: ${REHEARSAL_SECRET}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
+#
+# The answer is kept and shown. Discarding it meant a refused or failed restore
+# left the drill reporting empty tables with no reason beside them, and an
+# operator reading "restored 0" cannot tell a broken backup from a broken
+# credential.
+restore_result="$(${KUBECTL} -n "${NAMESPACE}" run "rehearsal-client-$$" --rm -i --restart=Never --image="${CURL_IMAGE}" --quiet -- \
+  curl -s -w '\nHTTP %{http_code}' -X POST -H "X-Noryx-Service-Token: ${REHEARSAL_SECRET}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
   -d "{\"mode\":\"missing-only\",\"objectKey\":\"${object_key}\"}" \
-  "http://noryx-restore-rehearsal:8080/api/v1/admin/backups/runs/external/restore" >/dev/null
+  "http://noryx-restore-rehearsal:8080/api/v1/admin/backups/runs/external/restore" 2>&1 || true)"
+restore_status="$(printf '%s' "${restore_result}" | grep -o 'HTTP [0-9]*' | tail -n 1)"
+echo
+echo "  the restore answered ${restore_status:-nothing}"
+# The body only when it is not a plain success. On a good run it is several
+# thousand characters of collection listings, which buries the table below it;
+# on a bad one it is the only thing that says why.
+case "${restore_status}" in
+  "HTTP 200") ;;
+  *) printf '%s\n' "${restore_result}" | sed 's/^/    /' ;;
+esac
 
 echo
 echo "  what the restored platform holds, against the live one:"
