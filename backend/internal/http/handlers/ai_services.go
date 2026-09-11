@@ -24,7 +24,12 @@ type aiServicesStatus struct {
 	// Configured is false where no gateway is deployed. An installation without
 	// AI services must show nothing at all, not a fault for something that was
 	// never installed.
-	Configured   bool            `json:"configured"`
+	Configured bool `json:"configured"`
+	// Agents says whether this installation can run agents at all, which is a
+	// property of what is deployed rather than of what a model can do today.
+	// It is answered even when no gateway is configured, because an interface
+	// deciding whether to offer the section needs it either way.
+	Agents       bool            `json:"agents"`
 	Mode         string          `json:"mode,omitempty"`
 	Capabilities map[string]bool `json:"capabilities,omitempty"`
 	// Detail explains a mode that is not full, for whoever can act on it.
@@ -52,7 +57,7 @@ func (h Handlers) GetAIServicesStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(h.llmaasBaseURL) == "" {
-		writeJSON(w, http.StatusOK, aiServicesStatus{Configured: false})
+		writeJSON(w, http.StatusOK, aiServicesStatus{Configured: false, Agents: h.agentsDeployed()})
 		return
 	}
 
@@ -64,6 +69,7 @@ func (h Handlers) GetAIServicesStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := h.readAIServicesStatus(r)
+	status.Agents = h.agentsDeployed()
 	aiServices.status = status
 	aiServices.fetchedAt = time.Now()
 	writeJSON(w, http.StatusOK, status)
@@ -112,4 +118,15 @@ func (h Handlers) readAIServicesStatus(r *http.Request) aiServicesStatus {
 		status.Detail = "a reduced model is standing in: basic questions work, code assistance and agents do not"
 	}
 	return status
+}
+
+// agentsDeployed reports whether this installation has the parts an agent
+// needs: somewhere to remember it, and a runner to do the work.
+//
+// Not the edition, and not a feature flag. A platform whose assistant service
+// has been stood down - because it had no model to talk to - still calls
+// itself Enterprise, and offering a section where every run fails is the
+// "broken rather than absent" mistake the AI services card exists to avoid.
+func (h Handlers) agentsDeployed() bool {
+	return h.agentStore != nil && strings.TrimSpace(h.assistantURL) != ""
 }

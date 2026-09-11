@@ -1083,6 +1083,9 @@ export interface AIServicesStatus {
   /** Faux là où aucune passerelle n'est déployée : l'interface masque alors la
    *  brique au lieu d'afficher une panne pour ce qui n'a jamais été installé. */
   configured: boolean;
+  /** Vrai la ou la plateforme a de quoi faire tourner un agent : une memoire et
+   *  un moteur. L'edition dit ce qui est vendu, pas ce qui est installe. */
+  agents: boolean;
   mode?: 'full' | 'degraded' | 'down';
   capabilities?: Record<string, boolean>;
   detail?: string;

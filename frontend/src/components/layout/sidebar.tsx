@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { useProject } from '@/lib/api/queries';
+import { useAIServices, useProject } from '@/lib/api/queries';
 import { config, isEnterprise } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -167,7 +167,18 @@ export function Sidebar({
   const inAdministration = location.pathname.startsWith('/admin');
   const { data: project, isLoading: projectLoading } = useProject(projectId);
 
-  const globalItems = GLOBAL_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+  // Une entree Enterprise n'apparait que la ou le module est deploye. Le
+  // filtre ne regardait que adminOnly, donc enterpriseOnly etait inerte ici :
+  // un lien vers une section absente mene a un refus, pas a une decouverte.
+  const aiServices = useAIServices();
+  const globalItems = GLOBAL_ITEMS.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.enterpriseOnly && !isEnterprise()) return false;
+    // Les agents demandent en plus que la plateforme ait de quoi les faire
+    // tourner. L'edition dit ce qui est vendu, pas ce qui est installe.
+    if (item.to === '/agents' && !aiServices.data?.agents) return false;
+    return true;
+  });
 
   return (
     <div
