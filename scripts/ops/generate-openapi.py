@@ -136,6 +136,7 @@ ENVELOPES = {
     "WorkspaceStartupStep": {"key": "string", "state": "string", "detail": "string", "technical": "string"},
     "WorkspaceStartup": {"steps": "[$WorkspaceStartupStep]", "stuck": "boolean"},
     "ProjectTokenResponse": {"token": "$ApiToken", "secret": "string", "note": "string"},
+    "AIServicesStatus": {"configured": "boolean", "mode": "string", "capabilities": "object", "detail": "string", "checkedAt": "date-time"},
     "ComponentTokenList": {"items": "[$ApiToken]", "scopes": "[string]"},
     "ComponentTokenResponse": {"token": "$ApiToken", "secret": "string", "note": "string"},
     "DatasetUsage": {
@@ -250,6 +251,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
     ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
+    ("GET", "/api/v1/ai-services/status"): ("200", "What the AI services can do right now", "application/json", "AIServicesStatus"),
     ("GET", "/api/v1/admin/component-tokens"): ("200", "The credentials platform components hold, and the scopes available", "application/json", "ComponentTokenList"),
     ("POST", "/api/v1/admin/component-tokens"): ("201", "Credential issued; the secret is shown once", "application/json", "ComponentTokenResponse"),
     ("DELETE", "/api/v1/admin/component-tokens/{tokenID}"): ("204", "Credential revoked", None, None),

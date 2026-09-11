@@ -93,6 +93,11 @@ type Config struct {
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
 	AssistantPublicURL           string
+	// Where the model gateway lives, and the credential to read its state.
+	// Empty means this installation has no AI services, and the interface
+	// hides them rather than showing a fault for something never installed.
+	LLMaaSBaseURL string
+	LLMaaSAPIKey  string
 	// AssistantWorkspaceURL is the address a *workspace* reaches the assistant
 	// at, which is not the address a browser uses: a pod cannot reach the
 	// cluster's own public name - the packet leaves for the NAT address and
@@ -369,6 +374,8 @@ func Load() Config {
 		AssistantInternalToken:           os.Getenv("NORYX_ASSISTANT_INTERNAL_TOKEN"),
 		AssistantDeveloperSigningKey:     os.Getenv("NORYX_ASSISTANT_DEVELOPER_SIGNING_KEY"),
 		AssistantPublicURL:               os.Getenv("NORYX_ASSISTANT_PUBLIC_URL"),
+		LLMaaSBaseURL:                    strings.TrimRight(strings.TrimSpace(os.Getenv("NORYX_LLMAAS_BASE_URL")), "/"),
+		LLMaaSAPIKey:                     strings.TrimSpace(os.Getenv("NORYX_LLMAAS_API_KEY")),
 		AssistantWorkspaceURL: firstNonEmpty(
 			os.Getenv("NORYX_ASSISTANT_WORKSPACE_URL"),
 			"http://noryx-backend."+namespace+".svc.cluster.local:8080",

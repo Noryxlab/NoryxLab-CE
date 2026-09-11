@@ -258,6 +258,8 @@ func main() {
 			AssistantInternalToken:       cfg.AssistantInternalToken,
 			AssistantDeveloperSigningKey: cfg.AssistantDeveloperSigningKey,
 			AssistantPublicURL:           cfg.AssistantPublicURL,
+			LLMaaSBaseURL:                cfg.LLMaaSBaseURL,
+			LLMaaSAPIKey:                 cfg.LLMaaSAPIKey,
 			AssistantWorkspaceURL:        cfg.AssistantWorkspaceURL,
 		},
 	)

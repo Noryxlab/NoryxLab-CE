@@ -44,6 +44,14 @@ components:
       name: X-Noryx-User
 
   schemas:
+    AIServicesStatus:
+      type: object
+      properties:
+        configured: { type: boolean }
+        mode: { type: string }
+        capabilities: { type: object }
+        detail: { type: string }
+        checkedAt: { type: string, format: date-time }
     ComponentTokenList:
       type: object
       properties:
@@ -5952,6 +5960,27 @@ paths:
       responses:
         '204':
           description: Credential revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ai-services/status:
+    get:
+      tags: [Platform]
+      summary: Get A I Services Status
+      operationId: getAIServicesStatus
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: What the AI services can do right now
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIServicesStatus'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

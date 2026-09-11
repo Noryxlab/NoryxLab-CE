@@ -31,6 +31,7 @@ import { describeStatus } from '@/components/ui/badge';
 export const qk = {
   version: ['version'] as const,
   platformOverview: ['platform', 'overview'] as const,
+  aiServices: ['ai-services', 'status'] as const,
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
@@ -133,6 +134,11 @@ export const useVersion = () => useQuery({ queryKey: qk.version, queryFn: platfo
 
 export const usePlatformOverview = () =>
   useQuery({ queryKey: qk.platformOverview, queryFn: platformApi.overview, refetchInterval: 30_000 });
+
+/** Interrogé régulièrement : un GPU loué s'arrête le soir, et un bandeau vert
+ *  sur un service éteint est pire que pas de bandeau du tout. */
+export const useAIServices = () =>
+  useQuery({ queryKey: qk.aiServices, queryFn: platformApi.aiServices, refetchInterval: 60_000 });
 
 export const useHardwareTiers = () =>
   useQuery({ queryKey: qk.hardwareTiers, queryFn: platformApi.hardwareTiers, staleTime: 600_000 });

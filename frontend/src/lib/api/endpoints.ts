@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  AIServicesStatus,
   AdminHardwareTier,
   OntologyQueryItem,
   ProjectVariable,
@@ -73,6 +74,7 @@ const V1 = '/api/v1';
 export const platformApi = {
   version: () => api.get<VersionInfo>(`${V1}/version`),
   overview: () => api.get<PlatformOverview>(`${V1}/platform/overview`),
+  aiServices: () => api.get<AIServicesStatus>(`${V1}/ai-services/status`),
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
   apiTokens: () => api.list<ApiToken>(`${V1}/user/api-tokens`),

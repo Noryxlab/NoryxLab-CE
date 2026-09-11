@@ -100,6 +100,8 @@ type Handlers struct {
 	assistantInternalToken           string
 	assistantDeveloperSigningKey     string
 	assistantPublicURL               string
+	llmaasBaseURL                    string
+	llmaasAPIKey                     string
 	assistantWorkspaceURL            string
 }
 
@@ -182,6 +184,8 @@ type Options struct {
 	AssistantInternalToken       string
 	AssistantDeveloperSigningKey string
 	AssistantPublicURL           string
+	LLMaaSBaseURL                string
+	LLMaaSAPIKey                 string
 	AssistantWorkspaceURL        string
 }
 
@@ -328,6 +332,8 @@ func New(
 		assistantInternalToken:           options.AssistantInternalToken,
 		assistantDeveloperSigningKey:     strings.TrimSpace(options.AssistantDeveloperSigningKey),
 		assistantPublicURL:               strings.TrimRight(strings.TrimSpace(options.AssistantPublicURL), "/"),
+		llmaasBaseURL:                    strings.TrimRight(strings.TrimSpace(options.LLMaaSBaseURL), "/"),
+		llmaasAPIKey:                     strings.TrimSpace(options.LLMaaSAPIKey),
 		assistantWorkspaceURL:            strings.TrimRight(strings.TrimSpace(options.AssistantWorkspaceURL), "/"),
 	}
 }

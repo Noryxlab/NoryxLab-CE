@@ -109,6 +109,12 @@ export const fr = {
     skipToContent: 'Aller au contenu principal',
   },
 
+  aiServices: {
+    title: 'Services d’IA',
+    full: 'Service complet',
+    degraded: 'Mode réduit',
+    down: 'Arrêté',
+  },
   home: {
     title: 'Bonjour {name}',
     subtitle: 'Reprenez votre travail ou démarrez un nouveau projet.',

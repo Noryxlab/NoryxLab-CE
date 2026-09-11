@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { CreateProjectSheet } from '@/features/projects/project-form';
+import { AIServicesCard } from '@/features/home/ai-services';
 
 export function HomePage() {
   const t = useT();
@@ -48,6 +49,10 @@ export function HomePage() {
           </Button>
         }
       />
+
+      {/* Placee avant l'activite : quelqu'un qui ouvre la plateforme doit
+          savoir si l'assistant repondra avant de lui parler. */}
+      <AIServicesCard />
 
       <section aria-labelledby="platform-activity" className="space-y-3">
         <h2 id="platform-activity" className="text-sm font-semibold">

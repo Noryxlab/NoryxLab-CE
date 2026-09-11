@@ -79,6 +79,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/apps/{appID}/stop", h.StopApp)
 	mux.HandleFunc("DELETE /api/v1/apps/{appID}", h.DeleteApp)
 	mux.HandleFunc("GET /api/v1/production/apps", h.ListProductionApps)
+	// What the platform's AI services can do right now, for the indicator on
+	// the home page: the assistant, the code assistant and the agents all
+	// answer from one gateway and therefore share one state.
+	mux.HandleFunc("GET /api/v1/ai-services/status", h.GetAIServicesStatus)
 	// Credentials for the platform's own components, one per component rather
 	// than one shared secret carrying every right.
 	mux.HandleFunc("GET /api/v1/admin/component-tokens", h.ListComponentTokens)

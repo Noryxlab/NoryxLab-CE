@@ -1032,3 +1032,14 @@ export interface WorkspaceStartup {
   stuck: boolean;
 }
 
+/** L'état des services d'IA : l'assistant, l'assistant de code et les agents
+ *  répondent tous par la même passerelle de modèles, donc ils partagent un état. */
+export interface AIServicesStatus {
+  /** Faux là où aucune passerelle n'est déployée : l'interface masque alors la
+   *  brique au lieu d'afficher une panne pour ce qui n'a jamais été installé. */
+  configured: boolean;
+  mode?: 'full' | 'degraded' | 'down';
+  capabilities?: Record<string, boolean>;
+  detail?: string;
+  checkedAt?: string;
+}

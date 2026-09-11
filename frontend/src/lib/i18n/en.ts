@@ -106,6 +106,12 @@ export const en: Translations = {
     skipToContent: 'Skip to main content',
   },
 
+  aiServices: {
+    title: 'AI services',
+    full: 'Full service',
+    degraded: 'Reduced',
+    down: 'Stopped',
+  },
   home: {
     title: 'Hello {name}',
     subtitle: 'Pick up where you left off, or start a new project.',
