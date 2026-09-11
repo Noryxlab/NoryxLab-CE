@@ -58,10 +58,15 @@ func TestServiceTokenAuthenticatesAPlatformComponent(t *testing.T) {
 	if !ok {
 		t.Fatal("a valid service token was refused")
 	}
-	// Named so a backup run records which component asked, rather than
-	// attributing every automated action to one opaque identity.
-	if identity.UserID() != "platform-validator" {
-		t.Fatalf("identity = %q, want platform-validator", identity.UserID())
+	// The component still says which one it is - a backup run has to record
+	// that - but it says it beside the identity, not as the identity. Written
+	// into the username, the name made every downstream user lookup resolve
+	// whoever was named, while the identity kept the administrator role.
+	if identity.DeclaredBy != "platform-validator" {
+		t.Fatalf("declared caller = %q, want platform-validator", identity.DeclaredBy)
+	}
+	if identity.UserID() != auth.ServiceUsername {
+		t.Fatalf("identity = %q, want %q", identity.UserID(), auth.ServiceUsername)
 	}
 	if !identity.HasRole(globalAdminRole) {
 		t.Fatal("a platform component cannot trigger a backup without admin rights")

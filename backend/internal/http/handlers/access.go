@@ -125,15 +125,19 @@ func (h Handlers) serviceIdentity(r *http.Request) (auth.Identity, bool) {
 
 	// The component may name itself, so a backup run records which one asked
 	// rather than attributing every automated action to the same opaque
-	// identity. It cannot name a *person*: this identity is a service whatever
-	// it calls itself, and the name only reaches the audit trail.
-	name := strings.TrimSpace(r.Header.Get(userHeader))
-	if name == "" {
-		name = "platform-service"
-	}
+	// identity. It cannot name a *person*, and now it cannot become one
+	// either: the name reaches the audit trail and stops there.
+	//
+	// It used to be written into Username. Everything downstream that resolves
+	// a user then treated the service as that person - their organizations,
+	// their project roles, their name in the audit - while the identity still
+	// carried the global administrator role. A component could therefore read
+	// every dataset on the platform and have it recorded as the work of a
+	// named researcher who had done nothing.
 	return auth.Identity{
-		Username: name,
-		Roles:    map[string]struct{}{globalAdminRole: {}},
+		Username:   auth.ServiceUsername,
+		DeclaredBy: strings.TrimSpace(r.Header.Get(userHeader)),
+		Roles:      map[string]struct{}{globalAdminRole: {}},
 	}, true
 }
 
@@ -298,6 +302,16 @@ func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *h
 
 func (h Handlers) requireOrganizationMembership(w http.ResponseWriter, identity auth.Identity) bool {
 	if !h.organizationRequired {
+		return true
+	}
+	// A platform component belongs to no organization, and never will.
+	//
+	// The gate exists so a person cannot reach an Enterprise installation
+	// without belonging somewhere. Applied to the backup runner it refused
+	// every request it made, which is why components had to keep using a
+	// shared secret that skipped this path entirely - the gate was pushing
+	// exactly the credential it made necessary.
+	if identity.IsService() {
 		return true
 	}
 	if h.keycloak == nil {

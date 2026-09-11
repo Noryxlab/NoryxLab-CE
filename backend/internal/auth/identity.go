@@ -15,7 +15,23 @@ type Identity struct {
 	// belongs to a project rather than to a person. It is what keeps an
 	// invoking credential inside the project that issued it.
 	TokenProjectID string
+	// DeclaredBy is the name a platform service put on its own request, and it
+	// is never an identity: it reaches the audit trail and nothing else.
+	//
+	// It used to be written into Username, so a component holding the shared
+	// service secret acted with every right the service has while the audit
+	// recorded a named person as the author. Over-permission is a defect;
+	// recording it under somebody else's name is a different and worse one.
+	DeclaredBy string
 }
+
+// IsService reports whether this identity is a platform component rather than
+// a person, which is what decides whether an action may be attributed to
+// anyone.
+func (i Identity) IsService() bool { return i.DeclaredBy != "" || i.Username == ServiceUsername }
+
+// ServiceUsername is the only name a shared-secret caller ever carries.
+const ServiceUsername = "platform-service"
 
 func (i Identity) UserID() string {
 	if i.Username != "" {
