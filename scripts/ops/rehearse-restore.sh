@@ -31,10 +31,30 @@ if [ -z "${IMAGE}" ]; then
 fi
 say "rehearsing with ${IMAGE}"
 
+# A credential for the copy, generated per run.
+#
+# openssl if it is there, /dev/urandom otherwise: this script runs from a
+# maintenance shell as often as from CI, and a drill that fails on a missing
+# tool is a drill nobody runs.
+REHEARSAL_SECRET="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+
+# This component's own credential, or the shared secret it replaces.
+#
+# The shared secret was held by every component at once: revoking it for the
+# rehearsal broke the validator, its use could not be told apart in an audit,
+# and it carried every right when this only needs backups. A component token
+# issued with the "operate" scope reaches backups and restores and is refused
+# everywhere else.
+if [ -n "${RESTORE_REHEARSAL_TOKEN:-}" ]; then
+  AUTH_HEADER="--header=Authorization:Bearer\ ${RESTORE_REHEARSAL_TOKEN}"
+else
+  AUTH_HEADER="--header=X-Noryx-Service-Token:\ ${NORYX_SERVICE_TOKEN:-}"
+fi
+
 # The object to restore. Read from the live platform's own record, which is the
 # realistic case for a drill; a real recovery passes objectKey by hand.
 run_json="$(${KUBECTL} -n "${NAMESPACE}" exec deployment/noryx-backend -- \
-  wget -qO- --header="X-Noryx-Service-Token: ${NORYX_SERVICE_TOKEN:-}" \
+  wget -qO- ${AUTH_HEADER} \
   http://127.0.0.1:8080/api/v1/admin/backups/runs 2>/dev/null || true)"
 object_key="${OBJECT_KEY:-$(printf '%s' "${run_json}" | sed -n 's/.*"objectKey":"\([^"]*\)".*/\1/p' | head -n 1)}"
 if [ -z "${object_key}" ]; then
@@ -103,8 +123,12 @@ spec:
               valueFrom: { secretKeyRef: { name: noryx-secrets, key: POSTGRES_PASSWORD } }
             - name: NORYX_SECRETS_MASTER_KEY
               valueFrom: { secretKeyRef: { name: noryx-secrets, key: NORYX_SECRETS_MASTER_KEY } }
-            - name: NORYX_SERVICE_TOKEN
-              valueFrom: { secretKeyRef: { name: noryx-service-secrets, key: NORYX_SERVICE_TOKEN } }
+            # The throwaway platform gets a secret generated for this run and
+            # discarded with it. Handing it the live platform's shared secret
+            # made the rehearsal a reason that secret could never be retired -
+            # a drill holding production's credential is a drill that widens
+            # the thing it exists to prove.
+            - { name: NORYX_SERVICE_TOKEN, value: "${REHEARSAL_SECRET}" }
           resources:
             requests: { cpu: "100m", memory: "128Mi" }
             limits: { cpu: "1", memory: "1Gi" }
@@ -118,9 +142,10 @@ spec:
 EOF
 ${KUBECTL} -n "${NAMESPACE}" rollout status deployment/noryx-restore-rehearsal --timeout=180s >/dev/null
 
-token="$(${KUBECTL} -n "${NAMESPACE}" get secret noryx-service-secrets -o jsonpath='{.data.NORYX_SERVICE_TOKEN}' | base64 -d)"
+# The same generated secret the copy was started with. It exists for the length
+# of this drill and nowhere else.
 ${KUBECTL} -n "${NAMESPACE}" run "rehearsal-client-$$" --rm -i --restart=Never --image=curlimages/curl:8.10.1 --quiet -- \
-  curl -s -X POST -H "X-Noryx-Service-Token: ${token}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
+  curl -s -X POST -H "X-Noryx-Service-Token: ${REHEARSAL_SECRET}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
   -d "{\"mode\":\"missing-only\",\"objectKey\":\"${object_key}\"}" \
   "http://noryx-restore-rehearsal:8080/api/v1/admin/backups/runs/external/restore" >/dev/null
 
