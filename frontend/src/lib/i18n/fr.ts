@@ -254,6 +254,8 @@ export const fr = {
     reason_storage_unavailable: 'Le stockage des données n’a pas pu être rattaché. Prévenez votre administrateur.',
     reason_environment_failed: 'La session s’est arrêtée pendant sa préparation.',
     reason_environment_restarting: 'La session redémarre en boucle.',
+    reason_environment_out_of_memory:
+      'Fermée pour cause de manque de mémoire. Relancez sur une taille de machine plus grande.',
     title: 'Workspaces',
     subtitle: 'Vos environnements de travail interactifs sur ce projet.',
     create: 'Nouveau workspace',

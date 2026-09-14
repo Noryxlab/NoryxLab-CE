@@ -251,6 +251,8 @@ export const en: Translations = {
     reason_storage_unavailable: 'The data storage could not be attached. Tell your administrator.',
     reason_environment_failed: 'The session stopped while it was being prepared.',
     reason_environment_restarting: 'The session keeps restarting.',
+    reason_environment_out_of_memory:
+      'Closed because it ran out of memory. Relaunch it on a larger machine size.',
     title: 'Workspaces',
     subtitle: 'Your interactive working environments on this project.',
     create: 'New workspace',
