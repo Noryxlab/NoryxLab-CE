@@ -57,7 +57,12 @@ echo "  dumping ${DATABASE} to ${BUCKET}/${OBJECT}"
 # The dump runs as an init container so the upload cannot start before it has
 # finished - and so a failed dump fails the job rather than shipping an empty
 # file that looks like a backup.
-cat <<EOF | ${KUBECTL} apply -f - >/dev/null
+# La sortie de l apply n est pas jetee.
+#
+# Elle l etait, et un apply refuse laissait le script attendre un job qui
+# n existait pas, jusqu au bout de son delai, sans une ligne pour dire
+# pourquoi. Un ordre refuse doit se voir a l instant ou il est refuse.
+if ! cat <<EOF | ${KUBECTL} apply -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -66,7 +71,12 @@ metadata:
   labels: { app.kubernetes.io/name: noryx-database-backup }
 spec:
   backoffLimit: 0
-  ttlSecondsAfterFinished: 600
+  # Une heure, pas dix minutes.
+  #
+  # A dix minutes, un job qui echoue disparait avant qu on lise ses journaux :
+  # le script attendait alors un objet efface jusqu au bout de son delai, sans
+  # rien afficher. La preuve doit survivre a l echec qu elle explique.
+  ttlSecondsAfterFinished: 3600
   template:
     metadata:
       labels:
@@ -87,6 +97,20 @@ spec:
           args:
             - |
               set -e
+              # On attend que la base soit joignable avant de la vider.
+              #
+              # Ce conteneur est un init : il demarre dans la seconde qui suit
+              # l attribution de l IP du pod, souvent avant que le controleur
+              # reseau ait programme les regles qui autorisent ce pod a joindre
+              # Postgres. pg_dump se connecte immediatement et recoit
+              # "connection refused" - un message qui accuse la base alors que
+              # c est une course au demarrage. L export Keycloak y echappait
+              # par accident : sa JVM met assez longtemps a demarrer.
+              for essai in \$(seq 1 30); do
+                pg_isready -h postgres -p 5432 -t 3 >/dev/null 2>&1 && break
+                [ "\$essai" = "30" ] && { echo "postgres injoignable apres 30 essais" >&2; exit 1; }
+                sleep 2
+              done
               # pipefail, and it is the whole point.
               #
               # Without it, pg_dump failing while gzip succeeds gives the
@@ -140,11 +164,30 @@ spec:
               valueFrom: { secretKeyRef: { name: ${KEY_SECRET}, key: key } }
           volumeMounts: [{ name: dump, mountPath: /dump }]
 EOF
+then
+  echo "  la creation du job a ete refusee" >&2
+  exit 1
+fi
 
-${KUBECTL} -n "${NAMESPACE}" wait --for=condition=complete "job/${job}" --timeout=900s >/dev/null 2>&1 || true
+# Attendu par sondage plutot que par `kubectl wait`.
+#
+# wait ne sait attendre qu une condition : demander "complete" laisse un job en
+# echec courir jusqu au bout du delai sans rien dire, et l echec est le cas ou
+# l on a le plus besoin d une reponse rapide. Cette boucle regarde les deux
+# issues et rend la main des que l une survient.
+etat=""
+for _ in $(seq 1 180); do
+  succes="$(${KUBECTL} -n "${NAMESPACE}" get "job/${job}" -o jsonpath='{.status.succeeded}' 2>/dev/null)"
+  echecs="$(${KUBECTL} -n "${NAMESPACE}" get "job/${job}" -o jsonpath='{.status.failed}' 2>/dev/null)"
+  if [ "${succes:-0}" -ge 1 ] 2>/dev/null; then etat="succes"; break; fi
+  if [ "${echecs:-0}" -ge 1 ] 2>/dev/null; then etat="echec"; break; fi
+  sleep 5
+done
+
 ${KUBECTL} -n "${NAMESPACE}" logs "job/${job}" --all-containers 2>/dev/null | sed 's/^/  /'
-if ! ${KUBECTL} -n "${NAMESPACE}" get "job/${job}" -o jsonpath='{.status.succeeded}' 2>/dev/null | grep -q 1; then
-  echo "  the dump did not complete; the object above may be absent or partial" >&2
+if [ "${etat}" != "succes" ]; then
+  echo "  le dump n a pas abouti (${etat:-delai depasse}) ; l objet ci-dessus est absent ou partiel" >&2
+  echo "  le job est conserve une heure : ${KUBECTL} -n ${NAMESPACE} logs job/${job} --all-containers" >&2
   exit 1
 fi
 echo "  decrypt with: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_KEY | gunzip"
