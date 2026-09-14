@@ -186,6 +186,15 @@ type PodStatus struct {
 	Message      string    `json:"message,omitempty"`
 	RestartCount int       `json:"restartCount"`
 	StartedAt    time.Time `json:"startedAt,omitempty"`
+	// OutOfMemory reports that the kernel killed this workload for exceeding
+	// its memory limit, now or on its previous life.
+	//
+	// A separate field rather than a string to match on: the reason travels
+	// under three different names depending on where it is read from, and
+	// "OOMKilled" appearing in a message is the one thing every caller would
+	// otherwise have to know to look for.
+	OutOfMemory   bool      `json:"outOfMemory,omitempty"`
+	OutOfMemoryAt time.Time `json:"outOfMemoryAt,omitempty"`
 }
 
 // PodEvent is one thing Kubernetes recorded about a pod, in its own words. The
@@ -258,6 +267,12 @@ type JobRuntimeInfo struct {
 
 type JobDiscovery interface {
 	ListJobs() ([]JobRuntimeInfo, error)
+}
+
+// JobFailureReader answers why a job ended badly, where the runtime knows
+// something the job record does not.
+type JobFailureReader interface {
+	JobOutOfMemory(jobName string) (bool, error)
 }
 
 type CronJobRuntimeInfo struct {

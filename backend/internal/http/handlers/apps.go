@@ -84,6 +84,12 @@ func (h Handlers) enrichAppRuntimeStatus(item app.App) app.App {
 				item.StartedAt = &startedAt
 			}
 			item.HealthMessage = strings.TrimSpace(status.Reason + " " + status.Message)
+			// An out-of-memory kill speaks for itself, and what Kubernetes says
+			// about it - "OOMKilled" - names a kernel mechanism rather than the
+			// one thing the owner can do about it.
+			if notice, killed := outOfMemoryStatus(status); killed {
+				item.HealthMessage = notice
+			}
 			switch status.Phase {
 			case "failed":
 				item.Status = "failed"

@@ -38,6 +38,10 @@ type startupReport struct {
 	// Stuck says the workspace is not progressing on its own, so the interface
 	// can stop implying that waiting longer will help.
 	Stuck bool `json:"stuck"`
+	// OutOfMemory says the workload was killed for exceeding its memory limit.
+	// Carried as its own flag because it is the one failure with a remedy the
+	// user holds: a larger tier, and nothing else.
+	OutOfMemory bool `json:"outOfMemory,omitempty"`
 }
 
 func (h Handlers) GetWorkspaceStartup(w http.ResponseWriter, r *http.Request) {
@@ -190,6 +194,21 @@ func buildStartupReport(recorded string, status noryxruntime.PodStatus, events [
 	if status.RestartCount > 2 {
 		at("environment").State = "failed"
 		at("environment").Detail = "environment_restarting"
+		report.Stuck = true
+	}
+	// Last, because it overrides everything above it.
+	//
+	// An out-of-memory kill reaches this function looking like several other
+	// things at once - a failed phase, a restart loop, sometimes a pod that is
+	// running again and shows nothing at all. Whichever of those was written,
+	// the memory limit is the cause and raising the tier is the remedy, so it
+	// has the final word rather than competing with a diagnosis that is true
+	// and useless.
+	if notice, killed := outOfMemoryStatus(status); killed {
+		at("environment").State = "failed"
+		at("environment").Detail = "environment_out_of_memory"
+		at("environment").Technical = notice
+		report.OutOfMemory = true
 		report.Stuck = true
 	}
 	return report

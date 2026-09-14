@@ -334,6 +334,19 @@ func (h Handlers) syncJobsFromRuntime() {
 			if strings.TrimSpace(record.Result) == "" {
 				record.Result = "[aucune sortie produite]"
 			}
+			// A job killed for memory leaves truncated output and no
+			// explanation: the logs stop mid-sentence, which reads like the
+			// script crashing. Kubernetes calls it "BackoffLimitExceeded" on
+			// the job itself, which describes the retry policy giving up. The
+			// reason lives on the pod, so the platform goes and asks, and says
+			// it above the output rather than leaving the reader to guess.
+			if record.Status == "failed" {
+				if reader, ok := h.runtime.(noryxruntime.JobFailureReader); ok {
+					if killed, err := reader.JobOutOfMemory(record.JobName); err == nil && killed {
+						record.Result = outOfMemoryNotice + "\n\n" + record.Result
+					}
+				}
+			}
 		}
 		record.ResultAvailable = strings.TrimSpace(record.Result) != ""
 		if found {

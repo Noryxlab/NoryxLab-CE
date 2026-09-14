@@ -513,10 +513,24 @@ func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
 						Message string `json:"message"`
 					} `json:"waiting"`
 					Terminated struct {
-						Reason  string `json:"reason"`
-						Message string `json:"message"`
+						Reason     string `json:"reason"`
+						Message    string `json:"message"`
+						ExitCode   int    `json:"exitCode"`
+						FinishedAt string `json:"finishedAt"`
 					} `json:"terminated"`
 				} `json:"state"`
+				// LastState is where an out-of-memory kill goes once the
+				// container has been restarted. Without reading it, a workload
+				// that Kubernetes killed and brought back reports "running" and
+				// nothing anywhere says why it lost its work.
+				LastState struct {
+					Terminated struct {
+						Reason     string `json:"reason"`
+						Message    string `json:"message"`
+						ExitCode   int    `json:"exitCode"`
+						FinishedAt string `json:"finishedAt"`
+					} `json:"terminated"`
+				} `json:"lastState"`
 			} `json:"containerStatuses"`
 		} `json:"status"`
 	}
@@ -532,6 +546,24 @@ func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
 		}
 		if status.Message == "" {
 			status.Message = firstNonEmpty(container.State.Waiting.Message, container.State.Terminated.Message)
+		}
+		// Current state first, then the previous one: a container killed for
+		// memory and restarted is running now, and the only record of what
+		// happened is the state it left behind.
+		for _, terminated := range []struct {
+			Reason     string
+			FinishedAt string
+		}{
+			{container.State.Terminated.Reason, container.State.Terminated.FinishedAt},
+			{container.LastState.Terminated.Reason, container.LastState.Terminated.FinishedAt},
+		} {
+			if !strings.EqualFold(terminated.Reason, "OOMKilled") {
+				continue
+			}
+			status.OutOfMemory = true
+			if at, err := time.Parse(time.RFC3339, terminated.FinishedAt); err == nil && at.After(status.OutOfMemoryAt) {
+				status.OutOfMemoryAt = at
+			}
 		}
 	}
 	return status, nil
@@ -1767,4 +1799,53 @@ func (r *Runtime) deleteWithPropagation(path string) error {
 		return fmt.Errorf("kubernetes api %s failed: status=%d body=%s", path, resp.StatusCode, string(respBody))
 	}
 	return nil
+}
+
+// JobOutOfMemory reports whether any pod of this job was killed for exceeding
+// its memory limit.
+//
+// Asked of the pods rather than of the Job, because Kubernetes does not put it
+// on the Job: a job whose container was killed for memory is reported as
+// "BackoffLimitExceeded", which describes the retry policy giving up and says
+// nothing about why. The reason lives one level down and nowhere else.
+func (r *Runtime) JobOutOfMemory(jobName string) (bool, error) {
+	jobName = strings.TrimSpace(jobName)
+	if jobName == "" {
+		return false, fmt.Errorf("job name is required")
+	}
+	selector := url.QueryEscape("job-name=" + jobName)
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		return false, err
+	}
+	var listed struct {
+		Items []struct {
+			Status struct {
+				ContainerStatuses []struct {
+					State struct {
+						Terminated struct {
+							Reason string `json:"reason"`
+						} `json:"terminated"`
+					} `json:"state"`
+					LastState struct {
+						Terminated struct {
+							Reason string `json:"reason"`
+						} `json:"terminated"`
+					} `json:"lastState"`
+				} `json:"containerStatuses"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &listed); err != nil {
+		return false, err
+	}
+	for _, pod := range listed.Items {
+		for _, container := range pod.Status.ContainerStatuses {
+			if strings.EqualFold(container.State.Terminated.Reason, "OOMKilled") ||
+				strings.EqualFold(container.LastState.Terminated.Reason, "OOMKilled") {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

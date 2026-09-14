@@ -55,6 +55,19 @@ type Kind struct {
 	// it, which the caller must refuse rather than paper over: falling back to
 	// some other kind's image starts the wrong application and blames the user.
 	DefaultImage func() string
+	// DefaultTier is the resource tier to give this kind when the caller asked
+	// for none, by tier id.
+	//
+	// The platform default suits an editor. It does not suit every tool: a
+	// medical imaging viewer rendering a volume in software needs several times
+	// the memory of a text editor, and a user who never chose a tier should not
+	// have to learn that from a workload killed mid-session.
+	//
+	// Advisory, not binding. Tier ids are deployment configuration and a site
+	// may not have the one named here, in which case the platform default
+	// applies - a kind that refused to start because it could not have its
+	// preferred size would be worse than one that starts smaller.
+	DefaultTier func() string
 	// StartLines are the shell lines that launch it, the last of which is
 	// expected to exec.
 	StartLines func(start Start) []string

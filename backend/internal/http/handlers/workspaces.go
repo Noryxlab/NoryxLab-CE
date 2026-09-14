@@ -264,11 +264,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	req.Image = strings.TrimSpace(req.Image)
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
 	req.HardwareTier = strings.TrimSpace(req.HardwareTier)
-	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
-	if !tierFound {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
-		return
-	}
 	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
 	if rawIDE == "" {
 		req.IDE = "vscode"
@@ -283,6 +278,25 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		req.IDE = rawIDE
+	}
+
+	// Resolved after the kind is settled, because a kind may ask for a size
+	// when the caller named none. Advisory: an unknown id falls through to the
+	// platform default rather than refusing - tier names are deployment
+	// configuration, and this one is a preference.
+	if req.HardwareTier == "" {
+		if registered, ok := workspacekind.Lookup(req.IDE); ok && registered.DefaultTier != nil {
+			if preferred := strings.TrimSpace(registered.DefaultTier()); preferred != "" {
+				if _, exists := h.resolveHardwareTier(preferred); exists {
+					req.HardwareTier = preferred
+				}
+			}
+		}
+	}
+	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
+	if !tierFound {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
+		return
 	}
 	if req.ProjectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
