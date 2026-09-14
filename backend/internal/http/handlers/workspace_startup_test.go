@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"testing"
 
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -67,5 +68,68 @@ func TestImageFailureStopsAtTheImageStep(t *testing.T) {
 	}
 	if stepState(report, "storage").State != "waiting" {
 		t.Fatal("storage was never reached and must not be blamed")
+	}
+}
+
+// An out-of-memory kill must say so, and say what to do.
+//
+// Taken from a real pod on the EMSE cluster: phase Failed, status.reason
+// empty, and the fact sitting in the container's terminated state. Without
+// reading that, the report showed a failed environment with no cause at all -
+// a screen that says something broke and nothing else.
+func TestAnOutOfMemoryKillExplainsItselfAndTheRemedy(t *testing.T) {
+	report := buildStartupReport("running", noryxruntime.PodStatus{
+		Phase:       "failed",
+		OutOfMemory: true,
+	}, nil)
+
+	if !report.OutOfMemory {
+		t.Fatal("the report does not carry the out-of-memory flag the interface keys on")
+	}
+	if !report.Stuck {
+		t.Fatal("an out-of-memory kill is not going to resolve itself by waiting")
+	}
+	var environment startupStep
+	for _, step := range report.Steps {
+		if step.Key == "environment" {
+			environment = step
+		}
+	}
+	if environment.State != "failed" {
+		t.Fatalf("environment step = %q, want failed", environment.State)
+	}
+	if environment.Detail != "environment_out_of_memory" {
+		t.Fatalf("detail = %q: the interface cannot tell this from any other failure", environment.Detail)
+	}
+	if !strings.Contains(environment.Technical, "augmenter le tier") {
+		t.Fatalf("the remedy is missing from %q", environment.Technical)
+	}
+}
+
+// It wins over the diagnoses that would otherwise be written.
+//
+// A container killed for memory and restarted looks like a restart loop, which
+// is true and useless: the loop is the symptom. Reporting that instead sends
+// somebody to look at their code.
+func TestOutOfMemoryWinsOverARestartLoop(t *testing.T) {
+	report := buildStartupReport("running", noryxruntime.PodStatus{
+		Phase: "running", RestartCount: 5, OutOfMemory: true,
+	}, nil)
+
+	for _, step := range report.Steps {
+		if step.Key != "environment" {
+			continue
+		}
+		if step.Detail != "environment_out_of_memory" {
+			t.Fatalf("detail = %q, want the memory cause rather than the restart symptom", step.Detail)
+		}
+	}
+}
+
+// And a healthy workload says nothing about memory.
+func TestAHealthyWorkspaceCarriesNoMemoryNotice(t *testing.T) {
+	report := buildStartupReport("running", noryxruntime.PodStatus{Phase: "running"}, nil)
+	if report.OutOfMemory {
+		t.Fatal("a running workspace was reported as killed for memory")
 	}
 }
