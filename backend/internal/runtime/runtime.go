@@ -233,6 +233,17 @@ type WorkspaceRuntimeInfo struct {
 	Image       string    `json:"image"`
 	AccessToken string    `json:"accessToken"`
 	CreatedAt   time.Time `json:"createdAt"`
+	// Phase and the limits the pod actually carries.
+	//
+	// The reconciler that rebuilds a lost record used to write the platform
+	// defaults for size and the word "running" for status, whatever the pod
+	// was doing. A workspace launched at 1 CPU and 4 GiB was then displayed as
+	// 500m and 512Mi - the interface lying about a number its owner chose -
+	// and one killed for memory three hours earlier was still listed as
+	// running. Both were invented rather than read, so both are read now.
+	Phase       string `json:"phase,omitempty"`
+	CPULimit    string `json:"cpuLimit,omitempty"`
+	MemoryLimit string `json:"memoryLimit,omitempty"`
 }
 
 type WorkspaceDiscovery interface {

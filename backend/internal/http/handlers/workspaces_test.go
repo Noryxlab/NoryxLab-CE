@@ -272,3 +272,48 @@ func TestContinueConfigUsesAReachableEndpoint(t *testing.T) {
 		t.Fatalf("Continue config does not point at the in-cluster endpoint:\n%s", config)
 	}
 }
+
+// A rebuilt record must say what the pod is, not what the platform would have
+// given it.
+//
+// The reconciler wrote the platform defaults for size and the literal word
+// "running" for status. A workspace launched at 1 CPU and 4 GiB was displayed
+// as 500m and 512Mi - the interface contradicting a number its owner had
+// chosen, on the screen they would consult to decide whether to choose a
+// bigger one. And one killed for memory at eleven was still listed as running
+// at three.
+func TestARebuiltRecordCarriesThePodsOwnSizeAndPhase(t *testing.T) {
+	if got := firstNonEmptyString("1", "500m"); got != "1" {
+		t.Fatalf("cpu = %q, want the pod's own limit", got)
+	}
+	if got := firstNonEmptyString("4Gi", "512Mi"); got != "4Gi" {
+		t.Fatalf("memory = %q, want the pod's own limit", got)
+	}
+	// A pod that declares no limit falls back, rather than showing nothing.
+	if got := firstNonEmptyString("", "512Mi"); got != "512Mi" {
+		t.Fatalf("fallback = %q", got)
+	}
+}
+
+func TestAPodPhaseBecomesTheWorkspaceStatus(t *testing.T) {
+	for phase, want := range map[string]string{
+		"failed":    "failed",
+		"Failed":    "failed",
+		"succeeded": "stopped",
+		"pending":   "launching",
+		"running":   "running",
+	} {
+		if got := workspaceStatusFromPhase(phase); got != want {
+			t.Fatalf("phase %q became %q, want %q", phase, got, want)
+		}
+	}
+	// A phase nobody has seen keeps the optimistic answer: inventing "failed"
+	// on a reconciliation sweep would be a worse lie than the one this
+	// replaces.
+	if got := workspaceStatusFromPhase("quelque-chose-de-nouveau"); got != "running" {
+		t.Fatalf("unknown phase became %q", got)
+	}
+	if got := workspaceStatusFromPhase(""); got != "running" {
+		t.Fatalf("empty phase became %q", got)
+	}
+}

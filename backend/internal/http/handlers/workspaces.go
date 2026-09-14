@@ -181,12 +181,24 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 			PVCClass:     h.workspacePVCClass,
 			PVCSize:      h.workspacePVCSize,
 			PVCMountPath: h.workspacePVCMountPath,
-			CPU:          h.workspaceCPU,
-			Memory:       h.workspaceMemory,
-			Status:       "running",
-			AccessURL:    accessURL,
-			AccessToken:  item.AccessToken,
-			CreatedAt:    createdAt,
+			// What the pod carries, not what the platform would have given it.
+			//
+			// These two were the platform defaults, so a workspace rebuilt
+			// after a restart displayed 500m and 512Mi to somebody who had
+			// chosen 1 CPU and 4 GiB - the interface contradicting a number its
+			// owner picked, on the screen they would consult to decide whether
+			// to pick a bigger one.
+			CPU:    firstNonEmptyString(item.CPULimit, h.workspaceCPU),
+			Memory: firstNonEmptyString(item.MemoryLimit, h.workspaceMemory),
+			// And the pod's own phase rather than the word "running".
+			//
+			// A workspace killed for memory at eleven was still listed as
+			// running at three, because this line said so. Its owner clicks it
+			// and gets a proxy error from a screen that told them it was fine.
+			Status:      workspaceStatusFromPhase(item.Phase),
+			AccessURL:   accessURL,
+			AccessToken: item.AccessToken,
+			CreatedAt:   createdAt,
 		}
 		_ = h.workspaceStore.Create(record)
 	}
@@ -1510,4 +1522,32 @@ func workspaceIDEChoices() []string {
 		}
 	}
 	return choices
+}
+
+// workspaceStatusFromPhase maps a pod phase onto the vocabulary a workspace
+// record uses. An unknown phase keeps the optimistic answer, because this runs
+// on a reconciliation sweep and inventing "failed" from a phase nobody has seen
+// would be a worse lie than the one it replaces.
+func workspaceStatusFromPhase(phase string) string {
+	switch strings.ToLower(strings.TrimSpace(phase)) {
+	case "failed":
+		return "failed"
+	case "succeeded":
+		return "stopped"
+	case "pending":
+		return "launching"
+	case "running", "":
+		return "running"
+	default:
+		return "running"
+	}
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }

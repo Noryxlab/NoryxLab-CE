@@ -1232,10 +1232,19 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			} `json:"metadata"`
 			Spec struct {
 				Containers []struct {
-					Image string   `json:"image"`
-					Args  []string `json:"args"`
+					Image     string   `json:"image"`
+					Args      []string `json:"args"`
+					Resources struct {
+						Limits struct {
+							CPU    string `json:"cpu"`
+							Memory string `json:"memory"`
+						} `json:"limits"`
+					} `json:"resources"`
 				} `json:"containers"`
 			} `json:"spec"`
+			Status struct {
+				Phase string `json:"phase"`
+			} `json:"status"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -1255,8 +1264,12 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 		}
 		image := ""
 		accessToken := ""
+		cpuLimit := ""
+		memoryLimit := ""
 		if len(item.Spec.Containers) > 0 {
 			image = strings.TrimSpace(item.Spec.Containers[0].Image)
+			cpuLimit = strings.TrimSpace(item.Spec.Containers[0].Resources.Limits.CPU)
+			memoryLimit = strings.TrimSpace(item.Spec.Containers[0].Resources.Limits.Memory)
 			if kind == "jupyter" {
 				for _, arg := range item.Spec.Containers[0].Args {
 					if strings.HasPrefix(arg, "--ServerApp.token=") {
@@ -1279,6 +1292,9 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 			Image:       image,
 			AccessToken: strings.TrimSpace(accessToken),
 			CreatedAt:   item.Metadata.CreationTimestamp.UTC(),
+			Phase:       strings.ToLower(strings.TrimSpace(item.Status.Phase)),
+			CPULimit:    cpuLimit,
+			MemoryLimit: memoryLimit,
 		})
 	}
 
