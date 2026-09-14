@@ -115,7 +115,17 @@ const IDE_LABELS: Record<string, string> = {
 
 export function presentIde(ide: string | null | undefined): string {
   if (!ide) return '—';
-  return IDE_LABELS[ide.toLowerCase()] ?? ide;
+  const known = IDE_LABELS[ide.toLowerCase()];
+  if (known) return known;
+  // Un type que cette edition ne connait pas : un module peut en enregistrer,
+  // et le catalogue les affiche. Faute de libelle, l'identifiant est rendu
+  // presentable plutot que laisse en minuscules au milieu de noms propres -
+  // « slicer » a cote de « VS Code » se lit comme un defaut.
+  return ide
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 export function presentIdes(ides: string[] | null | undefined): string {

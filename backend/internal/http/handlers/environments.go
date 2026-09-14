@@ -119,6 +119,26 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, systemEnvironmentDefinitions["system-jupyter"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, systemEnvironmentDefinitions["system-vscode"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceRStudioImage, systemEnvironmentDefinitions["system-rstudio"])
+		// A registered kind offers its own image beside them. The screen that
+		// lists environments is where a workspace is actually started, so a
+		// kind absent from it exists only for whoever calls the API by hand.
+		for _, kind := range workspacekind.All() {
+			if kind.Catalogue == nil || kind.DefaultImage == nil {
+				continue
+			}
+			image := strings.TrimSpace(kind.DefaultImage())
+			entry := kind.Catalogue()
+			if image == "" || strings.TrimSpace(entry.ID) == "" {
+				continue
+			}
+			addSystemEnvironment(itemsByKey, projectFilter, image, systemEnvironmentDefinition{
+				BuildID:        entry.ID,
+				GitRepository:  entry.GitRepository,
+				GitRef:         entry.GitRef,
+				DockerfilePath: entry.DockerfilePath,
+				WorkspaceIDEs:  []string{kind.ID},
+			})
+		}
 	}
 
 	items := make([]environmentItem, 0, len(itemsByKey))
@@ -478,6 +498,14 @@ func deriveWorkspaceIDEs(values ...string) []string {
 	if strings.Contains(joined, "rstudio") || strings.Contains(joined, "rocker/") {
 		ides = append(ides, "rstudio")
 	}
+	// And whatever this build registered. Without this a kind works through
+	// the API and is offered nowhere: the environment screen decides what can
+	// be launched, and it decides from the image name.
+	for _, kind := range workspacekind.All() {
+		if kind.Matches(values...) {
+			ides = append(ides, kind.ID)
+		}
+	}
 	return ides
 }
 
@@ -485,12 +513,16 @@ func mergeWorkspaceIDEs(current, extra []string) []string {
 	seen := map[string]bool{}
 	for _, ide := range append(current, extra...) {
 		ide = strings.ToLower(strings.TrimSpace(ide))
-		if allowedWorkspaceIDEs[ide] {
+		if allowedWorkspaceIDEs[ide] || workspacekind.Allowed(ide) {
 			seen[ide] = true
 		}
 	}
 	result := make([]string, 0, len(seen))
-	for _, ide := range []string{"jupyter", "vscode", "rstudio"} {
+	// Community's three first and in their usual order, then the registered
+	// ones: an interface that preselects the first entry should not have its
+	// default changed by a module being installed.
+	known := append([]string{"jupyter", "vscode", "rstudio"}, workspacekind.IDs()...)
+	for _, ide := range known {
 		if seen[ide] {
 			result = append(result, ide)
 		}

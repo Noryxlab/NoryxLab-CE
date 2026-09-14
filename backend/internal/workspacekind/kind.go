@@ -68,6 +68,20 @@ type Kind struct {
 	// applies - a kind that refused to start because it could not have its
 	// preferred size would be worse than one that starts smaller.
 	DefaultTier func() string
+	// ImageMarkers are substrings that identify this kind's images.
+	//
+	// The platform decides what an environment can run by looking at its image
+	// name and its Dockerfile - "rstudio" or "rocker/" means RStudio. A kind
+	// whose images match nothing is offered nowhere, which is how a registered
+	// kind ends up working through the API and invisible on the screen.
+	ImageMarkers []string
+	// Catalogue makes the kind's own image an entry on the environment screen,
+	// beside the ones Community ships. Without it the kind exists and nobody
+	// can choose it: that screen is where a workspace is actually started.
+	//
+	// Nil means the kind contributes no entry - appropriate for one whose
+	// images are always built by a project.
+	Catalogue func() CatalogueEntry
 	// StartLines are the shell lines that launch it, the last of which is
 	// expected to exec.
 	StartLines func(start Start) []string
@@ -120,4 +134,49 @@ func IDs() []string {
 
 func normalise(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
+}
+
+// CatalogueEntry is how a kind presents its own image on the environment
+// screen: not the image itself, which DefaultImage gives, but where it came
+// from, so a reader can see the recipe rather than trusting a name.
+type CatalogueEntry struct {
+	ID             string
+	GitRepository  string
+	GitRef         string
+	DockerfilePath string
+}
+
+// Matches reports whether an image belongs to this kind.
+func (k Kind) Matches(values ...string) bool {
+	if len(k.ImageMarkers) == 0 {
+		return false
+	}
+	joined := strings.ToLower(strings.Join(values, "\n"))
+	for _, marker := range k.ImageMarkers {
+		if marker = strings.ToLower(strings.TrimSpace(marker)); marker != "" && strings.Contains(joined, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// All returns every registered kind, for a caller that has to offer all of
+// them rather than look one up.
+func All() []Kind {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]Kind, 0, len(kinds))
+	for _, id := range sortedIDs() {
+		out = append(out, kinds[id])
+	}
+	return out
+}
+
+func sortedIDs() []string {
+	ids := make([]string, 0, len(kinds))
+	for id := range kinds {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
