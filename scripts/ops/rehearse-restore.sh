@@ -184,14 +184,50 @@ esac
 
 echo
 echo "  what the restored platform holds, against the live one:"
-for table in projects datasets ontologies repositories apps; do
-  restored="$(${KUBECTL} -n "${NAMESPACE}" exec deployment/postgres -- psql -U noryx -d "${DATABASE}" -tAc "select count(*) from ${table}" 2>/dev/null | tr -d ' \r')"
-  live="$(${KUBECTL} -n "${NAMESPACE}" exec deployment/postgres -- psql -U noryx -d noryx -tAc "select count(*) from ${table}" 2>/dev/null | tr -d ' \r')"
+# The objects, then the graph between them.
+#
+# The graph is the half that cannot be reconstructed from memory: an object can
+# be recreated from its definition, but who was allowed to see it, and which
+# project it belonged to, lives in people's heads - and a recovery is exactly
+# when those people are busy. It went unbacked-up for a long time precisely
+# because this table never looked at it.
+#
+# Counted excluding orphans. A grant whose project no longer exists is a row
+# nobody can see and nobody can revoke; the backup does not carry it and the
+# restore refuses to create it, both deliberately. Comparing raw counts made
+# the drill report a failure every night for a row that should not be there -
+# and a drill that cries wolf is a drill people stop reading.
+count_live_and_restored() {
+  table="$1"
+  where="$2"
+  for database in "${DATABASE}" noryx; do
+    ${KUBECTL} -n "${NAMESPACE}" exec deployment/postgres -- \
+      psql -U noryx -d "${database}" -tAc \
+      "select count(*) from ${table} ${where}" 2>/dev/null | tr -d ' \r'
+  done
+}
+
+for entry in \
+  "projects|" \
+  "datasets|" \
+  "ontologies|" \
+  "repositories|" \
+  "apps|" \
+  "project_datasets|where project_id in (select id from projects)" \
+  "project_repositories|where project_id in (select id from projects)" \
+  "dataset_access|where dataset_id in (select id from datasets)" \
+  "access_organization_roles|where project_id in (select id from projects)"
+do
+  table="${entry%%|*}"
+  where="${entry#*|}"
+  read -r restored live <<EOF
+$(count_live_and_restored "${table}" "${where}" | tr '\n' ' ')
+EOF
   status="ok  "
   # Live can legitimately have grown since the backup was taken; fewer is what
   # a failed restore looks like.
   [ "${restored:-0}" -lt "${live:-0}" ] && status="CHECK"
-  printf '  %s  %-14s restored %-5s live %s\n' "${status}" "${table}" "${restored:-?}" "${live:-?}"
+  printf '  %s  %-26s restored %-5s live %s\n' "${status}" "${table}" "${restored:-?}" "${live:-?}"
 done
 echo
 echo "  the rehearsal is removed on exit; the live platform was only read from"
