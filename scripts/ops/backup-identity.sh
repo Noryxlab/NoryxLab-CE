@@ -107,7 +107,7 @@ spec:
               set -e
               cd /export
               tar cf - . | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BACKUP_KEY -out /tmp/identity.tar.enc
-              # MC_HOST_target rather than `mc alias set`: the container runs as
+              # MC_HOST_target rather than 'mc alias set': the container runs as
               # a non-root user with no writable home, and an alias would need
               # one. It also keeps the credentials out of the argument list.
               mc --config-dir /tmp/.mc cp /tmp/identity.tar.enc "target/\$BUCKET/\$OBJECT"
