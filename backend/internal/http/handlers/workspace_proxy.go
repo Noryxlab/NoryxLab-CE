@@ -5,6 +5,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/workspacekind"
 )
 
 func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +80,19 @@ func workspaceProxyTargetPath(kind, workspaceID, rest string) string {
 	rest = strings.TrimSpace(rest)
 	// RStudio uses www-root-path to generate browser-facing URLs, but expects
 	// the reverse proxy to strip that public prefix before forwarding.
+	if registered, ok := workspacekind.Lookup(kind); ok {
+		if !registered.StripProxyPrefix {
+			targetPath := "/workspaces/" + workspaceID
+			if rest != "" {
+				targetPath += "/" + strings.TrimPrefix(rest, "/")
+			}
+			return targetPath
+		}
+		if rest == "" {
+			return "/"
+		}
+		return "/" + strings.TrimPrefix(rest, "/")
+	}
 	if normalizeWorkspaceKind(kind) == "rstudio" {
 		if rest == "" {
 			return "/"

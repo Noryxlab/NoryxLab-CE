@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/workspacekind"
 )
 
 type environmentRevision struct {
@@ -499,13 +501,22 @@ func mergeWorkspaceIDEs(current, extra []string) []string {
 func (h Handlers) workspaceEnvironmentAllowed(projectID, image, ide string) bool {
 	image = strings.TrimSpace(image)
 	ide = strings.ToLower(strings.TrimSpace(ide))
-	if image == "" || !allowedWorkspaceIDEs[ide] {
+	if image == "" || (!allowedWorkspaceIDEs[ide] && !workspacekind.Allowed(ide)) {
 		return false
 	}
 	if (ide == "jupyter" && image == strings.TrimSpace(h.workspaceJupyterImage)) ||
 		(ide == "vscode" && image == strings.TrimSpace(h.workspaceVSCodeImage)) ||
 		(ide == "rstudio" && image == strings.TrimSpace(h.workspaceRStudioImage)) {
 		return true
+	}
+	// A registered kind's own image is its platform default, exactly as the
+	// three above are theirs. Without this the kind is accepted everywhere else
+	// and refused here, with a message blaming the environment for a rule it
+	// never broke.
+	if registered, ok := workspacekind.Lookup(ide); ok && registered.DefaultImage != nil {
+		if configured := strings.TrimSpace(registered.DefaultImage()); configured != "" && configured == image {
+			return true
+		}
 	}
 	builds, err := h.buildStore.List()
 	if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/workspacekind"
 )
 
 type createWorkspaceRequest struct {
@@ -196,10 +197,19 @@ func normalizeWorkspaceKind(raw string) string {
 	if allowedWorkspaceIDEs[kind] {
 		return kind
 	}
+	// A kind this build registered without Community knowing about it. That is
+	// how an edition adds a tool of its own - the mechanism is here, the tool
+	// is not.
+	if workspacekind.Allowed(kind) {
+		return kind
+	}
 	return "jupyter"
 }
 
 func workspaceAccessURL(kind, workspaceID string) string {
+	if registered, ok := workspacekind.Lookup(kind); ok && registered.AccessURL != nil {
+		return registered.AccessURL(workspaceID)
+	}
 	if kind == "vscode" {
 		workspaceQuery := url.QueryEscape(workspaceVSCodeFilePath)
 		return fmt.Sprintf("/workspaces/%s/?workspace=%s", workspaceID, workspaceQuery)
@@ -262,8 +272,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
 	if rawIDE == "" {
 		req.IDE = "vscode"
-	} else if !allowedWorkspaceIDEs[rawIDE] {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ide must be one of: jupyter, vscode, rstudio"})
+	} else if !allowedWorkspaceIDEs[rawIDE] && !workspacekind.Allowed(rawIDE) {
+		// Named from what this build actually registered, rather than from a
+		// list written once: a deployment that adds a kind would otherwise
+		// refuse it here while accepting it three functions later, and tell the
+		// caller its own kind does not exist.
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "ide must be one of: " + strings.Join(workspaceIDEChoices(), ", "),
+		})
 		return
 	} else {
 		req.IDE = rawIDE
@@ -321,8 +337,20 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	} else if req.IDE == "rstudio" {
 		workspaceImage = h.workspaceRStudioImage
 	}
+	if registered, ok := workspacekind.Lookup(req.IDE); ok && registered.DefaultImage != nil {
+		workspaceImage = strings.TrimSpace(registered.DefaultImage())
+	}
 	if req.Image != "" {
 		workspaceImage = req.Image
+	}
+	if workspaceImage == "" {
+		// The kind is registered and nothing says what to run. Refused plainly:
+		// starting some other kind's image would open the wrong application and
+		// leave the user explaining that their imaging workspace is an editor.
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "no image is configured for " + req.IDE + " on this platform",
+		})
+		return
 	}
 	if !h.workspaceEnvironmentAllowed(req.ProjectID, workspaceImage, req.IDE) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selected environment is not accessible or compatible with " + req.IDE})
@@ -1177,6 +1205,19 @@ func workspaceBootstrapScript(
 		return strings.Join(lines, "\n")
 	}
 
+	// A kind this build registered and Community does not implement writes its
+	// own launch. Checked after the three above rather than before them, so a
+	// registration can never quietly change how the editors ship.
+	if registered, ok := workspacekind.Lookup(kind); ok && registered.StartLines != nil {
+		lines = append(lines, registered.StartLines(workspacekind.Start{
+			WorkspaceID: workspaceID,
+			AccessToken: accessToken,
+			ProfileDir:  profileMountPath,
+			ProjectDir:  projectMountPath,
+		})...)
+		return strings.Join(lines, "\n")
+	}
+
 	lines = append(lines,
 		"if [ \"${NORYX_AUTO_UPDATE_IDE:-0}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
 		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
@@ -1436,4 +1477,23 @@ func bootstrapSecretData(script, cohortManifest string) map[string]string {
 		data["cohorts.b64"] = cohortManifest
 	}
 	return data
+}
+
+// workspaceIDEChoices is what this build can actually run, for the message a
+// caller reads when they asked for something else.
+func workspaceIDEChoices() []string {
+	seen := map[string]bool{}
+	choices := make([]string, 0, len(allowedWorkspaceIDEs)+2)
+	for _, id := range []string{"jupyter", "vscode", "rstudio"} {
+		if allowedWorkspaceIDEs[id] {
+			seen[id] = true
+			choices = append(choices, id)
+		}
+	}
+	for _, id := range workspacekind.IDs() {
+		if !seen[id] {
+			choices = append(choices, id)
+		}
+	}
+	return choices
 }
