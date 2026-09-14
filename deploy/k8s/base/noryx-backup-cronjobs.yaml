@@ -1,0 +1,167 @@
+# Les deux sauvegardes que Kubernetes doit declencher lui-meme.
+#
+# La sauvegarde plateforme est un appel d API, et le platform-validator la
+# declenche deja chaque nuit. Ces deux-la ne sont pas de cette forme : un export
+# Keycloak et un pg_dump produisent un fichier depuis un conteneur, donc ce sont
+# des Jobs - et un CronJob est exactement l ordonnanceur que Kubernetes fournit
+# pour ca. Les faire passer par un endpoint du backend reviendrait a mettre dans
+# l API le droit de creer des Jobs, pour rien.
+#
+# Les horaires sont espaces plutot que simultanes : le manifeste a 02h00,
+# les identites a 02h10, la base a 02h20, les volumes Longhorn a 02h40. Chacune
+# lit la meme soiree, et aucune ne se dispute la bande passante de la
+# precedente.
+#
+# Ce que ces deux objets chiffrent - empreintes de mots de passe pour l une,
+# base entiere pour l autre - part avec la meme cle que l export d identites.
+# Elle vit hors du cluster, dans le coffre de l operateur : une sauvegarde qui
+# transporte sa propre cle de dechiffrement ne protege rien.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: noryx-identity-backup
+  namespace: noryx
+  labels: { app.kubernetes.io/name: noryx-identity-backup }
+spec:
+  schedule: "10 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  # Trois echecs gardes contre un seul succes : c est l echec qu on vient lire,
+  # et il arrive qu on le decouvre trois jours plus tard.
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: noryx-identity-backup
+            # Nomme dans la politique qui garde Postgres. Sans cette etiquette
+            # l export est refuse au niveau reseau et Keycloak signale une base
+            # injoignable.
+            noryx.io/identity-backup: "true"
+        spec:
+          restartPolicy: Never
+          imagePullSecrets: [{ name: harbor-regcred }]
+          volumes:
+            - { name: export, emptyDir: {} }
+          initContainers:
+            - name: export
+              image: KEYCLOAK_IMAGE_PLACEHOLDER
+              command: ["/opt/keycloak/bin/kc.sh", "export", "--dir", "/export", "--users", "same_file", "--realm", "noryx"]
+              env:
+                - { name: KC_DB, value: postgres }
+                - { name: KC_DB_URL, value: "jdbc:postgresql://postgres:5432/noryx?sslmode=prefer" }
+                - { name: KC_DB_USERNAME, value: noryx }
+                - name: KC_DB_PASSWORD
+                  valueFrom: { secretKeyRef: { name: noryx-secrets, key: POSTGRES_PASSWORD } }
+              volumeMounts: [{ name: export, mountPath: /export }]
+          containers:
+            - name: ship
+              image: BACKUP_IMAGE_PLACEHOLDER
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  OBJECT="identity/$(date -u +%Y/%m/%d/%H%M%SZ)/noryx-identity.tar.enc"
+                  cd /export
+                  tar cf - . | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+                    -pass env:BACKUP_KEY -out /tmp/identity.tar.enc
+                  H="${ENDPOINT#*://}"
+                  export MC_HOST_target="${ENDPOINT%%://*}://${ACCESS_KEY}:${SECRET_KEY}@${H}"
+                  mc --config-dir /tmp/.mc cp /tmp/identity.tar.enc "target/${BUCKET}/${OBJECT}"
+                  echo "shipped ${OBJECT} ($(wc -c < /tmp/identity.tar.enc) bytes encrypted)"
+              env:
+                - { name: HOME, value: "/tmp" }
+                - name: BUCKET
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: bucket } }
+                - name: ENDPOINT
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: endpoint } }
+                - name: ACCESS_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: accessKey } }
+                - name: SECRET_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: secretKey } }
+                - name: BACKUP_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-identity-backup-key, key: key } }
+              volumeMounts: [{ name: export, mountPath: /export }]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: noryx-database-backup
+  namespace: noryx
+  labels: { app.kubernetes.io/name: noryx-database-backup }
+spec:
+  schedule: "20 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: noryx-database-backup
+            noryx.io/database-backup: "true"
+        spec:
+          restartPolicy: Never
+          imagePullSecrets: [{ name: harbor-regcred }]
+          volumes:
+            - { name: dump, emptyDir: {} }
+          initContainers:
+            - name: dump
+              image: POSTGRES_IMAGE_PLACEHOLDER
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  set -o pipefail
+                  # On attend que la base reponde avant de la vider : ce
+                  # conteneur demarre avant que le controleur reseau ait
+                  # programme les regles du pod, et pg_dump signale alors
+                  # "connection refused" en accusant la base.
+                  for essai in $(seq 1 30); do
+                    pg_isready -h postgres -p 5432 -t 3 >/dev/null 2>&1 && break
+                    [ "$essai" = "30" ] && { echo "postgres injoignable" >&2; exit 1; }
+                    sleep 2
+                  done
+                  pg_dump -U noryx -h postgres -d noryx | gzip -6 > /dump/db.sql.gz
+                  taille=$(wc -c < /dump/db.sql.gz)
+                  # Un plancher, parce qu un code de sortie n est pas la seule
+                  # facon de ne rien produire.
+                  [ "$taille" -lt 4096 ] && { echo "dump de $taille octets : trop petit" >&2; exit 1; }
+                  echo "dumped $taille bytes compressed"
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: noryx-secrets, key: POSTGRES_PASSWORD } }
+              volumeMounts: [{ name: dump, mountPath: /dump }]
+          containers:
+            - name: ship
+              image: BACKUP_IMAGE_PLACEHOLDER
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  OBJECT="database/$(date -u +%Y/%m/%d/%H%M%SZ)/noryx.sql.gz.enc"
+                  openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+                    -pass env:BACKUP_KEY -in /dump/db.sql.gz -out /tmp/db.sql.gz.enc
+                  H="${ENDPOINT#*://}"
+                  export MC_HOST_target="${ENDPOINT%%://*}://${ACCESS_KEY}:${SECRET_KEY}@${H}"
+                  mc --config-dir /tmp/.mc cp /tmp/db.sql.gz.enc "target/${BUCKET}/${OBJECT}"
+                  echo "shipped ${OBJECT} ($(wc -c < /tmp/db.sql.gz.enc) bytes encrypted)"
+              env:
+                - { name: HOME, value: "/tmp" }
+                - name: BUCKET
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: bucket } }
+                - name: ENDPOINT
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: endpoint } }
+                - name: ACCESS_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: accessKey } }
+                - name: SECRET_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-backup-target, key: secretKey } }
+                - name: BACKUP_KEY
+                  valueFrom: { secretKeyRef: { name: noryx-identity-backup-key, key: key } }
+              volumeMounts: [{ name: dump, mountPath: /dump }]
