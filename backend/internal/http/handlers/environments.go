@@ -69,6 +69,22 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 	itemsByKey := map[string]*environmentItem{}
 	sizeCache := map[string]string{}
 	scanCache := map[string]*imageVulnerabilities{}
+	// The repositories the platform ships itself.
+	//
+	// A system environment is platform-wide and carries no project, while a
+	// build carries the project that produced it. Keyed the same way, those two
+	// never met: rebuilding a system image from a project produced a second row
+	// with the same name, and the list grew one entry per rebuild instead of
+	// one revision. A rebuild of a system image is a revision of that
+	// environment, so it is keyed as one.
+	systemRepositories := h.systemEnvironmentRepositories()
+	keyFor := func(projectID, image string) string {
+		repository := imageRepository(image)
+		if systemRepositories[repository] {
+			return "|" + repository
+		}
+		return projectID + "|" + repository
+	}
 	for _, b := range builds {
 		if projectFilter != "" && b.ProjectID != projectFilter {
 			continue
@@ -84,7 +100,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		// pushes a new tag, so keying on the reference made each rebuild a
 		// separate environment - the list filled up with what is one thing
 		// built twice.
-		key := b.ProjectID + "|" + imageRepository(destination)
+		key := keyFor(b.ProjectID, destination)
 		item, exists := itemsByKey[key]
 		if !exists {
 			item = &environmentItem{
@@ -440,7 +456,10 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 	// one on the full image while builds keyed on the repository produced
 	// three rows for noryx-vscode:0.1.2 - the system definition, and the
 	// rebuilds of it, none of them merging.
-	key := projectID + "|" + imageRepository(image)
+	// Never the project: a system environment belongs to the platform, and
+	// keying it under whichever project happened to ask for the list would
+	// hide it from the next one.
+	key := "|" + imageRepository(image)
 	revision := environmentRevision{
 		BuildID:          definition.BuildID,
 		Status:           "succeeded",
@@ -565,4 +584,25 @@ func (h Handlers) workspaceEnvironmentAllowed(projectID, image, ide string) bool
 		}
 	}
 	return false
+}
+
+// systemEnvironmentRepositories is the set of repositories this platform ships,
+// including those a registered kind contributes. Used to recognise a build that
+// is a rebuild of one of them rather than a project's own image.
+func (h Handlers) systemEnvironmentRepositories() map[string]bool {
+	repositories := map[string]bool{}
+	for _, image := range []string{h.workspaceJupyterImage, h.workspaceVSCodeImage, h.workspaceRStudioImage} {
+		if repository := imageRepository(strings.TrimSpace(image)); repository != "" {
+			repositories[repository] = true
+		}
+	}
+	for _, kind := range workspacekind.All() {
+		if kind.DefaultImage == nil {
+			continue
+		}
+		if repository := imageRepository(strings.TrimSpace(kind.DefaultImage())); repository != "" {
+			repositories[repository] = true
+		}
+	}
+	return repositories
 }
