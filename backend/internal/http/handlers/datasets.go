@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
@@ -1204,7 +1205,7 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if !h.canAssignDataset(identity, item) {
+	if !h.canAssignDataset(identity, item, projectID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
 	}
@@ -1242,7 +1243,7 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if !h.canAssignDataset(identity, item) {
+	if !h.canAssignDataset(identity, item, projectID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
 	}
@@ -1253,14 +1254,74 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset) bool {
+func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset, projectID string) bool {
 	if !h.datasetAvailableInEdition(item) {
 		return false
 	}
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	return item.Classification != "hds" && h.datasetRole(item, identity) == "owner"
+	if item.Classification == "hds" {
+		return h.canAttachRegulatedDataset(identity, item, projectID)
+	}
+	return h.datasetRole(item, identity) == "owner"
+}
+
+// canAttachRegulatedDataset delegates the mount of regulated data to the people
+// who already answer for both sides of it.
+//
+// Attaching an HDS dataset was a global administrator's decision and nobody
+// else's. That is defensible on paper and a bottleneck in practice: a team
+// whose organisation owns the data, working in a project they administer, had
+// to wait on one person for a mount that involved nobody outside their own
+// organisation. The wait is not a safeguard; it is a queue, and the safeguard
+// it stands in for is entitlement.
+//
+// So the two halves are asked directly. The dataset must be owned by an
+// organisation - a person cannot own regulated data, which registration
+// already refuses - and the caller must belong to it: that is the entitlement.
+// And the caller must administer the project it is being mounted into, which
+// is what makes them answerable for who sees it afterwards. Either half alone
+// is not enough, and a global administrator keeps the right they always had.
+func (h Handlers) canAttachRegulatedDataset(identity auth.Identity, item dataset.Dataset, projectID string) bool {
+	if !entitledToRegulatedDataset(h.datasetSubjects(identity), item) {
+		return false
+	}
+	return h.administersProject(projectID, identity.UserID())
+}
+
+// entitledToRegulatedDataset is the entitlement half, on its own.
+//
+// Separated from the rest because it is the half that can be got wrong
+// quietly: it compares an owner recorded by one screen against organisations
+// reported by the directory, and both arrive with whatever case and spacing
+// their source used. A rule about regulated data must not depend on that.
+func entitledToRegulatedDataset(subjects []dataset.Subject, item dataset.Dataset) bool {
+	if !strings.EqualFold(strings.TrimSpace(item.OwnerType), "organization") {
+		return false
+	}
+	owner := strings.TrimSpace(item.OwnerID)
+	if owner == "" {
+		return false
+	}
+	for _, subject := range subjects {
+		if strings.EqualFold(strings.TrimSpace(subject.Type), "organization") &&
+			strings.EqualFold(strings.TrimSpace(subject.ID), owner) {
+			return true
+		}
+	}
+	return false
+}
+
+// administersProject is project administration as the platform decides it:
+// the owner, or a role that resolves to administrator. A custom role answers
+// through the built-in it is based on, like everywhere else.
+func (h Handlers) administersProject(projectID, userID string) bool {
+	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
+		return true
+	}
+	role, ok := h.effectiveProjectRole(projectID, userID)
+	return ok && h.baseRole(role) == access.RoleAdmin
 }
 
 // datasetAssignmentError says which of the two refusals actually happened.
@@ -1280,7 +1341,7 @@ func (h Handlers) datasetAssignmentError(item dataset.Dataset) string {
 		return "HDS dataset management requires NoryxLab Enterprise Edition"
 	}
 	if item.Classification == "hds" {
-		return "global admin role required to attach an HDS dataset to a project"
+		return "attaching regulated data requires a global admin, or an administrator of this project who belongs to the organisation that owns the dataset"
 	}
 	return "dataset owner or global admin role required to assign this dataset"
 }

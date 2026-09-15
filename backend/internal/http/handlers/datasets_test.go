@@ -61,9 +61,9 @@ func TestAnOrdinaryRefusalNamesTheRoleAndNotTheEdition(t *testing.T) {
 //
 // Both were accepted until a real one taught the difference: a dataset owned
 // by Essilor was handed to one of its members trying to unblock herself. It
-// did not unblock her - attaching regulated data to a project is a global
-// administrator's decision, which ownership does not confer - and it removed
-// the access every other member of that organization held through it.
+// did not unblock her - a mount asks for entitlement through the organisation,
+// which personal ownership takes away rather than confers - and it removed the
+// access every other member of that organization held through it.
 func TestRegulatedDataCannotBeOwnedByAPerson(t *testing.T) {
 	if ownerAllowedForClassification("hds", "user") {
 		t.Error("a health dataset was handed to a person")
@@ -83,5 +83,56 @@ func TestRegulatedDataCannotBeOwnedByAPerson(t *testing.T) {
 	}
 	if !ownerAllowedForClassification("", "user") {
 		t.Error("an unclassified dataset was refused a personal owner")
+	}
+}
+
+// Who may mount regulated data into a project.
+//
+// It was a global administrator and nobody else, which is defensible on paper
+// and a queue in practice: a team whose organisation owns the data, working in
+// a project they administer, waited on one person for a mount involving nobody
+// outside their own organisation. The entitlement is what the wait stood in
+// for, so the entitlement is what is asked.
+//
+// Only this half is exercised here: the other half asks the directory who
+// administers a project, and the directory is not something this test can
+// stand up honestly.
+func TestRegulatedDataIsMountedOnlyByItsOwnOrganisation(t *testing.T) {
+	item := dataset.New("essilor", "cohort", "", "hds-bucket", "", "s3", "hds", "https://hds.example.com", "custom")
+	item.OwnerType = "organization"
+	item.OwnerID = "essilor"
+
+	member := []dataset.Subject{{Type: "user", ID: "claire"}, {Type: "organization", ID: "essilor"}}
+	if !entitledToRegulatedDataset(member, item) {
+		t.Error("a member of the owning organisation was refused")
+	}
+
+	// The case a real transfer produced: the dataset was handed to a person,
+	// which unblocked nobody and cut off everyone who had it through the
+	// organisation.
+	personal := item
+	personal.OwnerType = "user"
+	personal.OwnerID = "claire"
+	if entitledToRegulatedDataset(member, personal) {
+		t.Error("regulated data owned by a person opened a mount")
+	}
+
+	outsider := []dataset.Subject{{Type: "user", ID: "someone"}, {Type: "organization", ID: "inria"}}
+	if entitledToRegulatedDataset(outsider, item) {
+		t.Error("another organisation could mount data it does not own")
+	}
+
+	// A user whose identifier happens to match the organisation's is not the
+	// organisation.
+	impostor := []dataset.Subject{{Type: "user", ID: "essilor"}}
+	if entitledToRegulatedDataset(impostor, item) {
+		t.Error("a user identifier was read as an organisation")
+	}
+
+	// Case and spacing are how these values arrive from a form and from the
+	// directory, not a reason for the rule to stop applying.
+	spaced := []dataset.Subject{{Type: " Organization ", ID: " Essilor "}}
+	if !entitledToRegulatedDataset(spaced, item) {
+		t.Error("the rule was defeated by spacing")
 	}
 }
