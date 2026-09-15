@@ -184,6 +184,12 @@ export const fr = {
     roleLabel: 'Son rôle dans l’équipe',
     teamLabel: 'Son équipe',
     noTeam: 'Travaille seul',
+    edit: 'Modifier',
+    dismiss: 'Renvoyer',
+    dismissTitle: 'Renvoyer {name} ?',
+    dismissBody:
+      'Sa consigne et son carnet de travail sont supprimés. Ce qu’il a relancé ou signalé reste dans l’audit de la plateforme.',
+    dismissed: '{name} a été renvoyé.',
     runNow: 'Faire maintenant',
     atWork: 'Au travail',
     paused: 'En pause',
@@ -226,6 +232,8 @@ export const fr = {
     workloads: 'Exécutions',
     workloadsHint: 'Workspaces, jobs et applications actifs',
     storage: 'Stockage',
+    storagePartial: 'Mesuré sur {measured} datasets des {total} de la plateforme. Les datasets de santé ne sont pas comptés.',
+    storageTruncated: 'Mesure interrompue avant la fin : le volume réel est plus élevé.',
     storageHint: 'Volume mesuré sur les buckets accessibles',
     noProjects: 'Aucun projet pour le moment',
     noProjectsHint:

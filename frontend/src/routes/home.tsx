@@ -13,6 +13,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { CreateProjectSheet } from '@/features/projects/project-form';
 import { AIServicesCard } from '@/features/home/ai-services';
+import type { PlatformOverview } from '@/lib/api/types';
 
 export function HomePage() {
   const t = useT();
@@ -83,7 +84,7 @@ export function HomePage() {
           <Stat
             icon={HardDrive}
             label={t('home.storage')}
-            hint={t('home.storageHint')}
+            hint={storageHint(overview.data?.storage, t)}
             loading={overview.isLoading}
             value={formatBytes(overview.data?.storage.bytes, locale)}
           />
@@ -193,4 +194,29 @@ export function HomePage() {
       <CreateProjectSheet open={creating} onOpenChange={setCreating} />
     </div>
   );
+}
+
+/**
+ * Ce que le chiffre de stockage couvre.
+ *
+ * Il affichait "656 Mo - volume mesure sur les buckets accessibles" alors
+ * qu'un seul dataset reglemente en pesait plusieurs gigaoctets. Deux silences
+ * differents produisaient ca : les datasets de sante ne sont pas enumeres, et
+ * une mesure qui depasse son delai s'arrete en route. Un chiffre qui ne sait
+ * pas dire sur quoi il porte est un chiffre sur lequel personne ne devrait
+ * s'appuyer.
+ */
+function storageHint(
+  storage: PlatformOverview['storage'] | undefined,
+  t: ReturnType<typeof useT>,
+): string {
+  if (!storage) return t('home.storageHint');
+  const left = (storage.datasetsRegulated ?? 0) + (storage.datasetsUnreadable ?? 0);
+  if (storage.truncated) return t('home.storageTruncated');
+  if (left > 0) {
+    return t('home.storagePartial')
+      .replace('{measured}', String(storage.datasetsMeasured))
+      .replace('{total}', String(storage.datasetsTotal));
+  }
+  return t('home.storageHint');
 }

@@ -2,6 +2,14 @@ import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { AgentRoster } from '@/features/agents/agent-roster';
 import { AgentJournal } from '@/features/agents/agent-journal';
 import { RecruitDialog } from '@/features/agents/recruit-dialog';
@@ -35,6 +43,8 @@ export function AgentsPage() {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [recruiting, setRecruiting] = React.useState(false);
   const [formingTeam, setFormingTeam] = React.useState(false);
+  const [editing, setEditing] = React.useState<Agent | null>(null);
+  const [dismissing, setDismissing] = React.useState<Agent | null>(null);
   const [allowAskFor, setAllowAskFor] = React.useState<AgentTeam | null>(null);
   const teams = useAgentTeams();
 
@@ -51,6 +61,22 @@ export function AgentsPage() {
       if (run.error) toast.error(run.error, t('agents.title'));
       else if (run.quiet) toast.info(t('agents.nothingToReport'), t('agents.title'));
       else toast.success(t('agents.reported'), t('agents.title'));
+    },
+    onError: (error) => toast.error(error, t('agents.title')),
+  });
+
+  const dismiss = useMutation({
+    mutationFn: (id: string) => platformApi.deleteAgent(id),
+    onSuccess: (_result, id) => {
+      invalidate(qk.agents);
+      // Si c'etait celui qu'on regardait, la page suit au lieu de rester sur
+      // un carnet vide.
+      if (selectedId === id) setSelectedId(null);
+      toast.success(
+        t('agents.dismissed').replace('{name}', dismissing?.name ?? ''),
+        t('agents.title'),
+      );
+      setDismissing(null);
     },
     onError: (error) => toast.error(error, t('agents.title')),
   });
@@ -96,6 +122,8 @@ export function AgentsPage() {
               running={runNow.isPending}
               onRun={() => runNow.mutate(selected.id)}
               onToggle={(enabled) => toggle.mutate({ id: selected.id, enabled })}
+              onEdit={() => setEditing(selected)}
+              onDismiss={() => setDismissing(selected)}
             />
           ) : null}
         </>
@@ -112,6 +140,19 @@ export function AgentsPage() {
       ) : null}
 
       <RecruitDialog open={recruiting} onOpenChange={setRecruiting} />
+      <RecruitDialog
+        open={editing !== null}
+        editing={editing ?? undefined}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+      />
+      <DismissDialog
+        agent={dismissing}
+        pending={dismiss.isPending}
+        onCancel={() => setDismissing(null)}
+        onConfirm={() => dismissing && dismiss.mutate(dismissing.id)}
+      />
       <FormTeamDialog open={formingTeam} onOpenChange={setFormingTeam} />
       <AllowAskDialog
         team={allowAskFor}
@@ -203,5 +244,45 @@ function TeamsSection({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Renvoyer un agent.
+ *
+ * La confirmation dit ce qui disparait et ce qui reste. Quelqu'un qui hesite
+ * a renvoyer un collegue hesite sur la trace : ses relances et ses signalements
+ * restent dans l'audit de la plateforme, et le dire ici evite de garder un
+ * agent inutile par precaution.
+ */
+function DismissDialog({
+  agent,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  agent: Agent | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const t = useT();
+  return (
+    <Dialog open={agent !== null} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('agents.dismissTitle').replace('{name}', agent?.name ?? '')}</DialogTitle>
+          <DialogDescription>{t('agents.dismissBody')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="danger" onClick={onConfirm} disabled={pending}>
+            {t('agents.dismiss')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

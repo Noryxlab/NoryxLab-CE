@@ -1,4 +1,4 @@
-import { Loader2, RotateCw } from 'lucide-react';
+import { Loader2, Pencil, RotateCw, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -28,9 +28,20 @@ interface AgentJournalProps {
   running: boolean;
   onRun: () => void;
   onToggle: (enabled: boolean) => void;
+  onEdit: () => void;
+  onDismiss: () => void;
 }
 
-export function AgentJournal({ agent, runs, loading, running, onRun, onToggle }: AgentJournalProps) {
+export function AgentJournal({
+  agent,
+  runs,
+  loading,
+  running,
+  onRun,
+  onToggle,
+  onEdit,
+  onDismiss,
+}: AgentJournalProps) {
   const t = useT();
 
   return (
@@ -56,6 +67,17 @@ export function AgentJournal({ agent, runs, loading, running, onRun, onToggle }:
               <RotateCw className="size-4" aria-hidden />
             )}
             {t('agents.runNow')}
+          </Button>
+          {/* Modifier et renvoyer vivent ici et pas sur la carte : la rangee se
+              parcourt d'un regard, et deux boutons par collegue la
+              transformeraient en tableau de bord. */}
+          <Button variant="ghost" size="sm" onClick={onEdit} title={t('agents.edit')}>
+            <Pencil className="size-4" aria-hidden />
+            <span className="sr-only">{t('agents.edit')}</span>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onDismiss} title={t('agents.dismiss')}>
+            <UserMinus className="size-4" aria-hidden />
+            <span className="sr-only">{t('agents.dismiss')}</span>
           </Button>
         </div>
       </div>

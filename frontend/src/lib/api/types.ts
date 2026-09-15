@@ -651,6 +651,13 @@ export interface PlatformOverview {
     bytes: number;
     datasetsMeasured: number;
     datasetsTotal: number;
+    /** Non comptés parce qu'ils sont réglementés : la plateforme n'énumère
+     *  pas les clés d'un bucket de santé pour produire un chiffre d'accueil. */
+    datasetsRegulated?: number;
+    /** Non comptés parce qu'ils n'ont pas répondu. Autre fait, autre remède. */
+    datasetsUnreadable?: number;
+    /** La mesure a dépassé son délai : le chiffre est un plancher. */
+    truncated?: boolean;
   };
   workloadMetrics: WorkloadMetrics;
 }

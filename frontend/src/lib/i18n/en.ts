@@ -180,6 +180,12 @@ export const en: Translations = {
     roleLabel: 'Its role in the team',
     teamLabel: 'Its team',
     noTeam: 'Works alone',
+    edit: 'Edit',
+    dismiss: 'Dismiss',
+    dismissTitle: 'Dismiss {name}?',
+    dismissBody:
+      'Its assignment and its journal are deleted. What it restarted or reported stays in the platform audit.',
+    dismissed: '{name} has been dismissed.',
     runNow: 'Do it now',
     atWork: 'At work',
     paused: 'Paused',
@@ -222,6 +228,8 @@ export const en: Translations = {
     workloads: 'Workloads',
     workloadsHint: 'Active workspaces, jobs and apps',
     storage: 'Storage',
+    storagePartial: 'Measured across {measured} of the platform\u2019s {total} datasets. Health datasets are not counted.',
+    storageTruncated: 'The measurement stopped before finishing: the real volume is higher.',
     storageHint: 'Measured across accessible buckets',
     noProjects: 'No projects yet',
     noProjectsHint:

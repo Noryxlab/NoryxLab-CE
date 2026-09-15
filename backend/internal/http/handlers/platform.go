@@ -45,14 +45,33 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 	defer cancel()
+	// What this figure covers, and what it leaves out.
+	//
+	// It read "656 Mo - volume measured on the reachable buckets" while one
+	// regulated dataset alone held several gigabytes. Two different silences
+	// produced that: regulated datasets are deliberately not enumerated here,
+	// and a measurement that runs past its deadline stops early. Neither was
+	// visible, so the number looked like a total and was a sample.
+	//
+	// The counts below are reported so the interface can say which datasets
+	// the figure speaks for. A measurement that cannot state its own coverage
+	// is a measurement nobody should act on.
 	var storageBytes int64
 	storageDatasets := 0
+	storageRegulated := 0
+	storageUnreadable := 0
+	storageTruncated := false
 	for _, item := range datasets {
 		if strings.EqualFold(item.Classification, "hds") {
+			// Not enumerated on purpose: listing a regulated bucket means the
+			// platform walking the keys of health data to produce a figure on
+			// a home page, which is not a trade worth making.
+			storageRegulated++
 			continue
 		}
 		client, _, err := h.datasetS3Client(item)
 		if err != nil || client == nil {
+			storageUnreadable++
 			continue
 		}
 		prefix := strings.Trim(item.Prefix, "/")
@@ -71,8 +90,13 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 		if readable {
 			storageBytes += datasetBytes
 			storageDatasets++
+		} else {
+			storageUnreadable++
 		}
 		if ctx.Err() != nil {
+			// The deadline stopped the walk. Whatever has not been visited is
+			// not zero, and the interface has to be able to say so.
+			storageTruncated = true
 			break
 		}
 	}
@@ -90,6 +114,13 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 			"bytes":            storageBytes,
 			"datasetsMeasured": storageDatasets,
 			"datasetsTotal":    len(datasets),
+			// Left out because they are regulated, and left out because they
+			// could not be read, are different facts with different remedies.
+			"datasetsRegulated":  storageRegulated,
+			"datasetsUnreadable": storageUnreadable,
+			// True when the deadline cut the walk short, so the figure is a
+			// floor rather than a total.
+			"truncated": storageTruncated,
 		},
 	})
 }
