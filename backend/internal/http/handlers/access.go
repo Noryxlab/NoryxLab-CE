@@ -383,7 +383,10 @@ func (h Handlers) allowsProjectAction(projectID, userID string, action projectAc
 		return action.permits(access.RoleAdmin)
 	}
 	role, ok := h.effectiveProjectRole(projectID, userID)
-	fallback := ok && action.permits(role)
+	// The Community rule is asked about the base: it knows three roles, and a
+	// question about a fourth has no honest answer. The matrix, which may know
+	// more, is asked about the role as held.
+	fallback := ok && action.permits(h.baseRole(role))
 	return h.canProjectAction(userID, projectID, role, action.id, fallback)
 }
 
@@ -403,7 +406,7 @@ func (h Handlers) requireProjectRole(
 		return action.permits(access.RoleAdmin)
 	}
 	role, ok := h.effectiveProjectRole(projectID, userID)
-	fallback := ok && action.permits(role)
+	fallback := ok && action.permits(h.baseRole(role))
 	if !h.canProjectAction(userID, projectID, role, action.id, fallback) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + label})
 		return false
@@ -490,8 +493,33 @@ func (h Handlers) effectiveProjectRole(projectID, userID string) (access.Role, b
 	direct, hasDirect := h.accessStore.GetRole(projectID, userID)
 	granted := h.organizationProjectRole(projectID, userID)
 
-	best := access.Strongest(direct, granted)
+	best := h.strongestRole(direct, granted)
 	return best, best != "" || hasDirect
+}
+
+// strongestRole compares grants that are not all built-in.
+//
+// access.Strongest ranks the three roles the platform defines, and a custom
+// role is not one of them - it would rank zero and lose to any grant beside
+// it, which would quietly cap a person the installation meant to widen. So
+// the comparison is made on the bases, and the winning *grant* is returned
+// whole: the matrix has to see the role that was actually given, not the
+// built-in it resolves to. Equal bases keep the first, which is the direct
+// grant - between two equivalent grants, the one made to the person is the one
+// an administrator can find and change.
+func (h Handlers) strongestRole(roles ...access.Role) access.Role {
+	best := access.Role("")
+	bestRank := 0
+	for _, role := range roles {
+		if strings.TrimSpace(string(role)) == "" {
+			continue
+		}
+		rank := h.baseRole(role).Rank()
+		if rank > bestRank {
+			best, bestRank = role, rank
+		}
+	}
+	return best
 }
 
 // organizationProjectRole is the strongest grant reaching this user through an
@@ -518,7 +546,7 @@ func (h Handlers) organizationProjectRole(projectID, userID string) access.Role 
 	best := access.Role("")
 	for _, grant := range grants {
 		if _, ok := member[strings.TrimSpace(grant.OrganizationID)]; ok {
-			best = access.Strongest(best, grant.Role)
+			best = h.strongestRole(best, grant.Role)
 		}
 	}
 	return best

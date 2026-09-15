@@ -40,6 +40,20 @@ components:
       name: X-Noryx-User
 
   schemas:
+    AssignableRole:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        basedOn: { type: string }
+        builtin: { type: boolean }
+    AssignableRoleListResponse:
+      type: object
+      properties:
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/AssignableRole' }
     Agent:
       type: object
       properties:
@@ -6780,13 +6794,13 @@ paths:
           $ref: '#/components/responses/NotFound'
   /api/v1/admin/llmaas-ticket:
     post:
+      x-noryx-internal: true
       tags: [Administration]
       summary: A short-lived ticket so a frame can read the model gateway console
       description: >-
         A frame cannot attach a bearer token, so the application exchanges its
         credential for a ticket scoped to the console's own path.
       operationId: issueLLMaaSConsoleTicket
-      x-noryx-internal: true
       security:
         - bearerAuth: []
       responses:
@@ -6798,6 +6812,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
   /api/v1/admin/llmaas/{path}:
     get:
+      x-noryx-internal: true
       tags: [Administration]
       summary: Read the model gateway console through the platform
       description: >-
@@ -6805,7 +6820,6 @@ paths:
         an administrator the platform has authenticated. Issuing and revoking
         gateway keys stay out.
       operationId: proxyLLMaaSConsole
-      x-noryx-internal: true
       parameters:
         - name: path
           in: path
@@ -7009,6 +7023,32 @@ paths:
           content:
             application/json:
               schema: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/roles:
+    get:
+      tags: [Platform]
+      summary: The roles a project may grant here
+      description: >-
+        The three built-in roles, plus the roles this installation defined in
+        the matrix where the edition can enforce them. Each custom role names
+        the built-in it falls back to, which is what the platform grants on its
+        own until the matrix has something more to say.
+      operationId: listAssignableRoles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignableRoleListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

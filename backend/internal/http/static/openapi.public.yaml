@@ -44,6 +44,20 @@ components:
       name: X-Noryx-User
 
   schemas:
+    AssignableRole:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        basedOn: { type: string }
+        builtin: { type: boolean }
+    AssignableRoleListResponse:
+      type: object
+      properties:
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/AssignableRole' }
     Agent:
       type: object
       properties:
@@ -6469,6 +6483,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentRunListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/roles:
+    get:
+      tags: [Platform]
+      summary: The roles a project may grant here
+      description: >-
+        The three built-in roles, plus the roles this installation defined in
+        the matrix where the edition can enforce them. Each custom role names
+        the built-in it falls back to, which is what the platform grants on its
+        own until the matrix has something more to say.
+      operationId: listAssignableRoles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignableRoleListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

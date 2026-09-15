@@ -51,10 +51,8 @@ func (h Handlers) SetProjectMemberRole(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := access.Role(strings.TrimSpace(req.Role))
-	switch role {
-	case access.RoleViewer, access.RoleEditor, access.RoleAdmin:
-	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be viewer, editor or admin"})
+	if refusal := h.assignableRoleError(string(role)); refusal != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": refusal})
 		return
 	}
 
@@ -110,10 +108,8 @@ func (h Handlers) InviteProjectMember(w http.ResponseWriter, r *http.Request) {
 		req.Role = string(access.RoleEditor)
 	}
 	role := access.Role(req.Role)
-	switch role {
-	case access.RoleViewer, access.RoleEditor, access.RoleAdmin:
-	default:
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be viewer, editor or admin"})
+	if refusal := h.assignableRoleError(string(role)); refusal != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": refusal})
 		return
 	}
 

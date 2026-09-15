@@ -252,6 +252,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/data-usage.csv", h.ExportAdminDataUsageCSV)
 	mux.HandleFunc("GET /api/v1/admin/rbac-matrix", h.GetAdminRBACMatrix)
 	mux.HandleFunc("GET /api/v1/admin/rbac-matrix.csv", h.ExportAdminRBACMatrixCSV)
+	mux.HandleFunc("GET /api/v1/roles", h.ListAssignableRoles)
 	mux.HandleFunc("GET /api/v1/admin/rbac-policy", h.GetAdminRBACPolicy)
 	mux.HandleFunc("PUT /api/v1/admin/rbac-policy", h.UpdateAdminRBACPolicy)
 	mux.HandleFunc("GET /api/v1/admin/storage-endpoints", h.ListAdminStorageEndpoints)

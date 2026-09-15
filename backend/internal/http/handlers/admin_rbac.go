@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
@@ -67,9 +68,19 @@ type rbacCell struct {
 }
 
 type rbacPolicyRow struct {
-	Role        string `json:"role"`
-	Key         string `json:"key"`
-	Locked      bool   `json:"locked"`
+	Role   string `json:"role"`
+	Key    string `json:"key"`
+	Locked bool   `json:"locked"`
+	// BasedOn names the built-in role the platform falls back to when it has
+	// to answer a question the matrix does not describe.
+	//
+	// Every rule written in Go - and every rule in Community, where the matrix
+	// decides nothing - reads this rather than the row's own key. Without it a
+	// custom role would be a role the platform cannot resolve, and a member
+	// holding one would silently hold nothing at all: assignable, displayed,
+	// and refused at every door. Required on a role an installation adds;
+	// meaningless on a shipped row, which is itself a built-in.
+	BasedOn     string `json:"basedOn,omitempty"`
 	Description string `json:"description"`
 	Project     string `json:"project"`
 	Dataset     string `json:"dataset"`
@@ -295,6 +306,42 @@ func refuseLockedRowChanges(rows []rbacPolicyRow) error {
 	return nil
 }
 
+// rbacRowBase resolves the built-in a row answers as.
+//
+// A shipped row describes a built-in and is its own base. A row an
+// installation added must name one: the alternative is a role that exists on
+// the screen and grants nothing anywhere, which is worse than refusing to save
+// it. Documents written before this field existed default to viewer - the
+// weakest base, so an older document cannot silently widen anybody's access.
+func rbacRowBase(row rbacPolicyRow) (access.Role, error) {
+	if builtin, ok := rbacShippedRowBases[row.Key]; ok {
+		return builtin, nil
+	}
+	declared := access.Role(strings.ToLower(strings.TrimSpace(row.BasedOn)))
+	if declared == "" {
+		return access.RoleViewer, nil
+	}
+	if !declared.IsBuiltin() {
+		return "", errors.New("role " + row.Role + " is based on " + row.BasedOn + ", which is not a role the platform knows")
+	}
+	return declared, nil
+}
+
+// rbacShippedRowBases names which built-in each shipped row describes.
+//
+// "admin" and "owner" are not project roles at all - they are resolved before
+// any project role is read - but they answer as an administrator wherever a
+// project rule asks, which is what the platform already does.
+var rbacShippedRowBases = map[string]access.Role{
+	"admin":         access.RoleAdmin,
+	"owner":         access.RoleAdmin,
+	"project-admin": access.RoleAdmin,
+	"editor":        access.RoleEditor,
+	"writer":        access.RoleEditor,
+	"reader":        access.RoleViewer,
+	"viewer":        access.RoleViewer,
+}
+
 func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 	out := make([]rbacPolicyRow, 0, len(rows))
 	seen := map[string]bool{}
@@ -309,6 +356,11 @@ func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 			return nil, errors.New("duplicate role key: " + row.Key)
 		}
 		seen[row.Key] = true
+		base, err := rbacRowBase(row)
+		if err != nil {
+			return nil, err
+		}
+		row.BasedOn = string(base)
 		normalize := func(value string) (string, error) {
 			value = strings.TrimSpace(value)
 			if value == "" {
@@ -319,7 +371,6 @@ func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 			}
 			return value, nil
 		}
-		var err error
 		if row.Project, err = normalize(row.Project); err != nil {
 			return nil, err
 		}

@@ -36,6 +36,7 @@ type Handlers struct {
 	projectOntologyStore             store.ProjectOntologyStore
 	userPreferenceStore              store.UserPreferenceStore
 	rbacPolicyStore                  store.RBACPolicyStore
+	roleBaseCache                    *rbacRoleBaseCache
 	backupRunStore                   store.BackupRunStore
 	agentStore                       store.AgentStore
 	agentTeamStore                   store.AgentTeamStore
@@ -278,6 +279,7 @@ func New(
 		projectOntologyStore:             projectOntologyStore,
 		userPreferenceStore:              userPreferenceStore,
 		rbacPolicyStore:                  rbacPolicyStore,
+		roleBaseCache:                    &rbacRoleBaseCache{},
 		backupRunStore:                   backupRunStore,
 		notifier:                         newNotifier(options),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,

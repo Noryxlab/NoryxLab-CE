@@ -98,6 +98,13 @@ INTERNAL = [
     # credential this platform signed for one conversation turn; it is not a
     # door anybody else can usefully knock on.
     "= /api/v1/assistant/tools",
+    # The llmaas console, and the one-conversation ticket that opens it. The
+    # console is a page served by the gateway and proxied read-only; the
+    # ticket exists so the administration screen can mount that page without
+    # handing the browser an admin key. Neither is a door anybody calls from
+    # outside the interface.
+    "= /api/v1/admin/llmaas-ticket",
+    "/api/v1/admin/llmaas/",
     # Proxies: the response is whatever the workload behind them returns.
     "/api/v1/projects/{projectID}/files",
     "/workspaces/",
@@ -179,8 +186,14 @@ ENVELOPES = {
         "source": "string", "overridable": "boolean",
     },
     "PlatformSettingListResponse": {"items": "[$PlatformSetting]"},
+    "AssignableRole": {
+        "key": "string", "name": "string", "description": "string",
+        "basedOn": "string", "builtin": "boolean",
+    },
+    "AssignableRoleListResponse": {"roles": "[$AssignableRole]"},
     "RBACPolicyRow": {
-        "role": "string", "key": "string", "locked": "boolean", "description": "string",
+        "role": "string", "key": "string", "locked": "boolean",
+        "basedOn": "string", "description": "string",
         "project": "string", "dataset": "string", "ontology": "string",
         "datasource": "string", "environment": "string", "workload": "string",
         "governance": "string",
@@ -220,6 +233,7 @@ RESPONSES = {
     ("POST", "/api/v1/admin/smtp/tests"): "SMTPTestResponse",
     ("GET", "/api/v1/admin/settings"): "PlatformSettingListResponse",
     ("PUT", "/api/v1/admin/settings/{key}"): "PlatformSettingListResponse",
+    ("GET", "/api/v1/roles"): "AssignableRoleListResponse",
     ("GET", "/api/v1/admin/rbac-policy"): "RBACPolicyResponse",
     ("PUT", "/api/v1/admin/rbac-policy"): "RBACPolicyResponse",
     ("GET", "/api/v1/admin/egress/rules"): "AdminEgressRuleListResponse",
