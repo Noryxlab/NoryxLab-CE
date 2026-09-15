@@ -12,6 +12,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/session"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
@@ -250,5 +251,67 @@ func TestAnUnauthenticatedCallerLearnsNothingAboutWhichWorkspacesExist(t *testin
 		if code == http.StatusNotFound {
 			t.Fatal("a caller with no credential was told a workspace does not exist")
 		}
+	}
+}
+
+// oomRuntime is a runtime whose pod was killed for memory.
+type oomRuntime struct{ noryxruntime.Runner }
+
+func (oomRuntime) GetPodStatus(string) (noryxruntime.PodStatus, error) {
+	return noryxruntime.PodStatus{OutOfMemory: true}, nil
+}
+
+// The rest of PodOperator, because the handler asks for the whole interface
+// and a stub carrying one method is simply not one.
+func (oomRuntime) GetPodLogs(string, int) (string, error) { return "", nil }
+func (oomRuntime) RestartPod(string) error                { return nil }
+
+// A workspace killed for memory disappears, and to somebody inside it clicking
+// around that is a connection refused: no notice, no cause, no remedy. The
+// out-of-memory message existed already and appeared only in the workspace
+// list - the one place a person in this situation is not looking.
+func TestAWorkspaceKilledForMemorySaysSoWhereTheUserIs(t *testing.T) {
+	h, record, _ := workspaceProxyFixture(t, access.RoleEditor)
+	h.runtime = oomRuntime{}
+
+	// Nothing is listening on the workspace's port, so the proxy fails to dial
+	// exactly as it does when the pod has been killed.
+	request := httptest.NewRequest(http.MethodGet, "/workspaces/"+record.ID+"/", nil)
+	request.Header.Set("Accept", "text/html")
+	request.AddCookie(withSession(t, h, "member"))
+	request.SetPathValue("workspaceID", record.ID)
+	recorder := httptest.NewRecorder()
+
+	h.ProxyWorkspace(recorder, request)
+
+	body := recorder.Body.String()
+	if strings.Contains(body, "connection refused") || strings.Contains(body, "proxy failed") {
+		t.Error("the user was shown a transport error instead of the cause")
+	}
+	if !strings.Contains(body, "OOM kill") {
+		t.Errorf("the out-of-memory notice did not reach the proxy path: %s", body)
+	}
+	// And the remedy, which is the only action that changes the outcome.
+	if !strings.Contains(body, "tier") {
+		t.Error("the page does not say to raise the tier")
+	}
+}
+
+// A runtime that cannot say why must not have a cause invented for it: a wrong
+// cause stated confidently sends somebody to change the one thing that was not
+// the problem.
+func TestAWorkspaceThatIsSimplySilentGetsNoInventedCause(t *testing.T) {
+	h, record, _ := workspaceProxyFixture(t, access.RoleEditor)
+
+	request := httptest.NewRequest(http.MethodGet, "/workspaces/"+record.ID+"/", nil)
+	request.Header.Set("Accept", "text/html")
+	request.AddCookie(withSession(t, h, "member"))
+	request.SetPathValue("workspaceID", record.ID)
+	recorder := httptest.NewRecorder()
+
+	h.ProxyWorkspace(recorder, request)
+
+	if strings.Contains(recorder.Body.String(), "OOM kill") {
+		t.Error("an out-of-memory cause was invented for a workspace nobody could describe")
 	}
 }
