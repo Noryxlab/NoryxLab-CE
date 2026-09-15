@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/config"
@@ -61,7 +62,7 @@ func main() {
 	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
-		pg, err := postgres.New(postgres.Config{
+		pg, err := openPostgresWaitingForIt(postgres.Config{
 			Host:     cfg.DatabaseHost,
 			Port:     cfg.DatabasePort,
 			DBName:   cfg.DatabaseName,
@@ -293,5 +294,45 @@ func main() {
 	log.Printf("noryx-api listening on %s", cfg.ListenAddr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// openPostgresWaitingForIt gives the database a moment to be there.
+//
+// The platform and its database start together, and the database is slower.
+// The API exited on the first refused connection, kubelet restarted it, and it
+// came up fine a second later - so every coordinated restart wrote a crash
+// into the pod's history and a fatal line into its logs, for a condition that
+// resolves itself. That teaches everyone reading those logs that a crash at
+// startup is normal, which is exactly what one should never be taught.
+//
+// A minute of patience, and then the fatal error it always had: a database
+// that is still absent after that is a real fault, and refusing to serve is
+// the right answer to it.
+func openPostgresWaitingForIt(cfg postgres.Config) (*postgres.Store, error) {
+	const (
+		patience = time.Minute
+		between  = 2 * time.Second
+	)
+	deadline := time.Now().Add(patience)
+	attempt := 0
+	for {
+		pg, err := postgres.New(cfg)
+		if err == nil {
+			if attempt > 0 {
+				log.Printf("database reached after %d attempt(s)", attempt+1)
+			}
+			return pg, nil
+		}
+		attempt++
+		if time.Now().After(deadline) {
+			return nil, err
+		}
+		if attempt == 1 {
+			// Said once. Repeating it every two seconds would bury the one
+			// line that matters if the wait does end in a failure.
+			log.Printf("database not ready (%v); waiting up to %s for it", err, patience)
+		}
+		time.Sleep(between)
 	}
 }
