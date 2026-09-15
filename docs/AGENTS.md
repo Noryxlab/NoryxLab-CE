@@ -29,7 +29,7 @@ protects. Actions are a separate, closed list.
 | `mission` | What the user wrote. Reaches the model as instructions, never interpreted. Up to 4000 characters. |
 | `schedule` | `manual`, `hourly` or `daily`. Three, in the vocabulary of describing a colleague's hours rather than a cron expression. |
 | `actions` | From the closed list below. Empty — the default — means it only looks and reports. |
-| `projectId` | Scopes what it can see. Empty means everything its owner can see, which is still never more than its owner can see. |
+| `projectId` | **Required.** The project the agent works in. See [Scope](#scope). |
 | `teamId`, `role` | The group it works in and what it is for there. See [Teams](#teams). |
 | `enabled` | A paused agent is never due. |
 | `lastQuiet` | Whether the last run found nothing. An agent that is working and has nothing to say looks exactly like a broken one unless the difference is stored. |
@@ -48,6 +48,38 @@ mission.
 The list is filtered on the way in **and on the way out of the store**. A row
 edited by hand, or written by a version that knew an action this one has
 withdrawn, grants nothing.
+
+## Scope
+
+An agent works **in a project**, and this is not a label. The project is the
+centre of Noryx: a workspace runs in one, an application is deployed in one,
+data is attached to one. An agent is a workload like those, so it belongs to
+one too — and every rule that follows becomes a property of the project rather
+than a second permission system built for agents alone: what it may see, what
+it may act on, what its runs cost, and which data it will read.
+
+The project travels in the credential signed for each run, not as a tool
+argument. That distinction is the whole point. The tools filtered on a
+`projectId` the model supplied, which meant an agent placed in a project saw
+everything its owner saw and could widen its own reach by leaving the argument
+out. A scope the model chooses is not a scope.
+
+Two checks apply to anything an agent names, and both are needed:
+
+- **membership** answers "may this person touch it at all"
+- **scope** answers "is this what the agent was placed to work on"
+
+Without the second, an agent could name any identifier its owner happens to
+reach, and the project would be decoration again.
+
+A person who wants something across all their projects has the platform
+assistant, which is that surface and is deliberately unscoped — its credential
+carries no project. The two no longer overlap:
+
+| Surface | Belongs to | Reach |
+|---|---|---|
+| Platform assistant | A person | Everything they can see |
+| Agent | A project | That project |
 
 ## How a run works
 

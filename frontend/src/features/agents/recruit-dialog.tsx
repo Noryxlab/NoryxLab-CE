@@ -48,10 +48,15 @@ const EXAMPLES = [
 export function RecruitDialog({
   open,
   onOpenChange,
+  projectId,
   editing,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Le projet dans lequel l'agent travaille. Obligatoire : la portee d'un
+   *  agent est une donnee, pas une intention, et c'est ce qui rend simples
+   *  toutes les regles qui viennent ensuite - donnees, cout, perimetre. */
+  projectId: string | undefined;
   editing?: Agent | null;
 }) {
   const t = useT();
@@ -91,6 +96,7 @@ export function RecruitDialog({
       const body = {
         name: name.trim(),
         mission: mission.trim(),
+        projectId,
         schedule,
         actions: mayRestart ? ['restart_app'] : [],
         teamId,
@@ -109,7 +115,8 @@ export function RecruitDialog({
     onError: (error) => toast.error(error, t('agents.title')),
   });
 
-  const ready = name.trim().length > 0 && mission.trim().length > 0;
+  const ready =
+    name.trim().length > 0 && mission.trim().length > 0 && Boolean(projectId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

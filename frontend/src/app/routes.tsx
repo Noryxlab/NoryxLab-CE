@@ -49,6 +49,10 @@ export function AppRoutes() {
             {/* Environments moved to the catalogue: they are platform-wide,
                 not owned by a project. Existing links keep working. */}
             <Route path="environments" element={<Navigate to="/catalog/environments" replace />} />
+            {/* Les agents ont rejoint le projet, qui est le centre de Noryx :
+              un agent y travaille, y depense et y lira ses donnees. L'ancien
+              lien mene a la liste des projets plutot que nulle part. */}
+          <Route path="agents" element={<Navigate to="/projects" replace />} />
             <Route path="members" element={<ProjectMembersPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>

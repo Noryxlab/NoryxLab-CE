@@ -16,6 +16,7 @@
 package agent
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -42,9 +43,23 @@ const ActionRestartApp = "restart_app"
 type Agent struct {
 	ID          string `json:"id"`
 	OwnerUserID string `json:"ownerUserId"`
-	// ProjectID scopes what the agent can see. Empty means everything its
-	// owner can see, which is still never more than its owner can see.
-	ProjectID string `json:"projectId,omitempty"`
+	// ProjectID is the project this agent works in, and it is required.
+	//
+	// It scopes what the agent sees, what it may act on, and - once agents
+	// read data - which data that is. It travels in the credential signed for
+	// each run, so the scope is a fact rather than something the model chooses
+	// by leaving an argument out.
+	//
+	// It was optional and, worse, decorative: the field claimed to scope and
+	// the tools filtered on an argument the model supplied, so an agent placed
+	// in a project saw everything its owner saw. Making it required is what
+	// lets every later rule - data access, cost attribution, the perimeter -
+	// be a property of the project instead of a second permission system built
+	// for agents alone.
+	//
+	// A person who wants something across all their projects has the platform
+	// assistant, which is that surface and is deliberately unscoped.
+	ProjectID string `json:"projectId"`
 	Name      string `json:"name"`
 	// Mission is what the user wrote. It reaches the model as instructions and
 	// is never interpreted by the platform.
@@ -139,6 +154,17 @@ func NormaliseSchedule(schedule string) string {
 	default:
 		return ScheduleManual
 	}
+}
+
+// ErrProjectRequired is returned where an agent arrives without one.
+var ErrProjectRequired = errors.New("an agent works in a project, and none was given")
+
+// Validate reports whether this agent can be stored.
+func (a Agent) Validate() error {
+	if strings.TrimSpace(a.ProjectID) == "" {
+		return ErrProjectRequired
+	}
+	return nil
 }
 
 // NormaliseActions drops anything not on the closed list, in silence rather

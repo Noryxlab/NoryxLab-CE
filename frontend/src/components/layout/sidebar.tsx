@@ -48,7 +48,6 @@ const GLOBAL_ITEMS: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: Home, end: true },
   { to: '/projects', labelKey: 'nav.projects', icon: Boxes },
   { to: '/catalog', labelKey: 'nav.catalog', icon: Library },
-  { to: '/agents', labelKey: 'nav.agents', icon: Bot, enterpriseOnly: true },
   { to: '/production', labelKey: 'nav.production', icon: Rocket },
   { to: '/admin', labelKey: 'nav.administration', icon: Shield, adminOnly: true },
 ];
@@ -60,6 +59,7 @@ function projectItems(projectId: string): NavItem[] {
     { to: `${base}/workspaces`, labelKey: 'nav.workspaces', icon: Terminal },
     { to: `${base}/jobs`, labelKey: 'nav.jobs', icon: Activity },
     { to: `${base}/apps`, labelKey: 'nav.apps', icon: AppWindow },
+    { to: `${base}/agents`, labelKey: 'nav.agents', icon: Bot, enterpriseOnly: true },
     { to: `${base}/dashboards`, labelKey: 'nav.dashboards', icon: LayoutDashboard },
     { to: `${base}/apis`, labelKey: 'nav.apis', icon: Webhook },
     { to: `${base}/data`, labelKey: 'nav.data', icon: Database },
@@ -176,7 +176,7 @@ export function Sidebar({
     if (item.enterpriseOnly && !isEnterprise()) return false;
     // Les agents demandent en plus que la plateforme ait de quoi les faire
     // tourner. L'edition dit ce qui est vendu, pas ce qui est installe.
-    if (item.to === '/agents' && !aiServices.data?.agents) return false;
+    if (item.to.endsWith('/agents') && !aiServices.data?.agents) return false;
     return true;
   });
 

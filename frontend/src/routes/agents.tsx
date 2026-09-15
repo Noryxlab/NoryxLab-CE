@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useParams } from 'react-router';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,7 +49,11 @@ export function AgentsPage() {
   const [allowAskFor, setAllowAskFor] = React.useState<AgentTeam | null>(null);
   const teams = useAgentTeams();
 
-  const items = agents.data ?? [];
+  // La page vit dans un projet : elle ne montre que ses agents, et recrute
+  // dedans. Le projet est au centre de Noryx, et un agent y travaille comme
+  // un workspace ou une application.
+  const { projectId } = useParams<{ projectId: string }>();
+  const items = (agents.data ?? []).filter((item) => item.projectId === projectId);
   // Le premier par defaut, et on suit si celui qui etait choisi disparait.
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
   const runs = useAgentRuns(selected?.id);
@@ -153,9 +158,10 @@ export function AgentsPage() {
         />
       ) : null}
 
-      <RecruitDialog open={recruiting} onOpenChange={setRecruiting} />
+      <RecruitDialog open={recruiting} onOpenChange={setRecruiting} projectId={projectId} />
       <RecruitDialog
         open={editing !== null}
+        projectId={projectId}
         editing={editing ?? undefined}
         onOpenChange={(open) => {
           if (!open) setEditing(null);
