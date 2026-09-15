@@ -134,3 +134,46 @@ func (s *AgentTeamStore) DeleteMandate(id string) error {
 	_, err := s.Store.db.ExecContext(ctx, `DELETE FROM agent_mandates WHERE id=$1`, id)
 	return err
 }
+
+func (s *AgentTeamStore) ListAll() ([]agent.Team, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := s.Store.db.QueryContext(ctx, agentTeamSelect+` ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []agent.Team{}
+	for rows.Next() {
+		item, err := scanAgentTeam(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *AgentTeamStore) ListAllMandates() ([]agent.Mandate, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	rows, err := s.Store.db.QueryContext(ctx, `
+		SELECT id, team_id, lead_id, member_id, action, granted_by_user_id, created_at
+		FROM agent_mandates ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []agent.Mandate{}
+	for rows.Next() {
+		var item agent.Mandate
+		if err := rows.Scan(&item.ID, &item.TeamID, &item.LeadID, &item.MemberID,
+			&item.Action, &item.GrantedByUserID, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}

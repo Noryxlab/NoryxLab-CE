@@ -10,6 +10,10 @@ import "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/agent"
 // would make every agent query carry a join nobody asked for.
 type AgentTeamStore interface {
 	ListByOwner(ownerUserID string) ([]agent.Team, error)
+	// ListAll is for a report that runs on nobody's behalf - the governance
+	// view an administrator answers to their own risk function with, which has
+	// to see every team rather than one person's.
+	ListAll() ([]agent.Team, error)
 	GetByID(id string) (agent.Team, bool, error)
 	Create(item agent.Team) error
 	Update(item agent.Team) error
@@ -22,6 +26,9 @@ type AgentTeamStore interface {
 	// for which action. Read together with the team because a delegation
 	// decision needs all of them at once, and never one at a time.
 	ListMandates(teamID string) ([]agent.Mandate, error)
+	// ListAllMandates is the written organisation of the whole installation,
+	// for the same reason.
+	ListAllMandates() ([]agent.Mandate, error)
 	CreateMandate(item agent.Mandate) error
 	DeleteMandate(id string) error
 }

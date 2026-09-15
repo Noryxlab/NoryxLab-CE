@@ -2859,6 +2859,47 @@ paths:
         '502':
           $ref: '#/components/responses/UpstreamError'
 
+  /api/v1/admin/agent-governance:
+    get:
+      tags: [Administration]
+      summary: What the agents of this installation may do, and what they did
+      description: >-
+        Three questions on one page, in the order they get asked: who the
+        agents are and what each may do, who may ask whom for what, and what
+        they actually did. Activity is counted from the recorded action list
+        rather than from the reports, because a report is prose from a model
+        and can claim an action it never took.
+      operationId: getAdminAgentGovernance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The report
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/agent-governance.csv:
+    get:
+      tags: [Administration]
+      summary: The same report as a file
+      operationId: exportAdminAgentGovernanceCSV
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: One row per agent, then the written organisation
+          content:
+            text/csv:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/admin/audit:
     get:
       tags: [Admin]

@@ -93,3 +93,25 @@ func (s *AgentTeamStore) DeleteMandate(id string) error {
 	delete(s.mandates, strings.TrimSpace(id))
 	return nil
 }
+
+func (s *AgentTeamStore) ListAll() ([]agent.Team, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]agent.Team, 0, len(s.items))
+	for _, item := range s.items {
+		out = append(out, item)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
+func (s *AgentTeamStore) ListAllMandates() ([]agent.Mandate, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]agent.Mandate, 0, len(s.mandates))
+	for _, item := range s.mandates {
+		out = append(out, item)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
