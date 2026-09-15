@@ -110,6 +110,11 @@ components:
       properties:
         id: { type: string }
         agentId: { type: string }
+        question:
+          type: string
+          description: >-
+            What a person asked, when this run came from somebody talking to
+            the agent rather than from its schedule.
         report: { type: string }
         quiet: { type: boolean }
         actions:
@@ -6751,6 +6756,40 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '502':
           description: The model gateway did not answer
+  /api/v1/agents/{agentID}/ask:
+    post:
+      tags: [Platform]
+      summary: Ask an agent something, in its own words
+      description: >-
+        The same agent with a person in the loop: its mission is the
+        instructions, its granted actions are its tools, and its recent journal
+        is the context. A conversation never widens what an agent may do, and
+        the exchange is recorded in the agent's own journal rather than in a
+        chat history beside it.
+      operationId: askAgent
+      parameters:
+        - name: agentID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The exchange, as a run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: The agent could not be reached
   /api/v1/agents:
     get:
       tags: [Platform]

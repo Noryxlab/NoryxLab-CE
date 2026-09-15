@@ -65,6 +65,18 @@ export function AgentsPage() {
     onError: (error) => toast.error(error, t('agents.title')),
   });
 
+  const ask = useMutation({
+    mutationFn: ({ id, message }: { id: string; message: string }) =>
+      platformApi.askAgent(id, message),
+    onSuccess: (_run, { id }) => {
+      // La reponse est arrivee dans le carnet : c'est le carnet qu'on
+      // rafraichit, pas une bulle a cote.
+      invalidate(qk.agentRuns(id));
+      invalidate(qk.agents);
+    },
+    onError: (error) => toast.error(error, t('agents.title')),
+  });
+
   const dismiss = useMutation({
     mutationFn: (id: string) => platformApi.deleteAgent(id),
     onSuccess: (_result, id) => {
@@ -124,6 +136,8 @@ export function AgentsPage() {
               onToggle={(enabled) => toggle.mutate({ id: selected.id, enabled })}
               onEdit={() => setEditing(selected)}
               onDismiss={() => setDismissing(selected)}
+              onAsk={(message) => ask.mutate({ id: selected.id, message })}
+              asking={ask.isPending}
             />
           ) : null}
         </>

@@ -77,6 +77,14 @@ type Agent struct {
 type Run struct {
 	ID      string `json:"id"`
 	AgentID string `json:"agentId"`
+	// Question is what a person asked, when this run came from somebody
+	// talking to the agent rather than from its schedule.
+	//
+	// Kept in the same timeline as the scheduled runs, deliberately. An
+	// agent's journal is the record of what it did and why; a conversation
+	// held somewhere else would be a second history, and the first question
+	// anybody asks about an action is what prompted it.
+	Question string `json:"question,omitempty"`
 	// Report is what the agent has to say, in the language of the mission.
 	Report string `json:"report"`
 	// Quiet marks a run that found nothing worth reporting. Kept and shown,
@@ -111,6 +119,13 @@ func New(ownerUserID, projectID, name, mission, schedule string, actions []strin
 
 func NewRun(agentID string) Run {
 	return Run{ID: uuid.NewString(), AgentID: agentID, StartedAt: time.Now().UTC(), Actions: []string{}}
+}
+
+// NewAskedRun is a run a person started by asking something.
+func NewAskedRun(agentID, question string) Run {
+	run := NewRun(agentID)
+	run.Question = strings.TrimSpace(question)
+	return run
 }
 
 // NormaliseSchedule falls back to manual, which is the schedule that cannot

@@ -86,6 +86,8 @@ export const platformApi = {
   deleteAgent: (id: string) => api.delete<void>(`${V1}/agents/${id}`),
   agentRuns: (id: string) => api.list<AgentRun>(`${V1}/agents/${id}/runs`),
   runAgent: (id: string) => api.post<AgentRun>(`${V1}/agents/${id}/run`, {}),
+  askAgent: (id: string, message: string) =>
+    api.post<AgentRun>(`${V1}/agents/${id}/ask`, { message }),
 
   agentTeams: () => api.list<AgentTeam>(`${V1}/agent-teams`),
   createAgentTeam: (body: { name: string; purpose: string; projectId?: string }) =>

@@ -668,6 +668,7 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS team_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_agents_team ON agents (team_id)`,
+		`ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS question TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS agent_mandates (
 			id TEXT PRIMARY KEY,
 			team_id TEXT NOT NULL,

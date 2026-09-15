@@ -190,6 +190,10 @@ export const fr = {
     dismissBody:
       'Sa consigne et son carnet de travail sont supprimés. Ce qu’il a relancé ou signalé reste dans l’audit de la plateforme.',
     dismissed: '{name} a été renvoyé.',
+    ask: 'Demander',
+    askPlaceholder: 'Demandez quelque chose à {name}…',
+    youAsked: 'Vous :',
+    asked: 'Réponse ajoutée au carnet.',
     runNow: 'Faire maintenant',
     atWork: 'Au travail',
     paused: 'En pause',

@@ -101,6 +101,33 @@ The grant is checked **at the endpoint**, not in the component that asked. A
 component deciding whether it is allowed to do a thing is not a permission, and
 the model that asked for it is the least qualified party in the exchange.
 
+## Talking to an agent
+
+`POST /api/v1/agents/{id}/ask` is the same agent with a person in the loop. Its
+mission is still the instructions, its grants are still its tools, and its
+recent journal is the context — so "pourquoi tu n'as rien dit hier ?" is
+answered from what it actually saw rather than from a fresh look around. A
+quiet hour is shown to it as a quiet hour, because "I looked and found nothing"
+is a different answer from "I was switched off".
+
+Two rules make it safe.
+
+**A conversation never widens what an agent may do.** The credential signed for
+the exchange carries the agent's own actions and no others, and the tool
+endpoint re-checks them exactly as it does for a scheduled run. Asking nicely
+is not a permission, for the same reason a mission is not one.
+
+**The exchange is kept in the agent's own journal**, not in a chat history
+beside it. An agent's journal is the record of what it did and why; a
+conversation held somewhere else would be a second history, and the first
+question asked about an action is what prompted it. A failed exchange is kept
+too — an agent that looks silent for an hour is easier to understand when the
+question that failed is there.
+
+An exchange is bounded at eight rounds rather than the six a scheduled run
+gets: somebody is waiting and will ask again if the answer is thin, and a
+conversation that stops mid-thought is worse than one that took a moment.
+
 ## Teams
 
 Several agents on one subject need what any group of colleagues needs: a
@@ -185,14 +212,6 @@ standing work because somebody tidied up a grouping is not a tidy-up.
 
 Documented because a gap nobody wrote down is a gap somebody will assume is
 closed.
-
-**An agent cannot be talked to.** It is one-way: a standing brief in, a report
-out. Asking it a question, or refining its brief in conversation, does not
-exist. The pieces are close — a conversation scoped to one agent would reuse
-the same loop, the same signed credential and the same closed tool set, with
-the agent's mission as its instructions and its journal as its memory — and the
-rule would have to be the mandates' rule: a conversation must not widen what an
-agent may do.
 
 **An agent cannot read data.** None of its tools reaches a dataset, a
 datasource or a file. It can say a workspace is down; it cannot say a dataset

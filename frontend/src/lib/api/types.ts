@@ -1100,6 +1100,11 @@ export interface Agent {
 export interface AgentRun {
   id: string;
   agentId: string;
+  /** Ce qu'une personne a demandé, quand ce passage vient d'une question et
+   *  non de l'horaire. Même fil que les passages programmés : le carnet est
+   *  le récit de ce que l'agent a fait, et la première question qu'on pose
+   *  sur une action est ce qui l'a déclenchée. */
+  question?: string;
   report: string;
   quiet: boolean;
   /** Ce qui a reellement eu lieu, releve des appels qui ont abouti et non lu

@@ -1,7 +1,9 @@
-import { Loader2, Pencil, RotateCw, UserMinus } from 'lucide-react';
+import { Loader2, Pencil, RotateCw, Send, UserMinus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import * as React from 'react';
 import { relativeTime, scheduleKey } from './agent-roster';
 import { useT } from '@/lib/i18n';
 import type { Agent, AgentRun } from '@/lib/api/types';
@@ -30,6 +32,8 @@ interface AgentJournalProps {
   onToggle: (enabled: boolean) => void;
   onEdit: () => void;
   onDismiss: () => void;
+  onAsk: (message: string) => void;
+  asking: boolean;
 }
 
 export function AgentJournal({
@@ -41,6 +45,8 @@ export function AgentJournal({
   onToggle,
   onEdit,
   onDismiss,
+  onAsk,
+  asking,
 }: AgentJournalProps) {
   const t = useT();
 
@@ -82,6 +88,8 @@ export function AgentJournal({
         </div>
       </div>
 
+      <AskBox name={agent.name} onAsk={onAsk} pending={asking} />
+
       {loading && runs.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('agents.loadingRuns')}</p>
       ) : runs.length === 0 ? (
@@ -96,6 +104,57 @@ export function AgentJournal({
         </ol>
       )}
     </section>
+  );
+}
+
+/**
+ * Lui parler.
+ *
+ * Sous les boutons et au-dessus du carnet, parce que c'est la reponse a ce
+ * qu'on vient de lire : la premiere question qu'on a sur un rapport est une
+ * relance, et elle n'avait nulle part ou aller.
+ *
+ * Ce qu'on demande part dans le meme carnet que ses passages programmes. Une
+ * conversation tenue a cote serait une seconde histoire, et la premiere
+ * question qu'on pose sur une action est ce qui l'a declenchee.
+ */
+function AskBox({
+  name,
+  onAsk,
+  pending,
+}: {
+  name: string;
+  onAsk: (message: string) => void;
+  pending: boolean;
+}) {
+  const t = useT();
+  const [message, setMessage] = React.useState('');
+  const send = () => {
+    const asked = message.trim();
+    if (!asked || pending) return;
+    onAsk(asked);
+    setMessage('');
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        value={message}
+        onChange={(event) => setMessage(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') send();
+        }}
+        placeholder={t('agents.askPlaceholder').replace('{name}', name)}
+        disabled={pending}
+      />
+      <Button variant="secondary" onClick={send} disabled={pending || message.trim().length === 0}>
+        {pending ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Send className="size-4" aria-hidden />
+        )}
+        {t('agents.ask')}
+      </Button>
+    </div>
   );
 }
 
@@ -134,6 +193,13 @@ function RunEntry({ run }: { run: AgentRun }) {
     <li className="relative py-3">
       <Dot tone="brand" />
       <span className="text-xs text-placeholder tabular-nums">{when}</span>
+      {/* La question au-dessus de la reponse, dans le meme fil : on relit un
+          echange, pas un rapport sorti de nulle part. */}
+      {run.question ? (
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">{t('agents.youAsked')}</span> {run.question}
+        </p>
+      ) : null}
       <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">{run.report}</p>
       {run.actions.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">

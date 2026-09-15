@@ -186,6 +186,10 @@ export const en: Translations = {
     dismissBody:
       'Its assignment and its journal are deleted. What it restarted or reported stays in the platform audit.',
     dismissed: '{name} has been dismissed.',
+    ask: 'Ask',
+    askPlaceholder: 'Ask {name} something\u2026',
+    youAsked: 'You:',
+    asked: 'The answer is in the journal.',
     runNow: 'Do it now',
     atWork: 'At work',
     paused: 'Paused',

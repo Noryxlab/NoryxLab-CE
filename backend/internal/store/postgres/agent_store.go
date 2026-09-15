@@ -140,9 +140,9 @@ func (s *AgentStore) AppendRun(run agent.Run) error {
 		return err
 	}
 	_, err = s.Store.db.ExecContext(ctx, `
-		INSERT INTO agent_runs (id, agent_id, report, quiet, actions_json, error, started_at, finished_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-		run.ID, run.AgentID, run.Report, run.Quiet, string(actions), run.Error,
+		INSERT INTO agent_runs (id, agent_id, question, report, quiet, actions_json, error, started_at, finished_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		run.ID, run.AgentID, run.Question, run.Report, run.Quiet, string(actions), run.Error,
 		run.StartedAt.UTC(), run.FinishedAt)
 	return err
 }
@@ -167,7 +167,7 @@ func (s *AgentStore) ListRuns(agentID string, limit int) ([]agent.Run, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	rows, err := s.Store.db.QueryContext(ctx, `
-		SELECT id, agent_id, report, quiet, actions_json, error, started_at, finished_at
+		SELECT id, agent_id, question, report, quiet, actions_json, error, started_at, finished_at
 		FROM agent_runs WHERE agent_id=$1 ORDER BY started_at DESC LIMIT $2`, agentID, limit)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (s *AgentStore) ListRuns(agentID string, limit int) ([]agent.Run, error) {
 		var run agent.Run
 		var actions string
 		var finished sql.NullTime
-		if err := rows.Scan(&run.ID, &run.AgentID, &run.Report, &run.Quiet, &actions,
+		if err := rows.Scan(&run.ID, &run.AgentID, &run.Question, &run.Report, &run.Quiet, &actions,
 			&run.Error, &run.StartedAt, &finished); err != nil {
 			return nil, err
 		}
