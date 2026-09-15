@@ -58,3 +58,40 @@ func TestWorkspaceStorageComesFromTheProject(t *testing.T) {
 		t.Fatalf("clearing the setting must fall back to the platform default, got %q", cleared.WorkspaceStorageSize)
 	}
 }
+
+// One name, one project.
+//
+// Three people working on the same subject each created their own, then spent
+// two days adding permissions to reach data sitting in somebody else's. This
+// catches the plain case - the same name, whatever the spacing or the case -
+// and says so when it happens rather than leaving the duplicate to be found by
+// whoever cannot see their data.
+func TestAProjectNameIsNotTakenTwice(t *testing.T) {
+	projects := memory.NewProjectStore()
+	if err := projects.Create(project.NewOwned("malinetc", "MRI segmentation", "")); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{projectStore: projects}
+
+	for _, attempt := range []string{"MRI segmentation", "mri segmentation", "  MRI Segmentation  "} {
+		taken, err := h.projectNameTaken(attempt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if taken != "MRI segmentation" {
+			t.Errorf("%q was not recognised as taken, got %q", attempt, taken)
+		}
+	}
+
+	// A different name is a different project, including the near-misses that
+	// caused the real incident. Matching those would invent false positives.
+	for _, attempt := range []string{"Segmentation IRM", "Segmentation_Selena", ""} {
+		taken, err := h.projectNameTaken(attempt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if taken != "" {
+			t.Errorf("%q was refused against %q", attempt, taken)
+		}
+	}
+}

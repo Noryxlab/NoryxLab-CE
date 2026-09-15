@@ -36,6 +36,11 @@ type createDatasetRequest struct {
 	Region         string `json:"region"`
 	AccessKey      string `json:"accessKey"`
 	SecretKey      string `json:"secretKey"`
+	// OwnerID names the organization a regulated dataset belongs to. Required
+	// for an HDS classification and ignored otherwise: ordinary datasets
+	// belong to whoever registered them, which is the behaviour every
+	// installation already has.
+	OwnerID string `json:"ownerId"`
 }
 
 type updateDatasetMetadataRequest struct {
@@ -221,6 +226,12 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to register an HDS dataset"})
 		return
 	}
+	if req.Classification == "hds" && strings.TrimSpace(req.OwnerID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "a health dataset belongs to an organization: name one as its owner",
+		})
+		return
+	}
 	if req.Provider == "minio" && req.Classification == "hds" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "HDS datasets must use a dedicated external S3 connection"})
 		return
@@ -236,6 +247,15 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	item := dataset.New(userID, req.Name, req.Description, req.Bucket, req.Prefix, req.Provider, req.Classification, req.Endpoint, req.Region)
+	if req.Classification == "hds" {
+		organization, found := h.resolveOrganization(strings.TrimSpace(req.OwnerID))
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
+			return
+		}
+		item.OwnerType = "organization"
+		item.OwnerID = organization.ID
+	}
 	if item.Bucket == "" {
 		item.Bucket = "noryx-ds-" + sanitizeK8sName(item.ID)
 	}
@@ -984,6 +1004,22 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Regulated data belongs to an organization, never to a person.
+	//
+	// Both were accepted, and the difference was discovered the hard way: a
+	// health dataset owned by Essilor was handed to one of its members, who
+	// was trying to unblock herself. It did not unblock her - attaching
+	// regulated data to a project is a global administrator's decision, which
+	// ownership does not confer - and it removed the access every other member
+	// of that organization held through it. One well-meant action, two
+	// colleagues cut off, and nothing in the way.
+	//
+	// The day the named person leaves, an organization's health data has an
+	// owner who no longer exists. That alone settles it.
+	if !ownerAllowedForClassification(item.Classification, req.OwnerType) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": regulatedOwnerError})
+		return
+	}
 	if err := h.datasetStore.UpdateOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update dataset owner"})
 		return
@@ -991,6 +1027,28 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.owner.transfer", "dataset", item.ID, "", "success", "", map[string]any{"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID, "ownerType": req.OwnerType, "ownerId": req.OwnerID})
 	updated, _, _ := h.datasetStore.GetByID(item.ID)
 	writeJSON(w, http.StatusOK, updated)
+}
+
+const regulatedOwnerError = "a health dataset belongs to an organization, not to a person"
+
+// ownerAllowedForClassification reports whether this kind of owner may hold
+// this kind of data.
+//
+// Regulated data belongs to an organization, never to a person. Both were
+// accepted, and the difference was learned from a real one: a health dataset
+// owned by Essilor was handed to one of its members who was trying to unblock
+// herself. It did not unblock her - attaching regulated data to a project is a
+// global administrator's decision, which ownership does not confer - and it
+// removed the access every other member of that organization held through it.
+// One well-meant action, two colleagues cut off, nothing in the way.
+//
+// The day the named person leaves, an organization's health data has an owner
+// who no longer exists. That alone settles it.
+func ownerAllowedForClassification(classification, ownerType string) bool {
+	if !strings.EqualFold(strings.TrimSpace(classification), "hds") {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(ownerType), "organization")
 }
 
 func (h Handlers) organizationExists(organizationID string) bool {

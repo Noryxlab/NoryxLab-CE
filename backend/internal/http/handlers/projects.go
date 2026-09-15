@@ -104,6 +104,25 @@ func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// One name, one project.
+	//
+	// Three people working on the same subject each created their own project
+	// - and then spent two days adding permissions to reach data that sat in
+	// somebody else's. Identical names will not catch every version of that
+	// mistake; matching near-identical ones would invent false positives and
+	// magic, which is worse. This catches the plain case and says so at the
+	// moment it happens, rather than leaving a duplicate to be discovered by
+	// whoever cannot find their data.
+	if taken, err := h.projectNameTaken(req.Name); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to check the project name"})
+		return
+	} else if taken != "" {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "a project named " + taken + " already exists; join it rather than creating a second one",
+		})
+		return
+	}
+
 	p := project.NewOwned(userID, req.Name, req.Description)
 
 	if err := h.projectStore.Create(p); err != nil {
@@ -408,4 +427,27 @@ func (h Handlers) nameProjectOwners(items []project.Project) {
 		}
 		items[index].OwnerName = items[index].OwnerID
 	}
+}
+
+// projectNameTaken returns the existing project's name when one already uses
+// it, compared without case or surrounding space so "Segmentation" and
+// " segmentation " are the same name to a person and therefore to this.
+//
+// Platform-wide rather than per owner: the collision that matters is two
+// people who should have been in one project, and they rarely share an owner.
+func (h Handlers) projectNameTaken(name string) (string, error) {
+	wanted := strings.ToLower(strings.TrimSpace(name))
+	if wanted == "" {
+		return "", nil
+	}
+	existing, err := h.projectStore.List()
+	if err != nil {
+		return "", err
+	}
+	for _, item := range existing {
+		if strings.ToLower(strings.TrimSpace(item.Name)) == wanted {
+			return item.Name, nil
+		}
+	}
+	return "", nil
 }

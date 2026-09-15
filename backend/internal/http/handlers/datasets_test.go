@@ -56,3 +56,32 @@ func TestAnOrdinaryRefusalNamesTheRoleAndNotTheEdition(t *testing.T) {
 		t.Errorf("a non-HDS refusal should name the role, got %q", message)
 	}
 }
+
+// A health dataset belongs to an organization, never to a person.
+//
+// Both were accepted until a real one taught the difference: a dataset owned
+// by Essilor was handed to one of its members trying to unblock herself. It
+// did not unblock her - attaching regulated data to a project is a global
+// administrator's decision, which ownership does not confer - and it removed
+// the access every other member of that organization held through it.
+func TestRegulatedDataCannotBeOwnedByAPerson(t *testing.T) {
+	if ownerAllowedForClassification("hds", "user") {
+		t.Error("a health dataset was handed to a person")
+	}
+	if !ownerAllowedForClassification("hds", "organization") {
+		t.Error("an organization was refused its own health dataset")
+	}
+	// Case and spacing are how these values arrive from a form, not a reason
+	// for the rule to stop applying.
+	if ownerAllowedForClassification(" HDS ", " User ") {
+		t.Error("the rule was escaped by spacing")
+	}
+
+	// Ordinary data keeps belonging to whoever registered it.
+	if !ownerAllowedForClassification("non-hds", "user") {
+		t.Error("an ordinary dataset was refused a personal owner")
+	}
+	if !ownerAllowedForClassification("", "user") {
+		t.Error("an unclassified dataset was refused a personal owner")
+	}
+}
