@@ -1110,6 +1110,8 @@ export interface AgentInput {
   projectId?: string;
   actions: string[];
   enabled?: boolean;
+  teamId?: string;
+  role?: Agent['role'];
 }
 
 export interface AIServicesStatus {

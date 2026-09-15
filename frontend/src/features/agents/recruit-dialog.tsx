@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { AgentFace } from './agent-face';
 import { scheduleKey } from './agent-roster';
 import { platformApi } from '@/lib/api/endpoints';
-import { qk, useInvalidate } from '@/lib/api/queries';
+import { qk, useAgentTeams, useInvalidate } from '@/lib/api/queries';
 import { useToast } from '@/components/ui/toast';
 import { useT } from '@/lib/i18n';
 import type { Agent } from '@/lib/api/types';
@@ -62,6 +62,9 @@ export function RecruitDialog({
   const [mission, setMission] = React.useState('');
   const [schedule, setSchedule] = React.useState<Agent['schedule']>('hourly');
   const [mayRestart, setMayRestart] = React.useState(false);
+  const [teamId, setTeamId] = React.useState('');
+  const [role, setRole] = React.useState<Agent['role']>('observer');
+  const teams = useAgentTeams();
 
   // Remis a l'etat du sujet chaque fois que la fenetre s'ouvre, sans quoi on
   // rouvre sur le brouillon de la fois precedente.
@@ -71,7 +74,17 @@ export function RecruitDialog({
     setMission(editing?.mission ?? '');
     setSchedule(editing?.schedule ?? 'hourly');
     setMayRestart(Boolean(editing?.actions?.includes('restart_app')));
+    setTeamId(editing?.teamId ?? '');
+    setRole(editing?.role ?? 'observer');
   }, [open, editing]);
+
+  // Le role est un plafond, pas une etiquette : un observateur ne garde aucune
+  // action. Accorder le droit d'agir le fait donc passer operateur, au lieu de
+  // laisser une fiche qui se contredit elle-meme.
+  React.useEffect(() => {
+    if (mayRestart && role === 'observer') setRole('operator');
+    if (!mayRestart && role === 'operator') setRole('observer');
+  }, [mayRestart, role]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -80,6 +93,8 @@ export function RecruitDialog({
         mission: mission.trim(),
         schedule,
         actions: mayRestart ? ['restart_app'] : [],
+        teamId,
+        role,
       };
       return editing ? platformApi.updateAgent(editing.id, body) : platformApi.createAgent(body);
     },
@@ -170,6 +185,42 @@ export function RecruitDialog({
               ))}
             </div>
           </Field>
+
+          {(teams.data ?? []).length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={t('agents.teamLabel')}>
+                <select
+                  value={teamId}
+                  onChange={(event) => setTeamId(event.target.value)}
+                  className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                >
+                  <option value="">{t('agents.noTeam')}</option>
+                  {(teams.data ?? []).map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {teamId ? (
+                <Field label={t('agents.roleLabel')}>
+                  <select
+                    value={role}
+                    onChange={(event) => setRole(event.target.value as Agent['role'])}
+                    className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                  >
+                    {/* Observateur seulement quand rien ne lui est accorde :
+                        le plafond du role est applique a l'ecriture, et offrir
+                        un choix que le serveur annule est pire que ne pas
+                        l'offrir. */}
+                    {!mayRestart ? <option value="observer">{t('agents.roleObserver')}</option> : null}
+                    {mayRestart ? <option value="operator">{t('agents.roleOperator')}</option> : null}
+                    <option value="lead">{t('agents.roleLead')}</option>
+                  </select>
+                </Field>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="rounded-lg border border-border bg-surface-muted px-4 py-3">
             <label className="flex items-start gap-3">
