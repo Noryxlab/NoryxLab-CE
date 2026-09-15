@@ -340,6 +340,10 @@ export interface CreateDatasetInput {
   prefix?: string;
   accessKey?: string;
   secretKey?: string;
+  /** L'organisation a qui appartient une donnee reglementee. Obligatoire pour
+   *  une classification HDS : le jour ou la personne nommee part, la donnee de
+   *  sante d'une organisation aurait un proprietaire qui n'existe plus. */
+  ownerId?: string;
 }
 
 export const datasetsApi = {

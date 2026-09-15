@@ -32,7 +32,7 @@ describe('filterAccessCells', () => {
   it('ne renvoie que la ressource choisie', () => {
     const kept = filterAccessCells(cells, { ...noAccessFilters, focus: { kind: 'resource', id: 'mri' } });
     expect(kept).toHaveLength(1);
-    expect(kept[0].resourceId).toBe('mri');
+    expect(kept[0]?.resourceId).toBe('mri');
   });
 
   it('ne renvoie que le sujet choisi', () => {
@@ -51,7 +51,7 @@ describe('filterAccessCells', () => {
   it('filtre par type de ressource', () => {
     const kept = filterAccessCells(cells, { ...noAccessFilters, resourceType: 'project' });
     expect(kept).toHaveLength(1);
-    expect(kept[0].resourceType).toBe('project');
+    expect(kept[0]?.resourceType).toBe('project');
   });
 
   it('sans critere, ne retire rien', () => {

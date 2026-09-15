@@ -513,6 +513,8 @@ export const fr = {
     classificationStandard: 'Standard',
     classificationHds: 'Données de santé (HDS)',
     classificationHint: 'La classification HDS restreint l’aperçu, le téléchargement et l’export.',
+    ownerOrganizationLabel: 'Organisation propriétaire',
+    ownerOrganizationPlaceholder: 'Choisir une organisation',
     hdsWarning:
       'La création et l’attribution de datasets HDS sont réservées aux administrateurs. L’aperçu est limité et le téléchargement direct est désactivé.',
     endpointLabel: 'Adresse du service S3',

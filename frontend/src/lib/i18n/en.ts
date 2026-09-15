@@ -508,6 +508,8 @@ export const en: Translations = {
     classificationStandard: 'Standard',
     classificationHds: 'Health data (HDS)',
     classificationHint: 'HDS classification restricts preview, download and export.',
+    ownerOrganizationLabel: 'Owning organization',
+    ownerOrganizationPlaceholder: 'Choose an organization',
     hdsWarning:
       'Creating and assigning HDS datasets is restricted to administrators. Preview is limited and direct download is disabled.',
     endpointLabel: 'S3 service address',

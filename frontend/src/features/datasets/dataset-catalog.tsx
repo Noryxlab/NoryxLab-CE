@@ -55,6 +55,11 @@ function CreateDatasetSheet({
 
   const [mode, setMode] = React.useState<'local' | 'external'>('local');
   const [classification, setClassification] = React.useState('non-hds');
+  // Une donnee reglementee appartient a une organisation, jamais a une
+  // personne : la plateforme le refuse desormais, et le formulaire demande
+  // laquelle plutot que de laisser l'enregistrement echouer.
+  const [ownerId, setOwnerId] = React.useState('');
+  const organizations = useOrganizations();
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [endpoint, setEndpoint] = React.useState('');
@@ -78,7 +83,10 @@ function CreateDatasetSheet({
 
   const nameError = touched && !name.trim() ? t('common.required') : undefined;
   const bucketError = touched && mode === 'external' && !bucket.trim() ? t('common.required') : undefined;
-  const valid = Boolean(name.trim()) && (mode === 'local' || bucket.trim());
+  const valid =
+    Boolean(name.trim()) &&
+    (mode === 'local' || bucket.trim()) &&
+    (classification !== 'hds' || Boolean(ownerId));
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -86,6 +94,7 @@ function CreateDatasetSheet({
         name: name.trim(),
         description: description.trim(),
         classification,
+        ...(classification === 'hds' ? { ownerId } : {}),
         ...(mode === 'external'
           ? {
               provider: 's3',
@@ -176,9 +185,22 @@ function CreateDatasetSheet({
             ) : null}
 
             {classification === 'hds' ? (
-              <p className="rounded-md border border-warning/40 bg-warning-subtle px-3 py-2 text-xs leading-relaxed text-warning-foreground">
-                {t('datasets.hdsWarning')}
-              </p>
+              <>
+                <Field label={t('datasets.ownerOrganizationLabel')} required>
+                  <Select
+                    value={ownerId}
+                    onValueChange={setOwnerId}
+                    placeholder={t('datasets.ownerOrganizationPlaceholder')}
+                    options={(organizations.data ?? []).map((organization) => ({
+                      value: organization.id,
+                      label: organization.name,
+                    }))}
+                  />
+                </Field>
+                <p className="rounded-md border border-warning/40 bg-warning-subtle px-3 py-2 text-xs leading-relaxed text-warning-foreground">
+                  {t('datasets.hdsWarning')}
+                </p>
+              </>
             ) : null}
 
             {mode === 'external' ? (
