@@ -198,15 +198,26 @@ agent may do.
 datasource or a file. It can say a workspace is down; it cannot say a dataset
 grew, a column is empty, or summarise a table.
 
-That second gap has a prerequisite that must land first. The model gateway
-enforces its perimeter policy **per gateway project**, and every agent on an
-installation shares one — the platform's own. A run carries
-`X-Llmaas-Subject`, which names the workload, and nothing that names the Noryx
-project. So an agent attached to regulated data would be indistinguishable from
-one attached to a public dataset, and content could reach a rented GPU with
-nothing in the chain able to refuse it.
+That second gap had a prerequisite, and it has landed. The model gateway
+enforces its perimeter policy per gateway project, and every agent on an
+installation reaches it with one key — so regulated work used to be
+indistinguishable from any other. A run now carries two headers:
 
-Attaching data therefore means, in order: carry the project to the gateway,
-resolve the policy per project, and only then give agents tools that read.
-An agent working on regulated data is then pinned to an on-premise tier or
-refused, and the refusal is already visible in the gateway console.
+| Header | Names |
+|---|---|
+| `X-Llmaas-Subject` | The workload: `chat`, `developer`, or `agent:<id>` |
+| `X-Llmaas-On-Behalf-Of` | The Noryx project the run belongs to |
+
+The gateway resolves the named project's policy and **narrows** the key's to
+it. The declaration can only ever restrict: a caller naming a project is
+volunteering a constraint, never claiming one, and a named policy that
+permitted more changes nothing. Otherwise a header would be a privilege, and
+anybody holding any key could send anything anywhere by naming the right
+project. A project the operator has not described narrows nothing, so
+declaring projects does not refuse every caller the day it starts.
+
+What remains before agents may read data is therefore the reading itself:
+tools that list what is attached, describe a schema, and sample a table. An
+agent working on a project the operator has marked as staying inside the
+perimeter is already pinned to an on-premise tier or refused, and that refusal
+is visible in the gateway console.
