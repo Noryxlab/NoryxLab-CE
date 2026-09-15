@@ -96,6 +96,7 @@ import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
+import { RoleMatrixEditor } from '@/features/admin/role-matrix';
 import { PlatformUsageSection } from '@/features/admin/platform-usage';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
@@ -1242,6 +1243,12 @@ function RbacSection() {
           edges={visibleCells}
         />
       ) : null}
+
+      {/* L'editeur sous la matrice, dans cet ordre : on regarde d'abord qui a
+          acces, et on ecrit ensuite la regle. Reserve a l'edition qui sait
+          faire respecter une ligne - ailleurs ce serait un ecran qui promet ce
+          que la plateforme ne tiendrait pas. */}
+      {isEnterprise() ? <RoleMatrixEditor /> : null}
 
       <Card>
         <DataTable

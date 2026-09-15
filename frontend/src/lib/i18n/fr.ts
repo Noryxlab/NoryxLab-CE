@@ -110,6 +110,31 @@ export const fr = {
     skipToContent: 'Aller au contenu principal',
   },
 
+  roleMatrix: {
+    title: 'Rôles de l’installation',
+    intro:
+      'Les rôles que la plateforme applique, et ceux que vous écrivez. Une ligne livrée décrit ce que la plateforme fait déjà et ne se modifie pas : c’est sur vos propres rôles que vous décidez.',
+    addRole: 'Ajouter un rôle',
+    basedOn: 'Hérite de',
+    baseViewer: 'Lecteur',
+    baseEditor: 'Contributeur',
+    baseAdmin: 'Administrateur',
+    columnProject: 'Projet',
+    columnDataset: 'Données',
+    columnOntology: 'Ontologie',
+    columnDatasource: 'Source',
+    columnEnvironment: 'Environnement',
+    columnWorkload: 'Calcul',
+    columnGovernance: 'Gouvernance',
+    namePlaceholder: 'Data steward',
+    descriptionPlaceholder: 'Ce que ce rôle fait, en une phrase',
+    shipped: 'Livré',
+    shippedBase: 'Rôle de la plateforme',
+    heldBy: 'porté par {count}',
+    saved: 'Rôles enregistrés',
+    ceilingHint:
+      'Un rôle maison hérite toujours d’un rôle de la plateforme : c’est ce que la personne obtient partout où la matrice n’a rien à dire, et c’est aussi son plafond tant que la matrice n’applique pas la ligne.',
+  },
   agentGovernance: {
     title: 'Agents',
     intro:
@@ -770,6 +795,7 @@ export const fr = {
     userLabel: 'Utilisateur',
     roleLabel: 'Rôle',
     roleViewer: 'Lecteur',
+    roleBasedOn: 'Hérite de {base}',
     roleViewerHint: 'Consulte le projet et ses résultats, sans rien modifier.',
     roleEditor: 'Contributeur',
     roleEditorHint: 'Lance des workspaces et des exécutions, modifie les ressources.',

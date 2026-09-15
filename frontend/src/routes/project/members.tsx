@@ -37,15 +37,45 @@ import {
   useInvalidate,
 } from '@/lib/api/queries';
 import { projectOrganizationRolesApi, projectsApi } from '@/lib/api/endpoints';
+import { useAssignableRoles } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { presentRole } from '@/lib/presenters';
 import type { ProjectMember } from '@/lib/api/types';
 
-const ROLES = ['viewer', 'editor', 'admin'] as const;
-
 /** The same wording in both tables, so one screen does not name a role twice. */
 function roleLabel(role: string, locale: 'fr' | 'en'): string {
   return presentRole(role, locale);
+}
+
+/**
+ * The roles this project may grant, as a picker needs them.
+ *
+ * Both pickers on this screen ask the same question - one for a person, one
+ * for an organisation - and the answer comes from the server: it is what
+ * decides which roles it will honour, and offering one it would refuse is a
+ * promise the screen has no business making.
+ */
+function useRoleOptions(locale: 'fr' | 'en', t: ReturnType<typeof useT>) {
+  const assignable = useAssignableRoles();
+  return (assignable.data?.roles ?? []).map((item) => ({
+    value: item.key,
+    label: item.builtin ? presentRole(item.key, locale) : item.name,
+    hint: item.builtin
+      ? item.key === 'viewer'
+        ? t('members.roleViewerHint')
+        : item.key === 'editor'
+          ? t('members.roleEditorHint')
+          : t('members.roleAdminHint')
+      : // On a custom role, what the person actually gets today beats the
+        // sentence somebody wrote about it.
+        firstLine(item.description) ||
+        t('members.roleBasedOn').replace('{base}', presentRole(item.basedOn, locale)),
+  }));
+}
+
+/** A custom role carries a sentence; a hint has room for the first line of it. */
+function firstLine(value: string | undefined): string {
+  return (value ?? '').split('\n')[0]?.trim() ?? '';
 }
 
 export function ProjectMembersPage() {
@@ -65,16 +95,9 @@ export function ProjectMembersPage() {
   const [userId, setUserId] = React.useState('');
   const [role, setRole] = React.useState<string>('editor');
 
-  const roleOptions = ROLES.map((value) => ({
-    value,
-    label: presentRole(value, locale),
-    hint:
-      value === 'viewer'
-        ? t('members.roleViewerHint')
-        : value === 'editor'
-          ? t('members.roleEditorHint')
-          : t('members.roleAdminHint'),
-  }));
+  const roleOptions = useRoleOptions(locale, t);
+
+
 
   const invite = useMutation({
     mutationFn: () => projectsApi.invite(projectId as string, { userId, role }),
@@ -240,6 +263,7 @@ function OrganizationGrants({ projectId, canManage }: { projectId: string; canMa
 
   const [organizationId, setOrganizationId] = React.useState('');
   const [role, setRole] = React.useState<string>('editor');
+  const roleOptions = useRoleOptions(locale, t);
 
   const grant = useMutation({
     mutationFn: () => projectOrganizationRolesApi.grant(projectId, organizationId, role),
@@ -317,11 +341,7 @@ function OrganizationGrants({ projectId, canManage }: { projectId: string; canMa
               />
             </Field>
             <Field label={t('members.roleLabel')} className="min-w-40">
-              <Select
-                value={role}
-                onValueChange={setRole}
-                options={ROLES.map((value) => ({ value, label: roleLabel(value, locale) }))}
-              />
+              <Select value={role} onValueChange={setRole} options={roleOptions} />
             </Field>
             <Button
               variant="secondary"

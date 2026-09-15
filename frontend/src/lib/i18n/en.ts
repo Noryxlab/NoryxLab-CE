@@ -107,6 +107,31 @@ export const en: Translations = {
     skipToContent: 'Skip to main content',
   },
 
+  roleMatrix: {
+    title: 'Roles of this installation',
+    intro:
+      'The roles the platform enforces, and the ones you write. A shipped row describes what the platform already does and cannot be changed: your own roles are where you decide.',
+    addRole: 'Add a role',
+    basedOn: 'Based on',
+    baseViewer: 'Viewer',
+    baseEditor: 'Editor',
+    baseAdmin: 'Admin',
+    columnProject: 'Project',
+    columnDataset: 'Data',
+    columnOntology: 'Ontology',
+    columnDatasource: 'Source',
+    columnEnvironment: 'Environment',
+    columnWorkload: 'Compute',
+    columnGovernance: 'Governance',
+    namePlaceholder: 'Data steward',
+    descriptionPlaceholder: 'What this role does, in one sentence',
+    shipped: 'Shipped',
+    shippedBase: 'Platform role',
+    heldBy: 'held by {count}',
+    saved: 'Roles saved',
+    ceilingHint:
+      'A role of your own always inherits from a platform role: that is what the person gets wherever the matrix has nothing to say, and it is also their ceiling until the matrix enforces the row.',
+  },
   agentGovernance: {
     title: 'Agents',
     intro:
@@ -764,6 +789,7 @@ export const en: Translations = {
     userLabel: 'User',
     roleLabel: 'Role',
     roleViewer: 'Viewer',
+    roleBasedOn: 'Inherits from {base}',
     roleViewerHint: 'Reads the project and its results, changes nothing.',
     roleEditor: 'Editor',
     roleEditorHint: 'Launches workspaces and runs, edits resources.',

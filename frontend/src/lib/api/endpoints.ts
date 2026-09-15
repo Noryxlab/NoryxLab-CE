@@ -66,6 +66,9 @@ import type {
   Project,
   ProjectMember,
   RbacMatrixReport,
+  RbacPolicyResponse,
+  RbacPolicyRow,
+  AssignableRole,
   Repository,
   Secret,
   StorageEndpoint,
@@ -81,6 +84,10 @@ export const platformApi = {
   version: () => api.get<VersionInfo>(`${V1}/version`),
   overview: () => api.get<PlatformOverview>(`${V1}/platform/overview`),
   aiServices: () => api.get<AIServicesStatus>(`${V1}/ai-services/status`),
+  // Ce qu'on peut donner a quelqu'un ici : les trois roles de la plateforme,
+  // plus ceux que l'installation a ecrits la ou cette edition sait les faire
+  // respecter. Un role qui ne serait pas honore n'est pas propose.
+  assignableRoles: () => api.get<{ roles: AssignableRole[] }>(`${V1}/roles`),
   agents: () => api.list<Agent>(`${V1}/agents`),
   createAgent: (body: AgentInput) => api.post<Agent>(`${V1}/agents`, body),
   updateAgent: (id: string, body: Partial<AgentInput>) => api.patch<Agent>(`${V1}/agents/${id}`, body),
@@ -643,9 +650,9 @@ export const adminApi = {
 
   rbacMatrix: () => api.get<RbacMatrixReport>(`${V1}/admin/rbac-matrix`),
   downloadRbacMatrix: () => downloadFile(`${V1}/admin/rbac-matrix.csv`, 'noryx-rbac-matrix.csv'),
-  rbacPolicy: () => api.get<Record<string, unknown>>(`${V1}/admin/rbac-policy`),
-  saveRbacPolicy: (policy: Record<string, unknown>) =>
-    api.put<Record<string, unknown>>(`${V1}/admin/rbac-policy`, policy),
+  rbacPolicy: () => api.get<RbacPolicyResponse>(`${V1}/admin/rbac-policy`),
+  saveRbacPolicy: (rows: RbacPolicyRow[]) =>
+    api.put<RbacPolicyResponse>(`${V1}/admin/rbac-policy`, { rows }),
 
   storageEndpoints: () => api.list<StorageEndpoint>(`${V1}/admin/storage-endpoints`),
   createStorageEndpoint: (input: Record<string, unknown>) =>

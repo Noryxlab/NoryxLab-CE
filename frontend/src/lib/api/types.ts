@@ -1186,3 +1186,41 @@ export interface AIServicesStatus {
   detail?: string;
   checkedAt?: string;
 }
+
+/** Un role tel qu'il peut etre donne a quelqu'un ici. */
+export interface AssignableRole {
+  key: string;
+  name: string;
+  description?: string;
+  /** Ce que la plateforme accorde d'elle-meme. Affiche sur un role maison
+   *  parce que c'est ce que la personne obtient reellement tant que la matrice
+   *  n'a rien de plus a dire. */
+  basedOn: string;
+  builtin: boolean;
+}
+
+/** Une ligne de la matrice : un role, et ce qu'il peut faire colonne par
+ *  colonne. Les lignes verrouillees decrivent la plateforme elle-meme et ne
+ *  s'editent pas - c'est la ou une installation dit ce qu'elle veut. */
+export interface RbacPolicyRow {
+  role: string;
+  key: string;
+  locked?: boolean;
+  basedOn?: string;
+  description?: string;
+  project: string;
+  dataset: string;
+  ontology: string;
+  datasource: string;
+  environment: string;
+  workload: string;
+  governance: string;
+}
+
+export interface RbacPolicyResponse {
+  rows: RbacPolicyRow[];
+  /** Combien de sujets portent chaque role. Un role porte ne peut pas etre
+   *  supprime, et le nombre dit pourquoi. */
+  assignmentCounts: Record<string, number>;
+  updatedAt: string;
+}
