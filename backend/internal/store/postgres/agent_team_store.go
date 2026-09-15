@@ -89,3 +89,48 @@ func (s *AgentTeamStore) Delete(id string) error {
 	_, err = s.Store.db.ExecContext(ctx, `DELETE FROM agent_teams WHERE id=$1`, id)
 	return err
 }
+
+func (s *AgentTeamStore) ListMandates(teamID string) ([]agent.Mandate, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	rows, err := s.Store.db.QueryContext(ctx, `
+		SELECT id, team_id, lead_id, member_id, action, granted_by_user_id, created_at
+		FROM agent_mandates WHERE team_id=$1 ORDER BY created_at`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := []agent.Mandate{}
+	for rows.Next() {
+		var item agent.Mandate
+		if err := rows.Scan(&item.ID, &item.TeamID, &item.LeadID, &item.MemberID,
+			&item.Action, &item.GrantedByUserID, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *AgentTeamStore) CreateMandate(item agent.Mandate) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	// Writing the same line twice is not an error and must not create a second
+	// row: the organisation is a set of statements, and a duplicate would make
+	// "who may ask whom" answer differently depending on how it was counted.
+	_, err := s.Store.db.ExecContext(ctx, `
+		INSERT INTO agent_mandates (id, team_id, lead_id, member_id, action, granted_by_user_id, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		ON CONFLICT (lead_id, member_id, action) DO NOTHING`,
+		item.ID, item.TeamID, item.LeadID, item.MemberID, item.Action,
+		item.GrantedByUserID, item.CreatedAt.UTC())
+	return err
+}
+
+func (s *AgentTeamStore) DeleteMandate(id string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := s.Store.db.ExecContext(ctx, `DELETE FROM agent_mandates WHERE id=$1`, id)
+	return err
+}

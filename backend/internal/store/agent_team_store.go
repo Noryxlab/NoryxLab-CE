@@ -17,4 +17,11 @@ type AgentTeamStore interface {
 	// decision and is made explicitly: silently deleting agents here would
 	// destroy standing work because somebody tidied up a grouping.
 	Delete(id string) error
+
+	// Mandates are the written organisation: which lead may ask which member
+	// for which action. Read together with the team because a delegation
+	// decision needs all of them at once, and never one at a time.
+	ListMandates(teamID string) ([]agent.Mandate, error)
+	CreateMandate(item agent.Mandate) error
+	DeleteMandate(id string) error
 }

@@ -117,6 +117,54 @@ func NewTeam(ownerUserID, projectID, name, purpose string) Team {
 	}
 }
 
+// Mandate is a delegation written down in advance, by a person.
+//
+// The alternative was to let a lead decide during a run: it notices an
+// application is down and asks whoever may restart it. More capable, and
+// unauditable in the way that matters - you would have to read the run logs to
+// learn what the organisation actually permits, and the answer would be
+// different tomorrow.
+//
+// Written in advance, the organisation is a document: these leads may ask
+// these members for these actions, and nothing else happens. Somebody
+// answering a question about who can do what reads the mandates.
+//
+// A mandate never widens. It authorises an ask that the capability rules
+// already allow, and both sides must still hold the action - so writing one
+// cannot grant an agent something its owner never gave it. That ordering is
+// what keeps this from becoming a second, competing permission system.
+type Mandate struct {
+	ID     string `json:"id"`
+	TeamID string `json:"teamId"`
+	// LeadID may ask MemberID for Action.
+	LeadID   string `json:"leadId"`
+	MemberID string `json:"memberId"`
+	Action   string `json:"action"`
+	// GrantedByUserID is the person who wrote it, kept because "who allowed
+	// this" is the first question asked about any delegation.
+	GrantedByUserID string    `json:"grantedByUserId"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
+
+// NewMandate writes one down.
+func NewMandate(teamID, leadID, memberID, action, grantedByUserID string) Mandate {
+	return Mandate{
+		ID:              uuid.NewString(),
+		TeamID:          strings.TrimSpace(teamID),
+		LeadID:          strings.TrimSpace(leadID),
+		MemberID:        strings.TrimSpace(memberID),
+		Action:          strings.ToLower(strings.TrimSpace(action)),
+		GrantedByUserID: strings.TrimSpace(grantedByUserID),
+		CreatedAt:       time.Now().UTC(),
+	}
+}
+
+// covers reports whether this mandate is the one being invoked.
+func (m Mandate) covers(lead, member Agent, action string) bool {
+	return m.LeadID == lead.ID && m.MemberID == member.ID &&
+		m.Action == strings.ToLower(strings.TrimSpace(action))
+}
+
 // Delegation is one lead asking one member to take one action.
 //
 // Returned rather than performed, so the caller records what was decided and
@@ -130,6 +178,9 @@ type Delegation struct {
 	// Refusal names which side lacked the right, in the platform's words
 	// rather than the model's. Empty when allowed.
 	Refusal string `json:"refusal,omitempty"`
+	// MandateID is the written delegation this decision rested on, so a run
+	// records which line of the organisation it acted under. Empty on refusal.
+	MandateID string `json:"mandateId,omitempty"`
 }
 
 // Reasons a delegation is refused. Named, because "forbidden" tells an owner
@@ -142,6 +193,7 @@ const (
 	RefusalLeadLacks       = "the lead was not granted that action"
 	RefusalMemberLacks     = "the member was not granted that action"
 	RefusalMemberDisabled  = "the member is switched off"
+	RefusalNoMandate       = "nobody wrote down that this lead may ask this member for that"
 )
 
 // Delegate decides whether lead may have member take action.
@@ -149,7 +201,7 @@ const (
 // Every condition is checked here rather than split between this and the
 // caller: a permission spread across two places is a permission that will
 // eventually be enforced in one of them.
-func Delegate(lead, member Agent, action string) Delegation {
+func Delegate(lead, member Agent, action string, mandates []Mandate) Delegation {
 	decision := Delegation{LeadID: lead.ID, MemberID: member.ID, Action: action}
 
 	refuse := func(reason string) Delegation {
@@ -185,6 +237,18 @@ func Delegate(lead, member Agent, action string) Delegation {
 		return refuse(RefusalMemberLacks)
 	}
 
-	decision.Allowed = true
-	return decision
+	// The written mandate is checked last on purpose.
+	//
+	// Every other refusal above describes something that writing a mandate
+	// would not fix. Reaching this line means the organisation is the only
+	// thing missing, so the message sends somebody to write exactly the one
+	// line that will work.
+	for _, mandate := range mandates {
+		if mandate.covers(lead, member, action) {
+			decision.Allowed = true
+			decision.MandateID = mandate.ID
+			return decision
+		}
+	}
+	return refuse(RefusalNoMandate)
 }
