@@ -50,6 +50,14 @@ type Agent struct {
 	// is never interpreted by the platform.
 	Mission  string `json:"mission"`
 	Schedule string `json:"schedule"`
+	// TeamID is the group this agent works in. Empty means it works alone,
+	// which is what every agent did before teams existed and stays the
+	// default.
+	TeamID string `json:"teamId,omitempty"`
+	// Role is what it is for inside that team, and the ceiling on what it may
+	// hold. See team.go: the ceiling is applied where actions are stored, not
+	// argued about when they are used.
+	Role Role `json:"role"`
 	// Actions the agent may take, from the closed list above. Empty - the
 	// default - means it only looks and reports.
 	Actions    []string   `json:"actions"`
@@ -93,6 +101,7 @@ func New(ownerUserID, projectID, name, mission, schedule string, actions []strin
 		Name:        strings.TrimSpace(name),
 		Mission:     strings.TrimSpace(mission),
 		Schedule:    NormaliseSchedule(schedule),
+		Role:        roleFor(actions),
 		Actions:     NormaliseActions(actions),
 		Enabled:     true,
 		CreatedAt:   now,
@@ -137,6 +146,43 @@ func NormaliseActions(actions []string) []string {
 // ValidAction reports whether a name is one the platform implements.
 func ValidAction(action string) bool {
 	return strings.ToLower(strings.TrimSpace(action)) == ActionRestartApp
+}
+
+// roleFor derives the base role from what was granted.
+//
+// Holding an action is what being an operator means, so the role is read off
+// the grant rather than asked for a second time. A lead is never derived: that
+// one is a decision somebody makes about a team, and deriving it would promote
+// an agent nobody promoted.
+func roleFor(actions []string) Role {
+	if len(NormaliseActions(actions)) > 0 {
+		return RoleOperator
+	}
+	return RoleObserver
+}
+
+// WithTeam places this agent in a team under a role, applying the role's
+// ceiling to what it holds.
+func (a Agent) WithTeam(teamID string, role Role) Agent {
+	a.TeamID = strings.TrimSpace(teamID)
+	a.Role = NormaliseRole(string(role))
+	a.Actions = NormaliseForRole(a.Role, a.Actions)
+	a.UpdatedAt = time.Now().UTC()
+	return a
+}
+
+// EffectiveRole is the role to reason with, including for agents stored before
+// teams existed.
+//
+// Those rows carry no role at all. Rather than migrate them - a migration that
+// guesses is worse than a derivation that is stated - the role is derived the
+// same way New derives it. The consequence is deliberate: such an agent can be
+// a member of a team, and can never be its lead, because nobody made it one.
+func (a Agent) EffectiveRole() Role {
+	if a.Role != "" {
+		return NormaliseRole(string(a.Role))
+	}
+	return roleFor(a.Actions)
 }
 
 // May reports whether this agent was granted an action.
