@@ -50,14 +50,15 @@ export function AppRoutes() {
                 not owned by a project. Existing links keep working. */}
             <Route path="environments" element={<Navigate to="/catalog/environments" replace />} />
             {/* Les agents ont rejoint le projet, qui est le centre de Noryx :
-              un agent y travaille, y depense et y lira ses donnees. L'ancien
-              lien mene a la liste des projets plutot que nulle part. */}
-          <Route path="agents" element={<Navigate to="/projects" replace />} />
+                un agent y travaille, y depense et y lira ses donnees. */}
+            <Route path="agents" element={<AgentsPage />} />
             <Route path="members" element={<ProjectMembersPage />} />
             <Route path="settings" element={<ProjectSettingsPage />} />
           </Route>
 
-          <Route path="agents" element={<AgentsPage />} />
+          {/* L'ancien lien de premier niveau mene a la liste des projets
+              plutot que nulle part : un agent vit desormais dans l'un d'eux. */}
+          <Route path="agents" element={<Navigate to="/projects" replace />} />
 
           <Route path="account" element={<AccountPage />} />
 
