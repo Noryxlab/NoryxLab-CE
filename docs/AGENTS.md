@@ -22,6 +22,69 @@ constrains what may be said, the writer starts writing for the field.
 permission, because the person writing it is also the person the permission
 protects. Actions are a separate, closed list.
 
+## Jobs or agents
+
+Answer this before anything else on this page.
+
+Noryx already automates: a **job** runs on a schedule, does what its code says,
+and produces an output. It is deterministic, repeatable, and auditable by
+reading the code. Most of what people first describe as "something for an
+agent" is a job.
+
+An agent is not a better job. It does a different thing:
+
+**A job automates a procedure you can write down. An agent handles what you
+cannot write down.**
+
+Three things a job structurally cannot do:
+
+**Read the unstructured.** A job parses a CSV. It does not read a free-text
+field, a report, or an error nobody has seen before. That is where the variety
+lives, and the variety is why the rule could not be written.
+
+**Decide that something is not worth reporting.** A job emits everything, or
+everything past a threshold. An agent can answer "nothing worth your
+attention" — which is the commonest answer and a different one from silence.
+The platform stores that difference: a quiet run is kept and marked, so a row
+of quiet hours is how a reader knows the agent was there.
+
+**Compose steps nobody planned.** A job runs a fixed sequence. An agent looks,
+then decides what to look at next, up to a bounded number of rounds.
+
+### If you can specify it, use a job
+
+An agent in a job's place costs more, fails more often, and audits worse. That
+is the opposite of what the market says about agents, and it is what a risk
+function needs to hear first — the credibility of everything else on this page
+depends on saying it.
+
+### The question that produces answers
+
+"What would you automate with an agent?" produces nothing. People hear
+*automation*, think *job*, and they are right to.
+
+The question that produces answers is: **what do you read, regularly, in order
+to decide something?**
+
+That is the shape of the thing. Training output somebody scans to see whether a
+run converged; batch logs somebody opens to find why three volumes out of two
+hundred failed; a weekly validation report somebody compares against last
+week's. Read-in-order-to-decide.
+
+### The filter that stops the bad ideas
+
+Before either: **will you be able to check the answer?**
+
+If nobody can verify the work, it is not a job and not an agent — it is a risk.
+An agent whose output nobody can check is worse than no agent, because it
+produces confidence rather than information.
+
+| | Use |
+|---|---|
+| You can write the rule | A job |
+| The input varies; somebody reads and judges | An agent |
+| Nobody could check the answer | Neither, not yet |
+
 ## What an agent carries
 
 | Field | Meaning |
