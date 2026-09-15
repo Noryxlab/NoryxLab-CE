@@ -295,6 +295,37 @@ disagree.
 Disbanding a team releases its members rather than deleting them. Destroying
 standing work because somebody tidied up a grouping is not a tidy-up.
 
+## Answering for them all at once
+
+An installation running agents gets asked what they may do — by its own risk,
+legal and quality functions, and the person asked is rarely the person who
+built them. Answering meant opening every agent and every team one by one,
+which nobody does.
+
+The administration section answers it on one page, under **Agents**
+(`/admin/agents`, Enterprise), and exports the same as CSV, because the answer
+usually has to leave the platform to reach a committee.
+
+It answers three questions:
+
+**Who they are, and what each may do.** Every agent, its project, its team, its
+role, whether it may act or only look, its rhythm, and when it last ran. The
+summary counts how many **may act** separately from how many exist — that is
+never the same number, and it is the one a risk function asks for first.
+
+**Who may ask what of whom.** The written organisation, rendered as sentences:
+*Ariane may ask Atlas to restart a stopped application*, with who allowed it
+and when. A line reads without knowing the word delegation, and a line that is
+not there is a thing that cannot happen — see [Mandates](#mandates-the-organisation-written-in-advance).
+
+**What they actually did.** Runs and actions over a window.
+
+The activity figures come from the **list of actions the platform recorded**,
+never from the reports. A report is text a model produced and can claim an
+action that never happened; the list is written by the platform when it
+performs one. This is the same rule the journal follows, and it is the reason
+the page can be put in front of an auditor.
+
 ## Where each rule lives
 
 | Concern | Edition | Why |

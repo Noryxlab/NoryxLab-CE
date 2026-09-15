@@ -145,6 +145,10 @@ than treating this minimal command as a complete installation procedure.
 - Service-to-service calls use `X-Noryx-Service-Token`.
 - Projects are the collaboration boundary. Project creators become admins;
   admins manage project roles.
+- Three roles decide everything in Community: `viewer`, `editor`, `admin`.
+  Enterprise adds a matrix an installation fills in for itself, and roles of
+  its own that are held like any other — each one answering as the built-in it
+  declares as its base, which is also its ceiling.
 - Datasets are accessed through configured S3 endpoints and mounted directly
   into workloads. Credentials are not embedded in images.
 

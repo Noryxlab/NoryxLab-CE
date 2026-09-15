@@ -50,7 +50,7 @@ place a reader could learn what a contributor may do was the interface itself.
 | `editor` | everything a viewer may, plus launch workspaces, jobs and apps, run builds, and attach or detach catalogue objects |
 | `admin` | everything an editor may, plus manage members and organization grants |
 
-Four actions are decided against these roles, and they are the vocabulary the
+Eight actions are decided against these roles, and they are the vocabulary the
 Enterprise role matrix extends:
 
 | Action | `viewer` | `editor` | `admin` |
@@ -59,6 +59,17 @@ Enterprise role matrix extends:
 | `project.launch` | no | yes | yes |
 | `project.build` | no | yes | yes |
 | `project.manage_members` | no | no | yes |
+| `dataset.attach` | no | yes | yes |
+| `ontology.attach` | no | yes | yes |
+| `datasource.attach` | no | yes | yes |
+| `environment.manage` | no | yes | yes |
+
+The last four answered the same question as `project.launch` until the matrix
+needed to tell them apart: attaching a cohort and starting a workspace were one
+permission, so an installation could not say "this role reads cohorts and
+writes none of them" without also saying it may not run anything. Community
+still applies the same rule to all of them; what changed is that the question
+names the resource.
 
 A global administrator, and the owner of the project, pass every check.
 
@@ -149,54 +160,114 @@ guessing.
 
 ## EE (Enterprise Edition)
 
-EE extends CE with a custom role matrix:
+Enterprise adds two things to the model above: an installation may describe
+roles of its own, and a stored matrix decides what every role may do.
 
-- built-in roles: `admin`, `user`
-- custom roles: defined by administrators
+The matrix existed as a document for months while nothing read it back —
+Community answered every question from its own rule and the Enterprise hook was
+never supplied, so the screen described a platform rather than governing one.
+That is the arrangement ADR-034 forbids, and what follows is what actually
+decides today.
 
-EE can also require every authenticated user to belong to an organization.
-Keycloak owns organization membership; NoryxLab owns authorization decisions.
-The delivered organization scope covers mandatory membership, administrative
-membership management, organization-owned projects and organization-owned
-datasets.
+### The document
 
-### EE matrix model
+One row per role, one column per part of the platform:
 
-Each role is configured using:
+| Column | What it governs |
+|---|---|
+| `project` | reading the project, and managing its membership |
+| `dataset` | attaching and detaching datasets |
+| `ontology` | attaching, detaching and scanning ontologies |
+| `datasource` | attaching and detaching datasources |
+| `environment` | managing environments |
+| `workload` | launching workspaces, jobs, apps; running builds |
+| `governance` | the platform administration screens |
 
-- role name
-- object scope
-- allowed actions
+Each cell holds one of `-`, `R`, `RW`, `Admin`, `R attaché`, `RW attaché`. The
+`attaché` variants mean the same access restricted to resources attached to the
+project; the restriction is a property of which resources are visible, not of
+what may be done to them, so it is enforced where attachment lives.
 
-Object scope examples:
+Actions map to columns explicitly, in `rbacActionColumns`, rather than being
+derived from an action's name. An earlier version read the label out of an error
+message, so renaming "app restart" to "app rebuild" would have silently
+re-classified it.
 
-- projects
-- workspaces
-- jobs
-- apps
-- apis
-- datasets
-- repositories
-- secrets
-- environments
-- ops modules
+### Rows the platform ships
 
-Action examples:
+Seven rows describe what the platform already does, and they are **locked**: the
+API refuses a change to them, and the engine reads the shipped definition rather
+than an installation's stored copy. That copy ages — an installation that saved
+its matrix before a row changed keeps the older wording, and obeying it withdrew
+a right the platform still grants. What a customer wrote stays exactly as
+written; the rows describing the platform come from the platform.
 
-- `none`
-- `read`
-- `write`
-- `admin`
+The shipped rows reproduce the Community rule exactly. A test walks every
+built-in role against every action and compares the two answers, which is what
+makes enforcement safe to turn on: an installation that never touched its matrix
+sees no verdict move.
 
-EE UI target behavior:
+### Roles an installation adds
 
-- admin can create role entries with a matrix form
-- each row = role + object
-- each value selected from a dropdown of allowed actions
-- effective permissions are evaluated server-side
+A custom role is held like any other — `data-steward`, not `editor` — and it
+**always answers as a built-in**, named in its `basedOn` field.
+
+That base is what every rule written in Go reads, and what Community answers
+with where the matrix decides nothing. It is also a ceiling: a role based on
+`viewer` may be described as doing anything and, until the matrix is enforcing
+the row, it views. A row that declares no base answers as `viewer`, so a
+document written before the field existed cannot silently widen anybody.
+
+Combining a direct grant with an organization's compares the two **bases** and
+returns the grant as held: the matrix has to see the role that was actually
+given, and ranking a custom role as unknown would have quietly capped the person
+it was meant to widen.
+
+`GET /api/v1/roles` answers what may be granted here — the three built-ins
+always, the installation's own where this edition can enforce them. A role the
+platform would not honour is left out rather than offered and refused on save.
+
+### Governance is refused, not granted
+
+`governance` is the column an installation would most like to fill in and the
+only one the platform cannot honour. A role is held **inside a project**; the
+administration screens are not inside any project, so no project role can
+honestly grant them — and a matrix that could promote its own editor to platform
+administrator would be a matrix anybody reaching that screen could use to take
+the installation.
+
+Two honest options remain: decide, or stop offering. It cannot decide, so the
+API refuses a custom row carrying governance and the editor does not offer the
+column. Who administers the platform stays with the identity provider.
+
+### Regulated datasets
+
+Attaching an HDS dataset to a project was a global administrator's decision and
+nobody else's. That is a queue rather than a safeguard, and the safeguard it
+stood in for is entitlement — so both halves are now asked directly:
+
+- the dataset is owned by an **organization the caller belongs to**, and
+- the caller **administers the project** it is being mounted into.
+
+Either half alone refuses, and a global administrator keeps the right they
+always had. A person cannot own regulated data at all, which registration
+refuses at creation.
+
+### Where the code is
+
+| Piece | File |
+|---|---|
+| Built-in roles and their ranking | `backend/internal/domain/access/role.go` |
+| Actions and the Community rule | `backend/internal/http/handlers/access.go` |
+| The document, its rows and validation | `backend/internal/http/handlers/admin_rbac.go` |
+| Custom roles, bases and assignability | `backend/internal/http/handlers/rbac_custom_roles.go` |
+| The engine that decides | `NoryxLab-EE/overlay/.../ee_rbac_provider.go` |
 
 ## Notes
 
 - CE remains simple by design and avoids role proliferation.
 - EE keeps CE compatibility while adding enterprise-grade delegation.
-- Backend authorization must stay the source of truth; UI only reflects capabilities.
+- Backend authorization must stay the source of truth; the interface only
+  reflects capabilities — every screen that hides a control asks the backend
+  first rather than re-implementing the rule, because a second implementation
+  eventually disagrees with the first and the user is the one who finds out.
