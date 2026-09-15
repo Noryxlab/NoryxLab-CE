@@ -63,6 +63,46 @@ components:
         lastRunAt: { type: string, format: date-time }
         lastReport: { type: string }
         lastQuiet: { type: boolean, description: The last run found nothing worth reporting }
+    AgentTeam:
+      type: object
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        purpose:
+          type: string
+          description: What the team works on, in its owner's words. Never parsed.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AgentTeamListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AgentTeam' }
+    AgentMandate:
+      type: object
+      description: >-
+        One line of a team's written organisation. A mandate authorises an ask
+        the capability rules already allow; it never grants an action the
+        owner did not give.
+      properties:
+        id: { type: string }
+        teamId: { type: string }
+        leadId: { type: string }
+        memberId: { type: string }
+        action: { type: string }
+        grantedByUserId:
+          type: string
+          description: The person who wrote it down.
+        createdAt: { type: string, format: date-time }
+    AgentMandateListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AgentMandate' }
     AgentListResponse:
       type: object
       properties:
@@ -6030,6 +6070,166 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agent-teams:
+    get:
+      tags: [Platform]
+      summary: The teams this user's agents work in
+      operationId: listAgentTeams
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The teams this user's agents work in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTeamListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Platform]
+      summary: Form a team of agents
+      operationId: createAgentTeam
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: The team that was formed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTeam'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/agent-teams/{teamID}:
+    patch:
+      tags: [Platform]
+      summary: Rename a team or change what it works on
+      operationId: updateAgentTeam
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The updated team
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentTeam'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Platform]
+      summary: Disband a team, releasing its agents rather than deleting them
+      operationId: deleteAgentTeam
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '204':
+          description: Disbanded
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/agent-teams/{teamID}/mandates:
+    get:
+      tags: [Platform]
+      summary: The written organisation - which lead may ask which member for what
+      operationId: listAgentMandates
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The team's mandates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMandateListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: Write one line of the organisation
+      description: >-
+        Refused with 409 when the ask could never succeed - the asking agent is
+        not a lead, the two are not on the same team, or one of them was never
+        granted the action. A mandate authorises an ask the capability rules
+        already allow; it never widens anything.
+      operationId: createAgentMandate
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: The mandate that was written
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMandate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The ask could never succeed, with the reason
+  /api/v1/agent-teams/{teamID}/mandates/{mandateID}:
+    delete:
+      tags: [Platform]
+      summary: Withdraw one line of the organisation
+      operationId: deleteAgentMandate
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: mandateID
+          in: path
+          required: true
+          schema: { type: string }
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '204':
+          description: Withdrawn
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/agents:

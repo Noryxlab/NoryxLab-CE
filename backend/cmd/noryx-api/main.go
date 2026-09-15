@@ -175,6 +175,10 @@ func main() {
 	settingsResolver.SetFact(settings.KeyEdition, cfg.Edition)
 	settingsResolver.SetFact(settings.KeyNamespace, cfg.KubernetesNamespace)
 
+	// Declared once: the same gate answers what the edition sells and what the
+	// permission engine is allowed to decide.
+	features := edition.FeatureGateFromCSV(cfg.EnabledFeatures)
+
 	h := handlers.New(
 		projectStore,
 		appStore,
@@ -249,7 +253,9 @@ func main() {
 			WorkspaceMaxLifetime:             cfg.WorkspaceMaxLifetime,
 			Settings:                         settingsResolver,
 			EditionHooks: &edition.Hooks{
-				Feature: edition.FeatureGateFromCSV(cfg.EnabledFeatures),
+				Feature: features,
+				// Nil on Community, where the handlers' own rule is the answer.
+				RBAC: editionRBACProvider(rbacPolicyStore, features.Enabled),
 			},
 			SecretsMasterKey:             cfg.SecretsMasterKey,
 			MinIOClient:                  minioClient,

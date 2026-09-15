@@ -239,11 +239,20 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 	return out, nil
 }
 
+// defaultRBACPolicyRows describes what the platform already does, which is what
+// makes the matrix safe to start enforcing: the shipped rows have to reproduce
+// the Community rule exactly, or turning the matrix on would change who may do
+// what on a live installation.
+//
+// "Project admin" carries Admin on the project column rather than RW, because
+// RW could not tell it from Editor - both may change the project, only one may
+// change its membership. A matrix that cannot express a distinction the code
+// makes is a matrix that will be wrong the day somebody trusts it.
 func defaultRBACPolicyRows() []rbacPolicyRow {
 	return []rbacPolicyRow{
 		{Role: "Administrateur", Key: "admin", Locked: true, Description: "Administration plateforme: configuration, gouvernance, audit et exploitation.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "RW", Workload: "RW", Governance: "Admin"},
 		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire direct ou organisation propriétaire de la ressource.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
-		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "RW", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "R", Workload: "RW", Governance: "-"},
+		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "Admin", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "R", Workload: "RW", Governance: "-"},
 		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "RW", Governance: "-"},
 		{Role: "Writer", Key: "writer", Locked: true, Description: "Droit d’écriture sur une ressource data donnée.", Project: "-", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "-", Governance: "-"},
 		{Role: "Reader", Key: "reader", Locked: true, Description: "Consultation seule sur une ressource data donnée.", Project: "-", Dataset: "R", Ontology: "R", Datasource: "R", Environment: "-", Workload: "-", Governance: "-"},
