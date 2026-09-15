@@ -152,6 +152,10 @@ func (h Handlers) UpdateAdminRBACPolicy(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
+	if err := refuseLockedRowChanges(rows); err != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
 	nextKeys := map[string]bool{}
 	for _, row := range rows {
 		nextKeys[row.Key] = true
@@ -258,6 +262,37 @@ func defaultRBACPolicyRows() []rbacPolicyRow {
 		{Role: "Reader", Key: "reader", Locked: true, Description: "Consultation seule sur une ressource data donnée.", Project: "-", Dataset: "R", Ontology: "R", Datasource: "R", Environment: "-", Workload: "-", Governance: "-"},
 		{Role: "Viewer", Key: "viewer", Locked: true, Description: "Lecture projet et suivi des sorties publiées.", Project: "R", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "R", Governance: "-"},
 	}
+}
+
+// refuseLockedRowChanges keeps the platform's own description out of reach.
+//
+// A locked row says what the platform does, and the flag was only ever a
+// label: the document was accepted whole, so a locked row could be edited and
+// the change stored. That left three positions that could not all be true -
+// the row is fixed, the row may be changed, and the engine reads the shipped
+// definition - and the disagreement surfaced as a right quietly withdrawn on
+// an installation whose saved document had aged.
+//
+// Now the lock means something. A custom role is where an installation says
+// what it wants, and every row it adds is its own.
+func refuseLockedRowChanges(rows []rbacPolicyRow) error {
+	shipped := map[string]rbacPolicyRow{}
+	for _, row := range defaultRBACPolicyRows() {
+		shipped[row.Key] = row
+	}
+	for _, row := range rows {
+		reference, locked := shipped[row.Key]
+		if !locked {
+			continue
+		}
+		if row.Project != reference.Project || row.Dataset != reference.Dataset ||
+			row.Ontology != reference.Ontology || row.Datasource != reference.Datasource ||
+			row.Environment != reference.Environment || row.Workload != reference.Workload ||
+			row.Governance != reference.Governance {
+			return errors.New("role " + reference.Role + " describes what the platform does and cannot be changed; add a role of your own instead")
+		}
+	}
+	return nil
 }
 
 func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
