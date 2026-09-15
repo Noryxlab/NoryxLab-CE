@@ -177,3 +177,78 @@ func TestReturnToOnlyAcceptsALocalPath(t *testing.T) {
 		}
 	}
 }
+
+// This address is one a person keeps: a browser bookmarks it, and it gets
+// pasted into messages. A workspace is deleted far more often than renamed, so
+// the common way to arrive here is an old link - and the answer was a bare
+// JSON error rendered as text in the address bar, which reads as a broken
+// platform rather than a stale link.
+func TestAStaleWorkspaceLinkExplainsItselfToABrowser(t *testing.T) {
+	h, _, _ := workspaceProxyFixture(t, access.RoleEditor)
+
+	request := httptest.NewRequest(http.MethodGet, "/workspaces/does-not-exist/", nil)
+	request.Header.Set("Accept", "text/html,application/xhtml+xml")
+	request.AddCookie(withSession(t, h, "member"))
+	request.SetPathValue("workspaceID", "does-not-exist")
+	recorder := httptest.NewRecorder()
+
+	h.ProxyWorkspace(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("a deleted workspace answered %d", recorder.Code)
+	}
+	if contentType := recorder.Header().Get("Content-Type"); !strings.Contains(contentType, "text/html") {
+		t.Errorf("a browser was answered with %q", contentType)
+	}
+	body := recorder.Body.String()
+	if strings.HasPrefix(strings.TrimSpace(body), "{") {
+		t.Error("a browser was shown raw JSON in its address bar")
+	}
+	// The page has to say the work is safe, which is the actual worry of
+	// somebody whose link stopped working.
+	if !strings.Contains(body, "conserv") {
+		t.Error("the page does not say the saved files are kept")
+	}
+}
+
+// A script or the application itself still gets the JSON it parses.
+func TestAStaleWorkspaceLinkStaysJSONForEverythingElse(t *testing.T) {
+	h, _, _ := workspaceProxyFixture(t, access.RoleEditor)
+
+	request := httptest.NewRequest(http.MethodGet, "/workspaces/does-not-exist/", nil)
+	request.Header.Set("Accept", "application/json")
+	request.AddCookie(withSession(t, h, "member"))
+	request.SetPathValue("workspaceID", "does-not-exist")
+	recorder := httptest.NewRecorder()
+
+	h.ProxyWorkspace(recorder, request)
+
+	if !strings.Contains(recorder.Body.String(), "workspace not found") {
+		t.Errorf("a machine caller lost its error: %s", recorder.Body.String())
+	}
+}
+
+// The lookup used to run before authentication, so the endpoint answered 404
+// for an identifier that does not exist and 401 for one that does - telling a
+// stranger which workspaces are real without ever signing in.
+func TestAnUnauthenticatedCallerLearnsNothingAboutWhichWorkspacesExist(t *testing.T) {
+	h, existing, _ := workspaceProxyFixture(t, access.RoleEditor)
+
+	var answers []int
+	// One identifier that exists and one that does not. With no credential,
+	// the two must be indistinguishable.
+	_ = existing
+	for _, id := range []string{existing.ID, "does-not-exist"} {
+		request := httptest.NewRequest(http.MethodGet, "/workspaces/"+id+"/", nil)
+		request.SetPathValue("workspaceID", id)
+		recorder := httptest.NewRecorder()
+		h.ProxyWorkspace(recorder, request)
+		answers = append(answers, recorder.Code)
+	}
+
+	for _, code := range answers {
+		if code == http.StatusNotFound {
+			t.Fatal("a caller with no credential was told a workspace does not exist")
+		}
+	}
+}

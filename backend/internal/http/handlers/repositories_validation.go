@@ -22,7 +22,23 @@ func checkRepository(repoURL, secretValue string) ([]string, error) {
 		return nil, err
 	}
 
-	client := &http.Client{Timeout: 12 * time.Second}
+	// Redirects are not followed while probing.
+	//
+	// A provider that wants a credential and did not get one does not always
+	// say 401. Azure DevOps redirects to an Entra sign-in page, and following
+	// that lands on an HTML login form - which answered 203 here and came back
+	// to the user as "unexpected status=203", a message nobody can act on. The
+	// worse version of the same thing is a sign-in page answering 200, which
+	// would have validated a repository the platform cannot read.
+	//
+	// So the first response is the answer, and a redirect away from the
+	// repository is read as what it is.
+	client := &http.Client{
+		Timeout: 12 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	reqURL := ""
 	switch host {
 	case "github.com":
@@ -56,7 +72,13 @@ func checkRepository(repoURL, secretValue string) ([]string, error) {
 		return scopes, fmt.Errorf("authentication failed (status=%d)", resp.StatusCode)
 	case http.StatusNotFound:
 		return scopes, fmt.Errorf("repository not found")
+	case http.StatusNonAuthoritativeInfo:
+		// Azure DevOps answers this with a sign-in page rather than 401.
+		return scopes, fmt.Errorf("authentication required: the provider asked for a sign-in. For Azure DevOps, store the secret as user:personal-access-token")
 	default:
+		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			return scopes, fmt.Errorf("authentication required: the provider redirected to a sign-in page. For Azure DevOps, store the secret as user:personal-access-token")
+		}
 		return scopes, fmt.Errorf("unexpected status=%d", resp.StatusCode)
 	}
 }

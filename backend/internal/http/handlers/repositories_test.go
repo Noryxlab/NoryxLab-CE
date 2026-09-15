@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/repository"
@@ -40,5 +43,36 @@ func TestSetRepositoryValidation(t *testing.T) {
 	setRepositoryValidation(&item, errors.New("authentication failed"))
 	if item.Reachable || item.ValidationError != "authentication failed" || item.LastValidatedAt == nil {
 		t.Fatalf("unexpected failed validation state: %#v", item)
+	}
+}
+
+// A provider that wants a credential does not always say 401.
+//
+// Azure DevOps redirects to an Entra sign-in page. Following that redirect
+// landed on an HTML login form answering 203, which reached the user as
+// "unexpected status=203" - true, useless, and not the actual problem. The
+// worse version is a sign-in page answering 200: the platform would then have
+// reported a repository it cannot read as validated.
+func TestASignInRedirectIsAnAuthenticationFailureNotAnOddity(t *testing.T) {
+	for _, status := range []int{http.StatusFound, http.StatusMovedPermanently, http.StatusNonAuthoritativeInfo} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Location", "https://login.example.com/signin")
+			w.WriteHeader(status)
+		}))
+
+		_, err := checkRepository(server.URL+"/org/repo", "")
+		server.Close()
+
+		if err == nil {
+			t.Fatalf("status %d validated a repository behind a sign-in page", status)
+		}
+		if !strings.Contains(err.Error(), "authentication required") {
+			t.Errorf("status %d reported %q, which does not name the real problem", status, err)
+		}
+		// The message has to carry the fix, because the credential format is
+		// the thing nobody guesses.
+		if !strings.Contains(err.Error(), "personal-access-token") {
+			t.Errorf("status %d does not say how to authenticate: %q", status, err)
+		}
 	}
 }
