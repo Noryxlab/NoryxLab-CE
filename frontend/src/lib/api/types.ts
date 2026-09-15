@@ -1071,6 +1071,54 @@ export interface AgentMandate {
   createdAt: string;
 }
 
+/** Ce que les agents d'une installation ont le droit de faire, et ce qu'ils ont
+ *  fait. Lu par quelqu'un qui ne les a pas construits - sa direction des
+ *  risques, son juridique, son qualite - donc tout y est nomme. */
+export interface AgentGovernanceReport {
+  generatedAt: string;
+  windowDays: number;
+  agents: AgentGovernanceRow[];
+  mandates: AgentGovernanceMandate[];
+  summary: {
+    agents: number;
+    /** Combien peuvent changer quelque chose. Ce n'est pas le meme chiffre que
+     *  le nombre d'agents, et c'est celui qu'on demande en premier. */
+    canAct: number;
+    teams: number;
+    mandates: number;
+    runs: number;
+    actions: number;
+  };
+}
+
+export interface AgentGovernanceRow {
+  agentId: string;
+  name: string;
+  owner: string;
+  projectId: string;
+  project: string;
+  team?: string;
+  role: Agent['role'];
+  schedule: Agent['schedule'];
+  enabled: boolean;
+  mayDo: string[];
+  runs: number;
+  /** Compte les actions relevees par la plateforme, jamais celles que le
+   *  rapport d'un agent affirme avoir faites. */
+  acted: number;
+  lastRunAt?: string;
+}
+
+export interface AgentGovernanceMandate {
+  teamId: string;
+  team: string;
+  lead: string;
+  member: string;
+  action: string;
+  grantedBy: string;
+  since: string;
+}
+
 export interface Agent {
   id: string;
   ownerUserId: string;

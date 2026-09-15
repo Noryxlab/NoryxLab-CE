@@ -107,6 +107,10 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
       { to: '/admin/audit', labelKey: 'nav.audit', icon: ScrollText },
       { to: '/admin/inventory', labelKey: 'nav.inventory', icon: Boxes },
       { to: '/admin/data', labelKey: 'nav.dataGovernance', icon: Share2, enterpriseOnly: true },
+      // Les agents figurent ici et non dans les ressources : ce qu'on vient y
+      // chercher n'est pas combien il y en a, c'est ce qu'ils ont le droit de
+      // faire et ce qu'ils ont fait.
+      { to: '/admin/agents', labelKey: 'nav.agents', icon: Bot, enterpriseOnly: true },
     ],
   },
   {

@@ -35,6 +35,7 @@ export const qk = {
   agents: ['agents'] as const,
   agentRuns: (id: string) => ['agents', id, 'runs'] as const,
   agentTeams: ['agent-teams'] as const,
+  agentGovernance: ['admin', 'agent-governance'] as const,
   agentMandates: (teamId: string) => ['agent-teams', teamId, 'mandates'] as const,
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
@@ -160,6 +161,9 @@ export const useAgentRuns = (agentId: string | undefined) =>
 /** Les equipes changent quand quelqu'un les modifie, pas toutes seules : pas
  *  de rafraichissement automatique, contrairement aux agents qui travaillent
  *  pendant que la page est ouverte. */
+export const useAgentGovernance = () =>
+  useQuery({ queryKey: qk.agentGovernance, queryFn: adminApi.agentGovernance });
+
 export const useAgentTeams = () =>
   useQuery({ queryKey: qk.agentTeams, queryFn: platformApi.agentTeams });
 

@@ -107,6 +107,28 @@ export const en: Translations = {
     skipToContent: 'Skip to main content',
   },
 
+  agentGovernance: {
+    title: 'Agents',
+    intro:
+      'What the agents of this installation may do, and what they did. Activity is counted from the actions the platform recorded, never from what their reports claim.',
+    agents: 'Agents',
+    canAct: 'May act',
+    canActHint: 'The others look and report',
+    mandates: 'Allowed asks',
+    actions: 'Actions taken',
+    window: 'Over {days} days',
+    mayDo: 'May act',
+    state: 'State',
+    activity: 'Activity',
+    runsAndActions: '{runs} runs \u00b7 {actions} actions',
+    lastRun: 'Last run',
+    noAgents: 'No agent on this installation',
+    noAgentsHint: 'Agents are recruited inside a project, and appear here once they exist.',
+    organisationIntro:
+      'Written in advance: a lead may ask a member to act only where the line exists here. A line that is saved is a line that works.',
+    noMandates: 'Nobody may ask anybody for anything.',
+    grantedBy: 'Allowed by {who}, {when}',
+  },
   agents: {
     title: 'Agents',
     intro:

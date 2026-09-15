@@ -95,6 +95,7 @@ import {
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
+import { AgentGovernanceSection } from '@/features/admin/agent-governance';
 import { PlatformUsageSection } from '@/features/admin/platform-usage';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
@@ -118,6 +119,7 @@ const SECTIONS = [
   'data',
   'network',
   'rbac',
+  'agents',
   'storage',
   'inventory',
   'backups',
@@ -1864,6 +1866,9 @@ export function AdminPage() {
             </TabsContent>
             <TabsContent value="backups">
               <BackupsSection />
+            </TabsContent>
+            <TabsContent value="agents">
+              <AgentGovernanceSection />
             </TabsContent>
           </>
         ) : null}

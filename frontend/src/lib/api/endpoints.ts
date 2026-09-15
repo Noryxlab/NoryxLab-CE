@@ -2,6 +2,7 @@ import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   AIServicesStatus,
   Agent,
+  AgentGovernanceReport,
   AgentInput,
   AgentMandate,
   AgentRun,
@@ -620,6 +621,9 @@ export const adminApi = {
   pods: () => api.list<PodInfo>(`${V1}/pods`),
 
   organizations: () => api.list<Organization>(`${V1}/admin/organizations`),
+  agentGovernance: () => api.get<AgentGovernanceReport>(`${V1}/admin/agent-governance`),
+  exportAgentGovernanceCSV: () =>
+    downloadFile(`${V1}/admin/agent-governance.csv`, 'noryx-agents.csv'),
   createOrganization: (input: { name: string; alias?: string }) =>
     api.post<Organization>(`${V1}/admin/organizations`, input),
   removeOrganization: (organizationId: string) =>

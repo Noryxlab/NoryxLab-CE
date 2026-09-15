@@ -110,6 +110,28 @@ export const fr = {
     skipToContent: 'Aller au contenu principal',
   },
 
+  agentGovernance: {
+    title: 'Agents',
+    intro:
+      'Ce que les agents de cette installation ont le droit de faire, et ce qu’ils ont fait. L’activité est comptée sur les actions relevées par la plateforme, jamais sur ce que leurs rapports affirment.',
+    agents: 'Agents',
+    canAct: 'Peuvent agir',
+    canActHint: 'Les autres regardent et rapportent',
+    mandates: 'Demandes autorisées',
+    actions: 'Actions effectuées',
+    window: 'Sur {days} jours',
+    mayDo: 'Droit d’agir',
+    state: 'État',
+    activity: 'Activité',
+    runsAndActions: '{runs} passages · {actions} actions',
+    lastRun: 'Dernier passage',
+    noAgents: 'Aucun agent sur cette installation',
+    noAgentsHint: 'Les agents se recrutent dans un projet, et n’apparaissent ici qu’une fois créés.',
+    organisationIntro:
+      'Écrite d’avance : un responsable ne peut demander à un membre d’agir que si la ligne existe ici. Une ligne enregistrée est une ligne qui fonctionne.',
+    noMandates: 'Personne ne peut rien demander à personne.',
+    grantedBy: 'Autorisé par {who}, {when}',
+  },
   agents: {
     title: 'Agents',
     intro:
