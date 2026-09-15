@@ -3,7 +3,9 @@ import type {
   AIServicesStatus,
   Agent,
   AgentInput,
+  AgentMandate,
   AgentRun,
+  AgentTeam,
   AdminHardwareTier,
   OntologyQueryItem,
   ProjectVariable,
@@ -84,6 +86,18 @@ export const platformApi = {
   deleteAgent: (id: string) => api.delete<void>(`${V1}/agents/${id}`),
   agentRuns: (id: string) => api.list<AgentRun>(`${V1}/agents/${id}/runs`),
   runAgent: (id: string) => api.post<AgentRun>(`${V1}/agents/${id}/run`, {}),
+
+  agentTeams: () => api.list<AgentTeam>(`${V1}/agent-teams`),
+  createAgentTeam: (body: { name: string; purpose: string; projectId?: string }) =>
+    api.post<AgentTeam>(`${V1}/agent-teams`, body),
+  updateAgentTeam: (id: string, body: { name?: string; purpose?: string }) =>
+    api.patch<AgentTeam>(`${V1}/agent-teams/${id}`, body),
+  deleteAgentTeam: (id: string) => api.delete<void>(`${V1}/agent-teams/${id}`),
+  agentMandates: (teamId: string) => api.list<AgentMandate>(`${V1}/agent-teams/${teamId}/mandates`),
+  createAgentMandate: (teamId: string, body: { leadId: string; memberId: string; action: string }) =>
+    api.post<AgentMandate>(`${V1}/agent-teams/${teamId}/mandates`, body),
+  deleteAgentMandate: (teamId: string, mandateId: string) =>
+    api.delete<void>(`${V1}/agent-teams/${teamId}/mandates/${mandateId}`),
   hardwareTiers: () => api.list<HardwareTier>(`${V1}/hardware-tiers`),
   preferences: () => api.get<UserPreferences>(`${V1}/user/preferences`),
   apiTokens: () => api.list<ApiToken>(`${V1}/user/api-tokens`),

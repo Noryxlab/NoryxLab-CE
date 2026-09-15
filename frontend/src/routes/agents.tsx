@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { AgentRoster } from '@/features/agents/agent-roster';
 import { AgentJournal } from '@/features/agents/agent-journal';
 import { RecruitDialog } from '@/features/agents/recruit-dialog';
+import { TeamBoard } from '@/features/agents/team-board';
+import { AllowAskDialog, FormTeamDialog } from '@/features/agents/team-dialogs';
 import { AIServicesCard } from '@/features/home/ai-services';
 import { platformApi } from '@/lib/api/endpoints';
-import { qk, useAgentRuns, useAgents, useInvalidate } from '@/lib/api/queries';
+import { qk, useAgentRuns, useAgentTeams, useAgents, useInvalidate } from '@/lib/api/queries';
 import { useToast } from '@/components/ui/toast';
 import { useT } from '@/lib/i18n';
+import type { Agent, AgentTeam } from '@/lib/api/types';
 
 /**
  * Les agents.
@@ -31,6 +34,9 @@ export function AgentsPage() {
   const agents = useAgents();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [recruiting, setRecruiting] = React.useState(false);
+  const [formingTeam, setFormingTeam] = React.useState(false);
+  const [allowAskFor, setAllowAskFor] = React.useState<AgentTeam | null>(null);
+  const teams = useAgentTeams();
 
   const items = agents.data ?? [];
   // Le premier par defaut, et on suit si celui qui etait choisi disparait.
@@ -95,7 +101,25 @@ export function AgentsPage() {
         </>
       )}
 
+      {items.length > 0 ? (
+        <TeamsSection
+          teams={teams.data ?? []}
+          agents={items}
+          loading={teams.isLoading}
+          onForm={() => setFormingTeam(true)}
+          onAllowAsk={setAllowAskFor}
+        />
+      ) : null}
+
       <RecruitDialog open={recruiting} onOpenChange={setRecruiting} />
+      <FormTeamDialog open={formingTeam} onOpenChange={setFormingTeam} />
+      <AllowAskDialog
+        team={allowAskFor}
+        agents={items}
+        onOpenChange={(open) => {
+          if (!open) setAllowAskFor(null);
+        }}
+      />
     </div>
   );
 }
@@ -122,5 +146,62 @@ function EmptyRoster({ onRecruit }: { onRecruit: () => void }) {
         {t('agents.recruitFirst')}
       </Button>
     </div>
+  );
+}
+
+/**
+ * Les equipes, sous la rangee de collegues.
+ *
+ * En dessous et non au-dessus : on recrute avant de s'organiser, et une page
+ * qui ouvre sur une structure vide avant d'avoir un seul agent decrit un
+ * produit plutot qu'un travail.
+ */
+function TeamsSection({
+  teams,
+  agents,
+  loading,
+  onForm,
+  onAllowAsk,
+}: {
+  teams: AgentTeam[];
+  agents: Agent[];
+  loading: boolean;
+  onForm: () => void;
+  onAllowAsk: (team: AgentTeam) => void;
+}) {
+  const t = useT();
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">{t('agents.teamsTitle')}</h2>
+          <p className="mt-1 max-w-prose text-sm text-muted-foreground">{t('agents.teamsIntro')}</p>
+        </div>
+        {teams.length > 0 ? (
+          <Button variant="secondary" size="sm" onClick={onForm}>
+            {t('agents.formTeam')}
+          </Button>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+      ) : teams.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
+          <p className="mx-auto max-w-lg text-sm leading-relaxed text-muted-foreground">
+            {t('agents.teamsEmpty')}
+          </p>
+          <Button className="mt-5" variant="secondary" onClick={onForm}>
+            {t('agents.formFirstTeam')}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {teams.map((team) => (
+            <TeamBoard key={team.id} team={team} agents={agents} onAllowAsk={onAllowAsk} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

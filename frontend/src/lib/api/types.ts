@@ -1037,10 +1037,43 @@ export interface WorkspaceStartup {
 /** Une instruction permanente laissee a la plateforme, ecrite par son auteur
  *  dans ses propres mots. La mission n'est jamais interpretee par la
  *  plateforme : elle part telle quelle au modele. */
+/** Un groupe d'agents sur un meme sujet, avec le but ecrit par son
+ *  proprietaire. Rien n'interprete ce but : c'est du texte, comme une mission. */
+export interface AgentTeam {
+  id: string;
+  ownerUserId: string;
+  projectId?: string;
+  name: string;
+  purpose: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Une ligne de l'organisation : qui peut demander quoi a qui.
+ *
+ *  Ecrite d'avance par une personne, jamais decidee par un modele pendant
+ *  qu'il travaille. On lit l'organisation pour savoir ce qui est permis,
+ *  au lieu de depouiller des journaux d'execution. */
+export interface AgentMandate {
+  id: string;
+  teamId: string;
+  leadId: string;
+  memberId: string;
+  action: string;
+  grantedByUserId: string;
+  createdAt: string;
+}
+
 export interface Agent {
   id: string;
   ownerUserId: string;
   projectId?: string;
+  /** L'equipe dans laquelle il travaille. Vide veut dire seul, ce que
+   *  faisaient tous les agents avant qu'il y ait des equipes. */
+  teamId?: string;
+  /** Ce qu'il est dans cette equipe, et le plafond de ce qu'il peut detenir.
+   *  Un observateur ne garde aucune action, meme si on lui en accorde une. */
+  role: 'observer' | 'operator' | 'lead';
   name: string;
   mission: string;
   schedule: 'manual' | 'hourly' | 'daily';

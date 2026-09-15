@@ -34,6 +34,8 @@ export const qk = {
   aiServices: ['ai-services', 'status'] as const,
   agents: ['agents'] as const,
   agentRuns: (id: string) => ['agents', id, 'runs'] as const,
+  agentTeams: ['agent-teams'] as const,
+  agentMandates: (teamId: string) => ['agent-teams', teamId, 'mandates'] as const,
   hardwareTiers: ['hardware-tiers'] as const,
   preferences: ['user', 'preferences'] as const,
   organizations: ['organizations'] as const,
@@ -153,6 +155,19 @@ export const useAgentRuns = (agentId: string | undefined) =>
     queryFn: () => platformApi.agentRuns(agentId as string),
     enabled: Boolean(agentId),
     refetchInterval: 30_000,
+  });
+
+/** Les equipes changent quand quelqu'un les modifie, pas toutes seules : pas
+ *  de rafraichissement automatique, contrairement aux agents qui travaillent
+ *  pendant que la page est ouverte. */
+export const useAgentTeams = () =>
+  useQuery({ queryKey: qk.agentTeams, queryFn: platformApi.agentTeams });
+
+export const useAgentMandates = (teamId: string | undefined) =>
+  useQuery({
+    queryKey: qk.agentMandates(teamId ?? ''),
+    queryFn: () => platformApi.agentMandates(teamId as string),
+    enabled: Boolean(teamId),
   });
 
 export const useHardwareTiers = () =>
