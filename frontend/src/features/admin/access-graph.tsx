@@ -38,7 +38,42 @@ const ROW_HEIGHT = 26;
 const COLUMN_WIDTH = 260;
 const PADDING = 16;
 
-type Focus = { kind: 'none' } | { kind: 'subject'; id: string } | { kind: 'resource'; id: string };
+export type Focus =
+  | { kind: 'none' }
+  | { kind: 'subject'; id: string }
+  | { kind: 'resource'; id: string };
+
+export interface AccessFilters {
+  focus: Focus;
+  resourceType: string;
+  showInherited: boolean;
+}
+
+export const noAccessFilters: AccessFilters = {
+  focus: { kind: 'none' },
+  resourceType: '',
+  showInherited: true,
+};
+
+/**
+ * Les criteres, appliques une fois pour tout l'ecran.
+ *
+ * Ils vivaient dans le graphe, et le tableau en dessous recevait la liste
+ * complete : on centrait sur un dataset, le graphe obeissait, et le tableau
+ * continuait d'afficher les autres. Deux consommateurs et un seul filtre
+ * finissent toujours par se contredire, alors il n'y a plus qu'une liste
+ * filtree, calculee au-dessus des deux.
+ */
+export function filterAccessCells(cells: RbacCell[], filters: AccessFilters): RbacCell[] {
+  const { focus, resourceType, showInherited } = filters;
+  return cells.filter((cell) => {
+    if (!showInherited && cell.inherited) return false;
+    if (resourceType && cell.resourceType !== resourceType) return false;
+    if (focus.kind === 'subject') return cell.subjectId === focus.id;
+    if (focus.kind === 'resource') return cell.resourceId === focus.id;
+    return true;
+  });
+}
 
 function edgeTone(cell: RbacCell): string {
   if (cell.inherited) return 'var(--noryx-accent-cyan)';
@@ -46,28 +81,30 @@ function edgeTone(cell: RbacCell): string {
   return 'var(--noryx-border-strong)';
 }
 
-export function AccessGraph({ report }: { report: RbacMatrixReport }) {
+export function AccessGraph({
+  report,
+  filters,
+  onFiltersChange,
+  edges,
+}: {
+  report: RbacMatrixReport;
+  filters: AccessFilters;
+  onFiltersChange: (filters: AccessFilters) => void;
+  /** La liste filtree, calculee une seule fois au-dessus et partagee avec le
+   *  tableau : c'est ce qui garantit que les deux disent la meme chose. */
+  edges: RbacCell[];
+}) {
   const t = useT();
   const { locale } = useI18n();
 
-  const [focus, setFocus] = React.useState<Focus>({ kind: 'none' });
-  const [resourceType, setResourceType] = React.useState('');
-  const [showInherited, setShowInherited] = React.useState(true);
+  const { focus, resourceType, showInherited } = filters;
+  const setFocus = (next: Focus) => onFiltersChange({ ...filters, focus: next });
+  const setResourceType = (next: string) => onFiltersChange({ ...filters, resourceType: next });
 
   const resourceTypes = React.useMemo(
     () => [...new Set(report.resources.map((resource) => resource.type))].sort(),
     [report.resources],
   );
-
-  const edges = React.useMemo(() => {
-    return report.cells.filter((cell) => {
-      if (!showInherited && cell.inherited) return false;
-      if (resourceType && cell.resourceType !== resourceType) return false;
-      if (focus.kind === 'subject') return cell.subjectId === focus.id;
-      if (focus.kind === 'resource') return cell.resourceId === focus.id;
-      return true;
-    });
-  }, [report.cells, focus, resourceType, showInherited]);
 
   // Only the nodes an edge actually touches: an isolated node on an access
   // graph says nothing and costs a row of height.
@@ -130,7 +167,7 @@ export function AccessGraph({ report }: { report: RbacMatrixReport }) {
         <Button
           variant={showInherited ? 'secondary' : 'ghost'}
           size="sm"
-          onClick={() => setShowInherited((current) => !current)}
+          onClick={() => onFiltersChange({ ...filters, showInherited: !showInherited })}
         >
           {showInherited ? t('graph.hideInherited') : t('graph.showInherited')}
         </Button>

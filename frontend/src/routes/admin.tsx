@@ -86,7 +86,12 @@ import { ExtensionSlot } from '@/components/common/extension-slot';
 import { useAuth } from '@/lib/auth';
 import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import { SoftwareInventorySection } from '@/features/admin/software-inventory';
-import { AccessGraph } from '@/features/admin/access-graph';
+import {
+  AccessGraph,
+  filterAccessCells,
+  noAccessFilters,
+  type AccessFilters,
+} from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
@@ -1106,6 +1111,13 @@ function RbacSection() {
   const toast = useToast();
   const matrix = useRbacMatrix();
   const [search, setSearch] = React.useState('');
+  // Les criteres vivent ici, au-dessus du graphe et du tableau, parce qu'ils
+  // s'appliquent aux deux. La liste filtree est calculee une fois et partagee.
+  const [filters, setFilters] = React.useState<AccessFilters>(noAccessFilters);
+  const visibleCells = React.useMemo(
+    () => filterAccessCells(matrix.data?.cells ?? [], filters),
+    [matrix.data?.cells, filters],
+  );
 
   // Cells are self-describing: subject, resource, role, and whether the grant
   // is direct or inherited from an organisation or an ownership.
@@ -1215,12 +1227,23 @@ function RbacSection() {
 
       {/* The table answers "who has access"; an audit asks "why", which is a
           question about paths. Drawn only once the data is filtered enough to
-          be readable - see AccessGraph. */}
-      {matrix.data ? <AccessGraph report={matrix.data} /> : null}
+          be readable - see AccessGraph.
+
+          Both read the same filtered list. The criteria used to live inside
+          the graph and the table received every cell, so focusing on one
+          dataset moved the drawing and left the rows untouched. */}
+      {matrix.data ? (
+        <AccessGraph
+          report={matrix.data}
+          filters={filters}
+          onFiltersChange={setFilters}
+          edges={visibleCells}
+        />
+      ) : null}
 
       <Card>
         <DataTable
-          data={matrix.data?.cells}
+          data={matrix.data ? visibleCells : undefined}
           columns={columns}
           rowKey={(cell) =>
             `${cell.subjectType}:${cell.subjectId}:${cell.resourceType}:${cell.resourceId}:${cell.role}`
