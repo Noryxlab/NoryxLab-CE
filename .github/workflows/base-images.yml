@@ -1,0 +1,41 @@
+# Are the pinned base images still safe to ship?
+#
+# The image scan in CI runs on a push, so it answers "did this change break
+# anything" - and a base image does not break on a push. It ages: nginx:1.27
+# sat on an Alpine whose openssl branch stopped receiving fixes, and the scan
+# went red weeks later on a commit that had touched nothing near it. The
+# author of that commit is then the person who has to understand a CVE, which
+# is the wrong person on the wrong day.
+#
+# So the same question is asked on a clock. A red run here is not a broken
+# change; it is the pin having expired, and the work is to move it.
+name: Base images
+
+on:
+  schedule:
+    # Monday morning, before anyone starts merging.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    name: Pinned base images still clear
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Community images
+        run: |
+          docker build -t noryx-backend:pinned backend
+          docker build -t noryx-frontend:pinned frontend
+      - name: Scan backend image for critical vulnerabilities
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.74.0 image --exit-code 1 --severity CRITICAL
+          --ignore-unfixed noryx-backend:pinned
+      - name: Scan frontend image for critical vulnerabilities
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.74.0 image --exit-code 1 --severity CRITICAL
+          --ignore-unfixed noryx-frontend:pinned
