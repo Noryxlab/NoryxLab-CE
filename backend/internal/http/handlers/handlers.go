@@ -38,6 +38,7 @@ type Handlers struct {
 	rbacPolicyStore                  store.RBACPolicyStore
 	backupRunStore                   store.BackupRunStore
 	agentStore                       store.AgentStore
+	agentTeamStore                   store.AgentTeamStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
 	settings                         *settings.Resolver
@@ -111,7 +112,10 @@ type Options struct {
 	// platform. Passed here rather than as one more positional argument: the
 	// constructor already takes more than anybody can read, and a store added
 	// to that list is a store somebody wires in the wrong position.
-	AgentStore           store.AgentStore
+	AgentStore store.AgentStore
+	// AgentTeamStore holds the groups those agents work in. Separate from
+	// AgentStore because a team outlives its members and is edited on its own.
+	AgentTeamStore       store.AgentTeamStore
 	RegistryPullSecret   string
 	RegistryPushSecret   string
 	BootstrapAdminUser   string
@@ -279,6 +283,7 @@ func New(
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
 		settings:                         options.Settings,
 		agentStore:                       options.AgentStore,
+		agentTeamStore:                   options.AgentTeamStore,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

@@ -57,6 +57,7 @@ func main() {
 	// platform keeps none: an agent that forgets its instructions on restart is
 	// worse than an absent feature, because somebody relied on it.
 	var agentStore store.AgentStore
+	var agentTeamStore store.AgentTeamStore
 	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
@@ -113,6 +114,7 @@ func main() {
 			settingsStore = &postgres.SettingsStore{Store: pg}
 			backupRunStore = &postgres.BackupRunStore{Store: pg}
 			agentStore = &postgres.AgentStore{Store: pg}
+			agentTeamStore = &postgres.AgentTeamStore{Store: pg}
 			storageEndpointStore = &postgres.StorageEndpointStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
@@ -202,6 +204,7 @@ func main() {
 		keycloakClient,
 		handlers.Options{
 			AgentStore:                       agentStore,
+			AgentTeamStore:                   agentTeamStore,
 			RegistryPullSecret:               cfg.RegistryPullSecret,
 			RegistryPushSecret:               cfg.RegistryPushSecret,
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,

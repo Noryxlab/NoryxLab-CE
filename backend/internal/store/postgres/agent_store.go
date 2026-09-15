@@ -25,9 +25,10 @@ func (s *AgentStore) Create(item agent.Agent) error {
 		return err
 	}
 	_, err = s.Store.db.ExecContext(ctx, `
-		INSERT INTO agents (id, owner_user_id, project_id, name, mission, schedule, actions_json, enabled, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-		item.ID, item.OwnerUserID, item.ProjectID, item.Name, item.Mission, item.Schedule,
+		INSERT INTO agents (id, owner_user_id, project_id, team_id, role, name, mission, schedule, actions_json, enabled, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		item.ID, item.OwnerUserID, item.ProjectID, item.TeamID, string(item.EffectiveRole()),
+		item.Name, item.Mission, item.Schedule,
 		string(actions), item.Enabled, item.CreatedAt.UTC(), item.UpdatedAt.UTC())
 	return err
 }
@@ -41,10 +42,12 @@ func (s *AgentStore) Update(item agent.Agent) error {
 	}
 	_, err = s.Store.db.ExecContext(ctx, `
 		UPDATE agents SET project_id=$2, name=$3, mission=$4, schedule=$5, actions_json=$6,
-		       enabled=$7, updated_at=$8, last_run_at=$9, last_report=$10, last_quiet=$11
+		       enabled=$7, updated_at=$8, last_run_at=$9, last_report=$10, last_quiet=$11,
+		       team_id=$12, role=$13
 		WHERE id=$1`,
 		item.ID, item.ProjectID, item.Name, item.Mission, item.Schedule, string(actions),
-		item.Enabled, time.Now().UTC(), item.LastRunAt, item.LastReport, item.LastQuiet)
+		item.Enabled, time.Now().UTC(), item.LastRunAt, item.LastReport, item.LastQuiet,
+		item.TeamID, string(item.EffectiveRole()))
 	return err
 }
 
@@ -98,18 +101,20 @@ func (s *AgentStore) list(query string, args ...any) ([]agent.Agent, error) {
 	return items, rows.Err()
 }
 
-const agentSelect = `SELECT id, owner_user_id, project_id, name, mission, schedule, actions_json,
+const agentSelect = `SELECT id, owner_user_id, project_id, team_id, role, name, mission, schedule, actions_json,
 	enabled, created_at, updated_at, last_run_at, last_report, last_quiet FROM agents`
 
 func scanAgent(row rowScanner) (agent.Agent, error) {
 	var item agent.Agent
-	var actions string
+	var actions, role string
 	var lastRun sql.NullTime
-	if err := row.Scan(&item.ID, &item.OwnerUserID, &item.ProjectID, &item.Name, &item.Mission,
+	if err := row.Scan(&item.ID, &item.OwnerUserID, &item.ProjectID, &item.TeamID, &role,
+		&item.Name, &item.Mission,
 		&item.Schedule, &actions, &item.Enabled, &item.CreatedAt, &item.UpdatedAt,
 		&lastRun, &item.LastReport, &item.LastQuiet); err != nil {
 		return agent.Agent{}, err
 	}
+	item.Role = agent.Role(role)
 	if lastRun.Valid {
 		at := lastRun.Time.UTC()
 		item.LastRunAt = &at
@@ -120,6 +125,10 @@ func scanAgent(row rowScanner) (agent.Agent, error) {
 	// or written by a version that knew an action this one has withdrawn, must
 	// not grant it.
 	item.Actions = agent.NormaliseActions(item.Actions)
+	// And the role's ceiling applies on the way out for the same reason: a row
+	// that makes an observer hold an action is a row that will eventually be
+	// read by something that forgets to check the role.
+	item.Actions = agent.NormaliseForRole(item.EffectiveRole(), item.Actions)
 	return item, nil
 }
 

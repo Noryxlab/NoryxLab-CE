@@ -653,6 +653,21 @@ func (s *Store) migrate(ctx context.Context) error {
 			last_report TEXT NOT NULL DEFAULT '',
 			last_quiet BOOLEAN NOT NULL DEFAULT FALSE
 		)`,
+		`CREATE TABLE IF NOT EXISTS agent_teams (
+			id TEXT PRIMARY KEY,
+			owner_user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL DEFAULT '',
+			name TEXT NOT NULL,
+			purpose TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		// Added rather than recreated: the rows that exist carry neither, and
+		// the domain derives a role from the actions when the column is empty
+		// - a derivation that is stated beats a migration that guesses.
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS team_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT ''`,
+		`CREATE INDEX IF NOT EXISTS idx_agents_team ON agents (team_id)`,
 		`CREATE TABLE IF NOT EXISTS agent_runs (
 			id TEXT PRIMARY KEY,
 			agent_id TEXT NOT NULL,
