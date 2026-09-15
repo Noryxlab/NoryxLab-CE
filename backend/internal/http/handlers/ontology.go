@@ -474,7 +474,7 @@ func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "ontology attach") {
+	if !h.requireProjectRole(w, projectID, userID, actionAttachOntology, "ontology attach") {
 		return
 	}
 	item, found, err := h.ontologyStore.GetByID(ontologyID)
@@ -504,7 +504,7 @@ func (h Handlers) DetachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and ontologyID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, actionLaunch, "ontology detach") {
+	if !h.requireProjectRole(w, projectID, userID, actionAttachOntology, "ontology detach") {
 		return
 	}
 	if err := h.projectResourceStore.DetachOntology(projectID, ontologyID); err != nil {
@@ -524,7 +524,7 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, identity.UserID(), actionLaunch, "ontology scan") {
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachOntology, "ontology scan") {
 		return
 	}
 	var req ontologyScanRequest

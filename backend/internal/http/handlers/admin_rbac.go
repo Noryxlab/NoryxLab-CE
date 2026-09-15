@@ -263,12 +263,21 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 // RW could not tell it from Editor - both may change the project, only one may
 // change its membership. A matrix that cannot express a distinction the code
 // makes is a matrix that will be wrong the day somebody trusts it.
+//
+// The data columns say RW for a contributor, and they were wrong to say R.
+// Attaching a cohort to a project has always been an editor's right - it was
+// decided by the same rule as launching a workspace - so the rows were
+// describing a stricter platform than the one that shipped. They were harmless
+// while nothing read them; they became a verdict the day those columns started
+// deciding, and a row that understates what the platform does withdraws access
+// on the day it is enforced. Environment is RW for the same reason: deleting
+// one has always been a contributor's right.
 func defaultRBACPolicyRows() []rbacPolicyRow {
 	return []rbacPolicyRow{
 		{Role: "Administrateur", Key: "admin", Locked: true, Description: "Administration plateforme: configuration, gouvernance, audit et exploitation.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "RW", Workload: "RW", Governance: "Admin"},
 		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire direct ou organisation propriétaire de la ressource.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
-		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "Admin", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "R", Workload: "RW", Governance: "-"},
-		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "RW", Governance: "-"},
+		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "Admin", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
+		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
 		{Role: "Writer", Key: "writer", Locked: true, Description: "Droit d’écriture sur une ressource data donnée.", Project: "-", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "-", Governance: "-"},
 		{Role: "Reader", Key: "reader", Locked: true, Description: "Consultation seule sur une ressource data donnée.", Project: "-", Dataset: "R", Ontology: "R", Datasource: "R", Environment: "-", Workload: "-", Governance: "-"},
 		{Role: "Viewer", Key: "viewer", Locked: true, Description: "Lecture projet et suivi des sorties publiées.", Project: "R", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "R", Governance: "-"},
@@ -342,6 +351,29 @@ var rbacShippedRowBases = map[string]access.Role{
 	"viewer":        access.RoleViewer,
 }
 
+// refuseGovernanceOnACustomRow keeps the platform's own administration out of
+// a role a project can hand out.
+//
+// Governance is the column an installation would most like to fill in, and the
+// only one the platform cannot honour. A role is held inside a project; the
+// administration screens are not inside any project, and who reaches them is
+// decided by the identity provider - a matrix that could promote its own
+// editor to platform administrator would be a matrix anybody reaching the
+// screen could use to take the installation.
+//
+// Which leaves two honest options for the column: decide, or stop offering it.
+// It cannot decide, so it is refused here rather than accepted and read by
+// nothing - the exact defect the whole matrix had before the engine existed.
+func refuseGovernanceOnACustomRow(row rbacPolicyRow) error {
+	if _, shipped := rbacShippedRowBases[row.Key]; shipped {
+		return nil
+	}
+	if strings.TrimSpace(row.Governance) != "" && strings.TrimSpace(row.Governance) != "-" {
+		return errors.New("role " + row.Role + " cannot carry governance: who administers the platform is decided by the identity provider, not by a role held inside a project")
+	}
+	return nil
+}
+
 func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 	out := make([]rbacPolicyRow, 0, len(rows))
 	seen := map[string]bool{}
@@ -361,6 +393,9 @@ func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 			return nil, err
 		}
 		row.BasedOn = string(base)
+		if err := refuseGovernanceOnACustomRow(row); err != nil {
+			return nil, err
+		}
 		normalize := func(value string) (string, error) {
 			value = strings.TrimSpace(value)
 			if value == "" {

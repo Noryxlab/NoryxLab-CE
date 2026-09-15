@@ -131,6 +131,7 @@ export const fr = {
     shipped: 'Livré',
     shippedBase: 'Rôle de la plateforme',
     heldBy: 'porté par {count}',
+    governanceLocked: 'Décidée par l’annuaire',
     saved: 'Rôles enregistrés',
     ceilingHint:
       'Un rôle maison hérite toujours d’un rôle de la plateforme : c’est ce que la personne obtient partout où la matrice n’a rien à dire, et c’est aussi son plafond tant que la matrice n’applique pas la ligne.',

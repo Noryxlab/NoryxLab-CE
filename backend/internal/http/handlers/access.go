@@ -24,6 +24,17 @@ const (
 	projectActionLaunch       = "project.launch"
 	projectActionRunBuild     = "project.build"
 	projectActionManageMember = "project.manage_members"
+
+	// Attaching a resource to a project is not launching a workload, and the
+	// platform used to decide both with the same rule: everything below was
+	// actionLaunch, so "may run a notebook" and "may mount a cohort" were one
+	// permission. That is why five of the matrix's seven columns could be
+	// filled in and read back by nothing - there was no question to answer
+	// with them. Each of these is the question that column was for.
+	projectActionAttachDataset     = "dataset.attach"
+	projectActionAttachOntology    = "ontology.attach"
+	projectActionAttachDatasource  = "datasource.attach"
+	projectActionManageEnvironment = "environment.manage"
 )
 
 func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
@@ -369,6 +380,28 @@ var (
 	actionManageMembers = projectAction{
 		id:      projectActionManageMember,
 		permits: func(role access.Role) bool { return role == access.RoleAdmin },
+	}
+
+	// The Community rule for all four is the one they already had as
+	// actionLaunch: a contributor may attach what their project works on. What
+	// changes is that the matrix now sees which resource is being attached, so
+	// an installation can say "this role reads cohorts and writes nothing"
+	// without also saying it may not start a workspace.
+	actionAttachDataset = projectAction{
+		id:      projectActionAttachDataset,
+		permits: access.Role.CanLaunchPod,
+	}
+	actionAttachOntology = projectAction{
+		id:      projectActionAttachOntology,
+		permits: access.Role.CanLaunchPod,
+	}
+	actionAttachDatasource = projectAction{
+		id:      projectActionAttachDatasource,
+		permits: access.Role.CanLaunchPod,
+	}
+	actionManageEnvironment = projectAction{
+		id:      projectActionManageEnvironment,
+		permits: access.Role.CanRunBuild,
 	}
 )
 

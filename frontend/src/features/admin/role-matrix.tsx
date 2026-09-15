@@ -196,6 +196,13 @@ export function RoleMatrixEditor() {
                     <td key={column} className="px-2 py-3">
                       {row.locked ? (
                         <Badge tone={row[column] === '-' ? 'outline' : 'neutral'}>{row[column]}</Badge>
+                      ) : column === 'governance' ? (
+                        // Un role se porte dans un projet ; les ecrans
+                        // d'administration ne sont dans aucun projet, donc
+                        // aucun role de projet ne peut y donner acces. Le
+                        // serveur refuse la ligne : autant le dire ici plutot
+                        // que de laisser choisir une valeur qui sera rejetee.
+                        <span className="text-xs text-muted-foreground">{t('roleMatrix.governanceLocked')}</span>
                       ) : (
                         <Select
                           value={row[column as ColumnKey]}

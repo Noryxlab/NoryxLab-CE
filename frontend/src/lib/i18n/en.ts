@@ -128,6 +128,7 @@ export const en: Translations = {
     shipped: 'Shipped',
     shippedBase: 'Platform role',
     heldBy: 'held by {count}',
+    governanceLocked: 'Decided by the directory',
     saved: 'Roles saved',
     ceilingHint:
       'A role of your own always inherits from a platform role: that is what the person gets wherever the matrix has nothing to say, and it is also their ceiling until the matrix enforces the row.',

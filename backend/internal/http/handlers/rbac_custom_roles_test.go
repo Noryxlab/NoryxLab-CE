@@ -86,3 +86,51 @@ func TestACustomRoleIsRefusedWhereNothingCanEnforceIt(t *testing.T) {
 		t.Fatal("a role no document describes must be refused")
 	}
 }
+
+func TestACustomRoleCannotCarryGovernance(t *testing.T) {
+	// Governance is the column an installation would most like to fill in and
+	// the only one the platform cannot honour: a role is held inside a
+	// project, and the administration screens are not inside any project. The
+	// two honest options are to decide or to stop offering it, and it cannot
+	// decide - so it is refused at save time rather than stored and read by
+	// nobody, which is the defect the whole matrix used to have.
+	_, err := validateRBACPolicyRows([]rbacPolicyRow{
+		{Role: "Auditeur", Key: "auditeur", BasedOn: "viewer", Governance: "Admin"},
+	})
+	if err == nil {
+		t.Fatal("a project role was allowed to grant platform governance")
+	}
+	// The platform's own rows keep the column: that is what it is for.
+	if _, err := validateRBACPolicyRows(defaultRBACPolicyRows()); err != nil {
+		t.Fatalf("the shipped rows must validate: %v", err)
+	}
+}
+
+func TestTheShippedRowsDescribeWhatAContributorCanActuallyDo(t *testing.T) {
+	// The data columns said R for a contributor while attaching a cohort has
+	// always been a contributor's right - the rows were describing a stricter
+	// platform than the one that ships. Harmless while nothing read them; a
+	// withdrawal of access the day those columns started deciding.
+	rows := map[string]rbacPolicyRow{}
+	for _, row := range defaultRBACPolicyRows() {
+		rows[row.Key] = row
+	}
+	for _, key := range []string{"editor", "project-admin"} {
+		row := rows[key]
+		for column, value := range map[string]string{
+			"dataset":     row.Dataset,
+			"ontology":    row.Ontology,
+			"datasource":  row.Datasource,
+			"environment": row.Environment,
+		} {
+			if value != "RW" && value != "RW attaché" {
+				t.Errorf("%s says %q on %s, but may attach one today", key, value, column)
+			}
+		}
+	}
+	// A viewer may not, and the rows have to keep saying so.
+	viewer := rows["viewer"]
+	if viewer.Dataset != "R attaché" || viewer.Environment != "R" {
+		t.Errorf("viewer was widened: dataset %q, environment %q", viewer.Dataset, viewer.Environment)
+	}
+}

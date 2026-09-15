@@ -1193,7 +1193,7 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, identity.UserID(), actionLaunch, "dataset attach") {
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachDataset, "dataset attach") {
 		return
 	}
 	item, found, err := h.datasetStore.GetByID(datasetID)
@@ -1231,7 +1231,7 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and datasetID are required"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, identity.UserID(), actionLaunch, "dataset detach") {
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachDataset, "dataset detach") {
 		return
 	}
 	item, found, err := h.datasetStore.GetByID(datasetID)

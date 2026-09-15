@@ -17,7 +17,7 @@ func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid environmentID"})
 		return
 	}
-	if !h.requireProjectRole(w, projectID, userID, actionRunBuild, "environment deletion") {
+	if !h.requireProjectRole(w, projectID, userID, actionManageEnvironment, "environment deletion") {
 		return
 	}
 	if destinationImage == strings.TrimSpace(h.workspaceJupyterImage) || destinationImage == strings.TrimSpace(h.workspaceVSCodeImage) || destinationImage == strings.TrimSpace(h.workspaceRStudioImage) {
