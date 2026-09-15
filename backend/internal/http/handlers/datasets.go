@@ -1147,7 +1147,7 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.canAssignDataset(identity, item) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": datasetAssignmentError(item)})
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
 	}
 	if exists, err := h.projectExists(projectID); err != nil || !exists {
@@ -1185,7 +1185,7 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.canAssignDataset(identity, item) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": datasetAssignmentError(item)})
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
 	}
 	if err := h.projectResourceStore.DetachDataset(projectID, datasetID); err != nil {
@@ -1205,9 +1205,24 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset)
 	return item.Classification != "hds" && h.datasetRole(item, identity) == "owner"
 }
 
-func datasetAssignmentError(item dataset.Dataset) string {
-	if item.Classification == "hds" {
+// datasetAssignmentError says which of the two refusals actually happened.
+//
+// It used to answer "requires Enterprise Edition" for every HDS refusal, which
+// is true only on Community. On an Enterprise installation the edition is
+// present and the real reason is the rule below it: attaching regulated data to
+// a project is a global admin's decision. A member reading the old message was
+// told their platform lacked a licence it holds, went looking for the wrong
+// thing, and had no way to learn that the person who could help was their own
+// administrator.
+//
+// Registration a few hundred lines above already separates these two cases.
+// This is the same separation, in the place that was still collapsing them.
+func (h Handlers) datasetAssignmentError(item dataset.Dataset) string {
+	if !h.datasetAvailableInEdition(item) {
 		return "HDS dataset management requires NoryxLab Enterprise Edition"
+	}
+	if item.Classification == "hds" {
+		return "global admin role required to attach an HDS dataset to a project"
 	}
 	return "dataset owner or global admin role required to assign this dataset"
 }

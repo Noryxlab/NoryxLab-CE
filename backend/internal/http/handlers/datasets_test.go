@@ -35,3 +35,24 @@ func TestExternalS3ClientHasNoSharedProfileFallback(t *testing.T) {
 		t.Fatal("expected external dataset without dedicated credentials to be rejected")
 	}
 }
+
+// On Community, an HDS refusal really is about the edition, and the message
+// says so. The Enterprise case - where it is not - is asserted in the overlay.
+func TestAnHDSRefusalOnCommunityNamesTheEdition(t *testing.T) {
+	h := Handlers{}
+	item := dataset.New("admin", "health", "", "health-bucket", "", "s3", "hds", "https://hds.example.com", "custom")
+
+	if message := h.datasetAssignmentError(item); message != "HDS dataset management requires NoryxLab Enterprise Edition" {
+		t.Errorf("Community should name the edition, got %q", message)
+	}
+}
+
+func TestAnOrdinaryRefusalNamesTheRoleAndNotTheEdition(t *testing.T) {
+	h := Handlers{}
+	item := dataset.New("someone", "figures", "", "figures-bucket", "", "s3", "non-hds", "https://s3.example.com", "custom")
+
+	message := h.datasetAssignmentError(item)
+	if message != "dataset owner or global admin role required to assign this dataset" {
+		t.Errorf("a non-HDS refusal should name the role, got %q", message)
+	}
+}
