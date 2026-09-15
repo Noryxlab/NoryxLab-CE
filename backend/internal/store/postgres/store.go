@@ -115,8 +115,15 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) migrate(ctx context.Context) error {
-	stmts := []string{
+// migrationStatements is the schema, in the order it is applied.
+//
+// Named and returned rather than built inline so a test can read it without a
+// database. Order is the whole correctness of this list: an ALTER that sits
+// above the CREATE of its own table runs happily on every installation that
+// already has the table, and refuses to start on a fresh one. Only a first
+// install would ever find out, which is the worst possible moment.
+func migrationStatements() []string {
+	return []string{
 		`CREATE TABLE IF NOT EXISTS projects (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -668,7 +675,6 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS team_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_agents_team ON agents (team_id)`,
-		`ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS question TEXT NOT NULL DEFAULT ''`,
 		// What a job read. Added rather than backfilled: the runs that already
 		// happened cannot be reconstructed, and pretending otherwise would be
 		// worse than an empty list that says so.
@@ -695,6 +701,12 @@ func (s *Store) migrate(ctx context.Context) error {
 			finished_at TIMESTAMPTZ
 		)`,
 		`CREATE INDEX IF NOT EXISTS agent_runs_by_agent ON agent_runs (agent_id, started_at DESC)`,
+		// After the table, which is the whole point: this ALTER sat above the
+		// CREATE and every installation that already had the table ran it
+		// happily, so nothing showed. A fresh database refused to start - the
+		// column cannot be added to a table that does not exist yet - and only
+		// a first install would ever have found out.
+		`ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS question TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS backup_runs (
 			id TEXT PRIMARY KEY,
 			status TEXT NOT NULL,
@@ -708,6 +720,10 @@ func (s *Store) migrate(ctx context.Context) error {
 			ended_at TIMESTAMPTZ
 		)`,
 	}
+}
+
+func (s *Store) migrate(ctx context.Context) error {
+	stmts := migrationStatements()
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			return err

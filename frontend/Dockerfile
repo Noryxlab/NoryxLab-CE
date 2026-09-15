@@ -27,7 +27,12 @@ WORKDIR /fonts
 RUN npm init -y >/dev/null \
     && npm install --no-audit --no-fund @fontsource-variable/plus-jakarta-sans@5.2.8 >/dev/null
 
-FROM nginx:1.27-alpine
+# nginx 1.29 rather than 1.27: the older tag sat on Alpine 3.21, whose openssl
+# stopped receiving fixes on that branch, and the image scan went red on a CVE
+# no change of ours had introduced. A base image is a dependency with a clock
+# on it, and pinning one without moving it is how a build that passed in
+# January fails in September having done nothing wrong.
+FROM nginx:1.29-alpine
 
 # `auto` forks one worker per host CPU. On high-density Kubernetes workers this
 # can exceed the deliberately small frontend memory limit for a static site.

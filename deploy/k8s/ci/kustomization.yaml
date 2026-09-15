@@ -23,8 +23,11 @@ images:
   - name: harbor.example.local/noryx-ce/keycloak
     newName: quay.io/keycloak/keycloak
     newTag: "26.6.2"
+  # quay.io, not Docker Hub: MinIO stopped serving this tag there, and the
+  # registry answers "repository does not exist" rather than anything about a
+  # tag - so the job failed on an image nobody in this repository had touched.
   - name: harbor.example.local/noryx-ce/minio
-    newName: minio/minio
+    newName: quay.io/minio/minio
     newTag: "RELEASE.2025-02-18T16-25-55Z"
 
 patches:

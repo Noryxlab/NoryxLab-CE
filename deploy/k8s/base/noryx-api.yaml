@@ -58,16 +58,24 @@ spec:
               value: "harbor.example.local/noryx-dataservices"
             - name: NORYX_HARBOR_INSECURE_SKIP_VERIFY
               value: "true"
+            # Optional, deliberately. A registry credential is something an
+            # installation supplies, and a platform that will not start
+            # without one cannot be brought up at all on the first day - the
+            # pod sat in CreateContainerConfigError, which says nothing about
+            # a missing secret to whoever reads it. Without the credential the
+            # platform runs and says so where the registry is needed.
             - name: NORYX_HARBOR_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: harbor-api-credentials
                   key: username
+                  optional: true
             - name: NORYX_HARBOR_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: harbor-api-credentials
                   key: password
+                  optional: true
             - name: NORYX_UI_DEFAULT_THEME
               value: "noryx"
             - name: NORYX_STORE_BACKEND
