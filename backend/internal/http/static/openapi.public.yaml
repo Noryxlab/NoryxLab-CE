@@ -109,6 +109,20 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/Agent' }
+    JobDataset:
+      type: object
+      description: >-
+        One mount as it was when the job started. The name and bucket travel
+        with the identifier because a dataset renamed, moved or deleted since
+        must still mean something to whoever reads this.
+      properties:
+        id: { type: string }
+        name: { type: string }
+        bucket: { type: string }
+        prefix: { type: string }
+        readOnly:
+          type: boolean
+          description: Whether the job could have changed what it read.
     AgentRun:
       type: object
       properties:
@@ -466,6 +480,15 @@ components:
       properties:
         id:
           type: string
+        datasets:
+          type: array
+          description: >-
+            What this job had mounted when it ran, recorded on the job rather
+            than left to be reconstructed from the project: a project's
+            attachments change and a result does not. Empty for runs that
+            predate this, which is different from a run that read nothing.
+          items:
+            $ref: '#/components/schemas/JobDataset'
     JobListResponse:
       type: object
       properties:

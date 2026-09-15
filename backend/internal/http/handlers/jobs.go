@@ -103,6 +103,13 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
 	}
+	// What this run will read, written on the record before it starts.
+	//
+	// The project's attachments change; a result does not. Asked in two years
+	// which data produced a figure, a platform that can only answer "whatever
+	// was attached to that project today" has not answered.
+	record.Datasets = jobDatasetsFrom(attachedDatasets)
+
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -444,4 +451,24 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		lines = append(lines, "echo 'job finished: no command provided'")
 	}
 	return strings.Join(lines, "\n")
+}
+
+// jobDatasetsFrom records the mounts as they were, not as the dataset is now.
+//
+// The name and bucket travel with the identifier because a dataset that has
+// since been renamed, moved between buckets or deleted still has to mean
+// something to whoever reads this later - which is the whole point of writing
+// it down at the moment it was true.
+func jobDatasetsFrom(attached []workspaceAttachedDataset) []job.Dataset {
+	out := make([]job.Dataset, 0, len(attached))
+	for _, item := range attached {
+		out = append(out, job.Dataset{
+			ID:       item.ID,
+			Name:     item.Name,
+			Bucket:   item.Bucket,
+			Prefix:   item.Prefix,
+			ReadOnly: item.ReadOnly,
+		})
+	}
+	return out
 }

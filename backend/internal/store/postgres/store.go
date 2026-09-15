@@ -669,6 +669,10 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE agents ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_agents_team ON agents (team_id)`,
 		`ALTER TABLE agent_runs ADD COLUMN IF NOT EXISTS question TEXT NOT NULL DEFAULT ''`,
+		// What a job read. Added rather than backfilled: the runs that already
+		// happened cannot be reconstructed, and pretending otherwise would be
+		// worse than an empty list that says so.
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS datasets_json TEXT NOT NULL DEFAULT '[]'`,
 		`CREATE TABLE IF NOT EXISTS agent_mandates (
 			id TEXT PRIMARY KEY,
 			team_id TEXT NOT NULL,
@@ -1340,7 +1344,7 @@ func (s *Store) DeleteBuild(id string) error {
 }
 
 func (s *Store) ListJobs() ([]job.Job, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at FROM jobs ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1348,8 +1352,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 	out := []job.Job{}
 	for rows.Next() {
 		var item job.Job
-		var commandJSON, argsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt); err != nil {
+		var commandJSON, argsJSON, datasetsJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -1357,6 +1361,10 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 		}
 		if len(argsJSON) > 0 {
 			_ = json.Unmarshal(argsJSON, &item.Args)
+		}
+		item.Datasets = []job.Dataset{}
+		if len(datasetsJSON) > 0 {
+			_ = json.Unmarshal(datasetsJSON, &item.Datasets)
 		}
 		item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 		out = append(out, item)
@@ -1366,8 +1374,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 
 func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	var item job.Job
-	var commandJSON, argsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var commandJSON, argsJSON, datasetsJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.Name,
@@ -1376,6 +1384,7 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 		&item.HardwareTier,
 		&commandJSON,
 		&argsJSON,
+		&datasetsJSON,
 		&item.JobName,
 		&item.Status,
 		&item.Result,
@@ -1394,6 +1403,10 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	if len(argsJSON) > 0 {
 		_ = json.Unmarshal(argsJSON, &item.Args)
 	}
+	item.Datasets = []job.Dataset{}
+	if len(datasetsJSON) > 0 {
+		_ = json.Unmarshal(datasetsJSON, &item.Datasets)
+	}
 	item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 	return item, true, nil
 }
@@ -1401,7 +1414,8 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 func (s *Store) CreateJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
-	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		item.ID,
 		item.ProjectID,
 		item.Name,
@@ -1410,6 +1424,7 @@ func (s *Store) CreateJob(item job.Job) error {
 		item.HardwareTier,
 		commandJSON,
 		argsJSON,
+		datasetsJSON,
 		item.JobName,
 		item.Status,
 		item.Result,
@@ -1419,12 +1434,23 @@ func (s *Store) CreateJob(item job.Job) error {
 	return err
 }
 
+// nonNilDatasets keeps an empty list an empty list. A nil marshals to null,
+// and a column that alternates between [] and null is a column every reader
+// has to defend against.
+func nonNilDatasets(items []job.Dataset) []job.Dataset {
+	if items == nil {
+		return []job.Dataset{}
+	}
+	return items
+}
+
 func (s *Store) UpsertJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
+	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
 	_, err := s.db.Exec(`
-		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, job_name, status, result, completed_at, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
@@ -1433,6 +1459,10 @@ func (s *Store) UpsertJob(item job.Job) error {
 			hardware_tier=EXCLUDED.hardware_tier,
 			command_json=EXCLUDED.command_json,
 			args_json=EXCLUDED.args_json,
+			-- Never overwritten with an empty list: the watcher that updates a
+			-- job's status does not know what it read, and a status update
+			-- must not erase the lineage.
+			datasets_json=CASE WHEN EXCLUDED.datasets_json = '[]' THEN jobs.datasets_json ELSE EXCLUDED.datasets_json END,
 			job_name=EXCLUDED.job_name,
 			status=EXCLUDED.status,
 			result=EXCLUDED.result,
@@ -1446,6 +1476,7 @@ func (s *Store) UpsertJob(item job.Job) error {
 		item.HardwareTier,
 		commandJSON,
 		argsJSON,
+		datasetsJSON,
 		item.JobName,
 		item.Status,
 		item.Result,
