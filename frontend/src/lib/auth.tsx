@@ -28,6 +28,7 @@ export interface Identity {
  * tokens and works without it. Only proxied access needs the cookie, and that
  * is where the refusal will be visible.
  */
+
 async function openBackendSession(): Promise<void> {
   try {
     await api.post('/api/v1/auth/session', undefined);
@@ -35,6 +36,38 @@ async function openBackendSession(): Promise<void> {
     console.error('could not open a backend session; workspace access will be refused', cause);
   }
 }
+
+/**
+ * Un second essai avant de declarer la session finie.
+ *
+ * Le navigateur sait souvent qu'il est hors ligne : dans ce cas la question ne
+ * se pose pas, la session n'a rien perdu et l'utilisateur n'a rien a refaire.
+ * Sinon on retente une fois, apres un court delai - un jeton de
+ * rafraichissement reellement rejete echouera de nouveau tout de suite, alors
+ * qu'une coupure passagere aura souvent cesse.
+ */
+async function refreshSurvives(keycloak: Keycloak): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (checking) return true;
+  // Re-entrancy guard: the retry below fails the same way as the first
+  // attempt, and keycloak-js reports that failure through onAuthRefreshError -
+  // which lands back here. Without this the two would take turns retrying.
+  checking = true;
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      await keycloak.updateToken(30);
+      return true;
+    } catch {
+      return false;
+    }
+  } finally {
+    checking = false;
+  }
+}
+
+/** True while a second chance is already in flight. */
+let checking = false;
 
 async function closeBackendSession(): Promise<void> {
   try {
@@ -187,18 +220,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // never sends an expired bearer.
           await keycloak.updateToken(30);
         } catch {
-          // The session is over: the refresh token was rejected, which happens
-          // when it has expired or when the identity provider no longer holds
-          // the session - a Keycloak restart drops every session it keeps in
-          // memory, so this is what a person sees after a platform upgrade.
+          // A failed refresh is two different events, and they were treated as
+          // one. The identity provider rejecting the refresh token means the
+          // session really is over - it expired, or Keycloak restarted and
+          // dropped the sessions it holds in memory. A refresh that never
+          // reached Keycloak means nothing about the session at all.
           //
-          // Returning null alone sent the request with no Authorization header
-          // and let the screen render the API's answer: "missing bearer
-          // token". That is the platform explaining its own internals to
-          // somebody who left the page open for five minutes. Say the session
-          // ended, and show the sign-in screen.
-          endSession();
-          return null;
+          // Signing somebody out on the second is the platform punishing them
+          // for their network. On a site where the connection drops now and
+          // then, an access token that lives five minutes turns every brief
+          // interruption into a sign-in screen, and the person reports losing
+          // the platform periodically - which is exactly what it looks like
+          // from their side.
+          //
+          // So the request is given one more chance before the session is
+          // declared over. A genuinely rejected refresh token fails again
+          // immediately; an interruption usually will not.
+          if (!(await refreshSurvives(keycloak))) {
+            // Returning null alone sent the request with no Authorization
+            // header and let the screen render the API's answer: "missing
+            // bearer token". That is the platform explaining its own internals
+            // to somebody who left the page open for five minutes. Say the
+            // session ended, and show the sign-in screen.
+            endSession();
+            return null;
+          }
         }
         return keycloak.token ?? null;
       },
@@ -218,8 +264,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .then((authenticated) => {
         // keycloak-js reports its own refresh failures here, including the
-        // background ones no request asked for.
-        keycloak.onAuthRefreshError = endSession;
+        // background ones no request asked for. It fires on the first failure,
+        // so pointing it straight at endSession undid the second chance given
+        // above: the request-side retry was still running when the session had
+        // already been declared over.
+        keycloak.onAuthRefreshError = () => {
+          void refreshSurvives(keycloak).then((survived) => {
+            if (!survived) endSession();
+          });
+        };
+        // A logout is not ambiguous. Somebody signed out, here or elsewhere in
+        // the single sign-on session, and there is nothing to retry.
         keycloak.onAuthLogout = endSession;
         if (authenticated && keycloak.tokenParsed) {
           setIdentity(toIdentity(keycloak.tokenParsed as TokenClaims, config.oidc?.clientId ?? ''));
