@@ -3,6 +3,41 @@
 This is the order, and it is short on purpose. It was written by rehearsing
 each step against the real backups on 2026-09-06, not from memory.
 
+## Three layers, and which one you want
+
+Losing "the platform" means different things, and the answer is a different
+backup each time. Written down because the one nobody remembers under pressure
+is the one that would have been quickest.
+
+| Lost | Restore from | What comes back |
+|---|---|---|
+| A volume, or what was in it | **Longhorn → Cellar** | One volume, as of the last nightly job |
+| Projects, rights, accounts, audit | **Database and identity backups → Cellar** | The platform's own state, into a cluster that already runs |
+| The machine: OS, k3s, configuration | **Proxmox Backup Server** | The whole virtual machine, disks included |
+
+They are complementary rather than ranked. Restoring a VM from PBS brings back
+a cluster with its volumes attached but tells you nothing about a file somebody
+deleted last Tuesday; restoring a Longhorn volume brings that back but not a
+machine that no longer boots. The rest of this document is the second row,
+which is the one with the most moving parts.
+
+**Where each one lives, on the EMSE installation.** PBS writes to the EMSE
+DSI's storage - off `kvm-premyom`, so losing that host or its disk does not
+take the backups with it. Longhorn and the platform backups write to Clever
+Cloud Cellar, outside the site entirely. Nothing that matters is stored only on
+the machine it protects.
+
+**A PBS snapshot of a running machine is crash-consistent, not
+application-consistent.** It captures Longhorn volumes mid-write. What comes
+back is a filesystem that needs to repair itself and replicas Longhorn may have
+to rebuild - a real backup, and not the same thing as a volume backup taken by
+the storage layer that owns the volume. That is precisely why both exist.
+
+**The DC has only the first two layers.** Its Proxmox carries no PBS datastore,
+so there is no machine-level restore for `noryxlab-master`: losing that VM
+means rebuilding it and restoring into it. Acceptable for a sandbox, worth
+knowing before treating it as anything more.
+
 ## What must exist outside the cluster
 
 Two things. Everything else is inside the backups, encrypted.
