@@ -107,6 +107,21 @@ export const en: Translations = {
     skipToContent: 'Skip to main content',
   },
 
+  storageCapacity: {
+    title: 'Room left for volumes',
+    intro:
+      'What the cluster can still accept. A volume claim is accepted on sight and only fails at attach time: without this screen, the first warning is a user who cannot work.',
+    claimedOf: 'claimed of {total} allocatable',
+    freeDisk: '{free} of disk actually unused',
+    leftToAllocate: '{left} left to allocate',
+    nodeDetail: '{claimed} claimed of {allocatable} · {free} of free disk',
+    tight: 'Filling up',
+    full: 'Full',
+    unavailable:
+      'This installation runs on a storage layer that cannot be asked. The platform therefore cannot warn in advance — it says so rather than drawing a gauge it made up.',
+    explain:
+      'A volume is placed against what it claims, not against free disk. That is why the two figures differ, and why a nearly empty cluster can refuse one more volume.',
+  },
   roleMatrix: {
     title: 'Roles of this installation',
     intro:

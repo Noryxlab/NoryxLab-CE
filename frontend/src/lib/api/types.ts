@@ -1232,3 +1232,35 @@ export interface RbacPolicyResponse {
   assignmentCounts: Record<string, number>;
   updatedAt: string;
 }
+
+/** Ce qu'un noeud peut encore accepter comme volume. */
+export interface StorageCapacityNode {
+  name: string;
+  /** Ce que les volumes existants ont deja reserve. */
+  claimed: number;
+  /** Ce qu'un nouveau volume peut encore reserver ici. */
+  schedulable: number;
+  allocatable: number;
+  /** Le disque reellement inutilise - une autre question, et un nombre en
+   *  general bien plus grand. Les deux sont montres cote a cote parce que leur
+   *  ecart est tout le piege. */
+  freeDisk: number;
+  headroomRatio: number;
+}
+
+export interface StorageCapacityReport {
+  /** Faux quand la couche de stockage n'a pas pu etre interrogee. Les chiffres
+   *  sont alors absents plutot que nuls : une jauge dessinee a partir de zeros
+   *  se lit comme un cluster vide, soit l'inverse de ce qui est rapporte. */
+  available: boolean;
+  source?: string;
+  detail?: string;
+  nodes?: StorageCapacityNode[];
+  totalClaimed: number;
+  totalSchedulable: number;
+  totalAllocatable: number;
+  totalFreeDisk: number;
+  /** Le seuil sur lequel la plateforme alerte, pour que l'ecran et l'alerte ne
+   *  puissent pas diverger sur le moment de s'inquieter. */
+  warnBelow: number;
+}

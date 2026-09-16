@@ -93,6 +93,50 @@ type PersistentVolumeClaimSpec struct {
 	Labels           map[string]string
 }
 
+// StorageCapacity is how much room the cluster still has to place a volume.
+//
+// The figure Kubernetes does not give you. A PersistentVolumeClaim is accepted
+// the moment it is written and fails silently later, at attach time, with a
+// message on a pod nobody is reading - so the only way to warn an
+// administrator before a person cannot work is to ask the storage layer what
+// it has left.
+//
+// Scheduling capacity is not free disk. A provisioner schedules on what
+// volumes *claim*, so a cluster with most of its disk empty can be unable to
+// place one more volume; both numbers are carried because they answer
+// different questions, and reporting one as the other is how an operator is
+// told there is plenty of room on the morning nothing starts.
+type StorageCapacity struct {
+	// Available says whether the platform could measure anything at all. False
+	// leaves every figure below meaningless, and the interface says so rather
+	// than drawing a full gauge from zeroes.
+	Available bool   `json:"available"`
+	Source    string `json:"source,omitempty"`
+	// Detail explains an unavailable reading: no supported storage layer, or
+	// no permission to ask it.
+	Detail string        `json:"detail,omitempty"`
+	Nodes  []StorageNode `json:"nodes,omitempty"`
+}
+
+// StorageNode is one node's contribution, in bytes.
+type StorageNode struct {
+	Name string `json:"name"`
+	// Schedulable is what a new volume may still claim here.
+	Schedulable int64 `json:"schedulable"`
+	// Claimed is what existing volumes have already reserved.
+	Claimed int64 `json:"claimed"`
+	// Maximum is the size of the disk the storage layer manages.
+	Maximum int64 `json:"maximum"`
+	// Free is the disk actually unused, which is usually far larger.
+	Free int64 `json:"free"`
+}
+
+// StorageCapacityReader is optional: a platform whose storage layer cannot be
+// asked still runs workloads, it just cannot warn anybody in advance.
+type StorageCapacityReader interface {
+	StorageCapacity() (StorageCapacity, error)
+}
+
 type PersistentVolumeClaimMount struct {
 	ClaimName string
 	MountPath string

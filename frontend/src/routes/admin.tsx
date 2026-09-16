@@ -97,6 +97,7 @@ import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
 import { RoleMatrixEditor } from '@/features/admin/role-matrix';
+import { StorageCapacityPanel } from '@/features/admin/storage-capacity';
 import { PlatformUsageSection } from '@/features/admin/platform-usage';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
@@ -1348,6 +1349,10 @@ function StorageSection() {
 
   return (
     <div className="space-y-4">
+      {/* La capacite avant les points de montage : un administrateur vient ici
+          parce que quelque chose ne demarre pas, et la reponse est presque
+          toujours la place restante. */}
+      <StorageCapacityPanel />
       <SectionHeader title={t('admin.storageEndpoints')} description={t('admin.storageEndpointsHint')} />
       <Card>
         <DataTable

@@ -37,6 +37,7 @@ export const qk = {
   agentTeams: ['agent-teams'] as const,
   agentGovernance: ['admin', 'agent-governance'] as const,
   adminRbacPolicy: ['admin', 'rbac-policy'] as const,
+  adminStorageCapacity: ['admin', 'storage-capacity'] as const,
   assignableRoles: ['roles'] as const,
   agentMandates: (teamId: string) => ['agent-teams', teamId, 'mandates'] as const,
   hardwareTiers: ['hardware-tiers'] as const,
@@ -547,6 +548,8 @@ export const useAdminHardwareTiers = () =>
   useQuery({ queryKey: qk.adminHardwareTiers, queryFn: adminApi.hardwareTiers });
 
 export const useRbacMatrix = () => useQuery({ queryKey: qk.adminRbacMatrix, queryFn: adminApi.rbacMatrix });
+export const useStorageCapacity = () =>
+  useQuery({ queryKey: qk.adminStorageCapacity, queryFn: adminApi.storageCapacity, refetchInterval: 60_000 });
 export const useRbacPolicy = () => useQuery({ queryKey: qk.adminRbacPolicy, queryFn: adminApi.rbacPolicy });
 // Les roles attribuables changent quand un administrateur edite la matrice,
 // c'est-a-dire rarement, et ils sont lus par chaque ecran de membres.

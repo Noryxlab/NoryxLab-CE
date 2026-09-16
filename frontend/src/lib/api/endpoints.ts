@@ -66,6 +66,7 @@ import type {
   Project,
   ProjectMember,
   RbacMatrixReport,
+  StorageCapacityReport,
   RbacPolicyResponse,
   RbacPolicyRow,
   AssignableRole,
@@ -654,6 +655,7 @@ export const adminApi = {
   saveRbacPolicy: (rows: RbacPolicyRow[]) =>
     api.put<RbacPolicyResponse>(`${V1}/admin/rbac-policy`, { rows }),
 
+  storageCapacity: () => api.get<StorageCapacityReport>(`${V1}/admin/storage-capacity`),
   storageEndpoints: () => api.list<StorageEndpoint>(`${V1}/admin/storage-endpoints`),
   createStorageEndpoint: (input: Record<string, unknown>) =>
     api.post<StorageEndpoint>(`${V1}/admin/storage-endpoints`, input),

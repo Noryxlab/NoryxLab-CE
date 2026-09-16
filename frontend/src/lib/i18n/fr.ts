@@ -110,6 +110,21 @@ export const fr = {
     skipToContent: 'Aller au contenu principal',
   },
 
+  storageCapacity: {
+    title: 'Place restante pour les volumes',
+    intro:
+      'Ce que le cluster peut encore accepter. Une demande de volume est acceptée à vue et n’échoue qu’au moment de l’attachement : sans cet écran, la première alerte est un utilisateur qui ne peut pas travailler.',
+    claimedOf: 'réservés sur {total} allouables',
+    freeDisk: '{free} de disque réellement inutilisé',
+    leftToAllocate: '{left} encore allouables',
+    nodeDetail: '{claimed} réservés sur {allocatable} · {free} de disque libre',
+    tight: 'Bientôt plein',
+    full: 'Plein',
+    unavailable:
+      'La couche de stockage de cette installation ne sait pas répondre. La plateforme ne peut donc pas prévenir à l’avance — elle préfère le dire plutôt que d’afficher une jauge inventée.',
+    explain:
+      'Un volume est placé en fonction de ce qu’il réserve, pas du disque libre. C’est pourquoi les deux chiffres diffèrent, et pourquoi un cluster presque vide peut refuser un volume de plus.',
+  },
   roleMatrix: {
     title: 'Rôles de l’installation',
     intro:

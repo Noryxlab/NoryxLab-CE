@@ -76,6 +76,7 @@ func (h Handlers) platformHealth() healthReport {
 	alerts = append(alerts, h.deploymentAlerts()...)
 	alerts = append(alerts, h.workspaceLifetimeAlerts()...)
 	alerts = append(alerts, h.stuckWorkspaceAlerts()...)
+	alerts = append(alerts, h.storageCapacityAlerts()...)
 	alerts = append(alerts, h.jobFailureAlerts()...)
 	alerts = append(alerts, h.tokenExpiryAlerts()...)
 

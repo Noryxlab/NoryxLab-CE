@@ -186,6 +186,16 @@ ENVELOPES = {
         "source": "string", "overridable": "boolean",
     },
     "PlatformSettingListResponse": {"items": "[$PlatformSetting]"},
+    "StorageCapacityNode": {
+        "name": "string", "claimed": "integer", "schedulable": "integer",
+        "allocatable": "integer", "freeDisk": "integer", "headroomRatio": "number",
+    },
+    "StorageCapacityResponse": {
+        "available": "boolean", "source": "string", "detail": "string",
+        "nodes": "[$StorageCapacityNode]", "totalClaimed": "integer",
+        "totalSchedulable": "integer", "totalAllocatable": "integer",
+        "totalFreeDisk": "integer", "warnBelow": "number",
+    },
     "AssignableRole": {
         "key": "string", "name": "string", "description": "string",
         "basedOn": "string", "builtin": "boolean",
@@ -233,6 +243,7 @@ RESPONSES = {
     ("POST", "/api/v1/admin/smtp/tests"): "SMTPTestResponse",
     ("GET", "/api/v1/admin/settings"): "PlatformSettingListResponse",
     ("PUT", "/api/v1/admin/settings/{key}"): "PlatformSettingListResponse",
+    ("GET", "/api/v1/admin/storage-capacity"): "StorageCapacityResponse",
     ("GET", "/api/v1/roles"): "AssignableRoleListResponse",
     ("GET", "/api/v1/admin/rbac-policy"): "RBACPolicyResponse",
     ("PUT", "/api/v1/admin/rbac-policy"): "RBACPolicyResponse",

@@ -40,6 +40,29 @@ components:
       name: X-Noryx-User
 
   schemas:
+    StorageCapacityNode:
+      type: object
+      properties:
+        name: { type: string }
+        claimed: { type: integer }
+        schedulable: { type: integer }
+        allocatable: { type: integer }
+        freeDisk: { type: integer }
+        headroomRatio: { type: number }
+    StorageCapacityResponse:
+      type: object
+      properties:
+        available: { type: boolean }
+        source: { type: string }
+        detail: { type: string }
+        nodes:
+          type: array
+          items: { $ref: '#/components/schemas/StorageCapacityNode' }
+        totalClaimed: { type: integer }
+        totalSchedulable: { type: integer }
+        totalAllocatable: { type: integer }
+        totalFreeDisk: { type: integer }
+        warnBelow: { type: number }
     AssignableRole:
       type: object
       properties:
@@ -7049,6 +7072,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssignableRoleListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/storage-capacity:
+    get:
+      tags: [Admin]
+      summary: What the cluster has left to allocate
+      description: >-
+        What volumes have claimed and what disk is actually unused, side by
+        side. They diverge: a cluster can be most of its disk empty and still
+        unable to place one more volume, because a provisioner schedules on
+        what volumes claim. `available` false means the storage layer could not
+        be asked, and every figure is then absent rather than zero.
+      operationId: getAdminStorageCapacity
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageCapacityResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
