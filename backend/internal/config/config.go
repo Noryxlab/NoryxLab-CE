@@ -251,9 +251,13 @@ func Load() Config {
 	if workspacePVCClass == "" {
 		workspacePVCClass = "longhorn"
 	}
+	// Two gigabytes, where it used to be ten. Longhorn schedules on what a
+	// volume claims rather than on what it holds, so a default nobody fills is
+	// a reservation taken from every workspace that comes after it - see the
+	// manifest, where the same number carries the incident that changed it.
 	workspacePVCSize := os.Getenv("NORYX_WORKSPACE_PVC_SIZE")
 	if workspacePVCSize == "" {
-		workspacePVCSize = "10Gi"
+		workspacePVCSize = "2Gi"
 	}
 	workspacePVCAccessMode := os.Getenv("NORYX_WORKSPACE_PVC_ACCESS_MODE")
 	if workspacePVCAccessMode == "" {

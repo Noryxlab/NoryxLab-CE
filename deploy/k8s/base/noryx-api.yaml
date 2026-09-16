@@ -176,8 +176,21 @@ spec:
               value: "true"
             - name: NORYX_WORKSPACE_PVC_STORAGE_CLASS
               value: "longhorn"
+            # 2Gi, and it used to be 10.
+            #
+            # Longhorn schedules on what a volume claims, not on what it holds.
+            # Ten gigabytes per project against two hundred megabytes actually
+            # used meant a cluster with 78% of its disk free could not place
+            # one more workspace, and two people onboarded that morning waited
+            # four hours without an error anybody could read. A claim is a
+            # reservation against every future workspace, not a ceiling that
+            # costs nothing until used.
+            #
+            # This applies to projects created from here on: a PersistentVolume
+            # cannot be shrunk, so the volumes that exist keep the size they
+            # were given.
             - name: NORYX_WORKSPACE_PVC_SIZE
-              value: "10Gi"
+              value: "2Gi"
             - name: NORYX_WORKSPACE_PVC_ACCESS_MODE
               value: "ReadWriteMany"
             - name: NORYX_WORKSPACE_PVC_MOUNT_PATH
