@@ -139,6 +139,35 @@ Not yet available: an emailed invitation or reset link. Keycloak supports it
 succeeds while no message is sent, which is the kind of silence this platform is
 trying to remove.
 
+## Sessions and tokens
+
+Three numbers, and they answer different questions. `scripts/keycloak/harden-realm.sh`
+sets all three, so a realm rebuilt from `bootstrap-realm.sh` does not quietly
+return to Keycloak's defaults.
+
+| Setting | Value | What it decides |
+|---|---|---|
+| `accessTokenLifespan` | 30 min | How long a bearer token stays valid before the interface refreshes it |
+| `ssoSessionIdleTimeout` | 4 h | How long a session survives with no request at all |
+| `ssoSessionMaxLifespan` | 10 h | The ceiling: a fresh sign-in every day |
+
+The access token was Keycloak's default of five minutes until 2026-09-16, and
+that is invisible on a good link: the interface refreshes on the next request.
+On a bad one it is not. Every brief interruption fell inside a refresh window,
+the refresh failed, and the session ended - a user on a corporate network that
+drops now and then reported losing the platform periodically. Thirty minutes
+makes an unstable link survivable without changing how long a session lasts.
+
+The interface also stopped treating the two failures as one: a refresh Keycloak
+*rejects* ends the session, a refresh that never reached Keycloak is retried
+once before anything is concluded. Signing somebody out because their network
+blinked is the platform punishing them for their building.
+
+"Nothing happening" means no request, not no human, which is why the idle
+timeout is four hours rather than Keycloak's thirty minutes: reading one screen
+for half an hour used to end the session and put the next click on a sign-in
+page.
+
 ## Personal API tokens
 
 A user calling the API outside a browser — a CI job, a notebook, a script —

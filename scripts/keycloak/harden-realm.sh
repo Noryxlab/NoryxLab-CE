@@ -42,12 +42,26 @@ FAILURE_FACTOR="${FAILURE_FACTOR:-10}"
 # the ten-hour ceiling still forces a fresh sign-in every day.
 SESSION_IDLE_SECONDS="${SESSION_IDLE_SECONDS:-14400}"
 SESSION_MAX_SECONDS="${SESSION_MAX_SECONDS:-36000}"
+# How long an access token lives, which is not how long a session lasts.
+#
+# Keycloak's default is five minutes and we had never set it, so both
+# installations ran on it. The interface refreshes the token on the next
+# request, so five minutes is invisible on a good link - and on a bad one every
+# brief interruption fell inside a refresh window and ended the session. A user
+# on a corporate network that drops now and then reported losing the platform
+# periodically, which is what it looks like from their side.
+#
+# Thirty minutes makes an unstable link survivable without changing how long a
+# session lasts: the idle timeout and the ceiling above are untouched. The cost
+# is that a stolen access token stays usable for that long, which is the trade
+# this number is.
+ACCESS_TOKEN_SECONDS="${ACCESS_TOKEN_SECONDS:-1800}"
 
 pod="$(${KUBECTL} -n "${NS}" get pod -l app=keycloak -o jsonpath='{.items[0].metadata.name}')"
 
 ${KUBECTL} -n "${NS}" exec -i "${pod}" -- bash -s -- \
   "${REALM}" "${API_CLIENT_ID}" "${PASSWORD_POLICY}" "${FAILURE_FACTOR}" "${FRONTEND_CLIENT_ID}" \
-  "${SESSION_IDLE_SECONDS}" "${SESSION_MAX_SECONDS}" <<'INNER'
+  "${SESSION_IDLE_SECONDS}" "${SESSION_MAX_SECONDS}" "${ACCESS_TOKEN_SECONDS}" <<'INNER'
 set -euo pipefail
 REALM="$1"
 API_CLIENT_ID="$2"
@@ -56,6 +70,7 @@ FAILURE_FACTOR="$4"
 FRONTEND_CLIENT_ID="$5"
 SESSION_IDLE_SECONDS="$6"
 SESSION_MAX_SECONDS="$7"
+ACCESS_TOKEN_SECONDS="$8"
 
 KC=/opt/keycloak/bin/kcadm.sh
 CFG=/tmp/kcadm-harden.config
@@ -79,9 +94,11 @@ CFG=/tmp/kcadm-harden.config
   -s minimumQuickLoginWaitSeconds=60 \
   -s "passwordPolicy=$PASSWORD_POLICY" \
   -s ssoSessionIdleTimeout="$SESSION_IDLE_SECONDS" \
-  -s ssoSessionMaxLifespan="$SESSION_MAX_SECONDS" >/dev/null
+  -s ssoSessionMaxLifespan="$SESSION_MAX_SECONDS" \
+  -s accessTokenLifespan="$ACCESS_TOKEN_SECONDS" >/dev/null
 printf 'Realm %s: brute force detection on (%s attempts), password policy set.\n' "$REALM" "$FAILURE_FACTOR"
-printf 'Sessions: %sh idle, %sh maximum.\n' "$((SESSION_IDLE_SECONDS / 3600))" "$((SESSION_MAX_SECONDS / 3600))"
+printf 'Sessions: %sh idle, %sh maximum, access token %s min.\n' \
+  "$((SESSION_IDLE_SECONDS / 3600))" "$((SESSION_MAX_SECONDS / 3600))" "$((ACCESS_TOKEN_SECONDS / 60))"
 
 
 # Keycloak binds its `organization` client scope as *optional*, so the claim
