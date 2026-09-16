@@ -24,8 +24,17 @@ which is the one with the most moving parts.
 **Where each one lives, on the EMSE installation.** PBS writes to the EMSE
 DSI's storage - off `kvm-premyom`, so losing that host or its disk does not
 take the backups with it. Longhorn and the platform backups write to Clever
-Cloud Cellar, outside the site entirely. Nothing that matters is stored only on
-the machine it protects.
+Cloud Cellar, outside the site entirely, and Clever backs those buckets up on
+their side as well. Nothing that matters is stored only on the machine it
+protects, and the copy that leaves the site is itself copied.
+
+**What no number of copies covers: a deletion made with valid credentials.**
+Every layer above answers the question "what if something breaks". None of them
+answers "what if somebody with the key removes it on purpose, and the removal
+replicates". The protections against that are different in kind - object
+versioning or an object lock on the bucket, and a credential that cannot delete
+- and they are worth checking rather than assuming, because the arrangement
+otherwise looks complete enough that nobody looks.
 
 **A PBS snapshot of a running machine is crash-consistent, not
 application-consistent.** It captures Longhorn volumes mid-write. What comes
