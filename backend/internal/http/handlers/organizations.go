@@ -22,6 +22,15 @@ import (
 // another system's internals, and nobody on the far side can act on it.
 func (h Handlers) writeKeycloakError(w http.ResponseWriter, action string, err error) {
 	log.Printf("keycloak: %s: %v", action, err)
+	// An identifier that names nobody is its own answer. It used to arrive
+	// here as a 404 out of Keycloak and be reported as "no such organization",
+	// which named the one object that was certainly present - an administrator
+	// removing somebody from an organization was told the organization on
+	// their screen did not exist.
+	if keycloak.IsNoSuchUser(err) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such user"})
+		return
+	}
 	if keycloak.IsNotFound(err) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such organization"})
 		return

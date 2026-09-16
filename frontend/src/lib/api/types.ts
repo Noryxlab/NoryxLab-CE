@@ -588,10 +588,18 @@ export interface Organization {
   enabled: boolean;
 }
 
+/** Un membre d'organisation, tel que l'annuaire le renvoie.
+ *
+ *  Le champ s'appelle `id` et non `userId` : le type declarait `userId`, que
+ *  la reponse ne porte pas, donc la suppression partait vers
+ *  `.../members/undefined`. La ligne s'affichait quand meme - elle retombe sur
+ *  le nom d'utilisateur - et seule l'action echouait, sur un message qui
+ *  parlait de l'organisation. */
 export interface OrganizationMember {
-  userId: string;
+  id: string;
   username?: string;
   email?: string;
+  enabled?: boolean;
 }
 
 export interface PodInfo {

@@ -185,20 +185,57 @@ func (c *Client) ListOrganizationMembers(organizationID string) ([]User, error) 
 	return users, nil
 }
 
+// Organization membership takes a user id, and callers hold a username.
+//
+// Keycloak identifies a member by its own identifier, and every screen and
+// script that reaches for one holds a username instead - so the call went out
+// with a name where an id belonged and came back 404. Resolving here rather
+// than at each caller: the identifier a caller happens to hold is not a
+// property the membership API should be sensitive to, and DeleteUser has
+// resolved it this way since it was written.
+//
+// A name nobody can resolve is an explicit error rather than an empty string
+// sent onward. Sent onward, it becomes a 404 from Keycloak that reads as "no
+// such organization", which points at the wrong object entirely.
 func (c *Client) AddOrganizationMember(organizationID, userID string) error {
-	if err := c.adminJSON(http.MethodPost, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID))+"/members", strings.TrimSpace(userID), nil); err != nil {
+	resolved, err := c.requireUserID(userID)
+	if err != nil {
+		return err
+	}
+	if err := c.adminJSON(http.MethodPost, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID))+"/members", resolved, nil); err != nil {
 		return err
 	}
 	c.invalidateMembership(userID)
+	c.invalidateMembership(resolved)
 	return nil
 }
 
 func (c *Client) RemoveOrganizationMember(organizationID, userID string) error {
-	if err := c.adminJSON(http.MethodDelete, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID))+"/members/"+url.PathEscape(strings.TrimSpace(userID)), nil, nil); err != nil {
+	resolved, err := c.requireUserID(userID)
+	if err != nil {
 		return err
 	}
+	if err := c.adminJSON(http.MethodDelete, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID))+"/members/"+url.PathEscape(resolved), nil, nil); err != nil {
+		return err
+	}
+	// Both spellings: the cache is keyed by whatever the caller used, and a
+	// membership that stays cached after a removal is a right that survives
+	// being taken away.
 	c.invalidateMembership(userID)
+	c.invalidateMembership(resolved)
 	return nil
+}
+
+// requireUserID resolves an identifier and refuses to continue without one.
+func (c *Client) requireUserID(identifier string) (string, error) {
+	resolved, err := c.resolveUserID(identifier)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(resolved) == "" {
+		return "", ErrNoSuchUser
+	}
+	return resolved, nil
 }
 
 func (c *Client) HasOrganization(identifier string) (bool, error) {
@@ -382,6 +419,17 @@ func IsConflict(err error) bool {
 	var apiErr *APIError
 	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict
 }
+
+// ErrNoSuchUser is a name the directory does not know.
+//
+// Distinct from a 404 out of Keycloak on purpose: those are indistinguishable
+// from each other once they cross a handler, and a member operation that
+// reported "no such organization" sent an administrator looking at the
+// organization listed in front of them.
+var ErrNoSuchUser = errors.New("no such user")
+
+// IsNoSuchUser reports whether the identifier named nobody.
+func IsNoSuchUser(err error) bool { return errors.Is(err, ErrNoSuchUser) }
 
 // IsNotFound reports whether Keycloak answered 404.
 func IsNotFound(err error) bool {

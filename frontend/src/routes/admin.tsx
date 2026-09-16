@@ -653,18 +653,18 @@ function IdentitySection() {
                     id: 'member',
                     header: t('common.user'),
                     cell: (member) => (
-                      <span className="font-medium">{member.username ?? member.userId}</span>
+                      <span className="font-medium">{member.username ?? member.id}</span>
                     ),
                   },
                 ]}
-                rowKey={(member) => member.userId}
+                rowKey={(member) => member.id}
                 isLoading={members.isLoading}
                 isError={members.isError}
                 error={members.error}
                 onRetry={() => void members.refetch()}
                 emptyState={<EmptyState compact title={t('members.empty')} />}
                 rowActions={(member) => (
-                  <DropdownMenuItem destructive onSelect={() => removeMember.mutate(member.userId)}>
+                  <DropdownMenuItem destructive onSelect={() => removeMember.mutate(member.id)}>
                     <Trash2 aria-hidden />
                     {t('common.delete')}
                   </DropdownMenuItem>
