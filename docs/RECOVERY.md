@@ -96,6 +96,29 @@ that already has one interleaves two of them, so it is an operator's decision.
 - **What a dataset contained at a point in time.** The platform records which
   dataset was attached to a run, not its contents. True data versioning needs
   immutable snapshots and has not been decided.
+- **Project and profile volumes that are not attached.** The nightly Longhorn
+  job backs up the volumes that have a running engine - the ones a workspace is
+  using. A volume whose last workspace stopped is skipped.
+
+  This is a decision, taken 2026-09-16, and it follows from what a workspace
+  is: **a disposable unit.** Code belongs in a repository, data belongs in
+  object storage, and a project volume is the scratch space in between. Backing
+  up active work and not dormant scratch space is not a gap in the policy, it
+  is the policy - and a nightly job that reattached every dormant volume in the
+  installation would buy coverage with I/O and with a moving part that fails
+  quietly.
+
+  What this asks of the people using the platform is therefore explicit:
+  **commit and push.** Anything that exists only inside a stopped workspace is
+  not backed up by the platform and is not meant to be. A workspace can be
+  reaped at its maximum lifetime, a volume can be lost with its node, and
+  neither event should cost anybody more than the time to clone a repository
+  and relaunch.
+
+  The figure to check rather than assume: on the DC on 2026-09-16 the nightly
+  job completed five backups against fourteen volumes - five attached, nine
+  detached. A report that says "backups completed" without saying against how
+  many volumes is the sentence this paragraph exists to prevent.
 
 ## Rehearsing
 

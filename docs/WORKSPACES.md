@@ -11,6 +11,25 @@ Current CE baseline for workspaces:
 - workload namespace: `noryx-loads` (via `NORYX_WORKLOAD_NAMESPACE`)
 - generated runtime pod name prefix: `wks-`
 
+## A workspace is disposable
+
+It is the one thing to know before using one. A workspace is a machine you are
+lent, not a machine you own: it has a maximum lifetime and the platform stops
+it when that is reached, its node can be replaced, and neither event is
+supposed to cost you more than the time to relaunch.
+
+So the rule for anybody working in one is short: **code goes to a repository,
+data goes to object storage.** The project volume is the scratch space in
+between - convenient, shared by the project, and not the place anything should
+only exist.
+
+The backup policy follows from this rather than the other way round: the
+nightly volume backup covers volumes a workspace is using and skips those whose
+last workspace has stopped (see [Recovery](RECOVERY.md)). That is deliberate,
+and it is only safe because of the sentence above. Work that exists solely
+inside a stopped workspace is not backed up by the platform and is not meant to
+be.
+
 ## Git identity
 
 At startup, a workspace configures a fallback Git author identity from the
