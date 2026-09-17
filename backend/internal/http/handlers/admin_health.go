@@ -79,6 +79,7 @@ func (h Handlers) platformHealth() healthReport {
 	alerts = append(alerts, h.storageCapacityAlerts()...)
 	alerts = append(alerts, h.jobFailureAlerts()...)
 	alerts = append(alerts, h.tokenExpiryAlerts()...)
+	alerts = append(alerts, h.datasetAccessAlerts()...)
 
 	// Most severe first: an operator reads the top of the list.
 	rank := map[healthSeverity]int{healthCritical: 0, healthWarning: 1, healthInfo: 2}
