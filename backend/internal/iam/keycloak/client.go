@@ -89,6 +89,20 @@ func (c *Client) ListUsers() ([]User, error) {
 	return users, nil
 }
 
+// ListRealmRoleMembers returns everybody holding one realm role.
+//
+// One call for the whole role rather than one per account: asking each user
+// what roles they hold is the obvious shape and it turns a screen of thirty
+// people into thirty round trips to the directory.
+func (c *Client) ListRealmRoleMembers(role string) ([]User, error) {
+	var users []User
+	path := "roles/" + url.PathEscape(strings.TrimSpace(role)) + "/users?max=200"
+	if err := c.adminJSON(http.MethodGet, path, nil, &users); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (c *Client) ListOrganizations() ([]Organization, error) {
 	var organizations []Organization
 	if err := c.adminJSON(http.MethodGet, "organizations?max=200", nil, &organizations); err != nil {

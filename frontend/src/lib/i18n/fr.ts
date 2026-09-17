@@ -973,6 +973,8 @@ export const fr = {
     window7d: '7 derniers jours',
     window30d: '30 derniers jours',
     window90d: '90 derniers jours',
+    administrator: 'Admin',
+    administratorHint: "Peut agir sur le travail de tout le monde sur cette plateforme.",
     organization: 'Organisation',
     lastSeen: 'Dernière connexion',
     neverSignedIn: 'Jamais connecté',

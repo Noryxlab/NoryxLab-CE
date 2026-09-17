@@ -967,6 +967,8 @@ export const en: Translations = {
     window7d: 'Last 7 days',
     window30d: 'Last 30 days',
     window90d: 'Last 90 days',
+    administrator: 'Admin',
+    administratorHint: 'Can act on everybody\u2019s work on this platform.',
     organization: 'Organisation',
     lastSeen: 'Last seen',
     neverSignedIn: 'Never signed in',

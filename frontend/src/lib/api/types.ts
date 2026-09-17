@@ -589,6 +589,13 @@ export interface PlatformUser {
   /** L'organisation a laquelle le compte appartient, vide quand il n'en a
    *  aucune - un compte de service, typiquement. */
   organization?: string;
+  /** Vrai pour un compte qui peut agir sur le travail de tout le monde.
+   *
+   *  Determine par le role de realm et le compte d'amorcage, qui sont les deux
+   *  voies de l'edition Community. Une edition Enterprise peut l'accorder par
+   *  un role personnalise que ceci ne voit pas : le marqueur affirme
+   *  "administrateur", jamais "pas administrateur". */
+  administrator?: boolean;
   /** Derniere connexion reussie, absente quand le compte ne s'est jamais
    *  connecte - ce qui est une reponse, et souvent la plus interessante :
    *  l'annuaire dit qui a le droit d'entrer, la plateforme dit qui est entre.

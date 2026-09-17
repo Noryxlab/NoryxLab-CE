@@ -56,8 +56,12 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		// Organization, because an administration screen for an installation
 		// shared between several parties is read by party before it is read by
 		// person.
-		Organization string     `json:"organization,omitempty"`
-		LastSeenAt   *time.Time `json:"lastSeenAt,omitempty"`
+		Organization string `json:"organization,omitempty"`
+		// Administrator marks the accounts that can act on everybody else's
+		// work. An administration screen that does not distinguish them is one
+		// where the most consequential fact about a row is the one it omits.
+		Administrator bool       `json:"administrator,omitempty"`
+		LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
 		// No sign-in count here, deliberately.
 		//
 		// It was reported alongside the date and it reads as surveillance on a
@@ -69,6 +73,7 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]userRow, 0, len(users))
 	membership := h.actorOrganizations()
+	administrators := h.globalAdministrators()
 	seen := map[string]store.LastSeen{}
 	if h.auditStore != nil {
 		if found, err := h.auditStore.LastSeen(); err != nil {
@@ -79,6 +84,8 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, user := range users {
 		row := userRow{User: user}
+		row.Administrator = administrators[strings.ToLower(user.Username)] ||
+			administrators[strings.ToLower(user.Email)]
 		if organization := membership[strings.ToLower(user.Username)]; organization != "" {
 			row.Organization = organization
 		} else {
@@ -392,4 +399,40 @@ func (h Handlers) stopAdminExecution(kind, id string) (string, string, error) {
 	default:
 		return "", "", fmt.Errorf("execution kind not found")
 	}
+}
+
+// globalAdministrators is who may act on everybody else's work.
+//
+// Read from the realm role and from the bootstrap account, which are the two
+// ways the Community edition grants it. An Enterprise installation can grant
+// it through a custom role as well, and this does not see those - so the badge
+// means "administrator, at least by these two routes" and never the reverse.
+// Marking somebody who is not would be worse than missing somebody who is.
+func (h Handlers) globalAdministrators() map[string]bool {
+	administrators := map[string]bool{}
+	if bootstrap := strings.ToLower(strings.TrimSpace(h.bootstrapAdminUser)); bootstrap != "" {
+		administrators[bootstrap] = true
+	}
+	if bootstrap := strings.ToLower(strings.TrimSpace(h.bootstrapAdminEmail)); bootstrap != "" {
+		administrators[bootstrap] = true
+	}
+	if h.keycloak == nil {
+		return administrators
+	}
+	members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole)
+	if err != nil {
+		// The list of accounts is what was asked for; a directory that will
+		// not answer this costs the badge, not the page.
+		log.Printf("users: administrators unavailable, listing without the marker: %v", err)
+		return administrators
+	}
+	for _, member := range members {
+		if member.Username != "" {
+			administrators[strings.ToLower(member.Username)] = true
+		}
+		if member.Email != "" {
+			administrators[strings.ToLower(member.Email)] = true
+		}
+	}
+	return administrators
 }

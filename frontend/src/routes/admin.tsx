@@ -288,7 +288,19 @@ function IdentitySection() {
       searchValue: (user) => `${fullName(user)} ${user.username} ${user.email} ${user.id}`,
       cell: (user) => (
         <div className="min-w-0">
-          <p className="truncate font-medium">{fullName(user) || user.username || user.id}</p>
+          <p className="flex items-center gap-2 truncate font-medium">
+            <span className="truncate">{fullName(user) || user.username || user.id}</span>
+            {/* Beside the name rather than in a column of its own: being able
+                to act on everybody else's work is a property of the person,
+                and it is the one fact on this row somebody scanning the list
+                is looking for. */}
+            {user.administrator ? (
+              <Badge tone="brand" title={t("admin.administratorHint")}>
+                <ShieldCheck aria-hidden className="size-3" />
+                {t('admin.administrator')}
+              </Badge>
+            ) : null}
+          </p>
           {fullName(user) ? (
             <p className="truncate text-xs text-muted-foreground">{user.username || user.id}</p>
           ) : null}
