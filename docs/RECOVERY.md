@@ -169,12 +169,32 @@ that already has one interleaves two of them, so it is an operator's decision.
 None of this is believable until it has been run.
 
 ```sh
-./scripts/ops/rehearse-restore.sh            # data, into a throwaway database
+./scripts/ops/rehearse-restore.sh                       # data, into a throwaway database
 REHEARSE=1 ./scripts/ops/restore-identity.sh <object>   # accounts, likewise
+./scripts/ops/rehearse-volume-restore.sh                # a volume, newest backup
+./scripts/ops/rehearse-volume-restore.sh backup-ea40e83a4e7741ae  # a specific one
 ```
 
-Both leave the live platform untouched and remove what they created. Run them
-on a schedule: the first time anybody restores must not be the day it matters.
+All three leave the live platform untouched and remove what they created. Run
+them on a schedule: the first time anybody restores must not be the day it
+matters.
+
+The volume rehearsal restores a Longhorn backup into a volume of its own and
+compares it to the live one file by file - an MD5 over each file's MD5, sorted
+by path, because a count of files or bytes would pass on a volume restored with
+the right shape and the wrong contents. Where the source claim still exists it
+is mounted read-only as the reference; where it does not, the restore is
+reported without a comparison rather than silently claiming success.
+
+Two things it is careful about, both learned by getting them wrong:
+
+- **Cleanup is a trap, not a final line.** A run that fails halfway would
+  otherwise leave a ten-gigabyte volume behind for somebody to find later and
+  not know whether it mattered.
+- **A difference is not automatically a bad backup.** If the volume was written
+  to after the backup was taken, the live copy is no longer a valid reference.
+  The script says so instead of reporting a failure, and prints the time the
+  backup was taken so the question can be settled.
 
 ## Rehearsal, 2026-09-17
 
