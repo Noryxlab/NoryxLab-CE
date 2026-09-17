@@ -223,7 +223,26 @@ credentials were rotated on 2026-09-17. Both were verified to the extent that a
 backup completed afterwards - which proves a file was written, not that it can
 be read back. This proves it can.
 
+All three paths were then rehearsed the same evening, on the DC:
+
+| Path | Result |
+|---|---|
+| Longhorn volume | 10,722 files, 440 MB, identical to the byte |
+| Database | HTTP 200, nine tables match; the backup holds twelve projects against eleven live, because one was deleted after it was taken |
+| Identity | 24 accounts, all with a password hash, and 7 organizations - the same 24 the platform has live |
+
+The database drill did not work when it was first run, and the three defects it
+had are worth keeping in mind for the next script of this kind. It had no
+credential and fell back to a header the platform has refused since component
+tokens landed. It reported that as "no backup object to restore", which sent
+the reader to look for a missing backup that was never missing. And the restore
+request went out before the throwaway backend was listening - `rollout status`
+returns when a container is running, and running is not listening.
+
+The worst of the three was none of those: with the restore failed, the drill
+printed nine CHECK lines and exited 0. A rehearsal that reports success while
+proving nothing is the failure this document exists to prevent, occurring in
+the instrument meant to detect it.
+
 What remains unproven, and is written here so it is not mistaken for proven:
-the same exercise on EMSE, and a restore of the database and identity dumps,
-which travel by a different path - a nightly job to object storage rather than
-Longhorn.
+the same three exercises on EMSE.
