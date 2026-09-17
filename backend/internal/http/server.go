@@ -256,6 +256,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/rbac-policy", h.GetAdminRBACPolicy)
 	mux.HandleFunc("PUT /api/v1/admin/rbac-policy", h.UpdateAdminRBACPolicy)
 	mux.HandleFunc("GET /api/v1/admin/storage-capacity", h.GetAdminStorageCapacity)
+	mux.HandleFunc("GET /api/v1/admin/activity", h.GetActivityReport)
 	mux.HandleFunc("GET /api/v1/admin/storage-endpoints", h.ListAdminStorageEndpoints)
 	mux.HandleFunc("POST /api/v1/admin/storage-endpoints", h.CreateAdminStorageEndpoint)
 	mux.HandleFunc("PUT /api/v1/admin/storage-endpoints/{endpointID}", h.UpdateAdminStorageEndpoint)

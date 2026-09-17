@@ -166,6 +166,26 @@ ENVELOPES = {
     "ProjectQuotaResponse": {"quota": "$Quota", "usage": "$QuotaUsage", "limited": "boolean"},
     "ProjectUsageResponse": {"total": "$UsageTotal", "samples": "[$UsageSample]"},
     "PlatformUsageResponse": {"from": "date-time", "to": "date-time", "items": "[$UsageTotal]"},
+    "ActivityActor": {"actor": "string", "events": "integer", "lastSeen": "date-time"},
+    "ActivityAction": {"action": "string", "count": "integer"},
+    "ActivityDay": {"day": "string", "people": "integer", "events": "integer"},
+    "ActivityReportResponse": {
+        "since": "date-time",
+        "until": "date-time",
+        # What the audit holds, as opposed to what was asked for. A report over
+        # ninety days on records that begin twelve days ago is not a quiet
+        # quarter, and a client reading this document has to be able to tell.
+        "coversSince": "date-time",
+        "coversUntil": "date-time",
+        "totalEvents": "integer",
+        "people": "[$ActivityActor]",
+        "actions": "[$ActivityAction]",
+        # People per day, never events: a bulk import writes one row per object
+        # and would otherwise decide the shape of the series.
+        "daily": "[$ActivityDay]",
+        "actionsShown": "integer",
+        "actionsTotal": "integer",
+    },
     "SMTPSettingsResponse": {"settings": "$SMTPSettings", "configured": "boolean"},
     "SMTPTestResponse": {"sent": "boolean", "recipient": "string"},
     "AdminEgressRuleListResponse": {"items": "[$EgressRule]", "profiles": "[string]", "enforced": "boolean"},
@@ -237,6 +257,7 @@ RESPONSES = {
     ("GET", "/api/v1/projects/{projectID}/quota"): "ProjectQuotaResponse",
     ("PUT", "/api/v1/admin/projects/{projectID}/quota"): "ProjectQuotaResponse",
     ("GET", "/api/v1/projects/{projectID}/usage"): "ProjectUsageResponse",
+    ("GET", "/api/v1/admin/activity"): "ActivityReportResponse",
     ("GET", "/api/v1/admin/usage"): "PlatformUsageResponse",
     ("GET", "/api/v1/admin/smtp"): "SMTPSettingsResponse",
     ("PUT", "/api/v1/admin/smtp"): "SMTPSettingsResponse",

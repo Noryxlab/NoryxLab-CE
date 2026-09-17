@@ -153,6 +153,9 @@ func (s *AuditStore) Stream(filter store.AuditFilter, visit func(audit.Event) er
 	return s.Store.StreamAuditEvents(filter, visit)
 }
 func (s *AuditStore) LastSeen() (map[string]store.LastSeen, error) { return s.Store.LastSeenByActor() }
+func (s *AuditStore) Usage(since, until time.Time) (store.UsageReport, error) {
+	return s.Store.UsageSummary(since, until)
+}
 func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 	return s.Store.ListAuditEvents(filter)
 }

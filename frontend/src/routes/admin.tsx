@@ -98,6 +98,7 @@ import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
 import { RoleMatrixEditor } from '@/features/admin/role-matrix';
 import { StorageCapacityPanel } from '@/features/admin/storage-capacity';
+import { PlatformActivitySection } from '@/features/admin/platform-activity';
 import { PlatformUsageSection } from '@/features/admin/platform-usage';
 import { PlatformSettingsSection } from '@/features/admin/platform-settings';
 import type {
@@ -1882,6 +1883,7 @@ export function AdminPage() {
           <SoftwareInventorySection />
         </TabsContent>
         <TabsContent value="usage">
+          <PlatformActivitySection />
           <PlatformUsageSection />
         </TabsContent>
 

@@ -1276,3 +1276,25 @@ export interface StorageCapacityReport {
    *  puissent pas diverger sur le moment de s'inquieter. */
   warnBelow: number;
 }
+
+/** Ce que la plateforme a servi, sur une periode : des personnes et des
+ *  actions, par opposition a UsageTotal qui compte des vCPU-heures. */
+export interface ActivityReport {
+  since: string;
+  until: string;
+  /** Ce que l'audit detient reellement, souvent different de la periode
+   *  demandee. Un rapport sur 90 jours dont les enregistrements commencent il
+   *  y a 12 jours n'est pas un trimestre calme, et l'ecran doit pouvoir le
+   *  dire. Absent quand l'audit est vide. */
+  coversSince?: string;
+  coversUntil?: string;
+  totalEvents: number;
+  people: { actor: string; events: number; lastSeen?: string }[];
+  actions: { action: string; count: number }[];
+  /** Compte des *personnes* par jour, pas des evenements : un import massif
+   *  ecrit des centaines de milliers de lignes et enterrerait une semaine de
+   *  travail reel sous une seule operation machine. */
+  daily: { day: string; people: number; events: number }[];
+  actionsShown: number;
+  actionsTotal: number;
+}

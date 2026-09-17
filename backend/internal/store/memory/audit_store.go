@@ -1,7 +1,9 @@
 package memory
 
 import (
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/audit"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
@@ -40,6 +42,69 @@ func (s *AuditStore) LastSeen() (map[string]store.LastSeen, error) {
 		seen[event.ActorUserID] = entry
 	}
 	return seen, nil
+}
+
+// Usage walks what is held, which in memory is everything there is.
+func (s *AuditStore) Usage(since, until time.Time) (store.UsageReport, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	report := store.UsageReport{Since: since, Until: until}
+	people := map[string]store.UsageActor{}
+	actions := map[string]int{}
+	type dayTally struct {
+		events int
+		people map[string]struct{}
+	}
+	days := map[time.Time]*dayTally{}
+
+	for _, event := range s.items {
+		if report.CoversSince.IsZero() || event.OccurredAt.Before(report.CoversSince) {
+			report.CoversSince = event.OccurredAt
+		}
+		if event.OccurredAt.After(report.CoversUntil) {
+			report.CoversUntil = event.OccurredAt
+		}
+		if event.OccurredAt.Before(since) || event.OccurredAt.After(until) {
+			continue
+		}
+		report.TotalEvents++
+		actions[event.Action]++
+
+		day := event.OccurredAt.UTC().Truncate(24 * time.Hour)
+		tally := days[day]
+		if tally == nil {
+			tally = &dayTally{people: map[string]struct{}{}}
+			days[day] = tally
+		}
+		tally.events++
+
+		if event.ActorUserID == "" {
+			continue
+		}
+		tally.people[event.ActorUserID] = struct{}{}
+		actor := people[event.ActorUserID]
+		actor.Actor = event.ActorUserID
+		actor.Events++
+		if event.OccurredAt.After(actor.LastSeen) {
+			actor.LastSeen = event.OccurredAt
+		}
+		people[event.ActorUserID] = actor
+	}
+
+	for _, actor := range people {
+		report.People = append(report.People, actor)
+	}
+	sort.Slice(report.People, func(i, j int) bool { return report.People[i].Events > report.People[j].Events })
+	for action, count := range actions {
+		report.Actions = append(report.Actions, store.UsageAction{Action: action, Count: count})
+	}
+	sort.Slice(report.Actions, func(i, j int) bool { return report.Actions[i].Count > report.Actions[j].Count })
+	for day, tally := range days {
+		report.Daily = append(report.Daily, store.UsageDay{Day: day, People: len(tally.people), Events: tally.events})
+	}
+	sort.Slice(report.Daily, func(i, j int) bool { return report.Daily[i].Day.Before(report.Daily[j].Day) })
+	return report, nil
 }
 
 func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {

@@ -211,9 +211,26 @@ function storageHint(
   t: ReturnType<typeof useT>,
 ): string {
   if (!storage) return t('home.storageHint');
-  const left = (storage.datasetsRegulated ?? 0) + (storage.datasetsUnreadable ?? 0);
   if (storage.truncated) return t('home.storageTruncated');
-  if (left > 0) {
+
+  const regulated = storage.datasetsRegulated ?? 0;
+  const unreadable = storage.datasetsUnreadable ?? 0;
+
+  // Unreadable first, and named separately from regulated.
+  //
+  // The two were added together and reported as "health datasets are not
+  // counted", which attributes the whole gap to policy. A dataset the platform
+  // could not read is not a decision, it is a fault - wrong credentials, an
+  // endpoint that has moved - and it stays invisible exactly as long as the
+  // sentence covering it says something reassuring. The backend keeps the two
+  // apart on purpose; the screen was throwing that away.
+  if (unreadable > 0) {
+    return t('home.storageUnreadable')
+      .replace('{measured}', String(storage.datasetsMeasured))
+      .replace('{total}', String(storage.datasetsTotal))
+      .replace('{unreadable}', String(unreadable));
+  }
+  if (regulated > 0) {
     return t('home.storagePartial')
       .replace('{measured}', String(storage.datasetsMeasured))
       .replace('{total}', String(storage.datasetsTotal));

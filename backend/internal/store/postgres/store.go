@@ -1757,6 +1757,99 @@ func (s *Store) StreamAuditEvents(filter storepkg.AuditFilter, visit func(audit.
 	return rows.Err()
 }
 
+// UsageSummary aggregates the audit over a period, in four passes.
+//
+// Four small queries rather than one wide one: each answers a different
+// question at a different grain, and a join across them would multiply rows
+// before grouping them back down. Everything is bounded by the period, so the
+// cost follows what is being looked at rather than the size of the table.
+func (s *Store) UsageSummary(since, until time.Time) (storepkg.UsageReport, error) {
+	report := storepkg.UsageReport{Since: since, Until: until}
+
+	// What the audit actually holds, over its whole life rather than the
+	// period: a report over ninety days on an installation whose records begin
+	// twelve days ago is not a quiet quarter, and the screen has to be able to
+	// say which of the two it is looking at.
+	var coversSince, coversUntil sql.NullTime
+	if err := s.db.QueryRow(`SELECT MIN(occurred_at), MAX(occurred_at) FROM audit_events`).
+		Scan(&coversSince, &coversUntil); err != nil {
+		return report, err
+	}
+	if coversSince.Valid {
+		report.CoversSince = coversSince.Time
+	}
+	if coversUntil.Valid {
+		report.CoversUntil = coversUntil.Time
+	}
+
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE occurred_at >= $1 AND occurred_at <= $2`,
+		since, until).Scan(&report.TotalEvents); err != nil {
+		return report, err
+	}
+
+	people, err := s.db.Query(`SELECT actor_user_id, COUNT(*), MAX(occurred_at)
+		FROM audit_events
+		WHERE occurred_at >= $1 AND occurred_at <= $2 AND actor_user_id <> ''
+		GROUP BY actor_user_id
+		ORDER BY COUNT(*) DESC`, since, until)
+	if err != nil {
+		return report, err
+	}
+	defer people.Close()
+	for people.Next() {
+		var actor storepkg.UsageActor
+		if err := people.Scan(&actor.Actor, &actor.Events, &actor.LastSeen); err != nil {
+			return report, err
+		}
+		report.People = append(report.People, actor)
+	}
+	if err := people.Err(); err != nil {
+		return report, err
+	}
+
+	actions, err := s.db.Query(`SELECT action, COUNT(*)
+		FROM audit_events
+		WHERE occurred_at >= $1 AND occurred_at <= $2
+		GROUP BY action
+		ORDER BY COUNT(*) DESC`, since, until)
+	if err != nil {
+		return report, err
+	}
+	defer actions.Close()
+	for actions.Next() {
+		var action storepkg.UsageAction
+		if err := actions.Scan(&action.Action, &action.Count); err != nil {
+			return report, err
+		}
+		report.Actions = append(report.Actions, action)
+	}
+	if err := actions.Err(); err != nil {
+		return report, err
+	}
+
+	// COUNT(DISTINCT actor) is what keeps a bulk import from deciding the
+	// shape of the week. See UsageReport.
+	daily, err := s.db.Query(`SELECT date_trunc('day', occurred_at) AS day,
+			COUNT(DISTINCT actor_user_id) FILTER (WHERE actor_user_id <> ''),
+			COUNT(*)
+		FROM audit_events
+		WHERE occurred_at >= $1 AND occurred_at <= $2
+		GROUP BY day
+		ORDER BY day`, since, until)
+	if err != nil {
+		return report, err
+	}
+	defer daily.Close()
+	for daily.Next() {
+		var day storepkg.UsageDay
+		if err := daily.Scan(&day.Day, &day.People, &day.Events); err != nil {
+			return report, err
+		}
+		report.Daily = append(report.Daily, day)
+	}
+	return report, daily.Err()
+}
+
 // LastSeenByActor answers "when did each account last sign in", in one pass.
 //
 // Aggregated in the database rather than by reading the events out: the table

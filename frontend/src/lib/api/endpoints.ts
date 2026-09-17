@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  ActivityReport,
   AIServicesStatus,
   Agent,
   AgentGovernanceReport,
@@ -598,6 +599,9 @@ export const adminApi = {
   sendPasswordResetEmail: (userId: string) =>
     api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
   usage: () => api.get<{ from: string; to: string; items: UsageTotal[] }>(`${V1}/admin/usage`),
+  /** L'activite, distincte de `usage` qui compte des vCPU-heures. */
+  activity: (window: string) =>
+    api.get<ActivityReport>(`${V1}/admin/activity?window=${encodeURIComponent(window)}`),
   setProjectQuota: (projectId: string, input: Partial<ProjectQuota>) =>
     api.put<ProjectQuotaState>(`${V1}/admin/projects/${encodeURIComponent(projectId)}/quota`, input),
   hardwareTiers: () => api.list<AdminHardwareTier>(`${V1}/admin/hardware-tiers`),

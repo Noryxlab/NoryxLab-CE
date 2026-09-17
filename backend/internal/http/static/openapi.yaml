@@ -40,6 +40,42 @@ components:
       name: X-Noryx-User
 
   schemas:
+    ActivityActor:
+      type: object
+      properties:
+        actor: { type: string }
+        events: { type: integer }
+        lastSeen: { type: string, format: date-time }
+    ActivityAction:
+      type: object
+      properties:
+        action: { type: string }
+        count: { type: integer }
+    ActivityDay:
+      type: object
+      properties:
+        day: { type: string }
+        people: { type: integer }
+        events: { type: integer }
+    ActivityReportResponse:
+      type: object
+      properties:
+        since: { type: string, format: date-time }
+        until: { type: string, format: date-time }
+        coversSince: { type: string, format: date-time }
+        coversUntil: { type: string, format: date-time }
+        totalEvents: { type: integer }
+        people:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityActor' }
+        actions:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityAction' }
+        daily:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityDay' }
+        actionsShown: { type: integer }
+        actionsTotal: { type: integer }
     StorageCapacityNode:
       type: object
       properties:
@@ -7099,6 +7135,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StorageCapacityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/activity:
+    get:
+      tags: [Admin]
+      summary: Who used the platform over a period, and what they did
+      description: >-
+        Read back from the audit log. Distinct from /admin/usage, which counts
+        vCPU-hours consumed per project and answers a cost question; this one
+        counts people and actions. The daily series counts distinct people
+        rather than events, so a bulk import - which writes one audit row per
+        object, hundreds of thousands in an afternoon - cannot bury a week of
+        real work under a single machine operation. coversSince and coversUntil
+        report the period the audit actually holds, which is often narrower
+        than the window asked for: a report over ninety days on records that
+        begin twelve days ago is not a quiet quarter.
+      operationId: getActivityReport
+      parameters:
+        - in: query
+          name: window
+          required: false
+          schema:
+            type: string
+            default: 720h
+          description: >-
+            A Go duration, positive and no longer than a year. Defaults to
+            thirty days.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityReportResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
