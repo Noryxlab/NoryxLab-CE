@@ -362,6 +362,10 @@ export const datasetsApi = {
   update: (datasetId: string, input: { name?: string; description?: string }) =>
     api.put<Dataset>(`${V1}/datasets/${datasetId}`, input),
   remove: (datasetId: string) => api.delete<void>(`${V1}/datasets/${datasetId}`),
+  /** Remplace les identifiants S3. Ils sont eprouves avant d'etre enregistres :
+   *  en sauver qui ne marchent pas ne fait que deplacer la panne. */
+  setCredentials: (datasetId: string, input: { accessKey: string; secretKey: string }) =>
+    api.put<{ updated: boolean }>(`${V1}/datasets/${datasetId}/credentials`, input),
   setOwner: (datasetId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Dataset>(`${V1}/datasets/${datasetId}/ownership`, input),
 

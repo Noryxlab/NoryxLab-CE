@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio-go/v7"
-
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 )
 
@@ -26,15 +24,20 @@ import (
 // difference - it counts unreadable separately from regulated - and said
 // nothing with it.
 //
-// Regulated datasets are not probed. Not listing the keys of health data is
-// the point of excluding them from the storage figure in the first place, and
-// a health check that walked them to prove they are reachable would give that
-// back for a green tick.
+// Regulated datasets are probed too, and the way they are probed is the point.
+//
+// The first version of this check skipped them, reasoning that walking the
+// keys of health data to earn a green tick was a poor trade. That reasoning
+// was right about listing and wrong about the conclusion, and it left the
+// blind spot that hid this for half a day: the protection that stops the
+// platform looking inside a regulated bucket also stopped it noticing it had
+// lost the key.
+//
+// BucketExists settles it. It proves the endpoint, the credentials and access
+// to that bucket, and it enumerates nothing - the platform can show it still
+// holds the key without walking through the door.
 
 const (
-	// One object is enough: the question is whether the credentials and the
-	// endpoint still work, not what the bucket holds.
-	datasetProbeLimit = 1
 	// Short, and per dataset. This runs whenever somebody opens the health
 	// screen, and an unreachable endpoint usually fails by not answering - a
 	// generous deadline here is a health page that hangs.
@@ -56,10 +59,7 @@ func (h Handlers) datasetAccessAlerts() []healthAlert {
 
 	unreachable := []string{}
 	for _, item := range datasets {
-		if strings.EqualFold(item.Classification, "hds") {
-			continue
-		}
-		if !h.datasetIsReadable(item) {
+		if !h.datasetIsReachable(item) {
 			name := strings.TrimSpace(item.Name)
 			if name == "" {
 				name = item.Bucket
@@ -100,28 +100,15 @@ func datasetAccessAlert(unreachable []string) healthAlert {
 	}
 }
 
-// datasetIsReadable asks the object store one question, with a deadline.
-func (h Handlers) datasetIsReadable(item dataset.Dataset) bool {
+// datasetIsReachable asks the object store one question, with a deadline, and
+// reads nothing.
+func (h Handlers) datasetIsReachable(item dataset.Dataset) bool {
 	client, _, err := h.datasetS3Client(item)
 	if err != nil || client == nil {
 		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), datasetProbeTimeout)
 	defer cancel()
-
-	prefix := strings.Trim(item.Prefix, "/")
-	if prefix != "" {
-		prefix += "/"
-	}
-	// An empty dataset is readable: the walk ending without an error is the
-	// answer, whether or not it produced an object.
-	for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{
-		Prefix: prefix, Recursive: true, MaxKeys: datasetProbeLimit,
-	}) {
-		if object.Err != nil {
-			return false
-		}
-		break
-	}
-	return ctx.Err() == nil
+	exists, err := client.BucketExists(ctx, item.Bucket)
+	return err == nil && exists
 }

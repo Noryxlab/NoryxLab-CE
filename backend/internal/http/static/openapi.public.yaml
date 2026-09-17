@@ -44,6 +44,10 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetCredentialsUpdatedResponse:
+      type: object
+      properties:
+        updated: { type: boolean }
     ActivityActor:
       type: object
       properties:
@@ -6636,6 +6640,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ActivityReportResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/credentials:
+    put:
+      tags: [Datasets]
+      summary: Replace the credentials a dataset uses to reach its object store
+      description: >-
+        Credentials could be set when the dataset was created and never
+        afterwards, which held until the day the object store's password was
+        rotated: every dataset carries its own encrypted copy, so they all
+        stopped being readable at once and the only way back was to recreate
+        them, discarding the access rules granted on them.
+
+        The new credentials are proved before they are stored, with a request
+        that checks the bucket answers and reads nothing from it. Credentials
+        that cannot reach the bucket are refused and the previous ones are left
+        in place: saving one that does not work only moves the failure
+        somewhere less visible. The access key is recorded in the audit trail,
+        the secret is not.
+      operationId: updateDatasetCredentials
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetCredentialsUpdatedResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

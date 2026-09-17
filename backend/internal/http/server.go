@@ -147,6 +147,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/download-url", h.CreateDatasetObjectDownloadURL)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/download", h.DownloadDatasetObjects)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/access", h.ListDatasetAccess)
+	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/credentials", h.UpdateDatasetCredentials)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/ownership", h.UpdateDatasetOwner)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}", h.SetDatasetAccess)
 	mux.HandleFunc("DELETE /api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}", h.DeleteDatasetAccess)
