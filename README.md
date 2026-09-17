@@ -181,6 +181,7 @@ in sync with the router. See [API documentation](docs/API.md).
 - [Applications and Production](docs/APPS_V1.md) and [Production](docs/PRODUCTION.md)
 - [Data sources](docs/DATASOURCES_V1.md)
 - [Hardware tiers](docs/HARDWARE_TIERS.md)
+- [Sending mail from a site that blocks SMTP](docs/MAIL.md)
 - [Agents: when to use one, and how they work](docs/AGENTS.md)
 
 ### Operations

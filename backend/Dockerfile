@@ -20,12 +20,18 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
       -o /out/noryx-api ./cmd/noryx-api; \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
       -ldflags "-X github.com/Noryxlab/NoryxLab-CE/backend/internal/buildinfo.Version=${NORYX_VERSION}" \
-      -o /out/noryx-project-files ./cmd/noryx-project-files
+      -o /out/noryx-project-files ./cmd/noryx-project-files; \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+      -ldflags "-X github.com/Noryxlab/NoryxLab-CE/backend/internal/buildinfo.Version=${NORYX_VERSION}" \
+      -o /out/noryx-mail ./cmd/noryx-mail
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /out/noryx-api /usr/local/bin/noryx-api
 COPY --from=builder /out/noryx-project-files /usr/local/bin/noryx-project-files
+# Le meme binaire porte le pont et le relai : un seul format d'enveloppe, une
+# seule base de code, et la moitie qui tourne est decidee par NORYX_MAIL_MODE.
+COPY --from=builder /out/noryx-mail /usr/local/bin/noryx-mail
 
 EXPOSE 8080
 

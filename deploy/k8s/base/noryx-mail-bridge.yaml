@@ -1,0 +1,86 @@
+# Le pont SMTP -> HTTPS, dans le cluster.
+#
+# Il existe parce que le site ferme les ports de messagerie en sortie - mesure
+# sur EMSE vers le relai de l'etablissement, Google, Microsoft et le
+# fournisseur du domaine, pendant que le 443 sort normalement - et parce que
+# Keycloak, qui emet les invitations et les reinitialisations, ne parle que
+# SMTP et ne peut pas etre modifie.
+#
+# Keycloak et la plateforme le designent comme leur serveur SMTP :
+#
+#   host = noryx-mail-bridge.noryx.svc.cluster.local
+#   port = 1025, sans authentification ni TLS
+#
+# Le lien ne quitte pas le cluster et les politiques reseau bornent qui peut
+# l'atteindre ; y ajouter du TLS chiffrerait un saut qui ne traverse rien, au
+# prix d'un certificat a renouveler. Le chiffrement commence au saut suivant,
+# qui est celui qui sort.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noryx-mail-bridge
+  namespace: noryx
+  labels:
+    app: noryx-mail-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: noryx-mail-bridge
+  template:
+    metadata:
+      labels:
+        app: noryx-mail-bridge
+    spec:
+      serviceAccountName: default
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: noryx-mail-bridge
+          image: harbor.example.local/noryx-ce/noryx-backend:latest
+          command: ["/usr/local/bin/noryx-mail"]
+          env:
+            - name: NORYX_MAIL_MODE
+              value: "bridge"
+            - name: NORYX_MAIL_LISTEN_ADDR
+              value: ":1025"
+            - name: NORYX_MAIL_RELAY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-mail-bridge
+                  key: NORYX_MAIL_RELAY_URL
+            - name: NORYX_MAIL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: noryx-mail-bridge
+                  key: NORYX_MAIL_TOKEN
+          ports:
+            - containerPort: 1025
+              name: smtp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noryx-mail-bridge
+  namespace: noryx
+spec:
+  selector:
+    app: noryx-mail-bridge
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: 1025
