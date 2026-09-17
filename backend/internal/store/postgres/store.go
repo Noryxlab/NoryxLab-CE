@@ -1757,6 +1757,38 @@ func (s *Store) StreamAuditEvents(filter storepkg.AuditFilter, visit func(audit.
 	return rows.Err()
 }
 
+// LastSeenByActor answers "when did each account last sign in", in one pass.
+//
+// Aggregated in the database rather than by reading the events out: the table
+// reaches hundreds of thousands of rows on an installation that has been up a
+// while, and an administration screen must not pay for that to draw a column.
+//
+// Only successful sign-ins count. A string of failures is worth knowing about,
+// but it is not evidence that somebody is using the platform, and showing it as
+// "last seen" would say the opposite of what happened.
+func (s *Store) LastSeenByActor() (map[string]storepkg.LastSeen, error) {
+	rows, err := s.db.Query(`SELECT actor_user_id, MAX(occurred_at), COUNT(*)
+		FROM audit_events
+		WHERE action = 'auth.login' AND outcome = 'success'
+		GROUP BY actor_user_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	seen := map[string]storepkg.LastSeen{}
+	for rows.Next() {
+		var actor string
+		var at time.Time
+		var count int
+		if err := rows.Scan(&actor, &at, &count); err != nil {
+			return nil, err
+		}
+		seen[actor] = storepkg.LastSeen{At: at, Count: count}
+	}
+	return seen, rows.Err()
+}
+
 func (s *Store) ListAuditEvents(filter storepkg.AuditFilter) ([]audit.Event, error) {
 	limit := filter.Limit
 	if limit <= 0 || limit > 500 {

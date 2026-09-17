@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -11,7 +12,9 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/build"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
 
 type adminExecution struct {
@@ -41,7 +44,45 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"items": users})
+	// Merged here rather than asked of Keycloak: Keycloak knows who may sign
+	// in, the platform knows who did. An account that exists and has never been
+	// used looks identical to a working one on this screen otherwise, and that
+	// is exactly the pair an access review has to tell apart.
+	//
+	// A failure to read it degrades the column, not the page: the list of
+	// accounts is the thing being asked for.
+	type userRow struct {
+		keycloak.User
+		LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
+		SignIns    int        `json:"signIns,omitempty"`
+	}
+	rows := make([]userRow, 0, len(users))
+	seen := map[string]store.LastSeen{}
+	if h.auditStore != nil {
+		if found, err := h.auditStore.LastSeen(); err != nil {
+			log.Printf("users: last-seen unavailable, listing without it: %v", err)
+		} else {
+			seen = found
+		}
+	}
+	for _, user := range users {
+		row := userRow{User: user}
+		// The audit records the actor as the username, which is what
+		// Identity.UserID resolves to. Email is the fallback for an account
+		// that has no username, and is checked second for the same reason.
+		entry, ok := seen[user.Username]
+		if !ok {
+			entry, ok = seen[user.Email]
+		}
+		if ok && !entry.At.IsZero() {
+			at := entry.At
+			row.LastSeenAt = &at
+			row.SignIns = entry.Count
+		}
+		rows = append(rows, row)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": rows})
 }
 
 func (h Handlers) GetModulesStatus(w http.ResponseWriter, r *http.Request) {

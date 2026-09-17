@@ -584,6 +584,13 @@ export interface PlatformUser {
   username: string;
   email: string;
   enabled: boolean;
+  /** Derniere connexion reussie, absente quand le compte ne s'est jamais
+   *  connecte - ce qui est une reponse, et souvent la plus interessante :
+   *  l'annuaire dit qui a le droit d'entrer, la plateforme dit qui est entre. */
+  lastSeenAt?: string;
+  /** Nombre de connexions sur ce que la retention de l'audit conserve. Une
+   *  visite et deux cents ne disent pas la meme chose de la meme date. */
+  signIns?: number;
 }
 
 export interface Organization {

@@ -299,6 +299,24 @@ function IdentitySection() {
         ),
     },
     {
+      id: 'lastSeen',
+      header: t('admin.lastSeen'),
+      // Sorted on the instant, never on the rendered string: "il y a 3 jours"
+      // and "il y a 3 mois" sort next to each other as text.
+      sortValue: (user) => (user.lastSeenAt ? new Date(user.lastSeenAt).getTime() : null),
+      cell: (user) =>
+        user.lastSeenAt ? (
+          <span className="text-xs text-muted-foreground" title={formatDateTime(user.lastSeenAt)}>
+            {formatRelative(user.lastSeenAt)}
+            {user.signIns ? ` · ${t('admin.signIns', { count: String(user.signIns) })}` : ''}
+          </span>
+        ) : (
+          // An account that exists and has never been used is the pair an
+          // access review is looking for, so it is named rather than dashed.
+          <span className="text-xs text-muted-foreground">{t('admin.neverSignedIn')}</span>
+        ),
+    },
+    {
       id: 'actions',
       header: '',
       cell: (user) => (

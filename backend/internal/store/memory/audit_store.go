@@ -23,6 +23,25 @@ func (s *AuditStore) Create(event audit.Event) error {
 	return nil
 }
 
+// LastSeen walks what is held, which in memory is everything there is.
+func (s *AuditStore) LastSeen() (map[string]store.LastSeen, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	seen := map[string]store.LastSeen{}
+	for _, event := range s.items {
+		if event.Action != "auth.login" || event.Outcome != "success" {
+			continue
+		}
+		entry := seen[event.ActorUserID]
+		entry.Count++
+		if event.OccurredAt.After(entry.At) {
+			entry.At = event.OccurredAt
+		}
+		seen[event.ActorUserID] = entry
+	}
+	return seen, nil
+}
+
 func (s *AuditStore) List(filter store.AuditFilter) ([]audit.Event, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
