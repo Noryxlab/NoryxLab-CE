@@ -56,7 +56,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import {
   useAdminExecutions,
@@ -352,79 +352,6 @@ function IdentitySection() {
           <span className="text-xs text-muted-foreground">{t('admin.neverSignedIn')}</span>
         ),
     },
-    {
-      id: 'actions',
-      header: '',
-      cell: (user) => (
-        <div className="flex items-center justify-end gap-1">
-        {/* Disabled accounts offer the opposite action, and nothing else:
-            resetting the password of an account that cannot sign in is a
-            button that does nothing anyone wanted. */}
-        {user.enabled === false ? (
-          <>
-            <Button variant="ghost" size="sm" loading={reactivate.isPending} onClick={() => reactivate.mutate(user)}>
-              <UserCheck aria-hidden />
-              {t('admin.reactivate')}
-            </Button>
-            {/* Deletion is offered only here, on an account already disabled:
-                the first click stops access and keeps the record, the second
-                removes the account. */}
-            <Button variant="ghost" size="sm" onClick={() => setDeactivating(user)}>
-              <Trash2 aria-hidden />
-              {t('admin.deleteAccount')}
-            </Button>
-          </>
-        ) : (
-          <Button variant="ghost" size="sm" onClick={() => setDeactivating(user)}>
-            <UserX aria-hidden />
-            {t('admin.deactivate')}
-          </Button>
-        )}
-        {/* Offered only when the realm can actually send: a button that fails
-            at the click teaches an administrator to distrust the screen. */}
-        {smtp.data?.configured ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            loading={resetByEmail.isPending}
-            onClick={() =>
-              ask({
-                title: t('admin.resetByEmail'),
-                description: t('admin.resetByEmailHint', {
-                  user: user.username || user.id,
-                  // The platform's own number. Falling back to the same
-                  // default the backend uses keeps the sentence true on an
-                  // older backend that does not report it yet.
-                  hours: String(smtp.data?.passwordLinkLifetimeHours ?? 72),
-                }),
-                confirmLabel: t('admin.resetByEmail'),
-                onConfirm: () => resetByEmail.mutateAsync(user),
-              })
-            }
-          >
-            <Mail aria-hidden />
-            {t('admin.resetByEmail')}
-          </Button>
-        ) : null}
-        <Button
-          variant="ghost"
-          size="sm"
-          loading={resetPassword.isPending}
-          onClick={() =>
-            ask({
-              title: t('identity.resetPassword'),
-              description: t('identity.resetPasswordHint', { user: user.username || user.id }),
-              confirmLabel: t('identity.resetPassword'),
-              onConfirm: () => resetPassword.mutate(user),
-            })
-          }
-        >
-          <KeyRound aria-hidden />
-          {t('identity.resetPassword')}
-        </Button>
-        </div>
-      ),
-    },
   ];
 
   const organizationColumns: Column<Organization>[] = [
@@ -598,6 +525,81 @@ function IdentitySection() {
           onResetSearch={() => setSearch('')}
           defaultSort={{ columnId: 'user', direction: 'asc' }}
           emptyState={<EmptyState icon={Users} title={t('admin.users')} description={t('admin.usersHint')} />}
+          // Gathered into a menu rather than laid out across the row.
+          //
+          // Five columns and three buttons overflowed the table, so the last
+          // action was cut off the right edge. And the buttons sat a few pixels
+          // apart with no separation of consequence: "send a link" and
+          // "disable the account" looked alike and were adjacent, which is how
+          // an ordinary click becomes an incident. In the menu the ordinary
+          // actions come first, then a separator, then the ones that take
+          // access away.
+          rowActions={(user) => (
+            <>
+              {/* Offered only when the realm can actually send: an action that
+                  fails at the click teaches an administrator to distrust the
+                  screen. */}
+              {user.enabled !== false && smtp.data?.configured ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    ask({
+                      title: t('admin.resetByEmail'),
+                      description: t('admin.resetByEmailHint', {
+                        user: user.username || user.id,
+                        // The platform's own number. Falling back to the same
+                        // default the backend uses keeps the sentence true on
+                        // an older backend that does not report it yet.
+                        hours: String(smtp.data?.passwordLinkLifetimeHours ?? 72),
+                      }),
+                      confirmLabel: t('admin.resetByEmail'),
+                      onConfirm: () => resetByEmail.mutateAsync(user),
+                    })
+                  }
+                >
+                  <Mail aria-hidden />
+                  {t('admin.resetByEmail')}
+                </DropdownMenuItem>
+              ) : null}
+              {/* A disabled account offers the opposite action and nothing
+                  else: resetting the password of an account that cannot sign
+                  in is a button that does nothing anybody wanted. */}
+              {user.enabled === false ? (
+                <DropdownMenuItem onSelect={() => reactivate.mutate(user)}>
+                  <UserCheck aria-hidden />
+                  {t('admin.reactivate')}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    ask({
+                      title: t('identity.resetPassword'),
+                      description: t('identity.resetPasswordHint', { user: user.username || user.id }),
+                      confirmLabel: t('identity.resetPassword'),
+                      onConfirm: () => resetPassword.mutate(user),
+                    })
+                  }
+                >
+                  <KeyRound aria-hidden />
+                  {t('identity.resetPassword')}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {user.enabled === false ? (
+                // Deletion is offered only on an account already disabled: the
+                // first decision stops access and keeps the record, the second
+                // removes the account.
+                <DropdownMenuItem destructive onSelect={() => setDeactivating(user)}>
+                  <Trash2 aria-hidden />
+                  {t('admin.deleteAccount')}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem destructive onSelect={() => setDeactivating(user)}>
+                  <UserX aria-hidden />
+                  {t('admin.deactivate')}
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
         />
       </Card>
 
