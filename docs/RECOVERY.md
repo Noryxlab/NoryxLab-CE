@@ -175,3 +175,35 @@ REHEARSE=1 ./scripts/ops/restore-identity.sh <object>   # accounts, likewise
 
 Both leave the live platform untouched and remove what they created. Run them
 on a schedule: the first time anybody restores must not be the day it matters.
+
+## Rehearsal, 2026-09-17
+
+A Longhorn backup was restored and checked file by file, on the DC.
+
+| | Live volume | Restored |
+|---|---|---|
+| Files | 10,722 | 10,722 |
+| Bytes | 439,799,375 | 439,799,375 |
+| MD5 over the per-file checksums | `96219e116ca76b701b7c2a73f38b346d` | `96219e116ca76b701b7c2a73f38b346d` |
+
+The volume was a project workspace holding a Python environment and its
+dependencies - ten thousand small files, which is a harder case than one large
+one. The night's backup was taken at 00:40 and nothing on the volume had been
+written since, so the live copy was a valid reference: any difference would
+have been a defect rather than drift.
+
+Restoring took thirty seconds. The restored volume was mounted in a throwaway
+pod, fingerprinted, and destroyed; nothing in production was touched, and the
+live volume was only ever mounted read-only.
+
+**Why it was worth doing now rather than trusting the previous one.** The last
+rehearsal was on 2026-09-06, and two things in this path have changed since:
+Longhorn backups were added on the DC on 2026-09-16, and the object store's
+credentials were rotated on 2026-09-17. Both were verified to the extent that a
+backup completed afterwards - which proves a file was written, not that it can
+be read back. This proves it can.
+
+What remains unproven, and is written here so it is not mistaken for proven:
+the same exercise on EMSE, and a restore of the database and identity dumps,
+which travel by a different path - a nightly job to object storage rather than
+Longhorn.
