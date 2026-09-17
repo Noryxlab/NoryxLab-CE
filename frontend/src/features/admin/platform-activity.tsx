@@ -96,6 +96,30 @@ export function PlatformActivitySection() {
             </div>
           </Card>
 
+          {report.organizations.length > 0 ? (
+            <Card className="p-4">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {t('admin.byOrganization')}
+              </p>
+              <ul className="space-y-2">
+                {report.organizations.map((row) => (
+                  <li key={row.organization || 'none'} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="truncate">
+                      {row.organization || <span className="italic text-muted-foreground">{t('admin.noOrganization')}</span>}
+                    </span>
+                    {/* People first, count second: events are dominated by
+                        whoever automated something, and the question asked of
+                        a pilot is how many people each party brought. */}
+                    <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                      {t('admin.peopleCount', { count: String(row.people) })} ·{' '}
+                      {t('admin.eventsCount', { count: formatNumber(row.events) })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Card className="p-4">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -104,7 +128,12 @@ export function PlatformActivitySection() {
               <ul className="space-y-1.5">
                 {report.people.slice(0, 12).map((person) => (
                   <li key={person.actor} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="truncate">{person.actor}</span>
+                    <span className="min-w-0 truncate">
+                      {person.actor}
+                      {person.organization ? (
+                        <span className="ml-2 text-xs text-muted-foreground">{person.organization}</span>
+                      ) : null}
+                    </span>
                     <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
                       {formatNumber(person.events)}
                     </span>

@@ -1289,7 +1289,11 @@ export interface ActivityReport {
   coversSince?: string;
   coversUntil?: string;
   totalEvents: number;
-  people: { actor: string; events: number; lastSeen?: string }[];
+  people: { actor: string; organization?: string; events: number; lastSeen?: string }[];
+  /** La coupe dans laquelle un pilote se raconte : une installation partagée
+   *  entre un industriel, une école et un institut se fait demander combien
+   *  chacun s'en est servi, pas combien chaque compte a fait. */
+  organizations: { organization: string; people: number; events: number }[];
   actions: { action: string; count: number }[];
   /** Compte des *personnes* par jour, pas des evenements : un import massif
    *  ecrit des centaines de milliers de lignes et enterrerait une semaine de

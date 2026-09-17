@@ -246,7 +246,7 @@ function CreateDatasetSheet({
                   </Field>
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  {t('datasets.credentialsHint')}
+                  {t('datasets.replaceCredentialsHint')}
                 </p>
               </>
             ) : null}
@@ -296,6 +296,82 @@ function DatasetSize({ dataset }: { dataset: Dataset }) {
         {usage.data.truncated ? '+' : ''})
       </span>
     </span>
+  );
+}
+
+/**
+ * Remplacer les identifiants d'acces a l'objet store.
+ *
+ * Ils ne pouvaient etre poses qu'a la creation du dataset. Le jour ou le mot
+ * de passe du fournisseur a tourne, chaque dataset portant sa propre copie
+ * chiffree, ils ont cesse d'etre lisibles en meme temps - et la seule issue
+ * etait de les recreer, en perdant les droits deja accordes dessus.
+ *
+ * Le formulaire ne montre jamais les identifiants en place. Les reafficher
+ * n'aiderait personne a les remplacer et ferait de cet ecran un second endroit
+ * d'ou ils peuvent fuiter.
+ */
+function DatasetCredentials({ dataset }: { dataset: Dataset }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const [accessKey, setAccessKey] = React.useState('');
+  const [secretKey, setSecretKey] = React.useState('');
+
+  const replace = useMutation({
+    mutationFn: () => datasetsApi.setCredentials(dataset.id, { accessKey, secretKey }),
+    onSuccess: () => {
+      setAccessKey('');
+      setSecretKey('');
+      invalidate(qk.datasets);
+      toast.success(t('datasets.credentialsReplaced'));
+    },
+    // L'erreur du serveur telle quelle : elle distingue "ces identifiants
+    // n'ouvrent pas le bucket" d'une panne, et c'est la difference entre
+    // corriger une faute de frappe et ouvrir un ticket.
+    onError: (error) => toast.error(error, t('datasets.replaceCredentials')),
+  });
+
+  if (dataset.provider === 'minio') return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('datasets.replaceCredentials')}</CardTitle>
+          <CardDescription>{t('datasets.replaceCredentialsHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end"
+          onSubmit={(event) => {
+            event.preventDefault();
+            replace.mutate();
+          }}
+        >
+          <Field label={t('datasets.accessKey')}>
+            <Input value={accessKey} onChange={(event) => setAccessKey(event.target.value)} autoComplete="off" />
+          </Field>
+          <Field label={t('datasets.secretKey')}>
+            <Input
+              type="password"
+              value={secretKey}
+              onChange={(event) => setSecretKey(event.target.value)}
+              autoComplete="new-password"
+            />
+          </Field>
+          <Button
+            type="submit"
+            variant="secondary"
+            loading={replace.isPending}
+            disabled={!accessKey.trim() || !secretKey.trim()}
+          >
+            {t('datasets.replaceCredentials')}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -646,6 +722,7 @@ export function DatasetCatalog({
       {selected ? (
         <>
           <DatasetExplorer dataset={selected} />
+          <DatasetCredentials dataset={selected} />
           <DatasetOwnership dataset={selected} />
           <DatasetPermissions dataset={selected} />
         </>
