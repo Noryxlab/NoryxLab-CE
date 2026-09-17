@@ -49,10 +49,31 @@ REHEARSAL_SECRET="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom 
 # and it carried every right when this only needs backups. A component token
 # issued with the "operate" scope reaches backups and restores and is refused
 # everywhere else.
-if [ -n "${RESTORE_REHEARSAL_TOKEN:-}" ]; then
-  AUTH_HEADER="Authorization: Bearer ${RESTORE_REHEARSAL_TOKEN}"
+#
+# Read from the cluster when it is not supplied. The token is already there,
+# under its own name, and a drill meant to run on a schedule cannot depend on
+# somebody remembering to export it - this script could not run at all until
+# tonight for exactly that reason.
+REHEARSAL_TOKEN="${RESTORE_REHEARSAL_TOKEN:-}"
+if [ -z "${REHEARSAL_TOKEN}" ]; then
+  REHEARSAL_TOKEN="$(${KUBECTL} -n "${NAMESPACE}" get secret noryx-component-tokens \
+    -o jsonpath='{.data.RESTORE_REHEARSAL_TOKEN}' 2>/dev/null | base64 -d 2>/dev/null || true)"
+fi
+if [ -n "${REHEARSAL_TOKEN}" ]; then
+  AUTH_HEADER="Authorization: Bearer ${REHEARSAL_TOKEN}"
+elif [ -n "${NORYX_SERVICE_TOKEN:-}" ]; then
+  # The shared secret this replaced. Kept for an installation still on it, and
+  # nothing more: the platform answers 401 to it since component tokens landed.
+  AUTH_HEADER="X-Noryx-Service-Token: ${NORYX_SERVICE_TOKEN}"
 else
-  AUTH_HEADER="X-Noryx-Service-Token: ${NORYX_SERVICE_TOKEN:-}"
+  # Said here rather than three steps later. Without this the run reached the
+  # backup listing, was refused, found no object in the refusal, and reported
+  # "no backup object to restore; set OBJECT_KEY" - which sends whoever reads
+  # it looking for a missing backup when the backups are fine and the drill has
+  # no credential.
+  echo "no credential: set RESTORE_REHEARSAL_TOKEN, or make sure the" >&2
+  echo "  noryx-component-tokens secret holds RESTORE_REHEARSAL_TOKEN in ${NAMESPACE}" >&2
+  exit 1
 fi
 
 # The object to restore. Read from the live platform's own record, which is the
@@ -76,7 +97,17 @@ run_json="$(${KUBECTL} -n "${NAMESPACE}" run "rehearsal-reader-$$" --rm -i --res
 # faithfully.
 object_key="${OBJECT_KEY:-$(printf '%s' "${run_json}" | grep -o '"objectKey":"[^"]*"' | head -n 1 | cut -d'"' -f4)}"
 if [ -z "${object_key}" ]; then
-  echo "no backup object to restore; set OBJECT_KEY" >&2
+  # Two different failures, said apart. A refusal is a credential problem and
+  # an empty list is a backup problem, and reporting both as the second sent
+  # the reader to look at backups that were never in question.
+  case "${run_json}" in
+    *'"error"'*)
+      echo "the platform refused the backup listing: ${run_json}" >&2
+      ;;
+    *)
+      echo "no backup object to restore; set OBJECT_KEY" >&2
+      ;;
+  esac
   exit 1
 fi
 say "restoring ${object_key}"
@@ -167,10 +198,26 @@ ${KUBECTL} -n "${NAMESPACE}" rollout status deployment/noryx-restore-rehearsal -
 # left the drill reporting empty tables with no reason beside them, and an
 # operator reading "restored 0" cannot tell a broken backup from a broken
 # credential.
-restore_result="$(${KUBECTL} -n "${NAMESPACE}" run "rehearsal-client-$$" --rm -i --restart=Never --image="${CURL_IMAGE}" --quiet -- \
-  curl -s -w '\nHTTP %{http_code}' -X POST -H "X-Noryx-Service-Token: ${REHEARSAL_SECRET}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
-  -d "{\"mode\":\"missing-only\",\"objectKey\":\"${object_key}\"}" \
-  "http://noryx-restore-rehearsal:8080/api/v1/admin/backups/runs/external/restore" 2>&1 || true)"
+# Retried until the copy answers.
+#
+# `rollout status` returns when the container is running, and this deployment
+# has no readiness probe, so running is not listening: the backend waits up to
+# a minute for Postgres before it opens its port. A single request fired at that
+# moment came back HTTP 000 - a connection refused, reported as a failed
+# restore, with nine CHECK lines under it blaming the backup.
+#
+# curl's own --retry does not cover a refused connection, so the loop is here.
+restore_result=""
+for attempt in $(seq 1 20); do
+  restore_result="$(${KUBECTL} -n "${NAMESPACE}" run "rehearsal-client-$$-${attempt}" --rm -i --restart=Never --image="${CURL_IMAGE}" --quiet -- \
+    curl -s -w '\nHTTP %{http_code}' -X POST -H "X-Noryx-Service-Token: ${REHEARSAL_SECRET}" -H "X-Noryx-User: admin" -H "Content-Type: application/json" \
+    -d "{\"mode\":\"missing-only\",\"objectKey\":\"${object_key}\"}" \
+    "http://noryx-restore-rehearsal:8080/api/v1/admin/backups/runs/external/restore" 2>&1 || true)"
+  case "${restore_result}" in
+    *"HTTP 000"*) sleep 6 ;;
+    *) break ;;
+  esac
+done
 restore_status="$(printf '%s' "${restore_result}" | grep -o 'HTTP [0-9]*' | tail -n 1)"
 echo
 echo "  the restore answered ${restore_status:-nothing}"
@@ -207,6 +254,7 @@ count_live_and_restored() {
   done
 }
 
+failures=0
 for entry in \
   "projects|" \
   "datasets|" \
@@ -226,8 +274,24 @@ EOF
   status="ok  "
   # Live can legitimately have grown since the backup was taken; fewer is what
   # a failed restore looks like.
-  [ "${restored:-0}" -lt "${live:-0}" ] && status="CHECK"
+  if [ "${restored:-0}" -lt "${live:-0}" ]; then
+    status="CHECK"
+    failures=$((failures + 1))
+  fi
   printf '  %s  %-26s restored %-5s live %s\n' "${status}" "${table}" "${restored:-?}" "${live:-?}"
 done
 echo
 echo "  the rehearsal is removed on exit; the live platform was only read from"
+
+# The exit code has to carry the verdict.
+#
+# It did not: a run where the restore never happened printed nine CHECK lines
+# and exited 0. On a schedule that is a drill reporting success while proving
+# nothing - the same silent success this whole document exists to prevent, one
+# level up. Whoever reads the output sees the problem; whoever reads only the
+# exit code is the one this matters for.
+if [ "${failures}" -gt 0 ]; then
+  echo
+  echo "  ${failures} table(s) came back short: the restore did not reproduce the platform" >&2
+  exit 1
+fi
