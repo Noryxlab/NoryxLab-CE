@@ -81,7 +81,16 @@ export function HomePage() {
             loading={overview.isLoading}
             value={formatNumber(overview.data?.counts.active, locale)}
           />
-          {/* Le nombre de datasets, pas leur volume.
+          {/* Le volume, redevenu un total.
+            *
+            * Il avait ete remplace par un compte parce qu'il excluait les
+            * datasets de sante - une exclusion que je justifiais par le refus
+            * de parcourir des donnees de sante, alors que la plateforme les
+            * mesure deja ailleurs a la demande. La vraie contrainte etait le
+            * delai de cette page. Une passe nocturne l'a levee : le chiffre
+            * couvre tout, et il porte la date a laquelle il a ete pris.
+            *
+            * Ce qui reste ci-dessous : le nombre de datasets, pas leur volume.
             *
             * La carte affichait des octets sous le mot "Stockage" et le
             * chiffre excluait les datasets de sante - c'est-a-dire ceux qui
@@ -96,10 +105,10 @@ export function HomePage() {
             * legende, ou il peut dire sur quoi il porte (ADR-034). */}
           <Stat
             icon={HardDrive}
-            label={t('home.datasets')}
-            hint={storageHint(overview.data?.storage, t, locale)}
+            label={t('home.storage')}
+            hint={storageHint(overview.data, t, locale)}
             loading={overview.isLoading}
-            value={formatNumber(overview.data?.storage.datasetsTotal, locale)}
+            value={formatBytes(overview.data?.storage.bytes, locale)}
           />
         </StatGrid>
       </section>
@@ -220,37 +229,41 @@ export function HomePage() {
  * s'appuyer.
  */
 function storageHint(
-  storage: PlatformOverview['storage'] | undefined,
+  overview: PlatformOverview | undefined,
   t: ReturnType<typeof useT>,
   locale: 'fr' | 'en' | undefined,
 ): string {
+  const storage = overview?.storage;
   if (!storage) return t('home.storageHint');
 
-  const regulated = storage.datasetsRegulated ?? 0;
   const unreadable = storage.datasetsUnreadable ?? 0;
-  const volume = formatBytes(storage.bytes, locale);
+  const pending = storage.datasetsPending ?? 0;
 
-  if (storage.truncated) return t('home.storageTruncated');
-
-  // Unreadable first, and named separately from regulated.
-  //
-  // The two were added together and reported as "health datasets are not
-  // counted", which attributes the whole gap to policy. A dataset the platform
-  // could not read is not a decision, it is a fault - wrong credentials, an
-  // endpoint that has moved - and it stays invisible exactly as long as the
-  // sentence covering it says something reassuring. The backend keeps the two
-  // apart on purpose; the screen was throwing that away.
+  // Unreadable first: it is a fault to fix, and it makes the total wrong.
+  // Saying "health datasets are not counted" over it, as this used to, covers
+  // a broken credential with a sentence about policy.
   if (unreadable > 0) {
     return t('home.storageUnreadable')
-      .replace('{volume}', volume)
       .replace('{measured}', String(storage.datasetsMeasured))
       .replace('{unreadable}', String(unreadable));
   }
-  if (regulated > 0) {
-    return t('home.storagePartial')
-      .replace('{volume}', volume)
-      .replace('{measured}', String(storage.datasetsMeasured))
-      .replace('{regulated}', String(regulated));
+  // Nothing measured yet - the first night, or a platform started an hour ago.
+  // Distinct from a fault, and from a total of zero.
+  if (storage.datasetsMeasured === 0 && pending > 0) {
+    return t('home.storagePending');
   }
-  return t('home.storageMeasured').replace('{volume}', volume);
+  if (pending > 0) {
+    return t('home.storagePartial')
+      .replace('{measured}', String(storage.datasetsMeasured))
+      .replace('{pending}', String(pending));
+  }
+  const measuredAt = overview?.storageMeasuredAt;
+  if (measuredAt) {
+    // The date, because a figure taken last night and a figure taken now are
+    // both correct and only one of them is about today.
+    return t('home.storageAsOf')
+      .replace('{count}', String(storage.datasetsMeasured))
+      .replace('{when}', formatRelative(measuredAt, locale));
+  }
+  return t('home.storageHint');
 }

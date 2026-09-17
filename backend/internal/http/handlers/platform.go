@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
-	"strings"
 	"time"
 
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
-	"github.com/minio/minio-go/v7"
+	storepkg "github.com/Noryxlab/NoryxLab-CE/backend/internal/store"
 )
 
 func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
@@ -43,61 +41,51 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 		metrics, _ = inspector.GetWorkloadMetrics()
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-	defer cancel()
 	// What this figure covers, and what it leaves out.
 	//
-	// It read "656 Mo - volume measured on the reachable buckets" while one
-	// regulated dataset alone held several gigabytes. Two different silences
-	// produced that: regulated datasets are deliberately not enumerated here,
-	// and a measurement that runs past its deadline stops early. Neither was
-	// visible, so the number looked like a total and was a sample.
+	// Read from what the nightly sweep measured, not walked here.
 	//
-	// The counts below are reported so the interface can say which datasets
-	// the figure speaks for. A measurement that cannot state its own coverage
-	// is a measurement nobody should act on.
+	// It used to walk every bucket while somebody waited for the page, which
+	// is why it carried a deadline, stopped halfway on large datasets and left
+	// regulated ones out altogether. That exclusion was explained as refusing
+	// to enumerate health data; it was really refusing to spend ten seconds -
+	// the platform measures those same buckets on demand elsewhere, and one of
+	// them is 24,000 objects and 400 GB. Summing object sizes reads no
+	// content.
+	//
+	// So the sweep measures everything once a night and this reports it. The
+	// figure is a total rather than a sample, and it carries the time it was
+	// taken, because "as of last night" is honest in a way a number with no
+	// date is not.
 	var storageBytes int64
 	storageDatasets := 0
-	storageRegulated := 0
 	storageUnreadable := 0
-	storageTruncated := false
-	for _, item := range datasets {
-		if strings.EqualFold(item.Classification, "hds") {
-			// Not enumerated on purpose: listing a regulated bucket means the
-			// platform walking the keys of health data to produce a figure on
-			// a home page, which is not a trade worth making.
-			storageRegulated++
-			continue
-		}
-		client, _, err := h.datasetS3Client(item)
-		if err != nil || client == nil {
-			storageUnreadable++
-			continue
-		}
-		prefix := strings.Trim(item.Prefix, "/")
-		if prefix != "" {
-			prefix += "/"
-		}
-		var datasetBytes int64
-		readable := true
-		for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-			if object.Err != nil {
-				readable = false
-				break
+	storagePending := 0
+	var measuredAt time.Time
+	sizes := map[string]storepkg.DatasetSize{}
+	if h.datasetSizeStore != nil {
+		if entries, err := h.datasetSizeStore.List(); err == nil {
+			for _, entry := range entries {
+				sizes[entry.DatasetID] = entry
 			}
-			datasetBytes += object.Size
 		}
-		if readable {
-			storageBytes += datasetBytes
-			storageDatasets++
-		} else {
+	}
+	for _, item := range datasets {
+		entry, found := sizes[item.ID]
+		switch {
+		case !found:
+			// Never measured yet - a platform that started an hour ago, or a
+			// dataset created since the last sweep. Not the same as unreadable,
+			// and saying so keeps the first night from looking like a fault.
+			storagePending++
+		case entry.Failure != "":
 			storageUnreadable++
-		}
-		if ctx.Err() != nil {
-			// The deadline stopped the walk. Whatever has not been visited is
-			// not zero, and the interface has to be able to say so.
-			storageTruncated = true
-			break
+		default:
+			storageBytes += entry.Bytes
+			storageDatasets++
+			if entry.MeasuredAt.After(measuredAt) {
+				measuredAt = entry.MeasuredAt
+			}
 		}
 	}
 
@@ -109,18 +97,27 @@ func (h Handlers) GetPlatformOverview(w http.ResponseWriter, r *http.Request) {
 			"datasets": len(datasets),
 			"active":   active,
 		},
-		"workloadMetrics": metrics,
+		"workloadMetrics":   metrics,
+		"storageMeasuredAt": measuredAtOrNil(measuredAt),
 		"storage": map[string]any{
 			"bytes":            storageBytes,
 			"datasetsMeasured": storageDatasets,
 			"datasetsTotal":    len(datasets),
-			// Left out because they are regulated, and left out because they
-			// could not be read, are different facts with different remedies.
-			"datasetsRegulated":  storageRegulated,
+			// Not yet measured, as distinct from measured and unreadable.
+			"datasetsPending": storagePending,
+			// Measured and unreadable are different facts with different
+			// remedies, and a regulated dataset is no longer a third case:
+			// the nightly sweep measures those too.
 			"datasetsUnreadable": storageUnreadable,
-			// True when the deadline cut the walk short, so the figure is a
-			// floor rather than a total.
-			"truncated": storageTruncated,
 		},
 	})
+}
+
+// measuredAtOrNil keeps an unmeasured platform from reporting the zero time,
+// which renders as the year one and reads as a bug rather than as "not yet".
+func measuredAtOrNil(at time.Time) any {
+	if at.IsZero() {
+		return nil
+	}
+	return at
 }

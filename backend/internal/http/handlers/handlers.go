@@ -43,6 +43,7 @@ type Handlers struct {
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
 	passwordLinkLifetime             time.Duration
+	datasetSizeStore                 store.DatasetSizeStore
 	settings                         *settings.Resolver
 	storageEndpointStore             store.StorageEndpointStore
 	runtime                          runtime.Runner
@@ -181,6 +182,8 @@ type Options struct {
 	// copy that states a number the code no longer uses is how a screen starts
 	// lying to the person reading it.
 	PasswordLinkLifetime time.Duration
+	// DatasetSizeStore holds what each dataset was measured at, out of band.
+	DatasetSizeStore store.DatasetSizeStore
 	// Settings resolves administrator overrides at use time, so a change takes
 	// effect without a redeployment.
 	Settings                     *settings.Resolver
@@ -290,6 +293,7 @@ func New(
 		notifier:                         newNotifier(options),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
 		passwordLinkLifetime:             options.PasswordLinkLifetime,
+		datasetSizeStore:                 options.DatasetSizeStore,
 		settings:                         options.Settings,
 		agentStore:                       options.AgentStore,
 		agentTeamStore:                   options.AgentTeamStore,

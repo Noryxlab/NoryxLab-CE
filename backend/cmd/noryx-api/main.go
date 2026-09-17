@@ -39,6 +39,7 @@ func main() {
 	var workspaceStore store.WorkspaceStore = memory.NewWorkspaceStore()
 	var sessionStore store.SessionStore = memory.NewSessionStore()
 	var auditStore store.AuditStore = memory.NewAuditStore()
+	var datasetSizeStore store.DatasetSizeStore = memory.NewDatasetSizeStore()
 	var egressRuleStore store.EgressRuleStore = memory.NewEgressRuleStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
@@ -99,6 +100,7 @@ func main() {
 			workspaceStore = &postgres.WorkspaceStore{Store: pg}
 			sessionStore = &postgres.SessionStore{Store: pg}
 			auditStore = &postgres.AuditStore{Store: pg}
+			datasetSizeStore = &postgres.DatasetSizeStore{Store: pg}
 			egressRuleStore = &postgres.EgressRuleStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
@@ -253,6 +255,7 @@ func main() {
 			AlertInstanceName:                cfg.AlertInstanceName,
 			WorkspaceMaxLifetime:             cfg.WorkspaceMaxLifetime,
 			PasswordLinkLifetime:             cfg.PasswordLinkLifetime,
+			DatasetSizeStore:                 datasetSizeStore,
 			Settings:                         settingsResolver,
 			EditionHooks: &edition.Hooks{
 				Feature: features,
@@ -289,6 +292,7 @@ func main() {
 	h.StartJobWatcher(reaperCtx)
 	h.StartHealthWatcher(reaperCtx)
 	h.StartUsageSampler(reaperCtx)
+	h.StartDatasetSizeSampler(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)
 

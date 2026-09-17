@@ -152,6 +152,14 @@ func (s *AuditStore) Create(event audit.Event) error { return s.Store.CreateAudi
 func (s *AuditStore) Stream(filter store.AuditFilter, visit func(audit.Event) error) error {
 	return s.Store.StreamAuditEvents(filter, visit)
 }
+
+type DatasetSizeStore struct{ *Store }
+
+func (s *DatasetSizeStore) Upsert(entry store.DatasetSize) error {
+	return s.Store.UpsertDatasetSize(entry)
+}
+func (s *DatasetSizeStore) List() ([]store.DatasetSize, error) { return s.Store.ListDatasetSizes() }
+
 func (s *AuditStore) LastSeen() (map[string]store.LastSeen, error) { return s.Store.LastSeenByActor() }
 func (s *AuditStore) Usage(since, until time.Time) (store.UsageReport, error) {
 	return s.Store.UsageSummary(since, until)

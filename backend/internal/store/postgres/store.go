@@ -152,6 +152,25 @@ func migrationStatements() []string {
 			role TEXT NOT NULL,
 			PRIMARY KEY (project_id, organization_id)
 		)`,
+		// What each dataset holds, measured out of band.
+		//
+		// The home page used to walk the buckets while somebody waited for the
+		// page, which is why it carried a deadline, stopped halfway on large
+		// ones, and skipped regulated datasets entirely - the figure was
+		// partial by construction and could never say how partial. Walking
+		// them once a night costs nobody anything and produces a complete
+		// total; the page reads a row.
+		//
+		// failure is kept alongside rather than dropping the row: a dataset
+		// that could not be measured is a fact, and an absent row and an
+		// unreadable one would otherwise look the same.
+		`CREATE TABLE IF NOT EXISTS dataset_sizes (
+			dataset_id TEXT PRIMARY KEY,
+			bytes BIGINT NOT NULL DEFAULT 0,
+			objects BIGINT NOT NULL DEFAULT 0,
+			measured_at TIMESTAMPTZ NOT NULL,
+			failure TEXT NOT NULL DEFAULT ''
+		)`,
 		`CREATE TABLE IF NOT EXISTS usage_samples (
 			project_id TEXT NOT NULL,
 			at TIMESTAMPTZ NOT NULL,
@@ -1848,6 +1867,33 @@ func (s *Store) UsageSummary(since, until time.Time) (storepkg.UsageReport, erro
 		report.Daily = append(report.Daily, day)
 	}
 	return report, daily.Err()
+}
+
+func (s *Store) UpsertDatasetSize(entry storepkg.DatasetSize) error {
+	_, err := s.db.Exec(`INSERT INTO dataset_sizes (dataset_id, bytes, objects, measured_at, failure)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (dataset_id) DO UPDATE SET
+			bytes = EXCLUDED.bytes, objects = EXCLUDED.objects,
+			measured_at = EXCLUDED.measured_at, failure = EXCLUDED.failure`,
+		entry.DatasetID, entry.Bytes, entry.Objects, entry.MeasuredAt, entry.Failure)
+	return err
+}
+
+func (s *Store) ListDatasetSizes() ([]storepkg.DatasetSize, error) {
+	rows, err := s.db.Query(`SELECT dataset_id, bytes, objects, measured_at, failure FROM dataset_sizes`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var sizes []storepkg.DatasetSize
+	for rows.Next() {
+		var entry storepkg.DatasetSize
+		if err := rows.Scan(&entry.DatasetID, &entry.Bytes, &entry.Objects, &entry.MeasuredAt, &entry.Failure); err != nil {
+			return nil, err
+		}
+		sizes = append(sizes, entry)
+	}
+	return sizes, rows.Err()
 }
 
 // LastSeenByActor answers "when did each account last sign in", in one pass.

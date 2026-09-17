@@ -673,17 +673,18 @@ export interface PlatformOverview {
     users: number;
   };
   sampledAt: string;
+  /** Quand la passe nocturne a pris la mesure. Absent tant qu'aucune n'a
+   *  tourne : un chiffre sans date se lit comme un chiffre d'aujourd'hui. */
+  storageMeasuredAt?: string | null;
   storage: {
     bytes: number;
     datasetsMeasured: number;
     datasetsTotal: number;
-    /** Non comptés parce qu'ils sont réglementés : la plateforme n'énumère
-     *  pas les clés d'un bucket de santé pour produire un chiffre d'accueil. */
-    datasetsRegulated?: number;
+    /** Pas encore mesurés : la première nuit, ou un dataset créé depuis la
+     *  dernière passe. Distinct d'une panne, et distinct d'un total nul. */
+    datasetsPending?: number;
     /** Non comptés parce qu'ils n'ont pas répondu. Autre fait, autre remède. */
     datasetsUnreadable?: number;
-    /** La mesure a dépassé son délai : le chiffre est un plancher. */
-    truncated?: boolean;
   };
   workloadMetrics: WorkloadMetrics;
 }
