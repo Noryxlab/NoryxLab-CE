@@ -81,12 +81,25 @@ export function HomePage() {
             loading={overview.isLoading}
             value={formatNumber(overview.data?.counts.active, locale)}
           />
+          {/* Le nombre de datasets, pas leur volume.
+            *
+            * La carte affichait des octets sous le mot "Stockage" et le
+            * chiffre excluait les datasets de sante - c'est-a-dire ceux qui
+            * pesent. Elle a deja affiche 656 Mo quand un seul dataset
+            * reglemente en valait plusieurs gigaoctets. On avait repondu par
+            * une legende, et une legende sous un grand chiffre ne defait pas
+            * le grand chiffre : les trois autres cartes comptent des choses
+            * completes, celle-ci presentait une somme partielle comme un
+            * total.
+            *
+            * Le compte, lui, est complet. Le volume mesurable descend dans la
+            * legende, ou il peut dire sur quoi il porte (ADR-034). */}
           <Stat
             icon={HardDrive}
-            label={t('home.storage')}
-            hint={storageHint(overview.data?.storage, t)}
+            label={t('home.datasets')}
+            hint={storageHint(overview.data?.storage, t, locale)}
             loading={overview.isLoading}
-            value={formatBytes(overview.data?.storage.bytes, locale)}
+            value={formatNumber(overview.data?.storage.datasetsTotal, locale)}
           />
         </StatGrid>
       </section>
@@ -209,12 +222,15 @@ export function HomePage() {
 function storageHint(
   storage: PlatformOverview['storage'] | undefined,
   t: ReturnType<typeof useT>,
+  locale: 'fr' | 'en' | undefined,
 ): string {
   if (!storage) return t('home.storageHint');
-  if (storage.truncated) return t('home.storageTruncated');
 
   const regulated = storage.datasetsRegulated ?? 0;
   const unreadable = storage.datasetsUnreadable ?? 0;
+  const volume = formatBytes(storage.bytes, locale);
+
+  if (storage.truncated) return t('home.storageTruncated');
 
   // Unreadable first, and named separately from regulated.
   //
@@ -226,14 +242,15 @@ function storageHint(
   // apart on purpose; the screen was throwing that away.
   if (unreadable > 0) {
     return t('home.storageUnreadable')
+      .replace('{volume}', volume)
       .replace('{measured}', String(storage.datasetsMeasured))
-      .replace('{total}', String(storage.datasetsTotal))
       .replace('{unreadable}', String(unreadable));
   }
   if (regulated > 0) {
     return t('home.storagePartial')
+      .replace('{volume}', volume)
       .replace('{measured}', String(storage.datasetsMeasured))
-      .replace('{total}', String(storage.datasetsTotal));
+      .replace('{regulated}', String(regulated));
   }
-  return t('home.storageHint');
+  return t('home.storageMeasured').replace('{volume}', volume);
 }

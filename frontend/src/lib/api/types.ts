@@ -584,13 +584,19 @@ export interface PlatformUser {
   username: string;
   email: string;
   enabled: boolean;
+  firstName?: string;
+  lastName?: string;
+  /** L'organisation a laquelle le compte appartient, vide quand il n'en a
+   *  aucune - un compte de service, typiquement. */
+  organization?: string;
   /** Derniere connexion reussie, absente quand le compte ne s'est jamais
    *  connecte - ce qui est une reponse, et souvent la plus interessante :
-   *  l'annuaire dit qui a le droit d'entrer, la plateforme dit qui est entre. */
+   *  l'annuaire dit qui a le droit d'entrer, la plateforme dit qui est entre.
+   *
+   *  Pas de compteur a cote : sur une ligne qui nomme une personne, "8
+   *  connexions" repond a une question que cet ecran ne pose pas. Le volume
+   *  est dans le rapport d'activite, agrege, ou il est le sujet. */
   lastSeenAt?: string;
-  /** Nombre de connexions sur ce que la retention de l'audit conserve. Une
-   *  visite et deux cents ne disent pas la meme chose de la meme date. */
-  signIns?: number;
 }
 
 export interface Organization {

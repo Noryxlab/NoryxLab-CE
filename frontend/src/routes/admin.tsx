@@ -271,17 +271,41 @@ function IdentitySection() {
     onError: (error) => toast.error(error, t('common.delete')),
   });
 
+  // The name as a person would give it, empty when the directory has neither
+  // half.
+  const fullName = (user: PlatformUser) =>
+    [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+
   const userColumns: Column<PlatformUser>[] = [
     {
       id: 'user',
       header: t('common.user'),
-      sortValue: (user) => user.username || user.id,
-      searchValue: (user) => `${user.username} ${user.email} ${user.id}`,
+      // Sorted and searched on the person, not on the login. Every account
+      // here carries a first and last name and the screen showed neither, so
+      // "barantok" was as much as anybody got - which is fine for a machine
+      // and poor for a colleague.
+      sortValue: (user) => fullName(user) || user.username || user.id,
+      searchValue: (user) => `${fullName(user)} ${user.username} ${user.email} ${user.id}`,
       cell: (user) => (
         <div className="min-w-0">
-          <p className="truncate font-medium">{user.username || user.id}</p>
+          <p className="truncate font-medium">{fullName(user) || user.username || user.id}</p>
+          {fullName(user) ? (
+            <p className="truncate text-xs text-muted-foreground">{user.username || user.id}</p>
+          ) : null}
         </div>
       ),
+    },
+    {
+      id: 'organization',
+      header: t('admin.organization'),
+      sortValue: (user) => user.organization || null,
+      searchValue: (user) => user.organization ?? '',
+      cell: (user) =>
+        user.organization ? (
+          <span className="truncate text-xs">{user.organization}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
     },
     {
       id: 'email',
@@ -309,7 +333,6 @@ function IdentitySection() {
         user.lastSeenAt ? (
           <span className="text-xs text-muted-foreground" title={formatDateTime(user.lastSeenAt)}>
             {formatRelative(user.lastSeenAt)}
-            {user.signIns ? ` · ${t('admin.signIns', { count: String(user.signIns) })}` : ''}
           </span>
         ) : (
           // An account that exists and has never been used is the pair an

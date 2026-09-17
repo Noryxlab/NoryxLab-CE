@@ -53,10 +53,22 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	// accounts is the thing being asked for.
 	type userRow struct {
 		keycloak.User
-		LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
-		SignIns    int        `json:"signIns,omitempty"`
+		// Organization, because an administration screen for an installation
+		// shared between several parties is read by party before it is read by
+		// person.
+		Organization string     `json:"organization,omitempty"`
+		LastSeenAt   *time.Time `json:"lastSeenAt,omitempty"`
+		// No sign-in count here, deliberately.
+		//
+		// It was reported alongside the date and it reads as surveillance on a
+		// row about one named person: "8 sign-ins" next to somebody's name
+		// answers a question nobody asked of this screen. The question this
+		// screen asks is whether the account is in use, which the date alone
+		// answers. How much anybody used the platform belongs to the activity
+		// report, where it is aggregated and where it is the point.
 	}
 	rows := make([]userRow, 0, len(users))
+	membership := h.actorOrganizations()
 	seen := map[string]store.LastSeen{}
 	if h.auditStore != nil {
 		if found, err := h.auditStore.LastSeen(); err != nil {
@@ -67,6 +79,11 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, user := range users {
 		row := userRow{User: user}
+		if organization := membership[strings.ToLower(user.Username)]; organization != "" {
+			row.Organization = organization
+		} else {
+			row.Organization = membership[strings.ToLower(user.Email)]
+		}
 		// The audit records the actor as the username, which is what
 		// Identity.UserID resolves to. Email is the fallback for an account
 		// that has no username, and is checked second for the same reason.
@@ -77,7 +94,6 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		if ok && !entry.At.IsZero() {
 			at := entry.At
 			row.LastSeenAt = &at
-			row.SignIns = entry.Count
 		}
 		rows = append(rows, row)
 	}
