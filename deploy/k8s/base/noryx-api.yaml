@@ -113,6 +113,14 @@ spec:
             # workspace from an abandoned one (ADR-034).
             - name: NORYX_WORKSPACE_MAX_LIFETIME
               value: "48h"
+            # How long an emailed "choose your password" link stays valid.
+            # Seventy-two hours because the act is usually an invitation, not a
+            # reset: an account created on a Friday afternoon is opened on
+            # Monday morning, sixty hours later. A reset is pulled by somebody
+            # at their screen and would be safe much shorter - an installation
+            # that mostly resets can set an hour here.
+            - name: NORYX_PASSWORD_LINK_LIFETIME
+              value: "72h"
             - name: NORYX_KUBE_NAMESPACE
               valueFrom:
                 fieldRef:

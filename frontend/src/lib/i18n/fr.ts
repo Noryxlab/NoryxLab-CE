@@ -951,7 +951,7 @@ export const fr = {
     smtpTestHint: 'Testez avant d’enregistrer : la configuration en place n’est pas remplacée.',
     smtpTestSent: 'Message de test envoyé à {recipient}',
     resetByEmail: 'Envoyer un lien',
-    resetByEmailHint: 'Envoie à {user} un lien pour choisir son mot de passe, valable 12 heures. Rien à dicter ni à coller.',
+    resetByEmailHint: 'Envoie à {user} un lien pour choisir son mot de passe, valable {hours} heures. Rien à dicter ni à coller.',
     resetByEmailSent: 'Lien envoyé',
     hardwareTiers: 'Gammes de machines',
     hardwareTiersHint: 'Les tailles proposées au lancement d’un workspace, d’un job ou d’une application.',

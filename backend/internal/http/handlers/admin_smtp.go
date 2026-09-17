@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 )
@@ -60,7 +61,13 @@ func (h Handlers) GetSMTPSettings(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the identity provider did not answer"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": settings, "configured": settings.Configured()})
+	// The lifetime travels with the settings so the interface can name the
+	// real number instead of carrying one of its own in a translated string.
+	writeJSON(w, http.StatusOK, map[string]any{
+		"settings":                  settings,
+		"configured":                settings.Configured(),
+		"passwordLinkLifetimeHours": int(h.passwordLinkLifetime.Hours()),
+	})
 }
 
 func (h Handlers) UpdateSMTPSettings(w http.ResponseWriter, r *http.Request) {
@@ -164,9 +171,18 @@ func (h Handlers) SendUserPasswordResetEmail(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "no mail server is configured: set one in the administration, or issue a temporary password"})
 		return
 	}
-	// Twelve hours: long enough for somebody who reads their mail the next
-	// morning, short enough that a forwarded message is not a standing key.
-	if err := h.keycloak.SendPasswordResetEmail(userID, 12*3600); err != nil {
+	// The window comes from configuration rather than from here. It used to be
+	// twelve hours, reasoned as "long enough for somebody who reads their mail
+	// the next morning" - true on a Tuesday, false for the case this is mostly
+	// used for: an account created on a Friday afternoon and opened on Monday,
+	// sixty hours later. An invitation is pushed to somebody who was not
+	// waiting for it; a reset is pulled by somebody at their screen. One
+	// duration cannot be right for both, so an installation sets it.
+	lifespan := int(h.passwordLinkLifetime.Seconds())
+	if lifespan <= 0 {
+		lifespan = int((72 * time.Hour).Seconds())
+	}
+	if err := h.keycloak.SendPasswordResetEmail(userID, lifespan); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the mail could not be sent: " + err.Error()})
 		return
 	}

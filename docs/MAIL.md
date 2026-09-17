@@ -161,3 +161,38 @@ logged: the message reached the provider and the rest is theirs.
 
 The bridge logs `connection refused` while the relay is unreachable and repairs
 itself; those lines are not an incident on their own.
+
+## How long a password link stays valid
+
+`NORYX_PASSWORD_LINK_LIFETIME`, **72 hours** by default.
+
+It was twelve, hard-coded, with a reason that sounded right: long enough for
+somebody who reads their mail the next morning, short enough that a forwarded
+message is not a standing key. True on a Tuesday.
+
+The flaw is that one duration serves two different acts. A **reset** is pulled:
+somebody asked for it and is sitting at their screen, so an hour would do and
+would be safer. An **invitation** is pushed to somebody who was not waiting for
+it, and the ordinary case is an account created on a Friday afternoon and
+opened on Monday morning — sixty-four hours later. Twelve reads as generous
+until you count a weekend.
+
+The default therefore covers the harder of the two, and an installation that
+mostly resets can close the window:
+
+    NORYX_PASSWORD_LINK_LIFETIME=1h
+
+Zero and negative are refused rather than honoured — a link valid for no time
+is a button that always fails, and it would fail in the recipient's mailbox
+rather than at startup.
+
+The window is real exposure: whoever holds the link sets the password. What
+makes seventy-two acceptable is that the link is single-use and bound to one
+account, so the risk is a mailbox read by somebody else *during* the window,
+not a key left lying about afterwards. An installation handling health data
+should still shorten it and invite people when they are expecting it.
+
+**The interface reads the number back from the platform** rather than naming
+one in a translated string. That is the point of the change as much as the
+duration is: the old copy said "valid for 12 hours" in two languages, and would
+have gone on saying it after any operator changed the setting.

@@ -42,6 +42,7 @@ type Handlers struct {
 	agentTeamStore                   store.AgentTeamStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
+	passwordLinkLifetime             time.Duration
 	settings                         *settings.Resolver
 	storageEndpointStore             store.StorageEndpointStore
 	runtime                          runtime.Runner
@@ -175,6 +176,11 @@ type Options struct {
 	// WorkspaceMaxLifetime is echoed here so the health report can tell which
 	// workspaces the reaper should already have reclaimed.
 	WorkspaceMaxLifetime time.Duration
+	// PasswordLinkLifetime is how long an emailed password link stays valid.
+	// The interface reads it back rather than naming a duration of its own:
+	// copy that states a number the code no longer uses is how a screen starts
+	// lying to the person reading it.
+	PasswordLinkLifetime time.Duration
 	// Settings resolves administrator overrides at use time, so a change takes
 	// effect without a redeployment.
 	Settings                     *settings.Resolver
@@ -283,6 +289,7 @@ func New(
 		backupRunStore:                   backupRunStore,
 		notifier:                         newNotifier(options),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
+		passwordLinkLifetime:             options.PasswordLinkLifetime,
 		settings:                         options.Settings,
 		agentStore:                       options.AgentStore,
 		agentTeamStore:                   options.AgentTeamStore,

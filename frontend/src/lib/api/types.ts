@@ -470,6 +470,11 @@ export interface SmtpState {
   settings: SmtpSettings;
   /** A host and a sender: what it takes for the platform to actually send. */
   configured: boolean;
+  /** How long an emailed password link stays valid, in hours. Read from the
+   *  platform rather than written into the copy: a translated string that
+   *  names its own number goes stale the day an operator changes the setting,
+   *  and then the screen is telling the reader something untrue. */
+  passwordLinkLifetimeHours?: number;
 }
 
 export interface AdminHardwareTier extends HardwareTier {

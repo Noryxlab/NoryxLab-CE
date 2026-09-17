@@ -945,7 +945,7 @@ export const en: Translations = {
     smtpTestHint: 'Test before saving: the configuration in place is not replaced.',
     smtpTestSent: 'Test message sent to {recipient}',
     resetByEmail: 'Email a link',
-    resetByEmailHint: 'Sends {user} a link to choose their own password, valid for 12 hours. Nothing to dictate or paste.',
+    resetByEmailHint: 'Sends {user} a link to choose their own password, valid for {hours} hours. Nothing to dictate or paste.',
     resetByEmailSent: 'Link sent',
     hardwareTiers: 'Hardware tiers',
     hardwareTiersHint: 'The sizes offered when launching a workspace, a job or an app.',

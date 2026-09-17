@@ -336,7 +336,13 @@ function IdentitySection() {
             onClick={() =>
               ask({
                 title: t('admin.resetByEmail'),
-                description: t('admin.resetByEmailHint', { user: user.username || user.id }),
+                description: t('admin.resetByEmailHint', {
+                  user: user.username || user.id,
+                  // The platform's own number. Falling back to the same
+                  // default the backend uses keeps the sentence true on an
+                  // older backend that does not report it yet.
+                  hours: String(smtp.data?.passwordLinkLifetimeHours ?? 72),
+                }),
                 confirmLabel: t('admin.resetByEmail'),
                 onConfirm: () => resetByEmail.mutateAsync(user),
               })

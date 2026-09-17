@@ -67,6 +67,21 @@ type Config struct {
 	// disables the sweep, which is the default: reclaiming a user's workspace
 	// is a policy decision an operator has to make deliberately.
 	WorkspaceMaxLifetime time.Duration
+	// PasswordLinkLifetime is how long an emailed "choose your password" link
+	// stays valid.
+	//
+	// Seventy-two hours, because the act this serves is usually an invitation
+	// rather than a reset. A reset is pulled: somebody asked for it and is at
+	// their screen, so a short window costs nothing. An invitation is pushed to
+	// somebody who was not expecting it, and the common case is an account
+	// created on a Friday afternoon and read on Monday morning - sixty hours
+	// later. Twelve hours reads as generous until you count a weekend.
+	//
+	// The window is a real exposure: whoever holds the link sets the password.
+	// What makes seventy-two acceptable is that the link is single-use and
+	// bound to one account, so the risk is a mailbox read by somebody else
+	// during the window, not a key left lying around afterwards.
+	PasswordLinkLifetime time.Duration
 	// AlertWebhookURL receives operator alerts. Empty disables delivery.
 	AlertWebhookURL string
 	// AlertInstanceName names this platform in an alert, so an operator
@@ -155,6 +170,23 @@ func Load() Config {
 		default:
 			// An explicit zero disables the sweep entirely.
 			workspaceMaxLifetime = parsed
+		}
+	}
+
+	// See the field comment: seventy-two hours so an invitation sent on a
+	// Friday is still valid on Monday.
+	passwordLinkLifetime := 72 * time.Hour
+	if raw := strings.TrimSpace(os.Getenv("NORYX_PASSWORD_LINK_LIFETIME")); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		switch {
+		case err != nil:
+			log.Printf("config: NORYX_PASSWORD_LINK_LIFETIME=%q is not a duration, keeping the %s default", raw, passwordLinkLifetime)
+		case parsed <= 0:
+			// Unlike the workspace sweep, zero is not a meaningful setting
+			// here: a link valid for no time is a button that always fails.
+			log.Printf("config: NORYX_PASSWORD_LINK_LIFETIME=%q is not positive, keeping the %s default", raw, passwordLinkLifetime)
+		default:
+			passwordLinkLifetime = parsed
 		}
 	}
 
@@ -358,6 +390,7 @@ func Load() Config {
 		WorkspaceProfilePVCClass:         workspaceProfilePVCClass,
 		WorkspaceProfilePVCSize:          workspaceProfilePVCSize,
 		WorkspaceMaxLifetime:             workspaceMaxLifetime,
+		PasswordLinkLifetime:             passwordLinkLifetime,
 		AlertWebhookURL:                  alertWebhookURL,
 		AlertInstanceName:                alertInstanceName,
 		WorkspaceProfilePVCAccessMode:    workspaceProfilePVCAccessMode,

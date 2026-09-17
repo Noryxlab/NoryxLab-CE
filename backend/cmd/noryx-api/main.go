@@ -252,6 +252,7 @@ func main() {
 			AlertWebhookURL:                  cfg.AlertWebhookURL,
 			AlertInstanceName:                cfg.AlertInstanceName,
 			WorkspaceMaxLifetime:             cfg.WorkspaceMaxLifetime,
+			PasswordLinkLifetime:             cfg.PasswordLinkLifetime,
 			Settings:                         settingsResolver,
 			EditionHooks: &edition.Hooks{
 				Feature: features,
