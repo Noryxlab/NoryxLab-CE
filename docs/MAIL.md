@@ -94,3 +94,70 @@ A single firewall rule — `<cluster> → <provider submission host>:587` — re
 both components. That is a narrow, ordinary request, quite unlike "open
 outbound SMTP", and worth asking for in parallel. It was not asked for here
 because waiting on it blocks the onboarding it would serve.
+
+## What is deployed today
+
+Both installations send through the same relay. Recorded here because the
+pieces sit on three machines and none of them is obvious from the others.
+
+| Piece | Where | What it is |
+|---|---|---|
+| Relay | the public web host | systemd unit `noryx-mail`, config `/etc/noryx-mail.env` (mode 600, root), binary `/opt/noryx-mail` |
+| Published at | nginx on the same host | `https://<site>/noryx-mail/` → `127.0.0.1:8025` |
+| Bridge | each cluster, namespace `noryx` | Deployment + Service `noryx-mail-bridge`, port 1025, secret `noryx-mail-bridge` |
+| Upstream | the domain's mailbox provider | submission on port 587, STARTTLS, authenticating as the sending mailbox |
+
+The bridge runs from the backend image with a different command, so it follows
+the backend's version. It is built into **both** Dockerfiles — the Community one
+and the Enterprise one — because the Enterprise edition is built from its own
+file and adding the binary to one produces an image without it in the other.
+
+### Who sends
+
+Keycloak and the platform both point at the bridge as their SMTP server, and
+both read the **same** configuration: the platform's SMTP screen writes into
+the Keycloak realm, so there is one source of truth and configuring the realm
+configures both.
+
+Realm settings: host `noryx-mail-bridge.noryx.svc.cluster.local`, port `1025`,
+no TLS, no authentication — the hop does not leave the cluster, and encryption
+starts at the one that does.
+
+### The trap when reading it back
+
+`kcadm.sh get realms/<realm> --fields smtpServer` prints `{}` for a nested
+object **even when the value is set**. Reading it back that way says the write
+failed when it did not. Use the admin REST API to verify, or the platform's own
+SMTP screen.
+
+### Sending limits
+
+Two ceilings, and the lower one should be ours so that a refusal comes with a
+message we wrote:
+
+- the mailbox provider's own daily quota;
+- `NORYX_MAIL_HOURLY_LIMIT` on the relay, set below it.
+
+Past the relay's limit the bridge returns a temporary 4xx and the sender
+retries. Past the provider's, the failure arrives as an SMTP error in a log
+nobody reads, halfway through a batch of invitations.
+
+### Before inviting anybody
+
+- the account needs an email address, or Keycloak composes nothing at all;
+- the required action the invitation relies on (`UPDATE_PASSWORD`) must be
+  enabled on the realm, or the mail is sent and the action is silently ignored.
+
+### Where to look when a message does not arrive
+
+Follow the chain in order; each hop names the one before it.
+
+    in the cluster:  kubectl -n noryx logs deploy/noryx-mail-bridge   → "accepte de=… vers=N"
+    on the relay:    journalctl -u noryx-mail                         → "remis de=… vers=N"
+
+Bridge silent: the sender composed nothing — missing address, or the required
+action never fired. Bridge accepted and relay silent: the HTTPS hop. Both
+logged: the message reached the provider and the rest is theirs.
+
+The bridge logs `connection refused` while the relay is unreachable and repairs
+itself; those lines are not an incident on their own.
