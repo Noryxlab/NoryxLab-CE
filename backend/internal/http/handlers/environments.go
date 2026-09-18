@@ -688,3 +688,32 @@ func (h Handlers) configuredImageFor(ide string) string {
 	}
 	return ""
 }
+
+// reservedRepositoryFor names the platform repository an image would land in,
+// or empty when it lands somewhere a project is free to use.
+//
+// Compared on the repository and never on the reference: the harm comes from
+// sharing a repository, because that is what the catalogue keys entries on.
+func (h Handlers) reservedRepositoryFor(image string) string {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return ""
+	}
+	target := imageRepository(image)
+	reserved := []string{h.workspaceVSCodeImage, h.workspaceJupyterImage, h.workspaceRStudioImage}
+	for _, kind := range workspacekind.All() {
+		if kind.DefaultImage != nil {
+			reserved = append(reserved, kind.DefaultImage())
+		}
+	}
+	for _, candidate := range reserved {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if imageRepository(candidate) == target {
+			return target
+		}
+	}
+	return ""
+}

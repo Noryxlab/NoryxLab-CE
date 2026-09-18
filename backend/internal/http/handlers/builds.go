@@ -96,6 +96,27 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	// A project may not build into a repository the platform runs from.
+	//
+	// Derived destinations are already safe - they carry the project in the
+	// repository name - but a caller may name one, and on 2026-09-07 one named
+	// the platform's own noryx-vscode repository. Catalogue entries are keyed
+	// on the repository, so that build merged with the system environment and
+	// became the image the list offered, while the platform went on running
+	// the tag it is configured with. Every launch from that entry was refused
+	// for an image nobody could see had been substituted.
+	//
+	// Refused rather than allowed-and-ignored: building there cannot achieve
+	// anything, since the platform starts the reference it was configured with
+	// and not whatever was last pushed beside it. A build that cannot have an
+	// effect should fail where it is asked for, not where it is used.
+	if reserved := h.reservedRepositoryFor(req.DestinationImage); reserved != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "the repository " + reserved + " belongs to the platform's own " +
+				"environments; build to a name of your own and the platform will offer it beside them",
+		})
+		return
+	}
 	if req.DestinationImage == "" {
 		derived, err := h.deriveEnvironmentImage(req.ProjectID, req.Name)
 		if err != nil {
