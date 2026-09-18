@@ -291,6 +291,18 @@ function EnvironmentDetail({
     onError: (error) => toast.error(error, t('environments.build')),
   });
 
+  // Active means the one that starts, which is not always the newest.
+  //
+  // The badge followed the most recent build. For a system environment that a
+  // project had rebuilt, the most recent build was the rebuild - and the
+  // platform starts the reference it is configured with, so the screen marked
+  // as active a revision nothing would ever run. Matching on the image answers
+  // the question the badge is actually asked: which of these do I get.
+  const activeRevisionId =
+    (environment.revisions ?? []).find(
+      (revision) => revision.destinationImage === environment.destinationImage,
+    )?.buildId ?? environment.latestBuildId;
+
   const revisionColumns: Column<EnvironmentRevision>[] = [
     {
       id: 'build',
@@ -306,7 +318,7 @@ function EnvironmentDetail({
           <span className="font-mono text-[0.6875rem] text-muted-foreground">
             {revision.buildId.slice(0, 8)}
           </span>
-          {revision.buildId === environment.latestBuildId ? (
+          {revision.buildId === activeRevisionId ? (
             <Badge tone="success">{t('environments.activeRevision')}</Badge>
           ) : null}
         </span>

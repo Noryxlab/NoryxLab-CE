@@ -20,8 +20,21 @@ func (h Handlers) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProjectRole(w, projectID, userID, actionManageEnvironment, "environment deletion") {
 		return
 	}
-	if destinationImage == strings.TrimSpace(h.workspaceJupyterImage) || destinationImage == strings.TrimSpace(h.workspaceVSCodeImage) || destinationImage == strings.TrimSpace(h.workspaceRStudioImage) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "system workspace environments cannot be deleted"})
+	// Every repository the platform runs from, and on the repository rather
+	// than the reference.
+	//
+	// This compared three exact references: the Community images, by their
+	// configured tag. A kind registered by a module - Slicer, on the
+	// installation where imaging is done - was not among them, so the image a
+	// whole discipline works in could be deleted from the registry by anybody
+	// holding the role on any project. And comparing references rather than
+	// repositories meant a rebuild pushed beside a platform image did not match
+	// either, so the entry offering it was deletable while the entry itself was
+	// the platform's.
+	if reserved := h.reservedRepositoryFor(destinationImage); reserved != "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "the repository " + reserved + " belongs to the platform's own environments and cannot be deleted",
+		})
 		return
 	}
 

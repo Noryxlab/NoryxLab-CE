@@ -42,3 +42,36 @@ func TestAProjectsOwnNamesArePermitted(t *testing.T) {
 		}
 	}
 }
+
+// The same reservation guards deletion, and it did not always.
+//
+// Environment deletion compared three exact references - the Community images
+// at their configured tags. A kind registered by a module was not among them,
+// so on an installation where imaging is done, the image that discipline works
+// in could be deleted from the registry by anybody holding the role on any
+// project. Comparing repositories rather than references also covers a rebuild
+// pushed beside a platform image, which matched nothing and was therefore
+// deletable while sitting under the platform's own name.
+func TestDeletionIsRefusedForEveryPlatformRepository(t *testing.T) {
+	h := Handlers{
+		workspaceVSCodeImage:  "harbor.example/noryx-environments/noryx-vscode:0.1.2",
+		workspaceJupyterImage: "harbor.example/noryx-environments/noryx-jupyter:0.1.0",
+		workspaceRStudioImage: "harbor.example/noryx-environments/noryx-rstudio:0.1.0",
+	}
+	for _, protected := range []string{
+		"harbor.example/noryx-environments/noryx-vscode:0.1.2",
+		// The tag the platform is not configured with, in the repository it
+		// runs from: deletable before, because only references were compared.
+		"harbor.example/noryx-environments/noryx-vscode:1788812980",
+		"harbor.example/noryx-environments/noryx-jupyter:0.1.0",
+	} {
+		if h.reservedRepositoryFor(protected) == "" {
+			t.Errorf("%s would be deleted from the registry", protected)
+		}
+	}
+	// A project's own environment stays deletable: that is the whole point of
+	// being able to delete one.
+	if h.reservedRepositoryFor("harbor.example/noryx-environments/1cf6b279-114-test-stef") != "" {
+		t.Error("a project's own environment was protected, which makes cleanup impossible")
+	}
+}
