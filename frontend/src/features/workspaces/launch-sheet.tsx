@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Field, ReadOnlyValue } from '@/components/ui/field';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import {
@@ -87,16 +87,16 @@ export function LaunchWorkspaceSheet({
   }, [open]);
 
   const environment = usable.find((candidate) => candidate.id === environmentId);
-  const ide = environment?.workspaceIdes?.[0] ?? null;
 
   const mutation = useMutation({
     mutationFn: () =>
       workspacesApi.create({
         projectId,
-        // The API has no environment id: it takes the image directly, and an
-        // ide that selects the default image when none is supplied.
+        // The image alone. The kind is a property of the environment, and the
+        // platform derives it from the image - sending both invited them to
+        // disagree, and they did: this form once showed one environment while
+        // holding another and sent a pair nobody had chosen.
         image: environment?.destinationImage,
-        ide: ide ?? undefined,
         name: name.trim() || undefined,
         hardwareTier: tierId || undefined,
       }),
@@ -154,11 +154,14 @@ export function LaunchWorkspaceSheet({
                   />
                 </Field>
 
-                <ReadOnlyValue
-                  label={t('workspaces.ideLabel')}
-                  value={presentIde(ide)}
-                  description={t('workspaces.ideHint')}
-                />
+                {/* No IDE field.
+                  *
+                  * It restated what the environment name already says, and a
+                  * second rendering of one fact is a second thing that can be
+                  * wrong: it read JupyterLab under an environment called
+                  * noryx-vscode for a whole afternoon. Each option in the list
+                  * above carries its kinds as a hint, which is where the
+                  * question is actually asked. */}
 
                 <Field label={t('workspaces.tierLabel')} description={t('workspaces.tierHint')} required>
                   <Select

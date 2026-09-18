@@ -277,6 +277,21 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	req.StorageSize = strings.TrimSpace(req.StorageSize)
 	req.HardwareTier = strings.TrimSpace(req.HardwareTier)
 	rawIDE := strings.ToLower(strings.TrimSpace(req.IDE))
+	if rawIDE == "" && req.Image != "" {
+		// The image decides, when one was named.
+		//
+		// A caller that picks an environment has made one choice, and the kind
+		// is a property of that choice rather than a second decision. Asking
+		// for both invites them to disagree, and they did: a launch form showed
+		// one environment while holding another, sent that environment's image
+		// with the other's kind, and the platform refused a combination nobody
+		// had assembled. One field cannot contradict itself.
+		//
+		// Derived here rather than trusted from the caller, because the same
+		// mapping already decides what the image is allowed to run - two
+		// answers to "which kind is this image" is how they drift apart.
+		rawIDE = h.deriveIDEForImage(req.Image)
+	}
 	if rawIDE == "" {
 		req.IDE = "vscode"
 	} else if !allowedWorkspaceIDEs[rawIDE] && !workspacekind.Allowed(rawIDE) {

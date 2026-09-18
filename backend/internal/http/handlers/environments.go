@@ -606,3 +606,39 @@ func (h Handlers) systemEnvironmentRepositories() map[string]bool {
 	}
 	return repositories
 }
+
+// deriveIDEForImage names the kind an image runs.
+//
+// The platform's three images answer for themselves, a registered kind answers
+// for its own, and anything else falls back to what the image and its build
+// say about themselves - the same derivation the environment list publishes,
+// so the kind a launch gets is the kind the catalogue showed.
+//
+// Empty when nothing matches, which the caller reads as "no opinion" rather
+// than as a kind.
+func (h Handlers) deriveIDEForImage(image string) string {
+	image = strings.TrimSpace(image)
+	if image == "" {
+		return ""
+	}
+	switch image {
+	case strings.TrimSpace(h.workspaceVSCodeImage):
+		return "vscode"
+	case strings.TrimSpace(h.workspaceJupyterImage):
+		return "jupyter"
+	case strings.TrimSpace(h.workspaceRStudioImage):
+		return "rstudio"
+	}
+	for _, kind := range workspacekind.All() {
+		if kind.DefaultImage == nil {
+			continue
+		}
+		if configured := strings.TrimSpace(kind.DefaultImage()); configured != "" && configured == image {
+			return kind.ID
+		}
+	}
+	if ides := deriveWorkspaceIDEs(image); len(ides) > 0 {
+		return ides[0]
+	}
+	return ""
+}
