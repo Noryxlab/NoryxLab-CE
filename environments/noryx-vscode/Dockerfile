@@ -46,7 +46,8 @@ RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
     '  "workbench.colorTheme": "Default Dark Modern",' \
     '  "python.defaultInterpreterPath": "/usr/local/bin/python3",' \
     '  "extensions.autoUpdate": false,' \
-    '  "extensions.autoCheckUpdates": false' \
+    '  "extensions.autoCheckUpdates": false,' \
+    '  "continue.pauseCodebaseIndexOnStart": true' \
     '}' > "/opt/noryx-vscode/data/Machine/settings.json" \
  && set -eux; \
     for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \

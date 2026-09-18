@@ -57,6 +57,19 @@ directories are merged, so anything somebody installed themselves survives;
 manifest of that directory and replacing it with the image's would erase every
 extension the person had added. It is rebuilt from what is on disk.
 
+**The assistant does not walk the filesystem at launch.**
+`continue.pauseCodebaseIndexOnStart` is set in the image's machine settings,
+and it is a safety boundary as much as a performance one. The workspace offers
+`/mnt`, `/repos` and `/datasets` as folders, and `/datasets` is where object
+storage is mounted - so an indexer that starts on its own reads whatever a
+project has attached, which on this platform can be regulated data. It also
+allocates: a VS Code workspace was killed at its 8 GiB limit thirteen minutes
+after starting on 2026-09-18, with nothing else running in it.
+
+Indexing is paused, not removed. Somebody who wants codebase retrieval can
+start it deliberately, which is the right way round: reading a project's data
+into an index is a decision, not a default.
+
 **Auto-update from the Microsoft marketplace is switched off** in the image.
 It was on, and it worked: on 2026-09-18 a workspace upgraded `charliermarsh.ruff`
 from 2026.80.0 to 2026.82.0 during launch, from `marketplace.visualstudio.com`.
