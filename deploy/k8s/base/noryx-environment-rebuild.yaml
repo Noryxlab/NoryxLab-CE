@@ -91,6 +91,15 @@ spec:
               volumeMounts:
                 - name: registry-credentials
                   mountPath: /kaniko/.docker
+          containers:
+            # The last build is the pod's container rather than a third init
+            # container followed by a no-op.
+            #
+            # The no-op was there first, running /busybox/sh out of the kaniko
+            # image, and that image has no shell: the three builds succeeded
+            # and the pod still reported StartError. A job that fails after
+            # doing its work correctly is worse than one that fails outright -
+            # somebody would have gone looking for a broken build.
             - name: rebuild-rstudio
               image: gcr.io/kaniko-project/executor:v1.23.2
               args:
@@ -103,13 +112,3 @@ spec:
               volumeMounts:
                 - name: registry-credentials
                   mountPath: /kaniko/.docker
-          containers:
-            # The three builds above are init containers so they run in order
-            # and the pod fails on the first one that does. This exists because
-            # a pod needs one.
-            - name: done
-              image: gcr.io/kaniko-project/executor:v1.23.2
-              command:
-                - /busybox/sh
-                - -c
-                - echo "environment images rebuilt"
