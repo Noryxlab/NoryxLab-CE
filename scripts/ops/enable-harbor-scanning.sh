@@ -158,6 +158,25 @@ say "scanning what is already there"
 api POST /system/scanAll/schedule '{"schedule":{"type":"Manual"}}' >/dev/null || true
 ok "started; it runs in the background and takes a few minutes per image"
 
+# ------------------------------------------------ 7. keeping the disk honest
+#
+# The counterpart to a nightly rebuild, and it has to be set up in the same
+# breath as one. Each rebuild moves a tag onto a new artifact and leaves the
+# previous one untagged - still stored, still occupying its blobs. Nothing
+# reclaims that by default: neither installation had a retention policy or a
+# collection schedule, so the registry would have grown every night until
+# somebody noticed it the hard way.
+#
+# Weekly rather than nightly, on purpose. The platform starts workspaces from a
+# digest, so an artifact can be untagged and still be what something is running.
+# A workspace lives at most 48 hours, so a week between untagging and collection
+# is a margin rather than a race - and it stays a margin only while that
+# lifetime stays shorter than this interval, which is worth remembering if
+# either is ever changed.
+say "weekly garbage collection"
+api PUT /system/gc/schedule '{"schedule":{"type":"Weekly","cron":"0 0 4 * * 0"},"parameters":{"delete_untagged":true}}' >/dev/null
+ok "$(api GET /system/gc/schedule | python3 -c 'import json,sys; d=json.load(sys.stdin); print("next", d["schedule"]["next_scheduled_time"], d["job_parameters"])')"
+
 printf '\nDone. The platform reads the results on its own - the environment\n'
 printf 'catalogue will show counts instead of "not scanned" once the scans finish.\n'
 printf 'To undo the Trivy part: cd %s && ./install.sh   (no --with-trivy)\n' "$HARBOR_DIR"
