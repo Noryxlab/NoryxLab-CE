@@ -27,12 +27,15 @@
 #   4. waits for the scanner to register;
 #   5. switches on scan-on-push for every noryx project;
 #   6. starts one scan of everything already stored, so the column has content
-#      before the next push rather than after it.
+#      before the next push rather than after it;
+#   7. schedules a weekly collection of artefacts nothing points at any more,
+#      which a nightly rebuild produces one of per image per night.
 #
-# Nothing here deletes anything, and /data is untouched: image blobs and the
-# Harbor database live there and the installer leaves them alone. The backup in
-# step 2 is what makes step 3 reversible - re-running install.sh without
-# --with-trivy puts it back.
+# Step 7 is the only one that removes anything, and only blobs that no tag
+# refers to. Everything else is additive: /data is untouched by the installer,
+# image blobs and the Harbor database live there, and the backup in step 2 is
+# what makes step 3 reversible - re-running install.sh without --with-trivy
+# puts it back.
 set -euo pipefail
 
 HARBOR_DIR=${HARBOR_DIR:-/opt/harbor/harbor}
