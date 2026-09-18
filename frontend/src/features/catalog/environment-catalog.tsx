@@ -248,6 +248,27 @@ function EnvironmentDetail({
   const [startedBuildId, setStartedBuildId] = React.useState<string | null>(null);
   const buildLogs = useBuildLogs(startedBuildId ?? undefined);
 
+  const { dialog: revisionDialog, ask } = useConfirm();
+
+  // Removing one revision, which the API has always allowed and nothing
+  // offered.
+  const removeRevision = useMutation({
+    mutationFn: (buildId: string) => environmentsApi.cancelBuild(buildId),
+    onSuccess: () => {
+      invalidate(qk.environments(), qk.builds(projectId));
+      toast.success(t('environments.revisionDeleted'), environment.name);
+    },
+    onError: (error) => toast.error(error, t('environments.deleteRevision')),
+  });
+
+  // A system environment is what the installation is configured to run, and a
+  // rebuild of one pushes into the platform's own repository - which the
+  // platform then refuses to start, because it starts the reference it was
+  // configured with. Offered, it produced a build that spent eleven days
+  // deciding which image the launch form sent. It is not offered any more, and
+  // the reason is on screen rather than in a refusal at the end.
+  const isSystemEnvironment = environment.category === 'system';
+
   const rebuild = useMutation({
     mutationFn: () =>
       environmentsApi.createBuild({
@@ -352,12 +373,16 @@ function EnvironmentDetail({
                 variant="primary"
                 loading={rebuild.isPending}
                 onClick={() => rebuild.mutate()}
-                disabled={dockerfile.isLoading || !projectId}
+                disabled={dockerfile.isLoading || !projectId || isSystemEnvironment}
+                title={isSystemEnvironment ? t('environments.systemRebuildHint') : undefined}
               >
                 <Hammer aria-hidden />
                 {t('environments.build')}
               </Button>
             </div>
+            {isSystemEnvironment ? (
+              <p className="text-xs text-muted-foreground">{t('environments.systemRebuildHint')}</p>
+            ) : null}
 
             {/* What the build is doing, here, while it does it. A rebuild used
                 to end at a toast: a failure - a package that does not exist, a
@@ -388,6 +413,37 @@ function EnvironmentDetail({
               data={environment.revisions ?? []}
               columns={revisionColumns}
               rowKey={(revision) => revision.buildId}
+              // A revision can be removed here, and only here.
+              //
+              // The API has always accepted it; nothing offered it, so a build
+              // made by mistake stayed in an environment's history forever. One
+              // of them - a rebuild pushed into the platform's own repository -
+              // spent eleven days deciding which image the launch form sent.
+              //
+              // Not offered on the platform's own revisions: they are not
+              // builds, they describe the image this installation is configured
+              // with, and there is nothing to delete but the configuration.
+              rowActions={(revision) =>
+                revision.buildId.startsWith('system-') ? null : (
+                  <DropdownMenuItem
+                    destructive
+                    onSelect={() =>
+                      ask({
+                        title: t('environments.deleteRevision'),
+                        description: t('environments.deleteRevisionHint', {
+                          image: revision.destinationImage || revision.buildId,
+                        }),
+                        confirmLabel: t('common.delete'),
+                        destructive: true,
+                        onConfirm: () => removeRevision.mutateAsync(revision.buildId),
+                      })
+                    }
+                  >
+                    <Trash2 aria-hidden />
+                    {t('common.delete')}
+                  </DropdownMenuItem>
+                )
+              }
               defaultSort={{ columnId: 'createdAt', direction: 'desc' }}
               emptyState={
                 <EmptyState
@@ -407,6 +463,7 @@ function EnvironmentDetail({
         </span>
         <span>{formatRelative(environment.updatedAt, locale)}</span>
       </CardFooter>
+      {revisionDialog}
     </Card>
   );
 }
