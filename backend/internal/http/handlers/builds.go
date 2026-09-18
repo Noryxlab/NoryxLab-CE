@@ -166,6 +166,11 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	)
 	record.DockerfileContent = req.DockerfileContent
 	record.Name = req.Name
+	// Resolved now, not later: `main` points somewhere today and somewhere
+	// else next week, so the commit has to be captured at the moment the build
+	// is asked for or it cannot be recovered at all. Empty when the repository
+	// cannot be read anonymously, and empty reads as unknown.
+	record.CommitSHA = resolveCommitSHA(req.GitRepository, req.GitRef)
 
 	if h.runtime != nil {
 		err = h.runtime.CreateBuild(noryxruntime.BuildSpec{
@@ -275,6 +280,16 @@ func (h Handlers) syncBuildsFromRuntime() {
 			record.Status = "submitted"
 		}
 
+		// The digest is resolved once, when the build has actually pushed
+		// something, and never again: a tag can be moved afterwards, and the
+		// image this build produced is the one that existed when it finished.
+		// Guarded on an empty value rather than on the status alone, so a
+		// sweep over a hundred finished builds does not become a hundred
+		// registry calls every time it runs.
+		if record.ImageDigest == "" && strings.EqualFold(strings.TrimSpace(record.Status), "succeeded") {
+			record.ImageDigest = h.resolveImageDigest(record.DestinationImage)
+		}
+
 		_ = h.buildStore.Upsert(record)
 	}
 
@@ -328,11 +343,37 @@ func (h Handlers) deriveEnvironmentImage(projectID, name string) (string, error)
 	if registryProject == "." || registryProject == "/" {
 		return "", fmt.Errorf("this installation has no environment registry configured")
 	}
+	// A project of its own, beside the platform's.
+	//
+	// Until 2026-09-18 a derived destination landed in the same registry
+	// project as the images the platform runs from, separated only by a name
+	// prefix. Nothing but that prefix stood between a build and a repository
+	// the platform starts workspaces from - and on 2026-09-07 a build reached
+	// one, merged with the system entry in the catalogue, and broke every
+	// launch from it. The guard added that day refuses the collision; this
+	// removes the adjacency that made it possible, and takes the registry's
+	// own access control with it: a robot that may push here need not be able
+	// to push there.
+	registryProject = buildRegistryProject(registryProject, h.buildRegistryProject)
 	project := environmentSlug(projectID)
 	if len(project) > 12 {
 		project = project[:12]
 	}
 	return fmt.Sprintf("%s/%s-%s", registryProject, project, slug), nil
+}
+
+// buildRegistryProject names the registry project derived builds are pushed
+// to. Configured outright, or a sibling of the platform's own project - never
+// the platform's project itself, which is the arrangement this replaces.
+func buildRegistryProject(platformProject, configured string) string {
+	if configured = strings.TrimSpace(configured); configured != "" {
+		return configured
+	}
+	registry, project := path.Split(platformProject)
+	if project == "" {
+		return platformProject
+	}
+	return path.Join(registry, project+"-builds")
 }
 
 // nextRevisionTag counts the revisions this environment already has and names

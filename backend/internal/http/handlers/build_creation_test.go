@@ -17,8 +17,17 @@ func TestTheDestinationIsDerivedFromTheInstallationsOwnRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(image, "harbor.emse.local/noryx-environments/") {
+	if !strings.HasPrefix(image, "harbor.emse.local/") {
 		t.Errorf("the image must go to the registry this cluster already pulls from: %s", image)
+	}
+	// Beside the platform's own project, never inside it. The prefix in the
+	// repository name used to be the only thing separating a project's build
+	// from an image the platform starts workspaces from.
+	if strings.HasPrefix(image, "harbor.emse.local/noryx-environments/") {
+		t.Errorf("a build must not land in the platform's own registry project: %s", image)
+	}
+	if !strings.HasPrefix(image, "harbor.emse.local/noryx-environments-builds/") {
+		t.Errorf("builds belong in a project of their own: %s", image)
 	}
 	if !strings.Contains(image, "training-gpu") {
 		t.Errorf("the environment's name should be readable in the image: %s", image)
@@ -30,6 +39,22 @@ func TestTheDestinationIsDerivedFromTheInstallationsOwnRegistry(t *testing.T) {
 	}
 	if strings.SplitN(image, ":", 2)[0] == strings.SplitN(other, ":", 2)[0] {
 		t.Errorf("two projects share a repository: %s and %s", image, other)
+	}
+}
+
+// An installation that has already created a project in its registry says so,
+// and the platform does not argue with it.
+func TestTheBuildRegistryProjectCanBeConfigured(t *testing.T) {
+	h := Handlers{
+		workspaceVSCodeImage: "harbor.emse.local/noryx-environments/noryx-vscode:0.1.2",
+		buildRegistryProject: "harbor.emse.local/noryx-builds",
+	}
+	image, err := h.deriveEnvironmentImage("16108a6a-4dff-43f5-bafe-af0cb4177f04", "Training GPU")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(image, "harbor.emse.local/noryx-builds/") {
+		t.Errorf("the configured project must win: %s", image)
 	}
 }
 

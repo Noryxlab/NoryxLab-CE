@@ -97,6 +97,7 @@ type Config struct {
 	MinIOUseSSL                   bool
 	MinIORegion                   string
 	HarborURL                     string
+	BuildRegistryProject          string
 	HarborUsername                string
 	HarborPassword                string
 	HarborInsecureSkipVerify      bool
@@ -403,6 +404,7 @@ func Load() Config {
 		MinIOUseSSL:                      os.Getenv("NORYX_MINIO_USE_SSL") == "true",
 		MinIORegion:                      minioRegion,
 		HarborURL:                        harborURL,
+		BuildRegistryProject:             strings.TrimSpace(os.Getenv("NORYX_BUILD_REGISTRY_PROJECT")),
 		HarborUsername:                   os.Getenv("NORYX_HARBOR_USERNAME"),
 		HarborPassword:                   os.Getenv("NORYX_HARBOR_PASSWORD"),
 		HarborInsecureSkipVerify:         os.Getenv("NORYX_HARBOR_INSECURE_SKIP_VERIFY") == "true",

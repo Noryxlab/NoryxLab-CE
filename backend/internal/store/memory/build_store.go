@@ -50,6 +50,20 @@ func (s *BuildStore) Upsert(b build.Build) error {
 
 	for i, item := range s.items {
 		if item.ID == b.ID {
+			// Empty means "not carried by this caller", not "cleared". The
+			// reconciliation loop rebuilds a record from a Kubernetes job,
+			// which knows the job and its status and nothing about the name
+			// somebody typed or the commit and digest established at
+			// submission. The Postgres store keeps these the same way.
+			if b.Name == "" {
+				b.Name = item.Name
+			}
+			if b.CommitSHA == "" {
+				b.CommitSHA = item.CommitSHA
+			}
+			if b.ImageDigest == "" {
+				b.ImageDigest = item.ImageDigest
+			}
 			s.items[i] = b
 			return nil
 		}

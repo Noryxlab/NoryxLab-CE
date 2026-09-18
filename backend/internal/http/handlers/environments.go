@@ -18,16 +18,21 @@ type environmentRevision struct {
 	// a449755a. Counted per environment, oldest first, so it never changes
 	// once assigned and a workload pinned to revision 2 keeps meaning the
 	// same thing.
-	Number           int       `json:"number"`
-	BuildID          string    `json:"buildId"`
-	JobName          string    `json:"jobName"`
-	Status           string    `json:"status"`
-	GitRepository    string    `json:"gitRepository"`
-	GitRef           string    `json:"gitRef"`
-	DockerfilePath   string    `json:"dockerfilePath"`
-	ContextPath      string    `json:"contextPath"`
-	DestinationImage string    `json:"destinationImage"`
-	CreatedAt        time.Time `json:"createdAt"`
+	Number           int    `json:"number"`
+	BuildID          string `json:"buildId"`
+	JobName          string `json:"jobName"`
+	Status           string `json:"status"`
+	GitRepository    string `json:"gitRepository"`
+	GitRef           string `json:"gitRef"`
+	DockerfilePath   string `json:"dockerfilePath"`
+	ContextPath      string `json:"contextPath"`
+	DestinationImage string `json:"destinationImage"`
+	// The two values that make a revision reproducible: the commit the ref
+	// pointed at when the build was submitted, and the digest the registry
+	// gave the image it produced. Empty when unknown, and shown as unknown.
+	CommitSHA   string    `json:"commitSha,omitempty"`
+	ImageDigest string    `json:"imageDigest,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type environmentItem struct {
@@ -126,6 +131,8 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 			DockerfilePath:   b.DockerfilePath,
 			ContextPath:      b.ContextPath,
 			DestinationImage: b.DestinationImage,
+			CommitSHA:        b.CommitSHA,
+			ImageDigest:      b.ImageDigest,
 			CreatedAt:        b.CreatedAt,
 		}
 		item.Revisions = append(item.Revisions, rev)

@@ -330,6 +330,12 @@ export interface EnvironmentRevision {
   dockerfilePath: string;
   contextPath: string;
   destinationImage: string;
+  /** The commit the ref pointed at when this revision was built, and the
+   *  digest the registry gave the image. A branch name and a tag both move;
+   *  these do not. Absent when the platform could not establish them - which
+   *  is displayed as unknown, never smoothed over. */
+  commitSha?: string;
+  imageDigest?: string;
   createdAt: string;
 }
 
@@ -338,6 +344,11 @@ export interface Environment {
    *  registry does not scan - an empty report must never read as a clean
    *  one, so the screen shows nothing rather than zero. */
   vulnerabilities?: {
+    // 'scanned' is the only status whose counts mean anything. 'unscanned' and
+    // 'unavailable' both carry zeros, and rendering them as zero findings is
+    // the bug this field exists to prevent.
+    status: 'scanned' | 'unscanned' | 'unavailable';
+    detail?: string;
     critical: number;
     high: number;
     medium: number;

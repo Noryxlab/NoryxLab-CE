@@ -270,6 +270,7 @@ func main() {
 			MinIOUseSSL:                  cfg.MinIOUseSSL,
 			MinIORegion:                  cfg.MinIORegion,
 			HarborURL:                    cfg.HarborURL,
+			BuildRegistryProject:         cfg.BuildRegistryProject,
 			HarborUsername:               cfg.HarborUsername,
 			HarborPassword:               cfg.HarborPassword,
 			HarborInsecureSkipVerify:     cfg.HarborInsecureSkipVerify,

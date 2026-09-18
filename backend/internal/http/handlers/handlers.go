@@ -96,6 +96,7 @@ type Handlers struct {
 	edition                          string
 	defaultTheme                     string
 	editionHooks                     edition.Hooks
+	buildRegistryProject             string
 	harborURL                        string
 	harborUsername                   string
 	harborPassword                   string
@@ -186,16 +187,21 @@ type Options struct {
 	DatasetSizeStore store.DatasetSizeStore
 	// Settings resolves administrator overrides at use time, so a change takes
 	// effect without a redeployment.
-	Settings                     *settings.Resolver
-	SecretsMasterKey             string
-	MinIOClient                  *minio.Client
-	MinIOEndpoint                string
-	MinIOAccessKey               string
-	MinIOSecretKey               string
-	MinIOUseSSL                  bool
-	MinIORegion                  string
-	EditionHooks                 *edition.Hooks
-	HarborURL                    string
+	Settings         *settings.Resolver
+	SecretsMasterKey string
+	MinIOClient      *minio.Client
+	MinIOEndpoint    string
+	MinIOAccessKey   string
+	MinIOSecretKey   string
+	MinIOUseSSL      bool
+	MinIORegion      string
+	EditionHooks     *edition.Hooks
+	HarborURL        string
+	// BuildRegistryProject is where derived build destinations are pushed.
+	// Empty means a sibling of the platform's own registry project, which is
+	// the sensible default and the one this installation should want: builds
+	// beside the platform's images rather than among them.
+	BuildRegistryProject         string
 	HarborUsername               string
 	HarborPassword               string
 	HarborInsecureSkipVerify     bool
@@ -349,6 +355,7 @@ func New(
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),
 		editionHooks:                     hooks,
 		harborURL:                        strings.TrimSpace(options.HarborURL),
+		buildRegistryProject:             strings.TrimSpace(options.BuildRegistryProject),
 		harborUsername:                   strings.TrimSpace(options.HarborUsername),
 		harborPassword:                   options.HarborPassword,
 		harborInsecureSkipVerify:         options.HarborInsecureSkipVerify,

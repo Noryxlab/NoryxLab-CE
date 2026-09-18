@@ -330,6 +330,31 @@ function EnvironmentDetail({
       cell: (revision) => <StatusBadge status={revision.status} locale={locale} />,
     },
     {
+      // What this revision was made from and what it produced. A ref and a tag
+      // both move, so a revision that records only those cannot be replayed
+      // and cannot answer which source produced a running image.
+      id: 'provenance',
+      header: t('environments.provenance'),
+      cell: (revision) => (
+        <span className="flex flex-col gap-0.5 font-mono text-[0.6875rem] text-muted-foreground">
+          {revision.commitSha ? (
+            <span title={`${revision.gitRef || ''} ${revision.commitSha}`.trim()}>
+              {revision.gitRef ? `${revision.gitRef} · ` : ''}
+              {revision.commitSha.slice(0, 12)}
+            </span>
+          ) : null}
+          {revision.imageDigest ? (
+            <span title={revision.imageDigest}>
+              {revision.imageDigest.replace(/^sha256:/, '').slice(0, 12)}
+            </span>
+          ) : null}
+          {!revision.commitSha && !revision.imageDigest ? (
+            <span className="font-sans">{t('environments.provenanceUnknown')}</span>
+          ) : null}
+        </span>
+      ),
+    },
+    {
       id: 'createdAt',
       header: t('common.createdAt'),
       sortValue: (revision) => revision.createdAt,
@@ -533,6 +558,20 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
   // No report is not a clean report: a registry that does not scan says
   // nothing, and the screen says nothing back.
   if (!report) return <span className="text-xs text-muted-foreground">—</span>;
+  // And "we could not ask" is not "we asked and found nothing". Both used to
+  // render as an em dash, which reads as reassurance.
+  if (report.status !== 'scanned') {
+    return (
+      <span
+        className="text-xs text-muted-foreground underline decoration-dotted underline-offset-2"
+        title={report.detail ?? undefined}
+      >
+        {report.status === 'unscanned'
+          ? t('environments.notScanned')
+          : t('environments.scanUnavailable')}
+      </span>
+    );
+  }
   if (report.total === 0) {
     return <Badge tone="success">{t('environments.noVulnerabilities')}</Badge>;
   }
@@ -582,7 +621,7 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
       id: 'vulnerabilities',
       header: t('environments.vulnerabilities'),
       sortValue: (environment) =>
-        environment.vulnerabilities
+        environment.vulnerabilities?.status === 'scanned'
           ? environment.vulnerabilities.critical * 1000 + environment.vulnerabilities.high
           : -1,
       cell: (environment) => <Vulnerabilities environment={environment} />,
