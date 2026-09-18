@@ -182,7 +182,10 @@ func (h Handlers) SendUserPasswordResetEmail(w http.ResponseWriter, r *http.Requ
 	if lifespan <= 0 {
 		lifespan = int((72 * time.Hour).Seconds())
 	}
-	if err := h.keycloak.SendPasswordResetEmail(userID, lifespan); err != nil {
+	// The client and address the person is returned to. Both already known to
+	// the platform: the frontend client it issues tokens for, and the URL it
+	// tells everybody else to use.
+	if err := h.keycloak.SendPasswordResetEmail(userID, lifespan, h.oidcFrontendClientID, h.publicURL); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the mail could not be sent: " + err.Error()})
 		return
 	}

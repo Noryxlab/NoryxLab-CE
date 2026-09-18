@@ -2,8 +2,10 @@ package keycloak
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -147,10 +149,41 @@ func smtpMap(settings SMTPSettings) map[string]string {
 // Requires a mail server on the realm. Without one Keycloak fails the call,
 // which is why the interface hides the action until SMTP is configured rather
 // than offering a button that cannot work.
-func (c *Client) SendPasswordResetEmail(userID string, lifespanSeconds int) error {
-	path := "users/" + url.PathEscape(strings.TrimSpace(userID)) + "/execute-actions-email"
+func (c *Client) SendPasswordResetEmail(userID string, lifespanSeconds int, clientID, redirectURI string) error {
+	query := url.Values{}
 	if lifespanSeconds > 0 {
-		path += fmt.Sprintf("?lifespan=%d", lifespanSeconds)
+		query.Set("lifespan", strconv.Itoa(lifespanSeconds))
+	}
+	// Where the person lands after choosing their password.
+	//
+	// Without these two, Keycloak shows its own "your account has been updated"
+	// page: no link, no way back, and somebody who has never seen the platform
+	// has to be told its address separately. With them they arrive inside it,
+	// signed in, which is the whole point of sending an invitation.
+	if clientID != "" && redirectURI != "" {
+		query.Set("client_id", clientID)
+		query.Set("redirect_uri", redirectURI)
+	}
+	path := "users/" + url.PathEscape(strings.TrimSpace(userID)) + "/execute-actions-email"
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	err := c.adminJSON(http.MethodPut, path, []string{"UPDATE_PASSWORD"}, nil)
+	if err == nil || clientID == "" || redirectURI == "" {
+		return err
+	}
+	// Keycloak refuses the whole call when the redirect is not registered on
+	// the client, and refusing means no mail at all. A message that lands on a
+	// bare page is worse than one that lands in the platform and far better
+	// than none, so the send is retried without the redirect.
+	log.Printf("keycloak: %s rejected as a redirect for %s, sending without it: %v", redirectURI, clientID, err)
+	plain := url.Values{}
+	if lifespanSeconds > 0 {
+		plain.Set("lifespan", strconv.Itoa(lifespanSeconds))
+	}
+	path = "users/" + url.PathEscape(strings.TrimSpace(userID)) + "/execute-actions-email"
+	if encoded := plain.Encode(); encoded != "" {
+		path += "?" + encoded
 	}
 	return c.adminJSON(http.MethodPut, path, []string{"UPDATE_PASSWORD"}, nil)
 }
