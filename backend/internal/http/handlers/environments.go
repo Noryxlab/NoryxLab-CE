@@ -642,3 +642,20 @@ func (h Handlers) deriveIDEForImage(image string) string {
 	}
 	return ""
 }
+
+// configuredImageFor names what this platform runs for a kind, so a refusal can
+// show the difference rather than assert one.
+func (h Handlers) configuredImageFor(ide string) string {
+	switch strings.ToLower(strings.TrimSpace(ide)) {
+	case "vscode":
+		return strings.TrimSpace(h.workspaceVSCodeImage)
+	case "jupyter":
+		return strings.TrimSpace(h.workspaceJupyterImage)
+	case "rstudio":
+		return strings.TrimSpace(h.workspaceRStudioImage)
+	}
+	if registered, ok := workspacekind.Lookup(ide); ok && registered.DefaultImage != nil {
+		return strings.TrimSpace(registered.DefaultImage())
+	}
+	return ""
+}

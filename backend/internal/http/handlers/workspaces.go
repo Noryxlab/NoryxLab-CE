@@ -394,7 +394,19 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.workspaceEnvironmentAllowed(req.ProjectID, workspaceImage, req.IDE) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "selected environment is not accessible or compatible with " + req.IDE})
+		// Name the image, and name what was expected.
+		//
+		// This used to say only "selected environment is not accessible or
+		// compatible with <kind>", which describes the verdict and not the
+		// reason. Two people chasing it spent an hour comparing a screen
+		// against a database because the one fact that settles it - the image
+		// the request carried - appeared nowhere. A tag that lags by one
+		// revision looks identical in every list and fails only here.
+		detail := "the image " + workspaceImage + " is not registered for " + req.IDE + " on this platform"
+		if configured := h.configuredImageFor(req.IDE); configured != "" && configured != workspaceImage {
+			detail += ", which runs " + configured
+		}
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": detail})
 		return
 	}
 	// What actually runs, pinned. Resolved before the quota check so a launch
