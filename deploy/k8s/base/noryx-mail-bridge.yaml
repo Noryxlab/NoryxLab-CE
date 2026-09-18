@@ -33,6 +33,12 @@ spec:
         app: noryx-mail-bridge
     spec:
       serviceAccountName: default
+      # The same private registry as the backend, because this is the backend
+      # image started with another command. It was missing here and had to be
+      # patched onto the live deployment by hand, which is the sort of thing
+      # that works once and not on the next cluster.
+      imagePullSecrets:
+        - name: harbor-regcred
       securityContext:
         runAsNonRoot: true
         seccompProfile:

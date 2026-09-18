@@ -60,3 +60,52 @@ patches:
     patch: |-
       - op: remove
         path: /spec/template/spec/imagePullSecrets
+  # Longhorn's namespace does not exist on a stock Kind cluster, and a Role
+  # placed in a namespace that is absent fails the whole apply - which is how
+  # this job started failing on a change that had nothing wrong with it. Same
+  # reasoning as the Traefik CRDs above: the object is validated where the
+  # component it belongs to exists.
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: Role
+      name: noryx-backend-storage-capacity
+    patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: noryx-backend-storage-capacity
+        namespace: longhorn-system
+  - target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: RoleBinding
+      name: noryx-backend-storage-capacity
+    patch: |-
+      $patch: delete
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: noryx-backend-storage-capacity
+        namespace: longhorn-system
+
+# The secrets the graph references and a customer supplies. Values that exist
+# so the objects can start, and nothing that would work anywhere: the point is
+# to admit the resource graph, not to send mail or reach an object store.
+secretGenerator:
+  - name: noryx-mail-bridge
+    literals:
+      - NORYX_MAIL_RELAY_URL=http://mail.invalid
+      - NORYX_MAIL_TOKEN=ci
+  - name: noryx-backup-target
+    literals:
+      - bucket=ci
+      - endpoint=http://object.invalid
+      - accessKey=ci
+      - secretKey=ci
+  - name: noryx-identity-backup-key
+    literals:
+      - key=ci
+generatorOptions:
+  disableNameSuffixHash: true

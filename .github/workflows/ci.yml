@@ -210,6 +210,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v6
+      # Before the cluster, because both answers are cheap and one of them
+      # explains a failure that would otherwise arrive as a broken apply two
+      # minutes later.
+      - name: Check the manifest graph
+        run: ./scripts/ci/check-manifests.sh
       - name: Create isolated Kubernetes cluster
         uses: helm/kind-action@v1
         with:

@@ -12,3 +12,13 @@ resources:
   - noryx-api.yaml
   - noryx-api-ingressroute.yaml
   - noryx-loads-network-policies.yaml
+  # Added 2026-09-18 after finding they were not here.
+  #
+  # All three were running in production and none of them was in this graph:
+  # they existed only because somebody had applied them by hand. A namespace
+  # rebuilt from these files would have come back with no nightly backups, no
+  # network segmentation between the platform's own components, and no mail -
+  # each of which looks like it works right up until the day it is recreated.
+  - noryx-platform-network-policies.yaml
+  - noryx-backup-cronjobs.yaml
+  - noryx-mail-bridge.yaml
