@@ -471,7 +471,23 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 	}
 	if item, ok := items[key]; ok {
 		item.Category = "system"
-		item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, definition.WorkspaceIDEs)
+		// The platform's own image wins, and so does its name.
+		//
+		// Entries are keyed on the repository rather than the reference, so a
+		// rebuild does not become a second environment - which is right, and
+		// which let a rebuild quietly become the offered one. A build in a
+		// project pushed noryx-vscode:1788812980 to the platform's repository;
+		// the merged entry kept the build's image while showing the system
+		// name, so the list read 0.1.2 and the launch carried the timestamp.
+		// The platform runs what it is configured to run, and refused an image
+		// nobody could see had been substituted.
+		//
+		// The rebuild is not lost: it stays in the revisions below, which is
+		// where the history of an environment belongs. What it may not do is
+		// replace what the platform will actually start.
+		item.Name = deriveEnvironmentName(image)
+		item.DestinationImage = image
+		item.WorkspaceIDEs = mergeWorkspaceIDEs(definition.WorkspaceIDEs, item.WorkspaceIDEs)
 		item.LatestBuildID = definition.BuildID
 		item.LatestStatus = "succeeded"
 		item.LatestGitRepo = definition.GitRepository
@@ -536,13 +552,26 @@ func mergeWorkspaceIDEs(current, extra []string) []string {
 			seen[ide] = true
 		}
 	}
+	// The order the caller gave, kept.
+	//
+	// This used to rebuild the list as jupyter, vscode, rstudio, then the
+	// registered kinds - a fixed order meant to keep an interface's default
+	// stable when a module is installed. The cost was that the first entry
+	// stopped describing the environment: a VS Code environment that merged
+	// with a rebuild came back jupyter-first, the launch form read entry zero,
+	// and it offered JupyterLab under a name reading noryx-vscode. A list
+	// whose order means nothing is a list nobody should read positionally, and
+	// this one is read positionally.
+	//
+	// Callers pass the definitive kind first, so the stability that ordering
+	// was protecting now comes from the caller knowing what this environment
+	// is - which it does, and the sort never did.
 	result := make([]string, 0, len(seen))
-	// Community's three first and in their usual order, then the registered
-	// ones: an interface that preselects the first entry should not have its
-	// default changed by a module being installed.
-	known := append([]string{"jupyter", "vscode", "rstudio"}, workspacekind.IDs()...)
-	for _, ide := range known {
-		if seen[ide] {
+	added := map[string]bool{}
+	for _, ide := range append(append([]string{}, current...), extra...) {
+		ide = strings.ToLower(strings.TrimSpace(ide))
+		if seen[ide] && !added[ide] {
+			added[ide] = true
 			result = append(result, ide)
 		}
 	}
