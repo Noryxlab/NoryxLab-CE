@@ -14,6 +14,58 @@ fixes almost nothing, and moving the base fixes most of it.
 That is why the answer is a **rebuild from a moving base tag**, and not a
 nightly `apt-get upgrade` inside a frozen image.
 
+## Rebuilding: nightly, at 02:40
+
+`noryx-environment-rebuild` runs kaniko over the three system Dockerfiles from
+the public Community repository and pushes over the tags the installation
+runs. Without a cache, so the base image is fetched fresh and its security
+fixes come with it.
+
+It was written on 2026-09-18, and what was there before was a sentence. The
+paragraph above had said "rebuild weekly" since the platform was written, no
+scheduler existed on either installation, and the three system images were 46,
+46 and 28 days old. An intention with no scheduler is not a policy - the same
+shape as a vulnerability column that could never fill.
+
+**Two dependencies, both silent when they are missing.**
+
+*The digest.* Workspace pods run with `imagePullPolicy: IfNotPresent`, so
+overwriting a tag reaches no node that already holds it. The platform resolves
+the tag to a digest before it starts a pod, which turns a rebuilt image into a
+new reference and gets it pulled - and that resolution goes through Harbor's
+API with the platform's robot account. On EMSE that account received 403, so
+pods ran bare tags, and a nightly rebuild would have been work nobody
+received. The robot needs **read on repositories**, the same grant the scan
+column needs.
+
+*The profile.* A person's extensions live in their profile volume, not in the
+image. See below.
+
+## Extensions, and how a rebuilt image reaches somebody
+
+Extensions are installed into the image at build time and copied into each
+person's profile volume at first launch. The copy used to happen only into an
+empty directory - which meant once per volume, ever. Somebody who opened a
+workspace in August kept August's extensions no matter how often the image was
+rebuilt.
+
+The image now carries `/opt/noryx-vscode/IMAGE_BUILD`, stamped at build time,
+and the profile remembers the last stamp it was given. When they differ the
+bootstrap copies the extensions again, **before the editor starts**. Extension
+directories are merged, so anything somebody installed themselves survives;
+`extensions.json` is deleted rather than overwritten, because it is VS Code's
+manifest of that directory and replacing it with the image's would erase every
+extension the person had added. It is rebuilt from what is on disk.
+
+**Auto-update from the Microsoft marketplace is switched off** in the image.
+It was on, and it worked: on 2026-09-18 a workspace upgraded `charliermarsh.ruff`
+from 2026.80.0 to 2026.82.0 during launch, from `marketplace.visualstudio.com`.
+Three reasons to stop doing it: it costs launch time in the worst possible
+place, it makes the same pinned image produce different tooling depending on
+the day, and it means every workspace on a platform holding regulated data
+calls Microsoft at start-up. The nightly rebuild produces the same result,
+once, off-hours, identically for everyone.
+
 ## Seeing them: scan on push
 
 Harbor scans every artifact it receives with Trivy, and reports counts by

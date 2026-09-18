@@ -1,0 +1,115 @@
+# Rebuilding the environment images, nightly.
+#
+# An environment is an image, and an image ages: the base it was built from
+# receives security fixes and the copy in the registry does not. The platform
+# documented that "the answer is a rebuild from a moving base tag" and then
+# nothing rebuilt anything. On 2026-09-18 the three system images were 46, 46
+# and 28 days old, and the only mechanism that moved them was somebody
+# remembering to. An intention with no scheduler is not a policy.
+#
+# This is deliberately dumb: kaniko, the same executor the platform's own
+# builds use, against the public Community repository, pushing over the tags
+# the installation runs. Three sequential init containers rather than three
+# CronJobs, so one schedule and one place to read the outcome.
+#
+# Why no --build-arg for the image marker: the VS Code Dockerfile stamps
+# /opt/noryx-vscode/IMAGE_BUILD with the build date when no NORYX_BUILD_ID is
+# given, and kaniko here runs without a cache, so that layer executes on every
+# run and the stamp is genuinely new each night. The workspace bootstrap reads
+# it to decide whether to redeliver extensions into a person's profile.
+#
+# TWO THINGS THIS DEPENDS ON, both easy to get wrong:
+#
+#   1. Workspace pods run with imagePullPolicy IfNotPresent, so overwriting a
+#      tag reaches no node that already has it. The platform resolves the tag
+#      to a digest before starting a pod, which makes the new image a new
+#      reference and gets it pulled - but that resolution goes through Harbor's
+#      API, and it needs the platform's robot account to have READ on the
+#      repositories. Without that permission the digest comes back empty, pods
+#      run the bare tag, and this entire job is wasted effort that looks like
+#      it worked.
+#
+#   2. The tags below are the ones this installation runs. They are the
+#      recipe's version, not a release: a rebuild carries the same recipe with
+#      fresh packages. Change them here when the recipe version changes, or
+#      the job will faithfully refresh an image nobody starts.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: noryx-environment-rebuild
+  namespace: noryx-loads
+  labels:
+    app.kubernetes.io/name: noryx-environment-rebuild
+    app.kubernetes.io/part-of: noryx
+spec:
+  # 02:40, after the database and identity backups and well clear of them.
+  schedule: "40 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # A build that has not finished in two hours is stuck, not slow.
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: noryx-environment-rebuild
+        spec:
+          restartPolicy: Never
+          volumes:
+            - name: registry-credentials
+              secret:
+                secretName: harbor-regcred
+                items:
+                  - key: .dockerconfigjson
+                    path: config.json
+          initContainers:
+            - name: rebuild-vscode
+              image: gcr.io/kaniko-project/executor:v1.23.2
+              args:
+                - --context=git://github.com/Noryxlab/NoryxLab-CE.git#refs/heads/main
+                - --dockerfile=environments/noryx-vscode/Dockerfile
+                - --destination=harbor.example.local/noryx-environments/noryx-vscode:0.1.2
+                - --cache=false
+                - --insecure
+                - --skip-tls-verify
+              volumeMounts:
+                - name: registry-credentials
+                  mountPath: /kaniko/.docker
+            - name: rebuild-jupyter
+              image: gcr.io/kaniko-project/executor:v1.23.2
+              args:
+                - --context=git://github.com/Noryxlab/NoryxLab-CE.git#refs/heads/main
+                - --dockerfile=environments/noryx-jupyter/Dockerfile
+                - --destination=harbor.example.local/noryx-environments/noryx-jupyter:0.1.0
+                - --cache=false
+                - --insecure
+                - --skip-tls-verify
+              volumeMounts:
+                - name: registry-credentials
+                  mountPath: /kaniko/.docker
+            - name: rebuild-rstudio
+              image: gcr.io/kaniko-project/executor:v1.23.2
+              args:
+                - --context=git://github.com/Noryxlab/NoryxLab-CE.git#refs/heads/main
+                - --dockerfile=environments/noryx-rstudio/Dockerfile
+                - --destination=harbor.example.local/noryx-environments/noryx-rstudio:0.1.0
+                - --cache=false
+                - --insecure
+                - --skip-tls-verify
+              volumeMounts:
+                - name: registry-credentials
+                  mountPath: /kaniko/.docker
+          containers:
+            # The three builds above are init containers so they run in order
+            # and the pod fails on the first one that does. This exists because
+            # a pod needs one.
+            - name: done
+              image: gcr.io/kaniko-project/executor:v1.23.2
+              command:
+                - /busybox/sh
+                - -c
+                - echo "environment images rebuilt"

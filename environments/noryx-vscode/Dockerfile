@@ -44,12 +44,27 @@ RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
  && printf '%s\n' \
     '{' \
     '  "workbench.colorTheme": "Default Dark Modern",' \
-    '  "python.defaultInterpreterPath": "/usr/local/bin/python3"' \
+    '  "python.defaultInterpreterPath": "/usr/local/bin/python3",' \
+    '  "extensions.autoUpdate": false,' \
+    '  "extensions.autoCheckUpdates": false' \
     '}' > "/opt/noryx-vscode/data/Machine/settings.json" \
  && set -eux; \
     for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
       openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext" || true; \
     done
+
+# What the workspace bootstrap compares against, to know this image has moved.
+#
+# Extensions are copied into a person's profile volume on first launch and
+# were then never refreshed, so a rebuilt image reached nobody who had already
+# opened a workspace. The bootstrap now redelivers them when this value
+# differs from the one the profile was last given.
+#
+# The nightly rebuild passes NORYX_BUILD_ID. Without it the build date is used,
+# which freezes if this layer is cached - and a cached layer means nothing
+# changed, so not redelivering is the right answer.
+ARG NORYX_BUILD_ID=
+RUN printf '%s\n' "${NORYX_BUILD_ID:-$(date -u +%Y%m%dT%H%M%SZ)}" > /opt/noryx-vscode/IMAGE_BUILD
 
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini", "--"]

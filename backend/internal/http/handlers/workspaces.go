@@ -105,7 +105,21 @@ func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 		if !h.hasProjectMembership(userID, item.ProjectID) {
 			continue
 		}
-		if hasReadiness && item.ServiceName != "" {
+		// Readiness refines a live workspace; it does not overrule a dead one.
+		//
+		// The sync above reads the pod's phase and writes "failed" when the
+		// kernel has killed it. This block then assigned running or launching
+		// unconditionally, so "failed" could never reach the screen: a
+		// workspace killed for memory came back as running because its Service
+		// still existed, and its owner clicked it and got a proxy error from a
+		// card that had just said it was fine. The comment inside
+		// syncWorkspacesFromRuntime describes exactly this bug; that fix
+		// stopped at the sync and did not notice the line undoing it.
+		//
+		// A terminal status is a fact about the pod. Endpoints say whether
+		// traffic can reach it, which is a different question and not one that
+		// can bring it back.
+		if hasReadiness && item.ServiceName != "" && !isTerminalWorkspaceStatus(item.Status) {
 			ready, err := readiness.IsServiceReady(item.ServiceName)
 			if err == nil {
 				if ready {
@@ -1154,11 +1168,51 @@ func workspaceBootstrapScript(
 	if kind == "vscode" {
 		lines = append(lines,
 			fmt.Sprintf("mkdir -p %s %s", shellQuote(profileMountPath+"/vscode/data/Machine"), shellQuote(profileMountPath+"/vscode/extensions")),
-			fmt.Sprintf("if [ -d /opt/noryx-vscode/extensions ] && ! find %s -mindepth 1 -maxdepth 1 -type d | grep -q .; then", shellQuote(profileMountPath+"/vscode/extensions")),
-			fmt.Sprintf("  cp -a /opt/noryx-vscode/extensions/. %s/ || true", shellQuote(profileMountPath+"/vscode/extensions")),
+		)
+		// Deliver the image's extensions again once the image has moved.
+		//
+		// The copy used to run only into an empty directory, which meant once
+		// per profile volume, ever. Rebuilding the image therefore reached
+		// nobody who had already opened a workspace: somebody who started in
+		// August kept August's extensions for good, and a nightly rebuild
+		// carrying security fixes would have produced an image no one received.
+		//
+		// The image carries a build marker and the profile remembers the last
+		// one it was given, so this runs exactly once per new image, before
+		// the editor starts. Not beside it: the background updater that did
+		// this while VS Code was reading the directory left the workbench
+		// blank for three and a half minutes.
+		//
+		// What is copied and what is not. Extension directories are merged
+		// over, so anything somebody installed themselves survives, and
+		// extensions.json is deleted rather than replaced - it is VS Code's
+		// manifest of the directory, and overwriting it with the image's would
+		// erase every extension the person had added. Removed, it is rebuilt
+		// from what is actually on disk. Machine settings are refreshed the
+		// same way: they are the platform's layer, and user settings live
+		// elsewhere and are never touched.
+		//
+		// An image built before the marker existed keeps the old behaviour -
+		// fill an empty directory, otherwise leave it alone.
+		extensionsDir := profileMountPath + "/vscode/extensions"
+		machineSettings := profileMountPath + "/vscode/data/Machine/settings.json"
+		lines = append(lines,
+			"if [ -d /opt/noryx-vscode/extensions ]; then",
+			"  noryx_baked=",
+			"  [ -f /opt/noryx-vscode/IMAGE_BUILD ] && noryx_baked=$(cat /opt/noryx-vscode/IMAGE_BUILD 2>/dev/null || true)",
+			"  noryx_seen=",
+			fmt.Sprintf("  [ -f %s/.noryx-image ] && noryx_seen=$(cat %s/.noryx-image 2>/dev/null || true)", shellQuote(extensionsDir), shellQuote(extensionsDir)),
+			"  noryx_empty=1",
+			fmt.Sprintf("  find %s -mindepth 1 -maxdepth 1 -type d 2>/dev/null | grep -q . && noryx_empty=0", shellQuote(extensionsDir)),
+			`  if [ "$noryx_empty" = "1" ] || { [ -n "$noryx_baked" ] && [ "$noryx_baked" != "$noryx_seen" ]; }; then`,
+			fmt.Sprintf("    cp -a /opt/noryx-vscode/extensions/. %s/ || true", shellQuote(extensionsDir)),
+			fmt.Sprintf("    rm -f %s/extensions.json || true", shellQuote(extensionsDir)),
+			fmt.Sprintf("    [ -f /opt/noryx-vscode/data/Machine/settings.json ] && cp /opt/noryx-vscode/data/Machine/settings.json %s || true", shellQuote(machineSettings)),
+			fmt.Sprintf(`    [ -n "$noryx_baked" ] && printf '%%s\n' "$noryx_baked" > %s/.noryx-image || true`, shellQuote(extensionsDir)),
+			"  fi",
 			"fi",
-			fmt.Sprintf("if [ -f /opt/noryx-vscode/data/Machine/settings.json ] && [ ! -f %s ]; then", shellQuote(profileMountPath+"/vscode/data/Machine/settings.json")),
-			fmt.Sprintf("  cp /opt/noryx-vscode/data/Machine/settings.json %s || true", shellQuote(profileMountPath+"/vscode/data/Machine/settings.json")),
+			fmt.Sprintf("if [ -f /opt/noryx-vscode/data/Machine/settings.json ] && [ ! -f %s ]; then", shellQuote(machineSettings)),
+			fmt.Sprintf("  cp /opt/noryx-vscode/data/Machine/settings.json %s || true", shellQuote(machineSettings)),
 			"fi",
 		)
 		// The assistant's memory belongs to the person, not to the pod.
@@ -1555,6 +1609,17 @@ func workspaceIDEChoices() []string {
 // record uses. An unknown phase keeps the optimistic answer, because this runs
 // on a reconciliation sweep and inventing "failed" from a phase nobody has seen
 // would be a worse lie than the one it replaces.
+// isTerminalWorkspaceStatus reports whether the pod has finished, one way or
+// another. Nothing that happens to a Service afterwards changes that.
+func isTerminalWorkspaceStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "failed", "stopped":
+		return true
+	default:
+		return false
+	}
+}
+
 func workspaceStatusFromPhase(phase string) string {
 	switch strings.ToLower(strings.TrimSpace(phase)) {
 	case "failed":
