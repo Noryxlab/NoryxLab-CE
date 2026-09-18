@@ -136,6 +136,22 @@ export interface SelectProps {
 }
 
 /** Field-bound select for the common "pick one from a list" case. */
+/** The label the trigger shows, derived from the same pair the caller reads.
+ *
+ *  `<SelectValue />` with no children shows the text Radix captured when the
+ *  selected item mounted - and the items live in a portal that is only mounted
+ *  while the menu is open. The label is therefore a cache, the value is React
+ *  state, and the two can disagree: a launch form showed "noryx-vscode" over a
+ *  value pointing at the Jupyter environment, so the person chose one thing and
+ *  the platform was sent another, with nothing on screen saying so.
+ *
+ *  Passing children makes Radix render these instead of its cache, so the label
+ *  and the value are two readings of one truth rather than two truths. */
+function selectedLabel(options: SelectOption[], value: string | undefined) {
+  if (!value) return undefined;
+  return options.find((option) => option.value === value)?.label;
+}
+
 export function Select({
   value,
   onValueChange,
@@ -155,7 +171,7 @@ export function Select({
         className={className}
         {...rest}
       >
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{selectedLabel(options, value)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
@@ -181,7 +197,7 @@ export function BareSelect({
   return (
     <SelectRoot value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger className={className} {...rest}>
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{selectedLabel(options, value)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (

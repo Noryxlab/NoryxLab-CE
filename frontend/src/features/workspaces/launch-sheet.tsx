@@ -65,7 +65,14 @@ export function LaunchWorkspaceSheet({
   // Preselect the first usable environment and the tier the backend marks as
   // default, so the common case is one click.
   React.useEffect(() => {
-    if (!environmentId && usable.length > 0) setEnvironmentId(usable[0]?.id ?? '');
+    if (usable.length === 0) return;
+    // A selection kept from a previous opening is only kept while it still
+    // names something. The sheet does not reset it on close, and an
+    // environment can disappear between two openings - a rebuild changes the
+    // reference, a kind is withdrawn - after which the form holds an id that
+    // matches nothing and submits an environment nobody chose.
+    const stillThere = usable.some((candidate) => candidate.id === environmentId);
+    if (!environmentId || !stillThere) setEnvironmentId(usable[0]?.id ?? '');
   }, [usable, environmentId]);
 
   React.useEffect(() => {
