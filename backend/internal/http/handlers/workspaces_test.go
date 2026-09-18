@@ -317,3 +317,26 @@ func TestAPodPhaseBecomesTheWorkspaceStatus(t *testing.T) {
 		t.Fatalf("empty phase became %q", got)
 	}
 }
+
+// The assistant keeps its codebase index in the profile volume so it survives
+// a workspace being stopped, and the profile volume mounts under the
+// container's home. Listing home as a workspace folder therefore told the
+// assistant to index its own index - a directory that grows because it is
+// being indexed. The same walk opened the root of an ext4 volume and logged
+// "EACCES: scandir .../lost+found" on every launch.
+func TestTheWorkspaceDoesNotOfferTheContainersHomeAsAFolder(t *testing.T) {
+	script := workspaceBootstrapScript("vscode", "workspace-id", "", "stef", "admin@example.org", false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0)
+
+	if !strings.Contains(script, `{ "path": "/mnt" }`) {
+		t.Fatal("the project volume must still be a workspace folder")
+	}
+	for _, folder := range []string{`"path": "/home"`, `"path": "/home/noryx"`} {
+		if strings.Contains(script, folder) {
+			t.Errorf("home is a workspace folder again: %s", folder)
+		}
+	}
+	// The profile volume must not be reachable as a root by any other spelling.
+	if strings.Contains(script, `"path": "`+defaultWorkspaceProfileDir) {
+		t.Error("the profile volume is a workspace folder")
+	}
+}

@@ -1250,11 +1250,25 @@ func workspaceBootstrapScript(
 		lines = append(lines,
 			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 			"{",
+			// /home was here and is deliberately gone.
+			//
+			// It is the container's home directory, and what lives in it is
+			// platform plumbing rather than anybody's work: the profile volume
+			// mounts at /home/noryx/.noryx-profile, and the assistant's index
+			// was moved into it so that it survives a workspace being stopped.
+			// Which made the assistant index its own index - a directory that
+			// grows because it is being indexed, inside a folder it was told
+			// to index. The same walk is what produced "EACCES: permission
+			// denied, scandir .../lost+found" on every launch: the root of an
+			// ext4 volume, which nobody asked to open.
+			//
+			// Work belongs in /mnt, /repos and /datasets, which is the policy
+			// everywhere else: a workspace is disposable, and what is only in
+			// the container's home is not backed up and not meant to be.
 			"  \"folders\": [",
 			"    { \"path\": \"/mnt\" },",
 			"    { \"path\": \"/repos\" },",
-			"    { \"path\": \"/datasets\" },",
-			"    { \"path\": \"/home\" }",
+			"    { \"path\": \"/datasets\" }",
 			"  ],",
 			"  \"settings\": {",
 			"    \"files.exclude\": {",
