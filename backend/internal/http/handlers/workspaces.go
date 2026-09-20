@@ -167,6 +167,16 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 	}
 	runtimeItems, err := discovery.ListWorkspaces()
 	if err != nil {
+		// Said out loud, because the consequence is a screen that looks fine.
+		//
+		// Every workspace record is rebuilt from this listing: its phase, its
+		// limits, when it started. When the call fails the function returned
+		// here without a word, and the list endpoint then served whatever was
+		// last written - a workspace that died an hour ago still described as
+		// running, with the figures it had when it was. Nothing on the screen
+		// distinguishes that from a screen that is up to date, and nothing in
+		// the logs distinguished it either.
+		log.Printf("workspaces: the runtime listing failed, records are being served stale: %v", err)
 		return
 	}
 	for _, item := range runtimeItems {

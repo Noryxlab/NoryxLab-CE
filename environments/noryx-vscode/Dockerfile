@@ -12,6 +12,47 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git sudo tini \
  && rm -rf /var/lib/apt/lists/*
 
+# conda, from conda-forge rather than Anaconda's own channels.
+#
+# Miniconda ships with Anaconda's own channels configured, and their terms
+# require a paid licence for organisations past a couple of hundred people -
+# which is every customer this platform has. A research platform that quietly
+# puts its users in breach of a licence by providing the obvious tool is not a
+# service to them, so the obvious tool here points at conda-forge and nothing
+# else. Miniforge gives the same conda command people already know, plus mamba.
+#
+# The checksum is verified because this runs an installer downloaded over the
+# network, as root, into the image every workspace starts from.
+#
+# Two details about making it reachable, both easy to get wrong. Only
+# /opt/conda/condabin goes on PATH, never /opt/conda/bin: the latter carries
+# conda's own python and would shadow the interpreter this image is built
+# around, changing what python means for everybody who never asked for conda.
+# And the shell hook is installed twice, which is not belt and braces. A
+# terminal opened in the editor is an interactive non-login shell and reads
+# /etc/bash.bashrc only; a login shell reads /etc/profile.d only, and resets
+# PATH on the way, dropping the ENV above. Either one alone leaves conda
+# reported as "command not found" in half the places somebody types it, and
+# both halves were observed rather than reasoned about.
+# The installer keeps its published name: the .sha256 beside it lists that
+# filename, so renaming the download makes the check fail on a file it cannot
+# find rather than on a mismatch.
+ARG MINIFORGE_VERSION=26.7.2-0
+ENV PATH=/opt/conda/condabin:$PATH
+RUN base="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}" \
+ && file="Miniforge3-${MINIFORGE_VERSION}-Linux-x86_64.sh" \
+ && cd /tmp \
+ && curl -fsSL "$base/$file" -o "$file" \
+ && curl -fsSL "$base/$file.sha256" -o "$file.sha256" \
+ && sha256sum -c "$file.sha256" \
+ && bash "$file" -b -p /opt/conda \
+ && rm -f "$file" "$file.sha256" \
+ && /opt/conda/bin/conda config --system --set auto_activate_base false \
+ && /opt/conda/bin/conda clean -afy \
+ && printf '%s\n' 'export PATH=/opt/conda/condabin:$PATH' '. /opt/conda/etc/profile.d/conda.sh' > /etc/profile.d/noryx-conda.sh \
+ && chmod 0644 /etc/profile.d/noryx-conda.sh \
+ && printf '%s\n' '. /etc/profile.d/noryx-conda.sh' >> /etc/bash.bashrc
+
 RUN mkdir -p /opt/openvscode-server \
  && curl -fsSL "https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v${OPENVSCODE_VERSION}/openvscode-server-v${OPENVSCODE_VERSION}-linux-x64.tar.gz" \
     | tar -xz --strip-components=1 -C /opt/openvscode-server \

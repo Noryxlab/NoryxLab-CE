@@ -227,3 +227,34 @@ data should know that the assistant's model endpoint is part of the data
 boundary, and choosing a hosted model puts the data there. And a reader of a
 compliance report should not find this paragraph surprising, which is why it is
 written here rather than discovered later.
+
+## conda, and why it is Miniforge
+
+The VS Code environment carries `conda` and `mamba` from
+[Miniforge](https://github.com/conda-forge/miniforge), pinned by version and
+verified against its published checksum.
+
+Not Miniconda, and the reason is a licence rather than a preference. Miniconda
+arrives with Anaconda's own channels configured, and their terms require a paid
+licence for organisations past a couple of hundred people - which is every
+customer this platform has. Providing the obvious tool in a way that quietly
+puts a research team in breach is not a service to them. Miniforge gives the
+same `conda` command with `conda-forge` as the only channel.
+
+Two details, both of which were wrong before they were tested:
+
+- **Only `/opt/conda/condabin` is on `PATH`, never `/opt/conda/bin`.** The
+  latter carries conda's own interpreter and would shadow the one the image is
+  built around, changing what `python` means for everybody who never asked for
+  conda. Verified: `python3` still resolves to `/usr/local/bin/python3` with
+  conda available.
+- **The shell hook is installed twice, and both are needed.** A terminal opened
+  in the editor is an interactive non-login shell and reads `/etc/bash.bashrc`
+  only. A login shell reads `/etc/profile.d` only, and resets `PATH` on the
+  way, discarding the `ENV`. With one of the two, `conda` is "command not
+  found" in half the places somebody types it - which is how it was first
+  reported.
+
+`conda activate` works without anybody running `conda init`, and the base
+environment is not activated by default, so a shell starts on the image's own
+Python.

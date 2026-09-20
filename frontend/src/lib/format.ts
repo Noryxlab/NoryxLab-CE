@@ -113,7 +113,21 @@ export function formatDuration(
   const start = parseDate(from);
   if (!start) return '—';
   const end = parseDate(to) ?? new Date();
-  let seconds = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
+  // Un debut posterieur a la fin n'est pas une duree courte, c'est une donnee
+  // fausse - et le clamp a zero la presentait comme "moins d'une minute". Une
+  // carte de workspace a affiche cela sur un workspace de vingt-deux minutes
+  // le 2026-09-18, ce qui se lit comme un workspace qui vient de demarrer :
+  // l'ecran ne disait pas qu'il ne savait pas, il donnait un chiffre. Les
+  // horloges du navigateur et du cluster derivent, donc une seconde d'ecart
+  // n'est pas une anomalie ; au-dela d'une minute, c'est autre chose et il
+  // faut le dire plutot que l'arrondir.
+  const seconds = Math.floor((end.getTime() - start.getTime()) / 1000);
+  if (seconds < -60) return '—';
+  return formatElapsed(Math.max(0, seconds), locale);
+}
+
+function formatElapsed(total: number, locale: 'fr' | 'en'): string {
+  let seconds = total;
   const days = Math.floor(seconds / 86400);
   seconds -= days * 86400;
   const hours = Math.floor(seconds / 3600);
