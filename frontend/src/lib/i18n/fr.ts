@@ -249,6 +249,9 @@ export const fr = {
     noTeam: 'Travaille seul',
     edit: 'Modifier',
     dismiss: 'Renvoyer',
+    orphansTitle: 'Agents sans projet',
+    orphansHint:
+      "Ils n'apparaissent sur aucune page de projet et ne s'exécutent plus. Renvoyez-les, ou recréez-les dans un projet.",
     dismissTitle: 'Renvoyer {name} ?',
     dismissBody:
       'Sa consigne et son carnet de travail sont supprimés. Ce qu’il a relancé ou signalé reste dans l’audit de la plateforme.',

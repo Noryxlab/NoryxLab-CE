@@ -54,6 +54,13 @@ export function AgentsPage() {
   // un workspace ou une application.
   const { projectId } = useParams<{ projectId: string }>();
   const items = (agents.data ?? []).filter((item) => item.projectId === projectId);
+  // Un agent sans projet n'apparait sur aucune page, puisque chaque page filtre
+  // sur le sien - et il continue pourtant de tourner. `test1-rodolphe` sur le
+  // DC datait d'avant que le projet devienne obligatoire et s'executait encore
+  // toutes les heures des mois plus tard, sans que personne puisse le mettre en
+  // pause ni le renvoyer. L'ordonnanceur ne les lance plus ; il fallait aussi
+  // un endroit ou quelqu'un puisse les voir et decider.
+  const orphans = (agents.data ?? []).filter((item) => !item.projectId);
   // Le premier par defaut, et on suit si celui qui etait choisi disparait.
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
   const runs = useAgentRuns(selected?.id);
@@ -148,6 +155,10 @@ export function AgentsPage() {
         </>
       )}
 
+      {orphans.length > 0 ? (
+        <OrphanRoster agents={orphans} onDismiss={setDismissing} />
+      ) : null}
+
       {items.length > 0 ? (
         <TeamsSection
           teams={teams.data ?? []}
@@ -182,6 +193,47 @@ export function AgentsPage() {
         }}
       />
     </div>
+  );
+}
+
+/**
+ * Les agents rattaches a aucun projet.
+ *
+ * Ils ne devraient pas exister - le projet est obligatoire depuis - mais la
+ * plateforme en detient, et une ligne que personne ne peut atteindre est
+ * exactement ce que la gouvernance des agents sert a empecher. Ils ne
+ * s'executent plus, et ce bloc est l'endroit ou quelqu'un decide de leur sort
+ * plutot qu'une requete SQL ecrite a la main.
+ */
+function OrphanRoster({
+  agents,
+  onDismiss,
+}: {
+  agents: Agent[];
+  onDismiss: (agent: Agent) => void;
+}) {
+  const t = useT();
+  return (
+    <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+      <h2 className="text-sm font-medium">{t('agents.orphansTitle')}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{t('agents.orphansHint')}</p>
+      <ul className="mt-3 space-y-2">
+        {agents.map((agent) => (
+          <li
+            key={agent.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{agent.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{agent.mission}</p>
+            </div>
+            <Button variant="danger-outline" size="sm" onClick={() => onDismiss(agent)}>
+              {t('agents.dismiss')}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

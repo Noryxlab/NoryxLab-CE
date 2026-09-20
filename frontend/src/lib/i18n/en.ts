@@ -245,6 +245,9 @@ export const en: Translations = {
     noTeam: 'Works alone',
     edit: 'Edit',
     dismiss: 'Dismiss',
+    orphansTitle: 'Agents with no project',
+    orphansHint:
+      'They appear on no project page and no longer run. Dismiss them, or recreate them inside a project.',
     dismissTitle: 'Dismiss {name}?',
     dismissBody:
       'Its assignment and its journal are deleted. What it restarted or reported stays in the platform audit.',
