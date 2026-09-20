@@ -354,6 +354,8 @@ export const en: Translations = {
   },
 
   workspaces: {
+    assistantWithheld:
+      'The assistant is unavailable in this workspace: it mounts health data ({datasets}), and its tools read files on the person\'s behalf. What it reads travels to the model.',
     startupTitle: 'Starting',
     startupHint: 'The main steps of the launch. This panel disappears once the workspace is open.',
     startupStuck: 'The start has stopped: it will not resume on its own.',

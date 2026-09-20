@@ -358,6 +358,8 @@ export const fr = {
   },
 
   workspaces: {
+    assistantWithheld:
+      "L'assistant est indisponible dans ce workspace : il monte des données de santé ({datasets}), et ses outils lisent les fichiers pour le compte de la personne. Ce qu'il lit part vers le modèle.",
     startupTitle: 'Démarrage en cours',
     startupHint: 'Les grandes étapes du lancement. Cet écran disparaît dès que l’espace de travail est ouvert.',
     startupStuck: 'Le démarrage est arrêté : il ne repartira pas tout seul.',

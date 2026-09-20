@@ -340,3 +340,33 @@ func TestTheWorkspaceDoesNotOfferTheContainersHomeAsAFolder(t *testing.T) {
 		t.Error("the profile volume is a workspace folder")
 	}
 }
+
+// The assistant's tools run as the person, with their filesystem. On
+// 2026-09-18 one was asked to list /datasets and returned the contents of an
+// HDS dataset, which then travelled to the model endpoint - out of the site,
+// through a gateway, to a rented GPU. Nobody decided that; it followed from
+// the assistant existing in a workspace that had the data mounted.
+//
+// A rule in the prompt is not a control: the model may ignore it and the tools
+// never read it. Withholding the endpoint and the token is.
+func TestRegulatedDataIsRecognisedWhateverTheSpelling(t *testing.T) {
+	ordinary := []workspaceAttachedDataset{{Name: "testdataset", Classification: "non-hds"}}
+	if anyRegulatedDataset(ordinary) {
+		t.Error("an ordinary dataset must not withhold the assistant")
+	}
+	if anyRegulatedDataset(nil) {
+		t.Error("a workspace with no dataset must not withhold the assistant")
+	}
+
+	// The label is written by whoever declared the dataset, so case and
+	// padding are what a person typed rather than a guarantee.
+	for _, label := range []string{"hds", "HDS", "Hds", " hds "} {
+		mixed := []workspaceAttachedDataset{
+			{Name: "testdataset", Classification: "non-hds"},
+			{Name: "hds-for", Classification: label},
+		}
+		if !anyRegulatedDataset(mixed) {
+			t.Errorf("classification %q was not recognised as regulated", label)
+		}
+	}
+}

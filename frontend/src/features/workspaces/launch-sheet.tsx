@@ -15,7 +15,13 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { useEnvironments, useHardwareTiers, qk, useInvalidate } from '@/lib/api/queries';
+import {
+  useEnvironments,
+  useHardwareTiers,
+  useProjectDatasets,
+  qk,
+  useInvalidate,
+} from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { presentIde, presentTier } from '@/lib/presenters';
@@ -51,6 +57,13 @@ export function LaunchWorkspaceSheet({
 
   const environments = useEnvironments();
   const tiers = useHardwareTiers();
+  // A dataset the installation labelled as health data. The assistant is
+  // withheld from a workspace that mounts one, so the sheet says so here
+  // rather than letting somebody find it missing later.
+  const datasets = useProjectDatasets(projectId);
+  const regulatedDatasets = (datasets.data ?? []).filter(
+    (dataset) => dataset.classification === 'hds',
+  );
 
   const [environmentId, setEnvironmentId] = React.useState('');
   const [tierId, setTierId] = React.useState('');
@@ -137,6 +150,19 @@ export function LaunchWorkspaceSheet({
               </div>
             ) : (
               <>
+                {/* Said before launching, not discovered afterwards.
+                    The assistant is withheld from a workspace that mounts
+                    regulated data - its tools read the filesystem as the
+                    person, and whatever they read travels to the model. A
+                    person who finds it simply missing has no way to know
+                    that was a decision. */}
+                {regulatedDatasets.length > 0 ? (
+                  <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+                    {t('workspaces.assistantWithheld', {
+                      datasets: regulatedDatasets.map((dataset) => dataset.name).join(', '),
+                    })}
+                  </p>
+                ) : null}
                 <Field
                   label={t('workspaces.environmentLabel')}
                   description={t('workspaces.environmentHint')}

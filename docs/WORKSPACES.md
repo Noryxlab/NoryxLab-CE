@@ -189,3 +189,32 @@ This avoids home-page replacement and reduces browser-specific blank-page issues
 For a dedicated runbook, see:
 
 - `docs/WORKSPACE_TROUBLESHOOTING.md`
+
+## The assistant is withheld where regulated data is mounted
+
+A workspace that mounts a dataset classified `hds` starts without the developer
+assistant: the platform does not write its configuration, so the workspace has
+no model endpoint and no token.
+
+This is a control rather than a request, and the distinction is the whole
+point. The assistant's tools read the filesystem as the person who opened the
+workspace, and whatever they read is sent to the model to answer with. On
+2026-09-18 an assistant was asked to list `/datasets` and returned the contents
+of an HDS dataset - file names describing a study, its modalities and its
+cohorts - which then left the site for the model endpoint. Nobody decided that.
+It followed from the assistant existing in a workspace that had the data
+mounted, and from the platform's own rules text inviting it to use `/datasets`.
+
+A rule telling the model to avoid a directory would not have prevented it. The
+model may ignore it, and the tools never read it at all. Withholding the
+credential is the only version of this that an auditor can be shown.
+
+**It is a compensating measure, not the answer.** The answer is to serve the
+model inside the site, where nothing it is told has to leave - the hardware for
+that is already at EMSE. This refusal is what holds until then, and it should
+be removed on the day the model runs locally rather than left in place out of
+habit.
+
+The launch sheet says so before a workspace is created, naming the datasets
+responsible. An assistant that is simply absent, with no explanation, is the
+same silent behaviour this platform keeps finding in itself.

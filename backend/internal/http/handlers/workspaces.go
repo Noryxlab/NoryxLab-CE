@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -73,6 +74,26 @@ type workspaceAttachedDataset struct {
 	SecretKey string
 	UseSSL    bool
 	ReadOnly  bool
+	// Classification carries the dataset's own label - "hds" for regulated
+	// health data - so a decision about what may touch it can be taken where
+	// the workspace is assembled rather than inferred from a bucket name.
+	Classification string
+}
+
+// isRegulated reports whether this dataset is health data the installation has
+// labelled as such.
+func (d workspaceAttachedDataset) isRegulated() bool {
+	return strings.EqualFold(strings.TrimSpace(d.Classification), "hds")
+}
+
+// anyRegulatedDataset answers the question the assistant has to be refused on.
+func anyRegulatedDataset(datasets []workspaceAttachedDataset) bool {
+	for _, dataset := range datasets {
+		if dataset.isRegulated() {
+			return true
+		}
+	}
+	return false
 }
 
 func (h Handlers) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -575,10 +596,35 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		// The developer assistant is an Enterprise capability; a Community
 		// build returns an empty configuration and the workspace starts
 		// without it.
-		continueConfig, err := h.workspaceAssistantConfig(req.IDE, userID, req.ProjectID, record.ID)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
-			return
+		//
+		// And it is refused outright when regulated data is mounted here.
+		//
+		// The assistant's tools run as the person, with their filesystem: on
+		// 2026-09-18 one was asked to list /datasets and returned the contents
+		// of an HDS dataset, which then travelled to the model endpoint - out
+		// of the site, through a gateway, to a rented GPU. Nobody decided that;
+		// it followed from the assistant existing in a workspace that had the
+		// data mounted.
+		//
+		// The refusal is here, at the point the credential is written, because
+		// that is the only place it is a control rather than a request. A rule
+		// in the prompt telling the model to avoid a directory is a sentence
+		// the model may or may not honour, and the tools do not consult it at
+		// all. Without an endpoint and a token, nothing can leave, whatever
+		// anybody types.
+		//
+		// This is a compensating measure and not the answer. The answer is to
+		// serve the model inside the site - the hardware for it is already
+		// there - and this refusal disappears on the day that happens.
+		continueConfig := ""
+		if anyRegulatedDataset(attachedDatasets) {
+			log.Printf("workspace %s: developer assistant refused, regulated data is mounted", record.ID)
+		} else {
+			continueConfig, err = h.workspaceAssistantConfig(req.IDE, userID, req.ProjectID, record.ID)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
+				return
+			}
 		}
 
 		// A cohort mounts as a tree of links over the dataset that is already
@@ -826,11 +872,12 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 			continue
 		}
 		attached := workspaceAttachedDataset{
-			ID:       item.ID,
-			Name:     fallbackResourceName(item.Name, item.ID),
-			Bucket:   strings.TrimSpace(item.Bucket),
-			Prefix:   strings.Trim(strings.TrimSpace(item.Prefix), "/"),
-			ReadOnly: !h.canWriteDataset(item, identity),
+			ID:             item.ID,
+			Name:           fallbackResourceName(item.Name, item.ID),
+			Bucket:         strings.TrimSpace(item.Bucket),
+			Prefix:         strings.Trim(strings.TrimSpace(item.Prefix), "/"),
+			ReadOnly:       !h.canWriteDataset(item, identity),
+			Classification: strings.TrimSpace(item.Classification),
 		}
 		if item.Provider == "minio" {
 			attached.Endpoint, err = nodeReachableKubernetesServiceEndpoint(h.minioEndpoint, net.LookupHost)
