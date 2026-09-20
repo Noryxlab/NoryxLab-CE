@@ -597,34 +597,36 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		// build returns an empty configuration and the workspace starts
 		// without it.
 		//
-		// And it is refused outright when regulated data is mounted here.
+		// It is written even where regulated data is mounted, and that is a
+		// decision rather than an oversight.
 		//
-		// The assistant's tools run as the person, with their filesystem: on
-		// 2026-09-18 one was asked to list /datasets and returned the contents
-		// of an HDS dataset, which then travelled to the model endpoint - out
-		// of the site, through a gateway, to a rented GPU. Nobody decided that;
-		// it followed from the assistant existing in a workspace that had the
-		// data mounted.
+		// The exposure is real and was measured: the assistant's tools read the
+		// filesystem as the person, so on 2026-09-18 one listed an HDS dataset
+		// and its contents travelled to the model endpoint - out of the site,
+		// through a gateway, to a rented GPU. Withholding the credential closes
+		// that, and it was tried: for one commit a workspace mounting health
+		// data started without an assistant.
 		//
-		// The refusal is here, at the point the credential is written, because
-		// that is the only place it is a control rather than a request. A rule
-		// in the prompt telling the model to avoid a directory is a sentence
-		// the model may or may not honour, and the tools do not consult it at
-		// all. Without an endpoint and a token, nothing can leave, whatever
-		// anybody types.
+		// It was reverted because it trades the wrong thing. Working on
+		// regulated data with current tooling is the reason this platform exists
+		// for its first customer; an assistant that switches itself off exactly
+		// where the work happens removes the product to protect it. The decision
+		// (Stephane, 2026-09-20) is to keep it and say so plainly instead - the
+		// launch sheet states where what the assistant reads is sent, before a
+		// workspace is created.
 		//
-		// This is a compensating measure and not the answer. The answer is to
-		// serve the model inside the site - the hardware for it is already
-		// there - and this refusal disappears on the day that happens.
-		continueConfig := ""
-		if anyRegulatedDataset(attachedDatasets) {
-			log.Printf("workspace %s: developer assistant refused, regulated data is mounted", record.ID)
-		} else {
-			continueConfig, err = h.workspaceAssistantConfig(req.IDE, userID, req.ProjectID, record.ID)
-			if err != nil {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
-				return
-			}
+		// What actually closes this is the model running inside the site, which
+		// makes the question disappear rather than trading it. Until then the
+		// platform does not pretend: see docs/WORKSPACES.md.
+		continueConfig, err := h.workspaceAssistantConfig(req.IDE, userID, req.ProjectID, record.ID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create developer assistant token"})
+			return
+		}
+		if anyRegulatedDataset(attachedDatasets) && strings.TrimSpace(continueConfig) != "" {
+			// Recorded on every launch, so the exposure is countable rather than
+			// remembered. An audit asking how often this happened has an answer.
+			log.Printf("workspace %s: assistant enabled with regulated data mounted; model endpoint is outside the site", record.ID)
 		}
 
 		// A cohort mounts as a tree of links over the dataset that is already

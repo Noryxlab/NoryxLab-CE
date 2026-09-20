@@ -190,31 +190,40 @@ For a dedicated runbook, see:
 
 - `docs/WORKSPACE_TROUBLESHOOTING.md`
 
-## The assistant is withheld where regulated data is mounted
+## The assistant reads workspace files, including regulated ones
 
-A workspace that mounts a dataset classified `hds` starts without the developer
-assistant: the platform does not write its configuration, so the workspace has
-no model endpoint and no token.
+The developer assistant stays available in a workspace that mounts a dataset
+classified `hds`, and the platform says so on the launch sheet before the
+workspace is created, naming the datasets concerned.
 
-This is a control rather than a request, and the distinction is the whole
-point. The assistant's tools read the filesystem as the person who opened the
-workspace, and whatever they read is sent to the model to answer with. On
-2026-09-18 an assistant was asked to list `/datasets` and returned the contents
-of an HDS dataset - file names describing a study, its modalities and its
-cohorts - which then left the site for the model endpoint. Nobody decided that.
-It followed from the assistant existing in a workspace that had the data
-mounted, and from the platform's own rules text inviting it to use `/datasets`.
+**The exposure, stated plainly.** The assistant's tools read the filesystem as
+the person who opened the workspace, and whatever they read is sent to the
+model to answer with. On 2026-09-18 an assistant was asked to list `/datasets`
+and returned the contents of an HDS dataset - file names describing a study,
+its modalities and its cohorts - which then left the site for the model
+endpoint, through a gateway, to a rented GPU. That was not a misuse: it is what
+the tool does, and the platform's own rules text invites it to use `/datasets`.
 
-A rule telling the model to avoid a directory would not have prevented it. The
-model may ignore it, and the tools never read it at all. Withholding the
-credential is the only version of this that an auditor can be shown.
+**Why it is not blocked.** Withholding the credential closes it completely, and
+was implemented on 2026-09-20 before being reverted the same day. It trades the
+wrong thing. Working on regulated data with current tooling is the reason this
+platform exists for its first customer, and an assistant that switches itself
+off exactly where the work happens removes the product in order to protect it.
+The decision is Stephane's, taken with the measurement above in hand.
 
-**It is a compensating measure, not the answer.** The answer is to serve the
-model inside the site, where nothing it is told has to leave - the hardware for
-that is already at EMSE. This refusal is what holds until then, and it should
-be removed on the day the model runs locally rather than left in place out of
-habit.
+So the control here is disclosure rather than prevention, and the honest thing
+is to name that rather than describe it as a safeguard. Every launch of a
+workspace that mounts regulated data with the assistant enabled is logged, so
+the question "how often did this happen" has an answer rather than an estimate.
 
-The launch sheet says so before a workspace is created, naming the datasets
-responsible. An assistant that is simply absent, with no explanation, is the
-same silent behaviour this platform keeps finding in itself.
+**What actually closes it.** Serving the model inside the site, where nothing
+it is told has to leave. The hardware is already at EMSE. That makes the
+question disappear instead of trading it, and it is the only version of this
+an auditor can be shown - a rule in the prompt is not a control, since the
+model may ignore it and the tools never read it.
+
+Until then, two things follow. Anyone deploying this platform for regulated
+data should know that the assistant's model endpoint is part of the data
+boundary, and choosing a hosted model puts the data there. And a reader of a
+compliance report should not find this paragraph surprising, which is why it is
+written here rather than discovered later.

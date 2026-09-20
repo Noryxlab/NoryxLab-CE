@@ -151,14 +151,15 @@ export function LaunchWorkspaceSheet({
             ) : (
               <>
                 {/* Said before launching, not discovered afterwards.
-                    The assistant is withheld from a workspace that mounts
-                    regulated data - its tools read the filesystem as the
-                    person, and whatever they read travels to the model. A
-                    person who finds it simply missing has no way to know
-                    that was a decision. */}
+                    The assistant stays available on regulated data - taking
+                    it away exactly where the work happens would remove the
+                    product to protect it - so what the platform owes the
+                    person is the fact, at the moment they can still act on
+                    it. Not a warning to dismiss: a description of what the
+                    tool does. */}
                 {regulatedDatasets.length > 0 ? (
                   <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
-                    {t('workspaces.assistantWithheld', {
+                    {t('workspaces.assistantSendsDataOffSite', {
                       datasets: regulatedDatasets.map((dataset) => dataset.name).join(', '),
                     })}
                   </p>
