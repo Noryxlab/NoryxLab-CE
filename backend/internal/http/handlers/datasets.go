@@ -921,6 +921,22 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 500, map[string]string{"error": "failed to set dataset permission"})
 		return
 	}
+	// Who may see this, decided by whom, and when.
+	//
+	// The trail recorded uploads and downloads and not this, which is the
+	// wrong half. Reading an object is the consequence; granting the access is
+	// the decision, and it is the decision a data protection officer asks
+	// about first - "who could see this dataset, since when, and who said so".
+	// On 2026-09-21 an entire organisation was found holding read access to a
+	// health dataset and nobody could say who had given it, because nothing
+	// had been written down. The classification travels with the entry so a
+	// regulated dataset can be filtered out of a year of activity without
+	// joining anything.
+	h.emitAudit(r, identity.UserID(), "dataset.access.grant", "dataset", item.ID, "", "success", "",
+		map[string]any{
+			"dataset": item.Name, "classification": item.Classification,
+			"subjectType": subjectType, "subjectId": subjectID, "role": req.Role,
+		})
 	writeJSON(w, 200, access)
 }
 
@@ -956,6 +972,14 @@ func (h Handlers) DeleteDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 500, map[string]string{"error": "failed to delete dataset permission"})
 		return
 	}
+	// A withdrawal is as much of a decision as a grant, and the pair is what
+	// makes a period answerable: without it, a dataset nobody can reach today
+	// says nothing about who could reach it last month.
+	h.emitAudit(r, identity.UserID(), "dataset.access.revoke", "dataset", item.ID, "", "success", "",
+		map[string]any{
+			"dataset": item.Name, "classification": item.Classification,
+			"subjectType": subjectType, "subjectId": subjectID,
+		})
 	w.WriteHeader(http.StatusNoContent)
 }
 

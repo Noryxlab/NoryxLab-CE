@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
@@ -134,5 +136,47 @@ func TestRegulatedDataIsMountedOnlyByItsOwnOrganisation(t *testing.T) {
 	spaced := []dataset.Subject{{Type: " Organization ", ID: " Essilor "}}
 	if !entitledToRegulatedDataset(spaced, item) {
 		t.Error("the rule was defeated by spacing")
+	}
+}
+
+// Donner ou retirer l'acces a un dataset doit laisser une trace.
+//
+// Le 2026-09-21, une organisation entiere s'est trouvee avec un acces en
+// lecture a un dataset de sante, et personne n'a pu dire qui l'avait accorde :
+// le journal enregistrait les televersements et les telechargements, pas les
+// decisions d'acces. Lire un objet est la consequence ; accorder l'acces est
+// la decision, et c'est celle qu'un delegue a la protection des donnees
+// demande en premier.
+func TestAccorderEtRetirerUnAccesSontAudites(t *testing.T) {
+	source, err := os.ReadFile("datasets.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+
+	for _, spec := range []struct {
+		handler string
+		action  string
+	}{
+		{"func (h Handlers) SetDatasetAccess", "dataset.access.grant"},
+		{"func (h Handlers) DeleteDatasetAccess", "dataset.access.revoke"},
+	} {
+		start := strings.Index(text, spec.handler)
+		if start < 0 {
+			t.Fatalf("%s a disparu", spec.handler)
+		}
+		body := text[start:]
+		if end := strings.Index(body[1:], "\nfunc "); end > 0 {
+			body = body[:end]
+		}
+		if !strings.Contains(body, spec.action) {
+			t.Errorf("%s n'ecrit pas l'evenement %s", spec.handler, spec.action)
+		}
+		// La classification voyage avec l'entree : sans elle, isoler les
+		// datasets reglementes dans une annee d'activite demande une jointure
+		// que personne ne fera au moment ou on la demande.
+		if !strings.Contains(body, "classification") {
+			t.Errorf("%s n'enregistre pas la classification du dataset", spec.handler)
+		}
 	}
 }
