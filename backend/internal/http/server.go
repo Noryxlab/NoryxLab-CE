@@ -255,6 +255,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/inventory", h.GetAdminInventory)
 	mux.HandleFunc("GET /api/v1/admin/data-usage", h.GetAdminDataUsage)
 	mux.HandleFunc("GET /api/v1/admin/data-usage.csv", h.ExportAdminDataUsageCSV)
+	mux.HandleFunc("GET /api/v1/admin/team-usage", h.GetAdminTeamUsage)
+	mux.HandleFunc("GET /api/v1/admin/team-usage.csv", h.GetAdminTeamUsageCSV)
 	mux.HandleFunc("GET /api/v1/admin/rbac-matrix", h.GetAdminRBACMatrix)
 	mux.HandleFunc("GET /api/v1/admin/rbac-matrix.csv", h.ExportAdminRBACMatrixCSV)
 	mux.HandleFunc("GET /api/v1/roles", h.ListAssignableRoles)

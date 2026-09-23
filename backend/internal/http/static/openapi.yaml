@@ -422,6 +422,43 @@ components:
           type: array
           items: { $ref: '#/components/schemas/DatasetAccess' }
         canManage: { type: boolean }
+    TeamUsageRow:
+      type: object
+      properties:
+        teamId: { type: string }
+        teamName: { type: string }
+        members: { type: integer }
+        projects: { type: integer }
+        sharedProjects:
+          type: integer
+          description: How many of this team's projects another team also reaches.
+        vcpuHours: { type: number }
+        memoryGibHours: { type: number }
+        peakVcpu: { type: number }
+        samples:
+          type: integer
+          description: >-
+            How many measurements the figure rests on, so a total built from
+            three cannot be mistaken for one built from a month.
+    TeamUsageReport:
+      type: object
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        rows:
+          type: array
+          items: { $ref: '#/components/schemas/TeamUsageRow' }
+        platformVcpuHours:
+          type: number
+          description: What the platform actually consumed.
+        attributedVcpuHours:
+          type: number
+          description: >-
+            The sum of the rows. Larger than the platform total whenever teams
+            share projects, which is why both are published.
+        unattributedVcpuHours:
+          type: number
+          description: What no team reaches - held personally, or by an organization.
     Team:
       type: object
       properties:
@@ -5579,6 +5616,63 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/admin/team-usage:
+    get:
+      tags: [Admin]
+      summary: Team Usage
+      description: >-
+        What each team consumed, attributed from the projects it reaches.
+        Consumption is sampled per project and never per person, so a team
+        figure is an attribution rather than a measurement. A project reached
+        by two teams is credited to both in full: splitting it would invent a
+        precision nobody measured. The response carries the platform total and
+        the attributed total side by side, so the overlap is visible rather
+        than deduced, and what no team reaches stays in its own field.
+      operationId: getAdminTeamUsage
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamUsageReport' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/team-usage.csv:
+    get:
+      tags: [Admin]
+      summary: Export Team Usage CSV
+      description: The same answer in the format a finance team opens.
+      operationId: exportAdminTeamUsageCSV
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/user/teams:
     get:
       tags: [Users]
