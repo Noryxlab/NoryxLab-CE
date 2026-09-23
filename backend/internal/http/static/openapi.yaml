@@ -422,6 +422,63 @@ components:
           type: array
           items: { $ref: '#/components/schemas/DatasetAccess' }
         canManage: { type: boolean }
+    Team:
+      type: object
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        organizationName: { type: string }
+        memberCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TeamListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Team' }
+    TeamRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 1000 }
+    TeamMember:
+      type: object
+      properties:
+        teamId: { type: string }
+        userId: { type: string }
+        joinedAt:
+          type: string
+          format: date-time
+          description: >-
+            When this person joined. Kept unchanged when they are added again,
+            because it answers when they gained what the team grants.
+    TeamMemberListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TeamMember' }
+    TeamMemberRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string }
+    ProjectTeamRole:
+      type: object
+      properties:
+        teamId: { type: string }
+        teamName: { type: string }
+        role: { type: string }
+    ProjectTeamRoleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectTeamRole' }
     ProjectOrganizationRole:
       type: object
       properties:
@@ -5522,6 +5579,282 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/user/teams:
+    get:
+      tags: [Users]
+      summary: List My Teams
+      description: >-
+        The teams the caller belongs to. Readable by the person themselves and
+        not only by an administrator: somebody looking at a project they cannot
+        reach needs to know which team would have given it to them.
+      operationId: listMyTeams
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/admin/organizations/{organizationID}/teams:
+    get:
+      tags: [Admin]
+      summary: List Teams
+      operationId: listTeams
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Admin]
+      summary: Create Team
+      operationId: createTeam
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: A team with that name already exists in this organization
+  /api/v1/admin/teams/{teamID}:
+    put:
+      tags: [Admin]
+      summary: Update Team
+      description: >-
+        Renames a team. The organization is not part of the payload: moving a
+        team between organizations would carry its grants with it, which is a
+        different operation.
+      operationId: updateTeam
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamRequest' }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Team' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: A team with that name already exists in this organization
+    delete:
+      tags: [Admin]
+      summary: Delete Team
+      description: Removes the team, its membership and every grant it carried.
+      operationId: deleteTeam
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/teams/{teamID}/members:
+    get:
+      tags: [Admin]
+      summary: List Team Members
+      operationId: listTeamMembers
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMemberListResponse' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Add Team Member
+      description: >-
+        Idempotent, and keeps the original joining date: that date answers when
+        this person gained what the team grants.
+      operationId: addTeamMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TeamMemberRequest' }
+      responses:
+        '204':
+          description: Added
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/teams/{teamID}/members/{userID}:
+    delete:
+      tags: [Admin]
+      summary: Remove Team Member
+      operationId: removeTeamMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Removed
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/team-roles:
+    get:
+      tags: [Projects]
+      summary: List Project Team Roles
+      operationId: listProjectTeamRoles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectTeamRoleListResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/projects/{projectID}/team-roles/{teamID}:
+    put:
+      tags: [Projects]
+      summary: Set Project Team Role
+      description: >-
+        Grants a role to every member of a team. The team must exist: a grant
+        to an unknown identifier would open the project to a group no screen
+        can list.
+      operationId: setProjectTeamRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetRoleRequest' }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectTeamRole' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Projects]
+      summary: Delete Project Team Role
+      operationId: deleteProjectTeamRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: teamID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Revoked
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/v1/projects/{projectID}/organization-roles:
     get:
       tags: [Projects]
