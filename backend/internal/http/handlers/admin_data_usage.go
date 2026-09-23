@@ -218,6 +218,21 @@ func (h Handlers) buildDataUsageReport(includeRows bool) (dataUsageReport, error
 				addEdge(dataUsageEdge{From: userNode, To: projectNode, Relation: "project_member", Role: string(role.Role), ProjectID: projectID})
 				rows = append(rows, datasetUsageLine(d, "project_member", "user", role.UserID, subjectName("user", role.UserID, users, organizations), string(role.Role), p, "", "", "", ""))
 			}
+			// A team reaching this project reaches this dataset with it.
+			//
+			// This graph answers who touches which data, which for a regulated
+			// dataset is the compliance question - and it was drawing only the
+			// people named on the project. Somebody who reads an HDS dataset
+			// through a team appeared nowhere, and the absence looked exactly
+			// like not having access.
+			for _, member := range teamMembersReaching(h, projectID) {
+				userNode := addSubject("user", member.userID)
+				addEdge(dataUsageEdge{From: userNode, To: projectNode,
+					Relation: "team_member", Role: member.role, ProjectID: projectID})
+				rows = append(rows, datasetUsageLine(d, "team_member", "user", member.userID,
+					subjectName("user", member.userID, users, organizations), member.role, p,
+					"", "", "", ""))
+			}
 			for _, workload := range workloadsByProject[projectID] {
 				workloadNode := "workload:" + workload.ID
 				addNode(dataUsageNode{ID: workloadNode, Kind: "workload", Label: firstNonEmpty(workload.Name, workload.ID), SubLabel: workload.Kind + " · " + workload.Status})
@@ -363,6 +378,39 @@ func projectsUsingDataset(resourceStore store.ProjectResourceStore, projects []p
 				out = append(out, p.ID)
 				break
 			}
+		}
+	}
+	return out
+}
+
+// teamReach is one person reached by a team grant, and the role it carries.
+type teamReach struct {
+	userID string
+	role   string
+}
+
+// teamMembersReaching lists everyone a team grant brings to a project.
+//
+// Read per project rather than once for all of them: this report already makes
+// a call per dataset, and a store that cannot answer leaves the rest of the
+// graph standing. An incomplete graph that says so is usable; a report that
+// refuses to build because one edge could not be read is not.
+func teamMembersReaching(h Handlers, projectID string) []teamReach {
+	if h.teamStore == nil {
+		return nil
+	}
+	grants, err := h.teamStore.ListProjectRoles(projectID)
+	if err != nil {
+		return nil
+	}
+	out := []teamReach{}
+	for _, grant := range grants {
+		members, err := h.teamStore.ListMembers(grant.TeamID)
+		if err != nil {
+			continue
+		}
+		for _, member := range members {
+			out = append(out, teamReach{userID: member.UserID, role: string(grant.Role)})
 		}
 	}
 	return out

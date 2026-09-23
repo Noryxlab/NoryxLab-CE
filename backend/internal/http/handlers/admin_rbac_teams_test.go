@@ -71,3 +71,26 @@ func TestUneEquipeNEstPasClasseeCommeUnePersonne(t *testing.T) {
 		t.Errorf("un type inconnu doit rester une personne, pas %q", got)
 	}
 }
+
+// Le graphe d'usage repond a "qui touche quelles donnees", ce qui pour un
+// dataset regule est la question de conformite. Quelqu'un qui le lit par une
+// equipe n'y figurait pas, et cette absence ressemblait exactement a ne pas y
+// avoir acces.
+func TestLeGrapheDUsageVoitLesMembresDEquipe(t *testing.T) {
+	equipes := memory.NewTeamStore()
+	_ = equipes.Create(team.Team{ID: "t-pc", OrganizationID: "org-scor", Name: "P&C"})
+	_ = equipes.AddMember("t-pc", "alice")
+	_ = equipes.SetProjectRole("p1", "t-pc", access.RoleViewer)
+	h := Handlers{teamStore: equipes}
+
+	atteints := teamMembersReaching(h, "p1")
+	if len(atteints) != 1 || atteints[0].userID != "alice" || atteints[0].role != "viewer" {
+		t.Fatalf("atteints = %+v", atteints)
+	}
+
+	// Sans magasin, le graphe se construit quand meme : un rapport qui refuse
+	// de se batir parce qu'une arete manque ne sert personne.
+	if atteints := teamMembersReaching(Handlers{}, "p1"); len(atteints) != 0 {
+		t.Fatalf("sans magasin : %+v", atteints)
+	}
+}
