@@ -467,7 +467,16 @@ func (h Handlers) hasProjectMembership(userID, projectID string) bool {
 	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
 		return true
 	}
-	role, ok := h.accessStore.GetRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
+	// Every route a grant can take, not only the direct one.
+	//
+	// This asked the access store for the personal grant alone, so a project
+	// opened to a whole organization - or to a team - stayed closed to its
+	// members: the API answered 404, which reads as "no such project" rather
+	// than "not for you", and nothing anywhere said a grant had been ignored.
+	// Found by granting a real project to a real team on the DC and watching
+	// the member still get 404; the unit tests passed throughout, because they
+	// exercised effectiveProjectRole and this gate never called it.
+	role, ok := h.effectiveProjectRole(strings.TrimSpace(projectID), strings.TrimSpace(userID))
 	if !ok {
 		return false
 	}
