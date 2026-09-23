@@ -740,6 +740,55 @@ func migrationStatements() []string {
 			started_at TIMESTAMPTZ NOT NULL,
 			ended_at TIMESTAMPTZ
 		)`,
+		// A team is a group of people inside an organization, and the unit
+		// work is actually organised in. The two things the platform could
+		// already name do not cover it: an organization is an identity fact
+		// held in the directory, and a person is a grant made one project at
+		// a time.
+		//
+		// The organization is stored as the directory gave it. No foreign key
+		// can be written against a table that does not exist here, and the
+		// platform must not pretend to own an identifier it cannot enforce.
+		`CREATE TABLE IF NOT EXISTS teams (
+			id TEXT PRIMARY KEY,
+			organization_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		// Unique within the organization, not globally: two customers may each
+		// have a "Data Science", and forcing them to differ would leak one
+		// installation's tenants to another. Lowered so a second team cannot
+		// be created by changing the case of the first.
+		`CREATE UNIQUE INDEX IF NOT EXISTS teams_org_name_unique
+			ON teams (organization_id, lower(name))`,
+		// Membership. The moment of joining is kept because a grant reaching
+		// somebody through a team is answerable like any other: an auditor
+		// asking why this person read that dataset in March needs to know they
+		// were in the team in March.
+		`CREATE TABLE IF NOT EXISTS team_members (
+			team_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			joined_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (team_id, user_id)
+		)`,
+		// Asked in both directions: the team screen lists its people, and a
+		// person's effective role needs every team they belong to.
+		`CREATE INDEX IF NOT EXISTS team_members_user
+			ON team_members (user_id)`,
+		// The third way a role reaches a project, beside the person and the
+		// organization. Deliberately the same shape as the other two, so the
+		// resolution stays one comparison of three grants rather than a
+		// special case.
+		`CREATE TABLE IF NOT EXISTS access_team_roles (
+			project_id TEXT NOT NULL,
+			team_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			PRIMARY KEY (project_id, team_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS access_team_roles_team
+			ON access_team_roles (team_id)`,
 	}
 }
 
