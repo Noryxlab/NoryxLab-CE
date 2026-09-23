@@ -75,6 +75,7 @@ import type {
   StorageObject,
   Team,
   TeamMember,
+  TeamUsageReport,
   UsageSample,
   UsageTotal,
   UserPreferences,
@@ -687,6 +688,10 @@ export const adminApi = {
   audit: (params?: Record<string, string>) => api.list<AuditEvent>(`${V1}/admin/audit`, { params }),
   downloadAudit: () => downloadFile(`${V1}/admin/audit.csv`, 'noryx-audit.csv'),
 
+  teamUsage: (from: string, to: string) =>
+    api.get<TeamUsageReport>(`${V1}/admin/team-usage`, { params: { from, to } }),
+  downloadTeamUsage: (from: string, to: string) =>
+    downloadFile(`${V1}/admin/team-usage.csv?from=${from}&to=${to}`, 'noryx-team-usage.csv'),
   dataUsage: () => api.get<DataUsageReport>(`${V1}/admin/data-usage`),
   downloadDataUsage: () => downloadFile(`${V1}/admin/data-usage.csv`, 'noryx-data-usage.csv'),
 

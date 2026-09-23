@@ -94,6 +94,7 @@ import {
 } from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { TeamsSection } from '@/features/admin/teams';
+import { TeamUsageSection } from '@/features/admin/team-usage';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
@@ -750,6 +751,11 @@ function IdentitySection() {
           (organizations.data ?? []).find((item) => item.id === selectedOrganizationId) ?? null
         }
       />
+
+      {/* La consommation par equipe se lit apres l'ecran qui les compose :
+          un chiffre par equipe ne veut rien dire tant qu'on ne sait pas qui
+          est dedans. */}
+      <TeamUsageSection />
 
       {dialog}
     </div>

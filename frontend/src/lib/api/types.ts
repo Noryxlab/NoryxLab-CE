@@ -624,6 +624,41 @@ export interface PlatformUser {
  * porte par l'annuaire ; une personne est un droit accorde projet par projet.
  * Ni l'un ni l'autre ne decrit cinq personnes sur la meme etude.
  */
+/** Ce qu'une equipe a consomme.
+ *
+ * La consommation est echantillonnee par projet et jamais par personne : ce
+ * chiffre est donc une attribution, pas une mesure. Un projet atteint par deux
+ * equipes est credite en entier a chacune, et le recouvrement est publie
+ * plutot que divise - couper en deux inventerait une precision que personne
+ * n'a mesuree.
+ */
+export interface TeamUsageRow {
+  teamId: string;
+  teamName: string;
+  members: number;
+  projects: number;
+  /** Combien de ses projets une autre equipe atteint aussi. */
+  sharedProjects: number;
+  vcpuHours: number;
+  memoryGibHours: number;
+  peakVcpu: number;
+  /** Sur combien de mesures le total repose. */
+  samples: number;
+}
+
+export interface TeamUsageReport {
+  from: string;
+  to: string;
+  rows: TeamUsageRow[];
+  /** Ce que la plateforme a reellement consomme. */
+  platformVcpuHours: number;
+  /** La somme des lignes : superieure au total plateforme des que des equipes
+   *  partagent des projets. */
+  attributedVcpuHours: number;
+  /** Ce qu'aucune equipe n'atteint - detenu en propre, ou par une organisation. */
+  unattributedVcpuHours: number;
+}
+
 export interface Team {
   id: string;
   organizationId: string;
