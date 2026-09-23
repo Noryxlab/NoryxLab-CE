@@ -93,6 +93,7 @@ import {
   type AccessFilters,
 } from '@/features/admin/access-graph';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
+import { TeamsSection } from '@/features/admin/teams';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { DeactivateUserSheet } from '@/features/admin/deactivate-user';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
@@ -739,6 +740,16 @@ function IdentitySection() {
           )}
         </Card>
       </div>
+
+      {/* Les equipes de l'organisation choisie ci-dessus. Elles vivent ici
+          parce qu'une equipe est une subdivision d'une organisation, et que
+          la selection est deja faite : demander deux fois la meme chose sur
+          un meme ecran est une facon sure de les desynchroniser. */}
+      <TeamsSection
+        organization={
+          (organizations.data ?? []).find((item) => item.id === selectedOrganizationId) ?? null
+        }
+      />
 
       {dialog}
     </div>

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
   projectOrganizationRolesApi,
+  projectTeamRolesApi,
   adminApi,
   appsApi,
   cronJobsApi,
@@ -98,6 +99,9 @@ export const qk = {
   adminHealth: ['admin', 'health'] as const,
   softwareInventory: ['admin', 'software-inventory'] as const,
   adminHardwareTiers: ['admin', 'hardware-tiers'] as const,
+  adminTeams: (organizationId: string) => ['admin', 'teams', organizationId] as const,
+  adminTeamMembers: (teamId: string) => ['admin', 'team-members', teamId] as const,
+  projectTeamRoles: (projectId: string) => ['projects', projectId, 'team-roles'] as const,
   adminSmtp: ['admin', 'smtp'] as const,
   apiTokens: ['user', 'api-tokens'] as const,
   projectOrganizationRoles: (projectId: string) =>
@@ -546,6 +550,29 @@ export const useSmtp = () => useQuery({ queryKey: qk.adminSmtp, queryFn: adminAp
 
 export const useAdminHardwareTiers = () =>
   useQuery({ queryKey: qk.adminHardwareTiers, queryFn: adminApi.hardwareTiers });
+
+export const useAdminTeams = (organizationId: string) =>
+  useQuery({
+    queryKey: qk.adminTeams(organizationId),
+    queryFn: () => adminApi.teams(organizationId),
+    // Sans organisation choisie il n'y a rien a demander : une requete
+    // avec un identifiant vide ramenerait les equipes de personne.
+    enabled: Boolean(organizationId),
+  });
+
+export const useAdminTeamMembers = (teamId: string) =>
+  useQuery({
+    queryKey: qk.adminTeamMembers(teamId),
+    queryFn: () => adminApi.teamMembers(teamId),
+    enabled: Boolean(teamId),
+  });
+
+export const useProjectTeamRoles = (projectId: string) =>
+  useQuery({
+    queryKey: qk.projectTeamRoles(projectId),
+    queryFn: () => projectTeamRolesApi.list(projectId),
+    enabled: Boolean(projectId),
+  });
 
 export const useRbacMatrix = () => useQuery({ queryKey: qk.adminRbacMatrix, queryFn: adminApi.rbacMatrix });
 export const useStorageCapacity = () =>

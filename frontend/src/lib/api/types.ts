@@ -617,6 +617,44 @@ export interface PlatformUser {
   lastSeenAt?: string;
 }
 
+/** Une equipe : un groupe de personnes a l'interieur d'une organisation.
+ *
+ * L'unite dans laquelle le travail est reellement organise, entre les deux que
+ * la plateforme savait deja nommer. Une organisation est un fait d'identite
+ * porte par l'annuaire ; une personne est un droit accorde projet par projet.
+ * Ni l'un ni l'autre ne decrit cinq personnes sur la meme etude.
+ */
+export interface Team {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  organizationName?: string;
+  /** Rempli par les listes, pour qu'un ecran n'ait pas a demander par ligne. */
+  memberCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamMember {
+  teamId: string;
+  userId: string;
+  /** Conservee quand la personne est rajoutee : elle repond depuis quand
+   *  celle-ci beneficie de ce que l'equipe accorde. */
+  joinedAt: string;
+}
+
+/** Un octroi a une equipe sur un projet.
+ *
+ * Le nom est resolu par le serveur : un tableau d'octrois qui montre des
+ * identifiants est un tableau qu'un administrateur ne peut pas auditer.
+ */
+export interface ProjectTeamRole {
+  teamId: string;
+  teamName?: string;
+  role: string;
+}
+
 export interface Organization {
   id: string;
   name: string;

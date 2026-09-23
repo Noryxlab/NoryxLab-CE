@@ -1,83 +1,86 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
   ActivityReport,
-  AIServicesStatus,
+  AdminHardwareTier,
+  AdminInventory,
+  AdminOverview,
   Agent,
   AgentGovernanceReport,
   AgentInput,
   AgentMandate,
   AgentRun,
   AgentTeam,
-  AdminHardwareTier,
-  OntologyQueryItem,
-  ProjectVariable,
-  DockerfileResponse,
-  OwnedResources,
-  ProjectQuota,
-  UsageSample,
-  UsageTotal,
-  ProjectQuotaState,
-  SmtpSettings,
-  SmtpState,
-  SoftwareInventory,
-  CreatedUser,
-  ProjectOrganizationRole,
+  AIServicesStatus,
   ApiToken,
-  HealthHistory,
-  AdminOverview,
-  EffectiveSetting,
-  SearchResult,
-  HealthReport,
   App,
   AppRevision,
   AppUsage,
+  AssignableRole,
   AuditEvent,
   BackupConfigStatus,
   BackupRun,
   Build,
+  Cohort,
+  CreatedUser,
   CronJob,
   Dataset,
   DatasetAccess,
+  DatasetUsage,
   Datasource,
   DatasourceDefinition,
-  AdminInventory,
   DataUsageReport,
+  DockerfileResponse,
+  EffectiveSetting,
   EgressProfile,
   EgressRule,
   Environment,
   Execution,
   HardwareTier,
+  HealthHistory,
+  HealthReport,
   Job,
-  ModuleInfo,
-  DatasetUsage,
   LogsResponse,
-  WorkspaceStartup,
-  ProjectToken,
+  ModuleInfo,
   Ontology,
   OntologyAccess,
-  OntologyManifestSummary,
-  OntologyFreshness,
   OntologyCompleteness,
-  Cohort,
+  OntologyFreshness,
+  OntologyManifestSummary,
+  OntologyQueryItem,
   Organization,
   OrganizationMember,
+  OwnedResources,
   PlatformOverview,
   PlatformUser,
   PodInfo,
   Project,
   ProjectMember,
+  ProjectOrganizationRole,
+  ProjectQuota,
+  ProjectQuotaState,
+  ProjectTeamRole,
+  ProjectToken,
+  ProjectVariable,
   RbacMatrixReport,
-  StorageCapacityReport,
   RbacPolicyResponse,
   RbacPolicyRow,
-  AssignableRole,
   Repository,
+  SearchResult,
   Secret,
+  SmtpSettings,
+  SmtpState,
+  SoftwareInventory,
+  StorageCapacityReport,
   StorageEndpoint,
   StorageObject,
+  Team,
+  TeamMember,
+  UsageSample,
+  UsageTotal,
   UserPreferences,
   VersionInfo,
   Workspace,
+  WorkspaceStartup,
 } from './types';
 
 const V1 = '/api/v1';
@@ -547,6 +550,23 @@ export const environmentsApi = {
   },
 };
 
+/** Les octrois d'un projet a des equipes.
+ *
+ * Jumeau de celui des organisations : c'est l'administrateur du projet qui
+ * decide quelles equipes l'atteignent, jamais qui les compose.
+ */
+export const projectTeamRolesApi = {
+  list: (projectId: string) =>
+    api.list<ProjectTeamRole>(`${V1}/projects/${projectId}/team-roles`),
+  grant: (projectId: string, teamId: string, role: string) =>
+    api.put<ProjectTeamRole>(
+      `${V1}/projects/${projectId}/team-roles/${encodeURIComponent(teamId)}`,
+      { role },
+    ),
+  revoke: (projectId: string, teamId: string) =>
+    api.delete<void>(`${V1}/projects/${projectId}/team-roles/${encodeURIComponent(teamId)}`),
+};
+
 export const projectOrganizationRolesApi = {
   list: (projectId: string) =>
     api.list<ProjectOrganizationRole>(`${V1}/projects/${projectId}/organization-roles`),
@@ -650,6 +670,19 @@ export const adminApi = {
     api.put<void>(`${V1}/admin/organizations/${organizationId}/members/${encodeURIComponent(userId)}`),
   removeOrganizationMember: (organizationId: string, userId: string) =>
     api.delete<void>(`${V1}/admin/organizations/${organizationId}/members/${encodeURIComponent(userId)}`),
+
+  teams: (organizationId: string) =>
+    api.list<Team>(`${V1}/admin/organizations/${organizationId}/teams`),
+  createTeam: (organizationId: string, input: { name: string; description?: string }) =>
+    api.post<Team>(`${V1}/admin/organizations/${organizationId}/teams`, input),
+  updateTeam: (teamId: string, input: { name: string; description?: string }) =>
+    api.put<Team>(`${V1}/admin/teams/${teamId}`, input),
+  removeTeam: (teamId: string) => api.delete<void>(`${V1}/admin/teams/${teamId}`),
+  teamMembers: (teamId: string) => api.list<TeamMember>(`${V1}/admin/teams/${teamId}/members`),
+  addTeamMember: (teamId: string, userId: string) =>
+    api.post<void>(`${V1}/admin/teams/${teamId}/members`, { userId }),
+  removeTeamMember: (teamId: string, userId: string) =>
+    api.delete<void>(`${V1}/admin/teams/${teamId}/members/${encodeURIComponent(userId)}`),
 
   audit: (params?: Record<string, string>) => api.list<AuditEvent>(`${V1}/admin/audit`, { params }),
   downloadAudit: () => downloadFile(`${V1}/admin/audit.csv`, 'noryx-audit.csv'),
