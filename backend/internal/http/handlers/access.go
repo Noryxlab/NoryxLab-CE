@@ -515,19 +515,50 @@ func (h Handlers) isGlobalAdminUserID(userID string) bool {
 }
 
 // effectiveProjectRole is the strongest role a user holds on a project,
-// whether granted to them personally or to an organization they belong to.
+// whether granted to them personally, to a team they are in, or to an
+// organization they belong to.
 //
 // Grants add up rather than override. Removing someone from an organization
 // must not silently take away access they were given personally, and a
 // personal viewer role must not cap an organization's editor grant - either
 // behaviour would make an administrator's action have an effect they did not
-// ask for and cannot see.
+// ask for and cannot see. A team is a third source and obeys the same rule:
+// leaving one takes away what the team gave and nothing else.
+//
+// The three are compared and not ordered. There is no sense in which a team
+// grant outranks an organization grant, and building a hierarchy between the
+// sources would mean an administrator could not tell what a person may do
+// without first knowing where each grant came from.
 func (h Handlers) effectiveProjectRole(projectID, userID string) (access.Role, bool) {
 	direct, hasDirect := h.accessStore.GetRole(projectID, userID)
-	granted := h.organizationProjectRole(projectID, userID)
+	viaTeam := h.teamProjectRole(projectID, userID)
+	viaOrganization := h.organizationProjectRole(projectID, userID)
 
-	best := h.strongestRole(direct, granted)
+	best := h.strongestRole(direct, viaTeam, viaOrganization)
 	return best, best != "" || hasDirect
+}
+
+// teamProjectRole is the strongest grant reaching this user through a team.
+//
+// An unconfigured store returns no role rather than an error, the same way the
+// organization path treats an unreachable directory: a platform running
+// without teams must behave exactly as it did before they existed, and a
+// failure to read them must never hand out access nor take away what somebody
+// holds by another route.
+func (h Handlers) teamProjectRole(projectID, userID string) access.Role {
+	if h.teamStore == nil {
+		return ""
+	}
+	grants, err := h.teamStore.ListProjectRolesForUser(
+		strings.TrimSpace(projectID), strings.TrimSpace(userID))
+	if err != nil || len(grants) == 0 {
+		return ""
+	}
+	best := access.Role("")
+	for _, grant := range grants {
+		best = h.strongestRole(best, grant.Role)
+	}
+	return best
 }
 
 // strongestRole compares grants that are not all built-in.

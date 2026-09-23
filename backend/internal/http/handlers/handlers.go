@@ -15,16 +15,20 @@ import (
 )
 
 type Handlers struct {
-	projectStore                     store.ProjectStore
-	appStore                         store.AppStore
-	buildStore                       store.BuildStore
-	jobStore                         store.JobStore
-	podStore                         store.PodStore
-	workspaceStore                   store.WorkspaceStore
-	sessionStore                     store.SessionStore
-	auditStore                       store.AuditStore
-	egressRuleStore                  store.EgressRuleStore
-	accessStore                      store.AccessStore
+	projectStore    store.ProjectStore
+	appStore        store.AppStore
+	buildStore      store.BuildStore
+	jobStore        store.JobStore
+	podStore        store.PodStore
+	workspaceStore  store.WorkspaceStore
+	sessionStore    store.SessionStore
+	auditStore      store.AuditStore
+	egressRuleStore store.EgressRuleStore
+	accessStore     store.AccessStore
+	// teamStore is optional: an installation without it behaves exactly
+	// as the platform did before teams existed, which is what makes this
+	// safe to deploy before the interface that drives it.
+	teamStore                        store.TeamStore
 	secretStore                      store.SecretStore
 	projectVariableStore             store.ProjectVariableStore
 	datasetStore                     store.DatasetStore
@@ -241,6 +245,7 @@ func New(
 	auditStore store.AuditStore,
 	egressRuleStore store.EgressRuleStore,
 	accessStore store.AccessStore,
+	teamStore store.TeamStore,
 	secretStore store.SecretStore,
 	projectVariableStore store.ProjectVariableStore,
 	datasetStore store.DatasetStore,
@@ -283,6 +288,7 @@ func New(
 		auditStore:                       auditStore,
 		egressRuleStore:                  egressRuleStore,
 		accessStore:                      accessStore,
+		teamStore:                        teamStore,
 		secretStore:                      secretStore,
 		projectVariableStore:             projectVariableStore,
 		datasetStore:                     datasetStore,

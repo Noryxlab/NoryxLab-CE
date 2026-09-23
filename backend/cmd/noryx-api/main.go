@@ -42,6 +42,7 @@ func main() {
 	var datasetSizeStore store.DatasetSizeStore = memory.NewDatasetSizeStore()
 	var egressRuleStore store.EgressRuleStore = memory.NewEgressRuleStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
+	var teamStore store.TeamStore = memory.NewTeamStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var projectVariableStore store.ProjectVariableStore = memory.NewProjectVariableStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
@@ -103,6 +104,7 @@ func main() {
 			datasetSizeStore = &postgres.DatasetSizeStore{Store: pg}
 			egressRuleStore = &postgres.EgressRuleStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
+			teamStore = &postgres.TeamStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			projectVariableStore = &postgres.ProjectVariableStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
@@ -193,6 +195,7 @@ func main() {
 		auditStore,
 		egressRuleStore,
 		accessStore,
+		teamStore,
 		secretStore,
 		projectVariableStore,
 		datasetStore,
