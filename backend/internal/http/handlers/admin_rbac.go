@@ -465,6 +465,10 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		rolesByProject[role.ProjectID] = append(rolesByProject[role.ProjectID], role)
 	}
 
+	// Les noms d'equipes, remplis au fil des octrois rencontres. Interroger le
+	// magasin depuis la resolution de nom ferait une requete par cellule sur un
+	// rapport qui en produit des milliers.
+	teamNames := map[string]string{}
 	subjects := map[string]rbacSubject{}
 	resources := map[string]rbacResource{}
 	cells := map[string]rbacCell{}
@@ -487,6 +491,8 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		if subjectType == "organization" {
 			organization := organizations[subjectID]
 			item.Name = firstNonEmpty(organization.Name, organization.Alias, subjectID)
+		} else if subjectType == "team" {
+			item.Name = firstNonEmpty(teamNames[subjectID], subjectID)
 		} else {
 			item.Name = firstNonEmpty(user.Username, user.Email, subjectID)
 			item.Email = user.Email
@@ -531,6 +537,28 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		}
 	}
 
+	// addTeamGrant records the team itself and every person it reaches.
+	//
+	// Both, and not only the members: an administrator auditing a project has
+	// to see that the grant was made to a group, because that is the thing
+	// they would revoke. Listing only the people would show five rows to
+	// remove where there is one.
+	addTeamGrant := func(grant store.ProjectTeamRole, projectID string) {
+		name := firstNonEmpty(grant.TeamName, grant.TeamID)
+		teamNames[grant.TeamID] = name
+		addCell("team", grant.TeamID, "project", projectID, string(grant.Role), "team-role", false)
+		if h.teamStore == nil {
+			return
+		}
+		members, err := h.teamStore.ListMembers(grant.TeamID)
+		if err != nil {
+			return
+		}
+		for _, member := range members {
+			addCell("user", member.UserID, "project", projectID, string(grant.Role), "team:"+name, true)
+		}
+	}
+
 	for _, user := range users {
 		if user.ID != "" {
 			addSubject("user", user.ID)
@@ -548,6 +576,33 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		addSubjectWithOrganizationExpansion(ownerType, item.OwnerID, "project", item.ID, "owner", "owner")
 		for _, role := range rolesByProject[item.ID] {
 			addCell("user", role.UserID, "project", item.ID, string(role.Role), "project-role", false)
+		}
+
+		// A project is also reached through an organization and through a
+		// team, and neither was here.
+		//
+		// This matrix is what somebody reads to answer "who can open this",
+		// and it was answering with the direct grants alone - so a project
+		// opened to an entire organization looked like it had two members.
+		// The gap predates teams; adding one source without the other would
+		// only have made it wrong in a new way.
+		//
+		// A failure to read them leaves the project's other cells standing
+		// rather than failing the whole report: an audit built from most of
+		// the truth is worth more than no audit, provided nothing claims it is
+		// complete.
+		if grants, err := h.accessStore.ListOrganizationRoles(item.ID); err == nil {
+			for _, grant := range grants {
+				addSubjectWithOrganizationExpansion("organization", grant.OrganizationID,
+					"project", item.ID, string(grant.Role), "organization-role")
+			}
+		}
+		if h.teamStore != nil {
+			if grants, err := h.teamStore.ListProjectRoles(item.ID); err == nil {
+				for _, grant := range grants {
+					addTeamGrant(grant, item.ID)
+				}
+			}
 		}
 	}
 
@@ -675,12 +730,23 @@ func effectiveProjectSubjects(item project.Project, roles []store.ProjectRole, o
 	return out
 }
 
+// normalizedSubjectType maps what callers write onto the three kinds of
+// subject a grant can name.
+//
+// Everything unrecognised becomes a user, which is the safe default for an
+// owner field filled in by hand - and the reason a new kind has to be added
+// here explicitly. A team passed through the old version came out as a user,
+// and the matrix would have shown a group in the column where people go,
+// silently, with no error anywhere.
 func normalizedSubjectType(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "organization" || value == "org" {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "organization", "org":
 		return "organization"
+	case "team":
+		return "team"
+	default:
+		return "user"
 	}
-	return "user"
 }
 
 func rbacRoleKey(value string) string {
