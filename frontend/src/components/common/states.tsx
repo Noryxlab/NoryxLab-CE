@@ -140,20 +140,3 @@ export interface QueryBoundaryProps<T> {
   children: (data: T) => React.ReactNode;
 }
 
-export function QueryBoundary<T>({
-  isLoading,
-  isError,
-  error,
-  data,
-  onRetry,
-  loadingFallback,
-  emptyFallback,
-  isEmpty,
-  children,
-}: QueryBoundaryProps<T>) {
-  if (isLoading) return <>{loadingFallback}</>;
-  if (isError) return <ErrorState error={error} onRetry={onRetry} />;
-  if (data === undefined) return <>{loadingFallback}</>;
-  if (emptyFallback && isEmpty?.(data)) return <>{emptyFallback}</>;
-  return <>{children(data)}</>;
-}

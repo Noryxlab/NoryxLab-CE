@@ -24,6 +24,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { SectionHeader } from '@/components/common/page-header';
 import { SearchInput } from '@/components/common/search-input';
+import { DataTable, type Column } from '@/components/common/data-table';
+import { EmptyState } from '@/components/common/states';
+import { formatDate, formatDateTime, formatRelative } from '@/lib/format';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { adminApi } from '@/lib/api/endpoints';
 import {
@@ -174,7 +177,7 @@ export function PeopleSection() {
       />
 
       {view === 'list' ? (
-        <PeopleList people={people.filter(matches)} onOpen={(user) => { setSelected({ kind: 'person', user }); switchView('tree'); }} />
+        <PeopleList people={people} search={search} onOpen={(user) => { setSelected({ kind: 'person', user }); switchView('tree'); }} />
       ) : null}
 
       <div className={view === 'list' ? 'hidden' : 'grid gap-4 lg:grid-cols-[minmax(280px,1fr)_2fr]'}>
@@ -241,50 +244,49 @@ export function PeopleSection() {
 
 /* -- la liste --------------------------------------------------------------- */
 
-function PeopleList({ people, onOpen }: { people: PlatformUser[]; onOpen: (u: PlatformUser) => void }) {
+function PeopleList({ people, search, onOpen }: { people: PlatformUser[]; search: string; onOpen: (u: PlatformUser) => void }) {
   const t = useT();
-  const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '—');
-  const stamp = (iso?: string) => (iso ? new Date(iso).getTime() : 0);
-  // Les plus recemment vus en haut ; les jamais-venus tout en bas, ensemble,
-  // parce que c'est la liste que la revue d'acces relance.
-  const rows = [...people].sort((a, b) => stamp(b.lastSeenAt) - stamp(a.lastSeenAt) || displayName(a).localeCompare(displayName(b)));
   const orgs = (u: PlatformUser) => (u.organizations ?? (u.organization ? [u.organization] : [])).join(', ');
+  // Les colonnes de l'ancienne table, plus la premiere connexion. Le tri par
+  // defaut met les plus recemment vus en haut ; sortValue rend null pour les
+  // jamais-venus, que la table range ensemble en bas - la liste qu'une revue
+  // d'acces relance.
+  const columns: Column<PlatformUser>[] = [
+    {
+      id: 'user',
+      header: t('common.user'),
+      sortValue: (u) => displayName(u).toLowerCase(),
+      searchValue: (u) => [u.username, u.email, u.firstName, u.lastName].filter(Boolean).join(' '),
+      cell: (u) => (
+        <span className="flex items-center gap-2">
+          <PresenceDot user={u} />
+          <span>{displayName(u)}</span>
+          <AdminMark user={u} />
+          <span className="text-xs text-muted-foreground">{u.username}</span>
+        </span>
+      ),
+    },
+    { id: 'organization', header: t('common.organization'), sortValue: (u) => orgs(u) || null, searchValue: orgs,
+      cell: (u) => <span className="text-xs">{orgs(u) || '—'}</span> },
+    { id: 'teams', header: t('admin.teams'), sortValue: (u) => (u.teams ?? []).join(', ') || null, searchValue: (u) => (u.teams ?? []).join(' '),
+      cell: (u) => <span className="text-xs">{u.teams?.join(', ') || '—'}</span> },
+    { id: 'firstSeen', header: t('people.firstSeen'), sortValue: (u) => (u.firstSeenAt ? new Date(u.firstSeenAt).getTime() : null),
+      cell: (u) => <span className="text-xs tabular-nums" title={u.firstSeenAt ? formatDateTime(u.firstSeenAt) : undefined}>{u.firstSeenAt ? formatDate(u.firstSeenAt) : '—'}</span> },
+    { id: 'lastSeen', header: t('admin.lastSeen'), sortValue: (u) => (u.lastSeenAt ? new Date(u.lastSeenAt).getTime() : null),
+      cell: (u) => u.lastSeenAt
+        ? <span className="text-xs text-muted-foreground" title={formatDateTime(u.lastSeenAt)}>{formatRelative(u.lastSeenAt)}</span>
+        : <span className="text-xs text-amber-600">{t('people.neverSeen')}</span> },
+  ];
   return (
-    <Card>
-      <CardContent className="overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-muted-foreground">
-              <th className="px-3 py-2 font-medium">{t('common.user')}</th>
-              <th className="px-3 py-2 font-medium">{t('common.organization')}</th>
-              <th className="px-3 py-2 font-medium">{t('admin.teams')}</th>
-              <th className="px-3 py-2 font-medium">{t('people.firstSeen')}</th>
-              <th className="px-3 py-2 font-medium">{t('admin.lastSeen')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((user) => (
-              <tr key={user.id} className="border-t">
-                <td className="px-3 py-1.5">
-                  <span className="flex items-center gap-2">
-                    <PresenceDot user={user} />
-                    <button type="button" className="text-left hover:underline" onClick={() => onOpen(user)}>{displayName(user)}</button>
-                    <AdminMark user={user} />
-                    <span className="text-xs text-muted-foreground">{user.username}</span>
-                  </span>
-                </td>
-                <td className="px-3 py-1.5 text-xs">{orgs(user) || '—'}</td>
-                <td className="px-3 py-1.5 text-xs">{user.teams?.join(', ') || '—'}</td>
-                <td className="px-3 py-1.5 text-xs tabular-nums" title={user.firstSeenAt ? new Date(user.firstSeenAt).toLocaleString() : undefined}>{when(user.firstSeenAt)}</td>
-                <td className="px-3 py-1.5 text-xs tabular-nums" title={user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString() : undefined}>
-                  {user.lastSeenAt ? when(user.lastSeenAt) : <span className="text-amber-600">{t('people.neverSeen')}</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+    <DataTable
+      data={people}
+      columns={columns}
+      rowKey={(u) => u.id}
+      search={search}
+      defaultSort={{ columnId: 'lastSeen', direction: 'desc' }}
+      onRowClick={onOpen}
+      emptyState={<EmptyState title={t('people.nobody')} />}
+    />
   );
 }
 
@@ -673,7 +675,7 @@ function TeamPanel({ team, organization, onDeleted }: { team: Team; organization
           {members.isLoading ? (
             <Skeleton className="h-12 w-full" />
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('admin.teamNoMembers')}</p>
+            <EmptyState title={t('admin.teamNoMembers')} className="py-4" />
           ) : (
             <ul className="divide-y text-sm">
               {items.map((member) => {
@@ -681,7 +683,7 @@ function TeamPanel({ team, organization, onDeleted }: { team: Team; organization
                 return (
                   <li key={member.userId} className="flex items-center gap-2 py-1.5">
                     <span>{user ? displayName(user) : member.userId}</span>
-                    <span className="text-xs text-muted-foreground">{new Date(member.joinedAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(member.joinedAt)}</span>
                     <Button variant="ghost" size="sm" className="ml-auto" onClick={() => remove.mutate(member.userId)} aria-label={t('admin.teamMemberRemove')}>
                       <Trash2 className="size-4" />
                     </Button>
@@ -782,11 +784,11 @@ function PersonPanel({ user }: { user: PlatformUser }) {
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">{t('people.firstSeen')}</dt>
-            <dd>{user.firstSeenAt ? new Date(user.firstSeenAt).toLocaleString() : '—'}</dd>
+            <dd>{user.firstSeenAt ? formatDateTime(user.firstSeenAt) : '—'}</dd>
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">{t('admin.lastSeen')}</dt>
-            <dd>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString() : t('people.neverSeen')}</dd>
+            <dd>{user.lastSeenAt ? formatDateTime(user.lastSeenAt) : t('people.neverSeen')}</dd>
           </div>
         </dl>
 
@@ -837,7 +839,7 @@ function UnaffiliatedPanel({ people, onSelect }: { people: PlatformUser[]; onSel
 
 function MemberList({ people, onOpen, onRemove, removing }: { people: PlatformUser[]; onOpen: (u: PlatformUser) => void; onRemove?: (u: PlatformUser) => void; removing?: boolean }) {
   const t = useT();
-  if (people.length === 0) return <p className="text-sm text-muted-foreground">{t('people.nobody')}</p>;
+  if (people.length === 0) return <EmptyState title={t('people.nobody')} className="py-4" />;
   return (
     <ul className="divide-y text-sm">
       {[...people].sort((a, b) => displayName(a).localeCompare(displayName(b))).map((user) => (
