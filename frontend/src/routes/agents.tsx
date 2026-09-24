@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SectionHeader } from '@/components/common/page-header';
 import { useMutation } from '@tanstack/react-query';
 import { useParams } from 'react-router';
@@ -128,7 +129,7 @@ export function AgentsPage() {
       <AIServicesCard />
 
       {agents.isLoading ? (
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+        <Skeleton className="h-10 w-full" />
       ) : items.length === 0 ? (
         <EmptyRoster onRecruit={() => setRecruiting(true)} />
       ) : (
@@ -299,7 +300,7 @@ function TeamsSection({
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+        <Skeleton className="h-10 w-full" />
       ) : teams.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
           <p className="mx-auto max-w-lg text-sm leading-relaxed text-muted-foreground">

@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Users, X } from 'lucide-react';
 import { AgentFace, moodOf } from './agent-face';
 import { Button } from '@/components/ui/button';
@@ -92,7 +93,7 @@ export function TeamBoard({ team, agents, onAllowAsk }: TeamBoardProps) {
             {t('agents.organisation')}
           </h4>
           {mandates.isLoading ? (
-            <p className="mt-2 text-sm text-muted-foreground">{t('common.loading')}</p>
+            <Skeleton className="h-10 w-full" />
           ) : (mandates.data ?? []).length === 0 ? (
             <p className="mt-2 max-w-prose text-sm text-muted-foreground">
               {leads.length === 0 ? t('agents.needsALead') : t('agents.organisationEmpty')}
