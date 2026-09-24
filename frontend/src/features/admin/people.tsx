@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Building2, ChevronDown, ChevronRight, MoreHorizontal, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, MoreHorizontal, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,6 +84,29 @@ function PresenceDot({ user }: { user: PlatformUser }) {
       title={t(`people.presence_${state}`)}
       aria-label={t(`people.presence_${state}`)}
     />
+  );
+}
+
+/** Le marqueur administrateur, le meme qu'avant la refonte : ShieldCheck sur
+ *  un badge brand, avec l'explication en infobulle. Il etait dans chaque
+ *  ligne de l'ancienne table et n'etait plus que dans le panneau - il fallait
+ *  ouvrir chaque personne pour savoir, l'inverse du but. Compact dans l'arbre,
+ *  ou un badge entier a la profondeur 2 mangerait le nom. */
+function AdminMark({ user, compact }: { user: PlatformUser; compact?: boolean }) {
+  const t = useT();
+  if (!user.administrator) return null;
+  if (compact) {
+    return (
+      <span className="inline-flex shrink-0" title={t('people.administratorHint')} aria-label={t('admin.administrator')}>
+        <ShieldCheck aria-hidden className="size-3.5 text-primary" />
+      </span>
+    );
+  }
+  return (
+    <Badge tone="brand" title={t('people.administratorHint')}>
+      <ShieldCheck aria-hidden className="size-3" />
+      {t('admin.administrator')}
+    </Badge>
   );
 }
 
@@ -246,6 +269,7 @@ function PeopleList({ people, onOpen }: { people: PlatformUser[]; onOpen: (u: Pl
                   <span className="flex items-center gap-2">
                     <PresenceDot user={user} />
                     <button type="button" className="text-left hover:underline" onClick={() => onOpen(user)}>{displayName(user)}</button>
+                    <AdminMark user={user} />
                     <span className="text-xs text-muted-foreground">{user.username}</span>
                   </span>
                 </td>
@@ -287,6 +311,7 @@ function TreeLeaf({
   active,
   onSelect,
   chevron,
+  trailing,
 }: {
   depth: number;
   icon: React.ReactNode;
@@ -295,6 +320,7 @@ function TreeLeaf({
   active: boolean;
   onSelect: () => void;
   chevron?: React.ReactNode;
+  trailing?: React.ReactNode;
 }) {
   return (
     <button
@@ -306,6 +332,7 @@ function TreeLeaf({
       {chevron ?? <span className="w-4" />}
       {icon}
       <span className="truncate">{label}</span>
+      {trailing}
       {count !== undefined ? (
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">{count}</span>
       ) : null}
@@ -406,6 +433,7 @@ function PersonLeaf({
       depth={depth}
       icon={<PresenceDot user={user} />}
       label={displayName(user)}
+      trailing={<AdminMark user={user} compact />}
       active={selected?.kind === 'person' && selected.user.id === user.id}
       onSelect={() => onSelect({ kind: 'person', user })}
     />
@@ -732,7 +760,7 @@ function PersonPanel({ user }: { user: PlatformUser }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {displayName(user)}
-          {user.administrator ? <Badge tone="warning">{t('admin.administrator')}</Badge> : null}
+          <AdminMark user={user} />
           {disabled ? <Badge tone="danger">{t('people.deactivated')}</Badge> : null}
         </CardTitle>
         <CardDescription className="font-mono text-xs">
@@ -816,6 +844,7 @@ function MemberList({ people, onOpen, onRemove, removing }: { people: PlatformUs
         <li key={user.id} className="flex items-center gap-2 py-1.5">
           <PresenceDot user={user} />
           <button type="button" className="text-left hover:underline" onClick={() => onOpen(user)}>{displayName(user)}</button>
+          <AdminMark user={user} compact />
           <span className="text-xs text-muted-foreground">{user.username}</span>
           {user.teams?.length ? <span className="text-xs text-muted-foreground">· {user.teams.join(', ')}</span> : null}
           {onRemove ? (

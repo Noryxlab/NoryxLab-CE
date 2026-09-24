@@ -871,6 +871,7 @@ export const fr = {
     presence_active: "Actif : s'est deja connecte",
     presence_never: "Jamais connecte",
     presence_disabled: "Desactive",
+    administratorHint: "Peut agir sur le travail de tout le monde.",
     createUserIn: 'Le compte sera cree dans {organization}.',
   },
   admin: {

@@ -865,6 +865,7 @@ export const en: Translations = {
     presence_active: "Active: has signed in",
     presence_never: "Never signed in",
     presence_disabled: "Deactivated",
+    administratorHint: "Can act on everybody's work.",
     createUserIn: 'The account will be created in {organization}.',
   },
   admin: {
