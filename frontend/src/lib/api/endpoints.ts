@@ -395,6 +395,12 @@ export const datasetsApi = {
     api.post<void>(`${V1}/datasets/${datasetId}/folders`, { path }),
   deleteObject: (datasetId: string, path: string) =>
     api.delete<void>(`${V1}/datasets/${datasetId}/objects/${encodeObjectPath(path)}`),
+  /** Les deux chemins vont dans le corps, pas dans l'URL : un renommage en
+   *  porte deux, et la moitie d'un chemin dans l'adresse et l'autre ailleurs
+   *  est une occasion d'en nettoyer une seule. */
+  renameObject: (datasetId: string, from: string, to: string) =>
+    api.post<{ from: string; to: string; size: number }>(
+      `${V1}/datasets/${datasetId}/rename`, { from, to }),
   downloadUrl: (datasetId: string, keys: string[]) =>
     api.post<{ url: string }>(`${V1}/datasets/${datasetId}/download-url`, { keys }),
   downloadArchive: (datasetId: string, keys: string[], filename: string) =>

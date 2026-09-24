@@ -2375,6 +2375,56 @@ paths:
         '502':
           $ref: '#/components/responses/UpstreamError'
 
+  /api/v1/datasets/{datasetID}/rename:
+    post:
+      tags: [Datasets]
+      summary: Rename one object inside a dataset
+      description: >-
+        Copies the object to its new name server-side, verifies the copy, then
+        removes the original. The removal never runs unless the copy has been
+        confirmed to exist at the same size, so a failure leaves both names
+        rather than neither. Refused if an object already carries the target
+        name: a rename must not silently replace a file nobody asked about.
+        Requires the same write access as uploading or deleting an object,
+        which is what a caller would otherwise use to do this by hand.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, description: Current path inside the dataset }
+                to: { type: string, description: New path inside the dataset }
+      responses:
+        '200':
+          description: Object renamed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from: { type: string }
+                  to: { type: string }
+                  size: { type: integer, format: int64 }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: An object already carries the target name
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+
   /api/v1/datasets/{datasetID}/objects/{path}:
     get:
       tags: [Datasets]

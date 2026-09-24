@@ -7,6 +7,7 @@ import {
   Folder,
   FolderPlus,
   Home,
+  PenLine,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -147,6 +148,7 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
   const [uploading, setUploading] = React.useState(false);
   const [creatingFolder, setCreatingFolder] = React.useState(false);
   const [folderName, setFolderName] = React.useState('');
+  const [renaming, setRenaming] = React.useState<{ from: string; to: string } | null>(null);
 
   const objects = useDatasetObjects(dataset.id, prefix);
 
@@ -196,6 +198,24 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
       setSelected(new Set());
     },
     onError: (error) => toast.error(error, t('datasets.deleteSelection')),
+  });
+
+  /** Renommer, qui n'ajoute aucun droit.
+   *
+   *  Un ecrivain peut deja le faire a la main - telecharger, renvoyer sous un
+   *  autre nom, supprimer l'ancien - avec les memes autorisations. Ce bouton
+   *  fait la meme chose en une action verifiee, sans la fenetre ou le fichier
+   *  existe en double ou plus du tout. */
+  const renameObject = useMutation({
+    mutationFn: ({ from, to }: { from: string; to: string }) =>
+      datasetsApi.renameObject(dataset.id, from, to),
+    onSuccess: () => {
+      invalidate(qk.datasetObjects(dataset.id, prefix));
+      setSelected(new Set());
+      setRenaming(null);
+      toast.success(t('datasets.objectRenamed'), t('datasets.rename'));
+    },
+    onError: (error) => toast.error(error, t('datasets.rename')),
   });
 
   const columns: Column<(typeof entries)[number]>[] = [
@@ -354,6 +374,22 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
                 <Download aria-hidden />
                 {t('datasets.downloadSelection')}
               </Button>
+              {/* Un seul objet a la fois : renommer une selection n'a pas de
+                  sens, il n'y a pas de nouveau nom commun a deux fichiers. */}
+              {selected.size === 1 ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const from = [...selected][0];
+                    if (!from) return;
+                    setRenaming({ from, to: from.split('/').pop() ?? from });
+                  }}
+                >
+                  <PenLine aria-hidden />
+                  {t('datasets.rename')}
+                </Button>
+              ) : null}
               <Button
                 variant="danger-outline"
                 size="sm"
@@ -404,6 +440,56 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
       </CardContent>
 
       <UploadDialog dataset={dataset} prefix={prefix} open={uploading} onOpenChange={setUploading} />
+
+      {/* Le renommage.
+          Seul le dernier segment est modifiable : deplacer un fichier ailleurs
+          et le renommer sont deux gestes differents, et un champ qui accepte
+          des barres obliques fait l'un en croyant faire l'autre. */}
+      <Dialog open={renaming !== null} onOpenChange={(open) => !open && setRenaming(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>{t('datasets.rename')}</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <Field label={t('datasets.renameNewName')} required>
+              <Input
+                value={renaming?.to ?? ''}
+                onChange={(event) =>
+                  setRenaming((current) =>
+                    current ? { ...current, to: event.target.value.replace(/\//g, '') } : current)
+                }
+                autoFocus
+                maxLength={255}
+              />
+            </Field>
+            <p className="mt-2 text-xs text-muted-foreground">{t('datasets.renameHint')}</p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setRenaming(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              disabled={
+                !renaming?.to.trim() ||
+                renaming.to.trim() === (renaming.from.split('/').pop() ?? '')
+              }
+              loading={renameObject.isPending}
+              onClick={() => {
+                if (!renaming) return;
+                // Le nouveau nom reste dans le dossier courant : on recompose
+                // le chemin a partir de celui d'origine plutot que du prefixe
+                // affiche, qui peut avoir change sous les pieds de l'ecran.
+                const segments = renaming.from.split('/');
+                segments[segments.length - 1] = renaming.to.trim();
+                renameObject.mutate({ from: renaming.from, to: segments.join('/') });
+              }}
+            >
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={creatingFolder} onOpenChange={setCreatingFolder}>
         <DialogContent size="sm">
