@@ -1202,6 +1202,8 @@ export const en: Translations = {
     scopeHint: 'What the token may do, within your own rights.',
     scopeRead: 'Read only',
     scopeReadHint: 'Look, change nothing.',
+    scopeDatasets: 'Datasets',
+    scopeDatasetsHint: "Upload and replace files in the datasets this account can already reach. Starts nothing and deletes no project.",
     scopeWorkspaces: 'Workspaces',
     scopeWorkspacesHint: 'Start and stop workspaces, plus reading.',
     scopeJobs: 'Jobs',

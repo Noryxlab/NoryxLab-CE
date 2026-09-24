@@ -34,6 +34,21 @@ const (
 	// a workspace or reading a dataset, and an auditor who sees that it could
 	// stops reading there.
 	ScopeInvoke Scope = "invoke"
+	// ScopeDatasets allows reading and writing the objects of a dataset its
+	// owner may already reach.
+	//
+	// It exists because the alternative was ScopeFull. A partner pushing
+	// imaging data into a bucket needs to create and replace objects and
+	// nothing else - not start a workspace, not delete a project, not run a
+	// job - and until this scope existed the only credential that could upload
+	// was one that could do all three. On regulated data, held by another
+	// organisation, running unattended, that is the exact credential a
+	// security review asks about first.
+	//
+	// It does not widen what its owner reaches: a dataset they have no access
+	// to stays refused by the dataset's own permission check, which this sits
+	// in front of rather than replaces.
+	ScopeDatasets Scope = "datasets"
 	// ScopeOperate allows the platform's own operations: backups, restore
 	// rehearsals, health validation. It is what a component needs and what a
 	// person almost never does, which is why it is separate from the scopes
@@ -48,7 +63,7 @@ const (
 // AllScopes is what an interface offers, in the order it should offer them:
 // least dangerous first.
 func AllScopes() []Scope {
-	return []Scope{ScopeRead, ScopeInvoke, ScopeWorkspaces, ScopeJobs, ScopeOperate, ScopeFull}
+	return []Scope{ScopeRead, ScopeInvoke, ScopeDatasets, ScopeWorkspaces, ScopeJobs, ScopeOperate, ScopeFull}
 }
 
 // ValidScope reports whether a string names a scope this platform knows. An
@@ -120,6 +135,10 @@ func Permits(scopes []string, method, path string) bool {
 
 	for _, scope := range scopes {
 		switch Scope(scope) {
+		case ScopeDatasets:
+			if underAny(path, "/api/v1/datasets") {
+				return true
+			}
 		case ScopeWorkspaces:
 			if underAny(path, "/api/v1/workspaces") {
 				return true
@@ -146,6 +165,8 @@ func Permits(scopes []string, method, path string) bool {
 // pipeline receives is actionable rather than "forbidden".
 func Explain(method, path string) string {
 	switch {
+	case underAny(path, "/api/v1/datasets"):
+		return string(ScopeDatasets)
 	case underAny(path, "/api/v1/workspaces"):
 		return string(ScopeWorkspaces)
 	case underAny(path, "/api/v1/jobs", "/api/v1/builds", "/api/v1/cronjobs"):

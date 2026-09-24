@@ -153,6 +153,7 @@ export function ApiTokensSection() {
                 onValueChange={setScope}
                 options={[
                   { value: 'read', label: t('tokens.scopeRead'), hint: t('tokens.scopeReadHint') },
+                  { value: 'datasets', label: t('tokens.scopeDatasets'), hint: t('tokens.scopeDatasetsHint') },
                   { value: 'workspaces', label: t('tokens.scopeWorkspaces'), hint: t('tokens.scopeWorkspacesHint') },
                   { value: 'jobs', label: t('tokens.scopeJobs'), hint: t('tokens.scopeJobsHint') },
                   { value: 'full', label: t('tokens.scopeFull'), hint: t('tokens.scopeFullHint') },

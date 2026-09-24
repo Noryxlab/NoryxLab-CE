@@ -1208,6 +1208,8 @@ export const fr = {
     scopeHint: 'Ce que le jeton pourra faire, dans la limite de vos propres droits.',
     scopeRead: 'Lecture seule',
     scopeReadHint: 'Consulter, ne rien modifier.',
+    scopeDatasets: 'Datasets',
+    scopeDatasetsHint: "Deposer et remplacer des fichiers dans les datasets accessibles. Ne lance rien et ne supprime aucun projet.",
     scopeWorkspaces: 'Workspaces',
     scopeWorkspacesHint: 'Démarrer et arrêter des workspaces, plus la lecture.',
     scopeJobs: 'Traitements',
