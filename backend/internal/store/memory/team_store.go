@@ -147,6 +147,26 @@ func (s *TeamStore) RemoveMember(teamID, userID string) error {
 	return nil
 }
 
+func (s *TeamStore) Memberships() (map[string][]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := map[string][]string{}
+	for teamID, members := range s.members {
+		item, found := s.teams[teamID]
+		if !found {
+			continue
+		}
+		for userID := range members {
+			key := strings.ToLower(strings.TrimSpace(userID))
+			out[key] = append(out[key], item.Name)
+		}
+	}
+	for _, names := range out {
+		sort.Slice(names, func(i, j int) bool { return strings.ToLower(names[i]) < strings.ToLower(names[j]) })
+	}
+	return out, nil
+}
+
 func (s *TeamStore) ListByUser(userID string) ([]team.Team, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

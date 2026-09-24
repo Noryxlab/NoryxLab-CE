@@ -1026,7 +1026,7 @@ export const fr = {
     teamRemoveWarning: 'Supprimer {name} retire aussi tous les accès aux projets qu\'elle accordait.',
     teamMemberCount: '{count} membre(s)',
     teamMemberAdd: 'Ajouter un membre',
-    teamMemberPlaceholder: 'identifiant',
+    teamMemberPlaceholder: 'Choisir une personne',
     teamMemberAdded: 'Membre ajouté',
     teamMemberRemove: 'Retirer de l\'équipe',
     teamNoMembers: 'Personne dans cette équipe.',

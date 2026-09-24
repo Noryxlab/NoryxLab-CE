@@ -600,6 +600,9 @@ export interface PlatformUser {
   /** L'organisation a laquelle le compte appartient, vide quand il n'en a
    *  aucune - un compte de service, typiquement. */
   organization?: string;
+  /** Les equipes auxquelles la personne appartient, nommees et pas comptees :
+   *  "2 equipes" a cote d'un nom ne dit rien sur quoi agir. */
+  teams?: string[];
   /** Vrai pour un compte qui peut agir sur le travail de tout le monde.
    *
    *  Determine par le role de realm et le compte d'amorcage, qui sont les deux

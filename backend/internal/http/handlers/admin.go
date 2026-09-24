@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -62,6 +63,12 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		// where the most consequential fact about a row is the one it omits.
 		Administrator bool       `json:"administrator,omitempty"`
 		LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
+		// Teams, because an installation that has them reads this screen by
+		// team as much as by organization - and because the question "who is
+		// in this team" was otherwise answerable only by opening each team in
+		// turn. Named rather than counted: "2 teams" beside somebody's name
+		// tells a reviewer nothing they can act on.
+		Teams []string `json:"teams,omitempty"`
 		// No sign-in count here, deliberately.
 		//
 		// It was reported alongside the date and it reads as surveillance on a
@@ -82,8 +89,33 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 			seen = found
 		}
 	}
+	// One read of the membership, not one per row.
+	//
+	// The obvious shape is ListByUser inside the loop, which is a query per
+	// account and turns a screen into a scan on any installation with real
+	// numbers. The teams are few and their membership small, so the whole map
+	// is cheaper to build once.
+	//
+	// It degrades the column rather than the page, like last-seen above: an
+	// installation without teams has no store here at all.
+	teamsByUser := map[string][]string{}
+	if h.teamStore != nil {
+		if found, err := h.teamStore.Memberships(); err != nil {
+			log.Printf("users: teams unavailable, listing without them: %v", err)
+		} else {
+			teamsByUser = found
+		}
+	}
 	for _, user := range users {
 		row := userRow{User: user}
+		// Matched on both, because a team is composed from whichever
+		// identifier the administrator had in front of them.
+		row.Teams = append(row.Teams, teamsByUser[strings.ToLower(user.Username)]...)
+		for _, name := range teamsByUser[strings.ToLower(user.Email)] {
+			if !slices.Contains(row.Teams, name) {
+				row.Teams = append(row.Teams, name)
+			}
+		}
 		row.Administrator = administrators[strings.ToLower(user.Username)] ||
 			administrators[strings.ToLower(user.Email)]
 		if organization := membership[strings.ToLower(user.Username)]; organization != "" {

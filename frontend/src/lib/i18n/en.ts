@@ -1020,7 +1020,7 @@ export const en: Translations = {
     teamRemoveWarning: 'Deleting {name} also removes every project access it granted.',
     teamMemberCount: '{count} member(s)',
     teamMemberAdd: 'Add a member',
-    teamMemberPlaceholder: 'username',
+    teamMemberPlaceholder: 'Pick a person',
     teamMemberAdded: 'Member added',
     teamMemberRemove: 'Remove from team',
     teamNoMembers: 'Nobody in this team yet.',

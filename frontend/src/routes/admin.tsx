@@ -322,6 +322,28 @@ function IdentitySection() {
         ),
     },
     {
+      // Les equipes, a cote de l'organisation parce qu'elles s'y logent : une
+      // revue d'acces se lit par groupe avant de se lire par personne, et la
+      // reponse a "qui est dans cette equipe" demandait sinon d'ouvrir chaque
+      // equipe l'une apres l'autre.
+      id: 'teams',
+      header: t('admin.teams'),
+      sortValue: (user) => (user.teams ?? []).join(', ') || null,
+      searchValue: (user) => (user.teams ?? []).join(' '),
+      cell: (user) =>
+        user.teams?.length ? (
+          <span className="flex flex-wrap gap-1">
+            {user.teams.map((name) => (
+              <Badge key={name} tone="outline">
+                {name}
+              </Badge>
+            ))}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       id: 'email',
       header: 'Email',
       sortValue: (user) => user.email || null,

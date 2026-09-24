@@ -179,6 +179,34 @@ func (s *TeamStore) ListByUser(userID string) ([]team.Team, error) {
 	return out, rows.Err()
 }
 
+// Memberships is every membership in one query, keyed by user identifier.
+//
+// Lower-cased on the way out because the account screen matches it against a
+// username or an email, and a team is composed from whichever of the two the
+// administrator had in front of them.
+func (s *TeamStore) Memberships() (map[string][]string, error) {
+	rows, err := s.db.Query(`
+		SELECT m.user_id, t.name
+		FROM team_members m
+		JOIN teams t ON t.id = m.team_id
+		ORDER BY lower(t.name)`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[string][]string{}
+	for rows.Next() {
+		var userID, name string
+		if err := rows.Scan(&userID, &name); err != nil {
+			return nil, err
+		}
+		key := strings.ToLower(strings.TrimSpace(userID))
+		out[key] = append(out[key], name)
+	}
+	return out, rows.Err()
+}
+
 // SetProjectRole grants a role to a team, or revokes it when the role is empty.
 //
 // The same shape as the organization grant beside it, including that an empty

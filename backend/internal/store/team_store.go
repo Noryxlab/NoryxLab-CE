@@ -36,6 +36,14 @@ type TeamStore interface {
 	// effective role has to consult on each request.
 	ListByUser(userID string) ([]team.Team, error)
 
+	// Memberships is every membership at once, as user identifier to team
+	// names.
+	//
+	// It exists for the one screen that needs all of them - the account list,
+	// which shows a team column. The alternative there is ListByUser inside
+	// the loop, which is a query per account and turns a page into a scan.
+	Memberships() (map[string][]string, error)
+
 	// SetProjectRole grants a role to a team; an empty role revokes it.
 	SetProjectRole(projectID, teamID string, role access.Role) error
 	// ListProjectRoles returns the grants on one project.

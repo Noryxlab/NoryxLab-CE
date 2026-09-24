@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { SectionHeader } from '@/components/common/page-header';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { adminApi } from '@/lib/api/endpoints';
-import { qk, useAdminTeams, useAdminTeamMembers, useInvalidate } from '@/lib/api/queries';
+import {
+  qk,
+  useAdminTeams,
+  useAdminTeamMembers,
+  useAdminUsers,
+  useInvalidate,
+} from '@/lib/api/queries';
 import { useT } from '@/lib/i18n';
 import type { Organization, Team } from '@/lib/api/types';
 
@@ -174,6 +181,7 @@ function TeamMembers({ teamId, teamName }: { teamId: string; teamName: string })
   const toast = useToast();
   const invalidate = useInvalidate();
   const members = useAdminTeamMembers(teamId);
+  const users = useAdminUsers();
   const [draftUser, setDraftUser] = React.useState('');
 
   // Les deux listes : celle de cet encart et celle du tableau au-dessus, qui
@@ -205,6 +213,21 @@ function TeamMembers({ teamId, teamName }: { teamId: string; teamName: string })
 
   const items = members.data ?? [];
 
+  // Les comptes que la plateforme connait, moins ceux qui sont deja dans
+  // l'equipe : proposer d'ajouter quelqu'un qui y est deja n'offre qu'une
+  // erreur a decouvrir apres coup.
+  const already = new Set(items.map((member) => member.userId.toLowerCase()));
+  const candidates = (users.data ?? [])
+    .filter((person) => person.enabled !== false && !already.has(person.username.toLowerCase()))
+    .map((person) => ({
+      value: person.username,
+      label: [person.firstName, person.lastName].filter(Boolean).join(' ') || person.username,
+      // L'identifiant reste visible : deux personnes peuvent porter le meme
+      // nom d'affichage, et c'est le compte qui est ajoute.
+      hint: person.username,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   return (
     <div className="space-y-2 border-t pt-3">
       <form
@@ -215,10 +238,16 @@ function TeamMembers({ teamId, teamName }: { teamId: string; teamName: string })
           if (userId) add.mutate(userId);
         }}
       >
-        <Field label={t('admin.teamMemberAdd')} className="min-w-64">
-          <Input
+        {/* Une liste, pas un champ libre.
+            La premiere version demandait de taper un identifiant, que
+            l'administrateur n'a aucune raison de connaitre : la plateforme,
+            elle, sait exactement qui existe. Une faute de frappe y creait un
+            membre fantome - accepte par l'API, invisible partout ailleurs. */}
+        <Field label={t('admin.teamMemberAdd')} className="min-w-72">
+          <Select
             value={draftUser}
-            onChange={(event) => setDraftUser(event.target.value)}
+            onValueChange={setDraftUser}
+            options={candidates}
             placeholder={t('admin.teamMemberPlaceholder')}
           />
         </Field>
