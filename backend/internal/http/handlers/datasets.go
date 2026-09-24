@@ -373,6 +373,69 @@ func (h Handlers) UpdateDatasetMetadata(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, item)
 }
 
+// datasetUploadBody prepares the request body to be streamed into storage.
+//
+// Two things happen here that did not before. Too large is refused rather than
+// trimmed: the body used to be read through an io.LimitReader capped at 512 MB,
+// which does not fail on a larger one - it stops. A 600 MB study was stored as
+// its first 512 MB, answered 200, and went into the audit trail as a success.
+// On a regulated dataset that is a corrupted record nobody has any reason to go
+// looking for.
+//
+// And it is streamed rather than buffered: io.ReadAll held the whole object in
+// the backend's heap, so three people uploading at once cost three times the
+// object in a pod that serves everything else as well. What that produces is
+// not a failed upload, it is a platform that disappears.
+//
+// MaxBytesReader stays on the stream because Content-Length is a claim the
+// caller makes, not a fact. A size of -1 tells the storage client to send in
+// parts, which is also how a body with no declared length is handled: unknown
+// is not a reason to buffer it.
+func datasetUploadBody(w http.ResponseWriter, r *http.Request) (io.ReadCloser, int64, bool) {
+	if r.ContentLength > maxDatasetObjectBytes {
+		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+			"error": fmt.Sprintf("this object is larger than the %d GiB an upload may carry",
+				maxDatasetObjectBytes>>30)})
+		return nil, 0, false
+	}
+	size := r.ContentLength
+	if size < 0 {
+		size = -1
+	}
+	// The stream is held to the tighter of the two limits: what the caller
+	// declared, or the ceiling when they declared nothing. Storage reads
+	// exactly the declared count anyway, so this changes no honest upload - it
+	// means a caller who announces a kilobyte and sends a gigabyte is stopped
+	// at the kilobyte rather than at five gibibytes.
+	ceiling := int64(maxDatasetObjectBytes)
+	if size > 0 {
+		ceiling = size
+	}
+	return http.MaxBytesReader(w, r.Body, ceiling), size, true
+}
+
+// datasetUploadDeadline scales the timeout to what is actually being sent.
+//
+// A flat two minutes was enough for the uploads the web page makes and cut off
+// anything large over an ordinary link, leaving a part-written object and a
+// caller who had waited for it. One second per megabyte is roughly 8 Mb/s, slow
+// enough to be a genuine timeout rather than a speed limit.
+func datasetUploadDeadline(size int64) time.Duration {
+	deadline := 2 * time.Minute
+	if size > 0 {
+		deadline += time.Duration(size/(1<<20)) * time.Second
+	}
+	return deadline
+}
+
+// maxDatasetObjectBytes is the largest single object an upload may carry.
+//
+// Five gibibytes is the ceiling a single S3 PUT accepts; beyond it a client
+// has to compose the object from parts, which is a different conversation than
+// a size limit. The previous cap was 512 MB, unstated and enforced by
+// truncation.
+const maxDatasetObjectBytes = 5 << 30
+
 func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -403,26 +466,39 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	if item.Prefix != "" {
 		fullKey = strings.Trim(item.Prefix, "/") + "/" + objectPath
 	}
-	payload, err := io.ReadAll(io.LimitReader(r.Body, 512*1024*1024))
-	if err != nil {
-		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "payload_read_failed", datasetTransferAuditDetails(item, objectPath, 0))
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read payload"})
+	body, size, ok := datasetUploadBody(w, r)
+	if !ok {
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "payload_too_large", datasetTransferAuditDetails(item, objectPath, r.ContentLength))
 		return
 	}
+	defer body.Close()
 	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(r.Context(), datasetUploadDeadline(size))
 	defer cancel()
-	_, err = client.PutObject(ctx, item.Bucket, fullKey, bytes.NewReader(payload), int64(len(payload)), minio.PutObjectOptions{ContentType: contentType})
+	info, err := client.PutObject(ctx, item.Bucket, fullKey, body, size, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
-		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "s3_upload_failed", datasetTransferAuditDetails(item, objectPath, int64(len(payload))))
+		// A caller who understated Content-Length is stopped by the reader
+		// above, and that surfaces here as a failed upload. It is the caller's
+		// mistake, not the storage's, so it is worth saying which.
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "payload_too_large", datasetTransferAuditDetails(item, objectPath, size))
+			writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+				"error": fmt.Sprintf("this object is larger than the %d GiB an upload may carry",
+					maxDatasetObjectBytes>>30)})
+			return
+		}
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "failure", "s3_upload_failed", datasetTransferAuditDetails(item, objectPath, size))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset upload failed: " + err.Error()})
 		return
 	}
-	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, objectPath, int64(len(payload))))
-	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": len(payload)})
+	// What storage accepted, not what the caller announced: the audit trail of
+	// a regulated dataset should record the object that exists.
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, objectPath, info.Size))
+	writeJSON(w, http.StatusCreated, map[string]any{"bucket": item.Bucket, "key": fullKey, "size": info.Size})
 }
 
 func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
