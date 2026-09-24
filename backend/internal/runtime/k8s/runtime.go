@@ -285,6 +285,47 @@ func (r *Runtime) UpsertControlSecret(spec noryxruntime.SecretSpec) error {
 	return err
 }
 
+// defaultDatasetMountOptions is how every dataset is mounted, because nothing
+// sets MountOptions on a volume spec today.
+//
+// GeeseFS runs one process per mount, as a systemd unit on the node rather
+// than inside the driver pod, so every figure here is multiplied by the number
+// of datasets a node carries. That count and the node behind it differ by more
+// than an order of magnitude between installations - twelve gigabytes of RAM
+// on one, seven hundred and fifty on another - which is why this is a floor
+// that runs anywhere rather than a setting tuned for the largest machine. A
+// big installation raises it through NORYX_DATASET_MOUNT_OPTIONS.
+//
+// memory-limit stays at 512 MB for that reason: GeeseFS's own default is 1000,
+// and the 256 this replaces was conservative deliberately.
+//
+// stat-cache-ttl is the one that matters for medical imaging, and it is nearly
+// free. A DICOM series is hundreds or thousands of small files, and an
+// importer walks the directory reading every header; at the one-minute default
+// the metadata expires mid-walk and the whole scan goes back to object storage
+// a second time. Five minutes covers an import without holding entries so long
+// that a dataset written from outside looks stale.
+//
+// No disk cache in the default. GeeseFS 0.43.7 takes --cache but has no option
+// to bound it, so it grows until the filesystem is full - and that filesystem
+// belongs to the node running the kubelet. Enabling it needs a sweep or a
+// quota first, which is a decision rather than a default.
+const defaultDatasetMountOptions = "--memory-limit 512 --stat-cache-ttl 5m " +
+	"--dir-mode 0770 --file-mode 0660 --uid 1000 --gid 1000"
+
+// datasetMountOptions lets an installation size the mounts for its own nodes.
+//
+// Set wholesale rather than as individual overrides: these options are passed
+// to GeeseFS as one string, and a half-merged set is harder to reason about
+// than a replacement an operator can read in full and compare against the
+// default above.
+func datasetMountOptions() string {
+	if custom := strings.TrimSpace(os.Getenv("NORYX_DATASET_MOUNT_OPTIONS")); custom != "" {
+		return custom
+	}
+	return defaultDatasetMountOptions
+}
+
 func (r *Runtime) EnsureS3Volume(spec noryxruntime.S3VolumeSpec) error {
 	name := strings.TrimSpace(spec.Name)
 	if name == "" || strings.TrimSpace(spec.Bucket) == "" || strings.TrimSpace(spec.Endpoint) == "" {
@@ -307,7 +348,7 @@ func (r *Runtime) EnsureS3Volume(spec noryxruntime.S3VolumeSpec) error {
 	volumeHandle := strings.Trim(strings.TrimSpace(spec.Bucket)+"/"+strings.Trim(strings.TrimSpace(spec.Prefix), "/"), "/")
 	options := strings.TrimSpace(spec.MountOptions)
 	if options == "" {
-		options = "--memory-limit 256 --dir-mode 0770 --file-mode 0660 --uid 1000 --gid 1000"
+		options = datasetMountOptions()
 	}
 	secretRef := map[string]any{"name": secretName, "namespace": r.workloadNamespace}
 	pv := map[string]any{
