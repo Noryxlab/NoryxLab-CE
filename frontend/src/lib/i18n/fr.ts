@@ -281,7 +281,7 @@ export const fr = {
     browseCatalogHint: 'Datasets, sources de données et ontologies',
     platformActivity: 'Activité de la plateforme',
     users: 'Utilisateurs',
-    usersHint: 'Comptes actifs',
+    usersHint: 'Comptes sur la plateforme',
     projects: 'Projets',
     projectsHint: 'Espaces collaboratifs',
     workloads: 'Exécutions',
@@ -630,7 +630,7 @@ export const fr = {
 
   ontologies: {
     title: 'Ontologies',
-    subtitle: 'Vos objets métier au-dessus des données brutes. Aujourd’hui, une première ébauche déduite des chemins d’un dataset.',
+    subtitle: 'Vos objets métier au-dessus des données brutes.',
     empty: 'Aucune ontologie',
     emptyHint: 'Une ontologie décrit vos objets métier au-dessus des données. Noryx en construit une première ébauche en lisant les chemins des objets d’un dataset — jamais leur contenu : études, sujets, visites, modalités, volumes.',
     scanTitle: 'Analyser une source',
@@ -869,6 +869,12 @@ export const fr = {
     presence_disabled: "Desactive",
     administratorHint: "Peut agir sur le travail de tout le monde.",
     createUserIn: 'Le compte sera cree dans {organization}.',
+  },
+  catalog: {
+    subtitle: 'Les actifs partagés entre projets — datasets, sources, ontologies, dépôts, environnements. Un projet y rattache ce dont il a besoin.',
+  },
+  projectData: {
+    subtitle: "Ce que ce projet a rattaché depuis le catalogue. Rien n'est copié : détacher ne supprime rien.",
   },
   admin: {
     visibleAsAdmin: 'admin',

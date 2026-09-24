@@ -51,7 +51,7 @@ export function CatalogPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title={t('nav.catalog')} description={t('datasets.subtitle')} />
+      <PageHeader title={t('nav.catalog')} description={t('catalog.subtitle')} />
 
       <Tabs value={active} onValueChange={(value) => navigate(`/catalog/${value}`)}>
         <TabsList>

@@ -277,7 +277,7 @@ export const en: Translations = {
     browseCatalogHint: 'Datasets, data sources and ontologies',
     platformActivity: 'Platform activity',
     users: 'Users',
-    usersHint: 'Active accounts',
+    usersHint: 'Accounts on the platform',
     projects: 'Projects',
     projectsHint: 'Collaborative spaces',
     workloads: 'Workloads',
@@ -624,7 +624,7 @@ export const en: Translations = {
 
   ontologies: {
     title: 'Ontologies',
-    subtitle: 'Your business objects above the raw data. Today, a first draft inferred from a dataset\u2019s object paths.',
+    subtitle: 'Your business objects above the raw data.',
     empty: 'No ontology',
     emptyHint: 'An ontology describes your business objects above the data. Noryx builds a first draft by reading a dataset\u2019s object paths - never their content: studies, subjects, visits, modalities, volumes.',
     scanTitle: 'Scan a source',
@@ -863,6 +863,12 @@ export const en: Translations = {
     presence_disabled: "Deactivated",
     administratorHint: "Can act on everybody's work.",
     createUserIn: 'The account will be created in {organization}.',
+  },
+  catalog: {
+    subtitle: 'What is shared across projects — datasets, sources, ontologies, repositories, environments. A project attaches what it needs from here.',
+  },
+  projectData: {
+    subtitle: 'What this project has attached from the catalogue. Nothing is copied: detaching deletes nothing.',
   },
   admin: {
     visibleAsAdmin: 'admin',

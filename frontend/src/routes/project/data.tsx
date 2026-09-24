@@ -274,7 +274,7 @@ export function ProjectDataPage() {
     <div className="space-y-5">
       <PageHeader
         title={t('nav.data')}
-        description={t('datasets.subtitle')}
+        description={t('projectData.subtitle')}
         actions={
           <Button variant="secondary" asChild>
             <Link to="/catalog">{t('nav.catalog')}</Link>
