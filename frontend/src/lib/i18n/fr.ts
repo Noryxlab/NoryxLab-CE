@@ -865,6 +865,12 @@ export const fr = {
     nobody: 'Personne.',
     deactivated: 'Desactive',
     neverSeen: 'Jamais connecte',
+    viewTree: "Arbre",
+    viewList: "Liste",
+    firstSeen: "Premiere connexion",
+    presence_active: "Actif : s'est deja connecte",
+    presence_never: "Jamais connecte",
+    presence_disabled: "Desactive",
     createUserIn: 'Le compte sera cree dans {organization}.',
   },
   admin: {

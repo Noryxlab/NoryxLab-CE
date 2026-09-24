@@ -65,6 +65,28 @@ type Node =
   | { kind: 'person'; user: PlatformUser }
   | { kind: 'unaffiliated' };
 
+/** Ce que la pastille dit : vert a deja travaille, orange n'est jamais venu,
+ *  rouge est desactive. Le rouge gagne sur l'orange : un compte desactive qui
+ *  n'est jamais venu est d'abord desactive. */
+const presenceOf = (user: PlatformUser): 'active' | 'never' | 'disabled' =>
+  user.enabled === false ? 'disabled' : user.lastSeenAt ? 'active' : 'never';
+const presenceClass: Record<ReturnType<typeof presenceOf>, string> = {
+  active: 'bg-emerald-500',
+  never: 'bg-amber-400',
+  disabled: 'bg-destructive',
+};
+function PresenceDot({ user }: { user: PlatformUser }) {
+  const t = useT();
+  const state = presenceOf(user);
+  return (
+    <span
+      className={`inline-block size-2 shrink-0 rounded-full ${presenceClass[state]}`}
+      title={t(`people.presence_${state}`)}
+      aria-label={t(`people.presence_${state}`)}
+    />
+  );
+}
+
 const displayName = (user: PlatformUser) =>
   [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
 
@@ -74,6 +96,16 @@ export function PeopleSection() {
   const users = useAdminUsers();
   const [selected, setSelected] = React.useState<Node | null>(null);
   const [search, setSearch] = React.useState('');
+  // Deux lectures du meme ensemble. L'arbre repond "qui est ou" ; la liste
+  // repond "qui est venu, et quand" - la question d'une revue d'acces, qui se
+  // trie par date et ne se lit pas branche par branche.
+  const [view, setView] = React.useState<'tree' | 'list'>(() => {
+    try { return (sessionStorage.getItem('people-view') as 'tree' | 'list') || 'tree'; } catch { return 'tree'; }
+  });
+  const switchView = (next: 'tree' | 'list') => {
+    setView(next);
+    try { sessionStorage.setItem('people-view', next); } catch { /* navigation privee */ }
+  };
 
   const people = users.data ?? [];
   const query = search.trim().toLowerCase();
@@ -106,11 +138,23 @@ export function PeopleSection() {
         title={t('people.title')}
         description={t('people.hint')}
         actions={
-          <SearchInput value={search} onValueChange={setSearch} label={t('common.search')} className="w-56" />
+          <span className="flex items-center gap-2">
+            <SearchInput value={search} onValueChange={setSearch} label={t('common.search')} className="w-56" />
+            <Button variant={view === 'tree' ? 'primary' : 'secondary'} size="sm" onClick={() => switchView('tree')}>
+              {t('people.viewTree')}
+            </Button>
+            <Button variant={view === 'list' ? 'primary' : 'secondary'} size="sm" onClick={() => switchView('list')}>
+              {t('people.viewList')}
+            </Button>
+          </span>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(280px,1fr)_2fr]">
+      {view === 'list' ? (
+        <PeopleList people={people.filter(matches)} onOpen={(user) => { setSelected({ kind: 'person', user }); switchView('tree'); }} />
+      ) : null}
+
+      <div className={view === 'list' ? 'hidden' : 'grid gap-4 lg:grid-cols-[minmax(280px,1fr)_2fr]'}>
         {/* L'arbre. Il se lit, il ne se modifie pas : chaque noeud ouvre son
             panneau a droite, et c'est la que tout se fait. */}
         <Card>
@@ -169,6 +213,54 @@ export function PeopleSection() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* -- la liste --------------------------------------------------------------- */
+
+function PeopleList({ people, onOpen }: { people: PlatformUser[]; onOpen: (u: PlatformUser) => void }) {
+  const t = useT();
+  const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '—');
+  const stamp = (iso?: string) => (iso ? new Date(iso).getTime() : 0);
+  // Les plus recemment vus en haut ; les jamais-venus tout en bas, ensemble,
+  // parce que c'est la liste que la revue d'acces relance.
+  const rows = [...people].sort((a, b) => stamp(b.lastSeenAt) - stamp(a.lastSeenAt) || displayName(a).localeCompare(displayName(b)));
+  const orgs = (u: PlatformUser) => (u.organizations ?? (u.organization ? [u.organization] : [])).join(', ');
+  return (
+    <Card>
+      <CardContent className="overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-muted-foreground">
+              <th className="px-3 py-2 font-medium">{t('common.user')}</th>
+              <th className="px-3 py-2 font-medium">{t('common.organization')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.teams')}</th>
+              <th className="px-3 py-2 font-medium">{t('people.firstSeen')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.lastSeen')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((user) => (
+              <tr key={user.id} className="border-t">
+                <td className="px-3 py-1.5">
+                  <span className="flex items-center gap-2">
+                    <PresenceDot user={user} />
+                    <button type="button" className="text-left hover:underline" onClick={() => onOpen(user)}>{displayName(user)}</button>
+                    <span className="text-xs text-muted-foreground">{user.username}</span>
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 text-xs">{orgs(user) || '—'}</td>
+                <td className="px-3 py-1.5 text-xs">{user.teams?.join(', ') || '—'}</td>
+                <td className="px-3 py-1.5 text-xs tabular-nums" title={user.firstSeenAt ? new Date(user.firstSeenAt).toLocaleString() : undefined}>{when(user.firstSeenAt)}</td>
+                <td className="px-3 py-1.5 text-xs tabular-nums" title={user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString() : undefined}>
+                  {user.lastSeenAt ? when(user.lastSeenAt) : <span className="text-amber-600">{t('people.neverSeen')}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -312,12 +404,7 @@ function PersonLeaf({
   return (
     <TreeLeaf
       depth={depth}
-      icon={
-        <span
-          className={`size-2 rounded-full ${user.enabled === false ? 'bg-destructive' : 'bg-emerald-500'}`}
-          aria-hidden
-        />
-      }
+      icon={<PresenceDot user={user} />}
       label={displayName(user)}
       active={selected?.kind === 'person' && selected.user.id === user.id}
       onSelect={() => onSelect({ kind: 'person', user })}
@@ -666,6 +753,10 @@ function PersonPanel({ user }: { user: PlatformUser }) {
             </dd>
           </div>
           <div>
+            <dt className="text-xs text-muted-foreground">{t('people.firstSeen')}</dt>
+            <dd>{user.firstSeenAt ? new Date(user.firstSeenAt).toLocaleString() : '—'}</dd>
+          </div>
+          <div>
             <dt className="text-xs text-muted-foreground">{t('admin.lastSeen')}</dt>
             <dd>{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString() : t('people.neverSeen')}</dd>
           </div>
@@ -723,7 +814,7 @@ function MemberList({ people, onOpen, onRemove, removing }: { people: PlatformUs
     <ul className="divide-y text-sm">
       {[...people].sort((a, b) => displayName(a).localeCompare(displayName(b))).map((user) => (
         <li key={user.id} className="flex items-center gap-2 py-1.5">
-          <span className={`size-2 rounded-full ${user.enabled === false ? 'bg-destructive' : 'bg-emerald-500'}`} aria-hidden />
+          <PresenceDot user={user} />
           <button type="button" className="text-left hover:underline" onClick={() => onOpen(user)}>{displayName(user)}</button>
           <span className="text-xs text-muted-foreground">{user.username}</span>
           {user.teams?.length ? <span className="text-xs text-muted-foreground">· {user.teams.join(', ')}</span> : null}

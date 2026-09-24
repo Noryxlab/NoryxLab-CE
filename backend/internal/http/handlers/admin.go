@@ -68,6 +68,9 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		// where the most consequential fact about a row is the one it omits.
 		Administrator bool       `json:"administrator,omitempty"`
 		LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
+		// FirstSeenAt with LastSeenAt makes "seen" a span: it is what tells a
+		// never-signed-in account from one seen once, long ago.
+		FirstSeenAt *time.Time `json:"firstSeenAt,omitempty"`
 		// Teams, because an installation that has them reads this screen by
 		// team as much as by organization - and because the question "who is
 		// in this team" was otherwise answerable only by opening each team in
@@ -145,6 +148,10 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		if ok && !entry.At.IsZero() {
 			at := entry.At
 			row.LastSeenAt = &at
+		}
+		if ok && !entry.First.IsZero() {
+			first := entry.First
+			row.FirstSeenAt = &first
 		}
 		rows = append(rows, row)
 	}

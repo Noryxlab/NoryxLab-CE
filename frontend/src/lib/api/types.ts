@@ -600,6 +600,10 @@ export interface PlatformUser {
   /** L'organisation a laquelle le compte appartient, vide quand il n'en a
    *  aucune - un compte de service, typiquement. */
   organization?: string;
+  /** Premiere connexion reussie, avec la derniere plus bas : "vu" devient une
+   *  duree, et c'est ce qui distingue un compte jamais connecte d'un compte vu
+   *  une fois, il y a longtemps. */
+  firstSeenAt?: string;
   /** Toutes les organisations, quand l'annuaire en donne plusieurs : la
    *  precedente est la premiere trouvee, gardee pour ce qui la lit encore. */
   organizations?: string[];

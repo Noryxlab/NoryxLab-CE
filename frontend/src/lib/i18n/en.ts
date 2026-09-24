@@ -859,6 +859,12 @@ export const en: Translations = {
     nobody: 'Nobody.',
     deactivated: 'Deactivated',
     neverSeen: 'Never signed in',
+    viewTree: "Tree",
+    viewList: "List",
+    firstSeen: "First sign-in",
+    presence_active: "Active: has signed in",
+    presence_never: "Never signed in",
+    presence_disabled: "Deactivated",
     createUserIn: 'The account will be created in {organization}.',
   },
   admin: {

@@ -36,6 +36,9 @@ func (s *AuditStore) LastSeen() (map[string]store.LastSeen, error) {
 		}
 		entry := seen[event.ActorUserID]
 		entry.Count++
+		if entry.First.IsZero() || event.OccurredAt.Before(entry.First) {
+			entry.First = event.OccurredAt
+		}
 		if event.OccurredAt.After(entry.At) {
 			entry.At = event.OccurredAt
 		}

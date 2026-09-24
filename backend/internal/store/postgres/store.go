@@ -1973,7 +1973,9 @@ func (s *Store) ListDatasetSizes() ([]storepkg.DatasetSize, error) {
 // but it is not evidence that somebody is using the platform, and showing it as
 // "last seen" would say the opposite of what happened.
 func (s *Store) LastSeenByActor() (map[string]storepkg.LastSeen, error) {
-	rows, err := s.db.Query(`SELECT actor_user_id, MAX(occurred_at), COUNT(*)
+	// MIN and MAX in one pass: first-seen is the same scan as last-seen, and
+	// a second query for it would read the whole login history twice.
+	rows, err := s.db.Query(`SELECT actor_user_id, MIN(occurred_at), MAX(occurred_at), COUNT(*)
 		FROM audit_events
 		WHERE action = 'auth.login' AND outcome = 'success'
 		GROUP BY actor_user_id`)
@@ -1985,12 +1987,12 @@ func (s *Store) LastSeenByActor() (map[string]storepkg.LastSeen, error) {
 	seen := map[string]storepkg.LastSeen{}
 	for rows.Next() {
 		var actor string
-		var at time.Time
+		var first, at time.Time
 		var count int
-		if err := rows.Scan(&actor, &at, &count); err != nil {
+		if err := rows.Scan(&actor, &first, &at, &count); err != nil {
 			return nil, err
 		}
-		seen[actor] = storepkg.LastSeen{At: at, Count: count}
+		seen[actor] = storepkg.LastSeen{First: first, At: at, Count: count}
 	}
 	return seen, rows.Err()
 }

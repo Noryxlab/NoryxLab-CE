@@ -100,6 +100,11 @@ type UsageDay struct {
 // LastSeen is what an account has actually done, as opposed to what it is
 // allowed to do.
 type LastSeen struct {
+	// First is the earliest successful sign-in the retention still holds.
+	// With At it turns "seen" into a span, and it is what separates an
+	// account that never signed in from one that did once, long ago - the
+	// two rows an access review most wants told apart. Zero when never.
+	First time.Time
 	// At is the most recent successful sign-in. Zero means the account has
 	// never signed in - a real answer, and usually the interesting one.
 	At time.Time
