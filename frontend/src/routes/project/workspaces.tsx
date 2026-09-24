@@ -71,12 +71,12 @@ function WorkspaceCard({
           <Button variant="primary" size="sm" asChild>
             <a href={workspace.accessUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink aria-hidden />
-              {t('workspaces.open')}
+              {t('common.open')}
             </a>
           </Button>
         ) : (
           <Button variant="primary" size="sm" disabled title={t('workspaces.notReady')}>
-            {status.pending ? t('workspaces.openPending') : t('workspaces.open')}
+            {status.pending ? t('workspaces.openPending') : t('common.open')}
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={() => onStop(workspace)}>

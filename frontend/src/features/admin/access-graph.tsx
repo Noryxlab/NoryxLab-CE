@@ -280,7 +280,7 @@ export function AccessGraph({
           <svg width="26" height="6" aria-hidden>
             <line x1="0" y1="3" x2="26" y2="3" stroke="var(--noryx-brand)" strokeWidth="1.5" />
           </svg>
-          {t('graph.legendOwner')}
+          {t('common.owner')}
         </span>
         <Badge tone="outline">{t('graph.edges', { count: String(edges.length) })}</Badge>
       </div>

@@ -76,7 +76,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
   const columns: Column<ProjectVariable>[] = [
     {
       id: 'name',
-      header: t('projectVariables.nameColumn'),
+      header: t('common.name'),
       cell: (item) => <span className="font-mono text-xs">{item.name}</span>,
     },
     {
@@ -91,7 +91,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
     },
     {
       id: 'description',
-      header: t('projectVariables.descriptionColumn'),
+      header: t('common.description'),
       cell: (item) => <span className="text-xs text-muted-foreground">{item.description || '—'}</span>,
     },
     {
@@ -181,7 +181,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
             <SheetDescription>{t('projectVariables.formHint')}</SheetDescription>
           </SheetHeader>
           <SheetBody className="space-y-4">
-            <Field label={t('projectVariables.nameColumn')} description={t('projectVariables.nameHint')} required>
+            <Field label={t('common.name')} description={t('projectVariables.nameHint')} required>
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -199,7 +199,7 @@ export function ProjectVariablesSection({ projectId }: { projectId: string }) {
               />
             </Field>
             <Field
-              label={t('projectVariables.descriptionColumn')}
+              label={t('common.description')}
               description={t('projectVariables.descriptionHint')}
             >
               <Input value={description} onChange={(event) => setDescription(event.target.value)} maxLength={200} />

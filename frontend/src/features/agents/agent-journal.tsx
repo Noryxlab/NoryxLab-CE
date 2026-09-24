@@ -77,9 +77,9 @@ export function AgentJournal({
           {/* Modifier et renvoyer vivent ici et pas sur la carte : la rangee se
               parcourt d'un regard, et deux boutons par collegue la
               transformeraient en tableau de bord. */}
-          <Button variant="ghost" size="sm" onClick={onEdit} title={t('agents.edit')}>
+          <Button variant="ghost" size="sm" onClick={onEdit} title={t('common.edit')}>
             <Pencil className="size-4" aria-hidden />
-            <span className="sr-only">{t('agents.edit')}</span>
+            <span className="sr-only">{t('common.edit')}</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={onDismiss} title={t('agents.dismiss')}>
             <UserMinus className="size-4" aria-hidden />

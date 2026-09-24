@@ -35,7 +35,7 @@ export function PlatformUsageSection() {
   const columns: Column<UsageTotal>[] = [
     {
       id: 'project',
-      header: t('usage.project'),
+      header: t('common.project'),
       sortValue: (item) => names.get(item.projectId) ?? item.projectId,
       searchValue: (item) => `${names.get(item.projectId) ?? ''} ${item.projectId}`,
       cell: (item) => (

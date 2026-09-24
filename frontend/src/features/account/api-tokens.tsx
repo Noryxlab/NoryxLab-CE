@@ -110,7 +110,7 @@ export function ApiTokensSection() {
                 }}
               >
                 <Copy aria-hidden />
-                {t('tokens.copy')}
+                {t('common.copy')}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setIssued(null)}>
                 {t('tokens.dismiss')}
@@ -135,7 +135,7 @@ export function ApiTokensSection() {
               if (name.trim()) create.mutate();
             }}
           >
-            <Field label={t('tokens.nameLabel')} description={t('tokens.nameHint')} className="min-w-56 flex-1">
+            <Field label={t('common.name')} description={t('tokens.nameHint')} className="min-w-56 flex-1">
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -172,7 +172,7 @@ export function ApiTokensSection() {
             </Field>
             <Button type="submit" variant="primary" disabled={!name.trim()} loading={create.isPending}>
               <Plus aria-hidden />
-              {t('tokens.create')}
+              {t('common.create')}
             </Button>
           </form>
         </CardContent>

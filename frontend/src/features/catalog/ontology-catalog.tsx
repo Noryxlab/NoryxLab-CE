@@ -121,7 +121,7 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t('ontologies.object')}</TableHead>
-                      <TableHead>{t('ontologies.objectType')}</TableHead>
+                      <TableHead>{t('common.type')}</TableHead>
                       <TableHead>{t('ontologies.parent')}</TableHead>
                       <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
                     </TableRow>
@@ -345,7 +345,7 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
           }}
           className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
         >
-          <Field label={t('ontologies.cohortName')}>
+          <Field label={t('common.name')}>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
           <Field label={t('ontologies.cohortModalities')}>
@@ -372,7 +372,7 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('ontologies.cohortName')}</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
                   <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
                   <TableHead className="text-right">{t('common.size')}</TableHead>
                   <TableHead>{t('common.createdAt')}</TableHead>
@@ -490,14 +490,14 @@ function OntologyScan() {
           }}
           className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
         >
-          <Field label={t('ontologies.scanProject')}>
+          <Field label={t('common.project')}>
             <Select
               value={projectId}
               onValueChange={(value) => {
                 setProjectId(value);
                 setDatasetId('');
               }}
-              placeholder={t('ontologies.scanProject')}
+              placeholder={t('common.project')}
               options={(projects.data ?? []).map((project) => ({
                 value: project.id,
                 label: project.name,

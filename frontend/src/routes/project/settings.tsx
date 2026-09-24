@@ -121,7 +121,7 @@ export function ProjectSettingsPage() {
           <Field label={t('projects.nameLabel')} description={t('projects.nameHint')} required>
             <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={120} />
           </Field>
-          <Field label={t('projects.descriptionLabel')} description={t('projects.descriptionHint')}>
+          <Field label={t('common.description')} description={t('projects.descriptionHint')}>
             <Textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}

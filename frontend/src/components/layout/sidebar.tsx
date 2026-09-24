@@ -259,7 +259,7 @@ export function Sidebar({
               {collapsed ? null : (
                 <div className="px-2.5 pb-1.5">
                   <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-sidebar-muted">
-                    {t('nav.projectSection')}
+                    {t('common.project')}
                   </p>
                   {projectLoading ? (
                     <Skeleton className="mt-1 h-4 w-32" />

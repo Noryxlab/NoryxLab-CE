@@ -55,7 +55,6 @@ export const en: Translations = {
     agents: 'Agents',
     production: 'Production',
     administration: 'Administration',
-    projectSection: 'Project',
     overview: 'Overview',
     workspaces: 'Workspaces',
     jobs: 'Jobs',
@@ -219,7 +218,6 @@ export const en: Translations = {
     roleLabel: 'Its role in the team',
     teamLabel: 'Its team',
     noTeam: 'Works alone',
-    edit: 'Edit',
     dismiss: 'Dismiss',
     orphansTitle: 'Agents with no project',
     orphansHint:
@@ -295,7 +293,6 @@ export const en: Translations = {
     nameLabel: 'Project name',
     nameHint: 'Visible to every member. You can change it later.',
     namePlaceholder: 'Sales analysis 2026',
-    descriptionLabel: 'Description',
     descriptionHint: 'One sentence about the goal of the project, for your collaborators.',
     search: 'Search projects',
     empty: 'No projects',
@@ -364,7 +361,6 @@ export const en: Translations = {
     empty: 'No workspaces',
     emptyHint:
       'A workspace is a ready-to-use development environment: notebook, editor and project data already mounted.',
-    open: 'Open',
     openPending: 'Starting…',
     stopTitle: 'Stop workspace',
     stopWarning: 'Everything under /mnt is kept. Running processes and files outside /mnt are lost.',
@@ -633,7 +629,6 @@ export const en: Translations = {
     emptyHint: 'An ontology describes your business objects above the data. Noryx builds a first draft by reading a dataset\u2019s object paths - never their content: studies, subjects, visits, modalities, volumes.',
     scanTitle: 'Scan a source',
     scanHint: 'The scan reads the dataset\u2019s object paths — never their content — and infers a first draft: study, subjects, visits, modalities, formats, volumes. It creates a new ontology; it does not replace the existing ones.',
-    scanProject: 'Project',
     scanDataset: 'Dataset',
     scanProfile: 'Inference profile',
     scanDone: 'Ontology created: {objects} objects, {subjects} subjects.',
@@ -644,7 +639,6 @@ export const en: Translations = {
     queryLabel: 'Filter',
     queryHint: 'Filter the objects by subject, visit or modality.',
     object: 'Object',
-    objectType: 'Type',
     parent: 'Belongs to',
     objects: 'Objects',
     matches: '{shown} of {total} shown.',
@@ -662,7 +656,6 @@ export const en: Translations = {
     cohorts: 'Cohorts',
     cohortsHint: 'A cohort freezes its file list the moment you declare it, so the same question asked next month still names the same study. Nothing is duplicated — mounting it builds a tree of links into the dataset.',
     cohortCreate: 'Declare a cohort',
-    cohortName: 'Name',
     cohortModalities: 'Modalities (empty = all)',
     cohortSubjects: 'Subjects (empty = all)',
     cohortEmpty: 'No cohort for this ontology.',
@@ -841,7 +834,6 @@ export const en: Translations = {
     restsOn: 'Total built from {samples} measurements.',
     title: 'Consumption by project',
     hint: 'What each project actually consumed over the last 30 days. Sampled every 5 minutes; a platform outage is not billed.',
-    project: 'Project',
     vcpuHours: 'vCPU-hours',
     memoryHours: 'GiB-hours',
     peak: 'Peak',
@@ -1027,7 +1019,6 @@ export const en: Translations = {
     tooManyHint: 'Choose a person, a resource or a type: beyond this the graph is unreadable and answers nothing.',
     legendDirect: 'Direct access',
     legendInherited: 'Inherited from an organization',
-    legendOwner: 'Owner',
     edges: '{count} grants shown',
   },
 
@@ -1082,13 +1073,11 @@ export const en: Translations = {
 
     add: 'Add a variable',
 
-    nameColumn: 'Name',
 
     nameHint: 'Letters, digits and underscores, as a shell wants them. Names starting with NORYX_ belong to the platform.',
 
     valueColumn: 'Value',
 
-    descriptionColumn: 'Description',
 
     descriptionHint: 'What it is for, for whoever reads it in six months.',
 
@@ -1135,16 +1124,13 @@ export const en: Translations = {
     subtitle: 'For calling the API outside a browser: continuous integration, a notebook, a script.',
     createTitle: 'Create a token',
     createHint: 'The token acts as you and holds no rights of its own: it can do nothing you cannot already do.',
-    nameLabel: 'Name',
     nameHint: 'What will let you revoke the right one later.',
     namePlaceholder: 'gitlab-ci',
     expiryLabel: 'Expiry',
     expiryDays: '{days} days',
     expiryNever: 'No expiry',
-    create: 'Create',
     issuedTitle: 'Your token',
     issuedHint: 'It is shown once and is not recoverable. Copy it now.',
-    copy: 'Copy',
     copied: 'Token copied.',
     dismiss: 'Copied',
     empty: 'No tokens yet.',

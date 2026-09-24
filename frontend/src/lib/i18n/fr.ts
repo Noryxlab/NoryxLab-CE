@@ -58,7 +58,6 @@ export const fr = {
     agents: 'Agents',
     production: 'Production',
     administration: 'Administration',
-    projectSection: 'Projet',
     overview: 'Vue d’ensemble',
     workspaces: 'Workspaces',
     jobs: 'Jobs',
@@ -223,7 +222,6 @@ export const fr = {
     roleLabel: 'Son rôle dans l’équipe',
     teamLabel: 'Son équipe',
     noTeam: 'Travaille seul',
-    edit: 'Modifier',
     dismiss: 'Renvoyer',
     orphansTitle: 'Agents sans projet',
     orphansHint:
@@ -299,7 +297,6 @@ export const fr = {
     nameLabel: 'Nom du projet',
     nameHint: 'Visible par tous les membres. Vous pourrez le changer plus tard.',
     namePlaceholder: 'Analyse des ventes 2026',
-    descriptionLabel: 'Description',
     descriptionHint: 'Une phrase sur l’objectif du projet, pour vos collaborateurs.',
     search: 'Rechercher un projet',
     empty: 'Aucun projet',
@@ -368,7 +365,6 @@ export const fr = {
     empty: 'Aucun workspace',
     emptyHint:
       'Un workspace est un environnement de développement prêt à l’emploi : notebook, éditeur et données du projet déjà montées.',
-    open: 'Ouvrir',
     openPending: 'Démarrage en cours…',
     stopTitle: 'Arrêter le workspace',
     stopWarning:
@@ -639,7 +635,6 @@ export const fr = {
     emptyHint: 'Une ontologie décrit vos objets métier au-dessus des données. Noryx en construit une première ébauche en lisant les chemins des objets d’un dataset — jamais leur contenu : études, sujets, visites, modalités, volumes.',
     scanTitle: 'Analyser une source',
     scanHint: 'Le scan lit les chemins des objets du dataset — jamais leur contenu — et en déduit une première ébauche : étude, sujets, visites, modalités, formats, volumes. Il crée une nouvelle ontologie ; il ne remplace pas les existantes.',
-    scanProject: 'Projet',
     scanDataset: 'Dataset',
     scanProfile: 'Profil d’inférence',
     scanDone: 'Ontologie créée : {objects} objets, {subjects} sujets.',
@@ -650,7 +645,6 @@ export const fr = {
     queryLabel: 'Filtre',
     queryHint: 'Filtrez les objets par sujet, visite ou modalité.',
     object: 'Objet',
-    objectType: 'Type',
     parent: 'Rattaché à',
     objects: 'Objets',
     matches: '{shown} résultats affichés sur {total}.',
@@ -668,7 +662,6 @@ export const fr = {
     cohorts: 'Cohortes',
     cohortsHint: 'Une cohorte fige la liste des fichiers au moment où vous la déclarez : la même question posée le mois prochain désigne toujours la même étude. Rien n’est dupliqué — le montage crée un arbre de liens vers le dataset.',
     cohortCreate: 'Déclarer une cohorte',
-    cohortName: 'Nom',
     cohortModalities: 'Modalités (vide = toutes)',
     cohortSubjects: 'Sujets (vide = tous)',
     cohortEmpty: 'Aucune cohorte pour cette ontologie.',
@@ -847,7 +840,6 @@ export const fr = {
     restsOn: 'Total établi sur {samples} mesures.',
     title: 'Consommation par projet',
     hint: 'Ce que chaque projet a réellement consommé sur les 30 derniers jours. Mesuré par échantillonnage toutes les 5 minutes ; une interruption de la plateforme n’est pas facturée.',
-    project: 'Projet',
     vcpuHours: 'vCPU·heures',
     memoryHours: 'Gio·heures',
     peak: 'Pic',
@@ -1033,7 +1025,6 @@ export const fr = {
     tooManyHint: 'Choisissez une personne, une ressource ou un type : au-delà, le graphe devient illisible et ne répond plus à rien.',
     legendDirect: 'Accès direct',
     legendInherited: 'Hérité d’une organisation',
-    legendOwner: 'Propriétaire',
     edges: '{count} accès affichés',
   },
 
@@ -1088,13 +1079,11 @@ export const fr = {
 
     add: 'Ajouter une variable',
 
-    nameColumn: 'Nom',
 
     nameHint: 'Lettres, chiffres et tirets bas, comme dans un shell. Les noms commençant par NORYX_ sont réservés à la plateforme.',
 
     valueColumn: 'Valeur',
 
-    descriptionColumn: 'Description',
 
     descriptionHint: 'À quoi elle sert, pour celui qui la lira dans six mois.',
 
@@ -1141,16 +1130,13 @@ export const fr = {
     subtitle: 'Pour appeler l’API hors navigateur : intégration continue, notebook, script.',
     createTitle: 'Créer un jeton',
     createHint: 'Le jeton agit en votre nom et n’a aucun droit propre : il ne peut rien faire que vous ne puissiez déjà faire.',
-    nameLabel: 'Nom',
     nameHint: 'Ce qui vous permettra de révoquer le bon plus tard.',
     namePlaceholder: 'gitlab-ci',
     expiryLabel: 'Expiration',
     expiryDays: '{days} jours',
     expiryNever: 'Sans expiration',
-    create: 'Créer',
     issuedTitle: 'Votre jeton',
     issuedHint: 'Il n’est affiché qu’une fois et n’est pas récupérable. Copiez-le maintenant.',
-    copy: 'Copier',
     copied: 'Jeton copié.',
     dismiss: 'J’ai copié',
     empty: 'Aucun jeton pour l’instant.',
