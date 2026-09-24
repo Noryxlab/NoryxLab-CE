@@ -204,7 +204,7 @@ export function ProjectDataPage() {
     },
     {
       id: 'host',
-      header: t('datasources.hostLabel'),
+      header: t('common.host'),
       cell: (datasource) => (
         <span className="truncate font-mono text-xs text-muted-foreground">
           {datasource.host}

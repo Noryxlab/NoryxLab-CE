@@ -242,7 +242,7 @@ export function CreateAppSheet({
             )}
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t('apps.portLabel')} description={t('apps.portHint')}>
+              <Field label={t('common.port')} description={t('apps.portHint')}>
                 <Input
                   type="number"
                   inputMode="numeric"

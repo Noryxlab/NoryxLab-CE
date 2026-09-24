@@ -68,13 +68,13 @@ print(response.json())`;
       setName('');
       invalidate(qk.projectTokens(api.projectId));
     },
-    onError: (error) => toast.error(error, t('apis.tokenCreate')),
+    onError: (error) => toast.error(error, t('common.createToken')),
   });
 
   const revoke = useMutation({
     mutationFn: (tokenId: string) => projectTokensApi.remove(api.projectId, tokenId),
     onSuccess: () => invalidate(qk.projectTokens(api.projectId)),
-    onError: (error) => toast.error(error, t('apis.tokenRevoke')),
+    onError: (error) => toast.error(error, t('common.revoke')),
   });
 
   return (
@@ -86,7 +86,7 @@ print(response.json())`;
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Field label={t('apis.endpoint')}>
+        <Field label={t('common.endpoint')}>
           <div className="flex items-center gap-2">
             <Input readOnly value={url} className="font-mono text-xs" />
             <CopyButton value={url} />
@@ -129,7 +129,7 @@ print(response.json())`;
           </Field>
           <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
             <KeyRound aria-hidden />
-            {t('apis.tokenCreate')}
+            {t('common.createToken')}
           </Button>
         </form>
 
@@ -154,7 +154,7 @@ print(response.json())`;
                   <span className="ml-2 text-muted-foreground">
                     {token.lastUsedAt
                       ? t('apis.tokenLastUsed', { when: formatRelative(token.lastUsedAt, locale) })
-                      : t('apis.tokenNeverUsed')}
+                      : t('common.neverUsed')}
                   </span>
                 </span>
                 <Button
@@ -162,7 +162,7 @@ print(response.json())`;
                   size="sm"
                   loading={revoke.isPending}
                   onClick={() => revoke.mutate(token.id)}
-                  aria-label={t('apis.tokenRevoke')}
+                  aria-label={t('common.revoke')}
                 >
                   <Trash2 aria-hidden />
                 </Button>

@@ -114,7 +114,7 @@ export function ProjectMembersPage() {
     mutationFn: (input: { userId: string; role: string }) =>
       projectsApi.setMemberRole(projectId as string, input.userId, input.role),
     onSuccess: () => invalidate(qk.project(projectId ?? ''), qk.projects),
-    onError: (error) => toast.error(error, t('members.roleLabel')),
+    onError: (error) => toast.error(error, t('common.role')),
   });
 
   // The owner is always a member; the API exposes members through the project
@@ -139,7 +139,7 @@ export function ProjectMembersPage() {
     },
     {
       id: 'role',
-      header: t('members.roleLabel'),
+      header: t('common.role'),
       cell: (member) =>
         member.userId === project.data?.ownerId ? (
           <Badge tone="brand">{t('common.owner')}</Badge>
@@ -149,7 +149,7 @@ export function ProjectMembersPage() {
             onValueChange={(value) => changeRole.mutate({ userId: member.userId, role: value })}
             options={roleOptions}
             className="max-w-48"
-            aria-label={t('members.roleLabel')}
+            aria-label={t('common.role')}
           />
         ),
     },
@@ -221,7 +221,7 @@ export function ProjectMembersPage() {
                   }))}
                 />
               </Field>
-              <Field label={t('members.roleLabel')}>
+              <Field label={t('common.role')}>
                 <Select value={role} onValueChange={setRole} options={roleOptions} />
               </Field>
             </SheetBody>
@@ -329,7 +329,7 @@ function OrganizationGrants({ projectId, canManage }: { projectId: string; canMa
 
         {canManage ? (
           <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
-            <Field label={t('members.orgLabel')} className="min-w-56 flex-1">
+            <Field label={t('common.organization')} className="min-w-56 flex-1">
               <Select
                 value={organizationId}
                 onValueChange={setOrganizationId}
@@ -340,7 +340,7 @@ function OrganizationGrants({ projectId, canManage }: { projectId: string; canMa
                 }))}
               />
             </Field>
-            <Field label={t('members.roleLabel')} className="min-w-40">
+            <Field label={t('common.role')} className="min-w-40">
               <Select value={role} onValueChange={setRole} options={roleOptions} />
             </Field>
             <Button

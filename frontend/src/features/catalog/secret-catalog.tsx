@@ -121,7 +121,7 @@ export function SecretCatalog() {
     },
     {
       id: 'expiry',
-      header: t('secrets.expiresAt'),
+      header: t('common.expiresAt'),
       sortValue: (secret) => secret.expiresAt ?? null,
       cell: (secret) => {
         const tone = expiryTone(secret);
@@ -130,7 +130,7 @@ export function SecretCatalog() {
           <span className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{formatDate(secret.expiresAt, locale)}</span>
             {tone ? (
-              <Badge tone={tone}>{tone === 'danger' ? t('secrets.expired') : t('secrets.expiringSoon')}</Badge>
+              <Badge tone={tone}>{tone === 'danger' ? t('common.expired') : t('secrets.expiringSoon')}</Badge>
             ) : null}
           </span>
         );

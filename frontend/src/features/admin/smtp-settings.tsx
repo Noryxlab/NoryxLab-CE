@@ -96,10 +96,10 @@ export function SmtpSettingsSection() {
       </CardHeader>
 
       <CardContent className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('admin.smtpHost')} required>
+        <Field label={t('common.host')} required>
           <Input value={form.host} onChange={(event) => set('host', event.target.value)} placeholder="smtp.example.org" />
         </Field>
-        <Field label={t('admin.smtpPort')}>
+        <Field label={t('common.port')}>
           <Input value={form.port} onChange={(event) => set('port', event.target.value)} placeholder="587" />
         </Field>
         <Field label={t('admin.smtpFrom')} description={t('admin.smtpFromHint')} required>

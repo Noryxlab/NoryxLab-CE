@@ -123,7 +123,7 @@ export function ApiTokensSection() {
       <Card>
         <CardHeader>
           <CardHeaderText>
-            <CardTitle>{t('tokens.createTitle')}</CardTitle>
+            <CardTitle>{t('common.createToken')}</CardTitle>
             <CardDescription>{t('tokens.createHint')}</CardDescription>
           </CardHeaderText>
         </CardHeader>
@@ -160,7 +160,7 @@ export function ApiTokensSection() {
                 ]}
               />
             </Field>
-            <Field label={t('tokens.expiryLabel')} className="min-w-40">
+            <Field label={t('common.expiresAt')} className="min-w-40">
               <Select
                 value={expiresIn}
                 onValueChange={setExpiresIn}
@@ -201,7 +201,7 @@ export function ApiTokensSection() {
                         {state === 'revoked' ? (
                           <Badge tone="outline">{t('tokens.revoked')}</Badge>
                         ) : state === 'expired' ? (
-                          <Badge tone="warning">{t('tokens.expired')}</Badge>
+                          <Badge tone="warning">{t('common.expired')}</Badge>
                         ) : null}
                         {/* An unrestricted token is worth seeing at a glance:
                             it is the one whose leak costs the most, and the
@@ -219,7 +219,7 @@ export function ApiTokensSection() {
                         ))}
                       </span>
                       <span className="block text-xs text-muted-foreground">
-                        {t('tokens.created')} {formatDateTime(token.createdAt, locale)}
+                        {t('common.createdAt')} {formatDateTime(token.createdAt, locale)}
                         {token.expiresAt
                           ? ` · ${t('tokens.expires')} ${formatDateTime(token.expiresAt, locale)}`
                           : ` · ${t('tokens.expiryNever')}`}
@@ -227,14 +227,14 @@ export function ApiTokensSection() {
                             question that gets a stale credential deleted. */}
                         {token.lastUsedAt
                           ? ` · ${t('tokens.lastUsed')} ${formatRelative(token.lastUsedAt, locale)}`
-                          : ` · ${t('tokens.neverUsed')}`}
+                          : ` · ${t('common.neverUsed')}`}
                       </span>
                     </span>
                     {state === 'active' ? (
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={t('tokens.revoke')}
+                        aria-label={t('common.revoke')}
                         loading={revoke.isPending}
                         onClick={() => revoke.mutate(token.id)}
                       >

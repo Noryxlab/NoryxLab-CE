@@ -215,7 +215,7 @@ export function BackupsSection() {
           </CardHeaderText>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label={t('admin.endpoint')} className="sm:col-span-2 lg:col-span-3" required>
+          <Field label={t('common.endpoint')} className="sm:col-span-2 lg:col-span-3" required>
             <Input
               value={endpoint}
               onChange={(event) => setEndpoint(event.target.value)}
@@ -226,20 +226,20 @@ export function BackupsSection() {
           <Field label={t('admin.bucket')} required>
             <Input value={bucket} onChange={(event) => setBucket(event.target.value)} />
           </Field>
-          <Field label={t('admin.prefix')}>
+          <Field label={t('common.prefix')}>
             <Input value={prefix} onChange={(event) => setPrefix(event.target.value)} />
           </Field>
-          <Field label={t('admin.region')}>
+          <Field label={t('common.region')}>
             <Input value={region} onChange={(event) => setRegion(event.target.value)} />
           </Field>
-          <Field label={t('admin.accessKey')}>
+          <Field label={t('common.accessKey')}>
             <Input
               value={accessKey}
               onChange={(event) => setAccessKey(event.target.value)}
               autoComplete="off"
             />
           </Field>
-          <Field label={t('admin.secretKey')} description={t('datasets.credentialsHint')}>
+          <Field label={t('common.secretKey')} description={t('datasets.credentialsHint')}>
             <Input
               type="password"
               value={secretKey}

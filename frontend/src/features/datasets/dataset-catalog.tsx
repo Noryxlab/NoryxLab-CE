@@ -217,7 +217,7 @@ function CreateDatasetSheet({
                   <Field label={t('datasets.bucketLabel')} error={bucketError} required>
                     <Input value={bucket} onChange={(event) => setBucket(event.target.value)} />
                   </Field>
-                  <Field label={t('datasets.regionLabel')}>
+                  <Field label={t('common.region')}>
                     <Input
                       value={region}
                       onChange={(event) => setRegion(event.target.value)}
@@ -225,18 +225,18 @@ function CreateDatasetSheet({
                     />
                   </Field>
                 </div>
-                <Field label={t('datasets.prefixLabel')} description={t('datasets.prefixHint')}>
+                <Field label={t('common.prefix')} description={t('datasets.prefixHint')}>
                   <Input value={prefix} onChange={(event) => setPrefix(event.target.value)} />
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label={t('datasets.accessKeyLabel')} required>
+                  <Field label={t('common.accessKey')} required>
                     <Input
                       value={accessKey}
                       onChange={(event) => setAccessKey(event.target.value)}
                       autoComplete="off"
                     />
                   </Field>
-                  <Field label={t('datasets.secretKeyLabel')} required>
+                  <Field label={t('common.secretKey')} required>
                     <Input
                       type="password"
                       value={secretKey}
@@ -353,7 +353,7 @@ function DatasetCredentials({ dataset }: { dataset: Dataset }) {
           <Field label={t('datasets.accessKey')}>
             <Input value={accessKey} onChange={(event) => setAccessKey(event.target.value)} autoComplete="off" />
           </Field>
-          <Field label={t('datasets.secretKey')}>
+          <Field label={t('common.secretKey')}>
             <Input
               type="password"
               value={secretKey}

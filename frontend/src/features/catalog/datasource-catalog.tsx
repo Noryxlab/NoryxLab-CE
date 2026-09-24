@@ -335,7 +335,7 @@ export function DatasourceCatalog() {
               </Field>
               <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
                 <Field
-                  label={t('datasources.hostLabel')}
+                  label={t('common.host')}
                   error={touched && !host.trim() ? t('common.required') : undefined}
                   required
                 >
@@ -346,7 +346,7 @@ export function DatasourceCatalog() {
                     className="font-mono text-xs"
                   />
                 </Field>
-                <Field label={t('datasources.portLabel')}>
+                <Field label={t('common.port')}>
                   <Input
                     type="number"
                     inputMode="numeric"
