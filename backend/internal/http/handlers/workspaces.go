@@ -438,6 +438,27 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	// A stale revision of the platform's own image is a revision, not a refusal.
+	//
+	// The launch form is built from a list the browser fetched earlier. When
+	// an administrator moves a kind to a new image, every already-loaded list
+	// keeps offering the previous tag, and every launch from it is refused -
+	// by a message that is accurate and that the person reading it cannot act
+	// on, because nothing on their screen says the list is out of date. It
+	// happened twice within an hour on 2026-09-24 and blocked a user who had
+	// changed nothing.
+	//
+	// When the request names the same repository as the kind's configured
+	// image, it is the same environment one revision behind, so the configured
+	// image is used. This does not widen anything: what runs is the platform's
+	// own image and never the tag the caller sent, so a caller naming
+	// noryx-slicer:anything gets exactly what everybody else gets.
+	if configured := h.configuredImageFor(req.IDE); configured != "" && configured != workspaceImage &&
+		imageRepository(configured) == imageRepository(workspaceImage) {
+		log.Printf("workspaces: %s requested %s, a stale revision of %s; using the configured image",
+			req.IDE, workspaceImage, configured)
+		workspaceImage = configured
+	}
 	if !h.workspaceEnvironmentAllowed(req.ProjectID, workspaceImage, req.IDE) {
 		// Name the image, and name what was expected.
 		//
