@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SectionHeader } from '@/components/common/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DataTable, type Column } from '@/components/common/data-table';
+import { EmptyState } from '@/components/common/states';
 import { adminApi } from '@/lib/api/endpoints';
 import { useT } from '@/lib/i18n';
 
@@ -45,6 +47,31 @@ export function TeamUsageSection() {
   const rows = report?.rows ?? [];
   const nombre = (value: number) =>
     value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+  type Row = (typeof rows)[number];
+  const columns: Column<Row>[] = [
+    {
+      id: 'team',
+      header: t('admin.teams'),
+      sortValue: (row) => row.teamName.toLowerCase(),
+      cell: (row) => (
+        <>
+          {row.teamName}
+          {/* Le recouvrement est vrai de certaines lignes et pas d'autres : il
+              est donc porte par la ligne. */}
+          {row.sharedProjects > 0 ? (
+            <span className="ml-2 text-xs text-muted-foreground">
+              {t('admin.teamUsageShared', { count: row.sharedProjects })}
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    { id: 'members', header: t('admin.teamUsageMembers'), align: 'right', sortValue: (row) => row.members, cell: (row) => <span className="tabular-nums">{row.members}</span> },
+    { id: 'projects', header: t('admin.teamUsageProjects'), align: 'right', sortValue: (row) => row.projects, cell: (row) => <span className="tabular-nums">{row.projects}</span> },
+    { id: 'vcpuHours', header: t('admin.teamUsageVcpuHours'), align: 'right', sortValue: (row) => row.vcpuHours, cell: (row) => <span className="tabular-nums">{nombre(row.vcpuHours)}</span> },
+    { id: 'peak', header: t('admin.teamUsagePeak'), align: 'right', sortValue: (row) => row.peakVcpu, cell: (row) => <span className="tabular-nums">{nombre(row.peakVcpu)}</span> },
+  ];
 
   return (
     <section className="space-y-3">
@@ -92,44 +119,13 @@ export function TeamUsageSection() {
               />
             </CardContent>
           </Card>
-
-          {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('admin.teamUsageNoTeams')}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-1.5 pr-3 font-medium">{t('admin.teams')}</th>
-                    <th className="py-1.5 pr-3 text-right font-medium">{t('admin.teamUsageMembers')}</th>
-                    <th className="py-1.5 pr-3 text-right font-medium">{t('admin.teamUsageProjects')}</th>
-                    <th className="py-1.5 pr-3 text-right font-medium">{t('admin.teamUsageVcpuHours')}</th>
-                    <th className="py-1.5 pr-3 text-right font-medium">{t('admin.teamUsagePeak')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.teamId} className="border-t">
-                      <td className="py-1.5 pr-3">
-                        {row.teamName}
-                        {/* Le recouvrement est vrai de certaines lignes et pas
-                            d'autres : il est donc porte par la ligne. */}
-                        {row.sharedProjects > 0 ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            {t('admin.teamUsageShared', { count: row.sharedProjects })}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="py-1.5 pr-3 text-right tabular-nums">{row.members}</td>
-                      <td className="py-1.5 pr-3 text-right tabular-nums">{row.projects}</td>
-                      <td className="py-1.5 pr-3 text-right tabular-nums">{nombre(row.vcpuHours)}</td>
-                      <td className="py-1.5 pr-3 text-right tabular-nums">{nombre(row.peakVcpu)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+              data={rows}
+              columns={columns}
+              rowKey={(row) => row.teamId}
+              defaultSort={{ columnId: 'vcpuHours', direction: 'desc' }}
+              emptyState={<EmptyState title={t('admin.teamUsageNoTeams')} />}
+            />
         </>
       )}
     </section>
