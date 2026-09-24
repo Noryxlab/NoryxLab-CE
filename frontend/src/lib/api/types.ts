@@ -600,6 +600,9 @@ export interface PlatformUser {
   /** L'organisation a laquelle le compte appartient, vide quand il n'en a
    *  aucune - un compte de service, typiquement. */
   organization?: string;
+  /** Toutes les organisations, quand l'annuaire en donne plusieurs : la
+   *  precedente est la premiere trouvee, gardee pour ce qui la lit encore. */
+  organizations?: string[];
   /** Les equipes auxquelles la personne appartient, nommees et pas comptees :
    *  "2 equipes" a cote d'un nom ne dit rien sur quoi agir. */
   teams?: string[];

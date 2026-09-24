@@ -8,6 +8,53 @@ import (
 	"time"
 )
 
+// actorOrganizationSets maps an account to every organisation it belongs to.
+//
+// The directory allows a person in several organisations, and the singular
+// map above keeps whichever it wrote last - which made the account list show
+// one organisation per person, chosen by iteration order. A screen that draws
+// people under their organisations has to see all of them or it misplaces
+// somebody silently. The singular stays for the activity report, where one
+// label per actor is the point and the choice is stated.
+func (h Handlers) actorOrganizationSets() map[string][]string {
+	membership := map[string][]string{}
+	if h.keycloak == nil {
+		return membership
+	}
+	organizations, err := h.keycloak.ListOrganizations()
+	if err != nil {
+		log.Printf("accounts: organisations unavailable, listing without them: %v", err)
+		return membership
+	}
+	add := func(key, name string) {
+		key = strings.ToLower(strings.TrimSpace(key))
+		if key == "" {
+			return
+		}
+		for _, existing := range membership[key] {
+			if existing == name {
+				return
+			}
+		}
+		membership[key] = append(membership[key], name)
+	}
+	for _, organization := range organizations {
+		members, err := h.keycloak.ListOrganizationMembers(organization.ID)
+		if err != nil {
+			continue
+		}
+		name := strings.TrimSpace(organization.Name)
+		if name == "" {
+			name = organization.Alias
+		}
+		for _, member := range members {
+			add(member.Username, name)
+			add(member.Email, name)
+		}
+	}
+	return membership
+}
+
 // actorOrganizations maps an account to the organisation it belongs to.
 //
 // Keyed in lower case because the audit records whatever the identity

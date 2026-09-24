@@ -58,6 +58,11 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		// shared between several parties is read by party before it is read by
 		// person.
 		Organization string `json:"organization,omitempty"`
+		// Organizations, all of them. The directory allows more than one, and
+		// the singular above is the first found - kept so nothing that reads
+		// it breaks, but a screen placing people under organisations reads
+		// this one or it misplaces somebody.
+		Organizations []string `json:"organizations,omitempty"`
 		// Administrator marks the accounts that can act on everybody else's
 		// work. An administration screen that does not distinguish them is one
 		// where the most consequential fact about a row is the one it omits.
@@ -80,6 +85,7 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]userRow, 0, len(users))
 	membership := h.actorOrganizations()
+	memberships := h.actorOrganizationSets()
 	administrators := h.globalAdministrators()
 	seen := map[string]store.LastSeen{}
 	if h.auditStore != nil {
@@ -122,6 +128,12 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 			row.Organization = organization
 		} else {
 			row.Organization = membership[strings.ToLower(user.Email)]
+		}
+		row.Organizations = append(row.Organizations, memberships[strings.ToLower(user.Username)]...)
+		for _, name := range memberships[strings.ToLower(user.Email)] {
+			if !slices.Contains(row.Organizations, name) {
+				row.Organizations = append(row.Organizations, name)
+			}
 		}
 		// The audit records the actor as the username, which is what
 		// Identity.UserID resolves to. Email is the fallback for an account

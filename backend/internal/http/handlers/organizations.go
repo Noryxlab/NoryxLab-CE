@@ -183,6 +183,30 @@ func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	// Teams, before projects. teams.organization_id has no foreign key, so an
+	// organisation deleted with teams still in it left those teams listed
+	// nowhere - the screen lists them per organisation - while every project
+	// grant they carried stayed live. An invisible group that still reaches
+	// projects is the worst shape a leftover can take.
+	if h.teamStore != nil {
+		teams, err := h.teamStore.ListByOrganization(organizationID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to verify organization teams"})
+			return
+		}
+		if len(teams) > 0 {
+			names := make([]string, 0, len(teams))
+			for _, item := range teams {
+				names = append(names, item.Name)
+			}
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error": "the organization still has " + strconv.Itoa(len(teams)) +
+					" team(s); remove them first: " + strings.Join(names, ", "),
+				"teams": names,
+			})
+			return
+		}
+	}
 	projects, err := h.projectStore.List()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to verify organization-owned projects"})
