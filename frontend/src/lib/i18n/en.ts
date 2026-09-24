@@ -339,6 +339,9 @@ export const en: Translations = {
   },
 
   workspaces: {
+    environmentUnknown: 'Environment removed',
+    rebuiltSince: 'The environment was rebuilt since this was started — relaunch to get the new image.',
+    rebuiltSinceShort: 'rebuilt since',
     assistantSendsDataOffSite:
       'This project mounts health data ({datasets}). The assistant reads workspace files to answer you, and what it reads is sent to the model, which is hosted outside the site.',
     startupTitle: 'Starting',

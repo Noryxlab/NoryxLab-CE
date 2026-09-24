@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { Cpu, ExternalLink, HardDrive, Plus, Square, Terminal } from 'lucide-react';
+import { Cpu, ExternalLink, HardDrive, Layers, Plus, Square, Terminal } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -10,24 +10,38 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { StatusBadge, describeStatus } from '@/components/ui/badge';
 import { SkeletonCards } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { useWorkspaces, qk, useInvalidate } from '@/lib/api/queries';
+import { useEnvironments, useWorkspaces, qk, useInvalidate } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { WorkspaceStartup } from '@/features/workspaces/workspace-startup';
-import { formatDuration, formatQuantity } from '@/lib/format';
+import { formatDuration, formatQuantity, imageRepository } from '@/lib/format';
 import { presentIde } from '@/lib/presenters';
 import { LaunchWorkspaceSheet } from '@/features/workspaces/launch-sheet';
-import type { Workspace } from '@/lib/api/types';
+import type { Environment, Workspace } from '@/lib/api/types';
 
 function WorkspaceCard({
   workspace,
+  environments,
   onStop,
 }: {
   workspace: Workspace;
+  environments: Environment[];
   onStop: (workspace: Workspace) => void;
 }) {
   const t = useT();
   const { locale } = useI18n();
+  // The repository is the one thing a pinned image and a tagged environment
+  // share, so it is how a card finds what it runs on. And when the environment
+  // was rebuilt after this workspace started, the session is running an image
+  // the platform no longer serves - Cyril's forty-two-hour Slicer on the old
+  // image. "Rebuilt since", not "different revision": a revision carries no
+  // digest on this side, and the product must not assert what it cannot show.
+  const environment = environments.find(
+    (item) => imageRepository(item.destinationImage) === imageRepository(workspace.image),
+  );
+  const rebuilt = Boolean(
+    environment && new Date(environment.updatedAt) > new Date(workspace.createdAt),
+  );
   const status = describeStatus(workspace.status, locale);
   const running = status.tone === 'success';
 
@@ -61,6 +75,20 @@ function WorkspaceCard({
 
         <p className="text-xs text-muted-foreground">
           {t('common.duration')} · {formatDuration(workspace.createdAt, new Date(), locale)}
+        </p>
+        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+          <Layers className="size-3.5 shrink-0" aria-hidden />
+          <span className="truncate" title={workspace.image}>
+            {environment ? environment.name : t('workspaces.environmentUnknown')}
+          </span>
+          {rebuilt ? (
+            <span
+              className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+              title={t('workspaces.rebuiltSince')}
+            >
+              {t('workspaces.rebuiltSinceShort')}
+            </span>
+          ) : null}
         </p>
       </CardContent>
 
@@ -101,6 +129,7 @@ export function WorkspacesPage() {
   const [launching, setLaunching] = React.useState(false);
 
   const { data, isLoading, isError, error, refetch } = useWorkspaces(projectId);
+  const environments = useEnvironments(projectId);
 
   const stop = useMutation({
     mutationFn: (workspaceId: string) => workspacesApi.remove(workspaceId),
@@ -155,7 +184,12 @@ export function WorkspacesPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {data.map((workspace) => (
-            <WorkspaceCard key={workspace.id} workspace={workspace} onStop={confirmStop} />
+            <WorkspaceCard
+              key={workspace.id}
+              workspace={workspace}
+              environments={environments.data ?? []}
+              onStop={confirmStop}
+            />
           ))}
         </div>
       )}

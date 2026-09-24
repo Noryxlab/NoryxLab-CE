@@ -155,3 +155,17 @@ export function slugify(value: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 63);
 }
+
+/** The repository of an image reference, without tag or digest.
+ *
+ *  A workspace runs a pinned image (`repo@sha256:...`) and an environment
+ *  declares a tagged one (`repo:1.2`): the repository is what relates them. */
+export function imageRepository(reference: string): string {
+  let r = reference.trim();
+  const at = r.indexOf('@');
+  if (at > 0) r = r.slice(0, at);
+  const slash = r.lastIndexOf('/');
+  const colon = r.lastIndexOf(':');
+  if (colon > slash) r = r.slice(0, colon);
+  return r;
+}

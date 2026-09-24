@@ -343,6 +343,9 @@ export const fr = {
   },
 
   workspaces: {
+    environmentUnknown: 'Environnement retiré',
+    rebuiltSince: 'L’environnement a été reconstruit depuis le lancement — relancez pour obtenir la nouvelle image.',
+    rebuiltSinceShort: 'reconstruit depuis',
     assistantSendsDataOffSite:
       "Ce projet monte des données de santé ({datasets}). L'assistant lit les fichiers du workspace pour vous répondre, et ce qu'il lit est envoyé au modèle, hébergé hors du site.",
     startupTitle: 'Démarrage en cours',
