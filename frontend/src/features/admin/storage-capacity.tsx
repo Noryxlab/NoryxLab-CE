@@ -1,4 +1,5 @@
 import { HardDrive } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useStorageCapacity } from '@/lib/api/queries';
@@ -38,7 +39,7 @@ export function StorageCapacityPanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         {capacity.isLoading ? (
-          <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+          <Skeleton className="h-10 w-full" />
         ) : !report?.available ? (
           // Pas de jauge dessinee a partir de zeros : elle se lirait comme un
           // cluster vide, soit l'inverse de ce qui est rapporte.

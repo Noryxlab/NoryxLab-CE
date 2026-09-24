@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { SectionHeader } from '@/components/common/page-header';
 import { useMutation } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { PageHeader } from '@/components/common/page-header';
@@ -215,7 +216,7 @@ function OrphanRoster({
   const t = useT();
   return (
     <section className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-      <h2 className="text-sm font-medium">{t('agents.orphansTitle')}</h2>
+      <SectionHeader title={t('agents.orphansTitle')} />
       <p className="mt-1 text-xs text-muted-foreground">{t('agents.orphansHint')}</p>
       <ul className="mt-3 space-y-2">
         {agents.map((agent) => (
@@ -287,7 +288,7 @@ function TeamsSection({
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">{t('agents.teamsTitle')}</h2>
+          <SectionHeader title={t('agents.teamsTitle')} />
           <p className="mt-1 max-w-prose text-sm text-muted-foreground">{t('agents.teamsIntro')}</p>
         </div>
         {teams.length > 0 ? (

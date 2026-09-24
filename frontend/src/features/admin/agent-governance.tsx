@@ -1,4 +1,5 @@
 import { Bot, Download } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { SectionHeader } from '@/components/common/page-header';
@@ -174,10 +175,9 @@ function Organisation({
 
   return (
     <section className="space-y-2">
-      <h3 className="text-sm font-semibold">{t('agents.organisation')}</h3>
-      <p className="max-w-prose text-sm text-muted-foreground">{t('agentGovernance.organisationIntro')}</p>
+      <SectionHeader title={t('agents.organisation')} description={t('agentGovernance.organisationIntro')} />
       {loading ? (
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+        <Skeleton className="h-10 w-full" />
       ) : mandates.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
           {t('agentGovernance.noMandates')}

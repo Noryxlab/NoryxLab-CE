@@ -142,7 +142,7 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
               </TableWrapper>
             </>
           ) : (
-            <p className="text-xs text-muted-foreground">{t('ontologies.noMatch')}</p>
+            <EmptyState title={t('ontologies.noMatch')} />
           )
         ) : null}
       </CardContent>
@@ -421,7 +421,7 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
             </Table>
           </TableWrapper>
         ) : (
-          <p className="text-xs text-muted-foreground">{t('ontologies.cohortEmpty')}</p>
+          <EmptyState title={t('ontologies.cohortEmpty')} />
         )}
         <p className="text-xs text-muted-foreground">{t('ontologies.cohortMountHint')}</p>
       </CardContent>
@@ -524,7 +524,7 @@ function OntologyScan() {
           </Button>
         </form>
         {projectId && datasetOptions.length === 0 && !datasets.isLoading ? (
-          <p className="text-xs text-muted-foreground">{t('ontologies.scanNoDataset')}</p>
+          <EmptyState title={t('ontologies.scanNoDataset')} />
         ) : null}
         {/* What the profile actually matches, where somebody can read it before
             wondering why half their objects came back unrecognised. */}

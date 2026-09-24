@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/common/states';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Trash2, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -120,7 +122,7 @@ export function DeactivateUserSheet({
           </p>
 
           {owned.isLoading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            <Skeleton className="h-10 w-full" />
           ) : ownsSomething ? (
             <>
               <div className="rounded-md border border-border p-3 text-sm">
@@ -137,7 +139,7 @@ export function DeactivateUserSheet({
               </Field>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">{t('admin.ownsNothing')}</p>
+            <EmptyState title={t('admin.ownsNothing')} className="py-4" />
           )}
 
           {/* Said on the screen, not only in the API's answer: both are easy to

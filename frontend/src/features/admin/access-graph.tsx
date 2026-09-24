@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { EmptyState } from '@/components/common/states';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -188,7 +189,7 @@ export function AccessGraph({
       <Card>
         <CardContent className="py-4">
           {edges.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">{t('graph.empty')}</p>
+            <EmptyState title={t('graph.empty')} />
           ) : tooMany ? (
             // Refused rather than drawn badly: a hairball of every grant on the
             // platform looks like information and answers nothing.

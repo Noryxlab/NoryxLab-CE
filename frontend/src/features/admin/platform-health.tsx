@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { EmptyState } from '@/components/common/states';
 import { Link } from 'react-router';
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
@@ -132,9 +133,9 @@ function HealthHistory({ enabled }: { enabled: boolean }) {
       {history.isLoading ? (
         <SkeletonText lines={3} />
       ) : history.data && !history.data.recording ? (
-        <p className="text-sm text-muted-foreground">{t('health.notRecording')}</p>
+        <EmptyState title={t('health.notRecording')} />
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('health.historyEmpty')}</p>
+        <EmptyState title={t('health.historyEmpty')} />
       ) : (
         <ul className="space-y-2">
           {items.map((event) => (
