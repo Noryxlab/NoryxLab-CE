@@ -19,6 +19,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import { describeStatus } from '@/components/ui/badge';
 import { LaunchWorkspaceSheet } from '@/features/workspaces/launch-sheet';
+import { ProjectConsumptionCard } from '@/features/projects/project-consumption';
 
 export function ProjectOverviewPage() {
   const t = useT();
@@ -115,6 +116,10 @@ export function ProjectOverviewPage() {
           value={datasets.data?.length ?? 0}
         />
       </StatGrid>
+
+      {/* What the project ran, on the page a person opens first. The quota it
+          is allowed stays in settings, next to where it is edited. */}
+      {projectId ? <ProjectConsumptionCard projectId={projectId} /> : null}
 
       <Card>
         <CardHeader>
