@@ -13,6 +13,7 @@
  */
 export const fr = {
   common: {
+    team: 'Équipe',
     region: 'Région',
     prefix: 'Préfixe',
     accessKey: 'Clé d’accès',

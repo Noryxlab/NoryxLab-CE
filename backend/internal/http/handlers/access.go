@@ -729,3 +729,19 @@ func bearerTokenFromHeader(r *http.Request) (string, error) {
 	}
 	return strings.TrimSpace(parts[1]), nil
 }
+
+// isGrantableSubjectType is who a dataset or an ontology may be granted to.
+//
+// Teams were absent until 2026-09-26, and their absence was not a policy: the
+// same line refusing them was written twice, in datasets.go and ontology.go,
+// while teams already reached projects through SetProjectTeamRole. The gap
+// showed when Essilor asked for a modality to be given to one of their teams
+// and to one of Inria's - a grant that could only be spelled as "to this
+// organization", too wide, or "to these twelve people", a list that rots.
+func isGrantableSubjectType(subjectType string) bool {
+	switch subjectType {
+	case "user", "organization", "team":
+		return true
+	}
+	return false
+}

@@ -11,6 +11,12 @@ export interface ListResponse<T> {
 }
 
 export type OwnerType = 'user' | 'organization';
+/** Who an asset may be granted to.
+ *
+ *  Wider than OwnerType on purpose: a team can hold a grant but cannot own
+ *  anything, because ownership carries the right to give the asset away and a
+ *  team has no one to answer for that. */
+export type GrantSubjectType = OwnerType | 'team';
 export type AccessRole = 'reader' | 'writer' | 'admin';
 export type ProjectRole = 'viewer' | 'editor' | 'admin';
 
@@ -193,7 +199,7 @@ export interface Dataset {
 export interface DatasetAccess {
   datasetId: string;
   userId?: string;
-  subjectType: OwnerType;
+  subjectType: GrantSubjectType;
   subjectId: string;
   /** Qui porte cet identifiant. Resolu par le serveur : l'ecran affichait
    *  l'identifiant brut, donc verifier qui accede a un dataset de sante
@@ -280,7 +286,7 @@ export interface Ontology {
 export interface OntologyAccess {
   ontologyId: string;
   userId?: string;
-  subjectType: OwnerType;
+  subjectType: GrantSubjectType;
   subjectId: string;
   role: AccessRole;
   createdAt: string;

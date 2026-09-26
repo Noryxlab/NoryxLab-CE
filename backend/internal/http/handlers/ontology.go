@@ -303,7 +303,7 @@ func (h Handlers) SetOntologyAccess(w http.ResponseWriter, r *http.Request) {
 	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
 	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
 	var req setDatasetAccessRequest
-	if (subjectType != "user" && subjectType != "organization") || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
+	if !isGrantableSubjectType(subjectType) || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid subjectType, subjectID, and role are required"})
 		return
 	}
@@ -319,6 +319,14 @@ func (h Handlers) SetOntologyAccess(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		subjectID = organization.ID
+	}
+	if subjectType == "team" {
+		item, found := h.resolveTeam(subjectID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no team with identifier " + subjectID})
+			return
+		}
+		subjectID = item.ID
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner role cannot be changed"})
@@ -695,6 +703,9 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 	}
 	for _, organization := range organizations {
 		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
+	}
+	for _, teamID := range h.callerTeamIDs(identity) {
+		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
 	}
 	return subjects
 }

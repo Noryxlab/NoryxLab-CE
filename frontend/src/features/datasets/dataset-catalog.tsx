@@ -28,6 +28,7 @@ import {
   useDatasetAccess,
   useDatasets,
   useDatasetUsage,
+  useAllTeams,
   useOrganizations,
   useAdminUsers,
   qk,
@@ -418,8 +419,9 @@ function DatasetPermissions({ dataset }: { dataset: Dataset }) {
   const access = useDatasetAccess(dataset.id);
   const users = useAdminUsers();
   const organizations = useOrganizations();
+  const teams = useAllTeams();
 
-  const [subjectType, setSubjectType] = React.useState<'user' | 'organization'>('user');
+  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
   const [subjectId, setSubjectId] = React.useState('');
   const [role, setRole] = React.useState('reader');
 
@@ -463,7 +465,11 @@ function DatasetPermissions({ dataset }: { dataset: Dataset }) {
       header: t('common.type'),
       cell: (entry) => (
         <Badge tone="outline">
-          {entry.subjectType === 'organization' ? t('common.organization') : t('common.user')}
+          {entry.subjectType === 'organization'
+            ? t('common.organization')
+            : entry.subjectType === 'team'
+              ? t('common.team')
+              : t('common.user')}
         </Badge>
       ),
     },
@@ -479,6 +485,14 @@ function DatasetPermissions({ dataset }: { dataset: Dataset }) {
       ? (organizations.data ?? []).map((organization) => ({
           value: organization.alias ?? organization.id,
           label: organization.name,
+        }))
+      : subjectType === 'team'
+      ? // Granted by identifier, never by name: two organizations may each
+        // have a team called the same thing, so the name is only the label.
+        teams.data.map((team) => ({
+          value: team.id,
+          label: team.name,
+          hint: team.organizationName || undefined,
         }))
       : (users.data ?? []).map((user) => ({
           value: user.username ?? user.id,
@@ -500,11 +514,14 @@ function DatasetPermissions({ dataset }: { dataset: Dataset }) {
             <Select
               value={subjectType}
               onValueChange={(value) => {
-                setSubjectType(value === 'organization' ? 'organization' : 'user');
+                setSubjectType(
+                  value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
+                );
                 setSubjectId('');
               }}
               options={[
                 { value: 'user', label: t('common.user') },
+                { value: 'team', label: t('common.team') },
                 { value: 'organization', label: t('common.organization') },
               ]}
             />

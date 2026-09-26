@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,6 +21,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/secret"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 	"github.com/minio/minio-go/v7"
@@ -127,6 +129,9 @@ func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	}
 	for _, organization := range organizations {
 		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organization.ID})
+	}
+	for _, teamID := range h.callerTeamIDs(identity) {
+		subjects = append(subjects, dataset.Subject{Type: "team", ID: teamID})
 	}
 	return subjects
 }
@@ -967,7 +972,7 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		subjectID = strings.TrimSpace(r.PathValue("userID"))
 	}
 	var req setDatasetAccessRequest
-	if (subjectType != "user" && subjectType != "organization") || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
+	if !isGrantableSubjectType(subjectType) || subjectID == "" || json.NewDecoder(r.Body).Decode(&req) != nil {
 		writeJSON(w, 400, map[string]string{"error": "valid subjectType, subjectID, and role are required"})
 		return
 	}
@@ -983,6 +988,14 @@ func (h Handlers) SetDatasetAccess(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		subjectID = organization.ID
+	}
+	if subjectType == "team" {
+		item, found := h.resolveTeam(subjectID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no team with identifier " + subjectID})
+			return
+		}
+		subjectID = item.ID
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, 400, map[string]string{"error": "owner role cannot be changed"})
@@ -1169,6 +1182,58 @@ func (h Handlers) organizationExists(organizationID string) bool {
 //
 // Callers use the resolved ID from here on, so what gets stored is always the
 // identifier, whatever the caller typed.
+// callerTeamIDs is every team the caller belongs to.
+//
+// Matched on both the username and the email, for the reason the account list
+// already records: a team is composed from whichever identifier the
+// administrator had in front of them, and a directory that answers
+// "Malinet.C" to a store holding "malinetc" produces an access list where
+// half the grants silently do not apply.
+func (h Handlers) callerTeamIDs(identity auth.Identity) []string {
+	if h.teamStore == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	ids := []string{}
+	for _, identifier := range []string{identity.Username, identity.Email, identity.Subject} {
+		identifier = strings.TrimSpace(identifier)
+		if identifier == "" {
+			continue
+		}
+		items, err := h.teamStore.ListByUser(identifier)
+		if err != nil {
+			// Degraded rather than denied: a team store that cannot answer
+			// must not turn every grant into a refusal.
+			log.Printf("access: teams unavailable for %s: %v", identifier, err)
+			continue
+		}
+		for _, item := range items {
+			if !seen[item.ID] {
+				seen[item.ID] = true
+				ids = append(ids, item.ID)
+			}
+		}
+	}
+	return ids
+}
+
+// resolveTeam accepts a team identifier and answers whether it names one.
+//
+// By identifier only, never by name: two organizations may each have a team
+// called "imagerie", and a grant that resolved a name would hand one
+// organization's project to the other one's people.
+func (h Handlers) resolveTeam(identifier string) (team.Team, bool) {
+	identifier = strings.TrimSpace(identifier)
+	if h.teamStore == nil || identifier == "" {
+		return team.Team{}, false
+	}
+	item, found, err := h.teamStore.GetByID(identifier)
+	if err != nil || !found {
+		return team.Team{}, false
+	}
+	return item, true
+}
+
 func (h Handlers) resolveOrganization(identifier string) (keycloak.Organization, bool) {
 	identifier = strings.TrimSpace(identifier)
 	if h.keycloak == nil || identifier == "" {

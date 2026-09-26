@@ -10,6 +10,7 @@ export type Translations = {
 
 export const en: Translations = {
   common: {
+    team: 'Team',
     region: 'Region',
     prefix: 'Prefix',
     accessKey: 'Access key',

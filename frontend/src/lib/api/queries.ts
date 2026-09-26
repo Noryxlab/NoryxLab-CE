@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import {
   projectOrganizationRolesApi,
   projectTeamRolesApi,
@@ -550,6 +550,34 @@ export const useSmtp = () => useQuery({ queryKey: qk.adminSmtp, queryFn: adminAp
 
 export const useAdminHardwareTiers = () =>
   useQuery({ queryKey: qk.adminHardwareTiers, queryFn: adminApi.hardwareTiers });
+
+/** Every team of every organization, flattened for a picker.
+ *
+ *  Teams are listed per organization because that is where they live, and a
+ *  screen granting an asset to one needs them all in a single list. The label
+ *  carries the organization because two of them may each have a team called
+ *  "imagerie", and a grant to the wrong one is invisible afterwards. */
+export function useAllTeams() {
+  const organizations = useOrganizations();
+  const results = useQueries({
+    queries: (organizations.data ?? []).map((organization) => ({
+      queryKey: qk.adminTeams(organization.id),
+      queryFn: () => adminApi.teams(organization.id),
+    })),
+  });
+  const data = results.flatMap((result, index) => {
+    const organization = (organizations.data ?? [])[index];
+    return (result.data ?? []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      organizationName: organization?.name ?? '',
+    }));
+  });
+  return {
+    data,
+    isLoading: organizations.isLoading || results.some((result) => result.isLoading),
+  };
+}
 
 export const useAdminTeams = (organizationId: string) =>
   useQuery({
