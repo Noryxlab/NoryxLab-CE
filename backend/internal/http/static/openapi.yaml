@@ -229,6 +229,33 @@ components:
         capabilities: { type: object }
         detail: { type: string }
         checkedAt: { type: string, format: date-time }
+    ServiceAccount:
+      type: object
+      description: A principal that is not a person. It cannot sign in; its credentials are tokens.
+      properties:
+        username: { type: string }
+        purpose: { type: string }
+        responsible:
+          type: string
+          description: The person who answers for this account. Required at creation.
+        organizations:
+          type: array
+          items: { type: string }
+        enabled: { type: boolean }
+        tokens:
+          type: integer
+          description: How many of its credentials are live.
+    ServiceAccountList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ServiceAccount' }
+    ServiceAccountDisabled:
+      type: object
+      properties:
+        username: { type: string }
+        tokensRevoked: { type: integer }
     ComponentTokenList:
       type: object
       properties:
@@ -7696,6 +7723,172 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetCredentialsUpdatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/component-tokens/{tokenID}/rotate:
+    post:
+      tags: [Admin]
+      summary: Issue a replacement credential and revoke the current one
+      description: >-
+        Same component, scopes and expiry; a new secret, shown once. Server-side and in
+        that order, because composed as two calls a failure between them leaves two live
+        credentials for one component.
+      operationId: rotateComponentToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tokenID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Replacement issued; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts:
+    get:
+      tags: [Admin]
+      summary: List the principals that are not people
+      description: >-
+        Each with its organizations, who answers for it, and how many of its credentials
+        are live.
+      operationId: listServiceAccounts
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccountList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Create a principal that is not a person
+      description: >-
+        No password and no interactive sign-in. The responsible person is required: a
+        non-human account that can own regulated data and answers to nobody is how a
+        dataset ends up unaccounted for.
+      operationId: createServiceAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts/{username}:
+    delete:
+      tags: [Admin]
+      summary: Revoke its credentials, then disable it
+      description: >-
+        In that order: an account disabled while its tokens still work is not disabled.
+        Disabled rather than deleted, so the audit trail keeps naming the actor.
+      operationId: disableServiceAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Credentials revoked and the account disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccountDisabled'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts/{username}/tokens:
+    post:
+      tags: [Admin]
+      summary: Issue a credential that acts as the account
+      description: >-
+        Issued by an administrator because the account has no browser, and owned by the
+        account: revoking the person who created it changes nothing.
+      operationId: createServiceAccountToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Credential issued; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/owner:
+    put:
+      tags: [Workloads]
+      summary: Hand the application to an organization or another account
+      description: >-
+        Decided by its current owner or a project administrator. The target is an
+        organization the caller belongs to, or an account that already reaches the
+        project - an owner who cannot open the application cannot answer for it.
+      operationId: setAppOwner
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

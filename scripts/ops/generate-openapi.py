@@ -252,6 +252,8 @@ ENVELOPES = {
 # generated `200 Success`, which was wrong: four of these never return one.
 RESPONSES = {
     ("GET", "/healthz"): "HealthResponse",
+    ("GET", "/api/v1/admin/service-accounts"): "ServiceAccountList",
+    ("PUT", "/api/v1/apps/{appID}/owner"): "App",
     ("GET", "/api/v1/hardware-tiers"): "HardwareTierListResponse",
     ("GET", "/api/v1/cronjobs"): "CronJobListResponse",
     ("GET", "/api/v1/datasource-definitions"): "DatasourceDefinitionListResponse",
@@ -302,6 +304,10 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
     ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
+    ("POST", "/api/v1/admin/service-accounts"): ("201", "Account created", "application/json", "ServiceAccount"),
+    ("POST", "/api/v1/admin/service-accounts/{username}/tokens"): ("201", "Credential issued; the secret is shown once", "application/json", "ComponentTokenResponse"),
+    ("DELETE", "/api/v1/admin/service-accounts/{username}"): ("200", "Credentials revoked and the account disabled", "application/json", "ServiceAccountDisabled"),
+    ("POST", "/api/v1/admin/component-tokens/{tokenID}/rotate"): ("201", "Replacement issued; the secret is shown once", "application/json", "ComponentTokenResponse"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
     ("GET", "/api/v1/agents"): ("200", "The agents this user has left standing instructions with", "application/json", "AgentListResponse"),
     ("POST", "/api/v1/agents"): ("201", "Agent created", "application/json", "Agent"),

@@ -233,6 +233,33 @@ components:
         capabilities: { type: object }
         detail: { type: string }
         checkedAt: { type: string, format: date-time }
+    ServiceAccount:
+      type: object
+      description: A principal that is not a person. It cannot sign in; its credentials are tokens.
+      properties:
+        username: { type: string }
+        purpose: { type: string }
+        responsible:
+          type: string
+          description: The person who answers for this account. Required at creation.
+        organizations:
+          type: array
+          items: { type: string }
+        enabled: { type: boolean }
+        tokens:
+          type: integer
+          description: How many of its credentials are live.
+    ServiceAccountList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ServiceAccount' }
+    ServiceAccountDisabled:
+      type: object
+      properties:
+        username: { type: string }
+        tokensRevoked: { type: integer }
     ComponentTokenList:
       type: object
       properties:
@@ -7156,6 +7183,151 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetCredentialsUpdatedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/component-tokens/{tokenID}/rotate:
+    post:
+      tags: [Admin]
+      summary: Rotate Component Token
+      operationId: rotateComponentToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: tokenID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Replacement issued; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts:
+    get:
+      tags: [Admin]
+      summary: List Service Accounts
+      operationId: listServiceAccounts
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccountList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Admin]
+      summary: Create Service Account
+      operationId: createServiceAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts/{username}:
+    delete:
+      tags: [Admin]
+      summary: Disable Service Account
+      operationId: disableServiceAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Credentials revoked and the account disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceAccountDisabled'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/service-accounts/{username}/tokens:
+    post:
+      tags: [Admin]
+      summary: Create Service Account Token
+      operationId: createServiceAccountToken
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Credential issued; the secret is shown once
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComponentTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/owner:
+    put:
+      tags: [Workloads]
+      summary: Set App Owner
+      operationId: setAppOwner
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
