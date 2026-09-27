@@ -12,6 +12,7 @@ import {
   Gauge,
   Home,
   LayoutDashboard,
+  Puzzle,
   Library,
   Network,
   PanelLeft,
@@ -25,7 +26,8 @@ import {
   Webhook,
   KeyRound,
 } from 'lucide-react';
-import { useT } from '@/lib/i18n';
+import { useExtensions } from '@/lib/extensions';
+import { useI18n, useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { useAIServices, useProject } from '@/lib/api/queries';
 import { config, isEnterprise } from '@/lib/config';
@@ -35,6 +37,9 @@ import { Button } from '@/components/ui/button';
 import type { TranslationKey } from '@/lib/i18n';
 
 interface NavItem {
+  /** Un libelle deja resolu, pour les entrees qu'un module apporte a
+   *  l'execution et qui n'ont donc pas de clef de traduction. */
+  label?: string;
   to: string;
   labelKey: TranslationKey;
   icon: React.ComponentType<{ className?: string }>;
@@ -83,6 +88,10 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
   {
     labelKey: 'adminNav.people',
     items: [
+      // La vue d'ensemble etait le seul onglet horizontal restant a cote des
+      // modules : deux barres de navigation pour un ecran, dont aucune ne
+      // disait ce que l'autre contenait. Elle vit ici comme les autres.
+      { to: '/admin', labelKey: 'admin.overview', icon: LayoutDashboard, end: true },
       { to: '/admin/identity', labelKey: 'nav.identity', icon: Users },
       { to: '/admin/rbac', labelKey: 'nav.rbac', icon: Shield },
     ],
@@ -126,7 +135,7 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
 
 function NavRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const t = useT();
-  const label = t(item.labelKey);
+  const label = item.label ?? t(item.labelKey);
   const Icon = item.icon;
   return (
     <NavLink
@@ -170,7 +179,9 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const t = useT();
+  const { locale } = useI18n();
   const { isAdmin } = useAuth();
+  const adminModules = useExtensions('admin.section');
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
   const inAdministration = location.pathname.startsWith('/admin');
@@ -239,11 +250,30 @@ export function Sidebar({
                 </p>
               )}
             </div>
-            {ADMIN_GROUPS.map((group) => {
+            {([
+              ...ADMIN_GROUPS,
+              // Les modules d'entreprise arrivent par le point d'extension et
+              // avaient leur propre barre d'onglets, au-dessus, sans que rien
+              // ne dise pourquoi eux et pas les autres. Une seule navigation :
+              // ils prennent leur groupe ici, comme le reste.
+              ...(adminModules.length > 0
+                ? [
+                    {
+                      labelKey: 'adminNav.modules' as TranslationKey,
+                      items: adminModules.map((module) => ({
+                        to: `/admin/${module.id}`,
+                        labelKey: 'adminNav.modules' as TranslationKey,
+                        label: module.title[locale],
+                        icon: Puzzle,
+                      })),
+                    },
+                  ]
+                : []),
+            ] as { labelKey: TranslationKey; items: NavItem[] }[]).map((group) => {
               const items = group.items.filter((item) => !item.enterpriseOnly || isEnterprise());
               if (items.length === 0) return null;
               return (
-                <div key={group.labelKey} className="mb-2 space-y-1">
+                <div key={`${group.labelKey}:${items[0]?.to ?? ''}`} className="mb-2 space-y-1">
                   {collapsed ? null : (
                     <p className="px-2.5 pt-1 text-[0.625rem] uppercase tracking-wide text-sidebar-muted/70">
                       {t(group.labelKey)}

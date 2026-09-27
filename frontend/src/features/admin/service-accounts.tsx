@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { Copy, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -92,6 +92,15 @@ export function ServiceAccountsSection() {
     onError: (error) => toast.error(error, t('serviceAccounts.title')),
   });
 
+  const rotate = useMutation({
+    mutationFn: (tokenId: string) => adminApi.rotateComponentToken(tokenId),
+    onSuccess: (result) => {
+      setIssued(result.secret);
+      invalidate(qk.componentTokens);
+    },
+    onError: (error) => toast.error(error, t('serviceAccounts.title')),
+  });
+
   const revoke = useMutation({
     mutationFn: (tokenId: string) => adminApi.revokeComponentToken(tokenId),
     onSuccess: () => invalidate(qk.componentTokens),
@@ -159,6 +168,25 @@ export function ServiceAccountsSection() {
       align: 'right',
       cell: (token) =>
         token.revokedAt ? null : (
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={rotate.isPending}
+              onClick={() =>
+                ask({
+                  title: t('serviceAccounts.rotate'),
+                  description: t('serviceAccounts.rotateWarning', {
+                    name: token.component || token.name,
+                  }),
+                  confirmLabel: t('serviceAccounts.rotate'),
+                  onConfirm: () => rotate.mutateAsync(token.id),
+                })
+              }
+            >
+              <RefreshCw aria-hidden />
+              {t('serviceAccounts.rotate')}
+            </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -177,6 +205,7 @@ export function ServiceAccountsSection() {
             <Trash2 aria-hidden />
             {t('common.revoke')}
           </Button>
+          </div>
         ),
     },
   ];
@@ -190,6 +219,10 @@ export function ServiceAccountsSection() {
     <div className="space-y-4">
       <SectionHeader title={t('serviceAccounts.title')} description={t('serviceAccounts.subtitle')} />
 
+      {/* Said once, near the top: the first question anybody asks of this
+          screen is what the thing it creates actually is. */}
+      <p className="text-sm text-muted-foreground">{t('serviceAccounts.identityHint')}</p>
+
       {issued ? (
         <Card className="border-brand/40 bg-brand-subtle/40">
           <CardHeader>
@@ -198,8 +231,19 @@ export function ServiceAccountsSection() {
               <CardDescription>{t('tokens.issuedHint')}</CardDescription>
             </CardHeaderText>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             <p className="break-all rounded-md bg-surface p-2 font-mono text-xs">{issued}</p>
+            {/* A credential nobody knows how to present is a credential nobody
+                uses. The line below is the whole contract: a bearer header
+                against this installation's own API. */}
+            <div className="space-y-1">
+              <div className="text-xs font-medium">{t('serviceAccounts.howToTitle')}</div>
+              <p className="text-xs text-muted-foreground">{t('serviceAccounts.howToHint')}</p>
+              <pre className="overflow-x-auto rounded-md bg-surface p-2 font-mono text-xs">
+{`curl -H "Authorization: Bearer ${issued}" \\
+  ${window.location.origin}/api/v1/projects`}
+              </pre>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
@@ -247,7 +291,13 @@ export function ServiceAccountsSection() {
                 maxLength={80}
               />
             </Field>
-            <Field label={t('tokens.scopeLabel')} description={t('serviceAccounts.scopeHint')} className="min-w-44">
+            <Field
+              label={t('tokens.scopeLabel')}
+              description={
+                scope === 'full' ? t('serviceAccounts.scopeFullWarning') : t('serviceAccounts.scopeHint')
+              }
+              className="min-w-44"
+            >
               <Select value={scope} onValueChange={setScope} options={scopeOptions} />
             </Field>
             <Field label={t('common.expiresAt')} className="min-w-40">

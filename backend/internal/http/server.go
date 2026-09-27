@@ -89,6 +89,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/component-tokens", h.ListComponentTokens)
 	mux.HandleFunc("POST /api/v1/admin/component-tokens", h.CreateComponentToken)
 	mux.HandleFunc("DELETE /api/v1/admin/component-tokens/{tokenID}", h.DeleteComponentToken)
+	mux.HandleFunc("POST /api/v1/admin/component-tokens/{tokenID}/rotate", h.RotateComponentToken)
 	mux.HandleFunc("GET /api/v1/dashboards", h.ListDashboards)
 	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
 	// The same lifecycle as an application: a dashboard is the same workload,

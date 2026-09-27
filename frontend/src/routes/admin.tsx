@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/common/states';
 import {
   Card,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   useAdminOverview,
   useProjects,
@@ -119,7 +119,6 @@ function IdentitySection() {
 
 export function AdminPage() {
   const t = useT();
-  const { locale } = useI18n();
   const navigate = useNavigate();
   const { section } = useParams<{ section?: string }>();
   const { isAdmin } = useAuth();
@@ -148,20 +147,13 @@ export function AdminPage() {
       <PageHeader title={t('admin.title')} description={t('admin.subtitle')} />
 
       <Tabs value={active} onValueChange={(value) => navigate(`/admin/${value}`)}>
-        {/* The sections live in the sidebar, grouped: twelve of them on one
-            horizontal bar ran off the side of the screen and put "Audit" next
-            to "Network" as though they were the same kind of thing. What stays
-            here is the overview and whatever an Enterprise module adds, which
-            is a short list by construction. */}
-        <TabsList>
-          <TabsTrigger value="overview">{t('admin.overview')}</TabsTrigger>
-          {extensions.map((module) => (
-            <TabsTrigger key={module.id} value={module.id}>
-              {module.title[locale]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
+        {/* No tab bar. Every section, the overview and the Enterprise modules
+            included, is an entry in the sidebar - one navigation surface for
+            one screen. Two of them, a horizontal strip holding three items
+            above a sidebar holding twelve, said nothing about which held what:
+            "je comprends pas ces sous-menus". Tabs remain as the mechanism
+            that swaps the content for the route; they are no longer a place to
+            click. */}
         <TabsContent value="overview">
           <OverviewSection />
         </TabsContent>

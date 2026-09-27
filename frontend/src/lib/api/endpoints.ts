@@ -604,6 +604,11 @@ export const adminApi = {
     api.post<{ token: ApiToken; secret: string; note: string }>(`${V1}/admin/component-tokens`, input),
   revokeComponentToken: (tokenId: string) =>
     api.delete<void>(`${V1}/admin/component-tokens/${encodeURIComponent(tokenId)}`),
+  rotateComponentToken: (tokenId: string) =>
+    api.post<{ token: ApiToken; secret: string; note: string }>(
+      `${V1}/admin/component-tokens/${encodeURIComponent(tokenId)}/rotate`,
+      {},
+    ),
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   softwareInventory: () => api.get<SoftwareInventory>(`${V1}/admin/software-inventory`),
   smtp: () => api.get<SmtpState>(`${V1}/admin/smtp`),

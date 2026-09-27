@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -132,6 +133,84 @@ func (h Handlers) CreateComponentToken(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"token":  token,
 		"secret": tokenPrefix + "_" + token.ID + "_" + secret,
+		"note":   "this secret is shown once and cannot be recovered",
+	})
+}
+
+// RotateComponentToken issues a replacement and revokes the original.
+//
+// A secret is stored as a hash and shown once, which is the only arrangement
+// where losing the database does not hand somebody every component's
+// credential. The cost is that a secret mislaid is a secret gone - and the
+// answer to that is not to keep it readable, it is to make replacing it a
+// single deliberate act.
+//
+// Server-side and in this order for a reason: create, then revoke. Composed
+// by a client as two calls, a failure between them leaves two live
+// credentials for one component - which is exactly how seven backup-runner
+// tokens accumulated on the DC, one per redeploy, none revoked. If the
+// revocation fails here, the replacement is revoked in turn and the caller is
+// told nothing changed, because one working credential is the invariant worth
+// protecting.
+func (h Handlers) RotateComponentToken(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
+	if !ok {
+		return
+	}
+	if !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "component tokens are managed by an administrator"})
+		return
+	}
+	if h.apiTokenStore == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "api tokens are not configured"})
+		return
+	}
+	previousID := strings.TrimSpace(r.PathValue("tokenID"))
+	previous, found, err := h.apiTokenStore.Get(previousID)
+	if err != nil || !found || strings.TrimSpace(previous.Component) == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "component token not found"})
+		return
+	}
+	if previous.RevokedAt != nil {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "this credential is already revoked; create a new one"})
+		return
+	}
+
+	id, secret, err := newTokenParts()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to generate a token"})
+		return
+	}
+	sum := sha256.Sum256([]byte(secret))
+	// Same component, same scopes, same expiry: a rotation replaces the
+	// secret and nothing else, so nobody has to remember what the old one
+	// could do.
+	replacement := apitoken.Token{
+		ID: id, Component: previous.Component, Name: previous.Name,
+		Scopes:    previous.Scopes,
+		CreatedAt: time.Now().UTC(), SecretHash: sum[:],
+		ExpiresAt: previous.ExpiresAt,
+	}
+	if err := h.apiTokenStore.Put(replacement); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create the replacement"})
+		return
+	}
+	if _, err := h.apiTokenStore.Revoke(previousID, previous.UserID, time.Now().UTC()); err != nil {
+		// Leave one credential, not two. The replacement goes back rather than
+		// staying alive beside the one it failed to retire.
+		if _, undo := h.apiTokenStore.Revoke(id, replacement.UserID, time.Now().UTC()); undo != nil {
+			log.Printf("component token rotate: replacement %s could not be revoked after a failed rotation: %v", id, undo)
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to revoke the previous credential; nothing changed"})
+		return
+	}
+	replacement.SecretHash = nil
+	h.emitAudit(r, identity.UserID(), "component-token.rotate", "component-token", id, "", "success", "", map[string]any{
+		"component": previous.Component, "replaced": previousID,
+	})
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"token":  replacement,
+		"secret": tokenPrefix + "_" + replacement.ID + "_" + secret,
 		"note":   "this secret is shown once and cannot be recovered",
 	})
 }

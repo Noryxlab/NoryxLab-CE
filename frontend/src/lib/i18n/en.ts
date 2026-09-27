@@ -876,6 +876,12 @@ export const en: Translations = {
     subtitle: 'What this project has attached from the catalogue. Nothing is copied: detaching deletes nothing.',
   },
   serviceAccounts: {
+    rotate: 'Renew',
+    rotateWarning: 'A new secret is issued for {name} and the old one stops working at once. The new one is shown only once.',
+    howToTitle: 'How to use it',
+    howToHint: 'The secret goes in the authorization header. It will not be shown again after this page.',
+    identityHint: 'A service account is not a user: it has no name and no account, it acts as the platform, and its scope is what limits it. The audit records it under the component name.',
+    scopeFullWarning: 'The full scope limits nothing: this account will be able to do anything on the platform.',
     title: 'Service accounts',
     subtitle: 'The credentials automation authenticates with: backups, validation, continuous integration. They belong to nobody and are revoked one at a time.',
     component: 'Component',
@@ -1077,6 +1083,7 @@ export const en: Translations = {
   },
 
   adminNav: {
+    modules: 'Modules',
 
     people: 'People and access',
 

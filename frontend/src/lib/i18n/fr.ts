@@ -882,6 +882,12 @@ export const fr = {
     subtitle: "Ce que ce projet a rattaché depuis le catalogue. Rien n'est copié : détacher ne supprime rien.",
   },
   serviceAccounts: {
+    rotate: 'Renouveler',
+    rotateWarning: 'Un nouveau secret est emis pour {name} et l ancien cesse aussitot de fonctionner. Le nouveau ne s affiche qu une fois.',
+    howToTitle: 'Comment s en servir',
+    howToHint: 'Le secret s envoie en en-tete d autorisation. Il ne s affichera plus apres cette page.',
+    identityHint: 'Un compte de service n est pas un utilisateur : il n a ni nom ni compte, il agit au nom de la plateforme, et sa portee est ce qui le limite. L audit l enregistre sous le nom du composant.',
+    scopeFullWarning: 'La portee full ne limite rien : ce compte pourra tout faire sur la plateforme.',
     title: 'Comptes de service',
     subtitle: 'Les identifiants avec lesquels une automatisation s’authentifie : sauvegarde, validation, intégration continue. Ils n’appartiennent à personne et se révoquent un par un.',
     component: 'Composant',
@@ -1083,6 +1089,7 @@ export const fr = {
   },
 
   adminNav: {
+    modules: 'Modules',
 
     people: 'Personnes et accès',
 
