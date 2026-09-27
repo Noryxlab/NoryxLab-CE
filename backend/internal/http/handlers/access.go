@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
@@ -693,6 +694,69 @@ func (h Handlers) requireAdminModuleFromSessionOrBearer(w http.ResponseWriter, r
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required"})
 	return auth.Identity{}, false
+}
+
+// administratorNames answers "does this account hold the administrator role"
+// without asking the directory on every request.
+//
+// A personal token used to carry no role at all, so an administrator's own
+// token was not administrator-capable - narrower than its owner rather than
+// equal to them. That was never decided; it fell out of building the identity
+// from the token row, which has no roles in it. It cost twice: it is why the
+// platform's components needed a credential acting as the platform itself, and
+// why revoking the leaked ops-console credential on 2026-09-26 left no way to
+// automate anything administrative at all.
+//
+// A token now carries its owner's rights, and the scope is what narrows it -
+// the field the owner already chooses and an auditor can already read. A token
+// is therefore at most its owner and usually less.
+//
+// The role is cached for a minute. A revoked administrator keeps their token's
+// authority for up to that long, which is the price of not asking Keycloak on
+// every call; revoking the token itself is immediate, and that is the control
+// an administrator reaches for.
+type administratorNames struct {
+	mu        sync.Mutex
+	names     map[string]bool
+	fetchedAt time.Time
+}
+
+const administratorCacheFor = time.Minute
+
+var administrators administratorNames
+
+func (h Handlers) holdsGlobalAdminRole(identifier string) bool {
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	if identifier == "" || h.keycloak == nil {
+		return false
+	}
+	administrators.mu.Lock()
+	defer administrators.mu.Unlock()
+	if administrators.names == nil || time.Since(administrators.fetchedAt) > administratorCacheFor {
+		members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole)
+		if err != nil {
+			// Refuse rather than guess. A directory that will not answer must
+			// not silently promote a token, and the caller keeps whatever a
+			// previous answer gave them until the cache expires.
+			log.Printf("api token: administrators unavailable, treating the caller as non-admin: %v", err)
+			return false
+		}
+		names := make(map[string]bool, len(members)*2)
+		for _, member := range members {
+			if !member.Enabled {
+				continue
+			}
+			if name := strings.ToLower(strings.TrimSpace(member.Username)); name != "" {
+				names[name] = true
+			}
+			if mail := strings.ToLower(strings.TrimSpace(member.Email)); mail != "" {
+				names[mail] = true
+			}
+		}
+		administrators.names = names
+		administrators.fetchedAt = time.Now()
+	}
+	return administrators.names[identifier]
 }
 
 func (h Handlers) isGlobalAdmin(identity auth.Identity) bool {

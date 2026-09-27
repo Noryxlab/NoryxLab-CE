@@ -215,7 +215,22 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 			Scopes:     token.Scopes,
 		}, true
 	}
-	return auth.Identity{Username: token.UserID, Roles: map[string]struct{}{}, Scopes: token.Scopes, TokenProjectID: token.ProjectID}, true
+	// A personal token acts as its owner, rights included.
+	//
+	// It used to be built with no roles at all, so an administrator's own token
+	// could not reach an administration endpoint - narrower than its owner
+	// rather than equal to them, and never decided: it fell out of building the
+	// identity from a token row, which has no roles in it.
+	//
+	// The scope is what narrows a token, and it is the field the owner chose.
+	// The gate it feeds can only refuse, so a read token stays a read token in
+	// an administrator's hands: it may read what that administrator can read,
+	// and it may not write.
+	roles := map[string]struct{}{}
+	if h.holdsGlobalAdminRole(token.UserID) {
+		roles[globalAdminRole] = struct{}{}
+	}
+	return auth.Identity{Username: token.UserID, Roles: roles, Scopes: token.Scopes, TokenProjectID: token.ProjectID}, true
 }
 
 // touchAPIToken records use at most once a minute. Without the interval a busy
