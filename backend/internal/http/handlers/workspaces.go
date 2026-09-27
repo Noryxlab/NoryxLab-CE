@@ -1078,6 +1078,22 @@ func repositoryAuthEnvName(secretName string) string {
 	return userSecretEnvName(secretName)
 }
 
+// A clone that fails says so, and tries once more without the shortcut.
+//
+// Both branches used to end in "|| true", which keeps a workspace starting
+// when one repository is unreachable - right, and a workspace that refuses to
+// start because a repository moved would be worse. But it also swallowed the
+// reason: the person saw a missing directory and concluded the platform had
+// ignored their repository, and the only evidence was gone. Azure DevOps
+// cloning was reported broken on 2026-09-26 with nothing to diagnose from, on
+// either cluster, in fourteen days of logs.
+//
+// So the outcome is announced, with the repository's name and address, and a
+// failed shallow clone is retried in full. "--depth 1" is our optimisation,
+// not the user's requirement: some servers - Azure DevOps Server among the
+// ones commonly reported - serve a full clone where they refuse a shallow one.
+// Trying the cheap one first costs nothing when it works and stops being a
+// silent dead end when it does not.
 func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []string {
 	clonePrefix := ""
 	if repo.AuthEnvName != "" {
@@ -1101,9 +1117,12 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 			"EOF",
 			fmt.Sprintf("chmod 700 %s", shellQuote(credentialHelper)),
 			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-			fmt.Sprintf("  %sgit -C %s pull --ff-only || true", clonePrefix, shellQuote(repoDir)),
+			fmt.Sprintf("  %sgit -C %s pull --ff-only || echo '[bootstrap] pull failed for %s; the working copy is unchanged'", clonePrefix, shellQuote(repoDir), repo.Name),
 			"else",
-			fmt.Sprintf("  %sgit clone --depth 1 %s %s || true", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+			fmt.Sprintf("  %sgit clone --depth 1 %s %s || {", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+			fmt.Sprintf("    echo '[bootstrap] shallow clone of %s failed, retrying in full'", repo.Name),
+			fmt.Sprintf("    %sgit clone %s %s || echo '[bootstrap] CLONE FAILED for %s (%s); the workspace starts without it'", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir), repo.Name, strings.TrimSpace(repo.URL)),
+			"  }",
 			"fi",
 			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --replace-all credential.helper ''; fi", shellQuote(repoDir), shellQuote(repoDir)),
 			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --add credential.helper %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote("!"+credentialHelper)),
@@ -1112,9 +1131,12 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 	}
 	return []string{
 		fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-		fmt.Sprintf("  git -C %s pull --ff-only || true", shellQuote(repoDir)),
+		fmt.Sprintf("  git -C %s pull --ff-only || echo '[bootstrap] pull failed for %s; the working copy is unchanged'", shellQuote(repoDir), repo.Name),
 		"else",
-		fmt.Sprintf("  git clone --depth 1 %s %s || true", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+		fmt.Sprintf("  git clone --depth 1 %s %s || {", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+		fmt.Sprintf("    echo '[bootstrap] shallow clone of %s failed, retrying in full'", repo.Name),
+		fmt.Sprintf("    git clone %s %s || echo '[bootstrap] CLONE FAILED for %s (%s); the workspace starts without it'", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir), repo.Name, strings.TrimSpace(repo.URL)),
+		"  }",
 		"fi",
 	}
 }
