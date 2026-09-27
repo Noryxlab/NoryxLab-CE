@@ -79,6 +79,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/apps/{appID}/restart", h.RestartApp)
 	mux.HandleFunc("POST /api/v1/apps/{appID}/stop", h.StopApp)
 	mux.HandleFunc("DELETE /api/v1/apps/{appID}", h.DeleteApp)
+	mux.HandleFunc("PUT /api/v1/apps/{appID}/owner", h.SetAppOwner)
 	mux.HandleFunc("GET /api/v1/production/apps", h.ListProductionApps)
 	// What the platform's AI services can do right now, for the indicator on
 	// the home page: the assistant, the code assistant and the agents all

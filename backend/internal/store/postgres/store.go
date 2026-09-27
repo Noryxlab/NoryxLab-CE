@@ -275,6 +275,12 @@ func migrationStatements() []string {
 		)`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'app'`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS owner_user_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		// Everything that exists today belongs to the person who launched it,
+		// which is exactly the state ADR-039 exists to let an installation
+		// leave - so the backfill says so plainly rather than guessing.
+		`UPDATE apps SET owner_type='user', owner_id=owner_user_id WHERE owner_type='' AND owner_user_id<>''`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS access_mode TEXT NOT NULL DEFAULT 'project'`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_users_json JSONB NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS allowed_organizations_json JSONB NOT NULL DEFAULT '[]'`,
@@ -1090,7 +1096,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 }
 
 func (s *Store) ListApps() ([]app.App, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, owner_user_id, owner_type, owner_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1118,10 +1124,12 @@ func (s *Store) ListApps() ([]app.App, error) {
 func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, owner_type, owner_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.OwnerUserID,
+		&item.OwnerType,
+		&item.OwnerID,
 		&item.Kind,
 		&item.Name,
 		&item.Slug,
@@ -1162,10 +1170,12 @@ func (s *Store) GetAppByID(id string) (app.App, bool, error) {
 func (s *Store) GetAppBySlug(slug string) (app.App, bool, error) {
 	var item app.App
 	var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, owner_user_id, owner_type, owner_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at, hardware_tier FROM apps WHERE slug=$1`, strings.TrimSpace(strings.ToLower(slug))).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.OwnerUserID,
+		&item.OwnerType,
+		&item.OwnerID,
 		&item.Kind,
 		&item.Name,
 		&item.Slug,
@@ -1208,10 +1218,12 @@ func (s *Store) CreateApp(item app.App) error {
 	argsJSON, _ := json.Marshal(item.Args)
 	usersJSON, _ := json.Marshal(item.AllowedUsers)
 	organizationsJSON, _ := json.Marshal(item.AllowedOrganizations)
-	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, hardware_tier) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+	_, err := s.db.Exec(`INSERT INTO apps (id, project_id, owner_user_id, owner_type, owner_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, hardware_tier) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
 		item.ID,
 		item.ProjectID,
 		item.OwnerUserID,
+		item.OwnerType,
+		item.OwnerID,
 		item.Kind,
 		item.Name,
 		item.Slug,
@@ -1238,10 +1250,12 @@ func (s *Store) UpsertApp(item app.App) error {
 	usersJSON, _ := json.Marshal(item.AllowedUsers)
 	organizationsJSON, _ := json.Marshal(item.AllowedOrganizations)
 	_, err := s.db.Exec(`
-		INSERT INTO apps (id, project_id, owner_user_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+		INSERT INTO apps (id, project_id, owner_user_id, owner_type, owner_id, kind, name, slug, image, command_json, args_json, port, pod_name, service_name, status, access_url, access_mode, allowed_users_json, allowed_organizations_json, created_at, published, active_revision, published_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
+			owner_type=EXCLUDED.owner_type,
+			owner_id=EXCLUDED.owner_id,
 			kind=EXCLUDED.kind,
 			name=EXCLUDED.name,
 			slug=EXCLUDED.slug,
@@ -1263,6 +1277,8 @@ func (s *Store) UpsertApp(item app.App) error {
 		item.ID,
 		item.ProjectID,
 		item.OwnerUserID,
+		item.OwnerType,
+		item.OwnerID,
 		item.Kind,
 		item.Name,
 		item.Slug,

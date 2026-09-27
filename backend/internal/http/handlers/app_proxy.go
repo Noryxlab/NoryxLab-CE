@@ -144,7 +144,10 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	if appIdentityMatches(identity, record.OwnerUserID) {
+	// The effective owner, which is no longer necessarily the person who
+	// launched it: an app transferred to an organization or to a service
+	// account is reached by whoever that owner covers.
+	if appIdentityMatches(identity, firstNonEmpty(record.OwnerID, record.OwnerUserID)) {
 		return true
 	}
 	switch mode {

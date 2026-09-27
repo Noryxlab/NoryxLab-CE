@@ -597,6 +597,11 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
 	record.OwnerUserID = userID
+	// Owned by whoever launched it, until somebody transfers it. The pair is
+	// set explicitly rather than left empty: an app whose owner is implied by
+	// a legacy column is one nobody can hand over.
+	record.OwnerType = "user"
+	record.OwnerID = userID
 	record.AccessMode = req.AccessMode
 	record.AllowedUsers = normalizeAppSubjects(req.AllowedUsers)
 	record.AllowedOrganizations = normalizeAppSubjects(req.AllowedOrganizations)

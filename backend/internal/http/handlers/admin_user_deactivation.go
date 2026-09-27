@@ -205,7 +205,10 @@ func (h Handlers) ownedBy(userID string) (transferReport, error) {
 			return report, err
 		}
 		for _, item := range apps {
-			if strings.EqualFold(strings.TrimSpace(item.OwnerUserID), userID) {
+			// What they own, not what they launched. An app handed to an
+			// organization or to a service account is exactly the case this
+			// transfer exists to stop being necessary.
+			if isPersonallyOwnedBy(item.OwnerType, firstNonEmpty(item.OwnerID, item.OwnerUserID), userID) {
 				report.Apps = append(report.Apps, item.Name)
 			}
 		}
@@ -302,6 +305,8 @@ func (h Handlers) transferOwnership(from, to string) (transferReport, error) {
 				continue
 			}
 			item.OwnerUserID = to
+			item.OwnerType = "user"
+			item.OwnerID = to
 			if err := h.appStore.Upsert(item); err != nil {
 				return moved, err
 			}

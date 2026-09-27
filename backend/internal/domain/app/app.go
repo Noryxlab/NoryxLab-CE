@@ -8,9 +8,18 @@ import (
 )
 
 type App struct {
-	ID                   string     `json:"id"`
-	ProjectID            string     `json:"projectId"`
-	OwnerUserID          string     `json:"ownerUserId"`
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	// OwnerUserID is who created it, kept as it was.
+	OwnerUserID string `json:"ownerUserId"`
+	// OwnerType and OwnerID are who answers for it, which is not the same
+	// question and until ADR-039 had no way of being asked: an app could only
+	// belong to the person who launched it, so a production went unowned the
+	// day they left. The pair matches what datasets and projects already
+	// carry - "user", "organization", or a service account, which is a user
+	// the directory marks as not being a person.
+	OwnerType            string     `json:"ownerType,omitempty"`
+	OwnerID              string     `json:"ownerId,omitempty"`
 	Kind                 string     `json:"kind"`
 	Name                 string     `json:"name"`
 	Slug                 string     `json:"slug"`
