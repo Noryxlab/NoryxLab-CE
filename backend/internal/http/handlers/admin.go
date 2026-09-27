@@ -66,8 +66,12 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		// Administrator marks the accounts that can act on everybody else's
 		// work. An administration screen that does not distinguish them is one
 		// where the most consequential fact about a row is the one it omits.
-		Administrator bool       `json:"administrator,omitempty"`
-		LastSeenAt    *time.Time `json:"lastSeenAt,omitempty"`
+		Administrator bool `json:"administrator,omitempty"`
+		// ServiceAccount marks a principal that is not a person. The audit
+		// treats it like any other actor, which is honest; a screen that let a
+		// reader mistake it for a colleague would not be.
+		ServiceAccount bool       `json:"serviceAccount,omitempty"`
+		LastSeenAt     *time.Time `json:"lastSeenAt,omitempty"`
 		// FirstSeenAt with LastSeenAt makes "seen" a span: it is what tells a
 		// never-signed-in account from one seen once, long ago.
 		FirstSeenAt *time.Time `json:"firstSeenAt,omitempty"`
@@ -115,6 +119,12 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 			teamsByUser = found
 		}
 	}
+	// Which of these are not people. A directory that will not answer costs
+	// the marker, not the page - the same rule as the administrator badge.
+	serviceAccounts, err := h.serviceAccountUsernames()
+	if err != nil {
+		log.Printf("users: service accounts unavailable, listing without the marker: %v", err)
+	}
 	for _, user := range users {
 		row := userRow{User: user}
 		// Matched on both, because a team is composed from whichever
@@ -127,6 +137,7 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 		}
 		row.Administrator = administrators[strings.ToLower(user.Username)] ||
 			administrators[strings.ToLower(user.Email)]
+		row.ServiceAccount = serviceAccounts[strings.ToLower(user.Username)]
 		if organization := membership[strings.ToLower(user.Username)]; organization != "" {
 			row.Organization = organization
 		} else {

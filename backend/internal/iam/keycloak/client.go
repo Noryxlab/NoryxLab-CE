@@ -39,6 +39,10 @@ type User struct {
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
 	Enabled   bool   `json:"enabled"`
+	// Attributes carries what the realm does not model - for a service
+	// account, who answers for it. Keycloak omits them from a list unless
+	// asked, so they are read one account at a time and never in a listing.
+	Attributes map[string][]string `json:"attributes,omitempty"`
 }
 
 type Organization struct {
@@ -149,6 +153,9 @@ func (c *Client) CreateUser(user User) (string, error) {
 		"lastName":      strings.TrimSpace(user.LastName),
 		"enabled":       true,
 		"emailVerified": false,
+	}
+	if len(user.Attributes) > 0 {
+		payload["attributes"] = user.Attributes
 	}
 	if err := c.adminJSON(http.MethodPost, "users", payload, nil); err != nil {
 		return "", err
@@ -339,6 +346,66 @@ func (c *Client) ClientAudiences(clientID string) ([]string, error) {
 		}
 	}
 	return audiences, nil
+}
+
+// GetUser reads one account in full, attributes included.
+//
+// Separate from ListUsers on purpose: the list asks Keycloak for a brief
+// representation, which omits attributes, and widening it would make every
+// screen that shows thirty people pay for a field two of them use.
+func (c *Client) GetUser(identifier string) (User, bool, error) {
+	userID, err := c.resolveUserID(identifier)
+	if err != nil || strings.TrimSpace(userID) == "" {
+		return User{}, false, err
+	}
+	var user User
+	if err := c.adminJSON(http.MethodGet, "users/"+url.PathEscape(userID), nil, &user); err != nil {
+		return User{}, false, err
+	}
+	return user, strings.TrimSpace(user.ID) != "", nil
+}
+
+// EnsureRealmRole creates a realm role when it is missing, and says nothing
+// when it is already there.
+//
+// Roles are how this platform already marks a kind of account - the
+// administrators are a realm role, listed in one call rather than asked
+// account by account. A service account is marked the same way, for the same
+// reason.
+func (c *Client) EnsureRealmRole(name, description string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("a role name is required")
+	}
+	var existing struct {
+		Name string `json:"name"`
+	}
+	if err := c.adminJSON(http.MethodGet, "roles/"+url.PathEscape(name), nil, &existing); err == nil && existing.Name != "" {
+		return nil
+	}
+	return c.adminJSON(http.MethodPost, "roles", map[string]any{
+		"name": name, "description": strings.TrimSpace(description),
+	}, nil)
+}
+
+// AddRealmRole grants a realm role to an account.
+func (c *Client) AddRealmRole(identifier, role string) error {
+	userID, err := c.resolveUserID(identifier)
+	if err != nil {
+		return err
+	}
+	var found struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := c.adminJSON(http.MethodGet, "roles/"+url.PathEscape(strings.TrimSpace(role)), nil, &found); err != nil {
+		return err
+	}
+	if strings.TrimSpace(found.ID) == "" {
+		return errors.New("role " + role + " does not exist")
+	}
+	return c.adminJSON(http.MethodPost, "users/"+url.PathEscape(userID)+"/role-mappings/realm",
+		[]map[string]any{{"id": found.ID, "name": found.Name}}, nil)
 }
 
 func (c *Client) resolveUserID(identifier string) (string, error) {

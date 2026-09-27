@@ -90,6 +90,13 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/admin/component-tokens", h.CreateComponentToken)
 	mux.HandleFunc("DELETE /api/v1/admin/component-tokens/{tokenID}", h.DeleteComponentToken)
 	mux.HandleFunc("POST /api/v1/admin/component-tokens/{tokenID}/rotate", h.RotateComponentToken)
+
+	// Service accounts: principals that are not people. Separate from the
+	// component tokens above, which are the platform's own plumbing.
+	mux.HandleFunc("GET /api/v1/admin/service-accounts", h.ListServiceAccounts)
+	mux.HandleFunc("POST /api/v1/admin/service-accounts", h.CreateServiceAccount)
+	mux.HandleFunc("POST /api/v1/admin/service-accounts/{username}/tokens", h.CreateServiceAccountToken)
+	mux.HandleFunc("DELETE /api/v1/admin/service-accounts/{username}", h.DisableServiceAccount)
 	mux.HandleFunc("GET /api/v1/dashboards", h.ListDashboards)
 	mux.HandleFunc("POST /api/v1/dashboards", h.CreateDashboard)
 	// The same lifecycle as an application: a dashboard is the same workload,
