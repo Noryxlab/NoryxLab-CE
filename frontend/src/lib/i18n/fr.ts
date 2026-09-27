@@ -1224,6 +1224,7 @@ export const fr = {
     indicator: 'Alertes plateforme',
   },
   settings: {
+    key_alert_email: 'Boîte mail d’alerte',
     title: 'Réglages de la plateforme',
     subtitle: 'Paramètres modifiables sans redéploiement.',
     precedence: 'Un réglage défini ici prime sur la variable d’environnement, qui prime sur la valeur par défaut. Vider un champ rétablit la valeur héritée.',

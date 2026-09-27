@@ -1218,6 +1218,7 @@ export const en: Translations = {
     indicator: 'Platform alerts',
   },
   settings: {
+    key_alert_email: 'Alert mailbox',
     title: 'Platform settings',
     subtitle: 'Parameters changeable without a redeployment.',
     precedence: 'A value set here overrides the environment variable, which overrides the default. Clearing a field restores the inherited value.',

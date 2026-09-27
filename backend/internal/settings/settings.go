@@ -65,7 +65,12 @@ const (
 	KeyAlertWebhookURL      = "alert.webhook_url"
 	KeyAlertInstanceName    = "alert.instance_name"
 	KeyAlertFormat          = "alert.format"
-	KeyDefaultTheme         = "ui.default_theme"
+	// KeyAlertEmail is a mailbox that receives the same alerts as the webhook.
+	// A site that closes every outbound SMTP port still has the mail bridge,
+	// and a site with no chat receiver has a mailbox - so the two destinations
+	// are independent and either alone is enough.
+	KeyAlertEmail   = "alert.email"
+	KeyDefaultTheme = "ui.default_theme"
 
 	// Facts, exposed for visibility and refused for writing.
 	KeyBackendVersion = "platform.backend_version"
@@ -91,6 +96,16 @@ func Definitions() []Definition {
 			Label:       "Alert webhook",
 			Description: "HTTP endpoint receiving alerts. Empty: alerts remain visible in the interface only.",
 			Fallback:    "",
+		},
+		{
+			Key:    KeyAlertEmail,
+			EnvVar: "NORYX_ALERT_EMAIL",
+			Kind:   KindString,
+			Label:  "Alert mailbox",
+			Description: "Address receiving the same alerts as the webhook, sent through the " +
+				"mail server the realm already uses. Either destination alone is enough; " +
+				"neither means alerts stay visible in the interface only.",
+			Fallback: "",
 		},
 		{
 			Key:         KeyAlertInstanceName,

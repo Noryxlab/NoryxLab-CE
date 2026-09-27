@@ -222,16 +222,44 @@ type Options struct {
 // newNotifier resolves the webhook from the settings store when one exists, so
 // an administrator can change the destination without a redeployment, and falls
 // back to the boot configuration otherwise.
-func newNotifier(options Options) *notify.Notifier {
+func newNotifier(options Options, keycloakClient *keycloak.Client) *notify.Notifier {
 	if options.Settings == nil {
 		return notify.New(options.AlertWebhookURL, options.AlertInstanceName)
 	}
-	return notify.NewDynamic(func() (string, string) {
+	notifier := notify.NewDynamic(func() (string, string) {
 		return options.Settings.String(settings.KeyAlertWebhookURL),
 			options.Settings.String(settings.KeyAlertInstanceName)
 	}).WithFormat(func() string {
 		return options.Settings.String(settings.KeyAlertFormat)
 	})
+	// The mail server is read from the realm rather than copied into the
+	// platform's settings: Keycloak is what sends onboarding and password
+	// resets, and a second copy here would be a second truth - the one that
+	// matters being whichever nobody edited. Only the recipient is ours.
+	if keycloakClient != nil {
+		notifier = notifier.WithMail(func() notify.MailDestination {
+			to := strings.TrimSpace(options.Settings.String(settings.KeyAlertEmail))
+			if to == "" {
+				return notify.MailDestination{}
+			}
+			smtpSettings, err := keycloakClient.SMTP()
+			if err != nil || !smtpSettings.Configured() {
+				return notify.MailDestination{}
+			}
+			// A relay demanding credentials cannot be used here: the realm
+			// stores its password write-only, deliberately, so an
+			// administrator cannot read somebody else's out of the screen.
+			// Inside a cluster the bridge asks for none.
+			if smtpSettings.Auth {
+				return notify.MailDestination{}
+			}
+			return notify.MailDestination{
+				Host: smtpSettings.Host, Port: smtpSettings.Port,
+				From: smtpSettings.From, To: to, StartTLS: smtpSettings.StartTLS,
+			}
+		})
+	}
+	return notifier
 }
 
 func New(
@@ -302,7 +330,7 @@ func New(
 		rbacPolicyStore:                  rbacPolicyStore,
 		roleBaseCache:                    &rbacRoleBaseCache{},
 		backupRunStore:                   backupRunStore,
-		notifier:                         newNotifier(options),
+		notifier:                         newNotifier(options, keycloakClient),
 		workspaceMaxLifetime:             options.WorkspaceMaxLifetime,
 		passwordLinkLifetime:             options.PasswordLinkLifetime,
 		datasetSizeStore:                 options.DatasetSizeStore,

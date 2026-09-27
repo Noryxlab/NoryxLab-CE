@@ -54,6 +54,7 @@ type Notifier struct {
 	// format is resolved per send, like the destination: an operator changing
 	// it must not have to restart the platform to see the effect.
 	format func() string
+	mail   func() MailDestination
 	client *http.Client
 }
 
@@ -130,14 +131,17 @@ func (n *Notifier) Enabled() bool {
 		return false
 	}
 	url, _ := n.destination()
-	return url != ""
+	return url != "" || n.mailDestination().usable()
 }
 
 // Send delivers an alert. Failures are logged and swallowed: a broken
 // alerting channel must never take down the operation that raised the alert.
 func (n *Notifier) Send(ctx context.Context, alert Alert) {
 	webhookURL, instance := n.destination()
-	if webhookURL == "" {
+	// Neither destination configured is silence, not a failure. One of the two
+	// is enough: an installation with a mailbox and no webhook is exactly the
+	// case this was added for.
+	if webhookURL == "" && !n.mailDestination().usable() {
 		return
 	}
 	if alert.OccurredAt.IsZero() {
@@ -148,6 +152,11 @@ func (n *Notifier) Send(ctx context.Context, alert Alert) {
 	}
 	alert.Instance = instance
 	alert.SchemaVersi = "noryx-alert-v1"
+
+	n.sendMail(ctx, alert, instance)
+	if webhookURL == "" {
+		return
+	}
 
 	var body []byte
 	contentType := "application/json"

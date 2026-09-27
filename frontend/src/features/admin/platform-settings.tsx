@@ -32,6 +32,7 @@ import type { EffectiveSetting } from '@/lib/api/types';
 const SETTING_LABEL: Record<string, TranslationKey> = {
   'workspace.max_lifetime': 'settings.key_workspace_max_lifetime',
   'alert.webhook_url': 'settings.key_alert_webhook_url',
+  'alert.email': 'settings.key_alert_email',
   'alert.instance_name': 'settings.key_alert_instance_name',
   'ui.default_theme': 'settings.key_ui_default_theme',
   'platform.backend_version': 'settings.key_platform_backend_version',
