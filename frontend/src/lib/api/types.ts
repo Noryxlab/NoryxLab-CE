@@ -623,6 +623,9 @@ export interface PlatformUser {
    *  un role personnalise que ceci ne voit pas : le marqueur affirme
    *  "administrateur", jamais "pas administrateur". */
   administrator?: boolean;
+  /** A principal that is not a person. The audit treats it like any other
+   *  actor; a screen that let a reader mistake it for a colleague would not. */
+  serviceAccount?: boolean;
   /** Derniere connexion reussie, absente quand le compte ne s'est jamais
    *  connecte - ce qui est une reponse, et souvent la plus interessante :
    *  l'annuaire dit qui a le droit d'entrer, la plateforme dit qui est entre.
@@ -968,6 +971,20 @@ export interface HealthHistory {
 }
 
 /** A credential a user presents instead of a browser session. */
+/** A principal that is not a person: it belongs to an organization, can hold
+ *  roles and own resources, and cannot sign in. Its credentials are tokens. */
+export interface ServiceAccount {
+  username: string;
+  purpose?: string;
+  /** The person who answers for what this account does. Required at creation. */
+  responsible?: string;
+  organizations?: string[];
+  enabled: boolean;
+  /** How many of its credentials are live. None means it does nothing; five is
+   *  a question. */
+  tokens: number;
+}
+
 export interface ApiToken {
   id: string;
   userId: string;

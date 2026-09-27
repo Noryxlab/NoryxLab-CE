@@ -110,7 +110,11 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
       // Un compte de service n'est pas une personne : il vit ici, dans les
       // operations, parce que celui qui en cree un est en train d'automatiser
       // une production ou une maintenance, pas de gerer un annuaire.
-      { to: '/admin/service-accounts', labelKey: 'nav.serviceAccounts', icon: KeyRound },
+      { to: '/admin/service-accounts', labelKey: 'nav.serviceAccounts', icon: Bot },
+      // Deux objets, deux entrees. Un compte de service est un principal qui
+      // appartient a un client ; un identifiant de composant est la plomberie
+      // interne de la plateforme. Les confondre etait l'erreur d'origine.
+      { to: '/admin/component-credentials', labelKey: 'nav.componentCredentials', icon: KeyRound },
       { to: '/admin/usage', labelKey: 'usage.title', icon: Gauge },
       { to: '/admin/backups', labelKey: 'nav.backups', icon: Archive, enterpriseOnly: true },
     ],

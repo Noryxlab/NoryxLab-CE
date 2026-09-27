@@ -81,6 +81,7 @@ import type {
   UserPreferences,
   VersionInfo,
   Workspace,
+  ServiceAccount,
   WorkspaceStartup,
 } from './types';
 
@@ -597,6 +598,27 @@ export const egressApi = {
 };
 
 export const adminApi = {
+  /** Service accounts: principals that are not people (ADR-039). Distinct
+   *  from the component credentials below, which are the platform's own. */
+  serviceAccounts: () => api.list<ServiceAccount>(`${V1}/admin/service-accounts`),
+  createServiceAccount: (input: {
+    username: string;
+    purpose?: string;
+    organizationId?: string;
+    responsibleUserId: string;
+  }) => api.post<ServiceAccount>(`${V1}/admin/service-accounts`, input),
+  createServiceAccountToken: (
+    username: string,
+    input: { name?: string; scopes: string[]; expiresInDays?: number },
+  ) =>
+    api.post<{ token: ApiToken; secret: string; note: string }>(
+      `${V1}/admin/service-accounts/${encodeURIComponent(username)}/tokens`,
+      input,
+    ),
+  disableServiceAccount: (username: string) =>
+    api.delete<{ username: string; tokensRevoked: number }>(
+      `${V1}/admin/service-accounts/${encodeURIComponent(username)}`,
+    ),
   /** Service accounts: the credentials the platform's own components and a
    *  customer's automation authenticate with. Administered, never personal. */
   componentTokens: () => api.get<{ items: ApiToken[]; scopes: string[] }>(`${V1}/admin/component-tokens`),

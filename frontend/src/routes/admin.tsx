@@ -39,6 +39,7 @@ import { DataGovernanceSection } from '@/features/admin/data-governance-section'
 import { NetworkSection } from '@/features/admin/network-section';
 import { RbacSection } from '@/features/admin/rbac-section';
 import { StorageSection } from '@/features/admin/storage-section';
+import { ComponentCredentialsSection } from '@/features/admin/component-credentials';
 import { ServiceAccountsSection } from '@/features/admin/service-accounts';
 
 const SECTIONS = [
@@ -52,6 +53,7 @@ const SECTIONS = [
   'storage',
   'inventory',
   'service-accounts',
+  'component-credentials',
   'backups',
   'audit',
   'settings',
@@ -177,6 +179,9 @@ export function AdminPage() {
         </TabsContent>
         <TabsContent value="service-accounts">
           <ServiceAccountsSection />
+        </TabsContent>
+        <TabsContent value="component-credentials">
+          <ComponentCredentialsSection />
         </TabsContent>
         <TabsContent value="inventory">
           <SoftwareInventorySection />

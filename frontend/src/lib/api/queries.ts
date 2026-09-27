@@ -105,6 +105,7 @@ export const qk = {
   adminSmtp: ['admin', 'smtp'] as const,
   apiTokens: ['user', 'api-tokens'] as const,
   componentTokens: ['admin', 'component-tokens'] as const,
+  serviceAccounts: ['admin', 'service-accounts'] as const,
   projectOrganizationRoles: (projectId: string) =>
     ['projects', projectId, 'organization-roles'] as const,
   adminHealthHistory: (days: number) => ['admin', 'health', 'history', days] as const,
@@ -499,6 +500,9 @@ export const usePlatformHealthHistory = (days: number, enabled: boolean) =>
     enabled,
     retry: false,
   });
+
+export const useServiceAccounts = () =>
+  useQuery({ queryKey: qk.serviceAccounts, queryFn: adminApi.serviceAccounts });
 
 export const useComponentTokens = () =>
   useQuery({ queryKey: qk.componentTokens, queryFn: adminApi.componentTokens });

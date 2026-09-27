@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accountState } from './service-accounts';
+import { accountState } from './component-credentials';
 
 /**
  * What an administrator needs to tell apart at a glance.

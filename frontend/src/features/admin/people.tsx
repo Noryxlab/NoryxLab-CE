@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Building2, ChevronDown, ChevronRight, MoreHorizontal, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bot, Building2, ChevronDown, ChevronRight, MoreHorizontal, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,6 +95,30 @@ function PresenceDot({ user }: { user: PlatformUser }) {
  *  ligne de l'ancienne table et n'etait plus que dans le panneau - il fallait
  *  ouvrir chaque personne pour savoir, l'inverse du but. Compact dans l'arbre,
  *  ou un badge entier a la profondeur 2 mangerait le nom. */
+/** Ce qui n'est pas une personne le dit.
+ *
+ *  L'audit enregistre un compte de service comme n'importe quel acteur, et
+ *  c'est honnete ; un ecran qui laisse confondre un robot avec un collegue ne
+ *  l'est pas. Le marqueur est discret et systematique : il accompagne le nom
+ *  partout ou le nom apparait. */
+function ServiceAccountMark({ user, compact }: { user: PlatformUser; compact?: boolean }) {
+  const t = useT();
+  if (!user.serviceAccount) return null;
+  if (compact) {
+    return (
+      <span className="inline-flex shrink-0" title={t('people.serviceAccountHint')} aria-label={t('serviceAccounts.title')}>
+        <Bot aria-hidden className="size-3.5 text-muted-foreground" />
+      </span>
+    );
+  }
+  return (
+    <Badge tone="neutral" title={t('people.serviceAccountHint')}>
+      <Bot aria-hidden className="size-3" />
+      {t('people.serviceAccount')}
+    </Badge>
+  );
+}
+
 function AdminMark({ user, compact }: { user: PlatformUser; compact?: boolean }) {
   const t = useT();
   if (!user.administrator) return null;
@@ -262,6 +286,7 @@ function PeopleList({ people, search, onOpen }: { people: PlatformUser[]; search
           <PresenceDot user={u} />
           <span>{displayName(u)}</span>
           <AdminMark user={u} />
+          <ServiceAccountMark user={u} />
           <span className="text-xs text-muted-foreground">{u.username}</span>
         </span>
       ),

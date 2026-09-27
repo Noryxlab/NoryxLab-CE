@@ -61,6 +61,7 @@ export const en: Translations = {
   },
 
   nav: {
+    componentCredentials: 'Component credentials',
     serviceAccounts: 'Service accounts',
     administrator: 'Admin',
     home: 'Home',
@@ -841,6 +842,8 @@ export const en: Translations = {
     samples: 'Samples',
   },
   people: {
+    serviceAccount: 'Service account',
+    serviceAccountHint: 'This account is not a person: no password, no sign-in, it acts through a token.',
     title: 'People & organisations',
     hint: 'Who is who: each organisation, its teams, and the people in them. Everything is edited from the right-hand panel.',
     newOrganization: 'New organisation',
@@ -876,6 +879,30 @@ export const en: Translations = {
     subtitle: 'What this project has attached from the catalogue. Nothing is copied: detaching deletes nothing.',
   },
   serviceAccounts: {
+    title: 'Service accounts',
+    subtitle: 'Accounts that are not people: they belong to an organization, hold roles, own what must outlive whoever set it up, and never sign in.',
+    createTitle: 'Create a service account',
+    createHint: 'No password and no sign-in: its credentials are tokens, issued here.',
+    nameHint: 'The name the audit will record it under.',
+    namePlaceholder: 'for-production',
+    purpose: 'What it does',
+    purposePlaceholder: 'Publishes the study dashboards',
+    responsible: 'Responsible',
+    responsibleHint: 'The person who answers for this account. Required.',
+    noResponsible: 'nobody',
+    credentials: 'Live tokens',
+    noCredential: 'none',
+    issue: 'Issue a token',
+    nextCredential: 'Scope of the next token',
+    created: 'Service account created',
+    disableTitle: 'Disable',
+    disableWarning: '{name} will stop acting: its tokens are revoked, then the account is disabled. What it owns stays its own, and the audit keeps its trail.',
+    disabled: 'Account disabled, {count} token(s) revoked',
+    empty: 'No service account',
+    emptyHint: 'A service account carries a production nobody should have to inherit the day its author leaves.',
+  },
+
+  componentCredentials: {
     rotate: 'Renew',
     rotateWarning: 'A new secret is issued for {name} and the old one stops working at once. The new one is shown only once.',
     howToTitle: 'How to use it',

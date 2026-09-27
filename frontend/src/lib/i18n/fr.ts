@@ -64,6 +64,7 @@ export const fr = {
   },
 
   nav: {
+    componentCredentials: 'Identifiants de composant',
     serviceAccounts: 'Comptes de service',
     administrator: 'Admin',
     home: 'Accueil',
@@ -847,6 +848,8 @@ export const fr = {
     samples: 'Mesures',
   },
   people: {
+    serviceAccount: 'Compte de service',
+    serviceAccountHint: 'Ce compte n est pas une personne : il n a pas de mot de passe, ne se connecte jamais, et agit par jeton.',
     title: 'Personnes & organisations',
     hint: 'Qui est qui : chaque organisation, ses equipes, et les personnes qui les composent. Tout se modifie depuis le panneau de droite.',
     newOrganization: 'Nouvelle organisation',
@@ -882,6 +885,30 @@ export const fr = {
     subtitle: "Ce que ce projet a rattaché depuis le catalogue. Rien n'est copié : détacher ne supprime rien.",
   },
   serviceAccounts: {
+    title: 'Comptes de service',
+    subtitle: 'Des comptes qui ne sont pas des personnes : ils appartiennent a une organisation, portent des roles, possedent ce qui doit survivre a ceux qui l ont mis en place, et ne se connectent jamais.',
+    createTitle: 'Creer un compte de service',
+    createHint: 'Pas de mot de passe, pas de connexion : ses identifiants sont des jetons, emis ici.',
+    nameHint: 'Le nom sous lequel l audit l enregistrera.',
+    namePlaceholder: 'for-production',
+    purpose: 'Ce qu il fait',
+    purposePlaceholder: 'Publie les tableaux de bord de l etude',
+    responsible: 'Responsable',
+    responsibleHint: 'La personne qui repond de ce compte. Obligatoire.',
+    noResponsible: 'personne',
+    credentials: 'Jetons vivants',
+    noCredential: 'aucun',
+    issue: 'Emettre un jeton',
+    nextCredential: 'Portee du prochain jeton',
+    created: 'Compte de service cree',
+    disableTitle: 'Desactiver',
+    disableWarning: '{name} cessera d agir : ses jetons sont revoques puis le compte est desactive. Ce qu il possede reste a lui, et l audit garde sa trace.',
+    disabled: 'Compte desactive, {count} jeton(s) revoque(s)',
+    empty: 'Aucun compte de service',
+    emptyHint: 'Un compte de service porte une production que personne ne doit reprendre le jour ou son auteur part.',
+  },
+
+  componentCredentials: {
     rotate: 'Renouveler',
     rotateWarning: 'Un nouveau secret est emis pour {name} et l ancien cesse aussitot de fonctionner. Le nouveau ne s affiche qu une fois.',
     howToTitle: 'Comment s en servir',

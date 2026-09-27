@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Copy, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Bot, Copy, KeyRound, Plus, UserMinus } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -20,230 +20,196 @@ import { EmptyState, ErrorState } from '@/components/common/states';
 import { SectionHeader } from '@/components/common/page-header';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useToast } from '@/components/ui/toast';
-import { useComponentTokens, qk, useInvalidate } from '@/lib/api/queries';
+import { useAdminUsers, useOrganizations, useServiceAccounts, qk, useInvalidate } from '@/lib/api/queries';
 import { adminApi } from '@/lib/api/endpoints';
-import { useI18n, useT } from '@/lib/i18n';
-import { formatDateTime, formatRelative } from '@/lib/format';
-import type { ApiToken } from '@/lib/api/types';
+import { useT } from '@/lib/i18n';
+import type { ServiceAccount } from '@/lib/api/types';
 
 /**
- * Service accounts.
+ * Service accounts: principals that are not people (ADR-039).
  *
- * The platform could already issue a credential to a component - the backup
- * runner, the validator, a customer's pipeline - and only through the API,
- * which needs an administrator's session to call. A credential that can only
- * be born from an API call is one nobody can list, and nobody remembers to
- * revoke: seven `backup-runner` tokens were found on the DC on 2026-09-26,
- * one created per redeploy, none revoked, none used since September.
+ * The question this exists for: an app belongs to FOR and goes into
+ * production, the person who launched it leaves, and who at FOR answers for
+ * it? Naming a successor moves the responsibility from one human to the next,
+ * every time, on the worst possible day. A service account holds it instead -
+ * it belongs to an organization, it can own what must outlive the people who
+ * set it up, and it does not resign.
  *
- * So the screen exists to make them visible, not merely creatable. What it
- * shows first is what an administrator needs to decide: which of these is
- * still being used, and by whom.
- *
- * One scope per account, like a personal token. An account needing two things
- * is two accounts, which is also what makes an audit line readable.
+ * It cannot sign in. Its credentials are API tokens carrying its own name, so
+ * what it does is audited under that name, in the same column as a person's.
+ * Which is exactly why the screen insists on the one thing a directory cannot
+ * infer: who answers for it.
  */
 
-const EXPIRY_CHOICES = ['30', '90', '365', '0'] as const;
-
-export function accountState(token: ApiToken, now: Date): 'revoked' | 'expired' | 'idle' | 'active' {
-  if (token.revokedAt) return 'revoked';
-  if (token.expiresAt && new Date(token.expiresAt) <= now) return 'expired';
-  if (!token.lastUsedAt) return 'idle';
-  return 'active';
-}
-
-function expiryDate(days: string): string | undefined {
-  const count = Number(days);
-  if (!count) return undefined;
-  const when = new Date();
-  when.setDate(when.getDate() + count);
-  return when.toISOString();
-}
+const EXPIRY_CHOICES = ['90', '365', '0'] as const;
 
 export function ServiceAccountsSection() {
   const t = useT();
-  const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
   const { ask } = useConfirm();
-  const tokens = useComponentTokens();
+  const accounts = useServiceAccounts();
+  const organizations = useOrganizations();
+  const people = useAdminUsers();
 
-  const [component, setComponent] = React.useState('');
-  const [scope, setScope] = React.useState('read');
-  const [expiresIn, setExpiresIn] = React.useState<string>('365');
-  // Held in state and never refetched: the secret exists in the creation
-  // response and nowhere else, ever again.
+  const [username, setUsername] = React.useState('');
+  const [purpose, setPurpose] = React.useState('');
+  const [organizationId, setOrganizationId] = React.useState('');
+  const [responsible, setResponsible] = React.useState('');
   const [issued, setIssued] = React.useState<string | null>(null);
+  const [tokenScope, setTokenScope] = React.useState('read');
+  const [tokenExpiry, setTokenExpiry] = React.useState<string>('365');
 
   const create = useMutation({
     mutationFn: () =>
-      adminApi.createComponentToken({
-        component: component.trim(),
-        name: component.trim(),
-        scopes: [scope],
-        expiresAt: expiryDate(expiresIn),
+      adminApi.createServiceAccount({
+        username: username.trim(),
+        purpose: purpose.trim() || undefined,
+        organizationId: organizationId || undefined,
+        responsibleUserId: responsible,
+      }),
+    onSuccess: () => {
+      setUsername('');
+      setPurpose('');
+      invalidate(qk.serviceAccounts);
+      toast.success(t('serviceAccounts.created'), t('serviceAccounts.title'));
+    },
+    onError: (error) => toast.error(error, t('serviceAccounts.title')),
+  });
+
+  const issue = useMutation({
+    mutationFn: (account: ServiceAccount) =>
+      adminApi.createServiceAccountToken(account.username, {
+        name: account.username,
+        scopes: [tokenScope],
+        expiresInDays: Number(tokenExpiry) || undefined,
       }),
     onSuccess: (result) => {
       setIssued(result.secret);
-      setComponent('');
-      invalidate(qk.componentTokens);
+      invalidate(qk.serviceAccounts);
     },
     onError: (error) => toast.error(error, t('serviceAccounts.title')),
   });
 
-  const rotate = useMutation({
-    mutationFn: (tokenId: string) => adminApi.rotateComponentToken(tokenId),
+  const disable = useMutation({
+    mutationFn: (username: string) => adminApi.disableServiceAccount(username),
     onSuccess: (result) => {
-      setIssued(result.secret);
-      invalidate(qk.componentTokens);
+      invalidate(qk.serviceAccounts);
+      toast.success(
+        t('serviceAccounts.disabled', { count: result.tokensRevoked }),
+        t('serviceAccounts.title'),
+      );
     },
     onError: (error) => toast.error(error, t('serviceAccounts.title')),
   });
 
-  const revoke = useMutation({
-    mutationFn: (tokenId: string) => adminApi.revokeComponentToken(tokenId),
-    onSuccess: () => invalidate(qk.componentTokens),
-    onError: (error) => toast.error(error, t('serviceAccounts.title')),
-  });
-
-  const now = new Date();
-  const items = tokens.data?.items ?? [];
-
-  const columns: Column<ApiToken>[] = [
+  const columns: Column<ServiceAccount>[] = [
     {
-      id: 'component',
-      header: t('serviceAccounts.component'),
-      sortValue: (token) => (token.component ?? '').toLowerCase(),
-      searchValue: (token) => `${token.component ?? ''} ${token.name}`,
-      cell: (token) => (
+      id: 'name',
+      header: t('common.name'),
+      sortValue: (account) => account.username,
+      searchValue: (account) => `${account.username} ${account.purpose ?? ''}`,
+      cell: (account) => (
         <div className="min-w-0">
-          <div className="truncate font-medium">{token.component || token.name}</div>
-          {token.name && token.name !== token.component ? (
-            <div className="truncate text-xs text-muted-foreground">{token.name}</div>
+          <div className="flex items-center gap-1.5">
+            <Bot className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="truncate font-medium">{account.username}</span>
+            {account.enabled ? null : <Badge tone="neutral">{t('people.deactivated')}</Badge>}
+          </div>
+          {account.purpose ? (
+            <div className="truncate text-xs text-muted-foreground">{account.purpose}</div>
           ) : null}
         </div>
       ),
     },
     {
-      id: 'scope',
-      header: t('tokens.scopeLabel'),
-      cell: (token) => <Badge tone="outline">{(token.scopes ?? ['full']).join(', ')}</Badge>,
+      id: 'organization',
+      header: t('common.organization'),
+      cell: (account) => (account.organizations ?? []).join(', ') || '—',
     },
     {
-      id: 'state',
-      header: t('common.status'),
-      sortValue: (token) => accountState(token, now),
-      cell: (token) => {
-        const state = accountState(token, now);
-        // "Never used" is its own state rather than an empty cell: it is the
-        // one that says a credential was created and forgotten.
-        const tone = state === 'active' ? 'success' : state === 'idle' ? 'warning' : 'neutral';
-        return <Badge tone={tone}>{t(`serviceAccounts.state_${state}` as 'serviceAccounts.state_active')}</Badge>;
-      },
-    },
-    {
-      id: 'lastUsed',
-      header: t('serviceAccounts.lastUsed'),
-      align: 'right',
-      sortValue: (token) => (token.lastUsedAt ? new Date(token.lastUsedAt).getTime() : 0),
-      cell: (token) =>
-        token.lastUsedAt ? (
-          <span title={formatDateTime(token.lastUsedAt)}>{formatRelative(token.lastUsedAt, locale)}</span>
+      id: 'responsible',
+      // The column that makes the whole thing worth having: an account that
+      // answers to nobody is how a regulated dataset ends up unowned.
+      header: t('serviceAccounts.responsible'),
+      sortValue: (account) => account.responsible ?? '',
+      cell: (account) =>
+        account.responsible ? (
+          account.responsible
         ) : (
-          <span className="text-muted-foreground">{t('common.neverUsed')}</span>
+          <Badge tone="warning">{t('serviceAccounts.noResponsible')}</Badge>
         ),
     },
     {
-      id: 'expires',
-      header: t('common.expiresAt'),
+      id: 'tokens',
+      header: t('serviceAccounts.credentials'),
       align: 'right',
-      sortValue: (token) => (token.expiresAt ? new Date(token.expiresAt).getTime() : Infinity),
-      cell: (token) =>
-        token.expiresAt ? formatDateTime(token.expiresAt) : t('tokens.expiryNever'),
+      sortValue: (account) => account.tokens,
+      cell: (account) =>
+        account.tokens === 0 ? (
+          <span className="text-muted-foreground">{t('serviceAccounts.noCredential')}</span>
+        ) : (
+          <span className="tabular-nums">{account.tokens}</span>
+        ),
     },
     {
       id: 'actions',
       header: '',
       align: 'right',
-      cell: (token) =>
-        token.revokedAt ? null : (
+      cell: (account) =>
+        account.enabled ? (
           <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" loading={issue.isPending} onClick={() => issue.mutate(account)}>
+              <KeyRound aria-hidden />
+              {t('serviceAccounts.issue')}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
-              loading={rotate.isPending}
               onClick={() =>
                 ask({
-                  title: t('serviceAccounts.rotate'),
-                  description: t('serviceAccounts.rotateWarning', {
-                    name: token.component || token.name,
-                  }),
-                  confirmLabel: t('serviceAccounts.rotate'),
-                  onConfirm: () => rotate.mutateAsync(token.id),
+                  title: t('serviceAccounts.disableTitle'),
+                  description: t('serviceAccounts.disableWarning', { name: account.username }),
+                  confirmLabel: t('serviceAccounts.disableTitle'),
+                  destructive: true,
+                  onConfirm: () => disable.mutateAsync(account.username),
                 })
               }
             >
-              <RefreshCw aria-hidden />
-              {t('serviceAccounts.rotate')}
+              <UserMinus aria-hidden />
+              {t('serviceAccounts.disableTitle')}
             </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() =>
-              ask({
-                title: t('common.revoke'),
-                description: t('serviceAccounts.revokeWarning', {
-                  name: token.component || token.name,
-                }),
-                confirmLabel: t('common.revoke'),
-                destructive: true,
-                onConfirm: () => revoke.mutateAsync(token.id),
-              })
-            }
-          >
-            <Trash2 aria-hidden />
-            {t('common.revoke')}
-          </Button>
           </div>
-        ),
+        ) : null,
     },
   ];
 
-  const scopeOptions = (tokens.data?.scopes ?? ['read', 'full']).map((value) => ({
-    value,
-    label: value,
-  }));
+  const peopleOptions = (people.data ?? [])
+    .filter((person) => !person.serviceAccount)
+    .map((person) => ({
+      value: person.username ?? person.id,
+      label: person.username ?? person.id,
+      hint: person.email ?? undefined,
+    }));
 
   return (
     <div className="space-y-4">
       <SectionHeader title={t('serviceAccounts.title')} description={t('serviceAccounts.subtitle')} />
-
-      {/* Said once, near the top: the first question anybody asks of this
-          screen is what the thing it creates actually is. */}
-      <p className="text-sm text-muted-foreground">{t('serviceAccounts.identityHint')}</p>
 
       {issued ? (
         <Card className="border-brand/40 bg-brand-subtle/40">
           <CardHeader>
             <CardHeaderText>
               <CardTitle>{t('tokens.issuedTitle')}</CardTitle>
-              <CardDescription>{t('tokens.issuedHint')}</CardDescription>
+              <CardDescription>{t('componentCredentials.howToHint')}</CardDescription>
             </CardHeaderText>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             <p className="break-all rounded-md bg-surface p-2 font-mono text-xs">{issued}</p>
-            {/* A credential nobody knows how to present is a credential nobody
-                uses. The line below is the whole contract: a bearer header
-                against this installation's own API. */}
-            <div className="space-y-1">
-              <div className="text-xs font-medium">{t('serviceAccounts.howToTitle')}</div>
-              <p className="text-xs text-muted-foreground">{t('serviceAccounts.howToHint')}</p>
-              <pre className="overflow-x-auto rounded-md bg-surface p-2 font-mono text-xs">
+            <pre className="overflow-x-auto rounded-md bg-surface p-2 font-mono text-xs">
 {`curl -H "Authorization: Bearer ${issued}" \\
   ${window.location.origin}/api/v1/projects`}
-              </pre>
-            </div>
+            </pre>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
@@ -276,41 +242,54 @@ export function ServiceAccountsSection() {
             className="flex flex-wrap items-end gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              if (component.trim()) create.mutate();
+              if (username.trim() && responsible) create.mutate();
             }}
           >
-            <Field
-              label={t('serviceAccounts.component')}
-              description={t('serviceAccounts.componentHint')}
-              className="min-w-56 flex-1"
-            >
+            <Field label={t('common.name')} description={t('serviceAccounts.nameHint')} className="min-w-48 flex-1">
               <Input
-                value={component}
-                onChange={(event) => setComponent(event.target.value)}
-                placeholder={t('serviceAccounts.componentPlaceholder')}
-                maxLength={80}
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder={t('serviceAccounts.namePlaceholder')}
+                maxLength={64}
+              />
+            </Field>
+            <Field label={t('serviceAccounts.purpose')} className="min-w-48 flex-1">
+              <Input
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+                placeholder={t('serviceAccounts.purposePlaceholder')}
+                maxLength={120}
+              />
+            </Field>
+            <Field label={t('common.organization')} className="min-w-40">
+              <Select
+                value={organizationId}
+                onValueChange={setOrganizationId}
+                options={(organizations.data ?? []).map((organization) => ({
+                  value: organization.id,
+                  label: organization.name,
+                }))}
+                placeholder={t('common.search')}
               />
             </Field>
             <Field
-              label={t('tokens.scopeLabel')}
-              description={
-                scope === 'full' ? t('serviceAccounts.scopeFullWarning') : t('serviceAccounts.scopeHint')
-              }
+              label={t('serviceAccounts.responsible')}
+              description={t('serviceAccounts.responsibleHint')}
               className="min-w-44"
             >
-              <Select value={scope} onValueChange={setScope} options={scopeOptions} />
-            </Field>
-            <Field label={t('common.expiresAt')} className="min-w-40">
               <Select
-                value={expiresIn}
-                onValueChange={setExpiresIn}
-                options={EXPIRY_CHOICES.map((value) => ({
-                  value,
-                  label: value === '0' ? t('tokens.expiryNever') : t('tokens.expiryDays', { days: value }),
-                }))}
+                value={responsible}
+                onValueChange={setResponsible}
+                options={peopleOptions}
+                placeholder={t('common.search')}
               />
             </Field>
-            <Button type="submit" variant="primary" disabled={!component.trim()} loading={create.isPending}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!username.trim() || !responsible}
+              loading={create.isPending}
+            >
               <Plus aria-hidden />
               {t('common.create')}
             </Button>
@@ -318,18 +297,49 @@ export function ServiceAccountsSection() {
         </CardContent>
       </Card>
 
-      {tokens.isLoading ? (
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-2 p-3">
+          {/* The credential a click on "issue" will produce, decided before the
+              click rather than in a dialog after it. */}
+          <Field label={t('serviceAccounts.nextCredential')} className="min-w-40">
+            <Select
+              value={tokenScope}
+              onValueChange={setTokenScope}
+              options={['read', 'datasets', 'workspaces', 'jobs', 'operate', 'full'].map((value) => ({
+                value,
+                label: value,
+              }))}
+            />
+          </Field>
+          <Field label={t('common.expiresAt')} className="min-w-36">
+            <Select
+              value={tokenExpiry}
+              onValueChange={setTokenExpiry}
+              options={EXPIRY_CHOICES.map((value) => ({
+                value,
+                label: value === '0' ? t('tokens.expiryNever') : t('tokens.expiryDays', { days: value }),
+              }))}
+            />
+          </Field>
+        </CardContent>
+      </Card>
+
+      {accounts.isLoading ? (
         <Skeleton className="h-40 w-full" />
-      ) : tokens.isError ? (
-        <ErrorState error={tokens.error} onRetry={() => void tokens.refetch()} />
+      ) : accounts.isError ? (
+        <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
       ) : (
         <DataTable
-          data={items}
+          data={accounts.data ?? []}
           columns={columns}
-          rowKey={(token) => token.id}
-          defaultSort={{ columnId: 'state', direction: 'asc' }}
+          rowKey={(account) => account.username}
+          defaultSort={{ columnId: 'name', direction: 'asc' }}
           emptyState={
-            <EmptyState title={t('serviceAccounts.empty')} description={t('serviceAccounts.emptyHint')} />
+            <EmptyState
+              icon={Bot}
+              title={t('serviceAccounts.empty')}
+              description={t('serviceAccounts.emptyHint')}
+            />
           }
         />
       )}
