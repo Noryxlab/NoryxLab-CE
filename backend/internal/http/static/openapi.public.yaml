@@ -7192,7 +7192,11 @@ paths:
   /api/v1/admin/component-tokens/{tokenID}/rotate:
     post:
       tags: [Admin]
-      summary: Rotate Component Token
+      summary: Issue a replacement credential and revoke the current one
+      description: >-
+        Same component, scopes and expiry; a new secret, shown once. Server-side and in
+        that order, because composed as two calls a failure between them leaves two live
+        credentials for one component.
       operationId: rotateComponentToken
       security:
         - bearerAuth: []
@@ -7218,7 +7222,10 @@ paths:
   /api/v1/admin/service-accounts:
     get:
       tags: [Admin]
-      summary: List Service Accounts
+      summary: List the principals that are not people
+      description: >-
+        Each with its organizations, who answers for it, and how many of its credentials
+        are live.
       operationId: listServiceAccounts
       security:
         - bearerAuth: []
@@ -7238,7 +7245,11 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       tags: [Admin]
-      summary: Create Service Account
+      summary: Create a principal that is not a person
+      description: >-
+        No password and no interactive sign-in. The responsible person is required: a
+        non-human account that can own regulated data and answers to nobody is how a
+        dataset ends up unaccounted for.
       operationId: createServiceAccount
       security:
         - bearerAuth: []
@@ -7259,7 +7270,10 @@ paths:
   /api/v1/admin/service-accounts/{username}:
     delete:
       tags: [Admin]
-      summary: Disable Service Account
+      summary: Revoke its credentials, then disable it
+      description: >-
+        In that order: an account disabled while its tokens still work is not disabled.
+        Disabled rather than deleted, so the audit trail keeps naming the actor.
       operationId: disableServiceAccount
       security:
         - bearerAuth: []
@@ -7285,7 +7299,10 @@ paths:
   /api/v1/admin/service-accounts/{username}/tokens:
     post:
       tags: [Admin]
-      summary: Create Service Account Token
+      summary: Issue a credential that acts as the account
+      description: >-
+        Issued by an administrator because the account has no browser, and owned by the
+        account: revoking the person who created it changes nothing.
       operationId: createServiceAccountToken
       security:
         - bearerAuth: []
@@ -7311,7 +7328,11 @@ paths:
   /api/v1/apps/{appID}/owner:
     put:
       tags: [Workloads]
-      summary: Set App Owner
+      summary: Hand the application to an organization or another account
+      description: >-
+        Decided by its current owner or a project administrator. The target is an
+        organization the caller belongs to, or an account that already reaches the
+        project - an owner who cannot open the application cannot answer for it.
       operationId: setAppOwner
       security:
         - bearerAuth: []
