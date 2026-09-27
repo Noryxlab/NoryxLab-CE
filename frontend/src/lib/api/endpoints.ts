@@ -597,6 +597,13 @@ export const egressApi = {
 };
 
 export const adminApi = {
+  /** Service accounts: the credentials the platform's own components and a
+   *  customer's automation authenticate with. Administered, never personal. */
+  componentTokens: () => api.get<{ items: ApiToken[]; scopes: string[] }>(`${V1}/admin/component-tokens`),
+  createComponentToken: (input: { component: string; name?: string; scopes: string[]; expiresAt?: string }) =>
+    api.post<{ token: ApiToken; secret: string; note: string }>(`${V1}/admin/component-tokens`, input),
+  revokeComponentToken: (tokenId: string) =>
+    api.delete<void>(`${V1}/admin/component-tokens/${encodeURIComponent(tokenId)}`),
   overview: () => api.get<AdminOverview>(`${V1}/admin/overview`),
   softwareInventory: () => api.get<SoftwareInventory>(`${V1}/admin/software-inventory`),
   smtp: () => api.get<SmtpState>(`${V1}/admin/smtp`),

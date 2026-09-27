@@ -104,6 +104,7 @@ export const qk = {
   projectTeamRoles: (projectId: string) => ['projects', projectId, 'team-roles'] as const,
   adminSmtp: ['admin', 'smtp'] as const,
   apiTokens: ['user', 'api-tokens'] as const,
+  componentTokens: ['admin', 'component-tokens'] as const,
   projectOrganizationRoles: (projectId: string) =>
     ['projects', projectId, 'organization-roles'] as const,
   adminHealthHistory: (days: number) => ['admin', 'health', 'history', days] as const,
@@ -498,6 +499,9 @@ export const usePlatformHealthHistory = (days: number, enabled: boolean) =>
     enabled,
     retry: false,
   });
+
+export const useComponentTokens = () =>
+  useQuery({ queryKey: qk.componentTokens, queryFn: adminApi.componentTokens });
 
 export const useApiTokens = () =>
   useQuery({ queryKey: qk.apiTokens, queryFn: platformApi.apiTokens });

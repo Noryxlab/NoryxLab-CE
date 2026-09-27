@@ -980,6 +980,10 @@ export interface ApiToken {
   /** What the token may do, below what its owner may do. Absent or ["full"]
    *  means unrestricted, which is what tokens were before scopes existed. */
   scopes?: string[];
+  /** Set when the credential belongs to a component rather than to a person:
+   *  a backup runner, a validator, a pipeline. It is what tells a service
+   *  account apart from somebody's personal token in the same table. */
+  component?: string;
 }
 
 /** A project role held by every member of an organization. */

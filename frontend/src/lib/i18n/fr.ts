@@ -64,6 +64,7 @@ export const fr = {
   },
 
   nav: {
+    serviceAccounts: 'Comptes de service',
     administrator: 'Admin',
     home: 'Accueil',
     projects: 'Projets',
@@ -880,6 +881,25 @@ export const fr = {
   projectData: {
     subtitle: "Ce que ce projet a rattaché depuis le catalogue. Rien n'est copié : détacher ne supprime rien.",
   },
+  serviceAccounts: {
+    title: 'Comptes de service',
+    subtitle: 'Les identifiants avec lesquels une automatisation s’authentifie : sauvegarde, validation, intégration continue. Ils n’appartiennent à personne et se révoquent un par un.',
+    component: 'Composant',
+    componentHint: 'Le nom du programme qui s’en sert. C’est lui qui apparaîtra dans le journal d’audit.',
+    componentPlaceholder: 'sauvegarde-nocturne',
+    scopeHint: 'Une portée par compte. Un composant qui en demande deux est deux comptes, et l’audit se lit.',
+    createTitle: 'Créer un compte de service',
+    createHint: 'Le secret ne s’affiche qu’une fois, à la création.',
+    lastUsed: 'Dernier usage',
+    state_active: 'actif',
+    state_idle: 'jamais utilisé',
+    state_expired: 'expiré',
+    state_revoked: 'révoqué',
+    revokeWarning: 'Le composant {name} ne pourra plus s’authentifier dès la révocation. Rien ne le préviendra.',
+    empty: 'Aucun compte de service',
+    emptyHint: 'Les composants de la plateforme et vos automatisations s’authentifient avec ces identifiants.',
+  },
+
   admin: {
     visibleAsAdmin: 'admin',
     visibleAsAdminHint: 'Visible parce que vous administrez la plateforme : vous n’avez aucun droit propre sur cet objet.',

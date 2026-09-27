@@ -61,6 +61,7 @@ export const en: Translations = {
   },
 
   nav: {
+    serviceAccounts: 'Service accounts',
     administrator: 'Admin',
     home: 'Home',
     projects: 'Projects',
@@ -874,6 +875,25 @@ export const en: Translations = {
   projectData: {
     subtitle: 'What this project has attached from the catalogue. Nothing is copied: detaching deletes nothing.',
   },
+  serviceAccounts: {
+    title: 'Service accounts',
+    subtitle: 'The credentials automation authenticates with: backups, validation, continuous integration. They belong to nobody and are revoked one at a time.',
+    component: 'Component',
+    componentHint: 'The name of the program using it. It is what the audit trail will show.',
+    componentPlaceholder: 'nightly-backup',
+    scopeHint: 'One scope per account. A component asking for two is two accounts, and the audit stays readable.',
+    createTitle: 'Create a service account',
+    createHint: 'The secret is shown once, at creation.',
+    lastUsed: 'Last used',
+    state_active: 'active',
+    state_idle: 'never used',
+    state_expired: 'expired',
+    state_revoked: 'revoked',
+    revokeWarning: '{name} will stop authenticating the moment this is revoked. Nothing will warn it.',
+    empty: 'No service account',
+    emptyHint: "The platform's own components and your automation authenticate with these credentials.",
+  },
+
   admin: {
     visibleAsAdmin: 'admin',
     visibleAsAdminHint: 'On your screen because you administer the platform: you hold no grant of your own on it.',

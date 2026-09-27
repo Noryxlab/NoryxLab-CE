@@ -23,6 +23,7 @@ import {
   Terminal,
   Users,
   Webhook,
+  KeyRound,
 } from 'lucide-react';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
@@ -97,6 +98,10 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
     labelKey: 'adminNav.operations',
     items: [
       { to: '/admin/activity', labelKey: 'nav.activity', icon: Activity },
+      // Un compte de service n'est pas une personne : il vit ici, dans les
+      // operations, parce que celui qui en cree un est en train d'automatiser
+      // une production ou une maintenance, pas de gerer un annuaire.
+      { to: '/admin/service-accounts', labelKey: 'nav.serviceAccounts', icon: KeyRound },
       { to: '/admin/usage', labelKey: 'usage.title', icon: Gauge },
       { to: '/admin/backups', labelKey: 'nav.backups', icon: Archive, enterpriseOnly: true },
     ],
