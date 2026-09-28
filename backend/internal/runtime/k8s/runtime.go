@@ -169,11 +169,15 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 				"claimName": claimName,
 			},
 		})
-		volumeMounts = append(volumeMounts, map[string]any{
+		mount := map[string]any{
 			"name":      volumeName,
 			"mountPath": mountPath,
 			"readOnly":  vol.ReadOnly,
-		})
+		}
+		if sub := strings.TrimSpace(vol.SubPath); sub != "" {
+			mount["subPath"] = sub
+		}
+		volumeMounts = append(volumeMounts, mount)
 	}
 	for i, secret := range spec.Secrets {
 		secretName := strings.TrimSpace(secret.SecretName)
@@ -219,9 +223,13 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 					},
 				})
 			}
-			sidecarMounts = append(sidecarMounts, map[string]any{
+			mount := map[string]any{
 				"name": volumeName, "mountPath": mountPath, "readOnly": vol.ReadOnly,
-			})
+			}
+			if sub := strings.TrimSpace(vol.SubPath); sub != "" {
+				mount["subPath"] = sub
+			}
+			sidecarMounts = append(sidecarMounts, mount)
 		}
 		for i, secret := range spec.Sidecar.Secrets {
 			secretName := strings.TrimSpace(secret.SecretName)

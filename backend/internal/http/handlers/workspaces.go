@@ -706,11 +706,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			cacheRoot := "/cache"
-			// The workspace sees the cache read-only, where its cohort tree
-			// lives, and the buckets nowhere.
+			// Its own tree, not the cache. The objects underneath are shared
+			// by the whole installation, which is what makes a second team on
+			// the same modality free; what a person browses is theirs. Mounted
+			// whole, the cache showed every cohort of every project.
 			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
 				ClaimName: cohortCacheClaim,
 				MountPath: projectMountPath + "/" + workspaceCohortsPath,
+				SubPath:   "trees/" + podName,
 				ReadOnly:  true,
 			})
 			// The filler runs the workspace's own image: it is already on the
@@ -720,7 +723,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				Name:    "cohort-filler",
 				Image:   record.Image,
 				Command: []string{"/bin/sh", "-c"},
-				Args:    []string{cohortFillerScript(cacheRoot)},
+				Args:    []string{cohortFillerScript(cacheRoot, podName)},
 				// Read-only on the source, whatever the person's role on the
 				// dataset: this container exists to copy out of it, and
 				// nothing it can do should be able to write back.

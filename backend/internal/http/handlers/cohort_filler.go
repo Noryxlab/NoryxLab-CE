@@ -36,12 +36,19 @@ const cohortFillerLanes = 8
 
 // cohortFillerScript copies a cohort's objects into the cache and builds the
 // tree as they land.
-func cohortFillerScript(cacheRoot string) string {
+func cohortFillerScript(cacheRoot, treeName string) string {
 	lines := []string{
 		"#!/bin/sh",
 		"set -u",
 		"manifest=/var/run/noryx/bootstrap/cohorts.b64",
-		fmt.Sprintf("root=%s", shellQuote(cacheRoot)),
+		// Objects are shared and the tree is not. The cache holds one copy of
+		// each file for the whole installation - that is what makes a second
+		// team on the same modality free - and each workspace browses its own
+		// tree of hard links into it. Mounting the cache whole showed a
+		// workspace every cohort ever filled, from every project, and the
+		// filesystem's lost+found beside them.
+		fmt.Sprintf("objets=%s/objects", shellQuote(cacheRoot)),
+		fmt.Sprintf("root=%s/trees/%s", shellQuote(cacheRoot), shellQuote(treeName)),
 		"if [ ! -f \"$manifest\" ]; then",
 		"  echo '[filler] no cohort manifest; nothing to do'",
 		"  exit 0",
@@ -60,17 +67,22 @@ func cohortFillerScript(cacheRoot string) string {
 		"      n=$((n+1))",
 		fmt.Sprintf("      [ $(( (n-1) %% %d )) -eq \"$voie\" ] || continue", cohortFillerLanes),
 		"      source=/datasets/\"$dataset\"/\"$path\"",
+		"      blob=\"$objets\"/\"$dataset\"/\"$path\"",
 		"      dossier=\"$root\"/\"$cohort\"/\"$subject\"/\"$visit\"/\"$modality\"",
 		"      cible=\"$dossier\"/$(basename \"$path\")",
 		"      [ -f \"$cible\" ] && continue",
-		"      mkdir -p \"$dossier\" 2>/dev/null || continue",
+		"      mkdir -p \"$dossier\" \"$(dirname \"$blob\")\" 2>/dev/null || continue",
+		// Already cached by another workspace, or another cohort: link and
+		// move on. This is the line that makes the second team free.
+		"      if [ -f \"$blob\" ]; then ln -f \"$blob\" \"$cible\" 2>/dev/null && continue; fi",
 		// Written aside and moved into place, so a reader never opens a file
 		// that is still arriving. The rename is what makes "appears once it
 		// has landed" true rather than nearly true.
-		"      if cp \"$source\" \"$cible\".partiel 2>/dev/null; then",
-		"        mv \"$cible\".partiel \"$cible\" 2>/dev/null",
+		"      if cp \"$source\" \"$blob\".partiel 2>/dev/null; then",
+		"        mv \"$blob\".partiel \"$blob\" 2>/dev/null",
+		"        ln -f \"$blob\" \"$cible\" 2>/dev/null",
 		"      else",
-		"        rm -f \"$cible\".partiel 2>/dev/null",
+		"        rm -f \"$blob\".partiel 2>/dev/null",
 		"        echo \"[filler] MANQUE $dataset/$path\"",
 		"      fi",
 		"    done < /tmp/cohorts.tsv",
