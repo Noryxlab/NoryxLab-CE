@@ -618,11 +618,20 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 		if removeErr.Err != nil {
 			// Partial by definition: some objects are already gone. The count
 			// says how far it got, which is what somebody resuming needs.
+			//
+			// The provider's own message goes in with it. A deletion that
+			// stopped halfway through 50 GiB of health data left "removal
+			// failed" and nothing else in the journal, and the reason existed
+			// only in an HTTP body nobody kept. It is our bucket and our
+			// error text, not anybody's data.
+			log.Printf("dataset %s: recursive delete of %q stopped after %d objects on %q: %v",
+				item.ID, rel, removed, removeErr.ObjectName, removeErr.Err)
 			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
 				"failure", "removal_failed", map[string]any{
 					"recursive": true, "path": rel, "objects": removed,
 					"classification": item.Classification, "bucket": item.Bucket,
-					"failedObject": removeErr.ObjectName,
+					"failedObject":  removeErr.ObjectName,
+					"providerError": removeErr.Err.Error(),
 				})
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder deletion failed: " + removeErr.Err.Error()})
 			return
