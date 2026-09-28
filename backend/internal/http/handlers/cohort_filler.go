@@ -32,7 +32,15 @@ import (
 //   - It never writes to the dataset. The source is mounted read-only in this
 //     container and nowhere else.
 
-const cohortFillerLanes = 8
+const (
+	cohortFillerLanes = 8
+	// The marks that bound the cache. Eviction starts at the high one and
+	// stops at the low one rather than at the high one, so a launch frees a
+	// useful amount instead of one file, and the next launch does not start
+	// by evicting again.
+	cohortCacheHighMark = 85
+	cohortCacheLowMark  = 70
+)
 
 // cohortFillerScript copies a cohort's objects into the cache and builds the
 // tree as they land.
@@ -74,6 +82,25 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		"  fi",
 		"done",
 		"debut=$(date +%s)",
+		// Eviction, here, because the cache only grows when a workspace
+		// launches - so this is when it is worth pruning, and it needs no
+		// second component, no image to keep and no schedule to forget. A
+		// cache nobody launches into stays full, which costs nothing: nobody
+		// wants the space either.
+		//
+		// Only objects no tree references: a link count of one means the copy
+		// in objects/ and nothing else. Oldest first, down to the low mark, so
+		// a sweep frees a useful amount instead of one file per launch.
+		"utilise=$(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')",
+		fmt.Sprintf("if [ \"${utilise:-0}\" -gt %d ]; then", cohortCacheHighMark),
+		fmt.Sprintf("  echo \"[filler] cache a ${utilise}%%, elagage vers %d%%\"", cohortCacheLowMark),
+		"  find \"$objets\" -type f -links 1 -printf '%T@ %s %p\\n' 2>/dev/null | sort -n | while read -r quand taille chemin; do",
+		"    reste=$(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')",
+		fmt.Sprintf("    [ \"${reste:-0}\" -le %d ] && break", cohortCacheLowMark),
+		"    rm -f \"$chemin\" 2>/dev/null",
+		"  done",
+		"  echo \"[filler] cache a $(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')%% apres elagage\"",
+		"fi",
 		fmt.Sprintf("echo \"[filler] filling with %d lanes\"", cohortFillerLanes),
 		"base64 -d \"$manifest\" 2>/dev/null | gunzip 2>/dev/null > /tmp/cohorts.tsv",
 		"total=$(wc -l < /tmp/cohorts.tsv 2>/dev/null || echo 0)",

@@ -110,3 +110,22 @@ func TestAnAbandonedTreeIsReaped(t *testing.T) {
 		t.Fatal("a filler must never reap the tree it is filling")
 	}
 }
+
+// The cache is pruned where it grows.
+//
+// It only fills when a workspace launches, so that is when pruning is worth
+// doing - and it needs no second component, no image to keep in step and no
+// schedule to forget. What may go is what no tree references: a link count of
+// one means the copy in objects/ and nothing else.
+func TestTheCacheIsPrunedAtLaunch(t *testing.T) {
+	script := cohortFillerScript("/cache", "wks-1")
+	if !strings.Contains(script, "-links 1") {
+		t.Fatal("only objects nothing references may be evicted")
+	}
+	if !strings.Contains(script, "sort -n") {
+		t.Fatal("eviction must start with the oldest")
+	}
+	if cohortCacheLowMark >= cohortCacheHighMark {
+		t.Fatal("eviction must stop below where it starts, or every launch evicts again")
+	}
+}
