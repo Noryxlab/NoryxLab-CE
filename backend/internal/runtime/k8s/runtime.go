@@ -73,7 +73,13 @@ func NewFromInCluster(controlNamespace, workloadNamespace string) (*Runtime, err
 	}, nil
 }
 
-func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
+// podPayload is the pod this spec becomes.
+//
+// Separated from the call that posts it so the one property worth proving can
+// be proven: a volume declared for the filler must never reach the main
+// container's mounts. A boundary asserted in a comment holds until somebody
+// edits the loop under it.
+func podPayload(spec noryxruntime.PodSpec) map[string]any {
 	spec.Labels = isolatedWorkloadLabels(spec.Labels)
 	ports := make([]map[string]any, 0, len(spec.Ports))
 	for _, p := range spec.Ports {
@@ -141,6 +147,12 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		container["resources"] = resources
 	}
 
+	// A volume is declared on the pod and mounted per container. That
+	// distinction is what the sidecar rests on: the dataset is declared here
+	// so the filler can read it, and never appears in the main container's
+	// mounts - so the person typing in the workspace cannot reach the bucket
+	// at all, enforced by the kernel rather than by an interface.
+	claimVolumeName := map[string]string{}
 	volumes := make([]map[string]any, 0, len(spec.Volumes))
 	volumeMounts := make([]map[string]any, 0, len(spec.Volumes))
 	for i, vol := range spec.Volumes {
@@ -150,6 +162,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 			continue
 		}
 		volumeName := fmt.Sprintf("pvc-%d", i)
+		claimVolumeName[claimName] = volumeName
 		volumes = append(volumes, map[string]any{
 			"name": volumeName,
 			"persistentVolumeClaim": map[string]any{
@@ -186,6 +199,80 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		container["volumeMounts"] = volumeMounts
 	}
 
+	containers := []map[string]any{container}
+	if spec.Sidecar != nil && strings.TrimSpace(spec.Sidecar.Image) != "" {
+		sidecarMounts := make([]map[string]any, 0, len(spec.Sidecar.Volumes)+len(spec.Sidecar.Secrets))
+		for _, vol := range spec.Sidecar.Volumes {
+			claimName := strings.TrimSpace(vol.ClaimName)
+			mountPath := strings.TrimSpace(vol.MountPath)
+			if claimName == "" || mountPath == "" {
+				continue
+			}
+			volumeName, declared := claimVolumeName[claimName]
+			if !declared {
+				volumeName = fmt.Sprintf("pvc-side-%d", len(volumes))
+				claimVolumeName[claimName] = volumeName
+				volumes = append(volumes, map[string]any{
+					"name": volumeName,
+					"persistentVolumeClaim": map[string]any{
+						"claimName": claimName,
+					},
+				})
+			}
+			sidecarMounts = append(sidecarMounts, map[string]any{
+				"name": volumeName, "mountPath": mountPath, "readOnly": vol.ReadOnly,
+			})
+		}
+		for i, secret := range spec.Sidecar.Secrets {
+			secretName := strings.TrimSpace(secret.SecretName)
+			mountPath := strings.TrimSpace(secret.MountPath)
+			if secretName == "" || mountPath == "" {
+				continue
+			}
+			volumeName := fmt.Sprintf("secret-side-%d", i)
+			volumes = append(volumes, map[string]any{
+				"name": volumeName,
+				"secret": map[string]any{
+					"secretName": secretName, "defaultMode": int64(0444),
+				},
+			})
+			sidecarMounts = append(sidecarMounts, map[string]any{
+				"name": volumeName, "mountPath": mountPath, "readOnly": true,
+			})
+		}
+		sidecar := map[string]any{
+			"name":    firstNonEmpty(spec.Sidecar.Name, "sidecar"),
+			"image":   spec.Sidecar.Image,
+			"command": spec.Sidecar.Command,
+			"args":    spec.Sidecar.Args,
+			"env":     kubernetesEnvVars(spec.Sidecar.Env),
+		}
+		if len(sidecarMounts) > 0 {
+			sidecar["volumeMounts"] = sidecarMounts
+		}
+		sidecarLimits := map[string]string{}
+		if spec.Sidecar.CPULimit != "" {
+			sidecarLimits["cpu"] = spec.Sidecar.CPULimit
+		}
+		if spec.Sidecar.MemLimit != "" {
+			sidecarLimits["memory"] = spec.Sidecar.MemLimit
+		}
+		if len(sidecarLimits) > 0 {
+			sidecar["resources"] = map[string]any{"limits": sidecarLimits}
+		}
+		if spec.Sidecar.RunAsUser > 0 || spec.Sidecar.RunAsGroup > 0 {
+			security := map[string]any{}
+			if spec.Sidecar.RunAsUser > 0 {
+				security["runAsUser"] = spec.Sidecar.RunAsUser
+			}
+			if spec.Sidecar.RunAsGroup > 0 {
+				security["runAsGroup"] = spec.Sidecar.RunAsGroup
+			}
+			sidecar["securityContext"] = security
+		}
+		containers = append(containers, sidecar)
+	}
+
 	payload := map[string]any{
 		"apiVersion": "v1",
 		"kind":       "Pod",
@@ -195,7 +282,7 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 		},
 		"spec": map[string]any{
 			"automountServiceAccountToken": false,
-			"containers":                   []map[string]any{container},
+			"containers":                   containers,
 			"restartPolicy":                firstNonEmpty(spec.RestartPolicy, "Never"),
 		},
 	}
@@ -209,8 +296,11 @@ func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
 	if spec.PullSecret != "" {
 		payload["spec"].(map[string]any)["imagePullSecrets"] = []map[string]string{{"name": spec.PullSecret}}
 	}
+	return payload
+}
 
-	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), payload)
+func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
+	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), podPayload(spec))
 	return err
 }
 

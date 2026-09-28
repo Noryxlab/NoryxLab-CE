@@ -34,6 +34,30 @@ type PodSpec struct {
 	RunAsGroup              int64
 	FSGroup                 int64
 	RestartPolicy           string
+	// Sidecar runs beside the main container and, crucially, may mount what
+	// the main container does not. A Kubernetes volume is declared on the pod
+	// and mounted per container, which is what turns "the workspace must not
+	// see the bucket" from a convention into something the kernel enforces.
+	Sidecar *SidecarSpec
+}
+
+// SidecarSpec is a second container in the same pod, with its own mounts.
+type SidecarSpec struct {
+	Name    string
+	Image   string
+	Command []string
+	Args    []string
+	Env     []EnvVar
+	// Volumes and Secrets are mounted in this container only. Any claim named
+	// here is declared on the pod, so the main container can ignore it.
+	Volumes []PersistentVolumeClaimMount
+	Secrets []SecretMount
+	// CPULimit and MemLimit bound the filler: it copies in parallel and must
+	// not take the machine from the work it exists to serve.
+	CPULimit   string
+	MemLimit   string
+	RunAsUser  int64
+	RunAsGroup int64
 }
 
 type ServiceSpec struct {
