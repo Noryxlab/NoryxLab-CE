@@ -61,6 +61,43 @@ func TestTheDatasetReachesTheFillerAndNotTheWorkspace(t *testing.T) {
 	}
 }
 
+// A filler reserves almost nothing, and never writes to the source.
+//
+// Both learned from the first real launch, on 2026-09-28. Kubernetes copies
+// limits into requests when only limits are given, so a filler bounded at two
+// CPUs reserved two - twenty times the workspace beside it - and the node
+// refused to schedule the pod at all. And the dataset was mounted writable,
+// because the person's role on it said so, in a container whose whole job is
+// to read.
+func TestTheFillerAsksForLittleAndCannotWriteToTheSource(t *testing.T) {
+	payload := podPayload(noryxruntime.PodSpec{
+		PodName: "wks-1", Image: "harbor/vscode:1",
+		Sidecar: &noryxruntime.SidecarSpec{
+			Name: "cohort-filler", Image: "harbor/vscode:1",
+			CPURequest: "100m", MemRequest: "128Mi", CPULimit: "1", MemLimit: "1Gi",
+			Volumes: []noryxruntime.PersistentVolumeClaimMount{
+				{ClaimName: "dataset-hds-for", MountPath: "/datasets/hds-for", ReadOnly: true},
+				{ClaimName: "cache", MountPath: "/cache"},
+			},
+		},
+	})
+	filler := payload["spec"].(map[string]any)["containers"].([]map[string]any)[1]
+	resources, ok := filler["resources"].(map[string]any)
+	if !ok {
+		t.Fatal("the filler must carry resources")
+	}
+	requests, ok := resources["requests"].(map[string]string)
+	if !ok || requests["cpu"] != "100m" {
+		t.Fatalf("the filler must reserve little explicitly, got %v", resources["requests"])
+	}
+	for _, mount := range filler["volumeMounts"].([]map[string]any) {
+		path := mount["mountPath"].(string)
+		if strings.HasPrefix(path, "/datasets/") && mount["readOnly"] != true {
+			t.Fatalf("the source must be mounted read-only: %s", path)
+		}
+	}
+}
+
 // No sidecar asked for, no sidecar built: every workspace launched before this
 // existed must produce exactly the pod it produced yesterday.
 func TestWithoutASidecarThePodIsUnchanged(t *testing.T) {

@@ -721,18 +721,25 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				Image:   record.Image,
 				Command: []string{"/bin/sh", "-c"},
 				Args:    []string{cohortFillerScript(cacheRoot)},
-				Volumes: append(append([]noryxruntime.PersistentVolumeClaimMount{},
-					datasetVolumes...),
+				// Read-only on the source, whatever the person's role on the
+				// dataset: this container exists to copy out of it, and
+				// nothing it can do should be able to write back.
+				Volumes: append(readOnlyMounts(datasetVolumes),
 					noryxruntime.PersistentVolumeClaimMount{ClaimName: cohortCacheClaim, MountPath: cacheRoot}),
 				Secrets: []noryxruntime.SecretMount{{
 					SecretName: podName + "-bootstrap",
 					MountPath:  "/var/run/noryx/bootstrap",
 					ReadOnly:   true,
 				}},
-				// Bounded: it copies in parallel and must not take the machine
-				// from the work it exists to serve.
-				CPULimit: "2",
-				MemLimit: "2Gi",
+				// It waits on the network far more than on the processor, so it
+				// reserves almost nothing and may burst. Reserving what it is
+				// allowed to peak at - which is what Kubernetes does when only
+				// a limit is given - had it asking for twenty times the
+				// workspace beside it, and the node refused them both.
+				CPURequest: "100m",
+				MemRequest: "128Mi",
+				CPULimit:   "1",
+				MemLimit:   "1Gi",
 			}
 		}
 
@@ -1053,6 +1060,16 @@ func nodeReachableKubernetesServiceEndpoint(endpoint string, lookupHost func(str
 		resolved = net.JoinHostPort(resolved, parsed.Port())
 	}
 	return scheme + resolved, nil
+}
+
+// readOnlyMounts is the same mounts, refused write.
+func readOnlyMounts(mounts []noryxruntime.PersistentVolumeClaimMount) []noryxruntime.PersistentVolumeClaimMount {
+	out := make([]noryxruntime.PersistentVolumeClaimMount, 0, len(mounts))
+	for _, mount := range mounts {
+		mount.ReadOnly = true
+		out = append(out, mount)
+	}
+	return out
 }
 
 func (h Handlers) ensureDatasetVolumeMounts(attachedDatasets []workspaceAttachedDataset) ([]noryxruntime.PersistentVolumeClaimMount, error) {

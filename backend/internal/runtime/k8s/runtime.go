@@ -257,8 +257,22 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 		if spec.Sidecar.MemLimit != "" {
 			sidecarLimits["memory"] = spec.Sidecar.MemLimit
 		}
+		sidecarRequests := map[string]string{}
+		if spec.Sidecar.CPURequest != "" {
+			sidecarRequests["cpu"] = spec.Sidecar.CPURequest
+		}
+		if spec.Sidecar.MemRequest != "" {
+			sidecarRequests["memory"] = spec.Sidecar.MemRequest
+		}
+		sidecarResources := map[string]any{}
 		if len(sidecarLimits) > 0 {
-			sidecar["resources"] = map[string]any{"limits": sidecarLimits}
+			sidecarResources["limits"] = sidecarLimits
+		}
+		if len(sidecarRequests) > 0 {
+			sidecarResources["requests"] = sidecarRequests
+		}
+		if len(sidecarResources) > 0 {
+			sidecar["resources"] = sidecarResources
 		}
 		if spec.Sidecar.RunAsUser > 0 || spec.Sidecar.RunAsGroup > 0 {
 			security := map[string]any{}

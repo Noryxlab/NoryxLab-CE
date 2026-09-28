@@ -52,8 +52,13 @@ type SidecarSpec struct {
 	// here is declared on the pod, so the main container can ignore it.
 	Volumes []PersistentVolumeClaimMount
 	Secrets []SecretMount
-	// CPULimit and MemLimit bound the filler: it copies in parallel and must
-	// not take the machine from the work it exists to serve.
+	// Requests and limits, both. Kubernetes copies limits into requests when
+	// only limits are given, so a filler bounded at 2 CPUs *reserved* two -
+	// twenty times what the workspace beside it asks for, on a node that then
+	// refused to schedule either. It waits on the disk and the network, so it
+	// asks for little and may burst.
+	CPURequest string
+	MemRequest string
 	CPULimit   string
 	MemLimit   string
 	RunAsUser  int64
