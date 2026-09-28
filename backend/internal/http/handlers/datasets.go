@@ -564,8 +564,6 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-	defer cancel()
 	// What was removed, in the journal, rather than only that a DELETE was
 	// answered 204.
 	//
@@ -576,6 +574,8 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// PREMYOM copy, and how much of it" has to be answerable from the record
 	// rather than from the person who did it.
 	if r.URL.Query().Get("recursive") != "true" {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+		defer cancel()
 		if err := client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{}); err != nil {
 			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
 				"failure", "removal_failed", map[string]any{"recursive": false, "path": rel})
@@ -590,6 +590,17 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	// A folder is a bulk operation and needs a budget to match.
+	//
+	// Two minutes was the interactive figure, and against Cellar it bought
+	// about a thousand objects: deleting an obsolete 50 GiB copy stopped a
+	// third of the way through and reported "context deadline exceeded",
+	// which reads as a fault rather than as a time limit. Eight minutes sits
+	// inside the ten HAProxy allows a request in front of this, so the
+	// deadline that bites is ours and its message is ours to write.
+	ctx, cancel := context.WithTimeout(r.Context(), 8*time.Minute)
+	defer cancel()
+
 	prefix := strings.TrimSuffix(key, "/") + "/"
 	objects := make(chan minio.ObjectInfo)
 	go func() {
@@ -633,6 +644,20 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 					"failedObject":  removeErr.ObjectName,
 					"providerError": removeErr.Err.Error(),
 				})
+			// Running out of time is not a failure of the deletion, it is the
+			// deletion being longer than one request. Said as what it is, with
+			// the count, because the next click finishes the job and nothing
+			// in "context deadline exceeded" says so.
+			if ctx.Err() != nil {
+				writeJSON(w, http.StatusGatewayTimeout, map[string]any{
+					"error": fmt.Sprintf(
+						"deleted %d objects before the time limit; run the deletion again to continue where it stopped",
+						removed),
+					"objects":  removed,
+					"complete": false,
+				})
+				return
+			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder deletion failed: " + removeErr.Err.Error()})
 			return
 		}
