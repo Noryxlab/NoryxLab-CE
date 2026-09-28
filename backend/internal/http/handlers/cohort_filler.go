@@ -49,21 +49,28 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		// filesystem's lost+found beside them.
 		fmt.Sprintf("objets=%s/objects", shellQuote(cacheRoot)),
 		fmt.Sprintf("root=%s/trees/%s", shellQuote(cacheRoot), shellQuote(treeName)),
+		// The lease lives beside the tree, never inside it. Put in the tree it
+		// became a file in somebody's cohort directory - 64 files where the
+		// cohort holds 63, which is exactly the kind of detail that makes a
+		// person doubt the rest.
+		fmt.Sprintf("baux=%s/leases", shellQuote(cacheRoot)),
+		fmt.Sprintf("bail=\"$baux\"/%s", shellQuote(treeName)),
+		"mkdir -p \"$baux\" 2>/dev/null",
 		"if [ ! -f \"$manifest\" ]; then",
 		"  echo '[filler] no cohort manifest; nothing to do'",
 		"  exit 0",
 		"fi",
 		"mkdir -p \"$root\" 2>/dev/null",
-		"touch \"$root\"/.vivant 2>/dev/null",
+		"touch \"$bail\" 2>/dev/null",
 		// Whatever the last filler left behind, reaped by the next one to
 		// start. Two hours of grace against a ten-minute lease: a tree is only
 		// removed when nothing has renewed it for twelve intervals.
 		fmt.Sprintf("for arbre in %s/trees/*; do", shellQuote(cacheRoot)),
 		"  [ -d \"$arbre\" ] || continue",
 		"  [ \"$arbre\" = \"$root\" ] && continue",
-		"  if [ -z \"$(find \"$arbre\"/.vivant -mmin -120 2>/dev/null)\" ]; then",
+		"  if [ -z \"$(find \"$baux\"/\"$(basename \"$arbre\")\" -mmin -120 2>/dev/null)\" ]; then",
 		"    echo \"[filler] arbre abandonne retire : $(basename \"$arbre\")\"",
-		"    rm -rf \"$arbre\" 2>/dev/null",
+		"    rm -rf \"$arbre\" \"$baux\"/\"$(basename \"$arbre\")\" 2>/dev/null",
 		"  fi",
 		"done",
 		"debut=$(date +%s)",
@@ -114,7 +121,7 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		// alive that nobody wants, so eviction would free nothing. Age alone
 		// cannot say which tree is dead: a workspace open all day never
 		// touches its own. A lease can.
-		"while true; do touch \"$root\"/.vivant 2>/dev/null; sleep 600; done",
+		"while true; do touch \"$bail\" 2>/dev/null; sleep 600; done",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }

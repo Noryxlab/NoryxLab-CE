@@ -95,8 +95,13 @@ func TestTheFillerNeverWritesToTheDataset(t *testing.T) {
 // to start reaps what has not been renewed.
 func TestAnAbandonedTreeIsReaped(t *testing.T) {
 	script := cohortFillerScript("/cache", "wks-1")
-	if !strings.Contains(script, `touch "$root"/.vivant`) {
+	if !strings.Contains(script, `touch "$bail"`) {
 		t.Fatal("a living filler must renew the lease on its own tree")
+	}
+	// Beside the tree, never inside it: a lease in the tree is a file in
+	// somebody's cohort directory, and 64 files where the cohort holds 63.
+	if strings.Contains(script, `"$root"/.vivant`) {
+		t.Fatal("the lease must not live inside the tree somebody browses")
 	}
 	if !strings.Contains(script, `-mmin -120`) {
 		t.Fatal("the reaper must decide on the lease, with grace")
