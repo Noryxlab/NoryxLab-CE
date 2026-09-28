@@ -566,11 +566,27 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
+	// What was removed, in the journal, rather than only that a DELETE was
+	// answered 204.
+	//
+	// The generic mutation audit records r.URL.Path, which drops the query
+	// string - so deleting one key and sweeping three thousand objects under a
+	// prefix produced the same line. On a regulated bucket that is the
+	// difference between a correction and an incident, and "who deleted the
+	// PREMYOM copy, and how much of it" has to be answerable from the record
+	// rather than from the person who did it.
 	if r.URL.Query().Get("recursive") != "true" {
 		if err := client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{}); err != nil {
+			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
+				"failure", "removal_failed", map[string]any{"recursive": false, "path": rel})
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object deletion failed: " + err.Error()})
 			return
 		}
+		h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
+			"success", "", map[string]any{
+				"recursive": false, "path": rel, "objects": 1,
+				"classification": item.Classification, "bucket": item.Bucket,
+			})
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -584,13 +600,40 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-	for removeErr := range client.RemoveObjects(ctx, item.Bucket, objects, minio.RemoveObjectsOptions{}) {
+	// Counted as they go by, because the listing is consumed by the removal
+	// and cannot be walked twice - and a figure produced afterwards would be
+	// what is left rather than what went.
+	removed := 0
+	var removedBytes int64
+	counted := make(chan minio.ObjectInfo)
+	go func() {
+		defer close(counted)
+		for object := range objects {
+			removed++
+			removedBytes += object.Size
+			counted <- object
+		}
+	}()
+	for removeErr := range client.RemoveObjects(ctx, item.Bucket, counted, minio.RemoveObjectsOptions{}) {
 		if removeErr.Err != nil {
+			// Partial by definition: some objects are already gone. The count
+			// says how far it got, which is what somebody resuming needs.
+			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
+				"failure", "removal_failed", map[string]any{
+					"recursive": true, "path": rel, "objects": removed,
+					"classification": item.Classification, "bucket": item.Bucket,
+					"failedObject": removeErr.ObjectName,
+				})
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder deletion failed: " + removeErr.Err.Error()})
 			return
 		}
 	}
 	_ = client.RemoveObject(ctx, item.Bucket, prefix, minio.RemoveObjectOptions{})
+	h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
+		"success", "", map[string]any{
+			"recursive": true, "path": rel, "objects": removed, "bytes": removedBytes,
+			"classification": item.Classification, "bucket": item.Bucket,
+		})
 	w.WriteHeader(http.StatusNoContent)
 }
 
