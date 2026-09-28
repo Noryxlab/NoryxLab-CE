@@ -190,6 +190,39 @@ func (c *Client) SetTemporaryPassword(userID, password string) error {
 		map[string]any{"type": "password", "value": password, "temporary": true}, nil)
 }
 
+// UpdateUserProfile corrects the fields an administrator can get wrong.
+//
+// Keycloak merges the representation it is sent rather than replacing it, so
+// the three fields named here are the three that change and everything else
+// about the account - its username, its credentials, its group and
+// organization membership - is left exactly as it was.
+//
+// The username is deliberately not among them. Noryx identifies a person by
+// their username: it is the value in access_roles, in team_members, on every
+// workspace and in every audit event. Renaming it in Keycloak would not rename
+// any of those, and the account would come back to a platform where it owned
+// nothing and belonged nowhere, with an audit trail that no longer resolves.
+// Correcting a misspelled username means creating the account again.
+func (c *Client) UpdateUserProfile(identifier string, firstName, lastName, email string) error {
+	userID, err := c.requireUserID(identifier)
+	if err != nil {
+		return err
+	}
+	// Sent whether or not they are empty: clearing a field somebody filled in
+	// by mistake is as much a correction as changing it, and omitting an empty
+	// value would make that impossible.
+	payload := map[string]any{
+		"firstName": strings.TrimSpace(firstName),
+		"lastName":  strings.TrimSpace(lastName),
+		"email":     strings.TrimSpace(email),
+	}
+	// The account is reached by username as well as by id, and the email is a
+	// fallback identifier, so a cached membership keyed on either is stale the
+	// moment this succeeds.
+	c.invalidateMembership(identifier)
+	return c.adminJSON(http.MethodPut, "users/"+url.PathEscape(userID), payload, nil)
+}
+
 // SetUserEnabled turns an account on or off. Disabling is preferred to
 // deletion: it stops access immediately and keeps the audit trail attributable.
 func (c *Client) SetUserEnabled(userID string, enabled bool) error {

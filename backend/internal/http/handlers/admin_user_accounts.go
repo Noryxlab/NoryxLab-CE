@@ -123,6 +123,72 @@ func (h Handlers) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Correcting an account that was created with a mistake in it.
+//
+// Reported by Andrew Eap at the Fondation Rothschild: a name typed wrong at
+// creation could not be fixed from the interface at all, and the only remedy
+// was to delete the account and make it again - which takes the person's
+// workspaces and grants with it for the sake of a misspelling.
+//
+// Three fields, and not the username. Noryx identifies a person by their
+// username, so renaming one in Keycloak would leave every grant, team
+// membership and audit event pointing at a person who no longer exists. That
+// is a refusal rather than an omission, and it is stated where it will be
+// read.
+type updateUserRequest struct {
+	Email     string `json:"email"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+}
+
+func (h Handlers) UpdateUserAccount(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireAdminModule(w, r, "users")
+	if !ok {
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "keycloak admin client is not configured"})
+		return
+	}
+	userID := strings.TrimSpace(r.PathValue("userID"))
+	if userID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a user is required"})
+		return
+	}
+
+	var req updateUserRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+
+	if err := h.keycloak.UpdateUserProfile(userID,
+		strings.TrimSpace(req.FirstName), strings.TrimSpace(req.LastName), strings.TrimSpace(req.Email)); err != nil {
+		h.writeKeycloakUserError(w, "update the account", err)
+		return
+	}
+
+	h.emitAudit(r, identity.UserID(), "user.updated", "user", userID, "", "success", "",
+		map[string]any{"firstName": strings.TrimSpace(req.FirstName),
+			"lastName": strings.TrimSpace(req.LastName), "email": strings.TrimSpace(req.Email)})
+
+	// Read back rather than echoed: the caller should see what the account now
+	// holds, not what it was asked to hold.
+	user, found, err := h.keycloak.GetUser(userID)
+	if err != nil || !found {
+		writeJSON(w, http.StatusOK, map[string]any{"userId": userID})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"userId":    user.ID,
+		"username":  user.Username,
+		"email":     user.Email,
+		"firstName": user.FirstName,
+		"lastName":  user.LastName,
+		"enabled":   user.Enabled,
+	})
+}
+
 func (h Handlers) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireAdminModule(w, r, "users")
 	if !ok {

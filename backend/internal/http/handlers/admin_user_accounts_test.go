@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -48,5 +50,24 @@ func TestAnAccountIsRefusedWithoutAnOrganizationWhenOneIsRequired(t *testing.T) 
 	// the request never reaches account creation.
 	if recorder.Code == http.StatusCreated {
 		t.Fatal("an account was created without the organization this installation requires")
+	}
+}
+
+// The shape of the request is the second half of the same refusal: a username
+// added here would reach Keycloak however careful the client is.
+func TestTheUpdateRequestCannotCarryAUsername(t *testing.T) {
+	var req updateUserRequest
+	if err := json.Unmarshal(
+		[]byte(`{"firstName":"Andrew","lastName":"Eap","email":"a@for.fr","username":"andrew2"}`), &req); err != nil {
+		t.Fatal(err)
+	}
+	if reflect.TypeOf(req).NumField() != 3 {
+		t.Fatalf("updateUserRequest has %d fields; a rename must not become possible by adding one",
+			reflect.TypeOf(req).NumField())
+	}
+	for _, name := range []string{"Username", "Enabled", "Attributes"} {
+		if _, found := reflect.TypeOf(req).FieldByName(name); found {
+			t.Fatalf("updateUserRequest carries %s, which is not a name correction", name)
+		}
 	}
 }

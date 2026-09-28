@@ -6484,6 +6484,52 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/admin/users/{userID}:
+    patch:
+      tags: [Admin]
+      summary: Correct the name or email of an existing account
+      description: >-
+        Changes the first name, last name and email of an account, for fixing a
+        mistake made when it was created. The username is not editable: Noryx
+        identifies a person by it, so renaming one would leave that person's
+        project roles, team memberships and audit events pointing at an
+        identifier nobody holds. An account whose username is wrong has to be
+        created again. Every field sent replaces what the account held,
+        including with an empty value, so a field filled in by mistake can be
+        cleared.
+      operationId: updateUserAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: The account as it now stands, read back from the directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUser'
+        '409':
+          description: Another account already holds that email
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Admin]
       summary: Delete a disabled account for good, handing on what it owns

@@ -1111,6 +1111,11 @@ export const fr = {
 
   identity: {
     createUser: 'Créer un compte',
+    editUser: 'Modifier',
+    editUserTitle: 'Corriger ce compte',
+    editUserHint: "Corrige un nom ou un courriel mal saisi. L'identifiant ne change pas : c'est par lui que Noryx reconnaît cette personne sur chaque projet, chaque équipe et chaque entrée du journal.",
+    usernameFixed: 'Identifiant (non modifiable)',
+    userUpdated: 'Compte mis à jour',
     username: 'Identifiant',
     firstName: 'Prénom',
     lastName: 'Nom',

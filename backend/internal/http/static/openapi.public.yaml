@@ -6007,6 +6007,31 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/admin/users/{userID}:
+    patch:
+      tags: [Admin]
+      summary: Update User Account
+      operationId: updateUserAccount
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Admin]
       summary: Delete a disabled account for good, handing on what it owns

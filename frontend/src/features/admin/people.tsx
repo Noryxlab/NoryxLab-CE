@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Bot, Building2, ChevronDown, ChevronRight, MoreHorizontal, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { Bot, Building2, ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -780,6 +780,8 @@ function PersonPanel({ user }: { user: PlatformUser }) {
     onError: (error) => toast.error(error, t('identity.resetPassword')),
   });
 
+  const [editing, setEditing] = React.useState(false);
+
   const disabled = user.enabled === false;
   return (
     <Card>
@@ -819,6 +821,12 @@ function PersonPanel({ user }: { user: PlatformUser }) {
 
         {/* Les gestes sur le compte, dans l'ordre du risque. */}
         <div className="flex flex-wrap gap-2 border-t pt-4">
+          {/* La correction d'abord : c'est le geste le moins risque de la
+              rangee, et le seul qui ne touche ni l'acces ni le mot de passe. */}
+          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Pencil aria-hidden />
+            {t('identity.editUser')}
+          </Button>
           {!disabled && smtp.data?.configured ? (
             <Button variant="secondary" size="sm" loading={resetByEmail.isPending} onClick={() => ask({ title: t('admin.resetByEmail'), description: t('admin.resetByEmailHint', { user: user.email }), confirmLabel: t('admin.resetByEmail'), onConfirm: () => resetByEmail.mutateAsync() })}>
               {t('admin.resetByEmail')}
@@ -843,7 +851,69 @@ function PersonPanel({ user }: { user: PlatformUser }) {
         </div>
       </CardContent>
       <DeactivateUserSheet user={deactivating} open={deactivating !== null} onOpenChange={(open) => !open && setDeactivating(null)} />
+      <EditUserSheet user={user} open={editing} onOpenChange={setEditing} />
     </Card>
+  );
+}
+
+/* Corriger un compte cree avec une faute.
+ *
+ * Demande par la Fondation Rothschild : un nom mal tape a la creation n'avait
+ * aucun remede depuis l'interface, et la seule issue - supprimer le compte
+ * puis le refaire - emportait les espaces de travail et les habilitations de
+ * la personne pour une coquille.
+ *
+ * L'identifiant est montre et jamais editable. C'est par lui que Noryx
+ * reconnait quelqu'un : le renommer laisserait ses roles, ses equipes et son
+ * journal pointer vers une personne qui n'existe plus. Le champ est affiche
+ * desactive plutot qu'absent, avec la raison a cote : un champ qui manque se
+ * lit comme un oubli, un champ verrouille se lit comme une decision. */
+function EditUserSheet({ user, open, onOpenChange }: { user: PlatformUser; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const [form, setForm] = React.useState({ firstName: '', lastName: '', email: '' });
+
+  // Repart de ce que le compte porte a chaque ouverture, jamais d'une saisie
+  // laissee en place a la fermeture precedente.
+  React.useEffect(() => {
+    if (!open) return;
+    setForm({ firstName: user.firstName ?? '', lastName: user.lastName ?? '', email: user.email ?? '' });
+  }, [open, user.firstName, user.lastName, user.email]);
+
+  const save = useMutation({
+    mutationFn: () => adminApi.updateUser(user.id, form),
+    onSuccess: () => {
+      invalidate(qk.adminUsers);
+      toast.success(t('identity.userUpdated'), displayName(user));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('identity.editUserTitle')),
+  });
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{t('identity.editUserTitle')}</SheetTitle>
+          <SheetDescription>{t('identity.editUserHint')}</SheetDescription>
+        </SheetHeader>
+        <div className="mt-4 space-y-3">
+          <Field label={t('identity.usernameFixed')}>
+            <Input value={user.username} disabled readOnly className="font-mono" />
+          </Field>
+          <Field label="Email"><Input type="email" value={form.email} onChange={set('email')} autoFocus /></Field>
+          <div className="flex gap-2">
+            <Field label={t('identity.firstName')} className="flex-1"><Input value={form.firstName} onChange={set('firstName')} /></Field>
+            <Field label={t('identity.lastName')} className="flex-1"><Input value={form.lastName} onChange={set('lastName')} /></Field>
+          </div>
+          <Button variant="primary" loading={save.isPending} onClick={() => save.mutate()}>
+            {t('common.save')}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

@@ -692,6 +692,10 @@ export const adminApi = {
     lastName?: string;
     organizationId?: string;
   }) => api.post<CreatedUser>(`${V1}/admin/users`, input),
+  // The username is deliberately absent: Noryx identifies a person by it, so
+  // a rename would orphan their roles, their teams and their audit trail.
+  updateUser: (userId: string, input: { firstName?: string; lastName?: string; email?: string }) =>
+    api.patch<PlatformUser>(`${V1}/admin/users/${encodeURIComponent(userId)}`, input),
   resetUserPassword: (userId: string) =>
     api.post<CreatedUser>(`${V1}/admin/users/${encodeURIComponent(userId)}/password`, undefined),
   inventory: () => api.get<AdminInventory>(`${V1}/admin/inventory`),

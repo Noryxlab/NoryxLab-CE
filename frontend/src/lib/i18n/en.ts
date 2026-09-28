@@ -1105,6 +1105,11 @@ export const en: Translations = {
 
   identity: {
     createUser: 'Create an account',
+    editUser: 'Edit',
+    editUserTitle: 'Correct this account',
+    editUserHint: 'Fixes a name or an email typed wrong. The username cannot change: it is how Noryx identifies this person on every project, team and audit entry.',
+    usernameFixed: 'Username (cannot be changed)',
+    userUpdated: 'Account updated',
     username: 'Username',
     firstName: 'First name',
     lastName: 'Last name',

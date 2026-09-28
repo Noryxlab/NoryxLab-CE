@@ -226,6 +226,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	}
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("POST /api/v1/admin/users", h.CreateUserAccount)
+	mux.HandleFunc("PATCH /api/v1/admin/users/{userID}", h.UpdateUserAccount)
 	mux.HandleFunc("POST /api/v1/admin/users/{userID}/password", h.ResetUserPassword)
 	mux.HandleFunc("POST /api/v1/admin/users/{userID}/password-reset-email", h.SendUserPasswordResetEmail)
 	// Disabling rather than deleting: it stops access at once and keeps the
