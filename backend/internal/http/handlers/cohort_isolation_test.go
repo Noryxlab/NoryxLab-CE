@@ -84,3 +84,24 @@ func TestTheFillerNeverWritesToTheDataset(t *testing.T) {
 		}
 	}
 }
+
+// A tree outlives nothing.
+//
+// A deleted workspace leaves its tree of hard links behind - nothing in the
+// container can ask Kubernetes what still exists - and those links would keep
+// objects alive that nobody wants, so eviction would free nothing. Age alone
+// cannot say which tree is dead: a workspace open all day never touches its
+// own. So the living filler renews a lease while it sleeps, and the next one
+// to start reaps what has not been renewed.
+func TestAnAbandonedTreeIsReaped(t *testing.T) {
+	script := cohortFillerScript("/cache", "wks-1")
+	if !strings.Contains(script, `touch "$root"/.vivant`) {
+		t.Fatal("a living filler must renew the lease on its own tree")
+	}
+	if !strings.Contains(script, `-mmin -120`) {
+		t.Fatal("the reaper must decide on the lease, with grace")
+	}
+	if !strings.Contains(script, `[ "$arbre" = "$root" ] && continue`) {
+		t.Fatal("a filler must never reap the tree it is filling")
+	}
+}

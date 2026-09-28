@@ -54,6 +54,18 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		"  exit 0",
 		"fi",
 		"mkdir -p \"$root\" 2>/dev/null",
+		"touch \"$root\"/.vivant 2>/dev/null",
+		// Whatever the last filler left behind, reaped by the next one to
+		// start. Two hours of grace against a ten-minute lease: a tree is only
+		// removed when nothing has renewed it for twelve intervals.
+		fmt.Sprintf("for arbre in %s/trees/*; do", shellQuote(cacheRoot)),
+		"  [ -d \"$arbre\" ] || continue",
+		"  [ \"$arbre\" = \"$root\" ] && continue",
+		"  if [ -z \"$(find \"$arbre\"/.vivant -mmin -120 2>/dev/null)\" ]; then",
+		"    echo \"[filler] arbre abandonne retire : $(basename \"$arbre\")\"",
+		"    rm -rf \"$arbre\" 2>/dev/null",
+		"  fi",
+		"done",
 		"debut=$(date +%s)",
 		fmt.Sprintf("echo \"[filler] filling with %d lanes\"", cohortFillerLanes),
 		"base64 -d \"$manifest\" 2>/dev/null | gunzip 2>/dev/null > /tmp/cohorts.tsv",
@@ -95,7 +107,14 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		// The container stays alive so the workspace's pod does not go
 		// Succeeded under it, and so a later cohort change can be filled by
 		// restarting this one rather than the workspace.
-		"while true; do sleep 3600; done",
+		//
+		// It also holds the lease on its own tree while it sleeps. A deleted
+		// workspace leaves its tree of links behind - nothing here can ask
+		// Kubernetes what still exists - and those links would keep objects
+		// alive that nobody wants, so eviction would free nothing. Age alone
+		// cannot say which tree is dead: a workspace open all day never
+		// touches its own. A lease can.
+		"while true; do touch \"$root\"/.vivant 2>/dev/null; sleep 600; done",
 	}
 	return strings.Join(lines, "\n") + "\n"
 }
