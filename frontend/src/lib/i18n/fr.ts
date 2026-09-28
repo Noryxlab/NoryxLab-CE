@@ -608,6 +608,7 @@ export const fr = {
       'Le dataset et ses métadonnées sont supprimés. Pour un bucket externe, les fichiers restent dans votre bucket.',
     deleteObjectsTitle: 'Supprimer les fichiers sélectionnés',
     deleteObjectsWarning: 'Cette action est irréversible.',
+    deleteFoldersWarning: "{folders} dossier(s) et {files} fichier(s) sélectionnés. Un dossier est supprimé avec tout ce qu'il contient, y compris ce que cet écran n'affiche pas. Cette action est irréversible.",
     uploadDone: 'Fichier téléversé.',
     uploadFailed: 'Échec du téléversement',
   },

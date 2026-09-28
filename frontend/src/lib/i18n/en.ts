@@ -602,6 +602,7 @@ export const en: Translations = {
       'The dataset and its metadata are removed. For an external bucket, the files stay in your bucket.',
     deleteObjectsTitle: 'Delete selected files',
     deleteObjectsWarning: 'This cannot be undone.',
+    deleteFoldersWarning: '{folders} folder(s) and {files} file(s) selected. A folder is deleted with everything inside it, including what this screen does not list. This cannot be undone.',
     uploadDone: 'File uploaded.',
     uploadFailed: 'Upload failed',
   },

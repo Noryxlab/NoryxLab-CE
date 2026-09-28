@@ -398,8 +398,16 @@ export const datasetsApi = {
   usage: (datasetId: string) => api.get<DatasetUsage>(`${V1}/datasets/${datasetId}/usage`),
   createFolder: (datasetId: string, path: string) =>
     api.post<void>(`${V1}/datasets/${datasetId}/folders`, { path }),
-  deleteObject: (datasetId: string, path: string) =>
-    api.delete<void>(`${V1}/datasets/${datasetId}/objects/${encodeObjectPath(path)}`),
+  /** `recursive` is what makes deleting a folder delete anything.
+   *
+   *  Without it the server removes a single key, and a folder is usually only
+   *  a prefix inferred from the objects under it - so S3 answers success for a
+   *  key that never existed, the screen reports the deletion, and the files
+   *  are all still there. */
+  deleteObject: (datasetId: string, path: string, recursive = false) =>
+    api.delete<void>(
+      `${V1}/datasets/${datasetId}/objects/${encodeObjectPath(path)}${recursive ? '?recursive=true' : ''}`,
+    ),
   /** Les deux chemins vont dans le corps, pas dans l'URL : un renommage en
    *  porte deux, et la moitie d'un chemin dans l'adresse et l'autre ailleurs
    *  est une occasion d'en nettoyer une seule. */

@@ -177,6 +177,17 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
   const folderFiles = entries.filter((entry) => !entry.isFolder).length;
   const folderSize = entries.reduce((sum, entry) => sum + (entry.object.size ?? 0), 0);
 
+  // Ce qui est coche, avec sa nature : la cle seule ne dit pas si c'est un
+  // dossier, et c'est exactement ce que la suppression doit savoir.
+  const selectedTargets = React.useMemo(
+    () =>
+      entries
+        .filter((entry) => selected.has(entry.object.key))
+        .map((entry) => ({ key: entry.object.key, isFolder: entry.isFolder })),
+    [entries, selected],
+  );
+  const selectedFolders = selectedTargets.filter((target) => target.isFolder);
+
   const segments = prefix.split('/').filter(Boolean);
 
   const createFolder = useMutation({
@@ -189,9 +200,17 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
     onError: (error) => toast.error(error, t('datasets.newFolder')),
   });
 
+  /** Un dossier se supprime avec ce qu'il contient, ou ne se supprime pas.
+   *
+   *  La suppression partait sans `recursive`, donc sur un dossier elle
+   *  effacait une cle qui n'existe pas, S3 repondait succes, et l'ecran
+   *  annoncait une suppression qui n'avait rien supprime. Sur un bucket HDS
+   *  c'est le mauvais sens de l'erreur : on croit la donnee partie. */
   const removeObjects = useMutation({
-    mutationFn: async (keys: string[]) => {
-      for (const key of keys) await datasetsApi.deleteObject(dataset.id, key);
+    mutationFn: async (targets: { key: string; isFolder: boolean }[]) => {
+      for (const target of targets) {
+        await datasetsApi.deleteObject(dataset.id, target.key, target.isFolder);
+      }
     },
     onSuccess: () => {
       invalidate(qk.datasetObjects(dataset.id, prefix));
@@ -396,10 +415,19 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
                 onClick={() =>
                   ask({
                     title: t('datasets.deleteObjectsTitle'),
-                    description: t('datasets.deleteObjectsWarning'),
+                    // Un dossier emporte tout ce qu'il contient, et le
+                    // listage n'est pas recursif : on ne sait donc pas
+                    // combien. On le dit plutot que d'avancer un chiffre
+                    // qu'on n'a pas mesure.
+                    description: selectedFolders.length
+                      ? t('datasets.deleteFoldersWarning', {
+                          folders: selectedFolders.length,
+                          files: selectedTargets.length - selectedFolders.length,
+                        })
+                      : t('datasets.deleteObjectsWarning'),
                     confirmLabel: t('common.delete'),
                     destructive: true,
-                    onConfirm: () => removeObjects.mutateAsync([...selected]),
+                    onConfirm: () => removeObjects.mutateAsync(selectedTargets),
                   })
                 }
               >
