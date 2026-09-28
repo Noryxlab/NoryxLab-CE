@@ -243,6 +243,8 @@ func main() {
 			WorkspacePVCEnabled:              cfg.WorkspacePVCEnabled,
 			WorkspacePVCClass:                cfg.WorkspacePVCClass,
 			WorkspacePVCSize:                 cfg.WorkspacePVCSize,
+			CohortCacheSize:                  cfg.CohortCacheSize,
+			CohortCacheClass:                 cfg.CohortCacheClass,
 			WorkspacePVCAccessMode:           cfg.WorkspacePVCAccessMode,
 			WorkspacePVCMountPath:            cfg.WorkspacePVCMountPath,
 			WorkspaceProfilePVCEnabled:       cfg.WorkspaceProfilePVCEnabled,
