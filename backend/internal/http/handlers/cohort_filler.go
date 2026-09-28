@@ -109,15 +109,15 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		fmt.Sprintf("while [ \"$voie\" -lt %d ]; do", cohortFillerLanes),
 		"  (",
 		"    n=0",
-		"    while IFS='\t' read -r cohort dataset subject visit modality path; do",
+		"    while IFS='\t' read -r cohort dataset subject visit modality path feuille; do",
 		"      n=$((n+1))",
 		fmt.Sprintf("      [ $(( (n-1) %% %d )) -eq \"$voie\" ] || continue", cohortFillerLanes),
 		"      source=/datasets/\"$dataset\"/\"$path\"",
 		"      blob=\"$objets\"/\"$dataset\"/\"$path\"",
 		"      dossier=\"$root\"/\"$cohort\"/\"$subject\"/\"$visit\"/\"$modality\"",
-		"      cible=\"$dossier\"/$(basename \"$path\")",
+		"      cible=\"$dossier\"/\"$feuille\"",
 		"      [ -f \"$cible\" ] && continue",
-		"      mkdir -p \"$dossier\" \"$(dirname \"$blob\")\" 2>/dev/null || continue",
+		"      mkdir -p \"$(dirname \"$cible\")\" \"$(dirname \"$blob\")\" 2>/dev/null || continue",
 		// Already cached by another workspace, or another cohort: link and
 		// move on. This is the line that makes the second team free.
 		"      if [ -f \"$blob\" ]; then ln -f \"$blob\" \"$cible\" 2>/dev/null && continue; fi",

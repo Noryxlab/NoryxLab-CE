@@ -129,3 +129,35 @@ func TestTheCacheIsPrunedAtLaunch(t *testing.T) {
 		t.Fatal("eviction must stop below where it starts, or every launch evicts again")
 	}
 }
+
+// A file keeps its place under the modality, not just its name.
+//
+// The tree placed each file under its basename, and DICOM names its slices by
+// number: 00000121 exists in every series. On PREMYOM1000's ANTERION modality
+// that turned 21 730 objects into 18 825 files - a study silently 13% smaller,
+// with nothing logged and nothing refused. Measured on EMSE on 2026-09-28,
+// after the first full-scale fill; it predates the side-car and would have
+// shipped with the links.
+func TestAFileKeepsItsPlaceBelowTheModality(t *testing.T) {
+	cases := map[string]string{
+		"PREMYOM1000/S-1/20250430/ANTERION/DICOM/MC22/343876/00000121":        "DICOM/MC22/343876/00000121",
+		"old/S-1/visit_20250430/modality_ANTERION/DICOM/MC22/343879/00000121": "DICOM/MC22/343879/00000121",
+		"PREMYOM1000/S-1/20250430/ANTERION/Cornea_Basics.csv":                 "Cornea_Basics.csv",
+	}
+	for path, want := range cases {
+		if got := cohortLeaf(path, "ANTERION"); got != want {
+			t.Fatalf("%s: expected %q, got %q", path, want, got)
+		}
+	}
+	// Two slices of different series no longer collide.
+	a := cohortLeaf("PREMYOM1000/S-1/20250430/ANTERION/DICOM/MC22/343876/00000121", "ANTERION")
+	b := cohortLeaf("PREMYOM1000/S-1/20250430/ANTERION/DICOM/MC22/343879/00000121", "ANTERION")
+	if a == b {
+		t.Fatal("two slices of different series must not land on the same path")
+	}
+	// A layout this does not recognise keeps its whole path: longer than it
+	// needs to be, and never wrong.
+	if got := cohortLeaf("some/other/layout/file.dcm", "ANTERION"); got != "some/other/layout/file.dcm" {
+		t.Fatalf("an unrecognised layout must keep its path, got %q", got)
+	}
+}

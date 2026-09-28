@@ -35,6 +35,41 @@ type cohortMountEntry struct {
 	Visit      string
 	Modality   string
 	Path       string
+	// Leaf is where the file sits under the modality, and it is not its name.
+	//
+	// The tree used to place each file under its basename, which loses every
+	// file whose name repeats. DICOM slices are named by their number -
+	// 00000121 appears in every series - so on PREMYOM1000's ANTERION modality
+	// 21 730 objects landed as 18 825 files and nobody was told: a study
+	// silently 13% smaller, which is the worst way to be wrong about data.
+	//
+	// Keeping the path below the modality fixes it and gives back what the
+	// flattening also threw away: the series structure DICOM carries in its
+	// directories.
+	Leaf string
+}
+
+// cohortLeaf is the part of a path that belongs under the modality directory.
+//
+// Found by the modality's own segment, which this layout writes either as
+// "ANTERION" or as "modality_ANTERION" - the second in the older tree kept
+// under old/. Anything unrecognised keeps its whole path, which is longer than
+// it needs to be and never wrong.
+func cohortLeaf(path, modality string) string {
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	wanted := strings.ToLower(strings.TrimSpace(modality))
+	if wanted != "" {
+		for index := len(segments) - 1; index >= 0; index-- {
+			segment := strings.ToLower(segments[index])
+			if segment == wanted || segment == "modality_"+wanted {
+				if index+1 < len(segments) {
+					return strings.Join(segments[index+1:], "/")
+				}
+				break
+			}
+		}
+	}
+	return strings.Join(segments, "/")
 }
 
 // encodeCohortManifest packs the entries as gzipped TSV, base64 for transport
@@ -51,8 +86,8 @@ func encodeCohortManifest(entries []cohortMountEntry) (string, bool) {
 		if strings.ContainsAny(entry.Path, "\t\n") {
 			continue
 		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			entry.CohortName, entry.DatasetDir, entry.SubjectID, entry.Visit, entry.Modality, entry.Path)
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			entry.CohortName, entry.DatasetDir, entry.SubjectID, entry.Visit, entry.Modality, entry.Path, entry.Leaf)
 	}
 	if err := writer.Close(); err != nil {
 		return "", false
@@ -83,10 +118,10 @@ func cohortBootstrapLines(projectMountPath string, hasManifest bool, refusedCoun
 		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
 		// mounted read-only, and the cohort is a second way of looking at it.
-		"  base64 -d /var/run/noryx/bootstrap/cohorts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r cohort dataset subject visit modality path; do",
+		"  base64 -d /var/run/noryx/bootstrap/cohorts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r cohort dataset subject visit modality path feuille; do",
 		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$cohort\"/\"$subject\"/\"$visit\"/\"$modality\"", shellQuote(root)),
-		"    mkdir -p \"$dir\" 2>/dev/null || continue",
-		"    ln -sfn \"$target\" \"$dir\"/\"$(basename \"$path\")\" 2>/dev/null || true",
+		"    mkdir -p \"$dir\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",
+		"    ln -sfn \"$target\" \"$dir\"/\"$feuille\" 2>/dev/null || true",
 		"  done",
 		fmt.Sprintf("  echo \"[bootstrap] cohort links ready: $(find %s -type l 2>/dev/null | wc -l) file(s)\"", shellQuote(root)),
 		"fi",
@@ -140,6 +175,7 @@ func (h Handlers) cohortMountEntries(projectID string, attachedDatasets []worksp
 				Visit:      sanitizeWorkspacePathName(member.Visit),
 				Modality:   sanitizeWorkspacePathName(member.Modality),
 				Path:       member.Path,
+				Leaf:       cohortLeaf(member.Path, member.Modality),
 			})
 		}
 	}
