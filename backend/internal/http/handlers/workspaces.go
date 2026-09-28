@@ -692,6 +692,18 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			cohortManifest = ""
 		}
 
+		// A selection too large to ship refuses the launch rather than
+		// producing an empty tree. Mounted as links the same refusal costs a
+		// missing directory beside datasets that are still there; isolated, it
+		// costs a workspace with no data and no explanation - and the person
+		// concludes the platform lost their study.
+		if isolated && cohortRefused > 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": fmt.Sprintf("this selection holds %d files, too many to ship in one manifest; narrow it or mount the datasets", cohortRefused),
+				"code":  "cohort_too_large",
+			})
+			return
+		}
 		if isolated && len(cohortEntries) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{
 				"error": "this project has no cohort to isolate to; declare one first or launch on the datasets",
