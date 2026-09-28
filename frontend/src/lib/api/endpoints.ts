@@ -214,6 +214,10 @@ export interface CreateWorkspaceInput {
   image?: string;
   hardwareTier?: string;
   storageSize?: string;
+  /** "dataset" (default) mounts the attached datasets whole; "cohorts" mounts
+   *  only the declared selections, filled into the cache by a container beside
+   *  the workspace, with the buckets mounted nowhere the person can reach. */
+  dataAccess?: 'dataset' | 'cohorts';
 }
 
 export const projectVariablesApi = {

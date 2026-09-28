@@ -346,6 +346,11 @@ export const fr = {
   },
 
   workspaces: {
+    dataAccessLabel: 'Donnees montees',
+    dataAccessDataset: 'Les datasets rattaches',
+    dataAccessCohorts: 'Seulement les cohortes',
+    dataAccessDatasetHint: 'Le workspace voit les datasets entiers, et les cohortes comme une vue par-dessus.',
+    dataAccessCohortsHint: 'Le workspace ne voit que les fichiers de ses cohortes. Les buckets ne sont montes nulle part ou il peut les atteindre ; les fichiers arrivent au fur et a mesure.',
     environmentUnknown: 'Environnement retiré',
     rebuiltSince: 'L’environnement a été reconstruit depuis le lancement — relancez pour obtenir la nouvelle image.',
     rebuiltSinceShort: 'reconstruit depuis',

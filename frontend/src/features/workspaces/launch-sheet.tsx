@@ -19,6 +19,7 @@ import {
   useEnvironments,
   useHardwareTiers,
   useProjectDatasets,
+  useProjectOntologies,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
@@ -99,7 +100,14 @@ export function LaunchWorkspaceSheet({
     }
   }, [open]);
 
+  const [dataAccess, setDataAccess] = React.useState<'dataset' | 'cohorts'>('dataset');
+
   const environment = usable.find((candidate) => candidate.id === environmentId);
+  // Offered only where a selection could exist. A project with no ontology has
+  // no cohort to isolate to, and the backend would refuse - an option that
+  // usually fails is worse than no option.
+  const ontologies = useProjectOntologies(projectId);
+  const canIsolate = (ontologies.data ?? []).length > 0;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -112,6 +120,7 @@ export function LaunchWorkspaceSheet({
         image: environment?.destinationImage,
         name: name.trim() || undefined,
         hardwareTier: tierId || undefined,
+        dataAccess,
       }),
     onSuccess: () => {
       invalidate(qk.workspaces(projectId), qk.projects);
@@ -163,6 +172,27 @@ export function LaunchWorkspaceSheet({
                       datasets: regulatedDatasets.map((dataset) => dataset.name).join(', '),
                     })}
                   </p>
+                ) : null}
+                {canIsolate ? (
+                  <Field
+                    label={t('workspaces.dataAccessLabel')}
+                    description={
+                      dataAccess === 'cohorts'
+                        ? t('workspaces.dataAccessCohortsHint')
+                        : t('workspaces.dataAccessDatasetHint')
+                    }
+                  >
+                    <Select
+                      value={dataAccess}
+                      onValueChange={(value) =>
+                        setDataAccess(value === 'cohorts' ? 'cohorts' : 'dataset')
+                      }
+                      options={[
+                        { value: 'dataset', label: t('workspaces.dataAccessDataset') },
+                        { value: 'cohorts', label: t('workspaces.dataAccessCohorts') },
+                      ]}
+                    />
+                  </Field>
                 ) : null}
                 <Field
                   label={t('workspaces.environmentLabel')}

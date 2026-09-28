@@ -342,6 +342,11 @@ export const en: Translations = {
   },
 
   workspaces: {
+    dataAccessLabel: 'Data mounted',
+    dataAccessDataset: 'The attached datasets',
+    dataAccessCohorts: 'Only the cohorts',
+    dataAccessDatasetHint: 'The workspace sees whole datasets, with cohorts as a view over them.',
+    dataAccessCohortsHint: "The workspace sees only its cohorts' files. The buckets are mounted nowhere it can reach, and the files arrive as they land.",
     environmentUnknown: 'Environment removed',
     rebuiltSince: 'The environment was rebuilt since this was started — relaunch to get the new image.',
     rebuiltSinceShort: 'rebuilt since',
