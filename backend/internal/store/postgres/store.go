@@ -1105,7 +1105,7 @@ func (s *Store) ListApps() ([]app.App, error) {
 	for rows.Next() {
 		var item app.App
 		var commandJSON, argsJSON, usersJSON, organizationsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.OwnerUserID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.AccessMode, &usersJSON, &organizationsJSON, &item.CreatedAt, &item.Published, &item.ActiveRevision, &item.PublishedAt, &item.HardwareTier); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Kind, &item.Name, &item.Slug, &item.Image, &commandJSON, &argsJSON, &item.Port, &item.PodName, &item.ServiceName, &item.Status, &item.AccessURL, &item.AccessMode, &usersJSON, &organizationsJSON, &item.CreatedAt, &item.Published, &item.ActiveRevision, &item.PublishedAt, &item.HardwareTier); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
