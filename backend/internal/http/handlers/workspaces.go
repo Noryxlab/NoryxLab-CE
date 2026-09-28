@@ -26,6 +26,18 @@ type createWorkspaceRequest struct {
 	Image        string `json:"image"`
 	StorageSize  string `json:"storageSize"`
 	HardwareTier string `json:"hardwareTier"`
+	// DataAccess chooses what the workspace can reach: "dataset", the whole
+	// attached datasets as today, or "cohorts", only the selections - filled
+	// into the cache by a container beside it, with the buckets mounted
+	// nowhere the person can reach (ADR-038).
+	DataAccess string `json:"dataAccess"`
+}
+
+// isolateToCohorts reports whether this launch asked for the boundary rather
+// than the view. Unknown values mean "dataset": a mode nobody recognises must
+// not silently narrow what somebody could reach yesterday.
+func isolateToCohorts(mode string) bool {
+	return strings.EqualFold(strings.TrimSpace(mode), "cohorts")
 }
 
 var (
@@ -617,12 +629,22 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				MountPath: profileMountPath,
 			})
 		}
+		// Asked for by the launch, and refused when nothing would be left: a
+		// workspace isolated to cohorts it does not have is a workspace with
+		// no data at all, which is never what somebody meant.
+		isolated := isolateToCohorts(req.DataAccess)
+
 		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
 			return
 		}
-		volumes = append(volumes, datasetVolumes...)
+		// The dataset volumes are prepared either way - the filler needs them -
+		// and only mounted in the workspace when it asked to see the whole
+		// thing. This line is the boundary.
+		if !isolated {
+			volumes = append(volumes, datasetVolumes...)
+		}
 
 		// The developer assistant is an Enterprise capability; a Community
 		// build returns an empty configuration and the workspace starts
@@ -670,6 +692,50 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			cohortManifest = ""
 		}
 
+		if isolated && len(cohortEntries) == 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "this project has no cohort to isolate to; declare one first or launch on the datasets",
+				"code":  "no_cohort",
+			})
+			return
+		}
+		var cohortSidecar *noryxruntime.SidecarSpec
+		if isolated {
+			if err := h.ensureCohortCache(); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the cohort cache: " + err.Error()})
+				return
+			}
+			cacheRoot := "/cache"
+			// The workspace sees the cache read-only, where its cohort tree
+			// lives, and the buckets nowhere.
+			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
+				ClaimName: cohortCacheClaim,
+				MountPath: projectMountPath + "/" + workspaceCohortsPath,
+				ReadOnly:  true,
+			})
+			// The filler runs the workspace's own image: it is already on the
+			// node, it has a shell, and shipping a second image to keep in
+			// step with it would be one more thing to rebuild for CVEs.
+			cohortSidecar = &noryxruntime.SidecarSpec{
+				Name:    "cohort-filler",
+				Image:   record.Image,
+				Command: []string{"/bin/sh", "-c"},
+				Args:    []string{cohortFillerScript(cacheRoot)},
+				Volumes: append(append([]noryxruntime.PersistentVolumeClaimMount{},
+					datasetVolumes...),
+					noryxruntime.PersistentVolumeClaimMount{ClaimName: cohortCacheClaim, MountPath: cacheRoot}),
+				Secrets: []noryxruntime.SecretMount{{
+					SecretName: podName + "-bootstrap",
+					MountPath:  "/var/run/noryx/bootstrap",
+					ReadOnly:   true,
+				}},
+				// Bounded: it copies in parallel and must not take the machine
+				// from the work it exists to serve.
+				CPULimit: "2",
+				MemLimit: "2Gi",
+			}
+		}
+
 		bootstrapScript := workspaceBootstrapScript(
 			req.IDE,
 			record.ID,
@@ -682,7 +748,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			attachedRepos,
 			len(attachedDatasets),
 			continueConfig,
-			cohortManifest != "",
+			cohortManifest != "" && !isolated,
 			cohortRefused,
 		)
 		workspaceArgs = nil
@@ -742,6 +808,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
+			Sidecar:                 cohortSidecar,
 			Secrets: []noryxruntime.SecretMount{{
 				SecretName: bootstrapSecretName,
 				MountPath:  "/var/run/noryx/bootstrap",

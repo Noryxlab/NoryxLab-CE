@@ -85,6 +85,8 @@ type Handlers struct {
 	workspacePVCEnabled              bool
 	workspacePVCClass                string
 	workspacePVCSize                 string
+	cohortCacheSize                  string
+	cohortCacheClass                 string
 	workspacePVCAccessMode           string
 	workspacePVCMountPath            string
 	workspaceProfilePVCEnabled       bool
@@ -164,6 +166,8 @@ type Options struct {
 	WorkspacePVCEnabled              bool
 	WorkspacePVCClass                string
 	WorkspacePVCSize                 string
+	CohortCacheSize                  string
+	CohortCacheClass                 string
 	WorkspacePVCAccessMode           string
 	WorkspacePVCMountPath            string
 	WorkspaceProfilePVCEnabled       bool
@@ -373,6 +377,8 @@ func New(
 		workspacePVCEnabled:              options.WorkspacePVCEnabled,
 		workspacePVCClass:                options.WorkspacePVCClass,
 		workspacePVCSize:                 options.WorkspacePVCSize,
+		cohortCacheSize:                  options.CohortCacheSize,
+		cohortCacheClass:                 options.CohortCacheClass,
 		workspacePVCAccessMode:           options.WorkspacePVCAccessMode,
 		workspacePVCMountPath:            options.WorkspacePVCMountPath,
 		workspaceProfilePVCEnabled:       options.WorkspaceProfilePVCEnabled,

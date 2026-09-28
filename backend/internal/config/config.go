@@ -58,6 +58,8 @@ type Config struct {
 	WorkspacePVCEnabled              bool
 	WorkspacePVCClass                string
 	WorkspacePVCSize                 string
+	CohortCacheSize                  string
+	CohortCacheClass                 string
 	WorkspacePVCAccessMode           string
 	WorkspacePVCMountPath            string
 	WorkspaceProfilePVCEnabled       bool
@@ -292,6 +294,19 @@ func Load() Config {
 	if workspacePVCSize == "" {
 		workspacePVCSize = "2Gi"
 	}
+	// The cohort cache: one volume for the installation, holding objects by
+	// path so two teams working on the same modality fetch them once. Sized
+	// for a working set rather than for a bucket - a whole-study ANTERION
+	// cohort measured 33.6 GiB on 2026-09-26, a PLEXELITE one 267.
+	cohortCacheSize := os.Getenv("NORYX_COHORT_CACHE_SIZE")
+	if cohortCacheSize == "" {
+		cohortCacheSize = "50Gi"
+	}
+	cohortCacheClass := os.Getenv("NORYX_COHORT_CACHE_CLASS")
+	if cohortCacheClass == "" {
+		cohortCacheClass = os.Getenv("NORYX_WORKSPACE_PVC_CLASS")
+	}
+
 	workspacePVCAccessMode := os.Getenv("NORYX_WORKSPACE_PVC_ACCESS_MODE")
 	if workspacePVCAccessMode == "" {
 		workspacePVCAccessMode = "ReadWriteMany"
@@ -385,6 +400,8 @@ func Load() Config {
 		WorkspacePVCEnabled:              workspacePVCEnabled == "true",
 		WorkspacePVCClass:                workspacePVCClass,
 		WorkspacePVCSize:                 workspacePVCSize,
+		CohortCacheSize:                  cohortCacheSize,
+		CohortCacheClass:                 cohortCacheClass,
 		WorkspacePVCAccessMode:           workspacePVCAccessMode,
 		WorkspacePVCMountPath:            workspacePVCMountPath,
 		WorkspaceProfilePVCEnabled:       workspaceProfilePVCEnabled == "true",
