@@ -613,13 +613,16 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// batches.
 	//
 	// minio-go sends multi-object deletes a thousand at a time and abandons
-	// the whole sweep on the first error. Cellar closes the connection after
-	// the first batch, so removing a folder of 3 234 objects came back
-	// "unexpected EOF" having deleted exactly 1001 - three times in a row, the
-	// same figure each time, which is what named the cause. Re-running worked,
-	// so the fix is to re-run here rather than to ask somebody to keep
-	// clicking: the listing is walked afresh each pass, and a pass that dies
-	// costs only the time to list again.
+	// the whole sweep on the first error. Removing a folder of 3 237 objects
+	// came back "unexpected EOF" having deleted exactly 1001, twice running -
+	// and the third attempt then swept 1235 in one go and finished. So the
+	// connection dies at a batch boundary rather than after the first batch:
+	// it is a flaky connection landing on a seam, not a limit, and the twice
+	// identical figure was the seam rather than a rule.
+	//
+	// Which is the argument for retrying rather than for batching smaller. The
+	// listing is walked afresh each pass, so a pass that dies costs only the
+	// time to list again, and somebody is not asked to keep clicking.
 	//
 	// A pass that removes nothing ends it, so an error that is not transient
 	// stops after one wasted listing instead of looping.
