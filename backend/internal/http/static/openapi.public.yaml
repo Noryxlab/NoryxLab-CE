@@ -249,6 +249,22 @@ components:
         tokens:
           type: integer
           description: How many of its credentials are live.
+    ProjectWorkload:
+      type: object
+      properties:
+        kind: { type: string, enum: [workspace, app, job] }
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+    ProjectWorkloadList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectWorkload' }
+        running:
+          type: integer
+          description: How many are consuming something right now.
     ServiceAccountList:
       type: object
       properties:
@@ -1625,6 +1641,8 @@ paths:
           required: true
           schema: { type: string }
       responses:
+        '409':
+          description: The project still holds workloads; the body lists them
         '204':
           description: Project deleted
         '400':
@@ -6009,7 +6027,16 @@ paths:
   /api/v1/admin/users/{userID}:
     patch:
       tags: [Admin]
-      summary: Update User Account
+      summary: Correct the name or email of an existing account
+      description: >-
+        Changes the first name, last name and email of an account, for fixing a
+        mistake made when it was created. The username is not editable: Noryx
+        identifies a person by it, so renaming one would leave that person's
+        project roles, team memberships and audit events pointing at an
+        identifier nobody holds. An account whose username is wrong has to be
+        created again. Every field sent replaces what the account held,
+        including with an empty value, so a field filled in by mistake can be
+        cleared.
       operationId: updateUserAccount
       security:
         - bearerAuth: []
@@ -6019,13 +6046,25 @@ paths:
           in: path
           required: true
           schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                email: { type: string, format: email }
       responses:
         '200':
-          description: Success
+          description: The account as it now stands, read back from the directory
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlatformUser'
+        '409':
+          description: Another account already holds that email
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7374,6 +7413,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/workloads:
+    get:
+      tags: [Projects]
+      summary: List what deleting this project would destroy
+      description: >-
+        Every workspace, application and job the project holds, with the state
+        each is in. Read before a deletion is confirmed, so the person deciding
+        sees what is inside. Deleting a project that still holds any of these
+        is refused with the same list unless force=true is passed.
+      operationId: getProjectWorkloads
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectWorkloadList'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

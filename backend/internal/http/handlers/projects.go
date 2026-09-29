@@ -343,8 +343,38 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Nothing is destroyed that was not shown first.
+	//
+	// This used to delete the project's workspaces silently and leave its apps
+	// and jobs behind. Both halves were wrong. An app is deliberately never
+	// reaped, so one whose project has gone keeps running against an
+	// identifier that resolves to nothing - costing a card, serving an
+	// endpoint, and appearing on no screen, because every screen finds it
+	// through the project it no longer has. And a workspace somebody was using
+	// disappeared without its owner having been told it existed.
+	//
+	// So the inventory is taken, and a project that still holds anything is
+	// refused with the list. `force` is the caller saying they have read it.
+	inventory := h.projectWorkloads(projectID)
+	if len(inventory.Items) > 0 && !strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("force")), "true") {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error": "this project still holds workloads; delete them first, or repeat with force=true to destroy them with it",
+			"code":  "project_not_empty",
+			"items": inventory.Items, "running": inventory.Running,
+		})
+		return
+	}
+
 	if err := h.deleteProjectWorkspaces(projectID); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete project workloads: " + err.Error()})
+		return
+	}
+	if err := h.deleteProjectApps(projectID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete project applications: " + err.Error()})
+		return
+	}
+	if err := h.deleteProjectJobs(projectID); err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete project jobs: " + err.Error()})
 		return
 	}
 
@@ -354,7 +384,11 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	h.emitAudit(r, userID, "project.delete", "project", projectID, projectID, "success", "", nil)
+	// What went with it, counted. "The project was deleted" and "the project
+	// and eleven running things were deleted" are different events and the
+	// journal should be able to tell them apart.
+	h.emitAudit(r, userID, "project.delete", "project", projectID, projectID, "success", "",
+		map[string]any{"workloads": len(inventory.Items), "running": inventory.Running})
 }
 
 func (h Handlers) deleteProjectWorkspaces(projectID string) error {
