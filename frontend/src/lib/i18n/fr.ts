@@ -545,6 +545,10 @@ export const fr = {
   },
 
   datasets: {
+    editTitle: 'Modifier le jeu de données',
+    editHint: "Le nom et la description. L'emplacement de stockage ne se change pas ici : le serveur ne sait pas encore le faire, et les montages déjà créés le portent gelé.",
+    storageFixed: 'Stockage (non modifiable)',
+    storageFixedHint: "Adresse et compartiment. Pour en changer, il faut recréer le jeu de données, ce qui perd les habilitations accordées dessus.",
     title: 'Datasets',
     subtitle: 'Jeux de données stockés sur S3 et partagés entre projets.',
     create: 'Nouveau dataset',

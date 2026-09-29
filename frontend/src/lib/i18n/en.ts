@@ -540,6 +540,10 @@ export const en: Translations = {
   },
 
   datasets: {
+    editTitle: 'Edit the dataset',
+    editHint: 'The name and the description. Where it is stored cannot be changed here: the server does not support it yet, and the mounts already created carry the address frozen in.',
+    storageFixed: 'Storage (not editable)',
+    storageFixedHint: 'Endpoint and bucket. Changing them means recreating the dataset, which loses every grant made on it.',
     title: 'Datasets',
     subtitle: 'Data stored on S3 and shared across projects.',
     create: 'New dataset',

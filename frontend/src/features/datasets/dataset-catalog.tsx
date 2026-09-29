@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Database, Plus, Trash2 } from 'lucide-react';
+import { Database, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
@@ -312,6 +312,98 @@ function DatasetSize({ dataset }: { dataset: Dataset }) {
  * n'aiderait personne a les remplacer et ferait de cet ecran un second endroit
  * d'ou ils peuvent fuiter.
  */
+/* Corriger le nom ou la description d'un jeu de donnees.
+ *
+ *  Le serveur accepte ces deux champs depuis toujours ; aucun ecran ne les
+ *  appelait, donc renommer un dataset demandait un appel API a la main. Le
+ *  client web declarait meme la methode sans jamais s'en servir.
+ *
+ *  L'adresse, le bucket et le fournisseur sont montres verrouilles plutot
+ *  qu'absents. C'est la premiere chose que quelqu'un vient chercher ici quand
+ *  un fournisseur S3 change, et un champ manquant se lit comme un oubli la ou
+ *  un champ verrouille dit que le serveur ne sait pas encore le faire. */
+function EditDatasetSheet({
+  dataset,
+  open,
+  onOpenChange,
+}: {
+  dataset: Dataset | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const [name, setName] = React.useState('');
+  const [description, setDescription] = React.useState('');
+
+  // Repart de ce que le dataset porte a chaque ouverture, jamais d'une saisie
+  // laissee en place a la fermeture precedente.
+  React.useEffect(() => {
+    if (!open || !dataset) return;
+    setName(dataset.name ?? '');
+    setDescription(dataset.description ?? '');
+  }, [open, dataset]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      datasetsApi.update(dataset!.id, { name: name.trim(), description: description.trim() }),
+    onSuccess: () => {
+      invalidate(qk.datasets);
+      toast.success(name.trim(), t('datasets.editTitle'));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('datasets.editTitle')),
+  });
+
+  if (!dataset) return null;
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent aria-describedby={undefined}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (name.trim()) save.mutate();
+          }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <SheetHeader>
+            <SheetTitle>{t('datasets.editTitle')}</SheetTitle>
+            <SheetDescription>{t('datasets.editHint')}</SheetDescription>
+          </SheetHeader>
+
+          <SheetBody>
+            <Field label={t('common.name')} required>
+              <Input value={name} onChange={(event) => setName(event.target.value)} autoFocus />
+            </Field>
+            <Field label={t('common.description')}>
+              <Textarea
+                rows={3}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </Field>
+            <Field label={t('datasets.storageFixed')} description={t('datasets.storageFixedHint')}>
+              <Input
+                value={[dataset.endpoint, dataset.bucket].filter(Boolean).join(' / ') || '—'}
+                disabled
+                readOnly
+                className="font-mono text-xs"
+              />
+            </Field>
+          </SheetBody>
+
+          <SheetFooter>
+            <Button type="submit" variant="primary" disabled={!name.trim()} loading={save.isPending}>
+              {t('common.save')}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function DatasetCredentials({ dataset }: { dataset: Dataset }) {
   const t = useT();
   const toast = useToast();
@@ -593,6 +685,7 @@ export function DatasetCatalog({
   const datasets = useDatasets();
   const [search, setSearch] = React.useState('');
   const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState<Dataset | null>(null);
 
   const selected = datasets.data?.find((dataset) => dataset.id === selectedId) ?? null;
 
@@ -715,6 +808,10 @@ export function DatasetCatalog({
           rowActions={(dataset) => (
             <>
               <DropdownMenuItem onSelect={() => onSelect(dataset.id)}>{t('common.open')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setEditing(dataset)}>
+                <Pencil aria-hidden />
+                {t('common.edit')}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={() =>
@@ -746,6 +843,11 @@ export function DatasetCatalog({
       ) : null}
 
       <CreateDatasetSheet open={creating} onOpenChange={setCreating} />
+      <EditDatasetSheet
+        dataset={editing}
+        open={editing !== null}
+        onOpenChange={(value) => !value && setEditing(null)}
+      />
       {dialog}
     </div>
   );
