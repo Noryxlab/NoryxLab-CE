@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { AlertTriangle, Network, Radar, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Network, Radar, Search, Trash2, MessageCircle } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
+import { assistantAvailable, requestAssistant } from '@/lib/assistant-bridge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -572,6 +573,9 @@ function OntologyOwnership({ ontology }: { ontology: Ontology }) {
 }
 
 export function OntologyCatalog() {
+  // Un bouton qui emet dans le vide est pire qu'un bouton absent : il a
+  // l'air casse. La configuration liste deja les extensions declarees.
+  const assistantPresent = assistantAvailable();
   const t = useT();
   const { locale } = useI18n();
   const toast = useToast();
@@ -677,6 +681,33 @@ export function OntologyCatalog() {
                 <Search aria-hidden />
                 {t('ontologies.query')}
               </DropdownMenuItem>
+              {/* Un bouton dedie, et pas le lanceur generique.
+                *
+                *  L'assistant porte une consigne par surface : celle-ci lui
+                *  donne les formes de chemins et lui demande une lecture, sans
+                *  aucun outil pour l'appliquer (ADR-040). Ouvrir la meme
+                *  conversation depuis le lanceur flottant donnerait l'autre
+                *  consigne, celle qui sait chercher un ticket et pas lire une
+                *  arborescence. */}
+              {assistantPresent ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    requestAssistant({
+                      surface: 'ontology',
+                      context: {
+                        ontologyId: ontology.id,
+                        ontologyName: ontology.name,
+                        sourceName: ontology.sourceName,
+                        inferenceProfile: ontology.inferenceProfile,
+                      },
+                      prompt: t('ontologies.describePrompt', { name: ontology.name }),
+                    })
+                  }
+                >
+                  <MessageCircle aria-hidden />
+                  {t('ontologies.describe')}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 destructive
                 onSelect={() =>

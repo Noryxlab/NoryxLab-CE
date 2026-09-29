@@ -647,6 +647,8 @@ export const fr = {
   },
 
   ontologies: {
+    describe: "Décrire la mise en page",
+    describePrompt: "Aide-moi à décrire comment « {name} » est rangé, à partir des formes de chemins.",
     title: 'Ontologies',
     subtitle: 'Vos objets métier au-dessus des données brutes.',
     empty: 'Aucune ontologie',

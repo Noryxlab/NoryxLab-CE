@@ -641,6 +641,8 @@ export const en: Translations = {
   },
 
   ontologies: {
+    describe: 'Describe the layout',
+    describePrompt: 'Help me describe how "{name}" is laid out, from the path shapes.',
     title: 'Ontologies',
     subtitle: 'Your business objects above the raw data.',
     empty: 'No ontology',
