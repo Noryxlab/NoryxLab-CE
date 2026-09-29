@@ -248,6 +248,43 @@ func (h Handlers) AddOrganizationMember(w http.ResponseWriter, r *http.Request) 
 	}
 	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
 	userID := strings.TrimSpace(r.PathValue("userID"))
+
+	// One organization per person, and it is about ownership rather than
+	// access.
+	//
+	// A team is a working group: belonging to one outside your own
+	// organization is collaboration, and says nothing about who owns what. An
+	// organization owns. Projects, datasets and ontologies carry an
+	// organization as their owner, and regulated data must - personal
+	// ownership is refused there, because the day the named person leaves,
+	// health data has an owner who no longer exists.
+	//
+	// So a person in two organizations makes the question "whose data is
+	// this" unanswerable, and the access resolution quietly sums both: a
+	// grant to one organization reaches them through the other. Konogan
+	// Baranton was in Essilor and Imt on 2026-09-29, from before membership
+	// changes were recorded, and nobody could say which was intended.
+	//
+	// Refused rather than tolerated. An organization that legitimately needs
+	// to reach another's work has teams for it.
+	if existing, err := h.keycloak.ListUserOrganizations(userID); err == nil {
+		for _, organization := range existing {
+			if strings.EqualFold(strings.TrimSpace(organization.ID), organizationID) {
+				continue
+			}
+			h.emitAdvancedAudit(r, identity.UserID(), "organization.member.add", "organization",
+				organizationID, "", "failure", "already_member_elsewhere",
+				map[string]any{"userId": userID, "currentOrganization": organization.Name})
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error": "this person already belongs to " + firstNonEmpty(organization.Name, organization.ID) +
+					": a person belongs to one organization, because an organization owns data. Remove them from it first, or use a team to share work across organizations.",
+				"code":                "already_member_elsewhere",
+				"currentOrganization": firstNonEmpty(organization.Name, organization.ID),
+			})
+			return
+		}
+	}
+
 	if err := h.keycloak.AddOrganizationMember(organizationID, userID); err != nil {
 		h.writeKeycloakError(w, "add organization member", err)
 		return
