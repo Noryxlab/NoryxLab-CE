@@ -249,6 +249,14 @@ components:
         tokens:
           type: integer
           description: How many of its credentials are live.
+    OntologyScanResult:
+      type: object
+      properties:
+        manifest:
+          type: object
+          description: What the scan understood of the dataset's layout.
+        item:
+          $ref: '#/components/schemas/Ontology'
     ProjectWorkload:
       type: object
       properties:
@@ -7444,6 +7452,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectWorkloadList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/scans:
+    post:
+      tags: [Datasets]
+      summary: Build an ontology from a dataset
+      description: >-
+        Walks the dataset and reads its paths with an inference profile,
+        producing the ontology that describes what is inside: subjects, visits
+        and modalities. No project is involved, because an ontology describes a
+        dataset and carries no project. A scan that recognises no subject is
+        refused with the shapes it found, rather than creating an empty
+        ontology that looks like it worked.
+      operationId: scanOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyScanResult'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

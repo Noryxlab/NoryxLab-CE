@@ -23,7 +23,19 @@ import (
 const ontologyScanMaxObjects = 50000
 
 var (
-	ontologySubjectPattern = regexp.MustCompile(`^[A-Za-z0-9]+-[0-9]{3,4}$`)
+	// A subject identifier, as the studies actually write them.
+	//
+	// The rule was one hyphen and a number: PREMYOM1000-0001 passed and
+	// SELENA-01-001 did not, because the alphanumeric part cannot cross a
+	// hyphen. FOR numbers SELENA patients by centre, so the whole string is
+	// the patient - and a scan of that study recognised no subject at all,
+	// producing an empty ontology that looked like it had worked.
+	//
+	// Segments before the number are now allowed. What is not relaxed is the
+	// ending: a subject still finishes with three or four digits, which is
+	// what keeps a directory like "DICOM" or "modality_ANTERION" from being
+	// read as a patient.
+	ontologySubjectPattern = regexp.MustCompile(`^[A-Za-z0-9]+(-[A-Za-z0-9]+)*-[0-9]{3,4}$`)
 	ontologyDatePattern    = regexp.MustCompile(`^[0-9]{8}$`)
 )
 
@@ -522,6 +534,20 @@ func (h Handlers) DetachProjectOntology(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ScanOntology builds an ontology from a dataset, with no project involved.
+//
+// An ontology describes a dataset: its table carries an owner, a source and an
+// inference profile, and no project at all. Asking for one to create it was a
+// permission anchor wearing the clothes of a parent - you had to pick a
+// project before you could photograph a bucket, and the ontology was then
+// attached to whichever one you picked.
+//
+// The project route below still works, and still attaches, because clients and
+// screens use it. This one is the shape the object actually has.
+func (h Handlers) ScanOntology(w http.ResponseWriter, r *http.Request) {
+	h.scanOntology(w, r, "")
+}
+
 func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -533,6 +559,14 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachOntology, "ontology scan") {
+		return
+	}
+	h.scanOntology(w, r, projectID)
+}
+
+func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID string) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
 		return
 	}
 	var req ontologyScanRequest
@@ -585,6 +619,32 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
 			return
 		}
+		// A scan that recognised nothing does not produce an ontology.
+		//
+		// It used to. Zero subjects and twenty-four thousand unrecognised
+		// objects still created a valid, empty ontology, attached it to the
+		// project, and answered 201 - so the layout mismatch arrived as an
+		// object that looked like it had worked, and the shapes explaining why
+		// sat in a field nobody opens. SELENA would have done exactly that
+		// this afternoon: its patients are numbered by centre, which the
+		// profile did not read as subjects.
+		//
+		// Refused with the shapes instead, because the shapes are the answer:
+		// they say what the layout looks like without saying what it contains,
+		// and they are what somebody needs in order to fix the profile or the
+		// export.
+		if manifest.Summary.Subjects == 0 {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{
+				"error": fmt.Sprintf(
+					"no subject recognised in %d object(s): this dataset's layout is not the one %s reads, so no ontology was created",
+					manifest.Summary.Objects+manifest.Summary.Unrecognised, inferenceProfile),
+				"code":                "layout_not_recognised",
+				"unrecognisedObjects": manifest.Summary.Unrecognised,
+				"layoutSamples":       manifest.Summary.LayoutSamples,
+				"inferenceProfile":    inferenceProfile,
+			})
+			return
+		}
 		manifest.InferenceProfile = inferenceProfile
 	case "datasource":
 		if inferenceProfile == "" {
@@ -633,9 +693,14 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 			log.Printf("ontology %s stored without its file list; cohorts cannot be built from it: %v", object.ID, err)
 		}
 	}
-	if err := h.projectResourceStore.AttachOntology(projectID, object.ID); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
-		return
+	// Attached only when a project asked. Scanning from the dataset produces
+	// an ontology that belongs to nobody's project until somebody attaches it,
+	// which is what the object itself has always said.
+	if projectID != "" {
+		if err := h.projectResourceStore.AttachOntology(projectID, object.ID); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
+			return
+		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"manifest": manifest, "item": object})
 }

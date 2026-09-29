@@ -179,6 +179,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/repositories/{repositoryID}/validate", h.ValidateRepository)
 	mux.HandleFunc("DELETE /api/v1/repositories/{repositoryID}", h.DeleteRepository)
 	mux.HandleFunc("GET /api/v1/ontologies", h.ListOntologies)
+	// An ontology describes a dataset and carries no project, so building one
+	// needs no project either. The project route below still exists and still
+	// attaches, because screens and clients use it.
+	mux.HandleFunc("POST /api/v1/ontologies/scans", h.ScanOntology)
 	// Whether an ontology still describes its source: it is a photograph, and
 	// it was presented as a fact.
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/freshness", h.GetOntologyFreshness)

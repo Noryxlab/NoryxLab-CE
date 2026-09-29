@@ -253,6 +253,7 @@ ENVELOPES = {
 RESPONSES = {
     ("GET", "/healthz"): "HealthResponse",
     ("GET", "/api/v1/admin/service-accounts"): "ServiceAccountList",
+    ("POST", "/api/v1/ontologies/scans"): "OntologyScanResult",
     ("GET", "/api/v1/projects/{projectID}/workloads"): "ProjectWorkloadList",
     ("PUT", "/api/v1/apps/{appID}/owner"): "App",
     ("GET", "/api/v1/hardware-tiers"): "HardwareTierListResponse",
