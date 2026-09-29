@@ -301,6 +301,8 @@ export const fr = {
   },
 
   projects: {
+    deleteHoldsWarning: "Ce projet porte encore {count} élément(s), dont {running} en marche. Les supprimer est irréversible.",
+    deleteHoldsConfirm: "Vous allez détruire le projet et les {count} élément(s) listés, dont {running} en marche. Tapez le nom du projet pour confirmer.",
     storageSizeLabel: 'Capacité des workspaces',
     storageSizeHint: 'Volume monté sur /mnt dans chaque workspace du projet, conservé entre les redémarrages. Les workspaces déjà lancés gardent leur volume.',
     storageSizeDefault: 'Valeur par défaut de la plateforme',

@@ -20,6 +20,14 @@ export type GrantSubjectType = OwnerType | 'team';
 export type AccessRole = 'reader' | 'writer' | 'admin';
 export type ProjectRole = 'viewer' | 'editor' | 'admin';
 
+/** Une charge portee par un projet, telle que la suppression la detruirait. */
+export interface ProjectWorkload {
+  kind: 'workspace' | 'app' | 'job';
+  id: string;
+  name: string;
+  status?: string;
+}
+
 export interface Project {
   id: string;
   name: string;

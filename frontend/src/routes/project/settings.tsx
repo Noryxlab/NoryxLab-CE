@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useMutation } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { ProjectVariablesSection } from '@/features/projects/project-variables';
 import { useConfirm } from '@/components/common/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
@@ -72,8 +73,33 @@ export function ProjectSettingsPage() {
     onError: (error) => toast.error(error, t('projects.transferOwnership')),
   });
 
+  /* Ce que la suppression detruirait, lu avant de demander quoi que ce soit.
+   *
+   *  La suppression effacait les espaces de travail en silence et laissait les
+   *  applications et les travaux derriere elle. Une application n'est jamais
+   *  arretee automatiquement : celle dont le projet a disparu continue de
+   *  tourner contre un identifiant qui ne resout plus rien, elle coute une
+   *  carte, elle sert une adresse, et elle n'apparait sur aucun ecran puisque
+   *  tous la trouvent par le projet qu'elle n'a plus.
+   *
+   *  Decider de detruire suppose d'avoir vu. */
+  const workloads = useQuery({
+    queryKey: ['project-workloads', projectId],
+    queryFn: () => projectsApi.workloads(projectId as string),
+    enabled: Boolean(projectId),
+  });
+  const held = workloads.data?.items ?? [];
+  // Nommes explicitement : une cle construite a la volee echappe au typage et
+  // se casse en silence le jour ou une sorte s'ajoute.
+  const kindLabel: Record<string, string> = {
+    workspace: t('nav.workspaces'),
+    app: t('nav.apps'),
+    job: t('nav.jobs'),
+  };
+  const running = workloads.data?.running ?? 0;
+
   const remove = useMutation({
-    mutationFn: () => projectsApi.remove(projectId as string),
+    mutationFn: () => projectsApi.remove(projectId as string, held.length > 0),
     onSuccess: () => {
       invalidate(qk.projects);
       navigate('/projects');
@@ -214,13 +240,42 @@ export function ProjectSettingsPage() {
             <CardDescription>{t('projects.deleteWarning')}</CardDescription>
           </CardHeaderText>
         </CardHeader>
+        {held.length > 0 ? (
+          <CardContent>
+            {/* Nommees une par une, et non comptees. Onze objets est un
+                chiffre ; "l'espace de travail de Katerina, en marche" est une
+                decision. */}
+            <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/5 p-3 text-sm">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+              <div className="min-w-0 space-y-2">
+                <p className="font-medium text-danger">
+                  {t('projects.deleteHoldsWarning', { count: held.length, running })}
+                </p>
+                <ul className="space-y-1">
+                  {held.map((entry) => (
+                    <li key={`${entry.kind}-${entry.id}`} className="flex items-center gap-2">
+                      <Badge tone="outline">{kindLabel[entry.kind] ?? entry.kind}</Badge>
+                      <span className="truncate">{entry.name}</span>
+                      {entry.status ? (
+                        <span className="text-xs text-muted-foreground">{entry.status}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        ) : null}
         <CardFooter className="justify-end">
           <Button
             variant="danger-outline"
             onClick={() =>
               ask({
                 title: t('projects.deleteTitle'),
-                description: t('projects.deleteWarning'),
+                description:
+                  held.length > 0
+                    ? t('projects.deleteHoldsConfirm', { count: held.length, running })
+                    : t('projects.deleteWarning'),
                 confirmLabel: t('common.delete'),
                 destructive: true,
                 // Typing the project name is the guard for an action that

@@ -297,6 +297,8 @@ export const en: Translations = {
   },
 
   projects: {
+    deleteHoldsWarning: 'This project still holds {count} item(s), {running} of them running. Deleting them cannot be undone.',
+    deleteHoldsConfirm: 'You are about to destroy the project and the {count} item(s) listed, {running} of them running. Type the project name to confirm.',
     storageSizeLabel: 'Workspace capacity',
     storageSizeHint: 'Volume mounted at /mnt in every workspace of this project, kept across restarts. Workspaces already running keep the volume they have.',
     storageSizeDefault: 'Platform default',

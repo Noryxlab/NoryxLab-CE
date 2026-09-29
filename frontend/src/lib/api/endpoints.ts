@@ -1,5 +1,6 @@
 import { api, encodeObjectPath, downloadFile, request } from './client';
 import type {
+  ProjectWorkload,
   ActivityReport,
   AdminHardwareTier,
   AdminInventory,
@@ -143,7 +144,11 @@ export const projectsApi = {
     input: { name?: string; description?: string; workspaceStorageSize?: string },
   ) =>
     api.put<Project>(`${V1}/projects/${projectId}`, input),
-  remove: (projectId: string) => api.delete<void>(`${V1}/projects/${projectId}`),
+  /** Ce que la suppression detruirait, lu avant de demander quoi que ce soit. */
+  workloads: (projectId: string) =>
+    api.get<{ items: ProjectWorkload[]; running: number }>(`${V1}/projects/${projectId}/workloads`),
+  remove: (projectId: string, force = false) =>
+    api.delete<void>(`${V1}/projects/${projectId}${force ? '?force=true' : ''}`),
   setOwner: (projectId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Project>(`${V1}/projects/${projectId}/ownership`, input),
   usage: (projectId: string) =>
