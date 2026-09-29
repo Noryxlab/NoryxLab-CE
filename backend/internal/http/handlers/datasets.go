@@ -544,6 +544,12 @@ func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"path": rel + "/"})
 }
 
+// datasetDeletePasses bounds the retries described below. Four passes clear
+// four thousand objects against a provider that hands back a thousand at a
+// time, and a folder larger than that finishes on the next request rather than
+// holding this one open indefinitely.
+const datasetDeletePasses = 4
+
 func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -602,63 +608,97 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	prefix := strings.TrimSuffix(key, "/") + "/"
-	objects := make(chan minio.ObjectInfo)
-	go func() {
-		defer close(objects)
-		for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-			if object.Err == nil {
-				objects <- object
-			}
-		}
-	}()
-	// Counted as they go by, because the listing is consumed by the removal
-	// and cannot be walked twice - and a figure produced afterwards would be
-	// what is left rather than what went.
+
+	// Swept in passes, because the provider drops the connection between
+	// batches.
+	//
+	// minio-go sends multi-object deletes a thousand at a time and abandons
+	// the whole sweep on the first error. Cellar closes the connection after
+	// the first batch, so removing a folder of 3 234 objects came back
+	// "unexpected EOF" having deleted exactly 1001 - three times in a row, the
+	// same figure each time, which is what named the cause. Re-running worked,
+	// so the fix is to re-run here rather than to ask somebody to keep
+	// clicking: the listing is walked afresh each pass, and a pass that dies
+	// costs only the time to list again.
+	//
+	// A pass that removes nothing ends it, so an error that is not transient
+	// stops after one wasted listing instead of looping.
 	removed := 0
 	var removedBytes int64
-	counted := make(chan minio.ObjectInfo)
-	go func() {
-		defer close(counted)
-		for object := range objects {
-			removed++
-			removedBytes += object.Size
-			counted <- object
+	var lastErr minio.RemoveObjectError
+	for pass := 0; pass < datasetDeletePasses; pass++ {
+		before := removed
+		lastErr = minio.RemoveObjectError{}
+		objects := make(chan minio.ObjectInfo)
+		go func() {
+			defer close(objects)
+			for object := range client.ListObjects(ctx, item.Bucket,
+				minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+				if object.Err == nil {
+					objects <- object
+				}
+			}
+		}()
+		// Counted as they go by: the listing is consumed by the removal and
+		// cannot be walked twice, and a figure produced afterwards would be
+		// what is left rather than what went.
+		counted := make(chan minio.ObjectInfo)
+		go func() {
+			defer close(counted)
+			for object := range objects {
+				removed++
+				removedBytes += object.Size
+				counted <- object
+			}
+		}()
+		failed := false
+		for removeErr := range client.RemoveObjects(ctx, item.Bucket, counted, minio.RemoveObjectsOptions{}) {
+			if removeErr.Err != nil {
+				lastErr, failed = removeErr, true
+				break
+			}
 		}
-	}()
-	for removeErr := range client.RemoveObjects(ctx, item.Bucket, counted, minio.RemoveObjectsOptions{}) {
-		if removeErr.Err != nil {
+		// Drained so the feeding goroutines finish rather than blocking on a
+		// channel nobody reads again.
+		for range counted {
+		}
+		if !failed {
+			break
+		}
+		log.Printf("dataset %s: pass %d of the recursive delete of %q stopped after %d objects on %q: %v",
+			item.ID, pass+1, rel, removed, lastErr.ObjectName, lastErr.Err)
+		if ctx.Err() != nil || removed == before {
 			// Partial by definition: some objects are already gone. The count
-			// says how far it got, which is what somebody resuming needs.
-			//
-			// The provider's own message goes in with it. A deletion that
-			// stopped halfway through 50 GiB of health data left "removal
-			// failed" and nothing else in the journal, and the reason existed
-			// only in an HTTP body nobody kept. It is our bucket and our
-			// error text, not anybody's data.
-			log.Printf("dataset %s: recursive delete of %q stopped after %d objects on %q: %v",
-				item.ID, rel, removed, removeErr.ObjectName, removeErr.Err)
+			// says how far it got, which is what somebody resuming needs, and
+			// the provider's own message goes in with it - a deletion that
+			// stopped halfway through 50 GiB of health data once left
+			// "removal failed" and nothing else in the journal.
+			details := map[string]any{
+				"recursive": true, "path": rel, "objects": removed, "bytes": removedBytes,
+				"classification": item.Classification, "bucket": item.Bucket,
+				"passes": pass + 1,
+			}
+			if lastErr.Err != nil {
+				details["failedObject"] = lastErr.ObjectName
+				details["providerError"] = lastErr.Err.Error()
+			}
 			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
-				"failure", "removal_failed", map[string]any{
-					"recursive": true, "path": rel, "objects": removed,
-					"classification": item.Classification, "bucket": item.Bucket,
-					"failedObject":  removeErr.ObjectName,
-					"providerError": removeErr.Err.Error(),
-				})
-			// Running out of time is not a failure of the deletion, it is the
-			// deletion being longer than one request. Said as what it is, with
-			// the count, because the next click finishes the job and nothing
-			// in "context deadline exceeded" says so.
+				"failure", "removal_failed", details)
 			if ctx.Err() != nil {
+				// Running out of time is not a failure of the deletion, it is
+				// the deletion being longer than one request. Said as what it
+				// is, with the count, because running it again finishes the
+				// job and nothing in "context deadline exceeded" says so.
 				writeJSON(w, http.StatusGatewayTimeout, map[string]any{
 					"error": fmt.Sprintf(
 						"deleted %d objects before the time limit; run the deletion again to continue where it stopped",
 						removed),
-					"objects":  removed,
-					"complete": false,
+					"objects": removed, "complete": false,
 				})
 				return
 			}
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder deletion failed: " + removeErr.Err.Error()})
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error": "dataset folder deletion failed: " + lastErr.Err.Error()})
 			return
 		}
 	}
