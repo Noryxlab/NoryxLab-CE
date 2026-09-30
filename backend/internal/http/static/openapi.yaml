@@ -8026,3 +8026,28 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/admin/alerts:
+    post:
+      tags: [Admin]
+      summary: Deliver an alert from a platform component
+      description: >-
+        The way out for a component that noticed something and has no channel
+        of its own. The platform validator ran nightly and recorded its
+        failures without announcing them for eight nights; giving it a second
+        mail account would have been a second credential to rotate and forget,
+        so it says so here and the platform's single notifier delivers it.
+        Refused when no destination is configured, rather than accepted and
+        discarded.
+      operationId: postComponentAlert
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '202':
+          description: Accepted for delivery to the configured destination
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

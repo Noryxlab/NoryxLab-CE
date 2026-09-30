@@ -305,6 +305,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/cohorts/{cohortID}"): ("204", "Cohort removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
+    ("POST", "/api/v1/admin/alerts"): ("202", "Accepted for delivery to the configured destination", None, None),
     ("POST", "/api/v1/apis"): ("201", "Endpoint deployed", "application/json", "App"),
     ("POST", "/api/v1/admin/service-accounts"): ("201", "Account created", "application/json", "ServiceAccount"),
     ("POST", "/api/v1/admin/service-accounts/{username}/tokens"): ("201", "Credential issued; the secret is shown once", "application/json", "ComponentTokenResponse"),

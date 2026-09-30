@@ -266,6 +266,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/admin/software-inventory", h.GetSoftwareInventory)
 	mux.HandleFunc("GET /api/v1/admin/software-inventory.csv", h.ExportSoftwareInventoryCSV)
 	mux.HandleFunc("GET /api/v1/admin/health/history", h.GetPlatformHealthHistory)
+	// The way out for a component that noticed something. The validator runs
+	// nightly and recorded its failures without announcing them, for eight
+	// nights.
+	mux.HandleFunc("POST /api/v1/admin/alerts", h.PostComponentAlert)
 	mux.HandleFunc("GET /api/v1/admin/settings", h.ListPlatformSettings)
 	mux.HandleFunc("PUT /api/v1/admin/settings/{key}", h.UpdatePlatformSetting)
 	mux.HandleFunc("GET /api/v1/admin/inventory", h.GetAdminInventory)
