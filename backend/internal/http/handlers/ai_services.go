@@ -15,10 +15,27 @@ import (
 // or none. A person opening the platform should see that before discovering it
 // from an assistant that will not answer.
 //
-// The colours are the point. Green is full service. Amber means a reduced model
-// is standing in: basic questions still work, code assistance and agents do not,
-// and saying so is better than letting a small model answer a hard question
-// confidently and wrongly. Red means nothing is serving.
+// The colours are the point. Green is full service, amber means something is
+// standing in, red means nothing is serving.
+//
+// Amber carries no sentence, deliberately. It used to explain itself - "basic
+// questions work, code assistance and agents do not" - written when degraded
+// had one cause, the deep tier being down. On 2026-09-30 the rented card
+// stopped for the night, an external relay took over every function, and the
+// card reported all capabilities available while the sentence beneath said code
+// and agents were not: one response contradicting itself, telling people their
+// tools were off while they were using them.
+//
+// The reflex was to make the sentence smarter. The better answer was to drop
+// it: degraded now has several causes, a sentence that covers them all says
+// nothing, and one that guesses is what just went wrong. The capabilities are
+// returned beside it and they are precise - an interface that needs to say more
+// should read those rather than a phrase that has to be right about a reason
+// nobody asked for. A claim that cannot be wrong is one nobody learns to
+// ignore.
+//
+// Red keeps its detail: there, the reason is the only actionable thing, and it
+// comes from what actually happened rather than from an assumption.
 
 type aiServicesStatus struct {
 	// Configured is false where no gateway is deployed. An installation without
@@ -114,9 +131,6 @@ func (h Handlers) readAIServicesStatus(r *http.Request) aiServicesStatus {
 	}
 	status.Mode = payload.Mode
 	status.Capabilities = payload.Capabilities
-	if payload.Mode == "degraded" {
-		status.Detail = "a reduced model is standing in: basic questions work, code assistance and agents do not"
-	}
 	return status
 }
 
