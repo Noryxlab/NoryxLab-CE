@@ -1,6 +1,15 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { AlertTriangle, Network, Radar, Search, Trash2, MessageCircle, UserRoundCog } from 'lucide-react';
+import {
+  AlertTriangle,
+  MessageCircle,
+  Network,
+  Pencil,
+  Radar,
+  Search,
+  Trash2,
+  UserRoundCog,
+} from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
@@ -307,6 +316,91 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
  *  servis, et souvent a la personne qui l'a declaree. La ceder est ce qui
  *  permet a une equipe de garder ce qu'elle a produit quand l'un d'eux s'en
  *  va. */
+/** Corriger le libelle d'un extrait.
+ *
+ *  Le nom est tape a la declaration - "anterion-3-sujets" - donc il se tape
+ *  mal, et il etait immuable : la seule issue etait de redeclarer la
+ *  selection, ce qui fige une autre liste sur un bucket qui grandit. Un
+ *  renommage devenait une autre etude.
+ *
+ *  Le libelle bouge, rien d'autre : la liste de fichiers, l'auteur et les
+ *  dates sont ce qui fait l'extrait, et un n deja publie sous ce nom decrit
+ *  toujours les memes fichiers. */
+export function ExtractRenameSheet({
+  extract,
+  open,
+  onOpenChange,
+}: {
+  extract: Extract | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const [name, setName] = React.useState('');
+  const [description, setDescription] = React.useState('');
+
+  // Suivre la ligne ouverte, sinon la feuille propose de renommer l'extrait
+  // precedent avec le nom de celui qu'on vient d'ouvrir.
+  React.useEffect(() => {
+    setName(extract?.name ?? '');
+    setDescription(extract?.description ?? '');
+  }, [extract?.id, extract?.name, extract?.description]);
+
+  const rename = useMutation({
+    mutationFn: () =>
+      ontologiesApi.updateExtract(extract?.id ?? '', {
+        name: name.trim(),
+        description: description.trim(),
+      }),
+    onSuccess: () => {
+      invalidate(qk.extracts);
+      invalidate(qk.ontologies);
+      toast.success(t('ontologies.extractRename'));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('ontologies.extractRename')),
+  });
+
+  const unchanged =
+    name.trim() === (extract?.name ?? '') && description.trim() === (extract?.description ?? '');
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent title={extract?.name ?? t('ontologies.extractRename')}>
+        <SheetBody>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim() && !unchanged) rename.mutate();
+            }}
+          >
+            <Field label={t('common.name')} description={t('ontologies.extractRenameHint')}>
+              <Input value={name} onChange={(event) => setName(event.target.value)} />
+            </Field>
+            <Field label={t('common.description')}>
+              <Input
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            </Field>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={rename.isPending}
+              disabled={!name.trim() || unchanged}
+            >
+              {t('common.save')}
+            </Button>
+          </form>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function ExtractOwnershipSheet({
   extract,
   open,
@@ -388,6 +482,7 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
   });
 
   const [transferred, setTransferred] = React.useState<Extract | null>(null);
+  const [renamed, setRenamed] = React.useState<Extract | null>(null);
 
   const remove = useMutation({
     mutationFn: (extractId: string) => ontologiesApi.deleteExtract(extractId),
@@ -472,6 +567,13 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
+                        title={t('ontologies.extractRename')}
+                        onClick={() => setRenamed(item)}
+                      >
+                        <Pencil aria-hidden />
+                      </Button>
+                      <Button
+                        variant="ghost"
                         title={t('projects.transferOwnership')}
                         onClick={() => setTransferred(item)}
                       >
@@ -501,6 +603,13 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
           <EmptyState title={t('ontologies.extractEmpty')} />
         )}
         <p className="text-xs text-muted-foreground">{t('ontologies.extractMountHint')}</p>
+        <ExtractRenameSheet
+          extract={renamed}
+          open={renamed !== null}
+          onOpenChange={(open) => {
+            if (!open) setRenamed(null);
+          }}
+        />
         <ExtractOwnershipSheet
           extract={transferred}
           open={transferred !== null}

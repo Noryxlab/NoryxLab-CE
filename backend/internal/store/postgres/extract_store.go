@@ -150,6 +150,22 @@ func scanExtract(row rowScanner) (extract.Extract, error) {
 	return item, nil
 }
 
+// UpdateMetadata corrects the label. The frozen file list, the author and the
+// dates are what the extract is, and renaming does not touch any of them.
+func (s *ExtractStore) UpdateMetadata(id, name, description string) error {
+	result, err := s.db.Exec(
+		`UPDATE extracts SET name=$2, description=$3, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(id), strings.TrimSpace(name), strings.TrimSpace(description))
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 // SetOwner hands the extract to somebody else, and touches nothing else.
 func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
 	result, err := s.db.Exec(

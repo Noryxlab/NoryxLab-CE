@@ -525,6 +525,11 @@ export const ontologiesApi = {
   /** Hands an extract to a person, a team or an organization. */
   setExtractOwner: (extractId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Extract>(`${V1}/extracts/${extractId}/ownership`, input),
+  /** Corrige le libelle, et lui seul : la liste de fichiers figee, l'auteur et
+   *  les dates sont ce qui fait l'extrait. Redeclarer la selection pour
+   *  corriger un nom en figeait une autre, sur un bucket qui grandit. */
+  updateExtract: (extractId: string, input: { name: string; description: string }) =>
+    api.put<Extract>(`${V1}/extracts/${extractId}`, input),
   /** Which projects mount it. Attaching is a link, so several may. */
   attachExtract: (projectId: string, extractId: string) =>
     api.put<void>(`${V1}/projects/${projectId}/extracts/${extractId}`, {}),

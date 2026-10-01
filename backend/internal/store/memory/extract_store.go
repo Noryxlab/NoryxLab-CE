@@ -87,6 +87,22 @@ func (s *ExtractStore) Delete(id string) error {
 }
 
 // SetOwner hands the extract to somebody else, and touches nothing else.
+func (s *ExtractStore) UpdateMetadata(id, name, description string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	trimmed := strings.TrimSpace(id)
+	for i := range s.items {
+		if s.items[i].ID != trimmed {
+			continue
+		}
+		s.items[i].Name = strings.TrimSpace(name)
+		s.items[i].Description = strings.TrimSpace(description)
+		s.items[i].UpdatedAt = time.Now().UTC()
+		return nil
+	}
+	return sql.ErrNoRows
+}
+
 func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

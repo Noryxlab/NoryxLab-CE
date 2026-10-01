@@ -6446,6 +6446,41 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/extracts/{extractID}:
+    put:
+      tags: [Datasets]
+      summary: Rename Extract
+      description: >-
+        Corrects the label and nothing else. The name is typed by a person at
+        declaration, so it gets typed wrong, and it could not be changed - the
+        only way to fix one was to declare the selection again, which freezes a
+        different list over a bucket that keeps growing, so a rename produced a
+        different study. The frozen file list, the author and the dates are what
+        the extract is and none of them move: an n already published against
+        this name still describes the same files. Owner or global administrator.
+      operationId: updateExtractMetadata
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extract'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Datasets]
       summary: Delete Extract

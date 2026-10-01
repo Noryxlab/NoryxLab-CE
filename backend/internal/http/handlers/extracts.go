@@ -314,6 +314,50 @@ func (h Handlers) UpdateExtractOwner(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
+// UpdateExtractMetadata corrects the label a person typed.
+//
+// The name is typed at declaration - "anterion-3-sujets" - and a typed name is
+// a name that gets typed wrong. It could not be changed, so the only way to
+// fix one was to declare the selection again: a different frozen list over a
+// bucket that keeps growing, which means a rename produced a different study.
+// The ontology got the same screen for the same reason on 2026-10-01.
+//
+// The label moves and nothing else does. The frozen file list, the author and
+// the dates are what the extract is, and an n already published against this
+// name still describes the same files.
+func (h Handlers) UpdateExtractMetadata(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.extractStore.GetByID(strings.TrimSpace(r.PathValue("extractID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
+		return
+	}
+	if !h.canManageExtract(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "extract owner or global admin required"})
+		return
+	}
+	var req updateDatasetMetadataRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid name and description are required"})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		return
+	}
+	if err := h.extractStore.UpdateMetadata(item.ID, req.Name, req.Description); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to rename the extract"})
+		return
+	}
+	h.emitAudit(r, identity.UserID(), "extract.renamed", "extract", item.ID, item.ProjectID,
+		"success", "", map[string]any{"name": strings.TrimSpace(req.Name), "previousName": item.Name})
+	updated, _, _ := h.extractStore.GetByID(item.ID)
+	writeJSON(w, http.StatusOK, updated)
+}
+
 // AttachProjectExtract mounts an extract in a project's workspaces.
 //
 // The same gesture as attaching a dataset or an ontology, and for the same

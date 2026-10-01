@@ -692,6 +692,8 @@ export const fr = {
     extractDeleteTitle: 'Supprimer l’extrait',
     extractDeleteWarning: 'La sélection figée est perdue. Les fichiers du dataset ne sont pas touchés.',
     extractDelete: 'Supprimer l’extrait',
+    extractRename: 'Renommer l’extrait',
+    extractRenameHint: 'Le libellé seul change. La liste de fichiers figée, son auteur et ses dates ne bougent pas : un n déjà publié sous ce nom décrit toujours les mêmes fichiers.',
     extractDeleted: 'Extrait supprimé.',
     extractCatalogHint: 'Un extrait est un sous-ensemble figé d’une ontologie : une liste de fichiers arrêtée au moment où on la déclare. Il se cède et se rattache à un projet comme un dataset. Déclarez-en un depuis l’ontologie dont il est tiré.',
     extractMountHint: 'Monté dans les workspaces du projet sous /mnt/extracts/<nom>/<sujet>/<visite>/<modalité>.',

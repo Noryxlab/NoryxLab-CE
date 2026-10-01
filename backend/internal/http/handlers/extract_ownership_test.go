@@ -5,6 +5,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
 // Le droit sur un extrait suit son proprietaire, plus son auteur.
@@ -45,5 +46,51 @@ func TestUnExtraitSansProprietaireResteASonAuteur(t *testing.T) {
 	}
 	if h.canManageExtract(ancien, auth.Identity{Username: "bob", Subject: "bob"}) {
 		t.Error("une ligne sans proprietaire est accessible a n importe qui")
+	}
+}
+
+// Renommer un extrait ne touche que son libelle.
+//
+// Le nom est tape a la declaration, donc il se tape mal, et il etait
+// immuable : la seule issue etait de redeclarer la selection, ce qui fige une
+// autre liste sur un bucket qui grandit - un renommage devenait une autre
+// etude. Ce qui fait l'extrait, lui, ne bouge pas.
+func TestRenommerUnExtraitNeTouchePasSaSelection(t *testing.T) {
+	extraits := memory.NewExtractStore()
+	item := extractdomain.Extract{
+		ID: "e1", OntologyID: "o1", Name: "anterion-3-sujest", Description: "faute de frappe",
+		OwnerUserID: "stef", OwnerType: "user", OwnerID: "stef",
+		ObjectCount: 2940, TotalBytes: 6_410_000_000,
+		Modalities: []string{"ANTERION"}, Subjects: []string{"S1", "S2", "S3"},
+	}
+	if err := extraits.Create(item, []extractdomain.Member{{ExtractID: "e1", Path: "S1/v1/ANTERION/a.e2e"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := extraits.UpdateMetadata("e1", "anterion-3-sujets", "trois sujets, cornee"); err != nil {
+		t.Fatal(err)
+	}
+	relu, found, err := extraits.GetByID("e1")
+	if err != nil || !found {
+		t.Fatalf("found=%v err=%v", found, err)
+	}
+	if relu.Name != "anterion-3-sujets" || relu.Description != "trois sujets, cornee" {
+		t.Fatalf("libelle = %q / %q", relu.Name, relu.Description)
+	}
+	if relu.ObjectCount != 2940 || relu.TotalBytes != 6_410_000_000 {
+		t.Fatalf("le n a bouge : %d objets, %d octets", relu.ObjectCount, relu.TotalBytes)
+	}
+	if relu.OwnerUserID != "stef" || relu.OwnerID != "stef" {
+		t.Fatal("le proprietaire ou l'auteur a bouge")
+	}
+	membres, err := extraits.ListMembers("e1", 10)
+	if err != nil || len(membres) != 1 {
+		t.Fatalf("la liste figee a bouge : %d membre(s), err=%v", len(membres), err)
+	}
+}
+
+// Et renommer un extrait qui n'existe pas se dit, au lieu de rendre un succes.
+func TestRenommerUnExtraitInconnuEchoue(t *testing.T) {
+	if err := memory.NewExtractStore().UpdateMetadata("absent", "x", ""); err == nil {
+		t.Fatal("un renommage sans cible doit echouer")
 	}
 }

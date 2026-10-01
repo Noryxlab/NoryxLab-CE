@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Scissors, Trash2, UserRoundCog } from 'lucide-react';
+import { Pencil, Scissors, Trash2, UserRoundCog } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -12,7 +12,7 @@ import { qk, useExtracts, useInvalidate, useOntologies } from '@/lib/api/queries
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
-import { ExtractOwnershipSheet } from './ontology-catalog';
+import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
 
 /**
  * Les extraits du catalogue, tous, sans passer par leur ontologie.
@@ -40,6 +40,7 @@ export function ExtractCatalog() {
   // identifiant, et un identifiant ne dit rien a personne.
   const ontologies = useOntologies();
   const [owned, setOwned] = React.useState<Extract | null>(null);
+  const [renamed, setRenamed] = React.useState<Extract | null>(null);
 
   const nomOntologie = (ontologyId: string) =>
     ontologies.data?.find((item) => item.id === ontologyId)?.name ?? ontologyId;
@@ -139,6 +140,10 @@ export function ExtractCatalog() {
           }
           rowActions={(extract) => (
             <>
+              <DropdownMenuItem onSelect={() => setRenamed(extract)}>
+                <Pencil aria-hidden />
+                {t('ontologies.extractRename')}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setOwned(extract)}>
                 <UserRoundCog aria-hidden />
                 {t('projects.transferOwnership')}
@@ -168,6 +173,13 @@ export function ExtractCatalog() {
         open={Boolean(owned)}
         onOpenChange={(open) => {
           if (!open) setOwned(null);
+        }}
+      />
+      <ExtractRenameSheet
+        extract={renamed}
+        open={Boolean(renamed)}
+        onOpenChange={(open) => {
+          if (!open) setRenamed(null);
         }}
       />
       {dialog}

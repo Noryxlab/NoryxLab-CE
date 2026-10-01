@@ -195,6 +195,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/extracts", h.ListExtracts)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
+	mux.HandleFunc("PUT /api/v1/extracts/{extractID}", h.UpdateExtractMetadata)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/extracts", h.ListProjectExtracts)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/extracts/{extractID}", h.AttachProjectExtract)

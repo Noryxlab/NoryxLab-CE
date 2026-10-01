@@ -686,6 +686,8 @@ export const en: Translations = {
     extractDeleteTitle: 'Delete the extract',
     extractDeleteWarning: 'The frozen selection is lost. The dataset files are untouched.',
     extractDelete: 'Delete extract',
+    extractRename: 'Rename extract',
+    extractRenameHint: 'The label alone changes. The frozen file list, its author and its dates do not move: an n already published under this name still describes the same files.',
     extractDeleted: 'Extract deleted.',
     extractCatalogHint: 'An extract is a frozen subset of an ontology: a file list settled at the moment it is declared. It is handed on and attached to a project like a dataset. Declare one from the ontology it is drawn from.',
     extractMountHint: 'Mounted in the project workspaces under /mnt/extracts/<name>/<subject>/<visit>/<modality>.',
