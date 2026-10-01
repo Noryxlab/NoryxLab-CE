@@ -693,6 +693,8 @@ export const en: Translations = {
     freshnessUnknown: 'Source not reached: cannot tell whether this measurement still holds.',
     freshnessStale: 'This ontology no longer describes its source',
     ownershipHint: 'The owner administers the ontology and its permissions. An organization outlives the person who created it.',
+    rename: 'Name and description',
+    renameHint: 'The name comes from the scan, which reads it off the source. Correcting it touches neither the scanned objects nor the extracts: only what is displayed changes.',
     deleteTitle: 'Delete the ontology',
     deleteWarning: 'Attached projects will lose access to this model.',
   },

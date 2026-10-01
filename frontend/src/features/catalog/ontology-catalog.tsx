@@ -611,6 +611,76 @@ function OntologyScan() {
 
 /** Handing an ontology over, in the same form and the same words as a dataset
  *  or a project: transferring is one gesture, not three to learn. */
+/* Corriger ce que le scan a lu.
+ *
+ *  La route existait depuis le premier jour et aucun ecran ne l'appelait : le
+ *  nom vient de la source, et quand il en sort faux - "SELENA-01" pour une
+ *  etude appelee SELENA-001 - la seule issue etait de supprimer l'ontologie et
+ *  de rescanner, ce qui en recree une autre et laisse la premiere derriere.
+ *
+ *  Le nom est un libelle, pas une cle : les objets, les extraits et les droits
+ *  pendent de l'identifiant, donc le corriger ne casse rien. */
+function OntologyNaming({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const [name, setName] = React.useState(ontology.name);
+  const [description, setDescription] = React.useState(ontology.description ?? '');
+
+  // Suivre la ligne selectionnee, sinon le formulaire propose de renommer
+  // l'ontologie precedente avec le nom de celle qu'on vient d'ouvrir.
+  React.useEffect(() => {
+    setName(ontology.name);
+    setDescription(ontology.description ?? '');
+  }, [ontology.id, ontology.name, ontology.description]);
+
+  const update = useMutation({
+    mutationFn: () => ontologiesApi.update(ontology.id, { name: name.trim(), description: description.trim() }),
+    onSuccess: () => {
+      invalidate(qk.ontologies);
+      toast.success(t('ontologies.rename'));
+    },
+    onError: (error) => toast.error(error, t('ontologies.rename')),
+  });
+
+  const unchanged = name.trim() === ontology.name && description.trim() === (ontology.description ?? '');
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.rename')}</CardTitle>
+          <CardDescription>{t('ontologies.renameHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (name.trim() && !unchanged) update.mutate();
+          }}
+          className="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-end"
+        >
+          <Field label={t('common.name')}>
+            <Input value={name} onChange={(event) => setName(event.target.value)} />
+          </Field>
+          <Field label={t('common.description')}>
+            <Input value={description} onChange={(event) => setDescription(event.target.value)} />
+          </Field>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={update.isPending}
+            disabled={!name.trim() || unchanged}
+          >
+            {t('common.save')}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 function OntologyOwnership({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const toast = useToast();
@@ -832,6 +902,7 @@ export function OntologyCatalog() {
         />
       </Card>
 
+      {selected ? <OntologyNaming ontology={selected} /> : null}
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
       {selected ? <OntologyExtracts ontology={selected} /> : null}

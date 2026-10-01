@@ -699,6 +699,8 @@ export const fr = {
     freshnessUnknown: 'Source non consultée : impossible de dire si cette mesure est toujours juste.',
     freshnessStale: 'Cette ontologie ne décrit plus sa source',
     ownershipHint: 'Le propriétaire administre l’ontologie et ses droits. Une organisation survit au départ de la personne qui l’a créée.',
+    rename: 'Nom et description',
+    renameHint: 'Le nom vient du scan, qui le lit sur la source. Le corriger ne touche ni les objets scannés ni les extraits : seul ce qui s’affiche change.',
     deleteTitle: 'Supprimer l’ontologie',
     deleteWarning: 'Les projets rattachés perdront l’accès à ce modèle.',
   },
