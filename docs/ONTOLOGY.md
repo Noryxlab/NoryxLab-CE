@@ -36,13 +36,21 @@ each modality, sparsest first, and the identifiers of those who do not - so an
 extract's owner learns what it excludes before publishing an n rather than
 after.
 
+**What mounts, and what does not.** A dataset is the bytes: a bucket, a
+prefix, a credential, mounted raw and read-only. An ontology is the *reading*
+of a dataset - what the paths mean and what is inside - and **does not mount**:
+it describes a source, it does not contain one. An extract is a view of an
+ontology, and it is the only object a workspace mounts. The whole ontology is
+the extract with no filter, which is a button rather than a thing to work out.
+
 **Extracts.** An extract is a named selection, resolved to an explicit list of
 files at the moment it is declared and kept that way: an extract that re-ran
 its filter would return a different study every month. It duplicates nothing.
 The frozen paths point into the dataset where the data already lives, and a
 workspace mounts the extract as a tree of symlinks at
-`<project mount>/extracts/<name>/<subject>/<visit>/<modality>` over the
-read-only dataset mount. The file list travels in the workspace bootstrap
+`/extracts/<name>/<levels>/<file>` over the read-only dataset mount - beside
+`/datasets` and `/repos`, because an extract is a read-only view of a bucket
+and belongs beside the bucket. The IDE opens it. The file list travels in the workspace bootstrap
 secret, which caps an extract at roughly 700 KB of compressed paths; past that
 the bootstrap log says the extract was not mounted rather than building a
 partial tree that would silently be a different study.
@@ -58,7 +66,19 @@ could never define a study. Ontologies scanned before this refuse to produce an
 extract and ask for a rescan, rather than returning an empty selection that
 looks like a legitimate answer.
 
-**Declaring one.** An extract is a filter over the ontology's own vocabulary -
+**Declaring one.** An extract carries two things. A **selection** - a filter
+over the ontology's own vocabulary, modalities, subjects, visits, resolved once
+and frozen. And a **layout**: the order of the directory levels. Subject-first
+answers "what does this patient have"; modality-first answers "show me every
+cornea scan I hold". Two questions, one set of files, and until 2026-10-01 only
+the first was expressible because the tree was built in a fixed order.
+
+A layout is a permutation of the three levels and never a subset. Dropping one
+would put files from different visits in the same directory, where the ones
+sharing a name would overwrite each other - a loss that surfaces as an `n`
+nobody can reproduce.
+
+The selection itself is a filter over the ontology's own vocabulary -
 modalities, subjects, visits - resolved once and frozen. The modalities are
 offered rather than typed: they are named and counted from the coverage above,
 exact spelling included, which is the part nobody can guess for a study they
@@ -101,6 +121,38 @@ An ontology has no status to display. The field exists and only ever holds
 `active`; showing it rendered "Running" on every row, which is a word about
 execution applied to an object that does not execute. Freshness and coverage
 are what can be true or false about an ontology, and they have their own cards.
+
+**How a source is read, and how to change it.** The platform read every bucket
+with one rule compiled in: find a segment that looks like a subject identifier,
+take the next two as the visit and the modality. A dataset can now carry its
+own rule instead - which path level holds the subject, which the visit, which
+the modality, counted from zero. For
+`SELENA/SELENA-01-001/20260218/ANTERION/DICOM/f.dcm`: subject 1, visit 2,
+modality 3. A level left empty means the source does not carry it, which is a
+real answer for a study with one visit per patient.
+
+It is positional and deliberately not a regular expression. A rule somebody can
+get subtly wrong, over health data, that files objects under the wrong patient
+and is discovered months later in a published figure, is a hazard with a text
+field - where three numbers can be read aloud and checked against one path
+somebody knows.
+
+**Try it before storing it.** The platform applies a candidate rule to a dozen
+real keys and shows what it reads - path, subject, visit, modality, and how
+many were recognised. Nothing is stored until you say so, and *forget the rule*
+restores the compiled one. The trial runs on real keys and is returned only to
+somebody who may already read the bucket; it is never sent to a model, which is
+why the assistant is shown path *shapes* instead.
+
+The assistant answers in the same vocabulary - "subject: level 1, visit: level
+2" - so applying its proposal is a transcription of three numbers rather than
+an interpretation of a paragraph. It proposes and never applies (ADR-040): a
+person stores the rule. An installation with no assistant fills the three
+fields itself, which is the point rather than a consolation.
+
+Changing a rule changes nothing until a rescan - and a rescan refreshes the
+ontology rather than adding one, so correcting a reading leaves one ontology,
+read properly. ADR-045 records the shape and what it still owes.
 
 **Ownership and attachment.** An ontology and an extract are owned the way a
 dataset is - by a user, a team or an organization - and both can be handed on.
