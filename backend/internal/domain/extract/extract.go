@@ -1,20 +1,20 @@
-// Package cohort holds a named, frozen selection of files from an ontology.
+// Package extract holds a named, frozen selection of files from an ontology.
 //
-// A cohort is the unit a study is actually run on: "the 23 subjects with a
+// An extract is the unit a study is actually run on: "the 23 subjects with a
 // corneal wavefront, at their first visit". Two properties make it worth
 // storing rather than recomputing.
 //
 // It is frozen. The selection is resolved to an explicit list of object paths
-// when it is declared, so a cohort still names the same files after the study
-// recruits eleven more subjects. A cohort that silently grew with its source
+// when it is declared, so an extract still names the same files after the study
+// recruits eleven more subjects. An extract that silently grew with its source
 // would make last month's n unreproducible.
 //
 // It duplicates nothing. The paths point into the dataset where it already
-// lives; mounting a cohort builds a tree of links, and not one byte is copied.
+// lives; mounting an extract builds a tree of links, and not one byte is copied.
 // The source stays read-only to the platform - these are regulated datasets,
 // and the platform's job is to provide the tools, not to make second copies of
 // the evidence.
-package cohort
+package extract
 
 import (
 	"strings"
@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Cohort struct {
+type Extract struct {
 	ID          string    `json:"id"`
 	OntologyID  string    `json:"ontologyId"`
 	ProjectID   string    `json:"projectId"`
@@ -39,11 +39,11 @@ type Cohort struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// Member is one file the cohort froze, with the place it takes in the tree a
+// Member is one file the extract froze, with the place it takes in the tree a
 // mount builds. The path is a key in the source bucket; nothing is written back
 // to it.
 type Member struct {
-	CohortID  string `json:"cohortId"`
+	ExtractID string `json:"extractId"`
 	Path      string `json:"path"`
 	SubjectID string `json:"subjectId"`
 	Visit     string `json:"visit"`
@@ -51,9 +51,9 @@ type Member struct {
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
-func New(ownerUserID, ontologyID, projectID, name, description string, subjects, modalities, visits []string) Cohort {
+func New(ownerUserID, ontologyID, projectID, name, description string, subjects, modalities, visits []string) Extract {
 	now := time.Now().UTC()
-	return Cohort{
+	return Extract{
 		ID:          uuid.NewString(),
 		OntologyID:  strings.TrimSpace(ontologyID),
 		ProjectID:   strings.TrimSpace(projectID),

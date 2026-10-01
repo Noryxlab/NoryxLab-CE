@@ -9,7 +9,7 @@ import (
 
 // Which subjects the study actually covers.
 //
-// A cohort is built by asking for a modality - "every subject with a corneal
+// An extract is built by asking for a modality - "every subject with a corneal
 // wavefront" - and the honest answer has two halves: who has it, and who was
 // expected to have it and does not. The second half is what a researcher needs
 // before publishing an n, and until now the platform showed a single total
@@ -28,7 +28,7 @@ type modalityCoverage struct {
 type ontologyCompleteness struct {
 	Subjects   int                `json:"subjects"`
 	Modalities []modalityCoverage `json:"modalities"`
-	// Subjects holding every modality the study uses. The number a cohort can
+	// Subjects holding every modality the study uses. The number an extract can
 	// count on without caveat.
 	CompleteSubjects int `json:"completeSubjects"`
 }
@@ -91,7 +91,7 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 		report.Modalities = append(report.Modalities, coverage)
 	}
 	// Sparsest first: a modality two subjects out of thirty-one carry is the
-	// one that decides whether a cohort is worth assembling.
+	// one that decides whether an extract is worth assembling.
 	sort.Slice(report.Modalities, func(i, j int) bool {
 		if report.Modalities[i].Subjects != report.Modalities[j].Subjects {
 			return report.Modalities[i].Subjects < report.Modalities[j].Subjects

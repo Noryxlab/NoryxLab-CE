@@ -28,7 +28,7 @@ const (
 
 	// Attaching a resource to a project is not launching a workload, and the
 	// platform used to decide both with the same rule: everything below was
-	// actionLaunch, so "may run a notebook" and "may mount a cohort" were one
+	// actionLaunch, so "may run a notebook" and "may mount an extract" were one
 	// permission. That is why five of the matrix's seven columns could be
 	// filled in and read back by nothing - there was no question to answer
 	// with them. Each of these is the question that column was for.
@@ -386,7 +386,7 @@ var (
 	// The Community rule for all four is the one they already had as
 	// actionLaunch: a contributor may attach what their project works on. What
 	// changes is that the matrix now sees which resource is being attached, so
-	// an installation can say "this role reads cohorts and writes nothing"
+	// an installation can say "this role reads extracts and writes nothing"
 	// without also saying it may not start a workspace.
 	actionAttachDataset = projectAction{
 		id:      projectActionAttachDataset,

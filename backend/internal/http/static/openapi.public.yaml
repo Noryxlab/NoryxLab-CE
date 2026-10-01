@@ -326,37 +326,37 @@ components:
         totalBytes: { type: integer }
         truncated: { type: boolean }
         measuredAt: { type: string }
-    Cohort:
+    Extract:
       type: object
       properties:
         id:
           type: string
-    CohortListResponse:
+    ExtractListResponse:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Cohort'
-    CohortMember:
+            $ref: '#/components/schemas/Extract'
+    ExtractMember:
       type: object
       properties:
-        cohortId:
+        extractId:
           type: string
-    CohortMemberListResponse:
+    ExtractMemberListResponse:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/CohortMember'
-    CohortMembersResponse:
+            $ref: '#/components/schemas/ExtractMember'
+    ExtractMembersResponse:
       type: object
       properties:
-        cohort: { $ref: '#/components/schemas/Cohort' }
+        extract: { $ref: '#/components/schemas/Extract' }
         members:
           type: array
-          items: { $ref: '#/components/schemas/CohortMember' }
+          items: { $ref: '#/components/schemas/ExtractMember' }
         subjects:
           type: array
           items: { type: string }
@@ -6263,59 +6263,59 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/cohorts/{cohortID}:
+  /api/v1/extracts/{extractID}:
     delete:
       tags: [Datasets]
-      summary: Delete Cohort
-      operationId: deleteCohort
+      summary: Delete Extract
+      operationId: deleteExtract
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: cohortID
+        - name: extractID
           in: path
           required: true
           schema: { type: string }
       responses:
         '204':
-          description: Cohort removed
+          description: Extract removed
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/cohorts/{cohortID}/members:
+  /api/v1/extracts/{extractID}/members:
     get:
       tags: [Datasets]
-      summary: Get Cohort Members
-      operationId: getCohortMembers
+      summary: Get Extract Members
+      operationId: getExtractMembers
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: cohortID
+        - name: extractID
           in: path
           required: true
           schema: { type: string }
       responses:
         '200':
-          description: The files the cohort froze
+          description: The files the extract froze
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CohortMembersResponse'
+                $ref: '#/components/schemas/ExtractMembersResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/ontologies/{ontologyID}/cohorts:
+  /api/v1/ontologies/{ontologyID}/extracts:
     get:
       tags: [Datasets]
-      summary: List Ontology Cohorts
-      operationId: listOntologyCohorts
+      summary: List Ontology Extracts
+      operationId: listOntologyExtracts
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -6339,8 +6339,8 @@ paths:
           $ref: '#/components/responses/NotFound'
     post:
       tags: [Datasets]
-      summary: Create Cohort
-      operationId: createCohort
+      summary: Create Extract
+      operationId: createExtract
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -6351,11 +6351,11 @@ paths:
           schema: { type: string }
       responses:
         '201':
-          description: Cohort created
+          description: Extract created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Cohort'
+                $ref: '#/components/schemas/Extract'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

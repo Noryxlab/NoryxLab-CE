@@ -20,7 +20,7 @@ import (
 // the study had gained eleven subjects and nothing on the screen suggested the
 // model had not noticed.
 //
-// Everything downstream rests on this: a cohort built from a stale ontology
+// Everything downstream rests on this: an extract built from a stale ontology
 // silently omits the subjects recruited since. So the platform counts what is
 // in the source now and says how far it has drifted.
 //

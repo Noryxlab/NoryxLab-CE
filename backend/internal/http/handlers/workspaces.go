@@ -27,17 +27,17 @@ type createWorkspaceRequest struct {
 	StorageSize  string `json:"storageSize"`
 	HardwareTier string `json:"hardwareTier"`
 	// DataAccess chooses what the workspace can reach: "dataset", the whole
-	// attached datasets as today, or "cohorts", only the selections - filled
+	// attached datasets as today, or "extracts", only the selections - filled
 	// into the cache by a container beside it, with the buckets mounted
 	// nowhere the person can reach (ADR-038).
 	DataAccess string `json:"dataAccess"`
 }
 
-// isolateToCohorts reports whether this launch asked for the boundary rather
+// isolateToExtracts reports whether this launch asked for the boundary rather
 // than the view. Unknown values mean "dataset": a mode nobody recognises must
 // not silently narrow what somebody could reach yesterday.
-func isolateToCohorts(mode string) bool {
-	return strings.EqualFold(strings.TrimSpace(mode), "cohorts")
+func isolateToExtracts(mode string) bool {
+	return strings.EqualFold(strings.TrimSpace(mode), "extracts")
 }
 
 var (
@@ -630,9 +630,9 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		// Asked for by the launch, and refused when nothing would be left: a
-		// workspace isolated to cohorts it does not have is a workspace with
+		// workspace isolated to extracts it does not have is a workspace with
 		// no data at all, which is never what somebody meant.
-		isolated := isolateToCohorts(req.DataAccess)
+		isolated := isolateToExtracts(req.DataAccess)
 
 		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
 		if err != nil {
@@ -682,14 +682,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			log.Printf("workspace %s: assistant enabled with regulated data mounted; model endpoint is outside the site", record.ID)
 		}
 
-		// A cohort mounts as a tree of links over the dataset that is already
+		// An extract mounts as a tree of links over the dataset that is already
 		// mounted: nothing is copied, and the source stays read-only.
-		cohortEntries := h.cohortMountEntries(req.ProjectID, attachedDatasets)
-		cohortManifest, cohortFits := encodeCohortManifest(cohortEntries)
-		cohortRefused := 0
-		if !cohortFits {
-			cohortRefused = len(cohortEntries)
-			cohortManifest = ""
+		extractEntries := h.extractMountEntries(req.ProjectID, attachedDatasets)
+		extractManifest, extractFits := encodeExtractManifest(extractEntries)
+		extractRefused := 0
+		if !extractFits {
+			extractRefused = len(extractEntries)
+			extractManifest = ""
 		}
 
 		// A selection too large to ship refuses the launch rather than
@@ -697,50 +697,50 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		// missing directory beside datasets that are still there; isolated, it
 		// costs a workspace with no data and no explanation - and the person
 		// concludes the platform lost their study.
-		if isolated && cohortRefused > 0 {
+		if isolated && extractRefused > 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": fmt.Sprintf("this selection holds %d files, too many to ship in one manifest; narrow it or mount the datasets", cohortRefused),
-				"code":  "cohort_too_large",
+				"error": fmt.Sprintf("this selection holds %d files, too many to ship in one manifest; narrow it or mount the datasets", extractRefused),
+				"code":  "extract_too_large",
 			})
 			return
 		}
-		if isolated && len(cohortEntries) == 0 {
+		if isolated && len(extractEntries) == 0 {
 			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "this project has no cohort to isolate to; declare one first or launch on the datasets",
-				"code":  "no_cohort",
+				"error": "this project has no extract to isolate to; declare one first or launch on the datasets",
+				"code":  "no_extract",
 			})
 			return
 		}
-		var cohortSidecar *noryxruntime.SidecarSpec
+		var extractSidecar *noryxruntime.SidecarSpec
 		if isolated {
-			if err := h.ensureCohortCache(); err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the cohort cache: " + err.Error()})
+			if err := h.ensureExtractCache(); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
 				return
 			}
 			cacheRoot := "/cache"
 			// Its own tree, not the cache. The objects underneath are shared
 			// by the whole installation, which is what makes a second team on
 			// the same modality free; what a person browses is theirs. Mounted
-			// whole, the cache showed every cohort of every project.
+			// whole, the cache showed every extract of every project.
 			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
-				ClaimName: cohortCacheClaim,
-				MountPath: projectMountPath + "/" + workspaceCohortsPath,
+				ClaimName: extractCacheClaim,
+				MountPath: projectMountPath + "/" + workspaceExtractsPath,
 				SubPath:   "trees/" + podName,
 				ReadOnly:  true,
 			})
 			// The filler runs the workspace's own image: it is already on the
 			// node, it has a shell, and shipping a second image to keep in
 			// step with it would be one more thing to rebuild for CVEs.
-			cohortSidecar = &noryxruntime.SidecarSpec{
-				Name:    "cohort-filler",
+			extractSidecar = &noryxruntime.SidecarSpec{
+				Name:    "extract-filler",
 				Image:   record.Image,
 				Command: []string{"/bin/sh", "-c"},
-				Args:    []string{cohortFillerScript(cacheRoot, podName)},
+				Args:    []string{extractFillerScript(cacheRoot, podName)},
 				// Read-only on the source, whatever the person's role on the
 				// dataset: this container exists to copy out of it, and
 				// nothing it can do should be able to write back.
 				Volumes: append(readOnlyMounts(datasetVolumes),
-					noryxruntime.PersistentVolumeClaimMount{ClaimName: cohortCacheClaim, MountPath: cacheRoot}),
+					noryxruntime.PersistentVolumeClaimMount{ClaimName: extractCacheClaim, MountPath: cacheRoot}),
 				Secrets: []noryxruntime.SecretMount{{
 					SecretName: podName + "-bootstrap",
 					MountPath:  "/var/run/noryx/bootstrap",
@@ -770,14 +770,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			attachedRepos,
 			len(attachedDatasets),
 			continueConfig,
-			cohortManifest != "" && !isolated,
-			cohortRefused,
+			extractManifest != "" && !isolated,
+			extractRefused,
 		)
 		workspaceArgs = nil
 		bootstrapSecretName := podName + "-bootstrap"
 		err = h.runtime.CreateSecret(noryxruntime.SecretSpec{
 			Name: bootstrapSecretName,
-			Data: bootstrapSecretData(bootstrapScript, cohortManifest),
+			Data: bootstrapSecretData(bootstrapScript, extractManifest),
 			Labels: map[string]string{
 				"app.kubernetes.io/name": "noryx-workspace-bootstrap",
 				"noryx.io/workspace-id":  record.ID,
@@ -830,7 +830,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
-			Sidecar:                 cohortSidecar,
+			Sidecar:                 extractSidecar,
 			Secrets: []noryxruntime.SecretMount{{
 				SecretName: bootstrapSecretName,
 				MountPath:  "/var/run/noryx/bootstrap",
@@ -1291,8 +1291,8 @@ func workspaceBootstrapScript(
 	attachedRepos []workspaceAttachedRepo,
 	datasetMountCount int,
 	continueConfig string,
-	hasCohortManifest bool,
-	refusedCohortFiles int,
+	hasExtractManifest bool,
+	refusedExtractFiles int,
 ) string {
 	lines := []string{
 		"set -e",
@@ -1341,7 +1341,7 @@ func workspaceBootstrapScript(
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
-	lines = append(lines, cohortBootstrapLines(projectMountPath, hasCohortManifest, refusedCohortFiles)...)
+	lines = append(lines, extractBootstrapLines(projectMountPath, hasExtractManifest, refusedExtractFiles)...)
 
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
@@ -1790,13 +1790,13 @@ func isNotFoundError(err error) bool {
 	return strings.Contains(msg, "not found") || strings.Contains(msg, "404")
 }
 
-// bootstrapSecretData carries the script and, when a project has cohorts, the
+// bootstrapSecretData carries the script and, when a project has extracts, the
 // file list they froze. Both live in the same secret because they are read at
 // the same moment by the same script.
-func bootstrapSecretData(script, cohortManifest string) map[string]string {
+func bootstrapSecretData(script, extractManifest string) map[string]string {
 	data := map[string]string{"bootstrap.sh": script}
-	if strings.TrimSpace(cohortManifest) != "" {
-		data["cohorts.b64"] = cohortManifest
+	if strings.TrimSpace(extractManifest) != "" {
+		data["extracts.b64"] = extractManifest
 	}
 	return data
 }

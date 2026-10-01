@@ -172,8 +172,8 @@ type PersistentVolumeClaimMount struct {
 	ReadOnly  bool
 	// SubPath mounts one directory of the claim rather than the claim.
 	//
-	// The cohort cache is one volume for the installation, so mounting it
-	// whole showed a workspace every cohort ever filled, from every project -
+	// The extract cache is one volume for the installation, so mounting it
+	// whole showed a workspace every extract ever filled, from every project -
 	// seen on the DC on 2026-09-28, where the first launch also displayed the
 	// filesystem's lost+found. The objects are shared on purpose; the tree
 	// somebody browses is theirs.

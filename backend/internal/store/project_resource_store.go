@@ -14,7 +14,7 @@ type ProjectResourceStore interface {
 	AttachOntology(projectID, ontologyID string) error
 	DetachOntology(projectID, ontologyID string) error
 	ListProjectOntologyIDs(projectID string) ([]string, error)
-	// The other direction: a cohort declared from the catalogue has to know
+	// The other direction: an extract declared from the catalogue has to know
 	// which project will mount it, and an ontology that belongs to exactly one
 	// project can answer that itself.
 	ListOntologyProjectIDs(ontologyID string) ([]string, error)

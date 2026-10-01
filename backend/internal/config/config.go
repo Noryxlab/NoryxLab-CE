@@ -58,8 +58,8 @@ type Config struct {
 	WorkspacePVCEnabled              bool
 	WorkspacePVCClass                string
 	WorkspacePVCSize                 string
-	CohortCacheSize                  string
-	CohortCacheClass                 string
+	ExtractCacheSize                 string
+	ExtractCacheClass                string
 	WorkspacePVCAccessMode           string
 	WorkspacePVCMountPath            string
 	WorkspaceProfilePVCEnabled       bool
@@ -294,17 +294,29 @@ func Load() Config {
 	if workspacePVCSize == "" {
 		workspacePVCSize = "2Gi"
 	}
-	// The cohort cache: one volume for the installation, holding objects by
+	// The extract cache: one volume for the installation, holding objects by
 	// path so two teams working on the same modality fetch them once. Sized
 	// for a working set rather than for a bucket - a whole-study ANTERION
-	// cohort measured 33.6 GiB on 2026-09-26, a PLEXELITE one 267.
-	cohortCacheSize := os.Getenv("NORYX_COHORT_CACHE_SIZE")
-	if cohortCacheSize == "" {
-		cohortCacheSize = "50Gi"
+	// extract measured 33.6 GiB on 2026-09-26, a PLEXELITE one 267.
+	// Le nouveau nom, et l ancien en repli.
+	//
+	// Renommer une variable d environnement sans filet ne casse rien de
+	// visible : la valeur disparait et le defaut prend sa place. Le cache
+	// serait retombe de ce qui est pose sur EMSE a 50 Gi, et personne ne
+	// l aurait su avant qu un montage manque de place.
+	extractCacheSize := os.Getenv("NORYX_EXTRACT_CACHE_SIZE")
+	if extractCacheSize == "" {
+		extractCacheSize = os.Getenv("NORYX_COHORT_CACHE_SIZE")
 	}
-	cohortCacheClass := os.Getenv("NORYX_COHORT_CACHE_CLASS")
-	if cohortCacheClass == "" {
-		cohortCacheClass = os.Getenv("NORYX_WORKSPACE_PVC_CLASS")
+	if extractCacheSize == "" {
+		extractCacheSize = "50Gi"
+	}
+	extractCacheClass := os.Getenv("NORYX_EXTRACT_CACHE_CLASS")
+	if extractCacheClass == "" {
+		extractCacheClass = os.Getenv("NORYX_COHORT_CACHE_CLASS")
+	}
+	if extractCacheClass == "" {
+		extractCacheClass = os.Getenv("NORYX_WORKSPACE_PVC_CLASS")
 	}
 
 	workspacePVCAccessMode := os.Getenv("NORYX_WORKSPACE_PVC_ACCESS_MODE")
@@ -400,8 +412,8 @@ func Load() Config {
 		WorkspacePVCEnabled:              workspacePVCEnabled == "true",
 		WorkspacePVCClass:                workspacePVCClass,
 		WorkspacePVCSize:                 workspacePVCSize,
-		CohortCacheSize:                  cohortCacheSize,
-		CohortCacheClass:                 cohortCacheClass,
+		ExtractCacheSize:                 extractCacheSize,
+		ExtractCacheClass:                extractCacheClass,
 		WorkspacePVCAccessMode:           workspacePVCAccessMode,
 		WorkspacePVCMountPath:            workspacePVCMountPath,
 		WorkspaceProfilePVCEnabled:       workspaceProfilePVCEnabled == "true",

@@ -11,7 +11,7 @@ func subjectWith(id string, modalities ...string) ontologySubject {
 }
 
 // The half that was missing: not how many objects a modality holds, but which
-// subjects do not have it. A cohort asked for by modality quietly excludes them.
+// subjects do not have it. An extract asked for by modality quietly excludes them.
 func TestCompletenessNamesTheSubjectsAModalityMisses(t *testing.T) {
 	manifest := ontologyManifest{Subjects: []ontologySubject{
 		subjectWith("S1", "Cornea_Basics", "Cornea_Wavefront"),
@@ -23,7 +23,7 @@ func TestCompletenessNamesTheSubjectsAModalityMisses(t *testing.T) {
 	if report.Subjects != 3 {
 		t.Fatalf("subjects = %d, want 3", report.Subjects)
 	}
-	// Sparsest first: the modality that decides whether a cohort is viable.
+	// Sparsest first: the modality that decides whether an extract is viable.
 	if report.Modalities[0].Name != "Cornea_Wavefront" {
 		t.Fatalf("first modality = %q, want the sparsest one", report.Modalities[0].Name)
 	}

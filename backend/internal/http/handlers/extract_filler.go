@@ -7,7 +7,7 @@ import (
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
-// Filling a cohort into the cache, beside a workspace that cannot see the
+// Filling an extract into the cache, beside a workspace that cannot see the
 // bucket.
 //
 // The mounted-links arrangement is a view: the dataset is in the same
@@ -17,7 +17,7 @@ import (
 // what.
 //
 // Measured on EMSE on 2026-09-26 before any of this was written. An ANTERION
-// cohort of five subjects, 2 940 objects and 5.97 GiB: first readable file at
+// extract of five subjects, 2 940 objects and 5.97 GiB: first readable file at
 // zero seconds, last at 130, and 2 ms per read afterwards against 44 MB/s and
 // no caching at all through the mount. Re-reading a file used to cost exactly
 // what reading it the first time cost; that is what this ends.
@@ -26,46 +26,46 @@ import (
 //
 //   - A file appears only once it has landed. A tree of paths that error on
 //     open is worse than a tree that grows, and a workspace that waits for the
-//     whole cohort is a workspace nobody uses.
+//     whole extract is a workspace nobody uses.
 //   - Parallel, because parallelism is the whole difference: 14 MB/s in one
 //     stream against 81 with several, measured the same evening.
 //   - It never writes to the dataset. The source is mounted read-only in this
 //     container and nowhere else.
 
 const (
-	cohortFillerLanes = 8
+	extractFillerLanes = 8
 	// The marks that bound the cache. Eviction starts at the high one and
 	// stops at the low one rather than at the high one, so a launch frees a
 	// useful amount instead of one file, and the next launch does not start
 	// by evicting again.
-	cohortCacheHighMark = 85
-	cohortCacheLowMark  = 70
+	extractCacheHighMark = 85
+	extractCacheLowMark  = 70
 )
 
-// cohortFillerScript copies a cohort's objects into the cache and builds the
+// extractFillerScript copies an extract's objects into the cache and builds the
 // tree as they land.
-func cohortFillerScript(cacheRoot, treeName string) string {
+func extractFillerScript(cacheRoot, treeName string) string {
 	lines := []string{
 		"#!/bin/sh",
 		"set -u",
-		"manifest=/var/run/noryx/bootstrap/cohorts.b64",
+		"manifest=/var/run/noryx/bootstrap/extracts.b64",
 		// Objects are shared and the tree is not. The cache holds one copy of
 		// each file for the whole installation - that is what makes a second
 		// team on the same modality free - and each workspace browses its own
 		// tree of hard links into it. Mounting the cache whole showed a
-		// workspace every cohort ever filled, from every project, and the
+		// workspace every extract ever filled, from every project, and the
 		// filesystem's lost+found beside them.
 		fmt.Sprintf("objets=%s/objects", shellQuote(cacheRoot)),
 		fmt.Sprintf("root=%s/trees/%s", shellQuote(cacheRoot), shellQuote(treeName)),
 		// The lease lives beside the tree, never inside it. Put in the tree it
-		// became a file in somebody's cohort directory - 64 files where the
-		// cohort holds 63, which is exactly the kind of detail that makes a
+		// became a file in somebody's extract directory - 64 files where the
+		// extract holds 63, which is exactly the kind of detail that makes a
 		// person doubt the rest.
 		fmt.Sprintf("baux=%s/leases", shellQuote(cacheRoot)),
 		fmt.Sprintf("bail=\"$baux\"/%s", shellQuote(treeName)),
 		"mkdir -p \"$baux\" 2>/dev/null",
 		"if [ ! -f \"$manifest\" ]; then",
-		"  echo '[filler] no cohort manifest; nothing to do'",
+		"  echo '[filler] no extract manifest; nothing to do'",
 		"  exit 0",
 		"fi",
 		"mkdir -p \"$root\" 2>/dev/null",
@@ -92,33 +92,33 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		// in objects/ and nothing else. Oldest first, down to the low mark, so
 		// a sweep frees a useful amount instead of one file per launch.
 		"utilise=$(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')",
-		fmt.Sprintf("if [ \"${utilise:-0}\" -gt %d ]; then", cohortCacheHighMark),
-		fmt.Sprintf("  echo \"[filler] cache a ${utilise}%%, elagage vers %d%%\"", cohortCacheLowMark),
+		fmt.Sprintf("if [ \"${utilise:-0}\" -gt %d ]; then", extractCacheHighMark),
+		fmt.Sprintf("  echo \"[filler] cache a ${utilise}%%, elagage vers %d%%\"", extractCacheLowMark),
 		"  find \"$objets\" -type f -links 1 -printf '%T@ %s %p\\n' 2>/dev/null | sort -n | while read -r quand taille chemin; do",
 		"    reste=$(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')",
-		fmt.Sprintf("    [ \"${reste:-0}\" -le %d ] && break", cohortCacheLowMark),
+		fmt.Sprintf("    [ \"${reste:-0}\" -le %d ] && break", extractCacheLowMark),
 		"    rm -f \"$chemin\" 2>/dev/null",
 		"  done",
 		"  echo \"[filler] cache a $(df -P \"$objets\" 2>/dev/null | awk 'NR==2 {print $5+0}')%% apres elagage\"",
 		"fi",
-		fmt.Sprintf("echo \"[filler] filling with %d lanes\"", cohortFillerLanes),
-		"base64 -d \"$manifest\" 2>/dev/null | gunzip 2>/dev/null > /tmp/cohorts.tsv",
-		"total=$(wc -l < /tmp/cohorts.tsv 2>/dev/null || echo 0)",
+		fmt.Sprintf("echo \"[filler] filling with %d lanes\"", extractFillerLanes),
+		"base64 -d \"$manifest\" 2>/dev/null | gunzip 2>/dev/null > /tmp/extracts.tsv",
+		"total=$(wc -l < /tmp/extracts.tsv 2>/dev/null || echo 0)",
 		"echo \"[filler] $total file(s) to place\"",
 		"voie=0",
-		fmt.Sprintf("while [ \"$voie\" -lt %d ]; do", cohortFillerLanes),
+		fmt.Sprintf("while [ \"$voie\" -lt %d ]; do", extractFillerLanes),
 		"  (",
 		"    n=0",
-		"    while IFS='\t' read -r cohort dataset subject visit modality path feuille; do",
+		"    while IFS='\t' read -r extract dataset subject visit modality path feuille; do",
 		"      n=$((n+1))",
-		fmt.Sprintf("      [ $(( (n-1) %% %d )) -eq \"$voie\" ] || continue", cohortFillerLanes),
+		fmt.Sprintf("      [ $(( (n-1) %% %d )) -eq \"$voie\" ] || continue", extractFillerLanes),
 		"      source=/datasets/\"$dataset\"/\"$path\"",
 		"      blob=\"$objets\"/\"$dataset\"/\"$path\"",
-		"      dossier=\"$root\"/\"$cohort\"/\"$subject\"/\"$visit\"/\"$modality\"",
+		"      dossier=\"$root\"/\"$extract\"/\"$subject\"/\"$visit\"/\"$modality\"",
 		"      cible=\"$dossier\"/\"$feuille\"",
 		"      [ -f \"$cible\" ] && continue",
 		"      mkdir -p \"$(dirname \"$cible\")\" \"$(dirname \"$blob\")\" 2>/dev/null || continue",
-		// Already cached by another workspace, or another cohort: link and
+		// Already cached by another workspace, or another extract: link and
 		// move on. This is the line that makes the second team free.
 		"      if [ -f \"$blob\" ]; then ln -f \"$blob\" \"$cible\" 2>/dev/null && continue; fi",
 		// Written aside and moved into place, so a reader never opens a file
@@ -131,7 +131,7 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		"        rm -f \"$blob\".partiel 2>/dev/null",
 		"        echo \"[filler] MANQUE $dataset/$path\"",
 		"      fi",
-		"    done < /tmp/cohorts.tsv",
+		"    done < /tmp/extracts.tsv",
 		"  ) &",
 		"  voie=$((voie+1))",
 		"done",
@@ -139,7 +139,7 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 		"fin=$(date +%s)",
 		"echo \"[filler] done in $((fin-debut))s\"",
 		// The container stays alive so the workspace's pod does not go
-		// Succeeded under it, and so a later cohort change can be filled by
+		// Succeeded under it, and so a later extract change can be filled by
 		// restarting this one rather than the workspace.
 		//
 		// It also holds the lease on its own tree while it sleeps. A deleted
@@ -153,29 +153,29 @@ func cohortFillerScript(cacheRoot, treeName string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// cohortCacheClaim is the one volume an installation caches into.
+// extractCacheClaim is the one volume an installation caches into.
 //
 // One for the installation rather than one per project: objects are cached by
 // their path, so two teams working on the same modality fetch them once. A
-// whole-study ANTERION cohort measured 33.6 GiB, a PLEXELITE one 267 - the
+// whole-study ANTERION extract measured 33.6 GiB, a PLEXELITE one 267 - the
 // cache holds a working set, never a bucket, and eviction is what keeps that
 // true. Until eviction exists the size is the guard, which is why it is a
 // setting and not a constant.
-const cohortCacheClaim = "noryx-cohort-cache"
+const extractCacheClaim = "noryx-extract-cache"
 
-func (h Handlers) ensureCohortCache() error {
+func (h Handlers) ensureExtractCache() error {
 	if h.runtime == nil {
 		return nil
 	}
 	return h.runtime.CreatePersistentVolumeClaim(noryxruntime.PersistentVolumeClaimSpec{
-		Name:             cohortCacheClaim,
-		StorageClassName: h.cohortCacheClass,
-		Size:             firstNonEmpty(h.cohortCacheSize, "50Gi"),
-		// Shared by every workspace that mounts a cohort, and by the fillers
+		Name:             extractCacheClaim,
+		StorageClassName: h.extractCacheClass,
+		Size:             firstNonEmpty(h.extractCacheSize, "50Gi"),
+		// Shared by every workspace that mounts an extract, and by the fillers
 		// beside them, so it has to be writable from several nodes at once.
 		AccessModes: []string{"ReadWriteMany"},
 		Labels: map[string]string{
-			"app.kubernetes.io/name": "noryx-cohort-cache",
+			"app.kubernetes.io/name": "noryx-extract-cache",
 		},
 	})
 }

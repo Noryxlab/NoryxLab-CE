@@ -35,7 +35,7 @@ import {
   useOntologies,
   useOntologyFreshness,
   useOntologyCompleteness,
-  useOntologyCohorts,
+  useOntologyExtracts,
   useDatasets,
   qk,
   useInvalidate,
@@ -171,7 +171,7 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
  * scan of the study read "18,738 objects, 20 subjects" in exactly the same
  * typeface as this morning's 24,179 and 31, and nothing said the study had
  * recruited eleven subjects in between. Everything built on an ontology - a
- * cohort above all - silently inherits that gap, so the count is checked
+ * extract above all - silently inherits that gap, so the count is checked
  * against the source and the difference is stated in objects.
  */
 function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
@@ -224,11 +224,11 @@ function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
 }
 
 /**
- * Who the study covers, and who a cohort would leave out.
+ * Who the study covers, and who an extract would leave out.
  *
  * "31 subjects" was the only number on the screen, and it averaged together
  * the subjects who carry a corneal wavefront and those who do not. Anyone
- * assembling a cohort by modality needs the second list by name, before they
+ * assembling an extract by modality needs the second list by name, before they
  * publish an n.
  */
 function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
@@ -291,22 +291,22 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
 }
 
 /**
- * Cohorts: the subset a study is actually run on.
+ * Extracts: the subset a study is actually run on.
  *
  * Declaring one resolves the selection to an explicit list of files and keeps
- * it. A cohort that re-ran its filter would return a different study every
+ * it. An extract that re-ran its filter would return a different study every
  * month, and last month's n would stop being reproducible.
  *
  * Nothing is duplicated: the frozen paths point into the dataset where the data
- * already lives, and a workspace mounts the cohort as a tree of links over it.
+ * already lives, and a workspace mounts the extract as a tree of links over it.
  */
-function OntologyCohorts({ ontology }: { ontology: Ontology }) {
+function OntologyExtracts({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
   const { dialog, ask } = useConfirm();
-  const cohorts = useOntologyCohorts(ontology.id);
+  const extracts = useOntologyExtracts(ontology.id);
   const [name, setName] = React.useState('');
   const [modalities, setModalities] = React.useState('');
   const [subjects, setSubjects] = React.useState('');
@@ -319,36 +319,36 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
 
   const create = useMutation({
     mutationFn: () =>
-      ontologiesApi.createCohort(ontology.id, {
+      ontologiesApi.createExtract(ontology.id, {
         name: name.trim(),
         // Left to the server when the ontology belongs to exactly one project;
         // it refuses with an explanation when the answer is ambiguous, which is
-        // better than filing the cohort under a project that will never mount it.
+        // better than filing the extract under a project that will never mount it.
         modalities: asList(modalities),
         subjects: asList(subjects),
       }),
     onSuccess: (created) => {
-      toast.success(t('ontologies.cohortCreated', { count: formatNumber(created.objectCount, locale) }));
+      toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
       setName('');
       setModalities('');
       setSubjects('');
-      invalidate(qk.ontologyCohorts(ontology.id));
+      invalidate(qk.ontologyExtracts(ontology.id));
     },
-    onError: (error) => toast.error(error, t('ontologies.cohortCreate')),
+    onError: (error) => toast.error(error, t('ontologies.extractCreate')),
   });
 
   const remove = useMutation({
-    mutationFn: (cohortId: string) => ontologiesApi.deleteCohort(cohortId),
-    onSuccess: () => invalidate(qk.ontologyCohorts(ontology.id)),
-    onError: (error) => toast.error(error, t('ontologies.cohortDeleteTitle')),
+    mutationFn: (extractId: string) => ontologiesApi.deleteExtract(extractId),
+    onSuccess: () => invalidate(qk.ontologyExtracts(ontology.id)),
+    onError: (error) => toast.error(error, t('ontologies.extractDeleteTitle')),
   });
 
   return (
     <Card>
       <CardHeader>
         <CardHeaderText>
-          <CardTitle>{t('ontologies.cohorts')}</CardTitle>
-          <CardDescription>{t('ontologies.cohortsHint')}</CardDescription>
+          <CardTitle>{t('ontologies.extracts')}</CardTitle>
+          <CardDescription>{t('ontologies.extractsHint')}</CardDescription>
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -362,14 +362,14 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
           <Field label={t('common.name')}>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <Field label={t('ontologies.cohortModalities')}>
+          <Field label={t('ontologies.extractModalities')}>
             <Input
               value={modalities}
               onChange={(event) => setModalities(event.target.value)}
               placeholder="Cornea_Wavefront"
             />
           </Field>
-          <Field label={t('ontologies.cohortSubjects')}>
+          <Field label={t('ontologies.extractSubjects')}>
             <Input
               value={subjects}
               onChange={(event) => setSubjects(event.target.value)}
@@ -377,11 +377,11 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
             />
           </Field>
           <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
-            {t('ontologies.cohortCreate')}
+            {t('ontologies.extractCreate')}
           </Button>
         </form>
 
-        {cohorts.data?.length ? (
+        {extracts.data?.length ? (
           <TableWrapper className="rounded-md border border-border">
             <Table>
               <TableHeader>
@@ -394,7 +394,7 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cohorts.data.map((item) => (
+                {extracts.data.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="text-xs font-medium">
                       {item.name}
@@ -418,8 +418,8 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
                         variant="ghost"
                         onClick={() =>
                           ask({
-                            title: t('ontologies.cohortDeleteTitle'),
-                            description: t('ontologies.cohortDeleteWarning'),
+                            title: t('ontologies.extractDeleteTitle'),
+                            description: t('ontologies.extractDeleteWarning'),
                             confirmLabel: t('common.delete'),
                             destructive: true,
                             onConfirm: () => remove.mutateAsync(item.id),
@@ -435,9 +435,9 @@ function OntologyCohorts({ ontology }: { ontology: Ontology }) {
             </Table>
           </TableWrapper>
         ) : (
-          <EmptyState title={t('ontologies.cohortEmpty')} />
+          <EmptyState title={t('ontologies.extractEmpty')} />
         )}
-        <p className="text-xs text-muted-foreground">{t('ontologies.cohortMountHint')}</p>
+        <p className="text-xs text-muted-foreground">{t('ontologies.extractMountHint')}</p>
       </CardContent>
       {dialog}
     </Card>
@@ -765,7 +765,7 @@ export function OntologyCatalog() {
 
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
-      {selected ? <OntologyCohorts ontology={selected} /> : null}
+      {selected ? <OntologyExtracts ontology={selected} /> : null}
       {selected ? <OntologyOwnership ontology={selected} /> : null}
       {dialog}
     </div>

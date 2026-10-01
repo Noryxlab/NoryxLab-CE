@@ -10,7 +10,7 @@ import (
 
 // The boundary is a mount, not a convention.
 //
-// A cohort mounted as links over the dataset is a view: the bucket is in the
+// An extract mounted as links over the dataset is a view: the bucket is in the
 // same container, and a shell walks out of the selection into everything.
 // Moving the dataset into a sidecar makes the kernel the thing that refuses -
 // a Kubernetes volume is declared on the pod and mounted per container, so the
@@ -23,10 +23,10 @@ func TestTheDatasetReachesTheFillerAndNotTheWorkspace(t *testing.T) {
 	payload := podPayload(noryxruntime.PodSpec{
 		PodName: "wks-1", Image: "harbor/vscode:1",
 		Volumes: []noryxruntime.PersistentVolumeClaimMount{
-			{ClaimName: "cache", MountPath: "/home/onyxia/work/cohorts", ReadOnly: true},
+			{ClaimName: "cache", MountPath: "/home/onyxia/work/extracts", ReadOnly: true},
 		},
 		Sidecar: &noryxruntime.SidecarSpec{
-			Name: "cohort-filler", Image: "harbor/vscode:1",
+			Name: "extract-filler", Image: "harbor/vscode:1",
 			Volumes: []noryxruntime.PersistentVolumeClaimMount{
 				{ClaimName: "dataset-hds-for", MountPath: "/datasets/hds-for", ReadOnly: true},
 				{ClaimName: "cache", MountPath: "/cache"},
@@ -44,7 +44,7 @@ func TestTheDatasetReachesTheFillerAndNotTheWorkspace(t *testing.T) {
 	if strings.Contains(string(main), "/datasets/") {
 		t.Fatalf("the workspace must not mount the dataset: %s", main)
 	}
-	if !strings.Contains(string(main), "cohorts") {
+	if !strings.Contains(string(main), "extracts") {
 		t.Fatalf("the workspace must mount the cache: %s", main)
 	}
 
@@ -73,7 +73,7 @@ func TestTheFillerAsksForLittleAndCannotWriteToTheSource(t *testing.T) {
 	payload := podPayload(noryxruntime.PodSpec{
 		PodName: "wks-1", Image: "harbor/vscode:1",
 		Sidecar: &noryxruntime.SidecarSpec{
-			Name: "cohort-filler", Image: "harbor/vscode:1",
+			Name: "extract-filler", Image: "harbor/vscode:1",
 			CPURequest: "100m", MemRequest: "128Mi", CPULimit: "1", MemLimit: "1Gi",
 			Volumes: []noryxruntime.PersistentVolumeClaimMount{
 				{ClaimName: "dataset-hds-for", MountPath: "/datasets/hds-for", ReadOnly: true},

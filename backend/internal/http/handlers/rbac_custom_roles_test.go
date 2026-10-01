@@ -107,7 +107,7 @@ func TestACustomRoleCannotCarryGovernance(t *testing.T) {
 }
 
 func TestTheShippedRowsDescribeWhatAContributorCanActuallyDo(t *testing.T) {
-	// The data columns said R for a contributor while attaching a cohort has
+	// The data columns said R for a contributor while attaching an extract has
 	// always been a contributor's right - the rows were describing a stricter
 	// platform than the one that ships. Harmless while nothing read them; a
 	// withdrawal of access the day those columns started deciding.

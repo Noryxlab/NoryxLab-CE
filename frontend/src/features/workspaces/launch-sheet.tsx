@@ -100,11 +100,11 @@ export function LaunchWorkspaceSheet({
     }
   }, [open]);
 
-  const [dataAccess, setDataAccess] = React.useState<'dataset' | 'cohorts'>('dataset');
+  const [dataAccess, setDataAccess] = React.useState<'dataset' | 'extracts'>('dataset');
 
   const environment = usable.find((candidate) => candidate.id === environmentId);
   // Offered only where a selection could exist. A project with no ontology has
-  // no cohort to isolate to, and the backend would refuse - an option that
+  // no extract to isolate to, and the backend would refuse - an option that
   // usually fails is worse than no option.
   const ontologies = useProjectOntologies(projectId);
   const canIsolate = (ontologies.data ?? []).length > 0;
@@ -177,19 +177,19 @@ export function LaunchWorkspaceSheet({
                   <Field
                     label={t('workspaces.dataAccessLabel')}
                     description={
-                      dataAccess === 'cohorts'
-                        ? t('workspaces.dataAccessCohortsHint')
+                      dataAccess === 'extracts'
+                        ? t('workspaces.dataAccessExtractsHint')
                         : t('workspaces.dataAccessDatasetHint')
                     }
                   >
                     <Select
                       value={dataAccess}
                       onValueChange={(value) =>
-                        setDataAccess(value === 'cohorts' ? 'cohorts' : 'dataset')
+                        setDataAccess(value === 'extracts' ? 'extracts' : 'dataset')
                       }
                       options={[
                         { value: 'dataset', label: t('workspaces.dataAccessDataset') },
-                        { value: 'cohorts', label: t('workspaces.dataAccessCohorts') },
+                        { value: 'extracts', label: t('workspaces.dataAccessExtracts') },
                       ]}
                     />
                   </Field>

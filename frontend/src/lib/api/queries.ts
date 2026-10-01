@@ -84,7 +84,7 @@ export const qk = {
   ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
   ontologyCompleteness: (ontologyId: string) =>
     ['ontologies', ontologyId, 'completeness'] as const,
-  ontologyCohorts: (ontologyId: string) => ['ontologies', ontologyId, 'cohorts'] as const,
+  ontologyExtracts: (ontologyId: string) => ['ontologies', ontologyId, 'extracts'] as const,
   repositories: ['repositories'] as const,
   secrets: ['secrets'] as const,
 
@@ -434,10 +434,10 @@ export const useOntologyCompleteness = (ontologyId: string | undefined) =>
     enabled: Boolean(ontologyId),
   });
 
-export const useOntologyCohorts = (ontologyId: string | undefined) =>
+export const useOntologyExtracts = (ontologyId: string | undefined) =>
   useQuery({
-    queryKey: qk.ontologyCohorts(ontologyId ?? ''),
-    queryFn: () => ontologiesApi.cohorts(ontologyId as string),
+    queryKey: qk.ontologyExtracts(ontologyId ?? ''),
+    queryFn: () => ontologiesApi.extracts(ontologyId as string),
     enabled: Boolean(ontologyId),
   });
 

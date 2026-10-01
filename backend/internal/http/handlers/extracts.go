@@ -8,24 +8,24 @@ import (
 	"strings"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
-	cohortdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/cohort"
+	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
-// Cohorts: a named selection of files, frozen when it is declared.
+// Extracts: a named selection of files, frozen when it is declared.
 //
 // The question a study starts from is "the subjects with a corneal wavefront,
 // first visit" - and the honest way to answer it twice is to resolve it once
-// and keep the list. A cohort that re-ran its filter would return a different
+// and keep the list. An extract that re-ran its filter would return a different
 // study every month, which is how an n stops being reproducible.
 //
 // Nothing is copied. The members are keys in the dataset where the data already
 // lives; a mount builds a tree of links over them. The source bucket is read
 // only to the platform, and stays that way.
 
-const cohortMemberPageSize = 500
+const extractMemberPageSize = 500
 
-type cohortRequest struct {
+type extractRequest struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	ProjectID   string   `json:"projectId"`
@@ -34,13 +34,13 @@ type cohortRequest struct {
 	Visits      []string `json:"visits"`
 }
 
-func (h Handlers) CreateCohort(w http.ResponseWriter, r *http.Request) {
+func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	if h.cohortStore == nil {
-		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "cohorts require a persistent store"})
+	if h.extractStore == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "extracts require a persistent store"})
 		return
 	}
 	ontologyID := strings.TrimSpace(r.PathValue("ontologyID"))
@@ -54,7 +54,7 @@ func (h Handlers) CreateCohort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req cohortRequest
+	var req extractRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
@@ -70,25 +70,25 @@ func (h Handlers) CreateCohort(w http.ResponseWriter, r *http.Request) {
 		Visits:     req.Visits,
 	})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve the cohort"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve the extract"})
 		return
 	}
 	// An ontology scanned before the platform kept its file list resolves to
-	// nothing, and the fix is a rescan, not a cohort of zero files that looks
+	// nothing, and the fix is a rescan, not an extract of zero files that looks
 	// like a legitimate empty result.
 	if len(members) == 0 {
 		stored, countErr := h.ontologyStore.CountObjects(ontologyID)
 		if countErr == nil && stored == 0 {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "this ontology was scanned before file paths were kept; rescan it to build cohorts from it"})
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "this ontology was scanned before file paths were kept; rescan it to build extracts from it"})
 			return
 		}
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no object matches this selection"})
 		return
 	}
 
-	// A cohort has to know which project will mount it. The catalogue screen is
+	// An extract has to know which project will mount it. The catalogue screen is
 	// not project-scoped, so an ontology attached to exactly one project answers
-	// for itself; anything else is asked rather than guessed, because a cohort
+	// for itself; anything else is asked rather than guessed, because an extract
 	// filed under the wrong project would simply never appear in a workspace.
 	projectID := strings.TrimSpace(req.ProjectID)
 	if projectID == "" && h.projectResourceStore != nil {
@@ -102,12 +102,12 @@ func (h Handlers) CreateCohort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object := cohortdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
-	frozen := make([]cohortdomain.Member, 0, len(members))
+	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
+	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {
 		object.TotalBytes += member.SizeBytes
-		frozen = append(frozen, cohortdomain.Member{
-			CohortID:  object.ID,
+		frozen = append(frozen, extractdomain.Member{
+			ExtractID: object.ID,
 			Path:      member.Path,
 			SubjectID: member.SubjectID,
 			Visit:     member.Visit,
@@ -117,18 +117,18 @@ func (h Handlers) CreateCohort(w http.ResponseWriter, r *http.Request) {
 	}
 	object.ObjectCount = len(frozen)
 
-	if err := h.cohortStore.Create(object, frozen); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create the cohort"})
+	if err := h.extractStore.Create(object, frozen); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create the extract"})
 		return
 	}
-	h.emitAudit(r, identity.UserID(), "cohort.create", "cohort", object.ID, object.ProjectID, "success", "", map[string]any{
+	h.emitAudit(r, identity.UserID(), "extract.create", "extract", object.ID, object.ProjectID, "success", "", map[string]any{
 		"ontologyId":  ontologyID,
 		"objectCount": object.ObjectCount,
 	})
 	writeJSON(w, http.StatusCreated, object)
 }
 
-func (h Handlers) ListOntologyCohorts(w http.ResponseWriter, r *http.Request) {
+func (h Handlers) ListOntologyExtracts(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
@@ -143,34 +143,34 @@ func (h Handlers) ListOntologyCohorts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
-	if h.cohortStore == nil {
-		writeJSON(w, http.StatusOK, []cohortdomain.Cohort{})
+	if h.extractStore == nil {
+		writeJSON(w, http.StatusOK, []extractdomain.Extract{})
 		return
 	}
-	items, err := h.cohortStore.ListByOntology(ontologyID)
+	items, err := h.extractStore.ListByOntology(ontologyID)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list cohorts"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list extracts"})
 		return
 	}
 	writeJSON(w, http.StatusOK, items)
 }
 
-// GetCohortMembers is the frozen list itself: what a mount reads, and what a
+// GetExtractMembers is the frozen list itself: what a mount reads, and what a
 // reviewer asks for when they want to know which files an n was computed over.
-func (h Handlers) GetCohortMembers(w http.ResponseWriter, r *http.Request) {
-	identity, item, ok := h.requireCohort(w, r)
+func (h Handlers) GetExtractMembers(w http.ResponseWriter, r *http.Request) {
+	identity, item, ok := h.requireExtract(w, r)
 	if !ok {
 		return
 	}
-	limit := cohortMemberPageSize
+	limit := extractMemberPageSize
 	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 			limit = parsed
 		}
 	}
-	members, err := h.cohortStore.ListMembers(item.ID, limit)
+	members, err := h.extractStore.ListMembers(item.ID, limit)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list the cohort's files"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list the extract's files"})
 		return
 	}
 	subjects := map[string]bool{}
@@ -184,58 +184,58 @@ func (h Handlers) GetCohortMembers(w http.ResponseWriter, r *http.Request) {
 	sort.Strings(names)
 	_ = identity
 	writeJSON(w, http.StatusOK, map[string]any{
-		"cohort":   item,
+		"extract":  item,
 		"members":  members,
 		"subjects": names,
-		// The page, not the cohort: a reader must not mistake 500 shown files
+		// The page, not the extract: a reader must not mistake 500 shown files
 		// for the size of the study.
 		"shown": len(members),
 		"total": item.ObjectCount,
 	})
 }
 
-func (h Handlers) DeleteCohort(w http.ResponseWriter, r *http.Request) {
-	identity, item, ok := h.requireCohort(w, r)
+func (h Handlers) DeleteExtract(w http.ResponseWriter, r *http.Request) {
+	identity, item, ok := h.requireExtract(w, r)
 	if !ok {
 		return
 	}
 	if item.OwnerUserID != identity.UserID() && !h.isGlobalAdmin(identity) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only the cohort's owner can delete it"})
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only the extract's owner can delete it"})
 		return
 	}
-	if err := h.cohortStore.Delete(item.ID); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete the cohort"})
+	if err := h.extractStore.Delete(item.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete the extract"})
 		return
 	}
-	h.emitAudit(r, identity.UserID(), "cohort.delete", "cohort", item.ID, item.ProjectID, "success", "", nil)
+	h.emitAudit(r, identity.UserID(), "extract.delete", "extract", item.ID, item.ProjectID, "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// A cohort is visible to whoever can read the ontology it came from: it names
+// An extract is visible to whoever can read the ontology it came from: it names
 // files in that ontology's source and nothing else.
-func (h Handlers) requireCohort(w http.ResponseWriter, r *http.Request) (identity auth.Identity, item cohortdomain.Cohort, ok bool) {
+func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identity auth.Identity, item extractdomain.Extract, ok bool) {
 	resolved, authorised := h.requireIdentity(w, r)
 	if !authorised {
 		return identity, item, false
 	}
-	if h.cohortStore == nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cohort not found"})
+	if h.extractStore == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	found := false
 	var err error
-	item, found, err = h.cohortStore.GetByID(strings.TrimSpace(r.PathValue("cohortID")))
+	item, found, err = h.extractStore.GetByID(strings.TrimSpace(r.PathValue("extractID")))
 	if err != nil || !found {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cohort not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	ontology, foundOntology, err := h.ontologyStore.GetByID(item.OntologyID)
 	if err != nil || !foundOntology {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cohort not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	if !h.isGlobalAdmin(resolved) && h.ontologyRole(ontology, resolved) == "" {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "cohort not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	return resolved, item, true

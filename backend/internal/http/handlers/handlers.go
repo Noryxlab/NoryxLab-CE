@@ -34,7 +34,7 @@ type Handlers struct {
 	datasetStore                     store.DatasetStore
 	datasourceStore                  store.DatasourceStore
 	ontologyStore                    store.OntologyStore
-	cohortStore                      store.CohortStore
+	extractStore                     store.ExtractStore
 	repositoryStore                  store.RepositoryStore
 	projectResourceStore             store.ProjectResourceStore
 	projectOntologyStore             store.ProjectOntologyStore
@@ -85,8 +85,8 @@ type Handlers struct {
 	workspacePVCEnabled              bool
 	workspacePVCClass                string
 	workspacePVCSize                 string
-	cohortCacheSize                  string
-	cohortCacheClass                 string
+	extractCacheSize                 string
+	extractCacheClass                string
 	workspacePVCAccessMode           string
 	workspacePVCMountPath            string
 	workspaceProfilePVCEnabled       bool
@@ -166,8 +166,8 @@ type Options struct {
 	WorkspacePVCEnabled              bool
 	WorkspacePVCClass                string
 	WorkspacePVCSize                 string
-	CohortCacheSize                  string
-	CohortCacheClass                 string
+	ExtractCacheSize                 string
+	ExtractCacheClass                string
 	WorkspacePVCAccessMode           string
 	WorkspacePVCMountPath            string
 	WorkspaceProfilePVCEnabled       bool
@@ -283,7 +283,7 @@ func New(
 	datasetStore store.DatasetStore,
 	datasourceStore store.DatasourceStore,
 	ontologyStore store.OntologyStore,
-	cohortStore store.CohortStore,
+	extractStore store.ExtractStore,
 	repositoryStore store.RepositoryStore,
 	projectResourceStore store.ProjectResourceStore,
 	projectOntologyStore store.ProjectOntologyStore,
@@ -326,7 +326,7 @@ func New(
 		datasetStore:                     datasetStore,
 		datasourceStore:                  datasourceStore,
 		ontologyStore:                    ontologyStore,
-		cohortStore:                      cohortStore,
+		extractStore:                     extractStore,
 		repositoryStore:                  repositoryStore,
 		projectResourceStore:             projectResourceStore,
 		projectOntologyStore:             projectOntologyStore,
@@ -377,8 +377,8 @@ func New(
 		workspacePVCEnabled:              options.WorkspacePVCEnabled,
 		workspacePVCClass:                options.WorkspacePVCClass,
 		workspacePVCSize:                 options.WorkspacePVCSize,
-		cohortCacheSize:                  options.CohortCacheSize,
-		cohortCacheClass:                 options.CohortCacheClass,
+		extractCacheSize:                 options.ExtractCacheSize,
+		extractCacheClass:                options.ExtractCacheClass,
 		workspacePVCAccessMode:           options.WorkspacePVCAccessMode,
 		workspacePVCMountPath:            options.WorkspacePVCMountPath,
 		workspaceProfilePVCEnabled:       options.WorkspaceProfilePVCEnabled,

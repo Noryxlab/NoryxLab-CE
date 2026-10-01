@@ -562,7 +562,7 @@ func migrationStatements() []string {
 			PRIMARY KEY (ontology_id, subject_type, subject_id)
 		)`,
 		`UPDATE ontology_access SET subject_id=user_id WHERE subject_id=''`,
-		// The paths a scan recognised, kept because a cohort is a list of
+		// The paths a scan recognised, kept because an extract is a list of
 		// files and has to name the same files a year later. Created after
 		// `ontologies` so the foreign key has something to point at - a
 		// statement ordered before its own table is a migration that only
@@ -578,11 +578,44 @@ func migrationStatements() []string {
 		)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_subject_idx ON ontology_objects (ontology_id, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_modality_idx ON ontology_objects (ontology_id, modality)`,
-		// A cohort is frozen when it is declared: the filter is kept for the
+		// The rename from "cohort", applied before the tables below are
+		// created rather than after.
+		//
+		// Order is the whole of it. These statements are the schema *and* the
+		// migrations, run top to bottom: a rename placed after the CREATE would
+		// find an empty "extracts" already made and fail on an installation
+		// that had data, while doing nothing visible on a fresh one. That is
+		// the shape of bug that only breaks the databases somebody already
+		// depends on.
+		//
+		// Guarded on both sides so it is a no-op twice over: nothing to rename
+		// on a fresh install, nothing to do on the second run.
+		//
+		// The word changed because the object did. A cohort is a group of
+		// people; this selects subjects, modalities and visits, and freezes the
+		// result. "Extract" says what it is without promising it is made of
+		// patients, and carries to domains that have none.
+		`DO $$
+		BEGIN
+			IF to_regclass('public.cohorts') IS NOT NULL
+			   AND to_regclass('public.extracts') IS NULL THEN
+				ALTER TABLE cohorts RENAME TO extracts;
+			END IF;
+			IF to_regclass('public.cohort_members') IS NOT NULL
+			   AND to_regclass('public.extract_members') IS NULL THEN
+				ALTER TABLE cohort_members RENAME TO extract_members;
+			END IF;
+			IF to_regclass('public.extract_members') IS NOT NULL
+			   AND EXISTS (SELECT 1 FROM information_schema.columns
+			               WHERE table_name = 'extract_members' AND column_name = 'cohort_id') THEN
+				ALTER TABLE extract_members RENAME COLUMN cohort_id TO extract_id;
+			END IF;
+		END $$;`,
+		// An extract is frozen when it is declared: the filter is kept for the
 		// record, and the resolved file list is what a mount and a rerun use.
-		// A cohort that silently followed its source would make last month's n
+		// An extract that silently followed its source would make last month's n
 		// unreproducible.
-		`CREATE TABLE IF NOT EXISTS cohorts (
+		`CREATE TABLE IF NOT EXISTS extracts (
 			id TEXT PRIMARY KEY,
 			ontology_id TEXT NOT NULL REFERENCES ontologies(id) ON DELETE CASCADE,
 			project_id TEXT NOT NULL,
@@ -597,16 +630,16 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
-		`CREATE TABLE IF NOT EXISTS cohort_members (
-			cohort_id TEXT NOT NULL REFERENCES cohorts(id) ON DELETE CASCADE,
+		`CREATE TABLE IF NOT EXISTS extract_members (
+			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,
 			subject_id TEXT NOT NULL,
 			visit TEXT NOT NULL,
 			modality TEXT NOT NULL,
 			size_bytes BIGINT NOT NULL DEFAULT 0,
-			PRIMARY KEY (cohort_id, path)
+			PRIMARY KEY (extract_id, path)
 		)`,
-		`CREATE INDEX IF NOT EXISTS cohorts_project_idx ON cohorts (project_id)`,
+		`CREATE INDEX IF NOT EXISTS extracts_project_idx ON extracts (project_id)`,
 
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
@@ -2549,7 +2582,7 @@ func (s *Store) DeleteOntologyAccess(ontologyID, subjectType, subjectID string) 
 }
 
 // ReplaceOntologyObjects swaps a scan's file list for the new one in a single
-// transaction: a rescan that failed halfway must leave the previous cohort
+// transaction: a rescan that failed halfway must leave the previous extract
 // definitions resolvable, not a half-emptied table.
 func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Object) error {
 	id := strings.TrimSpace(ontologyID)
@@ -2578,7 +2611,7 @@ func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Obj
 func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
 	query := `SELECT ontology_id, path, subject_id, visit, modality, size_bytes FROM ontology_objects WHERE ontology_id=$1`
 	args := []any{strings.TrimSpace(ontologyID)}
-	// An empty axis is "no constraint", never "nothing" - a cohort named by
+	// An empty axis is "no constraint", never "nothing" - an extract named by
 	// modality alone spans every subject that carries it.
 	for _, axis := range []struct {
 		column string

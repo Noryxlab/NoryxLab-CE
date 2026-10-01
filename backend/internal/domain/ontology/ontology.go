@@ -73,8 +73,8 @@ func New(ownerUserID, name, description, sourceType, sourceID, sourceName, infer
 // modality it was filed under.
 //
 // The manifest keeps three sample paths per modality, which is enough to show
-// someone what the data looks like and not nearly enough to build a cohort
-// from: a cohort is a list of files, it has to be frozen at the moment it is
+// someone what the data looks like and not nearly enough to build an extract
+// from: an extract is a list of files, it has to be frozen at the moment it is
 // declared, and it has to still name the same files when someone reproduces
 // the study a year later. So the paths are kept.
 //
@@ -89,8 +89,8 @@ type Object struct {
 	SizeBytes  int64  `json:"sizeBytes"`
 }
 
-// ObjectFilter selects the files a cohort is made of. An empty list means "no
-// constraint on this axis", never "nothing": a cohort defined by modality
+// ObjectFilter selects the files an extract is made of. An empty list means "no
+// constraint on this axis", never "nothing": an extract defined by modality
 // alone must span every subject that carries it.
 type ObjectFilter struct {
 	Subjects   []string

@@ -699,11 +699,11 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 	}
 	// Best effort, and said out loud when it fails: an ontology whose paths
 	// were not stored still describes the study correctly, it just cannot have
-	// a cohort built from it - which is a thing to log, not a reason to throw
+	// an extract built from it - which is a thing to log, not a reason to throw
 	// away a scan that took minutes.
 	if len(scannedObjects) > 0 {
 		if err := h.ontologyStore.ReplaceObjects(object.ID, scannedObjects); err != nil {
-			log.Printf("ontology %s stored without its file list; cohorts cannot be built from it: %v", object.ID, err)
+			log.Printf("ontology %s stored without its file list; extracts cannot be built from it: %v", object.ID, err)
 		}
 	}
 	// Attached only when a project asked. Scanning from the dataset produces
@@ -921,8 +921,8 @@ func queryLimit(limit int) int {
 
 // The scan returns the file list alongside the manifest. The manifest keeps
 // three sample paths per modality - enough to show what the data looks like,
-// never enough to build a cohort from - so the recognised paths are handed back
-// to be stored, and a cohort declared next month can still name the same files.
+// never enough to build an extract from - so the recognised paths are handed back
+// to be stored, and an extract declared next month can still name the same files.
 func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, []ontologydomain.Object, error) {
 	prefix := strings.Trim(item.Prefix, "/")
 	if prefix != "" {

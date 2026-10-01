@@ -265,7 +265,7 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 // makes is a matrix that will be wrong the day somebody trusts it.
 //
 // The data columns say RW for a contributor, and they were wrong to say R.
-// Attaching a cohort to a project has always been an editor's right - it was
+// Attaching an extract to a project has always been an editor's right - it was
 // decided by the same rule as launching a workspace - so the rows were
 // describing a stricter platform than the one that shipped. They were harmless
 // while nothing read them; they became a verdict the day those columns started

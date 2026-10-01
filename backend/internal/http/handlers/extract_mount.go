@@ -9,32 +9,32 @@ import (
 	"strings"
 )
 
-// Mounting a cohort: a tree of links, not a copy.
+// Mounting an extract: a tree of links, not a copy.
 //
-// The point of a cohort is to work on a subset organised the way the study
+// The point of an extract is to work on a subset organised the way the study
 // thinks - subject, visit, modality - while the bytes stay exactly where they
 // are. So the workspace gets a directory of symlinks pointing into the dataset
 // mount, and the source bucket is never written to, never copied, never
 // touched beyond the listing that built the ontology in the first place.
 //
 // The file list travels in the bootstrap secret, gzipped: a Kubernetes secret
-// is capped at a megabyte, so a very large cohort is refused out loud in the
+// is capped at a megabyte, so a very large extract is refused out loud in the
 // bootstrap log rather than mounted as a partial tree that would silently be a
 // different study.
 
 const (
 	// Well under the 1 MiB secret ceiling, leaving room for the script itself.
-	cohortManifestMaxBytes = 700 * 1024
-	workspaceCohortsPath   = "cohorts"
+	extractManifestMaxBytes = 700 * 1024
+	workspaceExtractsPath   = "extracts"
 )
 
-type cohortMountEntry struct {
-	CohortName string
-	DatasetDir string
-	SubjectID  string
-	Visit      string
-	Modality   string
-	Path       string
+type extractMountEntry struct {
+	ExtractName string
+	DatasetDir  string
+	SubjectID   string
+	Visit       string
+	Modality    string
+	Path        string
 	// Leaf is where the file sits under the modality, and it is not its name.
 	//
 	// The tree used to place each file under its basename, which loses every
@@ -49,13 +49,13 @@ type cohortMountEntry struct {
 	Leaf string
 }
 
-// cohortLeaf is the part of a path that belongs under the modality directory.
+// extractLeaf is the part of a path that belongs under the modality directory.
 //
 // Found by the modality's own segment, which this layout writes either as
 // "ANTERION" or as "modality_ANTERION" - the second in the older tree kept
 // under old/. Anything unrecognised keeps its whole path, which is longer than
 // it needs to be and never wrong.
-func cohortLeaf(path, modality string) string {
+func extractLeaf(path, modality string) string {
 	segments := strings.Split(strings.Trim(path, "/"), "/")
 	wanted := strings.ToLower(strings.TrimSpace(modality))
 	if wanted != "" {
@@ -72,9 +72,9 @@ func cohortLeaf(path, modality string) string {
 	return strings.Join(segments, "/")
 }
 
-// encodeCohortManifest packs the entries as gzipped TSV, base64 for transport
+// encodeExtractManifest packs the entries as gzipped TSV, base64 for transport
 // through a secret's string field. It reports whether the result fits.
-func encodeCohortManifest(entries []cohortMountEntry) (string, bool) {
+func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 	if len(entries) == 0 {
 		return "", true
 	}
@@ -87,61 +87,61 @@ func encodeCohortManifest(entries []cohortMountEntry) (string, bool) {
 			continue
 		}
 		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			entry.CohortName, entry.DatasetDir, entry.SubjectID, entry.Visit, entry.Modality, entry.Path, entry.Leaf)
+			entry.ExtractName, entry.DatasetDir, entry.SubjectID, entry.Visit, entry.Modality, entry.Path, entry.Leaf)
 	}
 	if err := writer.Close(); err != nil {
 		return "", false
 	}
 	encoded := base64.StdEncoding.EncodeToString(raw.Bytes())
-	if len(encoded) > cohortManifestMaxBytes {
+	if len(encoded) > extractManifestMaxBytes {
 		return "", false
 	}
 	return encoded, true
 }
 
-// cohortBootstrapLines rebuilds the tree at every start: the links are cheap,
-// and a workspace whose cohort changed must not keep yesterday's shape.
-func cohortBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int) []string {
-	root := projectMountPath + "/" + workspaceCohortsPath
+// extractBootstrapLines rebuilds the tree at every start: the links are cheap,
+// and a workspace whose extract changed must not keep yesterday's shape.
+func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int) []string {
+	root := projectMountPath + "/" + workspaceExtractsPath
 	if refusedCount > 0 {
 		return []string{
-			fmt.Sprintf("echo '[bootstrap] %d cohort file(s) not mounted: the selection is too large to ship in one manifest'", refusedCount),
-			fmt.Sprintf("echo '[bootstrap] the cohort is intact on the platform; open it there to see what it holds'"),
+			fmt.Sprintf("echo '[bootstrap] %d extract file(s) not mounted: the selection is too large to ship in one manifest'", refusedCount),
+			fmt.Sprintf("echo '[bootstrap] the extract is intact on the platform; open it there to see what it holds'"),
 		}
 	}
 	if !hasManifest {
 		return nil
 	}
 	return []string{
-		"if [ -f /var/run/noryx/bootstrap/cohorts.b64 ]; then",
-		"  echo '[bootstrap] building cohort links'",
+		"if [ -f /var/run/noryx/bootstrap/extracts.b64 ]; then",
+		"  echo '[bootstrap] building extract links'",
 		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
-		// mounted read-only, and the cohort is a second way of looking at it.
-		"  base64 -d /var/run/noryx/bootstrap/cohorts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r cohort dataset subject visit modality path feuille; do",
-		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$cohort\"/\"$subject\"/\"$visit\"/\"$modality\"", shellQuote(root)),
+		// mounted read-only, and the extract is a second way of looking at it.
+		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r extract dataset subject visit modality path feuille; do",
+		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$extract\"/\"$subject\"/\"$visit\"/\"$modality\"", shellQuote(root)),
 		"    mkdir -p \"$dir\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",
 		"    ln -sfn \"$target\" \"$dir\"/\"$feuille\" 2>/dev/null || true",
 		"  done",
-		fmt.Sprintf("  echo \"[bootstrap] cohort links ready: $(find %s -type l 2>/dev/null | wc -l) file(s)\"", shellQuote(root)),
+		fmt.Sprintf("  echo \"[bootstrap] extract links ready: $(find %s -type l 2>/dev/null | wc -l) file(s)\"", shellQuote(root)),
 		"fi",
 	}
 }
 
-// cohortMountEntries resolves the cohorts a project's workspace should see.
-// A cohort whose dataset is not mounted in this workspace is left out: a link
+// extractMountEntries resolves the extracts a project's workspace should see.
+// An extract whose dataset is not mounted in this workspace is left out: a link
 // into a directory that does not exist is a broken file, and a broken file in a
 // study directory is worse than an absent one.
-func (h Handlers) cohortMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) []cohortMountEntry {
-	if h.cohortStore == nil || strings.TrimSpace(projectID) == "" {
+func (h Handlers) extractMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) []extractMountEntry {
+	if h.extractStore == nil || strings.TrimSpace(projectID) == "" {
 		return nil
 	}
-	cohorts, err := h.cohortStore.ListByProject(projectID)
+	extracts, err := h.extractStore.ListByProject(projectID)
 	if err != nil {
-		log.Printf("workspace started without cohort links for project %s: %v", projectID, err)
+		log.Printf("workspace started without extract links for project %s: %v", projectID, err)
 		return nil
 	}
-	if len(cohorts) == 0 {
+	if len(extracts) == 0 {
 		return nil
 	}
 
@@ -150,32 +150,32 @@ func (h Handlers) cohortMountEntries(projectID string, attachedDatasets []worksp
 		mounted[strings.ToLower(strings.TrimSpace(item.Name))] = sanitizeWorkspacePathName(item.Name)
 	}
 
-	entries := []cohortMountEntry{}
-	for _, item := range cohorts {
+	entries := []extractMountEntry{}
+	for _, item := range extracts {
 		ontology, found, err := h.ontologyStore.GetByID(item.OntologyID)
 		if err != nil || !found {
 			continue
 		}
 		directory, ok := mounted[strings.ToLower(strings.TrimSpace(ontology.SourceName))]
 		if !ok {
-			log.Printf("cohort %s not mounted: its dataset %q is not attached to this workspace", item.ID, ontology.SourceName)
+			log.Printf("extract %s not mounted: its dataset %q is not attached to this workspace", item.ID, ontology.SourceName)
 			continue
 		}
-		members, err := h.cohortStore.ListMembers(item.ID, 0)
+		members, err := h.extractStore.ListMembers(item.ID, 0)
 		if err != nil {
-			log.Printf("cohort %s not mounted: %v", item.ID, err)
+			log.Printf("extract %s not mounted: %v", item.ID, err)
 			continue
 		}
 		name := sanitizeWorkspacePathName(item.Name)
 		for _, member := range members {
-			entries = append(entries, cohortMountEntry{
-				CohortName: name,
-				DatasetDir: directory,
-				SubjectID:  sanitizeWorkspacePathName(member.SubjectID),
-				Visit:      sanitizeWorkspacePathName(member.Visit),
-				Modality:   sanitizeWorkspacePathName(member.Modality),
-				Path:       member.Path,
-				Leaf:       cohortLeaf(member.Path, member.Modality),
+			entries = append(entries, extractMountEntry{
+				ExtractName: name,
+				DatasetDir:  directory,
+				SubjectID:   sanitizeWorkspacePathName(member.SubjectID),
+				Visit:       sanitizeWorkspacePathName(member.Visit),
+				Modality:    sanitizeWorkspacePathName(member.Modality),
+				Path:        member.Path,
+				Leaf:        extractLeaf(member.Path, member.Modality),
 			})
 		}
 	}

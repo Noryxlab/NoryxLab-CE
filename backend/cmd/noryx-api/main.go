@@ -48,7 +48,7 @@ func main() {
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
 	var datasourceStore store.DatasourceStore = memory.NewDatasourceStore()
 	var ontologyStore store.OntologyStore = memory.NewOntologyObjectStore()
-	var cohortStore store.CohortStore = memory.NewCohortStore()
+	var extractStore store.ExtractStore = memory.NewExtractStore()
 	var repositoryStore store.RepositoryStore = memory.NewRepositoryStore()
 	var projectResourceStore store.ProjectResourceStore = memory.NewProjectResourceStore()
 	var projectOntologyStore store.ProjectOntologyStore = memory.NewProjectOntologyStore()
@@ -110,7 +110,7 @@ func main() {
 			datasetStore = &postgres.DatasetStore{Store: pg}
 			datasourceStore = &postgres.DatasourceStore{Store: pg}
 			ontologyStore = &postgres.OntologyStore{Store: pg}
-			cohortStore = &postgres.CohortStore{Store: pg}
+			extractStore = &postgres.ExtractStore{Store: pg}
 			repositoryStore = &postgres.RepositoryStore{Store: pg}
 			projectResourceStore = &postgres.ProjectResourceStore{Store: pg}
 			projectOntologyStore = &postgres.ProjectOntologyStore{Store: pg}
@@ -201,7 +201,7 @@ func main() {
 		datasetStore,
 		datasourceStore,
 		ontologyStore,
-		cohortStore,
+		extractStore,
 		repositoryStore,
 		projectResourceStore,
 		projectOntologyStore,
@@ -243,8 +243,8 @@ func main() {
 			WorkspacePVCEnabled:              cfg.WorkspacePVCEnabled,
 			WorkspacePVCClass:                cfg.WorkspacePVCClass,
 			WorkspacePVCSize:                 cfg.WorkspacePVCSize,
-			CohortCacheSize:                  cfg.CohortCacheSize,
-			CohortCacheClass:                 cfg.CohortCacheClass,
+			ExtractCacheSize:                 cfg.ExtractCacheSize,
+			ExtractCacheClass:                cfg.ExtractCacheClass,
 			WorkspacePVCAccessMode:           cfg.WorkspacePVCAccessMode,
 			WorkspacePVCMountPath:            cfg.WorkspacePVCMountPath,
 			WorkspaceProfilePVCEnabled:       cfg.WorkspaceProfilePVCEnabled,

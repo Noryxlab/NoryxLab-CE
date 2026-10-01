@@ -100,7 +100,7 @@ func TestRegulatedDataCannotBeOwnedByAPerson(t *testing.T) {
 // administers a project, and the directory is not something this test can
 // stand up honestly.
 func TestRegulatedDataIsMountedOnlyByItsOwnOrganisation(t *testing.T) {
-	item := dataset.New("essilor", "cohort", "", "hds-bucket", "", "s3", "hds", "https://hds.example.com", "custom")
+	item := dataset.New("essilor", "extract", "", "hds-bucket", "", "s3", "hds", "https://hds.example.com", "custom")
 	item.OwnerType = "organization"
 	item.OwnerID = "essilor"
 

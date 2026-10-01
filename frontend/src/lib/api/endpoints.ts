@@ -21,7 +21,7 @@ import type {
   BackupConfigStatus,
   BackupRun,
   Build,
-  Cohort,
+  Extract,
   CreatedUser,
   CronJob,
   Dataset,
@@ -211,10 +211,10 @@ export interface CreateWorkspaceInput {
   image?: string;
   hardwareTier?: string;
   storageSize?: string;
-  /** "dataset" (default) mounts the attached datasets whole; "cohorts" mounts
+  /** "dataset" (default) mounts the attached datasets whole; "extracts" mounts
    *  only the declared selections, filled into the cache by a container beside
    *  the workspace, with the buckets mounted nowhere the person can reach. */
-  dataAccess?: 'dataset' | 'cohorts';
+  dataAccess?: 'dataset' | 'extracts';
 }
 
 export const projectVariablesApi = {
@@ -495,10 +495,10 @@ export const ontologiesApi = {
     api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
   completeness: (ontologyId: string) =>
     api.get<OntologyCompleteness>(`${V1}/ontologies/${ontologyId}/completeness`),
-  cohorts: (ontologyId: string) => api.list<Cohort>(`${V1}/ontologies/${ontologyId}/cohorts`),
-  createCohort: (ontologyId: string, input: Record<string, unknown>) =>
-    api.post<Cohort>(`${V1}/ontologies/${ontologyId}/cohorts`, input),
-  deleteCohort: (cohortId: string) => api.delete<void>(`${V1}/cohorts/${cohortId}`),
+  extracts: (ontologyId: string) => api.list<Extract>(`${V1}/ontologies/${ontologyId}/extracts`),
+  createExtract: (ontologyId: string, input: Record<string, unknown>) =>
+    api.post<Extract>(`${V1}/ontologies/${ontologyId}/extracts`, input),
+  deleteExtract: (extractId: string) => api.delete<void>(`${V1}/extracts/${extractId}`),
   access: (ontologyId: string) => api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
   grant: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
     api.put<OntologyAccess>(

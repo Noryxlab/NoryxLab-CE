@@ -1105,7 +1105,7 @@ export interface OntologyFreshness {
   checkedAt: string;
 }
 
-/** Who the study covers, and who a cohort assembled by modality would leave
+/** Who the study covers, and who an extract assembled by modality would leave
  *  out. Computed from the stored manifest, so it answers for ontologies
  *  scanned months ago too. */
 export interface OntologyModalityCoverage {
@@ -1124,7 +1124,7 @@ export interface OntologyCompleteness {
 /** A named selection of files, frozen when it is declared. It duplicates
  *  nothing: the paths point into the dataset where the data already lives, and
  *  a mount builds a tree of links over them. */
-export interface Cohort {
+export interface Extract {
   id: string;
   ontologyId: string;
   projectId: string;

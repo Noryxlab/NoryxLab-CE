@@ -1,0 +1,151 @@
+package postgres
+
+import (
+	"database/sql"
+	"encoding/json"
+	"strings"
+	"time"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+)
+
+// ExtractStore persists an extract and the file list it froze.
+//
+// The filter is kept for the record - it is how a person recognises what they
+// asked for - but it is the frozen list that answers "which files", because
+// re-running the filter next month would quietly return a different study.
+type ExtractStore struct{ *Store }
+
+func (s *ExtractStore) ListByProject(projectID string) ([]extract.Extract, error) {
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE project_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(projectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Extract{}
+	for rows.Next() {
+		item, err := scanExtract(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *ExtractStore) ListByOntology(ontologyID string) ([]extract.Extract, error) {
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE ontology_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(ontologyID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Extract{}
+	for rows.Next() {
+		item, err := scanExtract(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *ExtractStore) GetByID(id string) (extract.Extract, bool, error) {
+	row := s.db.QueryRow(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE id=$1`, strings.TrimSpace(id))
+	item, err := scanExtract(row)
+	if err == sql.ErrNoRows {
+		return extract.Extract{}, false, nil
+	}
+	if err != nil {
+		return extract.Extract{}, false, err
+	}
+	return item, true, nil
+}
+
+// Create writes the extract and its frozen members in one transaction: a
+// half-written extract would report an n it cannot list.
+func (s *ExtractStore) Create(item extract.Extract, members []extract.Member) error {
+	subjects, _ := json.Marshal(item.Subjects)
+	modalities, _ := json.Marshal(item.Modalities)
+	visits, _ := json.Marshal(item.Visits)
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`INSERT INTO extracts (id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		item.ID, item.OntologyID, item.ProjectID, item.OwnerUserID, item.Name, item.Description, subjects, modalities, visits, item.ObjectCount, item.TotalBytes, item.CreatedAt, item.UpdatedAt); err != nil {
+		return err
+	}
+	statement, err := tx.Prepare(`INSERT INTO extract_members (extract_id, path, subject_id, visit, modality, size_bytes) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (extract_id, path) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+	for _, member := range members {
+		if _, err := statement.Exec(item.ID, member.Path, member.SubjectID, member.Visit, member.Modality, member.SizeBytes); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *ExtractStore) ListMembers(extractID string, limit int) ([]extract.Member, error) {
+	query := `SELECT extract_id, path, subject_id, visit, modality, size_bytes FROM extract_members WHERE extract_id=$1 ORDER BY subject_id, visit, modality, path`
+	args := []any{strings.TrimSpace(extractID)}
+	if limit > 0 {
+		args = append(args, limit)
+		query += ` LIMIT $2`
+	}
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Member{}
+	for rows.Next() {
+		var member extract.Member
+		if err := rows.Scan(&member.ExtractID, &member.Path, &member.SubjectID, &member.Visit, &member.Modality, &member.SizeBytes); err != nil {
+			return nil, err
+		}
+		out = append(out, member)
+	}
+	return out, rows.Err()
+}
+
+func (s *ExtractStore) Delete(id string) error {
+	_, err := s.db.Exec(`DELETE FROM extracts WHERE id=$1`, strings.TrimSpace(id))
+	return err
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanExtract(row rowScanner) (extract.Extract, error) {
+	var item extract.Extract
+	var subjects, modalities, visits []byte
+	var created, updated time.Time
+	if err := row.Scan(&item.ID, &item.OntologyID, &item.ProjectID, &item.OwnerUserID, &item.Name, &item.Description, &subjects, &modalities, &visits, &item.ObjectCount, &item.TotalBytes, &created, &updated); err != nil {
+		return extract.Extract{}, err
+	}
+	item.CreatedAt = created
+	item.UpdatedAt = updated
+	// An unreadable filter must not hide the extract: the frozen member list is
+	// what the extract *is*, and the filter is a record of how it was asked for.
+	_ = json.Unmarshal(subjects, &item.Subjects)
+	_ = json.Unmarshal(modalities, &item.Modalities)
+	_ = json.Unmarshal(visits, &item.Visits)
+	if item.Subjects == nil {
+		item.Subjects = []string{}
+	}
+	if item.Modalities == nil {
+		item.Modalities = []string{}
+	}
+	if item.Visits == nil {
+		item.Visits = []string{}
+	}
+	return item, nil
+}

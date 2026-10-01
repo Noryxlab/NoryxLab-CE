@@ -15,7 +15,7 @@ type OntologyStore interface {
 	SetAccess(item ontology.Access) error
 	DeleteAccess(ontologyID, subjectType, subjectID string) error
 
-	// The paths a scan recognised. A cohort is a list of files, so it needs
+	// The paths a scan recognised. An extract is a list of files, so it needs
 	// them; the manifest's three samples per modality never could be one.
 	ReplaceObjects(ontologyID string, objects []ontology.Object) error
 	ListObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error)

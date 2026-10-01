@@ -40,10 +40,24 @@ func TestEveryAlteredTableIsCreatedFirst(t *testing.T) {
 				continue
 			}
 			table := match[1]
-			if _, ok := created[table]; !ok {
-				t.Errorf("statement %d %s %q before it is created: %s",
-					position, check.what, table, firstLineOf(statement))
+			if _, ok := created[table]; ok {
+				continue
 			}
+			// A rename is the one legitimate way to touch a table this
+			// schema never creates: the old name exists only on
+			// installations that predate the rename, and the statement
+			// asks whether it is there before touching it.
+			//
+			// Recognised by that guard and nothing else. An unguarded
+			// ALTER on a table nobody creates is still the defect this
+			// test exists for, and the guard is exactly what makes the
+			// difference between "does nothing on a fresh database" and
+			// "refuses to start on one".
+			if estUnRenommageGarde(statement, table) {
+				continue
+			}
+			t.Errorf("statement %d %s %q before it is created: %s",
+				position, check.what, table, firstLineOf(statement))
 		}
 	}
 }
@@ -54,4 +68,46 @@ func firstLineOf(statement string) string {
 		return line[:90] + "..."
 	}
 	return line
+}
+
+// estUnRenommageGarde reporte un ALTER protege par un test d existence sur la
+// table qu il touche.
+//
+// to_regclass rend NULL pour une table absente, ce qui fait du bloc entier une
+// instruction sans effet sur une base vierge - la seule situation que le test
+// ci-dessus protege.
+func estUnRenommageGarde(statement, table string) bool {
+	if !strings.Contains(strings.ToUpper(statement), "RENAME TO") {
+		return false
+	}
+	garde := regexp.MustCompile(`(?is)to_regclass\s*\(\s*'(?:public\.)?` +
+		regexp.QuoteMeta(table) + `'\s*\)\s+IS\s+NOT\s+NULL`)
+	return garde.MatchString(statement)
+}
+
+// Et un ALTER sans garde sur une table que ce schema ne cree pas reste le
+// defaut que ce fichier existe pour attraper. Sans ce test, assouplir la regle
+// pour le renommage l aurait assouplie pour tout le monde.
+func TestUnAlterSansGardeResteRefuse(t *testing.T) {
+	nu := `ALTER TABLE cohorts RENAME TO extracts`
+	if estUnRenommageGarde(nu, "cohorts") {
+		t.Error("un renommage sans test d existence a ete accepte")
+	}
+	garde := `DO $$ BEGIN
+		IF to_regclass('public.cohorts') IS NOT NULL THEN
+			ALTER TABLE cohorts RENAME TO extracts;
+		END IF;
+	END $$;`
+	if !estUnRenommageGarde(garde, "cohorts") {
+		t.Error("un renommage garde a ete refuse")
+	}
+	// La garde doit porter sur la bonne table : celle d a cote ne protege rien.
+	ailleurs := `DO $$ BEGIN
+		IF to_regclass('public.autre_table') IS NOT NULL THEN
+			ALTER TABLE cohorts RENAME TO extracts;
+		END IF;
+	END $$;`
+	if estUnRenommageGarde(ailleurs, "cohorts") {
+		t.Error("une garde portant sur une autre table a ete acceptee")
+	}
 }
