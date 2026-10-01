@@ -80,6 +80,23 @@ func (h Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	if ontologies, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity)); err == nil {
 		for _, item := range ontologies {
 			add("ontology", item.ID, item.Name, item.Description, "", item.Description, item.SourceName)
+			// Et ses extraits, qui manquaient a la palette alors qu'ils sont
+			// la seule chose qu'un workspace monte. Chercher "anterion" et ne
+			// pas trouver l'extrait qui porte ce nom, c'est la palette qui dit
+			// qu'il n'existe pas.
+			//
+			// La visibilite suit l'ontologie, comme partout ailleurs : on ne
+			// liste ici que les extraits des ontologies deja retenues.
+			if h.extractStore == nil {
+				continue
+			}
+			extracts, err := h.extractStore.ListByOntology(item.ID)
+			if err != nil {
+				continue
+			}
+			for _, extrait := range extracts {
+				add("extract", extrait.ID, extrait.Name, extrait.Description, "", extrait.Description, item.Name)
+			}
 		}
 	}
 

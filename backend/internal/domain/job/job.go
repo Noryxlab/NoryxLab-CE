@@ -34,7 +34,12 @@ type Job struct {
 	// The name and the bucket are kept beside the identifier deliberately: a
 	// dataset that has since been renamed, moved or deleted still has to mean
 	// something to whoever reads this.
-	Datasets        []Dataset  `json:"datasets"`
+	Datasets []Dataset `json:"datasets"`
+	// Extracts names the frozen selections this run read, for the same reason
+	// the datasets are recorded: a project's attachments change and a result
+	// does not. "Which data produced this figure" is answerable only if the
+	// answer was written down when the run started.
+	Extracts        []string   `json:"extracts,omitempty"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	CompletedAt     *time.Time `json:"completedAt,omitempty"`
 	Result          string     `json:"-"`

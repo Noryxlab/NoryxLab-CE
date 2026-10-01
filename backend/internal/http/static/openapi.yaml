@@ -7285,6 +7285,65 @@ paths:
                 $ref: '#/components/schemas/OntologyListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /api/v1/extracts/{extractID}/integrity:
+    get:
+      tags: [Datasets]
+      summary: Are The Frozen Files Still There
+      description: >-
+        Freezing a selection protects the n - the same extract names the same
+        files next month - and it does not protect the bytes. Objects get
+        deleted and buckets get pruned, and a frozen list pointing at objects
+        that no longer exist mounts as a tree of dangling symlinks, which a
+        notebook discovers one open() at a time.
+
+
+        This is a different question from an ontology's freshness, which asks
+        whether the source has grown. An extract does not care that the study
+        recruited eleven more subjects; it cares whether its own files
+        survived.
+
+
+        Checked on a sample of twenty-five spread across the list, and the
+        answer says so: `checked` is how many were looked at, `total` how many
+        the extract holds. Verifying four thousand objects means four thousand
+        round trips to answer a question that is almost always "yes".
+      operationId: getExtractIntegrity
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: What the sample found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checked: { type: integer }
+                  missing: { type: integer }
+                  missingPaths:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path: { type: string }
+                  total: { type: integer }
+                  complete:
+                    type: boolean
+                    description: True when nothing in the sample was missing.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '501':
+          description: No object storage is configured for the source dataset
+        '502':
+          description: The source could not be read
   /api/v1/extracts/{extractID}/members:
     get:
       tags: [Datasets]

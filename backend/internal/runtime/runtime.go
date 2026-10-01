@@ -103,7 +103,12 @@ type JobSpec struct {
 	EphemeralStorageLimit   string
 	PullSecret              string
 	Volumes                 []PersistentVolumeClaimMount
-	Labels                  map[string]string
+	// Secrets a job mounts. It had none, which is why a job could not be
+	// given the one thing a workspace gets through a secret: the list of
+	// files an extract froze. A job is what reproduces a result, so it is the
+	// workload that needs a frozen selection most.
+	Secrets []SecretMount
+	Labels  map[string]string
 }
 
 type CronJobSpec struct {

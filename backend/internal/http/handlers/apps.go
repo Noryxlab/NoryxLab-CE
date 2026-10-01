@@ -591,8 +591,13 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		return
 	}
 
+	// Les extraits du projet. Une application sert des resultats a des gens :
+	// servir ceux d'une selection gelee, et pas d'un bucket qui a grandi
+	// depuis, est la meme exigence que pour un job.
+	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
+
 	command := []string{"/bin/sh", "-lc"}
-	bootstrapScript := appBootstrapScript(req.Port, append(append([]string{}, req.Command...), req.Args...), attachedRepos)
+	bootstrapScript := appBootstrapScript(req.Port, append(append([]string{}, req.Command...), req.Args...), attachedRepos, montage)
 	args := []string{bootstrapScript}
 
 	record := app.NewWithKind(kind, req.ProjectID, req.Name, req.Slug, req.Image, command, args, req.Port, podName, serviceName, accessURL)
@@ -638,11 +643,34 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			return
 		}
 		volumes = append(volumes, datasetVolumes...)
+
+		appSecretMounts := []noryxruntime.SecretMount{}
+		if data := extractSecretData(montage); data != nil {
+			bootstrapSecretName := podName + "-bootstrap"
+			if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+				Name: bootstrapSecretName,
+				Data: data,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workload-bootstrap",
+					"noryx.io/app-id":        record.ID,
+				},
+			}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes app bootstrap secret create failed: " + err.Error()})
+				return
+			}
+			appSecretMounts = append(appSecretMounts, noryxruntime.SecretMount{
+				SecretName: bootstrapSecretName,
+				MountPath:  "/var/run/noryx/bootstrap",
+				ReadOnly:   true,
+			})
+		}
+
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
 			PodName: podName,
 			Image:   record.Image,
 			Command: command,
 			Args:    args,
+			Secrets: appSecretMounts,
 			Env:     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			Ports:   []int{record.Port},
 			// The service only routes here once something answers on the port.
@@ -834,7 +862,7 @@ func boolShell(yes bool) string {
 	return "false"
 }
 
-func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspaceAttachedRepo) string {
+func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspaceAttachedRepo, montage extractMount) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -855,6 +883,8 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		fmt.Sprintf("  echo '[bootstrap] no requirements file found at %s'", workspaceRequirementsFile),
 		"fi",
 	}
+	// L'arbre des extraits, avant que l'application demarre : elle lit dedans.
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)

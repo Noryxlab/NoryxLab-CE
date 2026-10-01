@@ -31,7 +31,7 @@ func TestNormalizeAppSlugRemovesAccents(t *testing.T) {
 // the app one never did, which is why the same file worked in one and not the
 // other.
 func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
-	script := appBootstrapScript(8501, []string{"streamlit", "run", "app.py", "--server.port", "8501"}, nil)
+	script := appBootstrapScript(8501, []string{"streamlit", "run", "app.py", "--server.port", "8501"}, nil, extractMount{})
 	for _, expected := range []string{
 		"export PATH=/mnt/.venv/bin:$PATH",
 		"export PATH=$HOME/.local/bin:$PATH",
@@ -123,14 +123,14 @@ func TestUnreachableApplicationIsNotReportedAsRunning(t *testing.T) {
 // string, ran an assignment, and exited 0. Kubernetes then reported a
 // container that had "succeeded", and the application never started.
 func TestAppBootstrapKeepsLaunchWordsIntact(t *testing.T) {
-	script := appBootstrapScript(9000, []string{"/bin/sh", "-lc", "FOO=1 exec /repos/app/run.sh"}, nil)
+	script := appBootstrapScript(9000, []string{"/bin/sh", "-lc", "FOO=1 exec /repos/app/run.sh"}, nil, extractMount{})
 
 	if !strings.Contains(script, "exec '/bin/sh' '-lc' 'FOO=1 exec /repos/app/run.sh'") {
 		t.Fatalf("the multi-word argument was split by the shell:\n%s", script)
 	}
 	// A quote inside a word must not end the quoting and turn the rest into
 	// shell code.
-	hostile := appBootstrapScript(9000, []string{"sh", "-c", "echo 'a'; rm -rf /"}, nil)
+	hostile := appBootstrapScript(9000, []string{"sh", "-c", "echo 'a'; rm -rf /"}, nil, extractMount{})
 	if strings.Contains(hostile, "exec 'sh' '-c' 'echo 'a'; rm -rf /'") {
 		t.Fatalf("a quote inside an argument escaped its quoting:\n%s", hostile)
 	}
@@ -138,7 +138,7 @@ func TestAppBootstrapKeepsLaunchWordsIntact(t *testing.T) {
 
 // An application with no launch command falls through to the other entrypoints.
 func TestAppBootstrapWithoutACommandFallsThrough(t *testing.T) {
-	script := appBootstrapScript(9000, nil, nil)
+	script := appBootstrapScript(9000, nil, nil, extractMount{})
 	if !strings.Contains(script, "if [ false ]; then") {
 		t.Fatalf("an app with no command must not take the command branch:\n%s", script)
 	}

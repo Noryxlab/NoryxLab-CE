@@ -204,6 +204,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)
+	// Les fichiers geles sont-ils encore la ? Geler protege le n, pas les
+	// octets : une liste qui pointe vers des objets supprimes monte en liens
+	// casses, qu'un carnet decouvre un open() a la fois.
+	mux.HandleFunc("GET /api/v1/extracts/{extractID}/integrity", h.GetExtractIntegrity)
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}", h.UpdateExtractMetadata)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)

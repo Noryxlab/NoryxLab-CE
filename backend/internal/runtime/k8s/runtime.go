@@ -1117,6 +1117,29 @@ func jobPodSpec(spec noryxruntime.JobSpec) map[string]any {
 			"readOnly":  vol.ReadOnly,
 		})
 	}
+	// Les secrets montes, comme pour un pod.
+	//
+	// Un job n'en montait aucun, donc il ne pouvait pas recevoir ce qu'un
+	// workspace recoit par ce chemin : la liste des fichiers qu'un extrait a
+	// geles. Or un job est precisement ce qui rejoue un calcul.
+	for i, secret := range spec.Secrets {
+		name := strings.TrimSpace(secret.SecretName)
+		mountPath := strings.TrimSpace(secret.MountPath)
+		if name == "" || mountPath == "" {
+			continue
+		}
+		volumeName := fmt.Sprintf("secret-%d", i)
+		volumes = append(volumes, map[string]any{
+			"name":   volumeName,
+			"secret": map[string]any{"secretName": name},
+		})
+		volumeMounts = append(volumeMounts, map[string]any{
+			"name":      volumeName,
+			"mountPath": mountPath,
+			"readOnly":  secret.ReadOnly,
+		})
+	}
+
 	if len(volumes) > 0 {
 		podSpec["volumes"] = volumes
 		container["volumeMounts"] = volumeMounts

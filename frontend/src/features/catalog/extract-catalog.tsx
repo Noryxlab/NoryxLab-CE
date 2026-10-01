@@ -13,6 +13,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
 import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
+import { ExtractDetail } from './extract-detail';
 import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
 
 /**
@@ -43,6 +44,7 @@ export function ExtractCatalog() {
   const [owned, setOwned] = React.useState<Extract | null>(null);
   const [renamed, setRenamed] = React.useState<Extract | null>(null);
   const [mounted, setMounted] = React.useState<Extract | null>(null);
+  const [opened, setOpened] = React.useState<Extract | null>(null);
 
   const nomOntologie = (ontologyId: string) =>
     ontologies.data?.find((item) => item.id === ontologyId)?.name ?? ontologyId;
@@ -100,6 +102,17 @@ export function ExtractCatalog() {
       ),
     },
     {
+      id: 'layout',
+      header: t('ontologies.extractLayout'),
+      cell: (extract) => (
+        <span className="text-xs text-muted-foreground">
+          {(extract.layout ?? ['subject', 'visit', 'modality'])
+            .map((level) => t(`ontologies.level_${level}` as 'ontologies.level_subject'))
+            .join(' › ')}
+        </span>
+      ),
+    },
+    {
       id: 'owner',
       header: t('common.owner'),
       sortValue: (extract) => extract.ownerName ?? extract.ownerId ?? '',
@@ -137,6 +150,7 @@ export function ExtractCatalog() {
           isError={extracts.isError}
           error={extracts.error}
           onRetry={() => void extracts.refetch()}
+          onRowClick={(extract) => setOpened(extract)}
           defaultSort={{ columnId: 'createdAt', direction: 'desc' }}
           emptyState={
             <EmptyState
@@ -186,6 +200,8 @@ export function ExtractCatalog() {
           if (!open) setOwned(null);
         }}
       />
+      {opened ? <ExtractDetail extract={opened} /> : null}
+
       <ProjectMountsSheet
         kind="extract"
         resourceId={mounted?.id ?? null}

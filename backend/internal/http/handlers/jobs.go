@@ -110,6 +110,15 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// was attached to that project today" has not answered.
 	record.Datasets = jobDatasetsFrom(attachedDatasets)
 
+	// Et les extraits, pour la meme raison exactement.
+	//
+	// Un extrait est une liste de fichiers gelee : c'est ce qui permet de
+	// rejouer un calcul sur les memes octets dans deux ans. Un job ne pouvait
+	// pas en monter, donc l'objet servait en interactif et nulle part ailleurs,
+	// et "le meme n" se refaisait a la main dans le code.
+	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
+	record.Extracts = montage.Names
+
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -124,10 +133,30 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	args := req.Args
 	if len(command) == 0 {
 		command = []string{"/bin/sh", "-lc"}
-		args = []string{jobBootstrapScript(req.Args, attachedRepos)}
+		args = []string{jobBootstrapScript(req.Args, attachedRepos, montage)}
 	}
 
 	if h.runtime != nil {
+		bootstrapSecretName := jobName + "-bootstrap"
+		secretMounts := []noryxruntime.SecretMount{}
+		if data := extractSecretData(montage); data != nil {
+			if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+				Name: bootstrapSecretName,
+				Data: data,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "noryx-workload-bootstrap",
+					"noryx.io/job-id":        record.ID,
+				},
+			}); err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job bootstrap secret create failed: " + err.Error()})
+				return
+			}
+			secretMounts = append(secretMounts, noryxruntime.SecretMount{
+				SecretName: bootstrapSecretName,
+				MountPath:  "/var/run/noryx/bootstrap",
+				ReadOnly:   true,
+			})
+		}
 		userSecretName := jobName + "-user-secrets"
 		if len(userSecretData) > 0 {
 			if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
@@ -166,6 +195,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			MemLimit:                tier.MemoryLimit,
 			EphemeralStorageRequest: tier.EphemeralStorageRequest,
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
+			Secrets:                 secretMounts,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
 			Labels: map[string]string{
@@ -420,7 +450,7 @@ func lastLines(text string, n int) string {
 	return strings.Join(lines, " | ")
 }
 
-func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo) string {
+func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo, montage extractMount) string {
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
@@ -441,6 +471,8 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		fmt.Sprintf("  echo '[bootstrap] no requirements file found at %s'", workspaceRequirementsFile),
 		"fi",
 	}
+	// L'arbre des extraits, avant le code : il lit dedans.
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)

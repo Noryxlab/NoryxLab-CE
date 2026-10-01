@@ -287,3 +287,56 @@ func (h Handlers) projectExtracts(projectID string) ([]extractdomain.Extract, er
 	}
 	return out, nil
 }
+
+// extractMountFor prepares an extract tree for any workload, not just a
+// workspace.
+//
+// A workspace could mount an extract and a job could not, which emptied the
+// object of its purpose: an extract exists so that a calculation can be
+// reproduced on exactly the files it ran on, and a job is what reproduces a
+// calculation. Somebody wanting the same n from a job had to mount the whole
+// dataset and re-filter in their code - which is the thing the extract was
+// built to remove.
+//
+// So the preparation lives here, in one place, and the three workloads call it.
+// The alternative was three copies of a manifest encoder, which is three
+// chances to ship one that silently mounts a partial study.
+type extractMount struct {
+	// Manifest is the gzipped, base64 file list, empty when there is nothing
+	// to mount or when the selection is too large to ship.
+	Manifest string
+	// Refused counts the files left out because the manifest did not fit. The
+	// workload says so rather than building a partial tree, because a tree
+	// missing files is a different study and looks like a complete one.
+	Refused int
+	// Names is what was mounted, for the record a job keeps.
+	Names []string
+}
+
+func (h Handlers) extractMountFor(projectID string, attachedDatasets []workspaceAttachedDataset) extractMount {
+	entries := h.extractMountEntries(projectID, attachedDatasets)
+	if len(entries) == 0 {
+		return extractMount{}
+	}
+	manifest, fits := encodeExtractManifest(entries)
+	if !fits {
+		return extractMount{Refused: len(entries)}
+	}
+	seen := map[string]bool{}
+	names := []string{}
+	for _, entry := range entries {
+		if !seen[entry.ExtractName] {
+			seen[entry.ExtractName] = true
+			names = append(names, entry.ExtractName)
+		}
+	}
+	return extractMount{Manifest: manifest, Names: names}
+}
+
+// extractSecretData is what the bootstrap secret carries, or nothing.
+func extractSecretData(mount extractMount) map[string]string {
+	if mount.Manifest == "" {
+		return nil
+	}
+	return map[string]string{"extracts.b64": mount.Manifest}
+}

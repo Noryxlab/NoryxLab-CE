@@ -17,7 +17,7 @@ import (
 // programme portant ce nom, introuvable. Code 127 une seconde apres le
 // demarrage, et une app "en echec" sans autre explication.
 func TestUneLigneDeCommandeEnUnMotPasseParUnShell(t *testing.T) {
-	script := appBootstrapScript(9000, []string{"python3 -m http.server 9000 --directory /tmp"}, nil)
+	script := appBootstrapScript(9000, []string{"python3 -m http.server 9000 --directory /tmp"}, nil, extractMount{})
 	if !strings.Contains(script, "exec sh -c 'python3 -m http.server 9000 --directory /tmp'") {
 		t.Fatalf("la ligne de commande doit passer par un shell :\n%s", script)
 	}
@@ -31,7 +31,7 @@ func TestUneLigneDeCommandeEnUnMotPasseParUnShell(t *testing.T) {
 // comme son programme - pas `exec /bin/sh -lc FOO=1 run.sh`, ou il n'en prend
 // que le premier mot, execute l'affectation et sort 0 en annoncant un succes.
 func TestUnArgvEnPlusieursMotsGardeSesMots(t *testing.T) {
-	script := appBootstrapScript(9000, []string{"/bin/sh", "-lc", "FOO=1 run.sh"}, nil)
+	script := appBootstrapScript(9000, []string{"/bin/sh", "-lc", "FOO=1 run.sh"}, nil, extractMount{})
 	if !strings.Contains(script, "exec '/bin/sh' '-lc' 'FOO=1 run.sh'") {
 		t.Fatalf("chaque mot d'un argv doit rester un mot :\n%s", script)
 	}
@@ -47,7 +47,7 @@ func TestLeScriptDAppEstDuShellValide(t *testing.T) {
 		{"/bin/sh", "-lc", "FOO=1 run.sh"},
 		nil,
 	} {
-		script := appBootstrapScript(9000, argv, nil)
+		script := appBootstrapScript(9000, argv, nil, extractMount{})
 		chemin := filepath.Join(t.TempDir(), "app.sh")
 		if err := os.WriteFile(chemin, []byte(script), 0o600); err != nil {
 			t.Fatal(err)

@@ -11,6 +11,7 @@ import {
   Play,
   Plug,
   Search,
+  Scissors,
   Terminal,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -38,6 +39,7 @@ const KIND_LABEL: Record<string, TranslationKey> = {
   dataset: 'search.kind_dataset',
   datasource: 'search.kind_datasource',
   ontology: 'search.kind_ontology',
+  extract: 'search.kind_extract',
   repository: 'search.kind_repository',
   secret: 'search.kind_secret',
   workspace: 'search.kind_workspace',
@@ -50,6 +52,7 @@ const KIND_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   dataset: Database,
   datasource: Plug,
   ontology: Network,
+  extract: Scissors,
   repository: FolderGit2,
   secret: KeyRound,
   workspace: Terminal,
@@ -73,6 +76,8 @@ function resultPath(result: SearchResult): string {
       return '/catalog/datasources';
     case 'ontology':
       return '/catalog/ontologies';
+    case 'extract':
+      return '/catalog/extracts';
     case 'repository':
       return '/catalog/repositories';
     case 'secret':

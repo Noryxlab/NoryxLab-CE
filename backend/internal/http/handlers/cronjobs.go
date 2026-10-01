@@ -108,6 +108,11 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
 		return
 	}
+	// Les extraits du projet, comme pour un job ponctuel - et une tache
+	// planifiee est encore plus concernee, puisqu'elle rejoue le meme calcul
+	// chaque semaine et doit lire les memes fichiers.
+	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
+
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -122,7 +127,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 	args := req.Args
 	if len(command) == 0 {
 		command = []string{"/bin/sh", "-lc"}
-		args = []string{jobBootstrapScript(req.Args, attachedRepos)}
+		args = []string{jobBootstrapScript(req.Args, attachedRepos, montage)}
 	}
 	userSecretName := cronJobName + "-user-secrets"
 	if len(userSecretData) > 0 {
@@ -150,12 +155,37 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	volumes = append(volumes, datasetVolumes...)
+
+	// Le secret qui porte la liste gelee. Sans lui le script construirait un
+	// arbre vide sans rien dire, ce qui est la pire des deux issues.
+	cronSecretMounts := []noryxruntime.SecretMount{}
+	if data := extractSecretData(montage); data != nil {
+		bootstrapSecretName := cronJobName + "-bootstrap"
+		if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+			Name: bootstrapSecretName,
+			Data: data,
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "noryx-workload-bootstrap",
+				"noryx.io/cronjob-id":    cronJobID,
+			},
+		}); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes cronjob bootstrap secret create failed: " + err.Error()})
+			return
+		}
+		cronSecretMounts = append(cronSecretMounts, noryxruntime.SecretMount{
+			SecretName: bootstrapSecretName,
+			MountPath:  "/var/run/noryx/bootstrap",
+			ReadOnly:   true,
+		})
+	}
+
 	err = h.runtime.CreateCronJob(noryxruntime.CronJobSpec{
 		CronJobName: cronJobName,
 		DisplayName: displayName,
 		Schedule:    req.Schedule,
 		TimeZone:    req.TimeZone,
 		JobSpec: noryxruntime.JobSpec{
+			Secrets:                 cronSecretMounts,
 			JobName:                 cronJobName,
 			Image:                   req.Image,
 			Command:                 command,

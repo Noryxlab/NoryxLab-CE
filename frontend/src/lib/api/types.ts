@@ -1154,6 +1154,27 @@ export interface DatasetPathLayoutTrial {
   description: string;
 }
 
+/** Les fichiers qu'un extrait a geles. `shown` est la page, `total` l'extrait :
+ *  confondre les deux ferait prendre 500 fichiers affiches pour la taille de
+ *  l'etude. */
+export interface ExtractMembers {
+  extract: Extract;
+  members: { path: string; subjectId: string; visit: string; modality: string; sizeBytes: number }[];
+  subjects: string[];
+  shown: number;
+  total: number;
+}
+
+/** Les fichiers geles sont-ils encore dans le bucket ? Mesure sur un
+ *  echantillon, et les champs le disent. */
+export interface ExtractIntegrity {
+  checked: number;
+  missing: number;
+  missingPaths?: { path: string }[];
+  total: number;
+  complete: boolean;
+}
+
 export type ExtractLevel = 'subject' | 'visit' | 'modality';
 
 export interface Extract {

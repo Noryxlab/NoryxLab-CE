@@ -87,6 +87,8 @@ import type {
   DatasetPathLayout,
   DatasetPathLayoutTrial,
   WorkspaceStartup,
+  ExtractIntegrity,
+  ExtractMembers,
 } from './types';
 
 const V1 = '/api/v1';
@@ -559,6 +561,12 @@ export const ontologiesApi = {
   extracts: (ontologyId: string) => api.list<Extract>(`${V1}/ontologies/${ontologyId}/extracts`),
   createExtract: (ontologyId: string, input: Record<string, unknown>) =>
     api.post<Extract>(`${V1}/ontologies/${ontologyId}/extracts`, input),
+  /** La liste gelee elle-meme : tout l'objet, et aucun ecran ne la montrait. */
+  extractMembers: (extractId: string, limit = 200) =>
+    api.get<ExtractMembers>(`${V1}/extracts/${extractId}/members?limit=${limit}`),
+  /** Et si ces fichiers sont encore la : geler protege le n, pas les octets. */
+  extractIntegrity: (extractId: string) =>
+    api.get<ExtractIntegrity>(`${V1}/extracts/${extractId}/integrity`),
   deleteExtract: (extractId: string) => api.delete<void>(`${V1}/extracts/${extractId}`),
   /** Hands an extract to a person, a team or an organization. */
   setExtractOwner: (extractId: string, input: { ownerType: string; ownerId: string }) =>
