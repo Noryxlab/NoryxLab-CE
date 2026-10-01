@@ -114,6 +114,19 @@ type ontologySummary struct {
 	// the profile knows".
 	Unrecognised  int      `json:"unrecognisedObjects"`
 	LayoutSamples []string `json:"layoutSamples,omitempty"`
+	// RecognisedLayouts describes the shapes that did produce a subject.
+	//
+	// LayoutSamples above answers "why did the scan read nothing", so it only
+	// ever carried the shapes that failed. That is the wrong half for somebody
+	// trying to describe a dataset: on SELENA the scan recognised 4,023 objects
+	// out of 4,026, and the only shapes recorded were the three it had missed.
+	// An assistant shown those learns nothing, and said so - correctly, since
+	// it had been told nothing about the data.
+	//
+	// Shapes, never paths. These are health-context metadata and the shape is
+	// what a reading is proposed from; the identifiers are not needed and must
+	// not travel.
+	RecognisedLayouts []string `json:"recognisedLayouts,omitempty"`
 }
 
 type ontologySubject struct {
@@ -926,6 +939,9 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	objects := 0
 	unrecognised := 0
 	layouts := map[string]int{}
+	// The shapes that worked, kept apart from the ones that did not: one
+	// explains a refusal, the other describes the data.
+	reconnus := map[string]int{}
 	var totalBytes int64
 	truncated := false
 
@@ -963,6 +979,9 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 				layouts[shape]++
 			}
 			continue
+		}
+		if shape := describePathShape(relPath); len(reconnus) < 64 || reconnus[shape] > 0 {
+			reconnus[shape]++
 		}
 		if study == "" {
 			study = inferStudy(subjectID)
@@ -1025,6 +1044,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			MeasurementTables: sortedKeys(tables),
 			Unrecognised:      unrecognised,
 			LayoutSamples:     describeLayouts(layouts),
+			RecognisedLayouts: describeLayouts(reconnus),
 		},
 		Subjects:    manifestSubjects,
 		GeneratedBy: generatedBy,

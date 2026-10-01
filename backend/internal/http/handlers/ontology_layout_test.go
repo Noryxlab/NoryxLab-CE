@@ -66,3 +66,43 @@ func TestTheCommonestUnreadableLayoutComesFirst(t *testing.T) {
 		t.Error("no unreadable path means nothing to describe")
 	}
 }
+
+// Les formes qui ont marche, et celles qui ont echoue, sont deux choses.
+//
+// LayoutSamples repond a "pourquoi le scan n a rien lu", donc il ne portait que
+// les formes en echec. C est la mauvaise moitie pour qui veut decrire un jeu de
+// donnees : sur SELENA le scan a reconnu 4 023 objets sur 4 026, et les seules
+// formes enregistrees etaient les trois qu il avait manquees. Un assistant a
+// qui on montre celles-la n apprend rien, et il l a dit - a juste titre,
+// puisqu on ne lui avait rien montre des donnees.
+func TestLesFormesReconnuesSontDecritesAPart(t *testing.T) {
+	reconnus := map[string]int{
+		"4 levels · text/subject/date/DICOM":      4000,
+		"5 levels · text/subject/date/text/DICOM": 23,
+	}
+	rates := map[string]int{"3 levels · text/text/TSV": 3}
+
+	decrits := describeLayouts(reconnus)
+	if len(decrits) == 0 {
+		t.Fatal("aucune forme reconnue decrite")
+	}
+	// La plus frequente doit figurer : c est elle qui dit a quoi ressemble le
+	// jeu de donnees.
+	trouve := false
+	for _, d := range decrits {
+		if strings.Contains(d, "subject") {
+			trouve = true
+		}
+	}
+	if !trouve {
+		t.Errorf("la forme majoritaire n apparait pas : %v", decrits)
+	}
+	// Et les deux ensembles ne se melangent pas.
+	for _, d := range describeLayouts(rates) {
+		for _, r := range decrits {
+			if d == r {
+				t.Errorf("une forme ratee apparait parmi les reconnues : %q", d)
+			}
+		}
+	}
+}

@@ -37,7 +37,7 @@ import {
   useOntologyCompleteness,
   useOntologyCohorts,
   useProjects,
-  useProjectDatasets,
+  useDatasets,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
@@ -45,6 +45,20 @@ import { ontologiesApi, projectsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
+
+/* Ce que le manifeste porte et que cet ecran lit.
+ *
+ *  Le type complet vit cote serveur ; declarer ici le strict necessaire evite
+ *  de le dupliquer et dit en meme temps ce dont l'assistant a besoin. */
+type ManifestLu = {
+  summary?: {
+    objects?: number;
+    subjects?: number;
+    unrecognisedObjects?: number;
+    recognisedLayouts?: string[];
+    layoutSamples?: string[];
+  };
+};
 
 /**
  * Ontology catalogue (ADR-025).
@@ -452,7 +466,15 @@ function OntologyScan() {
   const projects = useProjects();
   const [projectId, setProjectId] = React.useState('');
   const [datasetId, setDatasetId] = React.useState('');
-  const datasets = useProjectDatasets(projectId || undefined);
+  /* Les datasets du catalogue, pas ceux d'un projet.
+   *
+   *  Le formulaire demandait un projet d'abord, puis le dataset dans ce
+   *  projet - et la question laissait perplexe, a juste titre : une ontologie
+   *  decrit la mise en page d'un jeu de donnees, qui ne depend d'aucun projet.
+   *  Le projet ne sert qu'a y rattacher le resultat, ce qui est une seconde
+   *  question et pas un prealable. Le serveur accepte d'ailleurs un scan sans
+   *  projet depuis le 2026-09-29. */
+  const datasets = useDatasets();
 
   const scan = useMutation({
     mutationFn: () => projectsApi.scanOntology(projectId, { datasetId }),
@@ -487,44 +509,43 @@ function OntologyScan() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (projectId && datasetId) scan.mutate();
+            if (datasetId) scan.mutate();
           }}
           className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
         >
-          <Field label={t('common.project')}>
+          <Field label={t('ontologies.scanDataset')}>
+            <Select
+              value={datasetId}
+              onValueChange={setDatasetId}
+              placeholder={t('ontologies.scanDataset')}
+              disabled={datasetOptions.length === 0}
+              options={datasetOptions}
+            />
+          </Field>
+          {/* Facultatif, et dit comme tel : l'ontologie existe sans projet et
+              s'y rattache si on en nomme un. */}
+          <Field label={t('ontologies.scanProject')} description={t('ontologies.scanProjectHint')}>
             <Select
               value={projectId}
-              onValueChange={(value) => {
-                setProjectId(value);
-                setDatasetId('');
-              }}
-              placeholder={t('common.project')}
+              onValueChange={setProjectId}
+              placeholder={t('ontologies.scanProjectNone')}
               options={(projects.data ?? []).map((project) => ({
                 value: project.id,
                 label: project.name,
               }))}
             />
           </Field>
-          <Field label={t('ontologies.scanDataset')}>
-            <Select
-              value={datasetId}
-              onValueChange={setDatasetId}
-              placeholder={t('ontologies.scanDataset')}
-              disabled={!projectId || datasetOptions.length === 0}
-              options={datasetOptions}
-            />
-          </Field>
           <Button
             type="submit"
             variant="primary"
             loading={scan.isPending}
-            disabled={!projectId || !datasetId}
+            disabled={!datasetId}
           >
             <Radar aria-hidden />
             {t('ontologies.scan')}
           </Button>
         </form>
-        {projectId && datasetOptions.length === 0 && !datasets.isLoading ? (
+        {datasetOptions.length === 0 && !datasets.isLoading ? (
           <EmptyState title={t('ontologies.scanNoDataset')} />
         ) : null}
         {/* What the profile actually matches, where somebody can read it before
@@ -576,11 +597,50 @@ export function OntologyCatalog() {
   // Un bouton qui emet dans le vide est pire qu'un bouton absent : il a
   // l'air casse. La configuration liste deja les extensions declarees.
   const assistantPresent = assistantAvailable();
+
   const t = useT();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
   const { dialog, ask } = useConfirm();
+
+  /* Ce que l'assistant doit avoir sous les yeux pour proposer une lecture.
+   *
+   *  Il recevait le nom de l'ontologie, sa source et son profil - et rien de la
+   *  forme des chemins. Interroge sur SELENA le 2026-10-01 il a repondu "je ne
+   *  vois pas les formes de chemins", ce qui etait exact : on ne lui en avait
+   *  envoye aucune. La question etait posee a quelqu'un a qui on n'avait pas
+   *  montre le dossier.
+   *
+   *  Des formes, jamais des chemins. Ce sont des metadonnees de contexte de
+   *  sante : la lecture se propose sur la structure, et les identifiants n'ont
+   *  pas a voyager (ADR-040). */
+  const demanderUneLecture = (ontology: Ontology) => {
+    const resume = (ontology.manifest as ManifestLu | undefined)?.summary;
+    requestAssistant({
+      surface: 'ontology',
+      context: {
+        ontologyId: ontology.id,
+        ontologyName: ontology.name,
+        sourceName: ontology.sourceName,
+        inferenceProfile: ontology.inferenceProfile,
+        objects: resume?.objects,
+        subjects: resume?.subjects,
+        unrecognisedObjects: resume?.unrecognisedObjects,
+        // Celles qui ont produit un sujet : elles disent a quoi ressemble le
+        // jeu de donnees.
+        recognisedLayouts: resume?.recognisedLayouts ?? [],
+        // Et celles qui n'ont rien produit : elles disent ce qui est manque.
+        unrecognisedLayouts: resume?.layoutSamples ?? [],
+      },
+      prompt: t('ontologies.describePrompt', { name: ontology.name }),
+    });
+    // L'assistant s'ouvre dans un panneau lateral qu'on peut avoir replie.
+    // Sans cet accuse, cliquer ne produit rien de visible - et c'est ce qui
+    // est arrive : la reponse attendait dans un panneau que personne n'avait
+    // ouvert.
+    toast.success(t('ontologies.describeSent'), t('ontologies.describe'));
+  };
 
   const ontologies = useOntologies();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -692,16 +752,7 @@ export function OntologyCatalog() {
               {assistantPresent ? (
                 <DropdownMenuItem
                   onSelect={() =>
-                    requestAssistant({
-                      surface: 'ontology',
-                      context: {
-                        ontologyId: ontology.id,
-                        ontologyName: ontology.name,
-                        sourceName: ontology.sourceName,
-                        inferenceProfile: ontology.inferenceProfile,
-                      },
-                      prompt: t('ontologies.describePrompt', { name: ontology.name }),
-                    })
+                    demanderUneLecture(ontology)
                   }
                 >
                   <MessageCircle aria-hidden />
