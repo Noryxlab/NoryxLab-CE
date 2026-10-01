@@ -23,6 +23,18 @@ existed, a run recorded the image digest that produced it and nothing about
 the data that went in, so in six months nothing would say which snapshot of an
 extract a calculation read.
 
+Since 2026-10-01 it also records **which extracts it read**, by name, for the
+same reason exactly: a project's attachments change and a result does not. The
+datasets answer "which bucket"; the extracts answer "which files", and only the
+second is reproducible — an extract is a frozen list, so naming it is naming
+the files, where naming a dataset names a bucket that has grown since.
+
+A job can now mount extracts at all, which it could not before: only a
+workspace could, so a calculation wanting the same n had to mount the whole
+dataset and re-filter in its own code. That is the thing an extract exists to
+remove, and recording what was mounted is worth little while what was mounted
+could not be the selection.
+
 Two details are worth knowing, because both are the difference between a
 record and a guess:
 
