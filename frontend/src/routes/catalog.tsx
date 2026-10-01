@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n';
 import { DatasetCatalog } from '@/features/datasets/dataset-catalog';
 import { DatasourceCatalog } from '@/features/catalog/datasource-catalog';
 import { OntologyCatalog } from '@/features/catalog/ontology-catalog';
+import { ExtractCatalog } from '@/features/catalog/extract-catalog';
 import { RepositoryCatalog } from '@/features/catalog/repository-catalog';
 import { EnvironmentCatalog } from '@/features/catalog/environment-catalog';
 
@@ -58,6 +59,7 @@ export function CatalogPage() {
           <TabsTrigger value="datasets">{t('nav.datasets')}</TabsTrigger>
           <TabsTrigger value="datasources">{t('nav.datasources')}</TabsTrigger>
           <TabsTrigger value="ontologies">{t('nav.ontologies')}</TabsTrigger>
+          <TabsTrigger value="extracts">{t('ontologies.extracts')}</TabsTrigger>
           <TabsTrigger value="repositories">{t('nav.repositories')}</TabsTrigger>
           <TabsTrigger value="environments">{t('nav.environments')}</TabsTrigger>
         </TabsList>
@@ -78,6 +80,9 @@ export function CatalogPage() {
         </TabsContent>
         <TabsContent value="ontologies">
           <OntologyCatalog />
+        </TabsContent>
+        <TabsContent value="extracts">
+          <ExtractCatalog />
         </TabsContent>
         <TabsContent value="repositories">
           <RepositoryCatalog />

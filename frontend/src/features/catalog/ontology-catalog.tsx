@@ -307,7 +307,7 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
  *  servis, et souvent a la personne qui l'a declaree. La ceder est ce qui
  *  permet a une equipe de garder ce qu'elle a produit quand l'un d'eux s'en
  *  va. */
-function ExtractOwnershipSheet({
+export function ExtractOwnershipSheet({
   extract,
   open,
   onOpenChange,
@@ -325,6 +325,7 @@ function ExtractOwnershipSheet({
       ontologiesApi.setExtractOwner(extract?.id ?? '', input),
     onSuccess: () => {
       invalidate(qk.ontologies);
+      invalidate(qk.extracts);
       toast.success(t('projects.transferOwnership'));
       onOpenChange(false);
     },
