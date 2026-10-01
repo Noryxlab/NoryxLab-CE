@@ -199,7 +199,7 @@ func (h Handlers) DeleteExtract(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if item.OwnerUserID != identity.UserID() && !h.isGlobalAdmin(identity) {
+	if !h.canManageExtract(item, identity) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only the extract's owner can delete it"})
 		return
 	}
@@ -239,4 +239,90 @@ func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identi
 		return identity, item, false
 	}
 	return resolved, item, true
+}
+
+// canManageExtract reports whether this person may hand the extract on, or
+// delete it.
+//
+// Read from the owner, not from the author. The check used to compare
+// OwnerUserID - whoever declared the extract - which was the same thing while
+// an extract could not be transferred. The moment it can, the two part company:
+// hand an extract to an organization and its author would keep the right to
+// delete it while a member of the owning organization would not.
+//
+// The author keeps the extract only until somebody moves it, which is exactly
+// what the default owner says.
+func (h Handlers) canManageExtract(item extractdomain.Extract, identity auth.Identity) bool {
+	if h.isGlobalAdmin(identity) {
+		return true
+	}
+	for _, subject := range h.ontologySubjects(identity) {
+		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
+			return true
+		}
+	}
+	// Les lignes anterieures a la migration n ont pas de proprietaire : leur
+	// auteur garde la main plutot que personne.
+	return strings.TrimSpace(item.OwnerType) == "" && item.OwnerUserID == identity.UserID()
+}
+
+// UpdateExtractOwner hands an extract to a person or an organization, in the
+// same shape and the same words as a dataset or an ontology.
+func (h Handlers) UpdateExtractOwner(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.extractStore.GetByID(strings.TrimSpace(r.PathValue("extractID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
+		return
+	}
+	if !h.canManageExtract(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "extract owner or global admin required"})
+		return
+	}
+	var req setDatasetOwnerRequest
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
+		return
+	}
+	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
+	req.OwnerID = strings.TrimSpace(req.OwnerID)
+	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+		return
+	}
+	if req.OwnerType == "organization" {
+		organization, found := h.resolveOrganization(req.OwnerID)
+		if !found {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
+			return
+		}
+		req.OwnerID = organization.ID
+		// Donner a une organisation dont on n est pas membre, c est se
+		// deposseder sans que personne d autre n ait demande a recevoir.
+		if !h.isGlobalAdmin(identity) {
+			member := false
+			for _, subject := range h.ontologySubjects(identity) {
+				if subject.Type == "organization" && subject.ID == req.OwnerID {
+					member = true
+					break
+				}
+			}
+			if !member {
+				writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
+				return
+			}
+		}
+	}
+	if err := h.extractStore.SetOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to transfer the extract"})
+		return
+	}
+	h.emitAudit(r, identity.UserID(), "extract.owner.changed", "extract", item.ID, item.ProjectID,
+		"success", "", map[string]any{"ownerType": req.OwnerType, "ownerId": req.OwnerID,
+			"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID})
+	updated, _, _ := h.extractStore.GetByID(item.ID)
+	writeJSON(w, http.StatusOK, updated)
 }

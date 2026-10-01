@@ -17,7 +17,7 @@ import (
 type ExtractStore struct{ *Store }
 
 func (s *ExtractStore) ListByProject(projectID string) ([]extract.Extract, error) {
-	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE project_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(projectID))
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE project_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(projectID))
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (s *ExtractStore) ListByProject(projectID string) ([]extract.Extract, error
 }
 
 func (s *ExtractStore) ListByOntology(ontologyID string) ([]extract.Extract, error) {
-	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE ontology_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(ontologyID))
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE ontology_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(ontologyID))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (s *ExtractStore) ListByOntology(ontologyID string) ([]extract.Extract, err
 }
 
 func (s *ExtractStore) GetByID(id string) (extract.Extract, bool, error) {
-	row := s.db.QueryRow(`SELECT id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE id=$1`, strings.TrimSpace(id))
+	row := s.db.QueryRow(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE id=$1`, strings.TrimSpace(id))
 	item, err := scanExtract(row)
 	if err == sql.ErrNoRows {
 		return extract.Extract{}, false, nil
@@ -75,8 +75,8 @@ func (s *ExtractStore) Create(item extract.Extract, members []extract.Member) er
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.Exec(`INSERT INTO extracts (id, ontology_id, project_id, owner_user_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-		item.ID, item.OntologyID, item.ProjectID, item.OwnerUserID, item.Name, item.Description, subjects, modalities, visits, item.ObjectCount, item.TotalBytes, item.CreatedAt, item.UpdatedAt); err != nil {
+	if _, err := tx.Exec(`INSERT INTO extracts (id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+		item.ID, item.OntologyID, item.ProjectID, item.OwnerUserID, item.OwnerType, item.OwnerID, item.Name, item.Description, subjects, modalities, visits, item.ObjectCount, item.TotalBytes, item.CreatedAt, item.UpdatedAt); err != nil {
 		return err
 	}
 	statement, err := tx.Prepare(`INSERT INTO extract_members (extract_id, path, subject_id, visit, modality, size_bytes) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (extract_id, path) DO NOTHING`)
@@ -128,7 +128,7 @@ func scanExtract(row rowScanner) (extract.Extract, error) {
 	var item extract.Extract
 	var subjects, modalities, visits []byte
 	var created, updated time.Time
-	if err := row.Scan(&item.ID, &item.OntologyID, &item.ProjectID, &item.OwnerUserID, &item.Name, &item.Description, &subjects, &modalities, &visits, &item.ObjectCount, &item.TotalBytes, &created, &updated); err != nil {
+	if err := row.Scan(&item.ID, &item.OntologyID, &item.ProjectID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &subjects, &modalities, &visits, &item.ObjectCount, &item.TotalBytes, &created, &updated); err != nil {
 		return extract.Extract{}, err
 	}
 	item.CreatedAt = created
@@ -148,4 +148,21 @@ func scanExtract(row rowScanner) (extract.Extract, error) {
 		item.Visits = []string{}
 	}
 	return item, nil
+}
+
+// SetOwner hands the extract to somebody else, and touches nothing else.
+func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
+	result, err := s.db.Exec(
+		`UPDATE extracts SET owner_type=$2, owner_id=$3, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(id), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID))
+	if err != nil {
+		return err
+	}
+	// Dire qu on n a rien trouve plutot que de rendre un succes silencieux :
+	// un transfert vers un identifiant qui n existe pas doit se voir.
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }

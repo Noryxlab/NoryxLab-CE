@@ -1,8 +1,10 @@
 package memory
 
 import (
+	"database/sql"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 )
@@ -82,4 +84,22 @@ func (s *ExtractStore) Delete(id string) error {
 	s.items = kept
 	delete(s.members, trimmed)
 	return nil
+}
+
+// SetOwner hands the extract to somebody else, and touches nothing else.
+func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	trimmed := strings.TrimSpace(id)
+	for i := range s.items {
+		if s.items[i].ID != trimmed {
+			continue
+		}
+		s.items[i].OwnerType = strings.TrimSpace(ownerType)
+		s.items[i].OwnerID = strings.TrimSpace(ownerID)
+		s.items[i].UpdatedAt = time.Now().UTC()
+		return nil
+	}
+	// Dire qu on n a rien trouve plutot que de rendre un succes silencieux.
+	return sql.ErrNoRows
 }

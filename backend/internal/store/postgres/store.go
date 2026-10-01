@@ -640,6 +640,15 @@ func migrationStatements() []string {
 			PRIMARY KEY (extract_id, path)
 		)`,
 		`CREATE INDEX IF NOT EXISTS extracts_project_idx ON extracts (project_id)`,
+		// La propriete transferable, comme sur un dataset ou une ontologie.
+		//
+		// Le defaut remplit la colonne pour les lignes existantes, puis
+		// l UPDATE leur donne leur auteur : un extrait declare avant ce jour
+		// appartient a la personne qui l a declare, ce qui est ce qui etait
+		// vrai sans que la base sache le dire.
+		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE extracts SET owner_id=owner_user_id WHERE owner_id=''`,
 
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,

@@ -5022,6 +5022,48 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/extracts/{extractID}/ownership:
+    put:
+      tags: [Datasets]
+      summary: Hand an extract to a person or an organization
+      operationId: updateExtractOwner
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ownerType, ownerId]
+              properties:
+                ownerType:
+                  type: string
+                  enum: [user, organization]
+                ownerId:
+                  type: string
+                  description: A username, or an organization name or identifier.
+      responses:
+        '200':
+          description: The extract, with its new owner.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extract'
+        '400':
+          description: ownerType must be user or organization, and ownerId is required.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Extract owner or global admin required, and membership of the destination organization.
+        '404':
+          description: No such extract.
   /api/v1/ontologies/{ontologyID}/ownership:
     put:
       tags: [Datasets]

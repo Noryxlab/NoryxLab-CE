@@ -24,10 +24,22 @@ import (
 )
 
 type Extract struct {
-	ID          string    `json:"id"`
-	OntologyID  string    `json:"ontologyId"`
-	ProjectID   string    `json:"projectId"`
-	OwnerUserID string    `json:"ownerUserId"`
+	ID          string `json:"id"`
+	OntologyID  string `json:"ontologyId"`
+	ProjectID   string `json:"projectId"`
+	OwnerUserID string `json:"ownerUserId"`
+	// OwnerType and OwnerID carry the same meaning as on a dataset or an
+	// ontology: who the extract belongs to, and therefore who answers for it.
+	//
+	// It had only OwnerUserID, so it could not be handed to an organization -
+	// a frozen selection of health data belonged to whoever happened to
+	// declare it, and left with them. The catalogue's other objects have been
+	// transferable for a while; this one simply had not caught up.
+	OwnerType string `json:"ownerType"`
+	OwnerID   string `json:"ownerId"`
+	// OwnerName is what a screen shows, resolved from the directory for an
+	// organization and equal to the username for a person.
+	OwnerName   string    `json:"ownerName,omitempty"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Subjects    []string  `json:"subjects"`
@@ -58,6 +70,10 @@ func New(ownerUserID, ontologyID, projectID, name, description string, subjects,
 		OntologyID:  strings.TrimSpace(ontologyID),
 		ProjectID:   strings.TrimSpace(projectID),
 		OwnerUserID: strings.TrimSpace(ownerUserID),
+		// Le meme defaut que partout ailleurs : son auteur, jusqu a ce que
+		// quelqu un le transfere.
+		OwnerType:   "user",
+		OwnerID:     strings.TrimSpace(ownerUserID),
 		Name:        strings.TrimSpace(name),
 		Description: strings.TrimSpace(description),
 		Subjects:    normalize(subjects),
