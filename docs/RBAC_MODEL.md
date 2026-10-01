@@ -65,8 +65,8 @@ Enterprise role matrix extends:
 | `environment.manage` | no | yes | yes |
 
 The last four answered the same question as `project.launch` until the matrix
-needed to tell them apart: attaching a cohort and starting a workspace were one
-permission, so an installation could not say "this role reads cohorts and
+needed to tell them apart: attaching an extract and starting a workspace were
+one permission, so an installation could not say "this role reads extracts and
 writes none of them" without also saying it may not run anything. Community
 still applies the same rule to all of them; what changed is that the question
 names the resource.

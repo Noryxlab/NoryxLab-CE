@@ -200,7 +200,7 @@ workspace is created, naming the datasets concerned.
 the person who opened the workspace, and whatever they read is sent to the
 model to answer with. On 2026-09-18 an assistant was asked to list `/datasets`
 and returned the contents of an HDS dataset - file names describing a study,
-its modalities and its cohorts - which then left the site for the model
+its modalities and its extracts - which then left the site for the model
 endpoint, through a gateway, to a rented GPU. That was not a misuse: it is what
 the tool does, and the platform's own rules text invites it to use `/datasets`.
 

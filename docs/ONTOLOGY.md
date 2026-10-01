@@ -32,25 +32,52 @@ listing: the platform reads how many objects are there and writes nothing back.
 
 **Coverage.** "31 subjects" averaged together the subjects who carry a corneal
 wavefront and those who do not. Coverage names them - how many subjects hold
-each modality, sparsest first, and the identifiers of those who do not - so a
-cohort's owner learns what it excludes before publishing an n rather than after.
+each modality, sparsest first, and the identifiers of those who do not - so an
+extract's owner learns what it excludes before publishing an n rather than
+after.
 
-**Cohorts.** A cohort is a named selection, resolved to an explicit list of
-files at the moment it is declared and kept that way: a cohort that re-ran its
-filter would return a different study every month. It duplicates nothing. The
-frozen paths point into the dataset where the data already lives, and a
-workspace mounts the cohort as a tree of symlinks at
-`/mnt/cohorts/<name>/<subject>/<visit>/<modality>` over the read-only dataset
-mount. The file list travels in the workspace bootstrap secret, which caps a
-cohort at roughly 700 KB of compressed paths; past that the bootstrap log says
-the cohort was not mounted rather than building a partial tree that would
-silently be a different study.
+**Extracts.** An extract is a named selection, resolved to an explicit list of
+files at the moment it is declared and kept that way: an extract that re-ran
+its filter would return a different study every month. It duplicates nothing.
+The frozen paths point into the dataset where the data already lives, and a
+workspace mounts the extract as a tree of symlinks at
+`<project mount>/extracts/<name>/<subject>/<visit>/<modality>` over the
+read-only dataset mount. The file list travels in the workspace bootstrap
+secret, which caps an extract at roughly 700 KB of compressed paths; past that
+the bootstrap log says the extract was not mounted rather than building a
+partial tree that would silently be a different study.
 
-Storing the paths is what made cohorts possible - the manifest keeps three
+It was called a cohort until 2026-10-01. The word carried a clinical meaning
+into screens where the mechanism is simply a subset of a listing, and the
+platform is sold outside medicine - ADR-042 records the rename and what it
+cost.
+
+Storing the paths is what made extracts possible - the manifest keeps three
 sample paths per modality, which shows a person what the data looks like and
-could never define a study. Ontologies scanned before this refuse to produce a
-cohort and ask for a rescan, rather than returning an empty selection that
+could never define a study. Ontologies scanned before this refuse to produce an
+extract and ask for a rescan, rather than returning an empty selection that
 looks like a legitimate answer.
+
+**Ownership and attachment.** An ontology and an extract are owned the way a
+dataset is - by a user, a team or an organization - and both can be handed on.
+A team is the useful case: it is the unit that works together, so it is the
+unit that keeps what the work produced when a member leaves.
+
+Attaching either to a project is a link, so several projects may mount the same
+ontology or the same frozen file list, and detaching removes the mount rather
+than the object. An extract therefore outlives the project that first needed
+it, which is the point: the alternative is a second scan over a bucket that has
+grown, and an n that no longer matches the first analysis.
+
+Creating an extract does not ask for a project. The scan form asks for a
+dataset; the project's data screen is where attaching happens, beside the
+datasets and datasources it already attaches.
+
+What a person may **see** in the extract catalogue follows the ontology, not
+the extract's own owner: an extract's name and its n describe the ontology's
+content, so one drawn from an ontology the caller cannot read is not listed.
+Ownership decides the other half - who may transfer or delete it. Being handed
+an extract is not being handed the study it was drawn from.
 
 Throughout, the source bucket is read-only to the platform: it is listed, and
 never written, copied or modified.

@@ -20,8 +20,8 @@ The Jobs page keeps a persistent execution history per project.
 A job records the datasets it had mounted at the moment it started —
 identifier, name, bucket, prefix, and whether it could write. Until this
 existed, a run recorded the image digest that produced it and nothing about
-the data that went in, so in six months nothing would say which snapshot of a
-cohort a calculation read.
+the data that went in, so in six months nothing would say which snapshot of an
+extract a calculation read.
 
 Two details are worth knowing, because both are the difference between a
 record and a guess:
