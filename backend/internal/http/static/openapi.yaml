@@ -343,6 +343,31 @@ components:
         totalBytes: { type: integer }
         truncated: { type: boolean }
         measuredAt: { type: string }
+    DatasetPathLayout:
+      type: object
+      properties:
+        declared: { type: boolean }
+        subjectLevel: { type: integer }
+        visitLevel: { type: integer }
+        modalityLevel: { type: integer }
+        description:
+          type: string
+          description: The rule in words - "level 1 = subject, level 2 = visit".
+    DatasetPathLayoutTrial:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              subject: { type: string }
+              visit: { type: string }
+              modality: { type: string }
+        recognised: { type: integer }
+        sampled: { type: integer }
+        description: { type: string }
     Extract:
       type: object
       properties:
@@ -7009,6 +7034,113 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/path-layout:
+    get:
+      tags: [Datasets]
+      summary: Read How This Dataset Is Laid Out
+      description: >-
+        Which path level holds the subject, the visit and the modality. Absent
+        means the platform falls back to the rule it has compiled in, which is
+        what every dataset declared before this used.
+      operationId: getDatasetPathLayout
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetPathLayout'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Declare How This Dataset Is Laid Out
+      description: >-
+        Writes the rule every future scan reads this bucket with, so a study
+        that numbers its patients differently can be read without anybody
+        writing Go. Positional and not a regular expression: a rule somebody
+        can get subtly wrong, over health data, filed under the wrong patient
+        and discovered months later, is a hazard with a text field.
+
+
+        A body naming no subject level clears the rule and restores the
+        compiled one, which is the way out when a declared layout turns out to
+        be wrong. Dataset owner or global administrator, because the rule
+        decides how the bucket is read for everybody.
+      operationId: setDatasetPathLayout
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetPathLayout'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/path-layout/trials:
+    post:
+      tags: [Datasets]
+      summary: Try A Layout Before Declaring It
+      description: >-
+        Applies a candidate rule to a sample of this dataset's real keys and
+        says what it would read, storing nothing. This is what makes the rule
+        writable by hand: three numbers are abstract, and "level 1 reads
+        SELENA-01-001 on this path" is checkable in a second by somebody who
+        knows the study.
+
+
+        The sample is real paths and is returned only to somebody who may
+        already read the bucket. It never goes near a model - on these datasets
+        a key is a patient identifier, which is why the assistant is shown path
+        shapes instead.
+      operationId: tryDatasetPathLayout
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: What the candidate rule reads
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetPathLayoutTrial'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: The dataset could not be listed
   /api/v1/datasets/{datasetID}/projects:
     get:
       tags: [Datasets]

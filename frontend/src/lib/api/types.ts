@@ -1134,6 +1134,26 @@ export interface MountedProjectList {
 /** A named selection of files, frozen when it is declared. It duplicates
  *  nothing: the paths point into the dataset where the data already lives, and
  *  a mount builds a tree of links over them. */
+/** Comment les chemins d'un dataset sont lus : quel niveau porte le sujet, la
+ *  visite, la modalite. Positionnel et pas une expression reguliere - une
+ *  regle qu'on peut se tromper subtilement, sur des donnees de sante, rangees
+ *  sous le mauvais patient et decouvertes des mois plus tard, c'est un danger
+ *  avec un champ texte. */
+export interface DatasetPathLayout {
+  declared: boolean;
+  subjectLevel?: number;
+  visitLevel?: number;
+  modalityLevel?: number;
+  description: string;
+}
+
+export interface DatasetPathLayoutTrial {
+  items: { path: string; subject: string; visit: string; modality: string }[];
+  recognised: number;
+  sampled: number;
+  description: string;
+}
+
 export type ExtractLevel = 'subject' | 'visit' | 'modality';
 
 export interface Extract {

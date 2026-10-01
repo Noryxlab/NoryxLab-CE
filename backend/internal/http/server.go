@@ -196,6 +196,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// Ou un objet du catalogue est monte. Le rattachement n'avait qu'un sens a
 	// l'ecran : le projet listait ce qu'il montait, l'objet ne disait rien.
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/projects", h.ListDatasetProjects)
+	// Comment lire les chemins de ce dataset. La regle etait compilee en dur,
+	// donc la seconde etude a numeroter ses patients autrement demandait du Go.
+	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/path-layout", h.GetDatasetPathLayout)
+	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/path-layout", h.SetDatasetPathLayout)
+	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/path-layout/trials", h.TryDatasetPathLayout)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)

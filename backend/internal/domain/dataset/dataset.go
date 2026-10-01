@@ -19,20 +19,25 @@ type Dataset struct {
 	// they administer the platform - they hold no grant on it. Seeing
 	// everything is real power over regulated data; the least it can do is say
 	// when it is the reason something is on screen.
-	AdminVisible     bool      `json:"adminVisible,omitempty"`
-	Name             string    `json:"name"`
-	Description      string    `json:"description"`
-	Bucket           string    `json:"bucket"`
-	Prefix           string    `json:"prefix"`
-	Provider         string    `json:"provider"`
-	Classification   string    `json:"classification"`
-	Endpoint         string    `json:"endpoint,omitempty"`
-	Region           string    `json:"region,omitempty"`
-	AccessRole       string    `json:"accessRole,omitempty"`
-	CredentialName   string    `json:"-"`
-	CredentialUserID string    `json:"-"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	AdminVisible   bool   `json:"adminVisible,omitempty"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Bucket         string `json:"bucket"`
+	Prefix         string `json:"prefix"`
+	Provider       string `json:"provider"`
+	Classification string `json:"classification"`
+	Endpoint       string `json:"endpoint,omitempty"`
+	Region         string `json:"region,omitempty"`
+	AccessRole     string `json:"accessRole,omitempty"`
+	// PathLayout is how this dataset's object paths are read: which level
+	// holds the subject, the visit, the modality. Absent means the platform
+	// falls back to the rule it had compiled in, which is what every dataset
+	// declared before this used.
+	PathLayout       *PathLayout `json:"pathLayout,omitempty"`
+	CredentialName   string      `json:"-"`
+	CredentialUserID string      `json:"-"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	UpdatedAt        time.Time   `json:"updatedAt"`
 }
 
 type Access struct {

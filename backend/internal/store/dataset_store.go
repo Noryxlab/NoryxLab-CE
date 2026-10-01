@@ -8,6 +8,12 @@ type DatasetStore interface {
 	GetByID(id string) (dataset.Dataset, bool, error)
 	Create(item dataset.Dataset) error
 	UpdateMetadata(datasetID, name, description string) error
+	// SetPathLayout writes how this dataset's object paths are read - which
+	// level holds the subject, the visit, the modality - or clears it so the
+	// platform falls back to its compiled rule. A layout stored per dataset is
+	// what lets a study that numbers its patients differently be read without
+	// anybody writing Go.
+	SetPathLayout(datasetID string, layout *dataset.PathLayout) error
 	Delete(id string) error
 	ListAccess(datasetID string) ([]dataset.Access, error)
 	UpdateOwner(datasetID, ownerType, ownerID string) error

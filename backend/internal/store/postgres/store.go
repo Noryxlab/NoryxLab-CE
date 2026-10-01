@@ -444,6 +444,11 @@ func migrationStatements() []string {
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_name TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		// Comment lire les chemins de ce dataset : quel niveau porte le sujet,
+		// la visite, la modalite. Nul pour tout ce qui existe, ce qui veut
+		// dire "la regle compilee en dur", celle que ces datasets ont deja
+		// utilisee.
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS path_layout_json JSONB`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_user_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE datasets SET owner_id=owner_user_id WHERE owner_id=''`,
 		`UPDATE datasets SET credential_user_id=owner_user_id WHERE credential_user_id=''`,
@@ -2354,7 +2359,7 @@ func (s *Store) ListDatasetsBySubjects(subjects []dataset.Subject) ([]dataset.Da
 }
 
 func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2362,9 +2367,11 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var layout []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
+		item.PathLayout = decodePathLayout(layout)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2372,7 +2379,8 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var layout []byte
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.OwnerType,
@@ -2387,6 +2395,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		&item.Region,
 		&item.CredentialName,
 		&item.CredentialUserID,
+		&layout,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -2419,6 +2428,46 @@ func (s *Store) CreateDataset(item dataset.Dataset) error {
 		item.UpdatedAt,
 	)
 	return err
+}
+
+// SetDatasetPathLayout writes how this dataset's paths are read, or clears it
+// so the platform falls back to its compiled rule.
+func (s *Store) SetDatasetPathLayout(datasetID string, layout *dataset.PathLayout) error {
+	var encoded any
+	if layout != nil {
+		raw, err := json.Marshal(layout)
+		if err != nil {
+			return err
+		}
+		encoded = raw
+	}
+	result, err := s.db.Exec(`UPDATE datasets SET path_layout_json=$2, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(datasetID), encoded)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// decodePathLayout turns a stored rule back into one, and a missing or
+// unreadable one into none - a dataset whose layout cannot be parsed is read
+// by the compiled rule, which is worse than the stored one and far better than
+// a dataset that refuses to list.
+func decodePathLayout(raw []byte) *dataset.PathLayout {
+	if len(raw) == 0 {
+		return nil
+	}
+	var layout dataset.PathLayout
+	if err := json.Unmarshal(raw, &layout); err != nil {
+		return nil
+	}
+	if !layout.Declared() {
+		return nil
+	}
+	return &layout
 }
 
 func (s *Store) UpdateDatasetMetadata(datasetID, name, description string) error {

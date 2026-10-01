@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
   FolderOpen,
@@ -52,10 +52,10 @@ import {
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
-import { ontologiesApi } from '@/lib/api/endpoints';
+import { ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
-import type { Extract, OntologyQueryItem, Ontology } from '@/lib/api/types';
+import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPathLayoutTrial } from '@/lib/api/types';
 
 /* Ce que le manifeste porte et que cet ecran lit.
  *
@@ -257,6 +257,203 @@ function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
  * qui n'ont rien produit disent ce qui est passe a cote, ce qui est la seule
  * facon de savoir si la lecture est juste.
  */
+function demanderUneLecture(ontology: Ontology, regle: DatasetPathLayout | undefined, invite: string) {
+    const resume = (ontology.manifest as ManifestLu | undefined)?.summary;
+    requestAssistant({
+      surface: 'ontology',
+      context: {
+        ontologyId: ontology.id,
+        ontologyName: ontology.name,
+        sourceName: ontology.sourceName,
+        inferenceProfile: ontology.inferenceProfile,
+        objects: resume?.objects,
+        subjects: resume?.subjects,
+        unrecognisedObjects: resume?.unrecognisedObjects,
+        // Celles qui ont produit un sujet : elles disent a quoi ressemble le
+        // jeu de donnees.
+        recognisedLayouts: resume?.recognisedLayouts ?? [],
+        // Et celles qui n'ont rien produit : elles disent ce qui est manque.
+        unrecognisedLayouts: resume?.layoutSamples ?? [],
+        // La regle deja appliquee, s'il y en a une : proposer une lecture sans
+        // savoir laquelle est en place, c'est proposer a l'aveugle.
+        currentRule: regle?.declared ? regle.description : '',
+      },
+      prompt: invite,
+    });
+
+}
+
+/* L'editeur de la regle de lecture.
+ *
+ *  Trois niveaux, saisis a la main, essayes sur de vrais chemins avant d'etre
+ *  enregistres. C'est ce qui rend la regle utilisable sans assistant : trois
+ *  nombres sont abstraits, "niveau 1 lit SELENA-01-001 sur ce chemin" se
+ *  verifie en une seconde par quelqu'un qui connait l'etude.
+ *
+ *  L'essai porte de vrais chemins et ne part donc jamais vers un modele : sur
+ *  ces jeux de donnees une cle est un identifiant de patient, et c'est
+ *  exactement pour ca qu'on montre des formes a l'assistant (ADR-040). */
+function PatternEditor({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const datasetId = ontology.sourceId;
+  const current = useQuery({
+    queryKey: qk.datasetPathLayout(datasetId),
+    queryFn: () => pathLayoutApi.get(datasetId),
+    enabled: Boolean(datasetId),
+  });
+
+  const [subject, setSubject] = React.useState('');
+  const [visit, setVisit] = React.useState('');
+  const [modality, setModality] = React.useState('');
+  const [trial, setTrial] = React.useState<DatasetPathLayoutTrial | null>(null);
+
+  React.useEffect(() => {
+    const data = current.data;
+    if (!data?.declared) return;
+    setSubject(String(data.subjectLevel ?? ''));
+    setVisit(data.visitLevel != null && data.visitLevel >= 0 ? String(data.visitLevel) : '');
+    setModality(
+      data.modalityLevel != null && data.modalityLevel >= 0 ? String(data.modalityLevel) : '',
+    );
+  }, [current.data]);
+
+  const niveaux = () => ({
+    subjectLevel: subject.trim() === '' ? null : Number(subject),
+    visitLevel: visit.trim() === '' ? null : Number(visit),
+    modalityLevel: modality.trim() === '' ? null : Number(modality),
+  });
+
+  const essai = useMutation({
+    mutationFn: () => pathLayoutApi.try(datasetId, niveaux()),
+    onSuccess: (data) => setTrial(data),
+    onError: (error) => toast.error(error, t('ontologies.patternTry')),
+  });
+
+  const enregistrer = useMutation({
+    mutationFn: () => pathLayoutApi.set(datasetId, niveaux()),
+    onSuccess: () => {
+      invalidate(qk.datasetPathLayout(datasetId));
+      toast.success(t('ontologies.patternSaved'));
+    },
+    onError: (error) => toast.error(error, t('ontologies.patternSave')),
+  });
+
+  const oublier = useMutation({
+    mutationFn: () => pathLayoutApi.set(datasetId, {}),
+    onSuccess: () => {
+      invalidate(qk.datasetPathLayout(datasetId));
+      setSubject('');
+      setVisit('');
+      setModality('');
+      setTrial(null);
+      toast.success(t('ontologies.patternCleared'));
+    },
+    onError: (error) => toast.error(error, t('ontologies.patternClear')),
+  });
+
+  if (!datasetId) return null;
+
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium">{t('ontologies.patternRule')}</p>
+        <span className="text-xs text-muted-foreground">
+          {current.data?.declared ? current.data.description : t('ontologies.patternCompiled')}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('ontologies.patternRuleHint')}</p>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Field label={t('ontologies.patternSubjectLevel')}>
+          <Input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="1" />
+        </Field>
+        <Field label={t('ontologies.patternVisitLevel')}>
+          <Input value={visit} onChange={(event) => setVisit(event.target.value)} placeholder="2" />
+        </Field>
+        <Field label={t('ontologies.patternModalityLevel')}>
+          <Input value={modality} onChange={(event) => setModality(event.target.value)} placeholder="3" />
+        </Field>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          loading={essai.isPending}
+          disabled={subject.trim() === ''}
+          onClick={() => essai.mutate()}
+        >
+          {t('ontologies.patternTry')}
+        </Button>
+        <Button
+          variant="primary"
+          loading={enregistrer.isPending}
+          disabled={subject.trim() === ''}
+          onClick={() => enregistrer.mutate()}
+        >
+          {t('ontologies.patternSave')}
+        </Button>
+        {current.data?.declared ? (
+          <Button variant="ghost" loading={oublier.isPending} onClick={() => oublier.mutate()}>
+            {t('ontologies.patternClear')}
+          </Button>
+        ) : null}
+        {/* L'assistance, a cote des champs qu'elle remplit.
+          *
+          *  Il proposait deja une lecture, et il n'existait aucun endroit pour
+          *  ecrire sa reponse : la conversation finissait dans le panneau. Le
+          *  bouton est ici parce que c'est ici qu'on transcrit les trois
+          *  nombres - et il reste facultatif, la regle se saisit a la main. */}
+        {assistantAvailable() ? (
+          <Button variant="ghost" onClick={() => {
+              demanderUneLecture(ontology, current.data, t('ontologies.describePrompt', { name: ontology.name }));
+              toast.success(t('ontologies.describeSent'), t('ontologies.describe'));
+            }}>
+            <MessageCircle aria-hidden />
+            {t('ontologies.patternAsk')}
+          </Button>
+        ) : null}
+      </div>
+
+      {trial ? (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">
+            {t('ontologies.patternTrialResult', {
+              recognised: String(trial.recognised),
+              sampled: String(trial.sampled),
+            })}
+          </p>
+          <TableWrapper className="rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('ontologies.object')}</TableHead>
+                  <TableHead>{t('ontologies.patternSubject')}</TableHead>
+                  <TableHead>{t('ontologies.patternVisit')}</TableHead>
+                  <TableHead>{t('ontologies.patternModality')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {trial.items.map((item) => (
+                  <TableRow key={item.path}>
+                    <TableCell className="max-w-[20rem] truncate font-mono text-xs">
+                      {item.path}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{item.subject || '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.visit || '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.modality || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableWrapper>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function OntologyPattern({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const { locale } = useI18n();
@@ -295,6 +492,8 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
             </ul>
           </div>
         )}
+
+        <PatternEditor ontology={ontology} />
 
         {refusees.length > 0 ? (
           <div>
@@ -1029,32 +1228,6 @@ export function OntologyCatalog() {
    *  Des formes, jamais des chemins. Ce sont des metadonnees de contexte de
    *  sante : la lecture se propose sur la structure, et les identifiants n'ont
    *  pas a voyager (ADR-040). */
-  const demanderUneLecture = (ontology: Ontology) => {
-    const resume = (ontology.manifest as ManifestLu | undefined)?.summary;
-    requestAssistant({
-      surface: 'ontology',
-      context: {
-        ontologyId: ontology.id,
-        ontologyName: ontology.name,
-        sourceName: ontology.sourceName,
-        inferenceProfile: ontology.inferenceProfile,
-        objects: resume?.objects,
-        subjects: resume?.subjects,
-        unrecognisedObjects: resume?.unrecognisedObjects,
-        // Celles qui ont produit un sujet : elles disent a quoi ressemble le
-        // jeu de donnees.
-        recognisedLayouts: resume?.recognisedLayouts ?? [],
-        // Et celles qui n'ont rien produit : elles disent ce qui est manque.
-        unrecognisedLayouts: resume?.layoutSamples ?? [],
-      },
-      prompt: t('ontologies.describePrompt', { name: ontology.name }),
-    });
-    // L'assistant s'ouvre dans un panneau lateral qu'on peut avoir replie.
-    // Sans cet accuse, cliquer ne produit rien de visible - et c'est ce qui
-    // est arrive : la reponse attendait dans un panneau que personne n'avait
-    // ouvert.
-    toast.success(t('ontologies.describeSent'), t('ontologies.describe'));
-  };
 
   const ontologies = useOntologies();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -1180,9 +1353,14 @@ export function OntologyCatalog() {
                 *  arborescence. */}
               {assistantPresent ? (
                 <DropdownMenuItem
-                  onSelect={() =>
-                    demanderUneLecture(ontology)
-                  }
+                  onSelect={() => {
+                    demanderUneLecture(
+                      ontology,
+                      undefined,
+                      t('ontologies.describePrompt', { name: ontology.name }),
+                    );
+                    toast.success(t('ontologies.describeSent'), t('ontologies.describe'));
+                  }}
                 >
                   <MessageCircle aria-hidden />
                   {t('ontologies.describe')}

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"database/sql"
 	"strings"
 	"sync"
 	"time"
@@ -102,6 +103,20 @@ func (s *DatasetStore) UpdateMetadata(datasetID, name, description string) error
 		}
 	}
 	return nil
+}
+
+func (s *DatasetStore) SetPathLayout(datasetID string, layout *dataset.PathLayout) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	target := strings.TrimSpace(datasetID)
+	for i := range s.items {
+		if s.items[i].ID == target {
+			s.items[i].PathLayout = layout
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return sql.ErrNoRows
 }
 
 func (s *DatasetStore) Delete(id string) error {

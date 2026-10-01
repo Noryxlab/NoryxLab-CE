@@ -84,6 +84,8 @@ import type {
   Workspace,
   ServiceAccount,
   MountedProjectList,
+  DatasetPathLayout,
+  DatasetPathLayoutTrial,
   WorkspaceStartup,
 } from './types';
 
@@ -495,6 +497,22 @@ export const teamsApi = {
  *  `hidden` compte les projets que l'appelant n'a pas a connaitre. "Monte dans
  *  2 projets que vous ne voyez pas" est une reponse vraie ; le silence se
  *  lirait "monte nulle part" et inviterait a supprimer. */
+/** La regle de lecture d'un dataset : la lire, l'essayer, l'enregistrer.
+ *
+ *  L'assistant savait deja diagnostiquer une disposition a partir des formes de
+ *  chemins, et il n'existait aucun endroit ou ecrire sa reponse : la
+ *  conversation s'arretait dans le panneau (ADR-040). Ce qui manquait n'etait
+ *  pas l'intelligence, c'etait un endroit pour noter le resultat. */
+export const pathLayoutApi = {
+  get: (datasetId: string) =>
+    api.get<DatasetPathLayout>(`${V1}/datasets/${datasetId}/path-layout`),
+  set: (datasetId: string, input: Record<string, number | null>) =>
+    api.put<DatasetPathLayout>(`${V1}/datasets/${datasetId}/path-layout`, input),
+  /** Ce que la regle lirait, sur de vrais chemins, sans rien enregistrer. */
+  try: (datasetId: string, input: Record<string, number | null>) =>
+    api.post<DatasetPathLayoutTrial>(`${V1}/datasets/${datasetId}/path-layout/trials`, input),
+};
+
 export const mountsApi = {
   dataset: (datasetId: string) =>
     api.get<MountedProjectList>(`${V1}/datasets/${datasetId}/projects`),

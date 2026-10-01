@@ -1032,7 +1032,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			truncated = true
 			return false
 		}
-		subjectID, visitDate, modalityName := inferOntologyPath(relPath)
+		subjectID, visitDate, modalityName := lireLeChemin(item.PathLayout, relPath)
 		if subjectID == "" {
 			// Counted and described, never dropped in silence. The shape is
 			// recorded rather than the path: these are health-context
@@ -1479,4 +1479,18 @@ func estUneCleDeDossier(obj minio.ObjectInfo, suivante string) bool {
 	}
 	cle := strings.TrimSuffix(obj.Key, "/")
 	return cle != "" && strings.HasPrefix(suivante, cle+"/")
+}
+
+// lireLeChemin applique la regle du dataset, ou celle compilee en dur.
+//
+// Une regle ecrite par dataset gagne, parce qu'elle a ete confirmee par
+// quelqu'un qui connait l'etude ; la regle compilee reste la reponse par
+// defaut, pour les datasets qui n'en declarent pas - c'est-a-dire tous ceux
+// qui existaient avant. Une installation sans assistant n'est donc bloquee par
+// rien : elle saisit trois niveaux, ou elle ne touche a rien.
+func lireLeChemin(layout *dataset.PathLayout, relPath string) (subjectID, visitDate, modality string) {
+	if layout != nil && layout.Declared() {
+		return layout.Read(relPath)
+	}
+	return inferOntologyPath(relPath)
 }

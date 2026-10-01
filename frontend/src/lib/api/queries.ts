@@ -88,6 +88,7 @@ export const qk = {
   datasourceDefinitions: ['datasource-definitions'] as const,
   ontologies: ['ontologies'] as const,
   extracts: ['extracts'] as const,
+  datasetPathLayout: (datasetId: string) => ['datasets', datasetId, 'path-layout'] as const,
   ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
   ontologyCompleteness: (ontologyId: string) =>
     ['ontologies', ontologyId, 'completeness'] as const,
