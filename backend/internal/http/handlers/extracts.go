@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -86,20 +87,21 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// An extract has to know which project will mount it. The catalogue screen is
-	// not project-scoped, so an ontology attached to exactly one project answers
-	// for itself; anything else is asked rather than guessed, because an extract
-	// filed under the wrong project would simply never appear in a workspace.
+	// A project is optional, and attaching is a separate gesture.
+	//
+	// It used to be required: an extract that named no project was refused,
+	// and the catalogue screen had to ask for one before it could freeze a
+	// selection. But what an extract describes has nothing to do with which
+	// projects mount it - that is a later question, and one with more than one
+	// answer. Naming a project here simply attaches it straight away, which is
+	// the common case and saves a second click.
 	projectID := strings.TrimSpace(req.ProjectID)
 	if projectID == "" && h.projectResourceStore != nil {
+		// Attached to exactly one project, the ontology answers for itself.
 		linked, err := h.projectResourceStore.ListOntologyProjectIDs(ontologyID)
 		if err == nil && len(linked) == 1 {
 			projectID = linked[0]
 		}
-	}
-	if projectID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required: this ontology is attached to several projects, or to none"})
-		return
 	}
 
 	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
@@ -120,6 +122,13 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 	if err := h.extractStore.Create(object, frozen); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create the extract"})
 		return
+	}
+	if projectID != "" && h.projectResourceStore != nil {
+		// Un echec de rattachement ne doit pas perdre l extrait : il existe,
+		// il est gele, et il se rattache en un geste de plus.
+		if err := h.projectResourceStore.AttachExtract(projectID, object.ID); err != nil {
+			log.Printf("extract %s created but not attached to project %s: %v", object.ID, projectID, err)
+		}
 	}
 	h.emitAudit(r, identity.UserID(), "extract.create", "extract", object.ID, object.ProjectID, "success", "", map[string]any{
 		"ontologyId":  ontologyID,
@@ -302,4 +311,67 @@ func (h Handlers) UpdateExtractOwner(w http.ResponseWriter, r *http.Request) {
 			"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID})
 	updated, _, _ := h.extractStore.GetByID(item.ID)
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// AttachProjectExtract mounts an extract in a project's workspaces.
+//
+// The same gesture as attaching a dataset or an ontology, and for the same
+// reason: what an extract describes has nothing to do with which projects use
+// it. It used to be decided once, when the extract was declared, and never
+// again - so an extract made in the wrong project simply never appeared.
+func (h Handlers) AttachProjectExtract(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	extractID := strings.TrimSpace(r.PathValue("extractID"))
+	if projectID == "" || extractID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and extractID are required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachOntology, "extract attach") {
+		return
+	}
+	item, found, err := h.extractStore.GetByID(extractID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read extract"})
+		return
+	}
+	// Not found rather than forbidden when it is not yours: naming an
+	// identifier should not confirm that it exists.
+	if !found || (!h.canManageExtract(item, identity) && !h.canReadOntologyObjectID(item.OntologyID, identity)) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
+		return
+	}
+	if err := h.projectResourceStore.AttachExtract(projectID, extractID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach the extract"})
+		return
+	}
+	h.emitAudit(r, identity.UserID(), "extract.attached", "extract", extractID, projectID, "success", "", nil)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "attached"})
+}
+
+// DetachProjectExtract stops mounting it. The extract itself is untouched: a
+// frozen selection outlives the projects that used it.
+func (h Handlers) DetachProjectExtract(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	extractID := strings.TrimSpace(r.PathValue("extractID"))
+	if projectID == "" || extractID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID and extractID are required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachOntology, "extract detach") {
+		return
+	}
+	if err := h.projectResourceStore.DetachExtract(projectID, extractID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach the extract"})
+		return
+	}
+	h.emitAudit(r, identity.UserID(), "extract.detached", "extract", extractID, projectID, "success", "", nil)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "detached"})
 }

@@ -5650,6 +5650,70 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/extracts/{extractID}:
+    put:
+      tags: [Projects]
+      summary: Mount an extract in this project's workspaces
+      operationId: attachProjectExtract
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Attached. Several projects may mount the same extract.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [attached] }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Project role insufficient.
+        '404':
+          description: No such extract, or none you may read.
+    delete:
+      tags: [Projects]
+      summary: Stop mounting an extract in this project
+      operationId: detachProjectExtract
+      description: >-
+        The extract itself is untouched: a frozen selection outlives the
+        projects that used it.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Detached.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [detached] }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Project role insufficient.
   /api/v1/projects/{projectID}/ontologies/{ontologyID}:
     delete:
       tags: [Projects]

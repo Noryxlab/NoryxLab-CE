@@ -650,6 +650,23 @@ func migrationStatements() []string {
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE extracts SET owner_id=owner_user_id WHERE owner_id=''`,
 
+		// Un extrait se rattache comme tout ce qui est au-dessus de lui.
+		//
+		// Il portait un project_id decide a sa declaration et jamais ensuite -
+		// le meme prealable que l ontologie a abandonne, une couche plus bas.
+		// La reprise ci-dessous conserve les rattachements existants : un
+		// extrait declare dans un projet y reste monte, ce qui est ce qui
+		// etait vrai avant que la base sache l exprimer autrement.
+		`CREATE TABLE IF NOT EXISTS project_extract_links (
+			project_id TEXT NOT NULL,
+			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
+			created_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (project_id, extract_id)
+		)`,
+		`INSERT INTO project_extract_links (project_id, extract_id, created_at)
+			SELECT project_id, id, created_at FROM extracts
+			WHERE COALESCE(project_id, '') <> ''
+			ON CONFLICT (project_id, extract_id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
 			ontology_id TEXT NOT NULL,
@@ -3006,6 +3023,42 @@ func (s *Store) ListOntologyProjectIDs(ontologyID string) ([]string, error) {
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// collectIDs reads a single-column list, which four link tables all need.
+func (s *Store) collectIDs(query string, arg string) ([]string, error) {
+	rows, err := s.db.Query(query, arg)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) AttachExtract(projectID, extractID string) error {
+	_, err := s.db.Exec(`INSERT INTO project_extract_links (project_id, extract_id, created_at) VALUES ($1,$2,$3) ON CONFLICT (project_id, extract_id) DO NOTHING`, strings.TrimSpace(projectID), strings.TrimSpace(extractID), time.Now().UTC())
+	return err
+}
+
+func (s *Store) DetachExtract(projectID, extractID string) error {
+	_, err := s.db.Exec(`DELETE FROM project_extract_links WHERE project_id=$1 AND extract_id=$2`, strings.TrimSpace(projectID), strings.TrimSpace(extractID))
+	return err
+}
+
+func (s *Store) ListProjectExtractIDs(projectID string) ([]string, error) {
+	return s.collectIDs(`SELECT extract_id FROM project_extract_links WHERE project_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(projectID))
+}
+
+func (s *Store) ListExtractProjectIDs(extractID string) ([]string, error) {
+	return s.collectIDs(`SELECT project_id FROM project_extract_links WHERE extract_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(extractID))
 }
 
 func (s *Store) AttachOntology(projectID, ontologyID string) error {

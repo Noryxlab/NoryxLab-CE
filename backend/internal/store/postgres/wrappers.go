@@ -353,6 +353,22 @@ func (s *ProjectResourceStore) ListProjectDatasourceIDs(projectID string) ([]str
 func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]string, error) {
 	return s.Store.ListDatasourceProjectIDs(datasourceID)
 }
+func (s *ProjectResourceStore) AttachExtract(projectID, extractID string) error {
+	return s.Store.AttachExtract(projectID, extractID)
+}
+
+func (s *ProjectResourceStore) DetachExtract(projectID, extractID string) error {
+	return s.Store.DetachExtract(projectID, extractID)
+}
+
+func (s *ProjectResourceStore) ListProjectExtractIDs(projectID string) ([]string, error) {
+	return s.Store.ListProjectExtractIDs(projectID)
+}
+
+func (s *ProjectResourceStore) ListExtractProjectIDs(extractID string) ([]string, error) {
+	return s.Store.ListExtractProjectIDs(extractID)
+}
+
 func (s *ProjectResourceStore) AttachOntology(projectID, ontologyID string) error {
 	return s.Store.AttachOntology(projectID, ontologyID)
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 )
 
 // Mounting an extract: a tree of links, not a copy.
@@ -136,7 +138,14 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 	if h.extractStore == nil || strings.TrimSpace(projectID) == "" {
 		return nil
 	}
-	extracts, err := h.extractStore.ListByProject(projectID)
+	// Lu dans la table de liens, et non dans une colonne de l extrait.
+	//
+	// Un extrait portait le projet qui le monterait, decide a sa declaration :
+	// un seul, pour toujours, et faux des qu on voulait le monter ailleurs.
+	// Le rattachement est desormais un lien, comme pour un dataset ou une
+	// ontologie, donc plusieurs projets peuvent monter le meme extrait sans
+	// qu on le duplique.
+	extracts, err := h.projectExtracts(projectID)
 	if err != nil {
 		log.Printf("workspace started without extract links for project %s: %v", projectID, err)
 		return nil
@@ -180,4 +189,28 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 		}
 	}
 	return entries
+}
+
+// projectExtracts reads what this project has attached.
+func (h Handlers) projectExtracts(projectID string) ([]extractdomain.Extract, error) {
+	if h.projectResourceStore == nil {
+		return nil, nil
+	}
+	ids, err := h.projectResourceStore.ListProjectExtractIDs(projectID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]extractdomain.Extract, 0, len(ids))
+	for _, id := range ids {
+		item, found, err := h.extractStore.GetByID(id)
+		if err != nil {
+			return nil, err
+		}
+		// Un lien vers un extrait disparu est ignore plutot que fatal : il ne
+		// doit pas empecher les autres de se monter.
+		if found {
+			out = append(out, item)
+		}
+	}
+	return out, nil
 }

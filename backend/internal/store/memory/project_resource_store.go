@@ -12,6 +12,7 @@ type ProjectResourceStore struct {
 	projectRepos       map[string]map[string]struct{}
 	projectDatasources map[string]map[string]struct{}
 	projectOntologies  map[string]map[string]struct{}
+	projectExtracts    map[string]map[string]struct{}
 }
 
 func NewProjectResourceStore() *ProjectResourceStore {
@@ -20,6 +21,7 @@ func NewProjectResourceStore() *ProjectResourceStore {
 		projectRepos:       map[string]map[string]struct{}{},
 		projectDatasources: map[string]map[string]struct{}{},
 		projectOntologies:  map[string]map[string]struct{}{},
+		projectExtracts:    map[string]map[string]struct{}{},
 	}
 }
 
@@ -138,6 +140,50 @@ func (s *ProjectResourceStore) ListDatasourceProjectIDs(datasourceID string) ([]
 			out = append(out, projectID)
 		}
 	}
+	return out, nil
+}
+
+func (s *ProjectResourceStore) AttachExtract(projectID, extractID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p := strings.TrimSpace(projectID)
+	e := strings.TrimSpace(extractID)
+	if _, ok := s.projectExtracts[p]; !ok {
+		s.projectExtracts[p] = map[string]struct{}{}
+	}
+	s.projectExtracts[p][e] = struct{}{}
+	return nil
+}
+
+func (s *ProjectResourceStore) DetachExtract(projectID, extractID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.projectExtracts[strings.TrimSpace(projectID)], strings.TrimSpace(extractID))
+	return nil
+}
+
+func (s *ProjectResourceStore) ListProjectExtractIDs(projectID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []string{}
+	for id := range s.projectExtracts[strings.TrimSpace(projectID)] {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func (s *ProjectResourceStore) ListExtractProjectIDs(extractID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	wanted := strings.TrimSpace(extractID)
+	out := []string{}
+	for projectID, extracts := range s.projectExtracts {
+		if _, ok := extracts[wanted]; ok {
+			out = append(out, projectID)
+		}
+	}
+	sort.Strings(out)
 	return out, nil
 }
 
