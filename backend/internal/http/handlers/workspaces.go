@@ -815,7 +815,25 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		envVars = append(envVars, secretEnvRefs(userSecretName, userSecretData)...)
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{
-			PodName:                 podName,
+			PodName: podName,
+			// The group the shipped images run as, so a new volume is writable.
+			//
+			// Every environment image does `useradd -m noryx` and `USER noryx`,
+			// which is 1000:1000, and a freshly provisioned volume belongs to
+			// root. Mounted over /home/noryx/.noryx-profile that made the
+			// bootstrap die on its first write - "cannot create
+			// .noryx-profile/jupyter/config/jupyter_server_config.py:
+			// Permission denied", exit 2, before the IDE ever started.
+			//
+			// It hit the first workspace of any user whose profile volume did
+			// not exist yet, so it was invisible to everybody already working
+			// and fatal to every new arrival. The daily platform check is a new
+			// user every night, and it had been red since 2026-09-23 behind an
+			// earlier failure.
+			//
+			// 1000 as a literal, like the file browser already does for the
+			// same images (project_files.go).
+			FSGroup:                 1000,
 			Image:                   record.Image,
 			Command:                 workspaceCommand,
 			Args:                    workspaceArgs,

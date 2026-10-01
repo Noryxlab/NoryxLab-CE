@@ -309,7 +309,18 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 		},
 	}
 	if spec.FSGroup > 0 {
-		payload["spec"].(map[string]any)["securityContext"] = map[string]any{"fsGroup": spec.FSGroup}
+		// OnRootMismatch, not the default Always.
+		//
+		// fsGroup makes the kubelet chown the volume so a non-root container
+		// can write to a freshly provisioned one. Done on every mount it is
+		// also a recursive chown of the whole volume, and a project volume
+		// holds a study: the workspace that mounts it would wait on a walk of
+		// every file to repair ownership that was already right. OnRootMismatch
+		// looks at the volume root and stops there when it matches.
+		payload["spec"].(map[string]any)["securityContext"] = map[string]any{
+			"fsGroup":             spec.FSGroup,
+			"fsGroupChangePolicy": "OnRootMismatch",
+		}
 	}
 	if len(volumes) > 0 {
 		payload["spec"].(map[string]any)["volumes"] = volumes

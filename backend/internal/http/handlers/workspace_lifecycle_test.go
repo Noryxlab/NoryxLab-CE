@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -296,5 +297,22 @@ func TestWorkspaceKeepsTheAssistantMemoryOnTheProfileVolume(t *testing.T) {
 	config := strings.Index(script, "/home/noryx/.continue/config.yaml")
 	if link < 0 || config < 0 || link > config {
 		t.Fatal("the configuration is written before the link exists, so it lands in the pod and disappears with it")
+	}
+}
+
+// Le pod du workspace reclame le groupe des images.
+//
+// Le runtime sait poser un fsGroup depuis longtemps et le navigateur de
+// fichiers s'en servait ; le workspace, qui est le seul a monter le volume de
+// profil, ne le passait pas. La premiere ecriture du bootstrap dans un volume
+// neuf tombait donc sur "Permission denied" - invisible pour qui travaillait
+// deja, fatal pour chaque nouvel arrivant.
+func TestLePodDuWorkspacePorteLeGroupeDesImages(t *testing.T) {
+	source, err := os.ReadFile("workspaces.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(source), "FSGroup:                 1000,") {
+		t.Fatal("le pod du workspace doit passer FSGroup: 1000, comme les images qu'il demarre")
 	}
 }
