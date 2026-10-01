@@ -546,8 +546,11 @@ function OntologyScan() {
     mutationFn: () => ontologiesApi.scanOntology({ datasetId }),
     onSuccess: (response) => {
       const summary = response.manifest?.summary;
+      // Cree ou rafraichie : la personne doit savoir laquelle des deux, sinon
+      // elle compte les lignes. Un second scan de la meme source remplace
+      // desormais la photographie et garde l'objet.
       toast.success(
-        t('ontologies.scanDone', {
+        t(response.refreshed ? 'ontologies.scanRefreshed' : 'ontologies.scanDone', {
           objects: formatNumber(summary?.objects ?? 0, locale),
           subjects: formatNumber(summary?.subjects ?? 0, locale),
         }),

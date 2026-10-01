@@ -2562,6 +2562,12 @@ func (s *Store) UpdateOntologyMetadata(ontologyID, name, description string) err
 	return err
 }
 
+func (s *Store) ReplaceOntologyManifest(ontologyID string, manifest []byte, generatedBy string) error {
+	_, err := s.db.Exec(`UPDATE ontologies SET manifest_json=$2, owner_user_id=CASE WHEN COALESCE(owner_user_id,'')='' THEN $3 ELSE owner_user_id END, updated_at=$4 WHERE id=$1`,
+		strings.TrimSpace(ontologyID), manifest, strings.TrimSpace(generatedBy), time.Now().UTC())
+	return err
+}
+
 func (s *Store) UpdateOntologyOwner(ontologyID, ownerType, ownerID string) error {
 	_, err := s.db.Exec(`UPDATE ontologies SET owner_type=$2, owner_id=$3, owner_user_id=CASE WHEN $2='user' THEN $3 ELSE owner_user_id END, updated_at=$4 WHERE id=$1`, strings.TrimSpace(ontologyID), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID), time.Now().UTC())
 	return err

@@ -671,10 +671,42 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 		return
 	}
 	objectName := ontologyObjectName(manifest)
-	object := ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
-	if err := h.ontologyStore.Create(object); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
+
+	// A second scan of the same source refreshes the ontology it already
+	// produced, instead of standing a duplicate beside it.
+	//
+	// Scanning always inserted, so scanning a dataset twice left two
+	// ontologies carrying the same name over the same bucket, distinguishable
+	// only by their dates - which is how EMSE ended up with two PREMYOM1000,
+	// and the person who scanned had no way to tell which one anybody else was
+	// looking at.
+	//
+	// A re-scan is a new photograph of the same thing. It replaces the picture
+	// and keeps the object: the identifier other things point at, the name
+	// somebody may have corrected, the owner, the permissions, and the
+	// extracts already declared over it - whose file lists are frozen and
+	// therefore unaffected by the listing changing underneath.
+	//
+	// Only among the ontologies the caller can already see: refreshing one
+	// that is invisible to them would be editing somebody else's object
+	// through a scan.
+	object, refreshed, err := h.ontologyToRefresh(identity, manifest)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read ontologies"})
 		return
+	}
+	if refreshed {
+		if err := h.ontologyStore.ReplaceManifest(object.ID, raw, identity.UserID()); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to refresh ontology object"})
+			return
+		}
+		object.Manifest = raw
+	} else {
+		object = ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
+		if err := h.ontologyStore.Create(object); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
+			return
+		}
 	}
 	// Best effort, and said out loud when it fails: an ontology whose paths
 	// were not stored still describes the study correctly, it just cannot have
@@ -694,7 +726,45 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 			return
 		}
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"manifest": manifest, "item": object})
+	// 200 when an existing ontology was refreshed, 201 when one was created,
+	// and "refreshed" in the body so a screen can say which happened rather
+	// than leaving somebody to count rows.
+	status := http.StatusCreated
+	if refreshed {
+		status = http.StatusOK
+	}
+	writeJSON(w, status, map[string]any{"manifest": manifest, "item": object, "refreshed": refreshed})
+}
+
+// ontologyToRefresh finds the ontology a re-scan should replace: same source,
+// same inference profile, among those the caller can see. The most recently
+// updated one when there are several, which is the one the screens show first.
+func (h Handlers) ontologyToRefresh(identity auth.Identity, manifest ontologyManifest) (ontologydomain.Ontology, bool, error) {
+	sourceID := strings.TrimSpace(manifest.SourceID)
+	if sourceID == "" {
+		return ontologydomain.Ontology{}, false, nil
+	}
+	visibles, err := h.ontologiesVisibleTo(identity)
+	if err != nil {
+		return ontologydomain.Ontology{}, false, err
+	}
+	var choisie ontologydomain.Ontology
+	trouvee := false
+	for _, item := range visibles {
+		if strings.TrimSpace(item.SourceID) != sourceID {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.SourceType), strings.TrimSpace(manifest.SourceType)) {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(item.InferenceProfile), strings.TrimSpace(manifest.InferenceProfile)) {
+			continue
+		}
+		if !trouvee || item.UpdatedAt.After(choisie.UpdatedAt) {
+			choisie, trouvee = item, true
+		}
+	}
+	return choisie, trouvee, nil
 }
 
 func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem, bool, error) {

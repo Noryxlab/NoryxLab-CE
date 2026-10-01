@@ -498,7 +498,7 @@ export const ontologiesApi = {
    *  Attaching the result to a project is a separate call that already exists:
    *  PUT /projects/{projectID}/ontologies/{ontologyID}. */
   scanOntology: (input: { datasetId: string; inferenceProfile?: string }) =>
-    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology }>(
+    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology; refreshed?: boolean }>(
       `${V1}/ontologies/scans`,
       input,
     ),

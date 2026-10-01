@@ -253,6 +253,9 @@ func (s *OntologyStore) SetAccess(item ontology.Access) error {
 func (s *OntologyStore) DeleteAccess(ontologyID, subjectType, subjectID string) error {
 	return s.Store.DeleteOntologyAccess(ontologyID, subjectType, subjectID)
 }
+func (s *OntologyStore) ReplaceManifest(ontologyID string, manifest []byte, generatedBy string) error {
+	return s.Store.ReplaceOntologyManifest(ontologyID, manifest, generatedBy)
+}
 func (s *OntologyStore) ReplaceObjects(ontologyID string, objects []ontology.Object) error {
 	return s.Store.ReplaceOntologyObjects(ontologyID, objects)
 }

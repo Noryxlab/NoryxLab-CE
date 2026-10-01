@@ -253,6 +253,12 @@ components:
           description: What the scan understood of the dataset's layout.
         item:
           $ref: '#/components/schemas/Ontology'
+        refreshed:
+          type: boolean
+          description: >-
+            True when an ontology already describing this source was refreshed
+            rather than a second one created. The screen says which happened,
+            so nobody has to count rows to find out.
     ProjectWorkload:
       type: object
       properties:
@@ -8207,13 +8213,28 @@ paths:
         dataset and carries no project. A scan that recognises no subject is
         refused with the shapes it found, rather than creating an empty
         ontology that looks like it worked.
+
+
+        Scanning a source already described by an ontology the caller can see
+        refreshes that ontology and answers 200 with `refreshed: true`; it
+        keeps the identifier, the name, the owner, the permissions and the
+        extracts declared over it, whose file lists are frozen and therefore
+        unaffected. A first scan creates one and answers 201. An ontology the
+        caller cannot see is never refreshed - that would be editing somebody
+        else's object through a scan.
       operationId: scanOntology
       security:
         - bearerAuth: []
         - xNoryxUser: []
       responses:
         '200':
-          description: Success
+          description: An existing ontology over the same source was refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyScanResult'
+        '201':
+          description: A first ontology was created for this source
           content:
             application/json:
               schema:

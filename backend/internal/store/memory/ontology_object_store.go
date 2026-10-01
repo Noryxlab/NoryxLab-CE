@@ -91,6 +91,21 @@ func (s *OntologyObjectStore) UpdateMetadata(ontologyID, name, description strin
 	return nil
 }
 
+func (s *OntologyObjectStore) ReplaceManifest(ontologyID string, manifest []byte, generatedBy string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == strings.TrimSpace(ontologyID) {
+			s.items[i].Manifest = manifest
+			if strings.TrimSpace(s.items[i].OwnerUserID) == "" {
+				s.items[i].OwnerUserID = strings.TrimSpace(generatedBy)
+			}
+			s.items[i].UpdatedAt = time.Now().UTC()
+		}
+	}
+	return nil
+}
+
 func (s *OntologyObjectStore) UpdateOwner(ontologyID, ownerType, ownerID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
