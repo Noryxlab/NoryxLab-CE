@@ -1211,33 +1211,12 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
 		return
 	}
-	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
-	req.OwnerID = strings.TrimSpace(req.OwnerID)
-	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+	ownerType, ownerID, status, probleme := h.normaliseOwner(req.OwnerType, req.OwnerID, identity)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
 		return
 	}
-	if req.OwnerType == "organization" {
-		organization, found := h.resolveOrganization(req.OwnerID)
-		if !found {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
-			return
-		}
-		req.OwnerID = organization.ID
-	}
-	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
-		isMember := false
-		for _, subject := range h.datasetSubjects(identity) {
-			if subject.Type == "organization" && subject.ID == req.OwnerID {
-				isMember = true
-				break
-			}
-		}
-		if !isMember {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
-			return
-		}
-	}
+	req.OwnerType, req.OwnerID = ownerType, ownerID
 	// Regulated data belongs to an organization, never to a person.
 	//
 	// Both were accepted, and the difference was discovered the hard way: a
@@ -1342,16 +1321,37 @@ func (h Handlers) callerTeamIDs(identity auth.Identity) []string {
 // By identifier only, never by name: two organizations may each have a team
 // called "imagerie", and a grant that resolved a name would hand one
 // organization's project to the other one's people.
+// resolveTeam accepts an identifier or a name.
+//
+// A name because that is what somebody types, an identifier because that is
+// what a screen already holds. The identifier wins: team names are not unique
+// across organizations, so a name that matches two teams is refused rather
+// than guessed - picking one would hand somebody's data to the wrong group
+// without saying so.
 func (h Handlers) resolveTeam(identifier string) (team.Team, bool) {
 	identifier = strings.TrimSpace(identifier)
 	if h.teamStore == nil || identifier == "" {
 		return team.Team{}, false
 	}
-	item, found, err := h.teamStore.GetByID(identifier)
-	if err != nil || !found {
-		return team.Team{}, false
+	if item, found, err := h.teamStore.GetByID(identifier); err == nil && found {
+		return item, true
 	}
-	return item, true
+	matches := []team.Team{}
+	for _, organizationID := range h.allOrganizationIDs() {
+		items, err := h.teamStore.ListByOrganization(organizationID)
+		if err != nil {
+			continue
+		}
+		for _, item := range items {
+			if strings.EqualFold(strings.TrimSpace(item.Name), identifier) {
+				matches = append(matches, item)
+			}
+		}
+	}
+	if len(matches) == 1 {
+		return matches[0], true
+	}
+	return team.Team{}, false
 }
 
 func (h Handlers) resolveOrganization(identifier string) (keycloak.Organization, bool) {

@@ -287,35 +287,12 @@ func (h Handlers) UpdateExtractOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
 		return
 	}
-	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
-	req.OwnerID = strings.TrimSpace(req.OwnerID)
-	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+	ownerType, ownerID, status, probleme := h.normaliseOwner(req.OwnerType, req.OwnerID, identity)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
 		return
 	}
-	if req.OwnerType == "organization" {
-		organization, found := h.resolveOrganization(req.OwnerID)
-		if !found {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
-			return
-		}
-		req.OwnerID = organization.ID
-		// Donner a une organisation dont on n est pas membre, c est se
-		// deposseder sans que personne d autre n ait demande a recevoir.
-		if !h.isGlobalAdmin(identity) {
-			member := false
-			for _, subject := range h.ontologySubjects(identity) {
-				if subject.Type == "organization" && subject.ID == req.OwnerID {
-					member = true
-					break
-				}
-			}
-			if !member {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
-				return
-			}
-		}
-	}
+	req.OwnerType, req.OwnerID = ownerType, ownerID
 	if err := h.extractStore.SetOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to transfer the extract"})
 		return

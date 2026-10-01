@@ -881,7 +881,7 @@ components:
         description: { type: string }
         ownerType:
           type: string
-          enum: [user, organization]
+          enum: [user, team, organization]
         ownerId: { type: string }
         canManageOwner: { type: boolean }
         createdAt:
@@ -923,7 +923,7 @@ components:
       properties:
         ownerType:
           type: string
-          enum: [user, organization]
+          enum: [user, team, organization]
         ownerId:
           type: string
 
@@ -5374,7 +5374,7 @@ paths:
               properties:
                 ownerType:
                   type: string
-                  enum: [user, organization]
+                  enum: [user, team, organization]
                 ownerId:
                   type: string
                   description: A username, or an organization name or identifier.

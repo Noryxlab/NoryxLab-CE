@@ -417,33 +417,12 @@ func (h Handlers) UpdateOntologyOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid ownerType and ownerId are required"})
 		return
 	}
-	req.OwnerType = strings.ToLower(strings.TrimSpace(req.OwnerType))
-	req.OwnerID = strings.TrimSpace(req.OwnerID)
-	if (req.OwnerType != "user" && req.OwnerType != "organization") || req.OwnerID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ownerType must be user or organization and ownerId is required"})
+	ownerType, ownerID, status, probleme := h.normaliseOwner(req.OwnerType, req.OwnerID, identity)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
 		return
 	}
-	if req.OwnerType == "organization" {
-		organization, found := h.resolveOrganization(req.OwnerID)
-		if !found {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + req.OwnerID})
-			return
-		}
-		req.OwnerID = organization.ID
-	}
-	if req.OwnerType == "organization" && !h.isGlobalAdmin(identity) {
-		isMember := false
-		for _, subject := range h.ontologySubjects(identity) {
-			if subject.Type == "organization" && subject.ID == req.OwnerID {
-				isMember = true
-				break
-			}
-		}
-		if !isMember {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "destination organization membership or global admin required"})
-			return
-		}
-	}
+	req.OwnerType, req.OwnerID = ownerType, ownerID
 	if err := h.ontologyStore.UpdateOwner(item.ID, req.OwnerType, req.OwnerID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update ontology owner"})
 		return
@@ -781,6 +760,11 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 	}
 	for _, organization := range organizations {
 		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
+	}
+	// Les equipes, que les datasets connaissaient deja et pas les ontologies :
+	// une ontologie ne pouvait donc meme pas etre partagee avec une equipe.
+	for _, teamID := range h.callerTeamIDs(identity) {
+		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
 	}
 	for _, teamID := range h.callerTeamIDs(identity) {
 		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
