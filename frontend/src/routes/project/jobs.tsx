@@ -38,6 +38,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatDuration, formatRelative } from '@/lib/format';
 import { CRON_PRESETS, describeCron, presentTier } from '@/lib/presenters';
 import type { CronJob, Job } from '@/lib/api/types';
+import { DataAccessField, type DataAccess } from '@/components/common/data-access';
 
 const TIME_ZONES = ['Europe/Paris', 'UTC', 'Europe/London', 'America/New_York'];
 
@@ -63,6 +64,7 @@ function CreateJobSheet({
   const invalidate = useInvalidate();
   const environments = useEnvironments();
   const tiers = useHardwareTiers();
+  const [dataAccess, setDataAccess] = React.useState<DataAccess>('dataset');
 
   const [name, setName] = React.useState('');
   const [environmentId, setEnvironmentId] = React.useState('');
@@ -105,6 +107,7 @@ function CreateJobSheet({
         image: environment?.destinationImage ?? '',
         command: toArgv(command),
         hardwareTier: tierId || undefined,
+        dataAccess,
       };
       return mode === 'schedule'
         ? cronJobsApi.create({ ...payload, schedule, timeZone })
@@ -162,6 +165,12 @@ function CreateJobSheet({
                 })}
               />
             </Field>
+
+            {/* Ce que ce calcul pourra atteindre. La meme politique que pour
+              *  un workspace : une frontiere qui ne vaut que dans un ecran
+              *  n'est pas une frontiere, et c'est le calcul qui produit le
+              *  chiffre qu'on publiera. */}
+            <DataAccessField projectId={projectId} value={dataAccess} onChange={setDataAccess} />
 
             <Field
               label={t('jobs.commandLabel')}

@@ -27,6 +27,11 @@ type createAppRequest struct {
 	AccessMode           string   `json:"accessMode"`
 	AllowedUsers         []string `json:"allowedUsers"`
 	AllowedOrganizations []string `json:"allowedOrganizations"`
+	// DataAccess chooses what this workload can reach: "dataset", the attached
+	// datasets whole, or "extracts", only the frozen selections - with the
+	// buckets mounted nowhere it can reach them (ADR-038). The same field and
+	// the same default as a workspace and a job.
+	DataAccess string `json:"dataAccess"`
 }
 
 var appSlugPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`)
@@ -596,6 +601,18 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	// depuis, est la meme exigence que pour un job.
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
 
+	// La meme politique que partout ailleurs. Une application sert des
+	// resultats a des gens : les servir depuis une selection a moitie remplie
+	// serait servir des resultats faux, donc le remplisseur tourne avant le
+	// demarrage et non a cote.
+	isolated := isolateToExtracts(req.DataAccess)
+	if refuseEmptyIsolation(isolated, montage) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "this project has no extract to isolate to: attach one, or serve from the datasets",
+		})
+		return
+	}
+
 	command := []string{"/bin/sh", "-lc"}
 	bootstrapScript := appBootstrapScript(req.Port, append(append([]string{}, req.Command...), req.Args...), attachedRepos, montage)
 	args := []string{bootstrapScript}
@@ -642,7 +659,18 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
 			return
 		}
-		volumes = append(volumes, datasetVolumes...)
+		var filler *noryxruntime.SidecarSpec
+		if isolated {
+			isolement, err := h.prepareExtractIsolation(podName, record.Image, datasetVolumes)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
+				return
+			}
+			volumes = append(volumes, isolement.Tree)
+			filler = isolement.Filler
+		} else {
+			volumes = append(volumes, datasetVolumes...)
+		}
 
 		appSecretMounts := []noryxruntime.SecretMount{}
 		if data := extractSecretData(montage); data != nil {
@@ -670,6 +698,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			Image:   record.Image,
 			Command: command,
 			Args:    args,
+			Init:    filler,
 			Secrets: appSecretMounts,
 			Env:     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			Ports:   []int{record.Port},

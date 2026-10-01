@@ -79,6 +79,109 @@ func NewFromInCluster(controlNamespace, workloadNamespace string) (*Runtime, err
 // be proven: a volume declared for the filler must never reach the main
 // container's mounts. A boundary asserted in a comment holds until somebody
 // edits the loop under it.
+
+// asideContainer builds the container that runs beside, or before, the main
+// one. Nil when there is nothing to build.
+//
+// A volume is declared on the pod and mounted per container, and that
+// distinction is the whole boundary: the dataset is declared here so the
+// filler can read it, and never appears in the main container's mounts - so
+// the person typing cannot reach the bucket at all, enforced by the kernel
+// rather than by an interface.
+func asideContainer(aside *noryxruntime.SidecarSpec, defaultName string, volumes *[]map[string]any, claimVolumeName map[string]string) map[string]any {
+	if aside == nil || strings.TrimSpace(aside.Image) == "" {
+		return nil
+	}
+	sidecarMounts := make([]map[string]any, 0, len(aside.Volumes)+len(aside.Secrets))
+	for _, vol := range aside.Volumes {
+		claimName := strings.TrimSpace(vol.ClaimName)
+		mountPath := strings.TrimSpace(vol.MountPath)
+		if claimName == "" || mountPath == "" {
+			continue
+		}
+		volumeName, declared := claimVolumeName[claimName]
+		if !declared {
+			volumeName = fmt.Sprintf("pvc-side-%d", len(*volumes))
+			claimVolumeName[claimName] = volumeName
+			*volumes = append(*volumes, map[string]any{
+				"name": volumeName,
+				"persistentVolumeClaim": map[string]any{
+					"claimName": claimName,
+				},
+			})
+		}
+		mount := map[string]any{
+			"name": volumeName, "mountPath": mountPath, "readOnly": vol.ReadOnly,
+		}
+		if sub := strings.TrimSpace(vol.SubPath); sub != "" {
+			mount["subPath"] = sub
+		}
+		sidecarMounts = append(sidecarMounts, mount)
+	}
+	for i, secret := range aside.Secrets {
+		secretName := strings.TrimSpace(secret.SecretName)
+		mountPath := strings.TrimSpace(secret.MountPath)
+		if secretName == "" || mountPath == "" {
+			continue
+		}
+		volumeName := fmt.Sprintf("secret-side-%d", i)
+		*volumes = append(*volumes, map[string]any{
+			"name": volumeName,
+			"secret": map[string]any{
+				"secretName": secretName, "defaultMode": int64(0444),
+			},
+		})
+		sidecarMounts = append(sidecarMounts, map[string]any{
+			"name": volumeName, "mountPath": mountPath, "readOnly": true,
+		})
+	}
+	sidecar := map[string]any{
+		"name":    firstNonEmpty(aside.Name, defaultName),
+		"image":   aside.Image,
+		"command": aside.Command,
+		"args":    aside.Args,
+		"env":     kubernetesEnvVars(aside.Env),
+	}
+	if len(sidecarMounts) > 0 {
+		sidecar["volumeMounts"] = sidecarMounts
+	}
+	sidecarLimits := map[string]string{}
+	if aside.CPULimit != "" {
+		sidecarLimits["cpu"] = aside.CPULimit
+	}
+	if aside.MemLimit != "" {
+		sidecarLimits["memory"] = aside.MemLimit
+	}
+	sidecarRequests := map[string]string{}
+	if aside.CPURequest != "" {
+		sidecarRequests["cpu"] = aside.CPURequest
+	}
+	if aside.MemRequest != "" {
+		sidecarRequests["memory"] = aside.MemRequest
+	}
+	sidecarResources := map[string]any{}
+	if len(sidecarLimits) > 0 {
+		sidecarResources["limits"] = sidecarLimits
+	}
+	if len(sidecarRequests) > 0 {
+		sidecarResources["requests"] = sidecarRequests
+	}
+	if len(sidecarResources) > 0 {
+		sidecar["resources"] = sidecarResources
+	}
+	if aside.RunAsUser > 0 || aside.RunAsGroup > 0 {
+		security := map[string]any{}
+		if aside.RunAsUser > 0 {
+			security["runAsUser"] = aside.RunAsUser
+		}
+		if aside.RunAsGroup > 0 {
+			security["runAsGroup"] = aside.RunAsGroup
+		}
+		sidecar["securityContext"] = security
+	}
+	return sidecar
+}
+
 func podPayload(spec noryxruntime.PodSpec) map[string]any {
 	spec.Labels = isolatedWorkloadLabels(spec.Labels)
 	ports := make([]map[string]any, 0, len(spec.Ports))
@@ -204,95 +307,20 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 	}
 
 	containers := []map[string]any{container}
-	if spec.Sidecar != nil && strings.TrimSpace(spec.Sidecar.Image) != "" {
-		sidecarMounts := make([]map[string]any, 0, len(spec.Sidecar.Volumes)+len(spec.Sidecar.Secrets))
-		for _, vol := range spec.Sidecar.Volumes {
-			claimName := strings.TrimSpace(vol.ClaimName)
-			mountPath := strings.TrimSpace(vol.MountPath)
-			if claimName == "" || mountPath == "" {
-				continue
-			}
-			volumeName, declared := claimVolumeName[claimName]
-			if !declared {
-				volumeName = fmt.Sprintf("pvc-side-%d", len(volumes))
-				claimVolumeName[claimName] = volumeName
-				volumes = append(volumes, map[string]any{
-					"name": volumeName,
-					"persistentVolumeClaim": map[string]any{
-						"claimName": claimName,
-					},
-				})
-			}
-			mount := map[string]any{
-				"name": volumeName, "mountPath": mountPath, "readOnly": vol.ReadOnly,
-			}
-			if sub := strings.TrimSpace(vol.SubPath); sub != "" {
-				mount["subPath"] = sub
-			}
-			sidecarMounts = append(sidecarMounts, mount)
-		}
-		for i, secret := range spec.Sidecar.Secrets {
-			secretName := strings.TrimSpace(secret.SecretName)
-			mountPath := strings.TrimSpace(secret.MountPath)
-			if secretName == "" || mountPath == "" {
-				continue
-			}
-			volumeName := fmt.Sprintf("secret-side-%d", i)
-			volumes = append(volumes, map[string]any{
-				"name": volumeName,
-				"secret": map[string]any{
-					"secretName": secretName, "defaultMode": int64(0444),
-				},
-			})
-			sidecarMounts = append(sidecarMounts, map[string]any{
-				"name": volumeName, "mountPath": mountPath, "readOnly": true,
-			})
-		}
-		sidecar := map[string]any{
-			"name":    firstNonEmpty(spec.Sidecar.Name, "sidecar"),
-			"image":   spec.Sidecar.Image,
-			"command": spec.Sidecar.Command,
-			"args":    spec.Sidecar.Args,
-			"env":     kubernetesEnvVars(spec.Sidecar.Env),
-		}
-		if len(sidecarMounts) > 0 {
-			sidecar["volumeMounts"] = sidecarMounts
-		}
-		sidecarLimits := map[string]string{}
-		if spec.Sidecar.CPULimit != "" {
-			sidecarLimits["cpu"] = spec.Sidecar.CPULimit
-		}
-		if spec.Sidecar.MemLimit != "" {
-			sidecarLimits["memory"] = spec.Sidecar.MemLimit
-		}
-		sidecarRequests := map[string]string{}
-		if spec.Sidecar.CPURequest != "" {
-			sidecarRequests["cpu"] = spec.Sidecar.CPURequest
-		}
-		if spec.Sidecar.MemRequest != "" {
-			sidecarRequests["memory"] = spec.Sidecar.MemRequest
-		}
-		sidecarResources := map[string]any{}
-		if len(sidecarLimits) > 0 {
-			sidecarResources["limits"] = sidecarLimits
-		}
-		if len(sidecarRequests) > 0 {
-			sidecarResources["requests"] = sidecarRequests
-		}
-		if len(sidecarResources) > 0 {
-			sidecar["resources"] = sidecarResources
-		}
-		if spec.Sidecar.RunAsUser > 0 || spec.Sidecar.RunAsGroup > 0 {
-			security := map[string]any{}
-			if spec.Sidecar.RunAsUser > 0 {
-				security["runAsUser"] = spec.Sidecar.RunAsUser
-			}
-			if spec.Sidecar.RunAsGroup > 0 {
-				security["runAsGroup"] = spec.Sidecar.RunAsGroup
-			}
-			sidecar["securityContext"] = security
-		}
-		containers = append(containers, sidecar)
+	// Le meme conteneur annexe sert a deux usages.
+	//
+	// A cote du principal - un remplisseur qui garnit le cache pendant que la
+	// personne travaille deja. Ou avant lui, en conteneur d'initialisation,
+	// quand la charge n'a pas de sens tant que les fichiers ne sont pas tous
+	// la : un job doit lire une selection complete, et une application qui
+	// sert des resultats partiels sert des resultats faux. Un sidecar ne
+	// conviendrait d'ailleurs pas a un job, qui ne se terminerait jamais.
+	if aside := asideContainer(spec.Sidecar, "sidecar", &volumes, claimVolumeName); aside != nil {
+		containers = append(containers, aside)
+	}
+	var initContainers []map[string]any
+	if aside := asideContainer(spec.Init, "extract-filler", &volumes, claimVolumeName); aside != nil {
+		initContainers = append(initContainers, aside)
 	}
 
 	payload := map[string]any{
@@ -307,6 +335,9 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 			"containers":                   containers,
 			"restartPolicy":                firstNonEmpty(spec.RestartPolicy, "Never"),
 		},
+	}
+	if len(initContainers) > 0 {
+		payload["spec"].(map[string]any)["initContainers"] = initContainers
 	}
 	if spec.FSGroup > 0 {
 		// OnRootMismatch, not the default Always.
@@ -1117,6 +1148,20 @@ func jobPodSpec(spec noryxruntime.JobSpec) map[string]any {
 			"readOnly":  vol.ReadOnly,
 		})
 	}
+	// Le remplisseur, en conteneur d'initialisation : il garnit le cache et se
+	// termine, puis le conteneur principal demarre avec la selection complete
+	// et sans aucun montage du bucket. Un sidecar ne conviendrait pas - un job
+	// dont un conteneur ne se termine jamais ne se termine jamais.
+	claimVolumeName := map[string]string{}
+	for i, vol := range spec.Volumes {
+		if claim := strings.TrimSpace(vol.ClaimName); claim != "" {
+			claimVolumeName[claim] = fmt.Sprintf("pvc-%d", i)
+		}
+	}
+	if aside := asideContainer(spec.Init, "extract-filler", &volumes, claimVolumeName); aside != nil {
+		podSpec["initContainers"] = []map[string]any{aside}
+	}
+
 	// Les secrets montes, comme pour un pod.
 	//
 	// Un job n'en montait aucun, donc il ne pouvait pas recevoir ce qu'un

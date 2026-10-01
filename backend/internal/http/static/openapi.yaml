@@ -368,6 +368,27 @@ components:
         recognised: { type: integer }
         sampled: { type: integer }
         description: { type: string }
+    WorkloadDataAccess:
+      type: string
+      enum: [dataset, extracts]
+      description: >-
+        What a workload may reach. "dataset" mounts the project's attached
+        datasets whole; "extracts" mounts only the frozen selections, filled by
+        a container beside or before it, with the buckets mounted nowhere the
+        workload can reach them (ADR-038).
+
+
+        The same field, the same words and the same default on a workspace, a
+        job, a scheduled job and an application. It existed for workspaces
+        alone, which made the guarantee a property of one screen rather than of
+        the platform: a job in the same project mounted the whole bucket, so
+        "the team sees the selection and nothing else" held while somebody
+        typed and stopped the moment a calculation ran.
+
+
+        Isolating a workload that has no extract to isolate to is refused
+        rather than accepted: a workload with no data and no explanation reads
+        as a platform that lost the study.
     Extract:
       type: object
       properties:

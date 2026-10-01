@@ -19,13 +19,13 @@ import {
   useEnvironments,
   useHardwareTiers,
   useProjectDatasets,
-  useProjectOntologies,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { presentIde, presentTier } from '@/lib/presenters';
+import { DataAccessField, type DataAccess } from '@/components/common/data-access';
 
 /**
  * Workspace launch.
@@ -100,14 +100,12 @@ export function LaunchWorkspaceSheet({
     }
   }, [open]);
 
-  const [dataAccess, setDataAccess] = React.useState<'dataset' | 'extracts'>('dataset');
+  const [dataAccess, setDataAccess] = React.useState<DataAccess>('dataset');
 
   const environment = usable.find((candidate) => candidate.id === environmentId);
   // Offered only where a selection could exist. A project with no ontology has
   // no extract to isolate to, and the backend would refuse - an option that
   // usually fails is worse than no option.
-  const ontologies = useProjectOntologies(projectId);
-  const canIsolate = (ontologies.data ?? []).length > 0;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -173,27 +171,11 @@ export function LaunchWorkspaceSheet({
                     })}
                   </p>
                 ) : null}
-                {canIsolate ? (
-                  <Field
-                    label={t('workspaces.dataAccessLabel')}
-                    description={
-                      dataAccess === 'extracts'
-                        ? t('workspaces.dataAccessExtractsHint')
-                        : t('workspaces.dataAccessDatasetHint')
-                    }
-                  >
-                    <Select
-                      value={dataAccess}
-                      onValueChange={(value) =>
-                        setDataAccess(value === 'extracts' ? 'extracts' : 'dataset')
-                      }
-                      options={[
-                        { value: 'dataset', label: t('workspaces.dataAccessDataset') },
-                        { value: 'extracts', label: t('workspaces.dataAccessExtracts') },
-                      ]}
-                    />
-                  </Field>
-                ) : null}
+                {/* La condition regardait les ontologies du projet, qui ne
+                  *  se montent pas : ce sont les extraits qu'on monte. Le
+                  *  champ s'affichait donc sur un projet qui n'avait rien a
+                  *  isoler, et le serveur refusait. */}
+                <DataAccessField projectId={projectId} value={dataAccess} onChange={setDataAccess} />
                 <Field
                   label={t('workspaces.environmentLabel')}
                   description={t('workspaces.environmentHint')}

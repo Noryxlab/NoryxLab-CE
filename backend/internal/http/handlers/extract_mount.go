@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
 // Mounting an extract: a tree of links, not a copy.
@@ -339,4 +340,81 @@ func extractSecretData(mount extractMount) map[string]string {
 		return nil
 	}
 	return map[string]string{"extracts.b64": mount.Manifest}
+}
+
+// extractIsolation is the boundary of ADR-038, prepared for any workload.
+//
+// It existed for workspaces only, which made the guarantee a property of one
+// screen rather than of the platform: a job in the same project mounted the
+// whole bucket, so "the team sees the selection and nothing else" held while
+// somebody typed and stopped the moment a calculation ran. A boundary with an
+// exception is not a boundary.
+//
+// What it returns is the three pieces a workload needs: the tree to mount, the
+// container that fills it, and the dataset volumes it must *not* mount.
+type extractIsolation struct {
+	// Tree is the cache subtree, read-only, mounted where the extract goes.
+	Tree noryxruntime.PersistentVolumeClaimMount
+	// Filler reads the buckets and writes the tree. For a workspace it runs
+	// beside the main container, so somebody starts working on the first file
+	// rather than the last. For a job or an application it runs before,
+	// because half a selection is a different study and a wrong answer served
+	// quickly is still wrong.
+	Filler *noryxruntime.SidecarSpec
+}
+
+// prepareExtractIsolation builds it, or explains why it cannot.
+func (h Handlers) prepareExtractIsolation(
+	name string,
+	image string,
+	datasetVolumes []noryxruntime.PersistentVolumeClaimMount,
+) (extractIsolation, error) {
+	if err := h.ensureExtractCache(); err != nil {
+		return extractIsolation{}, err
+	}
+	const cacheRoot = "/cache"
+	return extractIsolation{
+		// Its own tree, not the cache. The objects underneath are shared by
+		// the whole installation, which is what makes a second team on the
+		// same modality free; what a workload browses is its own.
+		Tree: noryxruntime.PersistentVolumeClaimMount{
+			ClaimName: extractCacheClaim,
+			MountPath: workspaceExtractsPath,
+			SubPath:   "trees/" + name,
+			ReadOnly:  true,
+		},
+		Filler: &noryxruntime.SidecarSpec{
+			Name:    "extract-filler",
+			Image:   image,
+			Command: []string{"/bin/sh", "-c"},
+			Args:    []string{extractFillerScript(cacheRoot, name)},
+			// Read-only on the source, whatever the caller's role on the
+			// dataset: this container exists to copy out of it, and nothing it
+			// can do should be able to write back.
+			Volumes: append(readOnlyMounts(datasetVolumes),
+				noryxruntime.PersistentVolumeClaimMount{ClaimName: extractCacheClaim, MountPath: cacheRoot}),
+			Secrets: []noryxruntime.SecretMount{{
+				SecretName: name + "-bootstrap",
+				MountPath:  "/var/run/noryx/bootstrap",
+				ReadOnly:   true,
+			}},
+			// It waits on the network far more than on the processor, so it
+			// reserves almost nothing and may burst. Reserving what it may
+			// peak at - which is what Kubernetes does when only a limit is
+			// given - had it asking for twenty times the workspace beside it,
+			// and the node refused them both.
+			CPURequest: "100m",
+			MemRequest: "128Mi",
+			CPULimit:   "1",
+			MemLimit:   "1Gi",
+		},
+	}, nil
+}
+
+// refuseEmptyIsolation reports whether isolating would leave nothing at all.
+//
+// A workload isolated to extracts it does not have is a workload with no data
+// and no explanation, and the person concludes the platform lost their study.
+func refuseEmptyIsolation(isolated bool, mount extractMount) bool {
+	return isolated && mount.Manifest == ""
 }

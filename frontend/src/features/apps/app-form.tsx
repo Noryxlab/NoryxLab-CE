@@ -19,6 +19,7 @@ import { apisApi, appsApi, dashboardsApi, type AppAccessMode } from '@/lib/api/e
 import { useI18n, useT } from '@/lib/i18n';
 import { findFramework, formatCommand, frameworkOptions, presentTier } from '@/lib/presenters';
 import { slugify } from '@/lib/format';
+import { DataAccessField, type DataAccess } from '@/components/common/data-access';
 
 /**
  * App and dashboard creation.
@@ -73,6 +74,7 @@ export function CreateAppSheet({
   const [customCommand, setCustomCommand] = React.useState('');
   const [environmentId, setEnvironmentId] = React.useState('');
   const [tierId, setTierId] = React.useState('');
+  const [dataAccess, setDataAccess] = React.useState<DataAccess>('dataset');
   const [accessMode, setAccessMode] = React.useState<AppAccessMode>('private');
   const [allowedOrganization, setAllowedOrganization] = React.useState('');
   const [touched, setTouched] = React.useState(false);
@@ -138,6 +140,7 @@ export function CreateAppSheet({
         command,
         port: portNumber,
         hardwareTier: tierId || undefined,
+        dataAccess,
         accessMode,
         // Required by the API whenever access is scoped to an organisation.
         ...(accessMode === 'organization' ? { allowedOrganizations: [allowedOrganization] } : {}),
@@ -262,6 +265,11 @@ export function CreateAppSheet({
                   })}
                 />
               </Field>
+
+              {/* Une application sert des resultats a des gens : les servir
+                *  depuis une selection gelee plutot que depuis un bucket qui a
+                *  grandi depuis est la meme exigence que pour un calcul. */}
+              <DataAccessField projectId={projectId} value={dataAccess} onChange={setDataAccess} />
             </div>
 
             <Field label={t('workspaces.environmentLabel')} required>

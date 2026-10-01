@@ -18,6 +18,8 @@ type createCronJobRequest struct {
 	HardwareTier string   `json:"hardwareTier"`
 	Schedule     string   `json:"schedule"`
 	TimeZone     string   `json:"timeZone"`
+	// Meme champ, memes mots et meme defaut que pour un job.
+	DataAccess string `json:"dataAccess"`
 }
 
 func (h Handlers) ListCronJobs(w http.ResponseWriter, r *http.Request) {
@@ -113,6 +115,17 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 	// chaque semaine et doit lire les memes fichiers.
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
 
+	// Une tache planifiee rejoue le meme calcul chaque semaine : c'est la
+	// charge ou lire autre chose que la selection gelee se verrait le plus
+	// tard, et le moins.
+	isolated := isolateToExtracts(req.DataAccess)
+	if refuseEmptyIsolation(isolated, montage) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "this project has no extract to isolate to: attach one, or run against the datasets",
+		})
+		return
+	}
+
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -154,7 +167,18 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
 		return
 	}
-	volumes = append(volumes, datasetVolumes...)
+	var cronFiller *noryxruntime.SidecarSpec
+	if isolated {
+		isolement, err := h.prepareExtractIsolation(cronJobName, req.Image, datasetVolumes)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
+			return
+		}
+		volumes = append(volumes, isolement.Tree)
+		cronFiller = isolement.Filler
+	} else {
+		volumes = append(volumes, datasetVolumes...)
+	}
 
 	// Le secret qui porte la liste gelee. Sans lui le script construirait un
 	// arbre vide sans rien dire, ce qui est la pire des deux issues.
@@ -185,6 +209,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 		Schedule:    req.Schedule,
 		TimeZone:    req.TimeZone,
 		JobSpec: noryxruntime.JobSpec{
+			Init:                    cronFiller,
 			Secrets:                 cronSecretMounts,
 			JobName:                 cronJobName,
 			Image:                   req.Image,

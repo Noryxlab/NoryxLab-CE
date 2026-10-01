@@ -713,49 +713,17 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 		var extractSidecar *noryxruntime.SidecarSpec
 		if isolated {
-			if err := h.ensureExtractCache(); err != nil {
+			// La meme politique que pour un job ou une application : une
+			// frontiere qui ne vaut que dans un ecran n'est pas une frontiere.
+			// Ici le remplisseur travaille A COTE, parce qu'une personne
+			// commence sur le premier fichier lisible et non sur le dernier.
+			isolement, err := h.prepareExtractIsolation(podName, record.Image, datasetVolumes)
+			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
 				return
 			}
-			cacheRoot := "/cache"
-			// Its own tree, not the cache. The objects underneath are shared
-			// by the whole installation, which is what makes a second team on
-			// the same modality free; what a person browses is theirs. Mounted
-			// whole, the cache showed every extract of every project.
-			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
-				ClaimName: extractCacheClaim,
-				MountPath: workspaceExtractsPath,
-				SubPath:   "trees/" + podName,
-				ReadOnly:  true,
-			})
-			// The filler runs the workspace's own image: it is already on the
-			// node, it has a shell, and shipping a second image to keep in
-			// step with it would be one more thing to rebuild for CVEs.
-			extractSidecar = &noryxruntime.SidecarSpec{
-				Name:    "extract-filler",
-				Image:   record.Image,
-				Command: []string{"/bin/sh", "-c"},
-				Args:    []string{extractFillerScript(cacheRoot, podName)},
-				// Read-only on the source, whatever the person's role on the
-				// dataset: this container exists to copy out of it, and
-				// nothing it can do should be able to write back.
-				Volumes: append(readOnlyMounts(datasetVolumes),
-					noryxruntime.PersistentVolumeClaimMount{ClaimName: extractCacheClaim, MountPath: cacheRoot}),
-				Secrets: []noryxruntime.SecretMount{{
-					SecretName: podName + "-bootstrap",
-					MountPath:  "/var/run/noryx/bootstrap",
-					ReadOnly:   true,
-				}},
-				// It waits on the network far more than on the processor, so it
-				// reserves almost nothing and may burst. Reserving what it is
-				// allowed to peak at - which is what Kubernetes does when only
-				// a limit is given - had it asking for twenty times the
-				// workspace beside it, and the node refused them both.
-				CPURequest: "100m",
-				MemRequest: "128Mi",
-				CPULimit:   "1",
-				MemLimit:   "1Gi",
-			}
+			volumes = append(volumes, isolement.Tree)
+			extractSidecar = isolement.Filler
 		}
 
 		bootstrapScript := workspaceBootstrapScript(

@@ -39,6 +39,12 @@ type PodSpec struct {
 	// and mounted per container, which is what turns "the workspace must not
 	// see the bucket" from a convention into something the kernel enforces.
 	Sidecar *SidecarSpec
+	// Init runs to completion before the main container starts, and is how a
+	// workload that must not see a partial selection gets one: a job reading
+	// half an extract computes a different study, and an application serving
+	// half of one serves wrong results. A sidecar cannot do this for a job -
+	// one that never exits means a job that never finishes.
+	Init *SidecarSpec
 }
 
 // SidecarSpec is a second container in the same pod, with its own mounts.
@@ -109,6 +115,10 @@ type JobSpec struct {
 	// workload that needs a frozen selection most.
 	Secrets []SecretMount
 	Labels  map[string]string
+	// Init, same meaning as on a pod: a job mounts an extract only once the
+	// filler has finished, because a job that reads a partial selection
+	// produces a figure nobody can reproduce.
+	Init *SidecarSpec
 }
 
 type CronJobSpec struct {
