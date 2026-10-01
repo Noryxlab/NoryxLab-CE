@@ -724,7 +724,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			// whole, the cache showed every extract of every project.
 			volumes = append(volumes, noryxruntime.PersistentVolumeClaimMount{
 				ClaimName: extractCacheClaim,
-				MountPath: projectMountPath + "/" + workspaceExtractsPath,
+				MountPath: workspaceExtractsPath,
 				SubPath:   "trees/" + podName,
 				ReadOnly:  true,
 			})
@@ -1513,7 +1513,13 @@ func workspaceBootstrapScript(
 			"  \"folders\": [",
 			"    { \"path\": \"/mnt\" },",
 			"    { \"path\": \"/repos\" },",
-			"    { \"path\": \"/datasets\" }",
+			"    { \"path\": \"/datasets\" },",
+			// Beside the datasets, because that is what it is: a read-only
+			// view of one, organised the way the study thinks. The folder is
+			// listed whether or not an extract is mounted - an empty entry
+			// says "nothing attached here", where a missing one says nothing
+			// at all and sends somebody looking for a bug.
+			"    { \"path\": \"/extracts\" }",
 			"  ],",
 			"  \"settings\": {",
 			"    \"files.exclude\": {",

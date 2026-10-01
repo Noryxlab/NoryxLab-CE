@@ -12,8 +12,8 @@ RUN usermod -l noryx -d /home/noryx -m rstudio \
  && groupmod -n noryx rstudio \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
  && chmod 0440 /etc/sudoers.d/90-noryx \
- && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile /var/lib/rstudio-server \
- && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /var/lib/rstudio-server
+ && mkdir -p /mnt /repos /datasets /extracts /home/noryx/.noryx-profile /var/lib/rstudio-server \
+ && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /extracts /var/lib/rstudio-server
 
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini", "--"]

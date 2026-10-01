@@ -112,7 +112,13 @@ type ontologySummary struct {
 	// of a dataset laid out differently reported "24,179 objects, 0 subjects"
 	// and read as a broken feature rather than as "this layout is not the one
 	// the profile knows".
-	Unrecognised  int      `json:"unrecognisedObjects"`
+	Unrecognised int `json:"unrecognisedObjects"`
+	// DirectoryKeys counts the zero-byte keys that name a directory rather
+	// than a file. S3 has none, but a bucket filled by a tool that thinks it
+	// does carries them, and counting them as objects inflates a study's n.
+	// Reported rather than hidden: somebody comparing this count with what
+	// their S3 browser shows deserves to know where the difference went.
+	DirectoryKeys int      `json:"directoryKeys,omitempty"`
 	LayoutSamples []string `json:"layoutSamples,omitempty"`
 	// RecognisedLayouts describes the shapes that did produce a subject.
 	//
@@ -995,25 +1001,36 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	reconnus := map[string]int{}
 	var totalBytes int64
 	truncated := false
+	directories := 0
 
 	recognised := []ontologydomain.Object{}
-	for obj := range client.ListObjects(scanCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if obj.Err != nil {
-			return ontologyManifest{}, nil, obj.Err
-		}
+
+	// Une entree d'avance, pour reconnaitre les cles de dossier.
+	//
+	// S3 n'a pas de dossiers, mais un bucket rempli par un outil qui croit le
+	// contraire porte des cles de zero octet pour eux :
+	// SELENA-01-001/20260218/ANTERION/DICOM figure dans le listing a cote des
+	// fichiers qu'elle prefixe. Les compter comme des objets gonfle le n d'une
+	// etude - 4 023 objets annonces pour 3 908 fichiers reels sur SELENA-01 -
+	// et un extrait qui les gele les monte comme des liens vers le dataset
+	// brut, ce qui masque tout ce qui est dessous.
+	//
+	// Le listing S3 est trie, donc une cle prefixe est immediatement suivie de
+	// ce qu'elle prefixe : une entree d'avance suffit, sans garder la liste.
+	traiter := func(obj minio.ObjectInfo) bool {
 		relPath := obj.Key
 		if prefix != "" && strings.HasPrefix(relPath, prefix) {
 			relPath = strings.TrimPrefix(relPath, prefix)
 		}
 		relPath = strings.Trim(relPath, "/")
 		if relPath == "" {
-			continue
+			return true
 		}
 		objects++
 		totalBytes += obj.Size
 		if objects > ontologyScanMaxObjects {
 			truncated = true
-			break
+			return false
 		}
 		subjectID, visitDate, modalityName := inferOntologyPath(relPath)
 		if subjectID == "" {
@@ -1029,7 +1046,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			if shape := describePathShape(relPath); len(layouts) < 64 || layouts[shape] > 0 {
 				layouts[shape]++
 			}
-			continue
+			return true
 		}
 		if shape := describePathShape(relPath); len(reconnus) < 64 || reconnus[shape] > 0 {
 			reconnus[shape]++
@@ -1071,6 +1088,32 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			Modality:  modalityName,
 			SizeBytes: obj.Size,
 		})
+		return true
+	}
+
+	var attente *minio.ObjectInfo
+	for obj := range client.ListObjects(scanCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+		if obj.Err != nil {
+			return ontologyManifest{}, nil, obj.Err
+		}
+		suivante := obj
+		if attente != nil {
+			if estUneCleDeDossier(*attente, suivante.Key) {
+				directories++
+			} else if !traiter(*attente) {
+				attente = nil
+				break
+			}
+		}
+		attente = &suivante
+	}
+	if attente != nil {
+		// La derniere cle ne prefixe rien, par construction.
+		traiter(*attente)
+	}
+
+	if directories > 0 {
+		log.Printf("ontology scan of dataset %s: %d directory key(s) ignored, %d object(s) kept", item.ID, directories, objects)
 	}
 	if study == "" {
 		study = strings.TrimSpace(item.Name)
@@ -1094,6 +1137,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			Formats:           sortedKeys(formats),
 			MeasurementTables: sortedKeys(tables),
 			Unrecognised:      unrecognised,
+			DirectoryKeys:     directories,
 			LayoutSamples:     describeLayouts(layouts),
 			RecognisedLayouts: describeLayouts(reconnus),
 		},
@@ -1420,4 +1464,19 @@ func stringInSlice(value string, values []string) bool {
 		}
 	}
 	return false
+}
+
+// estUneCleDeDossier reconnait une cle qui designe un dossier et non un
+// fichier.
+//
+// Deux conditions, et les deux comptent. Zero octet, parce qu'un marqueur de
+// dossier est vide par definition et qu'un fichier vide se compte comme un
+// fichier. Et prefixe de la cle suivante, parce que le listing est trie :
+// c'est ce qui distingue un dossier d'un fichier qui se trouve etre vide.
+func estUneCleDeDossier(obj minio.ObjectInfo, suivante string) bool {
+	if obj.Size != 0 {
+		return false
+	}
+	cle := strings.TrimSuffix(obj.Key, "/")
+	return cle != "" && strings.HasPrefix(suivante, cle+"/")
 }

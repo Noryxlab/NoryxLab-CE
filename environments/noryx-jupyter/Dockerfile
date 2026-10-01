@@ -28,8 +28,8 @@ RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
  && chmod 0440 /etc/sudoers.d/90-noryx \
- && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile \
- && chown -R noryx:noryx /home/noryx /mnt /repos /datasets
+ && mkdir -p /mnt /repos /datasets /extracts /home/noryx/.noryx-profile \
+ && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /extracts
 
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini", "--"]

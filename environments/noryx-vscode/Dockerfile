@@ -76,8 +76,8 @@ RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
  && chmod 0440 /etc/sudoers.d/90-noryx \
- && mkdir -p /mnt /repos /datasets /home/noryx/.noryx-profile /opt/noryx-vscode/data/Machine /opt/noryx-vscode/extensions \
- && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /opt/noryx-vscode
+ && mkdir -p /mnt /repos /datasets /extracts /home/noryx/.noryx-profile /opt/noryx-vscode/data/Machine /opt/noryx-vscode/extensions \
+ && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /extracts /opt/noryx-vscode
 
 USER noryx
 

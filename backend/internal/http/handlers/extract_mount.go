@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
@@ -27,7 +28,16 @@ import (
 const (
 	// Well under the 1 MiB secret ceiling, leaving room for the script itself.
 	extractManifestMaxBytes = 700 * 1024
-	workspaceExtractsPath   = "extracts"
+	// A sibling of /datasets and /repos, not a directory inside the project's
+	// own volume.
+	//
+	// It lived at /mnt/extracts, which put a platform-built tree inside the
+	// space the project writes to - and the tree is rebuilt with `rm -rf` at
+	// every start, so a person who had made their own /mnt/extracts would have
+	// lost it. It also read wrong: /datasets holds the buckets, /repos the
+	// code, /mnt the project's own work, and an extract is a read-only view of
+	// a bucket. It belongs beside the bucket.
+	workspaceExtractsPath = "/extracts"
 )
 
 type extractMountEntry struct {
@@ -104,7 +114,8 @@ func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 // extractBootstrapLines rebuilds the tree at every start: the links are cheap,
 // and a workspace whose extract changed must not keep yesterday's shape.
 func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int) []string {
-	root := projectMountPath + "/" + workspaceExtractsPath
+	_ = projectMountPath
+	root := workspaceExtractsPath
 	if refusedCount > 0 {
 		return []string{
 			fmt.Sprintf("echo '[bootstrap] %d extract file(s) not mounted: the selection is too large to ship in one manifest'", refusedCount),
@@ -117,6 +128,13 @@ func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCou
 	return []string{
 		"if [ -f /var/run/noryx/bootstrap/extracts.b64 ]; then",
 		"  echo '[bootstrap] building extract links'",
+		// The directory sits at the container root, which belongs to root, so
+		// the shipped images create it and sudo covers an image that has not
+		// been rebuilt yet. Said out loud when neither works: a missing
+		// /extracts with no explanation reads as a lost selection.
+		fmt.Sprintf("  if [ ! -d %s ]; then (mkdir -p %s 2>/dev/null || sudo mkdir -p %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root), shellQuote(root)),
+		fmt.Sprintf("  if [ ! -w %s ]; then (sudo chown noryx:noryx %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root)),
+		fmt.Sprintf("  if [ ! -w %s ]; then echo '[bootstrap] %s is not writable: the extract was not mounted'; else", shellQuote(root), root),
 		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
 		// mounted read-only, and the extract is a second way of looking at it.
@@ -126,8 +144,49 @@ func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCou
 		"    ln -sfn \"$target\" \"$dir\"/\"$feuille\" 2>/dev/null || true",
 		"  done",
 		fmt.Sprintf("  echo \"[bootstrap] extract links ready: $(find %s -type l 2>/dev/null | wc -l) file(s)\"", shellQuote(root)),
+		"  fi",
 		"fi",
 	}
+}
+
+// withoutDirectoryKeys drops the keys that are directories, not files.
+//
+// S3 has no directories, but a bucket filled by a tool that thinks it does
+// carries zero-byte keys for them: SELENA-01-001/20260218/ANTERION/DICOM sits
+// in the listing beside the files under it. The scan recorded them as objects
+// and an extract froze them as members.
+//
+// Linking one is not merely untidy, it hides the study. The link
+// `.../anterion/DICOM` points straight into the read-only dataset, so the
+// `mkdir -p` that every file beneath it needs then fails against a symlink to
+// a read-only directory, and each of those files is skipped. On EMSE on
+// 2026-10-01 a 4,019-file extract of SELENA-01 mounted 186 files: 111
+// directory keys had shadowed everything under them, and the tree showed the
+// raw bucket layout inside each modality instead of the selection.
+//
+// A key is a directory when another key starts with it plus a separator.
+// Sorting makes that a single pass: in lexicographic order, a prefix is
+// immediately followed by what it prefixes.
+func withoutDirectoryKeys(members []extractdomain.Member) []extractdomain.Member {
+	if len(members) < 2 {
+		return members
+	}
+	ordered := make([]extractdomain.Member, len(members))
+	copy(ordered, members)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Path < ordered[j].Path })
+
+	kept := make([]extractdomain.Member, 0, len(ordered))
+	for index, member := range ordered {
+		path := strings.TrimSuffix(member.Path, "/")
+		if path == "" {
+			continue
+		}
+		if index+1 < len(ordered) && strings.HasPrefix(ordered[index+1].Path, path+"/") {
+			continue
+		}
+		kept = append(kept, member)
+	}
+	return kept
 }
 
 // extractMountEntries resolves the extracts a project's workspace should see.
@@ -175,6 +234,7 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 			log.Printf("extract %s not mounted: %v", item.ID, err)
 			continue
 		}
+		members = withoutDirectoryKeys(members)
 		name := sanitizeWorkspacePathName(item.Name)
 		for _, member := range members {
 			entries = append(entries, extractMountEntry{
