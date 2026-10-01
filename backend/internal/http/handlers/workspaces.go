@@ -1350,11 +1350,37 @@ func workspaceBootstrapScript(
 		"fi",
 		// Cleanup legacy symlink shortcuts previously created in /mnt.
 		fmt.Sprintf("rm -f %s/home %s/repos %s/datasets || true", projectMountPath, projectMountPath, projectMountPath),
+		// Take back a profile directory an earlier root wrote into.
+		//
+		// Workspaces ran as root for a while, and what they created in the
+		// profile volume stayed root-owned 0755. The volume root is 0777 so
+		// most of the tree is writable, but those directories and the files
+		// in them are not - and the line below rewrites one of those files on
+		// every start.
+		//
+		// Three volumes on EMSE carried that residue on 2026-10-01, two of
+		// them belonging to people who simply could not start a workspace any
+		// more. Repaired here rather than by hand, because the next
+		// installation will have the same history and nobody will remember.
+		//
+		// sudo is available in the shipped images; if it is not, the write
+		// below is the one that has to survive, and it does.
+		fmt.Sprintf("if [ ! -w %s ]; then (sudo chown -R noryx:noryx %s 2>/dev/null || true); fi",
+			shellQuote(profileMountPath+"/jupyter/config"), shellQuote(profileMountPath)),
 		// Hide filesystem housekeeping entries in IDE explorers.
-		fmt.Sprintf("cat > %s <<'EOF'", shellQuote(profileMountPath+"/jupyter/config/jupyter_server_config.py")),
+		//
+		// Tolerated rather than fatal. This file hides __pycache__ in a file
+		// explorer; the script runs under `set -e`, so a profile directory it
+		// could not write cost the whole workspace - "Permission denied", exit
+		// 2, before the IDE started, and the person was told their workspace
+		// had failed. A workspace missing one cosmetic setting is a workspace.
+		fmt.Sprintf("if ! cat > %s <<'EOF'", shellQuote(profileMountPath+"/jupyter/config/jupyter_server_config.py")),
 		"c = get_config()",
 		"c.ContentsManager.hide_globs = ['__pycache__', '*.pyc', 'lost+found']",
 		"EOF",
+		"then",
+		"  echo '[bootstrap] the jupyter config could not be written; continuing without it'",
+		"fi",
 	}
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
