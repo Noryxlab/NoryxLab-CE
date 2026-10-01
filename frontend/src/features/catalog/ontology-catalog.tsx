@@ -36,12 +36,11 @@ import {
   useOntologyFreshness,
   useOntologyCompleteness,
   useOntologyCohorts,
-  useProjects,
   useDatasets,
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
-import { ontologiesApi, projectsApi } from '@/lib/api/endpoints';
+import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
@@ -463,8 +462,6 @@ function OntologyScan() {
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
-  const projects = useProjects();
-  const [projectId, setProjectId] = React.useState('');
   const [datasetId, setDatasetId] = React.useState('');
   /* Les datasets du catalogue, pas ceux d'un projet.
    *
@@ -477,7 +474,7 @@ function OntologyScan() {
   const datasets = useDatasets();
 
   const scan = useMutation({
-    mutationFn: () => projectsApi.scanOntology(projectId, { datasetId }),
+    mutationFn: () => ontologiesApi.scanOntology({ datasetId }),
     onSuccess: (response) => {
       const summary = response.manifest?.summary;
       toast.success(
@@ -511,7 +508,7 @@ function OntologyScan() {
             event.preventDefault();
             if (datasetId) scan.mutate();
           }}
-          className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end"
         >
           <Field label={t('ontologies.scanDataset')}>
             <Select
@@ -520,19 +517,6 @@ function OntologyScan() {
               placeholder={t('ontologies.scanDataset')}
               disabled={datasetOptions.length === 0}
               options={datasetOptions}
-            />
-          </Field>
-          {/* Facultatif, et dit comme tel : l'ontologie existe sans projet et
-              s'y rattache si on en nomme un. */}
-          <Field label={t('ontologies.scanProject')} description={t('ontologies.scanProjectHint')}>
-            <Select
-              value={projectId}
-              onValueChange={setProjectId}
-              placeholder={t('ontologies.scanProjectNone')}
-              options={(projects.data ?? []).map((project) => ({
-                value: project.id,
-                label: project.name,
-              }))}
             />
           </Field>
           <Button

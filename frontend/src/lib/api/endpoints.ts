@@ -180,14 +180,6 @@ export const projectsApi = {
   detachOntology: (projectId: string, ontologyId: string) =>
     api.delete<void>(`${V1}/projects/${projectId}/ontologies/${ontologyId}`),
   ontology: (projectId: string) => api.get<Ontology>(`${V1}/projects/${projectId}/ontology`),
-  /** The scan needs to be told which dataset to read: without a datasetId the
-   *  API answers 400, and the previous signature sent no body at all - which is
-   *  one reason no screen could launch a scan. */
-  scanOntology: (projectId: string, input: { datasetId: string; inferenceProfile?: string }) =>
-    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology }>(
-      `${V1}/projects/${projectId}/ontology/scans`,
-      input,
-    ),
 
   repositories: (projectId: string) => api.list<Repository>(`${V1}/projects/${projectId}/repositories`),
   attachRepository: (projectId: string, repositoryId: string) =>
@@ -473,6 +465,23 @@ export const datasourcesApi = {
 };
 
 export const ontologiesApi = {
+  /** The scan needs to be told which dataset to read: without a datasetId the
+   *  API answers 400, and the previous signature sent no body at all - which is
+   *  one reason no screen could launch a scan.
+   *
+   *  No project. The server route says why in its own comment: an ontology
+   *  describes a dataset and carries no project. Sending one through
+   *  /projects/{id}/ontology/scans made the project a precondition of
+   *  scanning, and with no project chosen the path became /projects//... -
+   *  which the router answered, correctly, with "no such endpoint".
+   *
+   *  Attaching the result to a project is a separate call that already exists:
+   *  PUT /projects/{projectID}/ontologies/{ontologyID}. */
+  scanOntology: (input: { datasetId: string; inferenceProfile?: string }) =>
+    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology }>(
+      `${V1}/ontologies/scans`,
+      input,
+    ),
   list: () => api.list<Ontology>(`${V1}/ontologies`),
   update: (ontologyId: string, input: Record<string, unknown>) =>
     api.put<Ontology>(`${V1}/ontologies/${ontologyId}`, input),
