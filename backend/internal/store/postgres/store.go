@@ -667,9 +667,19 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL,
 			PRIMARY KEY (project_id, extract_id)
 		)`,
+		// Le projet que chaque extrait nommait devient sa premiere ligne de
+		// lien, sauf quand ce projet n'existe plus.
+		//
+		// Sans ce test, la reprise recopiait des project_id de projets
+		// supprimes : deux lignes sont arrivees ainsi sur EMSE, invisibles
+		// dans l'interface et signalees par le controle d'orphelins le jour
+		// meme. Un extrait dont le projet a disparu n'est rattache a rien,
+		// ce qui est exactement vrai - et il reste rattachable, puisque le
+		// rattachement est devenu un lien.
 		`INSERT INTO project_extract_links (project_id, extract_id, created_at)
-			SELECT project_id, id, created_at FROM extracts
-			WHERE COALESCE(project_id, '') <> ''
+			SELECT e.project_id, e.id, e.created_at FROM extracts e
+			WHERE COALESCE(e.project_id, '') <> ''
+			  AND EXISTS (SELECT 1 FROM projects p WHERE p.id = e.project_id)
 			ON CONFLICT (project_id, extract_id) DO NOTHING`,
 		`CREATE TABLE IF NOT EXISTS project_ontology_links (
 			project_id TEXT NOT NULL,
