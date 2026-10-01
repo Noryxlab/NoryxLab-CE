@@ -283,6 +283,42 @@ function demanderUneLecture(ontology: Ontology, regle: DatasetPathLayout | undef
 
 }
 
+/* Comment le dataset choisi sera lu.
+ *
+ *  Avant de lancer un scan, la seule question utile est celle-la. Le dataset
+ *  porte sa propre regle, ou il n'en porte pas et c'est la regle par defaut de
+ *  la plateforme qui s'applique - laquelle attend <sujet>/<visite>/<modalite>
+ *  et compte tout le reste comme non reconnu. Dans les deux cas, dire laquelle
+ *  evite le scan qu'on relance trois fois en se demandant pourquoi. */
+function ScanRule({ datasetId }: { datasetId: string }) {
+  const t = useT();
+  const regle = useQuery({
+    queryKey: qk.datasetPathLayout(datasetId),
+    queryFn: () => pathLayoutApi.get(datasetId),
+    enabled: Boolean(datasetId),
+  });
+
+  if (regle.isLoading) return null;
+  const declaree = regle.data?.declared;
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      {declaree ? (
+        <>
+          <span className="font-medium">{t('ontologies.scanRuleDeclared')}</span>{' '}
+          <span className="font-mono">{regle.data?.description}</span>{' '}
+          {t('ontologies.scanRuleWhereToChange')}
+        </>
+      ) : (
+        <>
+          <span className="font-medium">{t('ontologies.scanRuleDefault')}</span>{' '}
+          {t('ontologies.scanRuleDefaultHint')}
+        </>
+      )}
+    </p>
+  );
+}
+
 /* L'editeur de la regle de lecture.
  *
  *  Trois niveaux, saisis a la main, essayes sur de vrais chemins avant d'etre
@@ -472,6 +508,10 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {/* Nomme, pas pose nu. "health-file-path-v1" seul sur une ligne
+            *  ne dit rien a personne ; ce qu'il faut savoir est que cette
+            *  photographie-ci a ete prise avec cette regle-la. */}
+          <span>{t('ontologies.patternProducedWith')}</span>
           <Badge tone="outline">{ontology.inferenceProfile || '—'}</Badge>
           {dossiers > 0 ? (
             <span>{t('ontologies.patternDirectories', { count: formatNumber(dossiers, locale) })}</span>
@@ -1091,9 +1131,15 @@ function OntologyScan() {
         {datasetOptions.length === 0 && !datasets.isLoading ? (
           <EmptyState title={t('ontologies.scanNoDataset')} />
         ) : null}
-        {/* What the profile actually matches, where somebody can read it before
-            wondering why half their objects came back unrecognised. */}
-        <p className="text-xs text-muted-foreground">{t('ontologies.scanProfileHint')}</p>
+        {/* La regle qui sera appliquee a CE dataset, pas un paragraphe sur un
+            identifiant interne.
+          *
+          *  L'ecran nommait "health-file-path-v1" et decrivait ce qu'il
+          *  reconnait - un nom qui ne dit rien a personne, et une description
+          *  devenue fausse le jour ou un dataset a pu porter sa propre regle.
+          *  Ce qui compte avant de lancer un scan est : comment celui-ci
+          *  va-t-il etre lu, et ou le corriger. */}
+        {datasetId ? <ScanRule datasetId={datasetId} /> : null}
       </CardContent>
     </Card>
   );
