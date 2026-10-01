@@ -25,7 +25,7 @@ import {
   CardHeaderText,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -452,8 +452,26 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
   const { dialog, ask } = useConfirm();
   const extracts = useOntologyExtracts(ontology.id);
   const [name, setName] = React.useState('');
-  const [modalities, setModalities] = React.useState('');
   const [subjects, setSubjects] = React.useState('');
+  /* Les modalites se choisissent, elles ne se tapent plus.
+   *
+   *  Le champ etait libre, avec un exemple en filigrane, et l'ecran ne disait
+   *  nulle part comment le scan avait nomme les modalites de CETTE ontologie.
+   *  Le 2026-10-01, un extrait declare "Selena-extract-modality" est reparti
+   *  avec un filtre vide - donc les 4 023 objets de l'ontologie entiere - et
+   *  rien a l'ecran ne contredisait son nom. Un n faux se decouvre trois mois
+   *  plus tard, dans un article.
+   *
+   *  Rien de coche vaut toutes les modalites, et c'est ecrit sous le champ
+   *  plutot que laisse a deviner. */
+  const [chosenModalities, setChosenModalities] = React.useState<string[]>([]);
+  const coverage = useOntologyCompleteness(ontology.id);
+  const availableModalities = coverage.data?.modalities ?? [];
+
+  const toggleModality = (nom: string) =>
+    setChosenModalities((current) =>
+      current.includes(nom) ? current.filter((item) => item !== nom) : [...current, nom],
+    );
 
   const asList = (raw: string) =>
     raw
@@ -468,13 +486,13 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
         // Left to the server when the ontology belongs to exactly one project;
         // it refuses with an explanation when the answer is ambiguous, which is
         // better than filing the extract under a project that will never mount it.
-        modalities: asList(modalities),
+        modalities: chosenModalities,
         subjects: asList(subjects),
       }),
     onSuccess: (created) => {
       toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
       setName('');
-      setModalities('');
+      setChosenModalities([]);
       setSubjects('');
       invalidate(qk.ontologyExtracts(ontology.id));
     },
@@ -509,12 +527,44 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
           <Field label={t('common.name')}>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <Field label={t('ontologies.extractModalities')}>
-            <Input
-              value={modalities}
-              onChange={(event) => setModalities(event.target.value)}
-              placeholder="Cornea_Wavefront"
-            />
+          <Field
+            label={t('ontologies.extractModalities')}
+            description={
+              chosenModalities.length === 0
+                ? t('ontologies.extractModalitiesAll')
+                : t('ontologies.extractModalitiesChosen', {
+                    objects: formatNumber(
+                      availableModalities
+                        .filter((item) => chosenModalities.includes(item.name))
+                        .reduce((total, item) => total + item.objects, 0),
+                      locale,
+                    ),
+                  })
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {availableModalities.length === 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {t('ontologies.extractModalitiesUnknown')}
+                </span>
+              ) : (
+                availableModalities.map((item) => (
+                  <Button
+                    key={item.name}
+                    type="button"
+                    size="sm"
+                    variant={chosenModalities.includes(item.name) ? 'primary' : 'secondary'}
+                    onClick={() => toggleModality(item.name)}
+                    aria-pressed={chosenModalities.includes(item.name)}
+                  >
+                    {item.name}
+                    <span className="opacity-70 tabular-nums">
+                      {formatNumber(item.objects, locale)}
+                    </span>
+                  </Button>
+                ))
+              )}
+            </div>
           </Field>
           <Field label={t('ontologies.extractSubjects')}>
             <Input
@@ -929,12 +979,17 @@ export function OntologyCatalog() {
         <span className="text-xs text-muted-foreground">{ontology.inferenceProfile || '—'}</span>
       ),
     },
-    {
-      id: 'status',
-      header: t('common.status'),
-      sortValue: (ontology) => ontology.status,
-      cell: (ontology) => <StatusBadge status={ontology.status} locale={locale} />,
-    },
+    /* Pas de colonne de statut, et c'est delibere.
+     *
+     *  Une ontologie n'est pas une charge : elle existe, elle ne tourne pas.
+     *  Le domaine n'ecrit jamais que "active", et le badge de statut - ecrit
+     *  pour un pod, un job, un workspace - mappe "active" sur "En marche".
+     *  La colonne affichait donc la meme chose sur chaque ligne, dans un
+     *  vocabulaire qui ment sur la nature de l'objet.
+     *
+     *  Ce qui dit vraiment quelque chose sur une ontologie - sa fraicheur
+     *  par rapport a la source, sa couverture par modalite, ce qu'elle n'a
+     *  pas reconnu - a ses propres cartes sous la ligne. */
     {
       id: 'updatedAt',
       header: t('common.updatedAt'),
