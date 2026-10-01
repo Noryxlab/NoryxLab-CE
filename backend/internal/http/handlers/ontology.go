@@ -766,9 +766,6 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 	for _, teamID := range h.callerTeamIDs(identity) {
 		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
 	}
-	for _, teamID := range h.callerTeamIDs(identity) {
-		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
-	}
 	return subjects
 }
 

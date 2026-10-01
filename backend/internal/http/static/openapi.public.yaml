@@ -5367,6 +5367,30 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/extracts:
+    get:
+      tags: [Projects]
+      summary: List the extracts this project mounts
+      operationId: listProjectExtracts
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The extracts attached to this project.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Project role insufficient.
   /api/v1/projects/{projectID}/extracts/{extractID}:
     put:
       tags: [Projects]
@@ -6437,6 +6461,28 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/extracts:
+    get:
+      tags: [Datasets]
+      summary: List Extracts
+      description: >-
+        Every extract the caller can reach, across all ontologies, for the
+        catalogue screen. Visibility follows the ontology an extract was drawn
+        from, not the extract's own owner: a selection over subjects the caller
+        cannot read is not listed, even when it was handed to their team.
+      operationId: listExtracts
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/v1/extracts/{extractID}/members:
     get:
       tags: [Datasets]

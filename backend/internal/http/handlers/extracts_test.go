@@ -109,3 +109,65 @@ func TestExtractRefusesAnOntologyWithoutStoredPaths(t *testing.T) {
 		t.Fatalf("status = %d, want 409 with an explanation; body = %s", recorder.Code, recorder.Body.String())
 	}
 }
+
+// The catalogue lists extracts without naming an ontology, so it needs a rule
+// for what a caller may see - and the rule is the ontology's, not the
+// extract's.
+//
+// An extract is a frozen selection over one ontology's subjects: its name, its
+// n and its modalities all describe that ontology's content. Listing one drawn
+// from an ontology the caller cannot read would publish that description, so
+// visibility follows the ontology and ownership only decides who may transfer
+// or delete.
+func TestTheExtractCatalogueFollowsOntologyVisibility(t *testing.T) {
+	ontologies := memory.NewOntologyObjectStore()
+	sienne := ontologydomain.New("user-1", "PREMYOM1000", "", "dataset", "dataset-1", "HDS-For", "health-file-path-v1", []byte(`{}`))
+	autre := ontologydomain.New("user-2", "Selena", "", "dataset", "dataset-2", "HDS-For", "health-file-path-v1", []byte(`{}`))
+	for _, item := range []ontologydomain.Ontology{sienne, autre} {
+		if err := ontologies.Create(item); err != nil {
+			t.Fatalf("create ontology: %v", err)
+		}
+	}
+	extraits := memory.NewExtractStore()
+	for _, item := range []extractdomain.Extract{
+		{ID: "e-sienne", OntologyID: sienne.ID, Name: "Basics", OwnerUserID: "user-1", OwnerType: ownerUser, OwnerID: "user-1"},
+		{ID: "e-autre", OntologyID: autre.ID, Name: "Selena cohort", OwnerUserID: "user-2", OwnerType: ownerUser, OwnerID: "user-2"},
+	} {
+		if err := extraits.Create(item, nil); err != nil {
+			t.Fatalf("create extract: %v", err)
+		}
+	}
+	h := Handlers{authMode: "header", ontologyStore: ontologies, extractStore: extraits}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/extracts", nil)
+	request.Header.Set(userHeader, "user-1")
+	recorder := httptest.NewRecorder()
+	h.ListExtracts(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var payload struct{ Items []extractdomain.Extract }
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(payload.Items) != 1 || payload.Items[0].ID != "e-sienne" {
+		t.Fatalf("listed %+v, want only the extract over a readable ontology", payload.Items)
+	}
+	// Le proprietaire se lit, sinon la colonne du catalogue affiche un UUID.
+	if payload.Items[0].OwnerName != "user-1" {
+		t.Fatalf("owner name = %q, want user-1", payload.Items[0].OwnerName)
+	}
+}
+
+// Une installation sans extraits rend une liste vide, jamais une erreur : le
+// catalogue s'ouvre avant qu'un extrait existe.
+func TestTheExtractCatalogueIsEmptyWithoutAStore(t *testing.T) {
+	h := Handlers{authMode: "header", ontologyStore: memory.NewOntologyObjectStore()}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/extracts", nil)
+	request.Header.Set(userHeader, "user-1")
+	recorder := httptest.NewRecorder()
+	h.ListExtracts(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}

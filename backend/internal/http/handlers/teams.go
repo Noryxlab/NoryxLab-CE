@@ -255,6 +255,7 @@ func (h Handlers) ListMyTeams(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read teams"})
 		return
 	}
+	h.nameTeamOrganizations(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
@@ -289,5 +290,31 @@ func (h Handlers) writeTeamStoreError(w http.ResponseWriter, err error, fallback
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": fallback})
+	}
+}
+
+// nameTeamOrganizations fills in which organization each team belongs to.
+//
+// Two organizations may each have a team called "Data", and the owner selector
+// shows a list of names: without the organization beside it, a person picking
+// one of two identical rows is guessing. The directory is asked once for the
+// whole list, and a directory that cannot be reached leaves the field empty
+// rather than failing the page.
+func (h Handlers) nameTeamOrganizations(items []team.Team) {
+	if len(items) == 0 || h.keycloak == nil {
+		return
+	}
+	organizations, err := h.keycloak.ListOrganizations()
+	if err != nil {
+		return
+	}
+	names := map[string]string{}
+	for _, organization := range organizations {
+		names[organization.ID] = firstNonEmpty(organization.Name, organization.Alias)
+	}
+	for index := range items {
+		if name := names[strings.TrimSpace(items[index].OrganizationID)]; name != "" {
+			items[index].OrganizationName = name
+		}
 	}
 }

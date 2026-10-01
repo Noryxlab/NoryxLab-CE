@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	datasourcedomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
+	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
@@ -26,10 +28,15 @@ type ownedResource interface {
 
 func (h Handlers) nameOwners(items []ownedResource) {
 	needsOrganization := false
+	teamIDs := map[string]struct{}{}
 	for _, item := range items {
-		if strings.EqualFold(item.ownerKind(), "organization") {
+		switch {
+		case strings.EqualFold(item.ownerKind(), ownerOrganization):
 			needsOrganization = true
-			break
+		case strings.EqualFold(item.ownerKind(), ownerTeam):
+			if identifier := strings.TrimSpace(item.ownerIdentifier()); identifier != "" {
+				teamIDs[identifier] = struct{}{}
+			}
 		}
 	}
 	names := map[string]string{}
@@ -40,15 +47,21 @@ func (h Handlers) nameOwners(items []ownedResource) {
 			}
 		}
 	}
+	if len(teamIDs) > 0 && h.teamStore != nil {
+		for identifier := range teamIDs {
+			if item, found, err := h.teamStore.GetByID(identifier); err == nil && found {
+				names[identifier] = item.Name
+			}
+		}
+	}
 	for _, item := range items {
 		identifier := item.ownerIdentifier()
-		if !strings.EqualFold(item.ownerKind(), "organization") {
-			item.setOwnerName(identifier)
-			continue
-		}
-		if name, ok := names[identifier]; ok && strings.TrimSpace(name) != "" {
-			item.setOwnerName(name)
-			continue
+		switch {
+		case strings.EqualFold(item.ownerKind(), ownerOrganization), strings.EqualFold(item.ownerKind(), ownerTeam):
+			if name, ok := names[identifier]; ok && strings.TrimSpace(name) != "" {
+				item.setOwnerName(name)
+				continue
+			}
 		}
 		item.setOwnerName(identifier)
 	}
@@ -112,4 +125,32 @@ func (h Handlers) nameAccessSubjects(items []datasetdomain.Access) {
 		// unreadable row is better than a missing one.
 		items[index].SubjectName = subject
 	}
+}
+
+type extractOwner struct{ item *extractdomain.Extract }
+
+func (o extractOwner) ownerKind() string        { return o.item.OwnerType }
+func (o extractOwner) ownerIdentifier() string  { return o.item.OwnerID }
+func (o extractOwner) setOwnerName(name string) { o.item.OwnerName = name }
+
+func (h Handlers) nameExtractOwners(items []extractdomain.Extract) {
+	owners := make([]ownedResource, 0, len(items))
+	for index := range items {
+		owners = append(owners, extractOwner{item: &items[index]})
+	}
+	h.nameOwners(owners)
+}
+
+type datasourceOwner struct{ item *datasourcedomain.Datasource }
+
+func (o datasourceOwner) ownerKind() string        { return o.item.OwnerType }
+func (o datasourceOwner) ownerIdentifier() string  { return o.item.OwnerID }
+func (o datasourceOwner) setOwnerName(name string) { o.item.OwnerName = name }
+
+func (h Handlers) nameDatasourceOwners(items []datasourcedomain.Datasource) {
+	owners := make([]ownedResource, 0, len(items))
+	for index := range items {
+		owners = append(owners, datasourceOwner{item: &items[index]})
+	}
+	h.nameOwners(owners)
 }

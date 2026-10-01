@@ -52,6 +52,7 @@ func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
 	for i := range items {
 		items[i] = h.enrichDatasourceStatus(items[i])
 	}
+	h.nameDatasourceOwners(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 

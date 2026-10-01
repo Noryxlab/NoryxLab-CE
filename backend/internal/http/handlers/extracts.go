@@ -161,6 +161,7 @@ func (h Handlers) ListOntologyExtracts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list extracts"})
 		return
 	}
+	h.nameExtractOwners(items)
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -374,4 +375,67 @@ func (h Handlers) DetachProjectExtract(w http.ResponseWriter, r *http.Request) {
 	}
 	h.emitAudit(r, identity.UserID(), "extract.detached", "extract", extractID, projectID, "success", "", nil)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "detached"})
+}
+
+// ListProjectExtracts is what this project mounts.
+//
+// The screen that attaches needs to show what is already attached, and the
+// link table is the only thing that knows: an extract no longer carries the
+// project that mounts it.
+func (h Handlers) ListProjectExtracts(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	projectID := strings.TrimSpace(r.PathValue("projectID"))
+	if projectID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
+		return
+	}
+	if !h.requireProjectRole(w, projectID, identity.UserID(), actionRead, "extract list") {
+		return
+	}
+	items, err := h.projectExtracts(projectID)
+	if err != nil {
+		h.nameExtractOwners(items)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read extracts"})
+		return
+	}
+	h.nameExtractOwners(items)
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// ListExtracts is the catalogue entry: every extract the caller can reach,
+// without naming an ontology first.
+//
+// Visibility is the ontology's, not the extract's own. An extract is a frozen
+// selection over one ontology's subjects, so somebody who cannot read the
+// ontology has no business seeing a selection drawn from it - even one handed
+// to their team. Ownership decides who may transfer or delete it; the ontology
+// decides who may see that it exists.
+func (h Handlers) ListExtracts(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	if h.extractStore == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"items": []extractdomain.Extract{}})
+		return
+	}
+	ontologies, err := h.ontologiesVisibleTo(identity)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list extracts"})
+		return
+	}
+	items := []extractdomain.Extract{}
+	for _, ontology := range ontologies {
+		listed, err := h.extractStore.ListByOntology(ontology.ID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list extracts"})
+			return
+		}
+		items = append(items, listed...)
+	}
+	h.nameExtractOwners(items)
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

@@ -192,9 +192,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// same question asked next month still names the same study.
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/extracts", h.CreateExtract)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/extracts", h.ListOntologyExtracts)
+	mux.HandleFunc("GET /api/v1/extracts", h.ListExtracts)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)
+	mux.HandleFunc("GET /api/v1/projects/{projectID}/extracts", h.ListProjectExtracts)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/extracts/{extractID}", h.AttachProjectExtract)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/extracts/{extractID}", h.DetachProjectExtract)
 	mux.HandleFunc("DELETE /api/v1/extracts/{extractID}", h.DeleteExtract)
