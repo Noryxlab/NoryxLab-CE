@@ -20,6 +20,7 @@ import {
   projectVariablesApi,
   repositoriesApi,
   secretsApi,
+  teamsApi,
   workspacesApi,
 } from './endpoints';
 import { describeStatus } from '@/components/ui/badge';
@@ -53,6 +54,7 @@ export const qk = {
   projectDatasets: (projectId: string) => ['projects', projectId, 'datasets'] as const,
   projectDatasources: (projectId: string) => ['projects', projectId, 'datasources'] as const,
   projectOntologies: (projectId: string) => ['projects', projectId, 'ontologies'] as const,
+  projectExtracts: (projectId: string) => ['projects', projectId, 'extracts'] as const,
   projectRepositories: (projectId: string) => ['projects', projectId, 'repositories'] as const,
   projectFiles: (projectId: string, path: string) => ['projects', projectId, 'files', path] as const,
   projectEgress: (projectId: string) => ['projects', projectId, 'egress'] as const,
@@ -81,6 +83,7 @@ export const qk = {
   datasources: ['datasources'] as const,
   datasourceDefinitions: ['datasource-definitions'] as const,
   ontologies: ['ontologies'] as const,
+  extracts: ['extracts'] as const,
   ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
   ontologyCompleteness: (ontologyId: string) =>
     ['ontologies', ontologyId, 'completeness'] as const,
@@ -99,6 +102,7 @@ export const qk = {
   adminHealth: ['admin', 'health'] as const,
   softwareInventory: ['admin', 'software-inventory'] as const,
   adminHardwareTiers: ['admin', 'hardware-tiers'] as const,
+  myTeams: ['user', 'teams'] as const,
   adminTeams: (organizationId: string) => ['admin', 'teams', organizationId] as const,
   adminTeamMembers: (teamId: string) => ['admin', 'team-members', teamId] as const,
   projectTeamRoles: (projectId: string) => ['projects', projectId, 'team-roles'] as const,
@@ -247,6 +251,13 @@ export const useProjectOntologies = (projectId: string | undefined) =>
     enabled: Boolean(projectId),
   });
 
+export const useProjectExtracts = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectExtracts(projectId ?? ''),
+    queryFn: () => projectsApi.extracts(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
 export const useProjectRepositories = (projectId: string | undefined) =>
   useQuery({
     queryKey: qk.projectRepositories(projectId ?? ''),
@@ -379,6 +390,9 @@ export const useProductionApps = () =>
 
 /* -- data ------------------------------------------------------------------ */
 
+/** The teams you belong to, for the owner selector. */
+export const useMyTeams = () => useQuery({ queryKey: qk.myTeams, queryFn: teamsApi.mine });
+
 export const useDatasets = () => useQuery({ queryKey: qk.datasets, queryFn: datasetsApi.list });
 
 export const useDatasetAccess = (datasetId: string | undefined) =>
@@ -416,6 +430,9 @@ export const useDatasourceDefinitions = () =>
   });
 
 export const useOntologies = () => useQuery({ queryKey: qk.ontologies, queryFn: ontologiesApi.list });
+
+export const useExtracts = () =>
+  useQuery({ queryKey: qk.extracts, queryFn: ontologiesApi.allExtracts });
 
 /** Asked only when an ontology is opened: the answer means listing the source
  *  bucket, which is seconds of work for a large study. */

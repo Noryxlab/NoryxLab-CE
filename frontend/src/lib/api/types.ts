@@ -228,6 +228,9 @@ export interface StorageObject {
 }
 
 export interface Datasource {
+  ownerType?: string;
+  ownerId?: string;
+  ownerName?: string;
   id: string;
   ownerUserId: string;
   name: string;
@@ -1125,6 +1128,9 @@ export interface OntologyCompleteness {
  *  nothing: the paths point into the dataset where the data already lives, and
  *  a mount builds a tree of links over them. */
 export interface Extract {
+  ownerType?: string;
+  ownerId?: string;
+  ownerName?: string;
   id: string;
   ontologyId: string;
   projectId: string;

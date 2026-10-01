@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
-import { useAdminUsers, useOrganizations } from '@/lib/api/queries';
+import { useAdminUsers, useOrganizations, useMyTeams } from '@/lib/api/queries';
 import { useT } from '@/lib/i18n';
 
 /**
@@ -60,6 +60,16 @@ export function ResourceOwner({
   );
 }
 
+/** Les trois formes de propriete que le catalogue connait.
+ *
+ *  Une equipe possede depuis le 2026-10-01 : c'est ainsi qu'un groupe qui
+ *  travaille ensemble garde ce qu'il produit quand l'un d'eux s'en va. */
+type ProprietairePossible = 'user' | 'team' | 'organization';
+
+function normaliserType(valeur: string | undefined): ProprietairePossible {
+  return valeur === 'organization' || valeur === 'team' ? valeur : 'user';
+}
+
 /**
  * Handing something over.
  *
@@ -83,15 +93,19 @@ export function OwnerTransfer({
   const t = useT();
   const organizations = useOrganizations();
   const users = useAdminUsers();
-  const [ownerType, setOwnerType] = React.useState<'user' | 'organization'>(
-    owner.ownerType === 'organization' ? 'organization' : 'user',
+  // Celles dont on est membre, et elles seules : le serveur refuse un
+  // transfert vers un groupe auquel on n'appartient pas, donc en proposer un
+  // serait proposer un refus.
+  const teams = useMyTeams();
+  const [ownerType, setOwnerType] = React.useState<ProprietairePossible>(
+    normaliserType(owner.ownerType),
   );
   const [ownerId, setOwnerId] = React.useState(owner.ownerId ?? '');
 
   // Follow the selected resource rather than keeping the previous one's owner,
   // which would offer to transfer the wrong thing to the right person.
   React.useEffect(() => {
-    setOwnerType(owner.ownerType === 'organization' ? 'organization' : 'user');
+    setOwnerType(normaliserType(owner.ownerType));
     setOwnerId(owner.ownerId ?? '');
   }, [owner.ownerType, owner.ownerId]);
 
@@ -101,11 +115,19 @@ export function OwnerTransfer({
           value: organization.alias ?? organization.id,
           label: organization.name,
         }))
-      : (users.data ?? []).map((user) => ({
-          value: user.username ?? user.id,
-          label: user.username ?? user.id,
-          hint: user.email ?? undefined,
-        }));
+      : ownerType === 'team'
+        ? (teams.data ?? []).map((team) => ({
+            value: team.id,
+            // L'organisation en indication : deux equipes peuvent porter le
+            // meme nom, et le serveur refuse justement un nom ambigu.
+            label: team.name,
+            hint: team.organizationName ?? undefined,
+          }))
+        : (users.data ?? []).map((user) => ({
+            value: user.username ?? user.id,
+            label: user.username ?? user.id,
+            hint: user.email ?? undefined,
+          }));
 
   const unchanged = ownerType === (owner.ownerType ?? 'user') && ownerId === (owner.ownerId ?? '');
 
@@ -115,11 +137,12 @@ export function OwnerTransfer({
         <Select
           value={ownerType}
           onValueChange={(value) => {
-            setOwnerType(value === 'organization' ? 'organization' : 'user');
+            setOwnerType(normaliserType(value));
             setOwnerId('');
           }}
           options={[
             { value: 'user', label: t('common.user') },
+            { value: 'team', label: t('common.team') },
             { value: 'organization', label: t('common.organization') },
           ]}
         />

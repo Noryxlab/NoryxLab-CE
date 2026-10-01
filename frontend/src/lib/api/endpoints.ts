@@ -177,6 +177,14 @@ export const projectsApi = {
   ontologies: (projectId: string) => api.list<Ontology>(`${V1}/projects/${projectId}/ontologies`),
   attachOntology: (projectId: string, ontologyId: string) =>
     api.put<void>(`${V1}/projects/${projectId}/ontologies/${ontologyId}`),
+  /** The extracts this project mounts. An extract is a frozen selection over a
+   *  dataset; which projects use it is a separate question, and more than one
+   *  may answer yes. */
+  extracts: (projectId: string) => api.list<Extract>(`${V1}/projects/${projectId}/extracts`),
+  attachExtract: (projectId: string, extractId: string) =>
+    api.put<void>(`${V1}/projects/${projectId}/extracts/${extractId}`, {}),
+  detachExtract: (projectId: string, extractId: string) =>
+    api.delete<void>(`${V1}/projects/${projectId}/extracts/${extractId}`),
   detachOntology: (projectId: string, ontologyId: string) =>
     api.delete<void>(`${V1}/projects/${projectId}/ontologies/${ontologyId}`),
   ontology: (projectId: string) => api.get<Ontology>(`${V1}/projects/${projectId}/ontology`),
@@ -456,12 +464,24 @@ export const datasourcesApi = {
   definitions: () => api.list<DatasourceDefinition>(`${V1}/datasource-definitions`),
   create: (input: Record<string, unknown>) => api.post<Datasource>(`${V1}/datasources`, input),
   remove: (datasourceId: string) => api.delete<void>(`${V1}/datasources/${datasourceId}`),
+  /** Hands a connector to a person, a team or an organization. It points at a
+   *  system the organization runs, so it outlives whoever declared it. */
+  setOwner: (datasourceId: string, input: { ownerType: string; ownerId: string }) =>
+    api.put<Datasource>(`${V1}/datasources/${datasourceId}/ownership`, input),
   validate: (datasourceId: string) =>
     api.post<{ reachable: boolean; error?: string }>(`${V1}/datasources/${datasourceId}/validate`),
   restart: (datasourceId: string) => api.post<Datasource>(`${V1}/datasources/${datasourceId}/restart`),
   logs: (datasourceId: string) =>
     api.get<LogsResponse>(`${V1}/datasources/${datasourceId}/logs`).then((response) => response?.logs ?? ''),
   createService: (input: Record<string, unknown>) => api.post<Datasource>(`${V1}/dataservices`, input),
+};
+
+export const teamsApi = {
+  /** The teams you belong to.
+   *
+   *  Exactly what the owner selector needs: the server refuses a transfer to a
+   *  group you are not part of, so offering one would be offering a refusal. */
+  mine: () => api.list<Team>(`${V1}/user/teams`),
 };
 
 export const ontologiesApi = {
@@ -495,10 +515,21 @@ export const ontologiesApi = {
     api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
   completeness: (ontologyId: string) =>
     api.get<OntologyCompleteness>(`${V1}/ontologies/${ontologyId}/completeness`),
+  /** Every extract the caller can reach, for the catalogue and for the picker
+   *  that attaches one to a project. */
+  allExtracts: () => api.list<Extract>(`${V1}/extracts`),
   extracts: (ontologyId: string) => api.list<Extract>(`${V1}/ontologies/${ontologyId}/extracts`),
   createExtract: (ontologyId: string, input: Record<string, unknown>) =>
     api.post<Extract>(`${V1}/ontologies/${ontologyId}/extracts`, input),
   deleteExtract: (extractId: string) => api.delete<void>(`${V1}/extracts/${extractId}`),
+  /** Hands an extract to a person, a team or an organization. */
+  setExtractOwner: (extractId: string, input: { ownerType: string; ownerId: string }) =>
+    api.put<Extract>(`${V1}/extracts/${extractId}/ownership`, input),
+  /** Which projects mount it. Attaching is a link, so several may. */
+  attachExtract: (projectId: string, extractId: string) =>
+    api.put<void>(`${V1}/projects/${projectId}/extracts/${extractId}`, {}),
+  detachExtract: (projectId: string, extractId: string) =>
+    api.delete<void>(`${V1}/projects/${projectId}/extracts/${extractId}`),
   access: (ontologyId: string) => api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
   grant: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
     api.put<OntologyAccess>(

@@ -19,6 +19,8 @@ import {
   useOntologies,
   useProjectDatasets,
   useProjectDatasources,
+  useExtracts,
+  useProjectExtracts,
   useProjectOntologies,
   useProjectRepositories,
   useRepositories,
@@ -27,10 +29,10 @@ import {
 } from '@/lib/api/queries';
 import { projectsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatRelative } from '@/lib/format';
-import type { Dataset, Datasource, Ontology, Repository } from '@/lib/api/types';
+import { formatNumber, formatRelative } from '@/lib/format';
+import type { Dataset, Datasource, Extract, Ontology, Repository } from '@/lib/api/types';
 
-const SECTIONS = ['datasets', 'datasources', 'ontologies', 'repositories'] as const;
+const SECTIONS = ['datasets', 'datasources', 'ontologies', 'extracts', 'repositories'] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -109,6 +111,8 @@ export function ProjectDataPage() {
   const allDatasets = useDatasets();
   const allDatasources = useDatasources();
   const allOntologies = useOntologies();
+  const projectExtracts = useProjectExtracts(projectId);
+  const allExtracts = useExtracts();
   const allRepositories = useRepositories();
 
   function refresh() {
@@ -117,6 +121,7 @@ export function ProjectDataPage() {
       qk.projectDatasets(projectId),
       qk.projectDatasources(projectId),
       qk.projectOntologies(projectId),
+      qk.projectExtracts(projectId),
       qk.projectRepositories(projectId),
     );
   }
@@ -131,6 +136,8 @@ export function ProjectDataPage() {
           return projectsApi.attachDatasource(id, input.id);
         case 'ontologies':
           return projectsApi.attachOntology(id, input.id);
+        case 'extracts':
+          return projectsApi.attachExtract(id, input.id);
         case 'repositories':
           return projectsApi.attachRepository(id, input.id);
       }
@@ -149,6 +156,8 @@ export function ProjectDataPage() {
           return projectsApi.detachDatasource(id, input.id);
         case 'ontologies':
           return projectsApi.detachOntology(id, input.id);
+        case 'extracts':
+          return projectsApi.detachExtract(id, input.id);
         case 'repositories':
           return projectsApi.detachRepository(id, input.id);
       }
@@ -209,6 +218,43 @@ export function ProjectDataPage() {
         <span className="truncate font-mono text-xs text-muted-foreground">
           {datasource.host}
           {datasource.port ? `:${datasource.port}` : ''}
+        </span>
+      ),
+    },
+  ];
+
+  const extractColumns: Column<Extract>[] = [
+    {
+      id: 'name',
+      header: t('common.name'),
+      sortValue: (extract) => extract.name,
+      cell: (extract) => <span className="font-medium">{extract.name}</span>,
+    },
+    {
+      id: 'objects',
+      header: t('ontologies.objects'),
+      align: 'right',
+      sortValue: (extract) => extract.objectCount,
+      cell: (extract) => (
+        <span className="text-xs tabular-nums">{formatNumber(extract.objectCount, locale)}</span>
+      ),
+    },
+    {
+      id: 'owner',
+      header: t('common.owner'),
+      cell: (extract) => (
+        <span className="text-xs text-muted-foreground">
+          {extract.ownerName || extract.ownerId || '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'createdAt',
+      header: t('common.createdAt'),
+      sortValue: (extract) => extract.createdAt,
+      cell: (extract) => (
+        <span className="text-xs text-muted-foreground">
+          {formatRelative(extract.createdAt, locale)}
         </span>
       ),
     },
@@ -290,6 +336,7 @@ export function ProjectDataPage() {
           <TabsTrigger value="datasets">{t('nav.datasets')}</TabsTrigger>
           <TabsTrigger value="datasources">{t('nav.datasources')}</TabsTrigger>
           <TabsTrigger value="ontologies">{t('nav.ontologies')}</TabsTrigger>
+          <TabsTrigger value="extracts">{t('ontologies.extracts')}</TabsTrigger>
           <TabsTrigger value="repositories">{t('nav.repositories')}</TabsTrigger>
         </TabsList>
 
@@ -376,6 +423,38 @@ export function ProjectDataPage() {
                 />
               }
               rowActions={(ontology) => detachAction('ontologies', ontology.id)}
+            />
+          </Card>
+        </TabsContent>
+
+        {/* Un extrait se monte dans plusieurs projets sans etre duplique :
+            c'est un lien, pas une appartenance. Detacher ne detruit rien - la
+            selection gelee survit aux projets qui s'en sont servis. */}
+        <TabsContent value="extracts" className="space-y-4">
+          <AttachBar
+            available={allExtracts.data ?? []}
+            attached={projectExtracts.data ?? []}
+            label={t('ontologies.extracts')}
+            pending={attach.isPending}
+            onAttach={(id) => attach.mutate({ kind: 'extracts', id })}
+          />
+          <Card>
+            <DataTable
+              data={projectExtracts.data}
+              columns={extractColumns}
+              rowKey={(extract) => extract.id}
+              isLoading={projectExtracts.isLoading}
+              isError={projectExtracts.isError}
+              error={projectExtracts.error}
+              onRetry={() => void projectExtracts.refetch()}
+              emptyState={
+                <EmptyState
+                  icon={Network}
+                  title={t('ontologies.extractEmpty')}
+                  description={t('ontologies.extractMountHint')}
+                />
+              }
+              rowActions={(extract) => detachAction('extracts', extract.id)}
             />
           </Card>
         </TabsContent>

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Plug, Plus, RotateCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Plug, Plus, RotateCw, ShieldCheck, Trash2, UserRoundCog } from 'lucide-react';
+import { OwnerTransfer } from '@/components/common/owner';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { LogViewer } from '@/components/common/log-viewer';
@@ -38,6 +39,53 @@ import type { Datasource } from '@/lib/api/types';
 
 const SSL_MODES = ['disable', 'require', 'verify-ca', 'verify-full'];
 
+/** Ceder un connecteur, dans la meme forme que partout ailleurs.
+ *
+ *  C'est l'objet du catalogue qui survit le plus souvent a la personne qui l'a
+ *  declare : il pointe vers un systeme que l'organisation fait tourner, et il
+ *  partait avec son auteur. */
+function DatasourceOwnershipSheet({
+  datasource,
+  open,
+  onOpenChange,
+}: {
+  datasource: Datasource | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) =>
+      datasourcesApi.setOwner(datasource?.id ?? '', input),
+    onSuccess: () => {
+      invalidate(qk.datasources);
+      toast.success(t('projects.transferOwnership'));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent title={datasource?.name ?? t('projects.transferOwnership')}>
+        <SheetBody>
+          {datasource ? (
+            <OwnerTransfer
+              owner={datasource}
+              pending={transfer.isPending}
+              onTransfer={(input) => transfer.mutate(input)}
+              label={t('projects.transferOwnership')}
+            />
+          ) : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function DatasourceCatalog() {
   const t = useT();
   const { locale } = useI18n();
@@ -51,6 +99,7 @@ export function DatasourceCatalog() {
 
   const [creating, setCreating] = React.useState(false);
   const [logsFor, setLogsFor] = React.useState<Datasource | null>(null);
+  const [transferred, setTransferred] = React.useState<Datasource | null>(null);
 
   const [definitionId, setDefinitionId] = React.useState('');
   const [name, setName] = React.useState('');
@@ -250,6 +299,10 @@ export function DatasourceCatalog() {
                   </DropdownMenuItem>
                 </>
               ) : null}
+              <DropdownMenuItem onSelect={() => setTransferred(datasource)}>
+                <UserRoundCog aria-hidden />
+                {t('projects.transferOwnership')}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={() =>
@@ -292,6 +345,14 @@ export function DatasourceCatalog() {
           </CardContent>
         </Card>
       ) : null}
+
+      <DatasourceOwnershipSheet
+        datasource={transferred}
+        open={transferred !== null}
+        onOpenChange={(open) => {
+          if (!open) setTransferred(null);
+        }}
+      />
 
       <Sheet open={creating} onOpenChange={setCreating}>
         <SheetContent aria-describedby={undefined}>

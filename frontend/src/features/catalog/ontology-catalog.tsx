@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { AlertTriangle, Network, Radar, Search, Trash2, MessageCircle } from 'lucide-react';
+import { AlertTriangle, Network, Radar, Search, Trash2, MessageCircle, UserRoundCog } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
@@ -30,6 +30,7 @@ import {
   TableRow,
   TableWrapper,
 } from '@/components/ui/table';
+import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import {
   useOntologies,
@@ -43,7 +44,7 @@ import {
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
-import type { OntologyQueryItem, Ontology } from '@/lib/api/types';
+import type { Extract, OntologyQueryItem, Ontology } from '@/lib/api/types';
 
 /* Ce que le manifeste porte et que cet ecran lit.
  *
@@ -300,6 +301,54 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
  * Nothing is duplicated: the frozen paths point into the dataset where the data
  * already lives, and a workspace mounts the extract as a tree of links over it.
  */
+/** Ceder un extrait, dans la meme forme et les memes mots qu'un dataset.
+ *
+ *  Un extrait est une selection gelee : elle survit aux projets qui s'en sont
+ *  servis, et souvent a la personne qui l'a declaree. La ceder est ce qui
+ *  permet a une equipe de garder ce qu'elle a produit quand l'un d'eux s'en
+ *  va. */
+function ExtractOwnershipSheet({
+  extract,
+  open,
+  onOpenChange,
+}: {
+  extract: Extract | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) =>
+      ontologiesApi.setExtractOwner(extract?.id ?? '', input),
+    onSuccess: () => {
+      invalidate(qk.ontologies);
+      toast.success(t('projects.transferOwnership'));
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent title={extract?.name ?? t('projects.transferOwnership')}>
+        <SheetBody>
+          {extract ? (
+            <OwnerTransfer
+              owner={extract}
+              pending={transfer.isPending}
+              onTransfer={(input) => transfer.mutate(input)}
+              label={t('projects.transferOwnership')}
+            />
+          ) : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function OntologyExtracts({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const { locale } = useI18n();
@@ -336,6 +385,8 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
     },
     onError: (error) => toast.error(error, t('ontologies.extractCreate')),
   });
+
+  const [transferred, setTransferred] = React.useState<Extract | null>(null);
 
   const remove = useMutation({
     mutationFn: (extractId: string) => ontologiesApi.deleteExtract(extractId),
@@ -389,6 +440,7 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
                   <TableHead>{t('common.name')}</TableHead>
                   <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
                   <TableHead className="text-right">{t('common.size')}</TableHead>
+                  <TableHead>{t('common.owner')}</TableHead>
                   <TableHead>{t('common.createdAt')}</TableHead>
                   <TableHead />
                 </TableRow>
@@ -411,9 +463,19 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
                       {formatBytes(item.totalBytes, locale)}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
+                      {item.ownerName || item.ownerId || '—'}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {formatRelative(item.createdAt, locale)}
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        title={t('projects.transferOwnership')}
+                        onClick={() => setTransferred(item)}
+                      >
+                        <UserRoundCog aria-hidden />
+                      </Button>
                       <Button
                         variant="ghost"
                         onClick={() =>
@@ -438,6 +500,13 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
           <EmptyState title={t('ontologies.extractEmpty')} />
         )}
         <p className="text-xs text-muted-foreground">{t('ontologies.extractMountHint')}</p>
+        <ExtractOwnershipSheet
+          extract={transferred}
+          open={transferred !== null}
+          onOpenChange={(open) => {
+            if (!open) setTransferred(null);
+          }}
+        />
       </CardContent>
       {dialog}
     </Card>
