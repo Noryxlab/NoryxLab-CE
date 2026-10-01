@@ -152,7 +152,19 @@ fields itself, which is the point rather than a consolation.
 
 Changing a rule changes nothing until a rescan - and a rescan refreshes the
 ontology rather than adding one, so correcting a reading leaves one ontology,
-read properly. ADR-045 records the shape and what it still owes.
+read properly. ADR-045 records the shape and why it is positional.
+
+**An ontology records the reading that produced it**, not the name of a
+profile that may have changed since. So a rescan can say which of two things
+happened: "the reading changed - 4,023 to 3,908 objects, 2 to 31 subjects, the
+rule explains the difference, not the data", or "the source moved, with the
+reading unchanged". Those are different news and they call for opposite
+reactions; a subject count that moves without a cause reads as a broken
+platform.
+
+An ontology scanned before 2026-10-01 carries no rule, so the comparison gives
+the figures and declines to say the reading changed - claiming it wrongly would
+send somebody after a rule nobody edited.
 
 **Ownership and attachment.** An ontology and an extract are owned the way a
 dataset is - by a user, a team or an organization - and both can be handed on.
