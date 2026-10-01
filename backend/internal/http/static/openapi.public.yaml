@@ -272,6 +272,24 @@ components:
           description: What the scan understood of the dataset's layout.
         item:
           $ref: '#/components/schemas/Ontology'
+        changed:
+          type: object
+          description: >-
+            What a refresh changed, and why. "Why" is the half that was
+            missing: a subject count that moves is either the study recruiting
+            or the reading changing, and those call for opposite reactions.
+            Absent on a first scan, and absent when the previous manifest
+            predates the reading rule being recorded - saying "the reading
+            changed" when it may not have would send somebody after a rule they
+            never edited.
+          properties:
+            readingChanged: { type: boolean }
+            previousReading: { type: string }
+            currentReading: { type: string }
+            previousObjects: { type: integer }
+            currentObjects: { type: integer }
+            previousSubjects: { type: integer }
+            currentSubjects: { type: integer }
         refreshed:
           type: boolean
           description: >-

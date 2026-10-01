@@ -67,19 +67,68 @@ type ontologyQueryItem struct {
 }
 
 type ontologyManifest struct {
-	ProjectID        string            `json:"projectId"`
-	SourceType       string            `json:"sourceType"`
-	SourceID         string            `json:"sourceId"`
-	SourceName       string            `json:"sourceName"`
-	InferenceProfile string            `json:"inferenceProfile"`
-	DatasetID        string            `json:"datasetId"`
-	DatasetName      string            `json:"datasetName"`
-	Study            string            `json:"study"`
-	Summary          ontologySummary   `json:"summary"`
-	Subjects         []ontologySubject `json:"subjects"`
-	GeneratedBy      string            `json:"generatedBy"`
-	GeneratedAt      time.Time         `json:"generatedAt"`
-	Truncated        bool              `json:"truncated"`
+	ProjectID        string `json:"projectId"`
+	SourceType       string `json:"sourceType"`
+	SourceID         string `json:"sourceId"`
+	SourceName       string `json:"sourceName"`
+	InferenceProfile string `json:"inferenceProfile"`
+	// ReadingRule is the rule this photograph was actually taken with, and not
+	// a name pointing at something that may have changed since (ADR-040).
+	//
+	// Without it, two scans of one bucket differ and nothing can say whether
+	// the data moved or the reading did - which is the question a person asks
+	// first when a subject count changes, and the one the platform could not
+	// answer.
+	ReadingRule ontologyReadingRule `json:"readingRule"`
+	DatasetID   string              `json:"datasetId"`
+	DatasetName string              `json:"datasetName"`
+	Study       string              `json:"study"`
+	Summary     ontologySummary     `json:"summary"`
+	Subjects    []ontologySubject   `json:"subjects"`
+	GeneratedBy string              `json:"generatedBy"`
+	GeneratedAt time.Time           `json:"generatedAt"`
+	Truncated   bool                `json:"truncated"`
+}
+
+// ontologyReadingRule is how the paths were read when this ontology was built.
+type ontologyReadingRule struct {
+	// Source is "declared" when the dataset carried its own rule, "default"
+	// when the platform's compiled rule applied. A reading that changed from
+	// one to the other is the most common reason two scans disagree.
+	Source        string `json:"source"`
+	SubjectLevel  int    `json:"subjectLevel,omitempty"`
+	VisitLevel    int    `json:"visitLevel,omitempty"`
+	ModalityLevel int    `json:"modalityLevel,omitempty"`
+	// Description reads on a screen: "level 1 = subject, level 2 = visit".
+	Description string `json:"description"`
+}
+
+// describeReading records the rule a scan is about to apply.
+func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
+	if layout == nil || !layout.Declared() {
+		return ontologyReadingRule{
+			Source:        "default",
+			SubjectLevel:  dataset.LevelAbsent,
+			VisitLevel:    dataset.LevelAbsent,
+			ModalityLevel: dataset.LevelAbsent,
+			Description:   "the platform's compiled rule: the first segment that looks like a subject identifier, then the next two as visit and modality",
+		}
+	}
+	return ontologyReadingRule{
+		Source:        "declared",
+		SubjectLevel:  layout.SubjectLevel,
+		VisitLevel:    layout.VisitLevel,
+		ModalityLevel: layout.ModalityLevel,
+		Description:   layout.Describe(),
+	}
+}
+
+// sameReading reports whether two scans read the paths the same way.
+func sameReading(a, b ontologyReadingRule) bool {
+	return a.Source == b.Source &&
+		a.SubjectLevel == b.SubjectLevel &&
+		a.VisitLevel == b.VisitLevel &&
+		a.ModalityLevel == b.ModalityLevel
 }
 
 type ontologyListItem struct {
@@ -701,7 +750,15 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read ontologies"})
 		return
 	}
+	// Ce qui a change, et pourquoi.
+	//
+	// C'est la seconde decision de l'ADR-040 et la seule qui rend un rescan
+	// lisible : deux photographies du meme bucket different soit parce que la
+	// donnee a bouge, soit parce que la lecture a change. Sans le dire, le
+	// compte de sujets qui passe de 2 a 31 est une enigme.
+	var difference *ontologyRefreshDiff
 	if refreshed {
+		difference = compareOntologyScans(object.Manifest, manifest)
 		if err := h.ontologyStore.ReplaceManifest(object.ID, raw, identity.UserID()); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to refresh ontology object"})
 			return
@@ -739,7 +796,11 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 	if refreshed {
 		status = http.StatusOK
 	}
-	writeJSON(w, status, map[string]any{"manifest": manifest, "item": object, "refreshed": refreshed})
+	payload := map[string]any{"manifest": manifest, "item": object, "refreshed": refreshed}
+	if difference != nil {
+		payload["changed"] = difference
+	}
+	writeJSON(w, status, payload)
 }
 
 // ontologyToRefresh finds the ontology a re-scan should replace: same source,
@@ -1125,9 +1186,13 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		SourceID:         item.ID,
 		SourceName:       item.Name,
 		InferenceProfile: "health-file-path-v1",
-		DatasetID:        item.ID,
-		DatasetName:      item.Name,
-		Study:            study,
+		// La regle reellement appliquee, et non son nom : c'est ce qui permet
+		// de dire si deux scans different parce que la donnee a bouge ou
+		// parce que la lecture a change.
+		ReadingRule: describeReading(item.PathLayout),
+		DatasetID:   item.ID,
+		DatasetName: item.Name,
+		Study:       study,
 		Summary: ontologySummary{
 			Subjects:          len(manifestSubjects),
 			Visits:            visitCount,
@@ -1493,4 +1558,50 @@ func lireLeChemin(layout *dataset.PathLayout, relPath string) (subjectID, visitD
 		return layout.Read(relPath)
 	}
 	return inferOntologyPath(relPath)
+}
+
+// ontologyRefreshDiff says what a rescan changed, and why.
+//
+// "Why" is the half that was missing. A subject count that moves is either the
+// study recruiting or the reading changing, and those call for opposite
+// reactions: one is news about the data, the other is a rule somebody edited.
+// Reporting the counts without the cause leaves a person to guess, and the
+// guess is usually "the platform is broken".
+type ontologyRefreshDiff struct {
+	// ReadingChanged is the first thing to look at: when it is true, every
+	// other figure below moved for that reason until proven otherwise.
+	ReadingChanged  bool   `json:"readingChanged"`
+	PreviousReading string `json:"previousReading,omitempty"`
+	CurrentReading  string `json:"currentReading,omitempty"`
+
+	PreviousObjects  int `json:"previousObjects"`
+	CurrentObjects   int `json:"currentObjects"`
+	PreviousSubjects int `json:"previousSubjects"`
+	CurrentSubjects  int `json:"currentSubjects"`
+}
+
+// compareOntologyScans reads the stored manifest and compares it with the new
+// one. An unreadable previous manifest yields nothing rather than a wrong
+// comparison: saying "the reading changed" when it did not would send somebody
+// after a rule they never edited.
+func compareOntologyScans(previousRaw []byte, current ontologyManifest) *ontologyRefreshDiff {
+	var previous ontologyManifest
+	if len(previousRaw) == 0 || json.Unmarshal(previousRaw, &previous) != nil {
+		return nil
+	}
+	changed := !sameReading(previous.ReadingRule, current.ReadingRule)
+	// Un manifeste anterieur a cette decision ne porte aucune regle : on ne
+	// peut donc pas dire que la lecture a change, seulement qu'on ne sait pas.
+	if strings.TrimSpace(previous.ReadingRule.Source) == "" {
+		changed = false
+	}
+	return &ontologyRefreshDiff{
+		ReadingChanged:   changed,
+		PreviousReading:  previous.ReadingRule.Description,
+		CurrentReading:   current.ReadingRule.Description,
+		PreviousObjects:  previous.Summary.Objects,
+		CurrentObjects:   current.Summary.Objects,
+		PreviousSubjects: previous.Summary.Subjects,
+		CurrentSubjects:  current.Summary.Subjects,
+	}
 }

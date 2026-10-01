@@ -555,7 +555,24 @@ export const ontologiesApi = {
    *  Attaching the result to a project is a separate call that already exists:
    *  PUT /projects/{projectID}/ontologies/{ontologyID}. */
   scanOntology: (input: { datasetId: string; inferenceProfile?: string }) =>
-    api.post<{ manifest?: OntologyManifestSummary; item?: Ontology; refreshed?: boolean }>(
+    api.post<{
+      manifest?: OntologyManifestSummary;
+      item?: Ontology;
+      refreshed?: boolean;
+      /** Ce qu'un rafraichissement a change, et pourquoi. Absent au premier
+       *  scan, et absent quand le manifeste precedent est anterieur a
+       *  l'enregistrement de la regle : dire "la lecture a change" a tort
+       *  enverrait chercher une regle que personne n'a editee. */
+      changed?: {
+        readingChanged: boolean;
+        previousReading?: string;
+        currentReading?: string;
+        previousObjects: number;
+        currentObjects: number;
+        previousSubjects: number;
+        currentSubjects: number;
+      };
+    }>(
       `${V1}/ontologies/scans`,
       input,
     ),

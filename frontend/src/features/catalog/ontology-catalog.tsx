@@ -70,6 +70,9 @@ type ManifestLu = {
     layoutSamples?: string[];
     directoryKeys?: number;
   };
+  /** La regle qui a produit CETTE photographie, et non le nom d'un profil qui
+   *  a pu changer depuis (ADR-040). */
+  readingRule?: { source?: string; description?: string };
 };
 
 /**
@@ -512,7 +515,11 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
             *  ne dit rien a personne ; ce qu'il faut savoir est que cette
             *  photographie-ci a ete prise avec cette regle-la. */}
           <span>{t('ontologies.patternProducedWith')}</span>
-          <Badge tone="outline">{ontology.inferenceProfile || '—'}</Badge>
+          <Badge tone="outline">
+            {(ontology.manifest as ManifestLu | undefined)?.readingRule?.description ||
+              ontology.inferenceProfile ||
+              '—'}
+          </Badge>
           {dossiers > 0 ? (
             <span>{t('ontologies.patternDirectories', { count: formatNumber(dossiers, locale) })}</span>
           ) : null}
@@ -1082,6 +1089,24 @@ function OntologyScan() {
           subjects: formatNumber(summary?.subjects ?? 0, locale),
         }),
       );
+      // Et pourquoi ca differe, quand ca differe.
+      //
+      // Un compte de sujets qui passe de 2 a 31 est soit l'etude qui recrute,
+      // soit une regle que quelqu'un vient d'editer - deux nouvelles
+      // differentes, qui appellent des reactions opposees. Donner les chiffres
+      // sans la cause laisse deviner.
+      const diff = response.changed;
+      if (diff && (diff.previousObjects !== diff.currentObjects || diff.previousSubjects !== diff.currentSubjects)) {
+        toast.success(
+          t(diff.readingChanged ? 'ontologies.scanChangedReading' : 'ontologies.scanChangedData', {
+            objectsBefore: formatNumber(diff.previousObjects, locale),
+            objectsAfter: formatNumber(diff.currentObjects, locale),
+            subjectsBefore: formatNumber(diff.previousSubjects, locale),
+            subjectsAfter: formatNumber(diff.currentSubjects, locale),
+          }),
+          t('ontologies.scanChangedTitle'),
+        );
+      }
       invalidate(qk.ontologies);
     },
     onError: (error) => toast.error(error, t('ontologies.scanTitle')),
