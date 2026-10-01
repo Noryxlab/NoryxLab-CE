@@ -89,6 +89,7 @@ import type {
   WorkspaceStartup,
   ExtractIntegrity,
   ExtractMembers,
+  DeletionCost,
 } from './types';
 
 const V1 = '/api/v1';
@@ -513,6 +514,22 @@ export const pathLayoutApi = {
   /** Ce que la regle lirait, sur de vrais chemins, sans rien enregistrer. */
   try: (datasetId: string, input: Record<string, number | null>) =>
     api.post<DatasetPathLayoutTrial>(`${V1}/datasets/${datasetId}/path-layout/trials`, input),
+};
+
+/** Ce que supprimer emporte.
+ *
+ *  Une ontologie detruit ses extraits - un extrait est une selection sur ses
+ *  sujets et ne veut rien dire sans elle. Un dataset ne detruit rien et laisse
+ *  ses ontologies decrire une source disparue, ce qui est pire a sa facon :
+ *  l'ecran continue de les montrer et elles ont l'air utilisables.
+ *
+ *  Demande au clic plutot que calcule pour chaque ligne : une liste de
+ *  quarante paierait quarante reponses que personne ne lit. */
+export const deletionCostApi = {
+  ontology: (ontologyId: string) =>
+    api.get<DeletionCost>(`${V1}/ontologies/${ontologyId}/deletion-cost`),
+  dataset: (datasetId: string) =>
+    api.get<DeletionCost>(`${V1}/datasets/${datasetId}/deletion-cost`),
 };
 
 export const mountsApi = {

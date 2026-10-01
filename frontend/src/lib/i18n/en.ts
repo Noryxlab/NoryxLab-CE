@@ -542,6 +542,7 @@ export const en: Translations = {
   },
 
   datasets: {
+    deleteWarningOntologies: '{ontologies} ontology(ies) describe this dataset, carrying {extracts} extract(s). They will not be deleted: they stay in the catalogue describing a source that no longer exists, and the first sign will be a scan that cannot find its bucket.',
     editTitle: 'Edit the dataset',
     editHint: 'The name and the description. Where it is stored cannot be changed here: the server does not support it yet, and the mounts already created carry the address frozen in.',
     storageFixed: 'Storage (not editable)',
@@ -766,6 +767,8 @@ export const en: Translations = {
     renameHint: 'The name comes from the scan, which reads it off the source. Correcting it touches neither the scanned objects nor the extracts: only what is displayed changes.',
     deleteTitle: 'Delete the ontology',
     deleteWarning: 'Attached projects will lose access to this model.',
+    deleteWarningExtracts: 'This ontology carries {count} extract(s): they will be destroyed with it. A frozen selection cannot be rebuilt identically - a new scan over a source that has grown gives a different n. To read the source again, scan it instead: that refreshes the ontology without deleting it.',
+    deleteWarningUnknown: 'What this deletion takes with it could not be read. Any extract declared on this ontology would be destroyed with it.',
   },
 
   repositories: {

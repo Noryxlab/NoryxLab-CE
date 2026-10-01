@@ -52,7 +52,7 @@ import {
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
-import { ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
+import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPathLayoutTrial } from '@/lib/api/types';
@@ -1280,6 +1280,40 @@ export function OntologyCatalog() {
   const [mountedOntology, setMountedOntology] = React.useState<Ontology | null>(null);
   const selected = ontologies.data?.find((ontology) => ontology.id === selectedId) ?? null;
 
+  /* Demander ce que la suppression emporte, avant de la proposer.
+   *
+   *  Le 2026-10-01 quelqu'un a supprime une ontologie pour la rescanner -
+   *  l'habitude d'avant que le rescan rafraichisse sur place - et un extrait
+   *  de 4 019 fichiers est parti avec elle. La confirmation disait "supprimer
+   *  l'ontologie" et rien d'autre.
+   *
+   *  Quand il y a quelque chose a perdre, on demande aussi le nom : taper un
+   *  nom est le temps d'arret qui manquait. */
+  const demanderSuppression = async (ontology: Ontology) => {
+    let cout: Awaited<ReturnType<typeof deletionCostApi.ontology>> | null;
+    try {
+      cout = await deletionCostApi.ontology(ontology.id);
+    } catch {
+      // Ne pas savoir ce que ca coute n'empeche pas de supprimer : on le dit,
+      // et on demande le nom par precaution.
+      cout = null;
+    }
+    const extraits = cout?.extracts ?? 0;
+    ask({
+      title: t('ontologies.deleteTitle'),
+      description:
+        extraits > 0
+          ? t('ontologies.deleteWarningExtracts', { count: String(extraits) })
+          : cout === null
+            ? t('ontologies.deleteWarningUnknown')
+            : t('ontologies.deleteWarning'),
+      confirmLabel: t('common.delete'),
+      destructive: true,
+      confirmationValue: extraits > 0 || cout === null ? ontology.name : undefined,
+      onConfirm: () => remove.mutateAsync(ontology.id),
+    });
+  };
+
   const remove = useMutation({
     mutationFn: (ontologyId: string) => ontologiesApi.remove(ontologyId),
     onSuccess: () => {
@@ -1414,15 +1448,7 @@ export function OntologyCatalog() {
               ) : null}
               <DropdownMenuItem
                 destructive
-                onSelect={() =>
-                  ask({
-                    title: t('ontologies.deleteTitle'),
-                    description: t('ontologies.deleteWarning'),
-                    confirmLabel: t('common.delete'),
-                    destructive: true,
-                    onConfirm: () => remove.mutateAsync(ontology.id),
-                  })
-                }
+                onSelect={() => void demanderSuppression(ontology)}
               >
                 <Trash2 aria-hidden />
                 {t('common.delete')}

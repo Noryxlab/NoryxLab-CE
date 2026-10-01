@@ -389,6 +389,18 @@ components:
         Isolating a workload that has no extract to isolate to is refused
         rather than accepted: a workload with no data and no explanation reads
         as a platform that lost the study.
+    DeletionCost:
+      type: object
+      properties:
+        ontologies:
+          type: integer
+          description: Ontologies left describing a source that no longer exists.
+        extracts:
+          type: integer
+          description: Frozen selections destroyed, or left without their ontology.
+        objects:
+          type: integer
+          description: Scanned paths destroyed with the ontology.
     Extract:
       type: object
       properties:
@@ -7053,6 +7065,69 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/deletion-cost:
+    get:
+      tags: [Datasets]
+      summary: What Deleting This Ontology Destroys
+      description: >-
+        An extract is a selection over this ontology's subjects and means
+        nothing without it, so deleting the ontology destroys its extracts. On
+        2026-10-01 somebody deleted one to rescan it - the habit from before a
+        rescan refreshed in place - and a 4,019-file extract went with it,
+        because the confirmation said "delete the ontology" and nothing else.
+
+
+        Asked when somebody clicks delete rather than computed for every row: a
+        list of forty would pay for forty answers nobody reads.
+      operationId: getOntologyDeletionCost
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionCost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/deletion-cost:
+    get:
+      tags: [Datasets]
+      summary: What Deleting This Dataset Leaves Behind
+      description: >-
+        Nothing cascades, which is the point. The ontologies that describe this
+        dataset survive it and go on describing a bucket that is gone - they
+        keep appearing in the catalogue and keep looking usable, and the first
+        sign is a rescan that cannot find its source.
+      operationId: getDatasetDeletionCost
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionCost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/datasets/{datasetID}/path-layout:

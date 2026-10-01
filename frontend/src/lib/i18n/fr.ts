@@ -547,6 +547,7 @@ export const fr = {
   },
 
   datasets: {
+    deleteWarningOntologies: '{ontologies} ontologie(s) décrivent ce dataset, portant {extracts} extrait(s). Elles ne seront pas supprimées : elles resteront au catalogue en décrivant une source qui n’existe plus, et le premier signe sera un scan qui ne retrouve pas son bucket.',
     editTitle: 'Modifier le jeu de données',
     editHint: "Le nom et la description. L'emplacement de stockage ne se change pas ici : le serveur ne sait pas encore le faire, et les montages déjà créés le portent gelé.",
     storageFixed: 'Stockage (non modifiable)',
@@ -772,6 +773,8 @@ export const fr = {
     renameHint: 'Le nom vient du scan, qui le lit sur la source. Le corriger ne touche ni les objets scannés ni les extraits : seul ce qui s’affiche change.',
     deleteTitle: 'Supprimer l’ontologie',
     deleteWarning: 'Les projets rattachés perdront l’accès à ce modèle.',
+    deleteWarningExtracts: 'Cette ontologie porte {count} extrait(s) : ils seront détruits avec elle. Une sélection figée ne se reconstruit pas à l’identique — un nouveau scan sur une source qui a grandi donne un autre n. Pour relire la source, relancez plutôt un scan : il met l’ontologie à jour sans la supprimer.',
+    deleteWarningUnknown: 'Impossible de savoir ce que cette suppression emporte. Les extraits déclarés sur cette ontologie seraient détruits avec elle.',
   },
 
   repositories: {

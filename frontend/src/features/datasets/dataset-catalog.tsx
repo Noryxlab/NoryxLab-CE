@@ -35,7 +35,7 @@ import {
   qk,
   useInvalidate,
 } from '@/lib/api/queries';
-import { datasetsApi } from '@/lib/api/endpoints';
+import { datasetsApi, deletionCostApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { presentRole } from '@/lib/presenters';
@@ -689,6 +689,37 @@ export function DatasetCatalog({
   const [editing, setEditing] = React.useState<Dataset | null>(null);
   const [mounted, setMounted] = React.useState<Dataset | null>(null);
 
+  /* Ce qu'une suppression de dataset laisse derriere elle.
+   *
+   *  Rien ne cascade, et c'est justement le probleme : les ontologies qui
+   *  decrivent ce bucket lui survivent et continuent de le decrire. Elles
+   *  restent au catalogue, elles ont l'air utilisables, et le premier signe
+   *  est un scan qui ne retrouve pas sa source. */
+  const demanderSuppression = async (dataset: Dataset) => {
+    let cout: Awaited<ReturnType<typeof deletionCostApi.dataset>> | null;
+    try {
+      cout = await deletionCostApi.dataset(dataset.id);
+    } catch {
+      cout = null;
+    }
+    const ontologies = cout?.ontologies ?? 0;
+    const extraits = cout?.extracts ?? 0;
+    ask({
+      title: t('datasets.deleteTitle'),
+      description:
+        ontologies > 0
+          ? t('datasets.deleteWarningOntologies', {
+              ontologies: String(ontologies),
+              extracts: String(extraits),
+            })
+          : t('datasets.deleteWarning'),
+      confirmLabel: t('common.delete'),
+      destructive: true,
+      confirmationValue: dataset.name,
+      onConfirm: () => remove.mutateAsync(dataset.id),
+    });
+  };
+
   const selected = datasets.data?.find((dataset) => dataset.id === selectedId) ?? null;
 
   const remove = useMutation({
@@ -825,16 +856,7 @@ export function DatasetCatalog({
               </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
-                onSelect={() =>
-                  ask({
-                    title: t('datasets.deleteTitle'),
-                    description: t('datasets.deleteWarning'),
-                    confirmLabel: t('common.delete'),
-                    destructive: true,
-                    confirmationValue: dataset.name,
-                    onConfirm: () => remove.mutateAsync(dataset.id),
-                  })
-                }
+                onSelect={() => void demanderSuppression(dataset)}
               >
                 <Trash2 aria-hidden />
                 {t('common.delete')}

@@ -1175,6 +1175,13 @@ export interface ExtractIntegrity {
   complete: boolean;
 }
 
+/** Ce qu'une suppression emporte, demande avant de la confirmer. */
+export interface DeletionCost {
+  ontologies?: number;
+  extracts?: number;
+  objects?: number;
+}
+
 export type ExtractLevel = 'subject' | 'visit' | 'modality';
 
 export interface Extract {
