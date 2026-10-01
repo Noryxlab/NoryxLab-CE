@@ -352,6 +352,21 @@ components:
       properties:
         id:
           type: string
+        layout:
+          type: array
+          items:
+            type: string
+            enum: [subject, visit, modality]
+          description: >-
+            The order of the directory levels a mount builds, and the other half
+            of what an extract is. A selection says which files; a layout says
+            how they are arranged to work on - subject-first answers "what does
+            this patient have", modality-first answers "show me every cornea
+            scan I hold". A permutation of the three levels, never a subset:
+            dropping one would put files from different visits in the same
+            directory, where the ones sharing a name would overwrite each other
+            and the study would quietly lose rows. Absent means the default,
+            subject first.
     ExtractListResponse:
       type: object
       properties:

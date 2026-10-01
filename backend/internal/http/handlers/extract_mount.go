@@ -43,10 +43,19 @@ const (
 type extractMountEntry struct {
 	ExtractName string
 	DatasetDir  string
-	SubjectID   string
-	Visit       string
-	Modality    string
-	Path        string
+	// Dir is where this file sits under the extract, levels already in the
+	// order the extract asked for.
+	//
+	// The three levels used to be separate fields and the shell joined them in
+	// a fixed order, which is why the tree could only ever be subject-first.
+	// Composing the directory here makes the layout a property of the extract
+	// instead of a line of the bootstrap script - and leaves the shell with
+	// one less thing to get right.
+	Dir       string
+	SubjectID string
+	Visit     string
+	Modality  string
+	Path      string
 	// Leaf is where the file sits under the modality, and it is not its name.
 	//
 	// The tree used to place each file under its basename, which loses every
@@ -98,8 +107,8 @@ func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 		if strings.ContainsAny(entry.Path, "\t\n") {
 			continue
 		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			entry.ExtractName, entry.DatasetDir, entry.SubjectID, entry.Visit, entry.Modality, entry.Path, entry.Leaf)
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n",
+			entry.ExtractName, entry.DatasetDir, entry.Dir, entry.Path, entry.Leaf)
 	}
 	if err := writer.Close(); err != nil {
 		return "", false
@@ -138,8 +147,8 @@ func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCou
 		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
 		// mounted read-only, and the extract is a second way of looking at it.
-		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r extract dataset subject visit modality path feuille; do",
-		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$extract\"/\"$subject\"/\"$visit\"/\"$modality\"", shellQuote(root)),
+		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r extract dataset niveaux path feuille; do",
+		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$extract\"/\"$niveaux\"", shellQuote(root)),
 		"    mkdir -p \"$dir\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",
 		"    ln -sfn \"$target\" \"$dir\"/\"$feuille\" 2>/dev/null || true",
 		"  done",
@@ -237,12 +246,16 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 		members = withoutDirectoryKeys(members)
 		name := sanitizeWorkspacePathName(item.Name)
 		for _, member := range members {
+			subject := sanitizeWorkspacePathName(member.SubjectID)
+			visit := sanitizeWorkspacePathName(member.Visit)
+			modality := sanitizeWorkspacePathName(member.Modality)
 			entries = append(entries, extractMountEntry{
 				ExtractName: name,
 				DatasetDir:  directory,
-				SubjectID:   sanitizeWorkspacePathName(member.SubjectID),
-				Visit:       sanitizeWorkspacePathName(member.Visit),
-				Modality:    sanitizeWorkspacePathName(member.Modality),
+				Dir:         strings.Join(extractdomain.DirectoryFor(item.Layout, subject, visit, modality), "/"),
+				SubjectID:   subject,
+				Visit:       visit,
+				Modality:    modality,
 				Path:        member.Path,
 				Leaf:        extractLeaf(member.Path, member.Modality),
 			})

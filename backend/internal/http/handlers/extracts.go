@@ -33,6 +33,10 @@ type extractRequest struct {
 	Subjects    []string `json:"subjects"`
 	Modalities  []string `json:"modalities"`
 	Visits      []string `json:"visits"`
+	// Layout is the order of the directory levels the mount builds. Empty is
+	// the default, subject first, which is what every extract carried before
+	// the order could be chosen.
+	Layout []string `json:"layout"`
 }
 
 func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +108,14 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	layout, probleme := extractdomain.NormaliseLayout(req.Layout)
+	if probleme != "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": probleme})
+		return
+	}
+
 	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
+	object.Layout = layout
 	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {
 		object.TotalBytes += member.SizeBytes

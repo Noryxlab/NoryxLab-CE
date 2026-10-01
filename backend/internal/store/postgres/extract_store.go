@@ -17,7 +17,7 @@ import (
 type ExtractStore struct{ *Store }
 
 func (s *ExtractStore) ListByProject(projectID string) ([]extract.Extract, error) {
-	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE project_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(projectID))
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, layout_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE project_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(projectID))
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (s *ExtractStore) ListByProject(projectID string) ([]extract.Extract, error
 }
 
 func (s *ExtractStore) ListByOntology(ontologyID string) ([]extract.Extract, error) {
-	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE ontology_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(ontologyID))
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, layout_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE ontology_id=$1 ORDER BY created_at DESC`, strings.TrimSpace(ontologyID))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (s *ExtractStore) ListByOntology(ontologyID string) ([]extract.Extract, err
 }
 
 func (s *ExtractStore) GetByID(id string) (extract.Extract, bool, error) {
-	row := s.db.QueryRow(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE id=$1`, strings.TrimSpace(id))
+	row := s.db.QueryRow(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, layout_json, object_count, total_bytes, created_at, updated_at FROM extracts WHERE id=$1`, strings.TrimSpace(id))
 	item, err := scanExtract(row)
 	if err == sql.ErrNoRows {
 		return extract.Extract{}, false, nil
@@ -68,6 +68,7 @@ func (s *ExtractStore) Create(item extract.Extract, members []extract.Member) er
 	subjects, _ := json.Marshal(item.Subjects)
 	modalities, _ := json.Marshal(item.Modalities)
 	visits, _ := json.Marshal(item.Visits)
+	layout, _ := json.Marshal(item.Layout)
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -75,8 +76,8 @@ func (s *ExtractStore) Create(item extract.Extract, members []extract.Member) er
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.Exec(`INSERT INTO extracts (id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, object_count, total_bytes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
-		item.ID, item.OntologyID, item.ProjectID, item.OwnerUserID, item.OwnerType, item.OwnerID, item.Name, item.Description, subjects, modalities, visits, item.ObjectCount, item.TotalBytes, item.CreatedAt, item.UpdatedAt); err != nil {
+	if _, err := tx.Exec(`INSERT INTO extracts (id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, layout_json, object_count, total_bytes, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+		item.ID, item.OntologyID, item.ProjectID, item.OwnerUserID, item.OwnerType, item.OwnerID, item.Name, item.Description, subjects, modalities, visits, layout, item.ObjectCount, item.TotalBytes, item.CreatedAt, item.UpdatedAt); err != nil {
 		return err
 	}
 	statement, err := tx.Prepare(`INSERT INTO extract_members (extract_id, path, subject_id, visit, modality, size_bytes) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (extract_id, path) DO NOTHING`)
@@ -126,9 +127,9 @@ type rowScanner interface {
 
 func scanExtract(row rowScanner) (extract.Extract, error) {
 	var item extract.Extract
-	var subjects, modalities, visits []byte
+	var subjects, modalities, visits, layout []byte
 	var created, updated time.Time
-	if err := row.Scan(&item.ID, &item.OntologyID, &item.ProjectID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &subjects, &modalities, &visits, &item.ObjectCount, &item.TotalBytes, &created, &updated); err != nil {
+	if err := row.Scan(&item.ID, &item.OntologyID, &item.ProjectID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &subjects, &modalities, &visits, &layout, &item.ObjectCount, &item.TotalBytes, &created, &updated); err != nil {
 		return extract.Extract{}, err
 	}
 	item.CreatedAt = created
@@ -138,6 +139,7 @@ func scanExtract(row rowScanner) (extract.Extract, error) {
 	_ = json.Unmarshal(subjects, &item.Subjects)
 	_ = json.Unmarshal(modalities, &item.Modalities)
 	_ = json.Unmarshal(visits, &item.Visits)
+	_ = json.Unmarshal(layout, &item.Layout)
 	if item.Subjects == nil {
 		item.Subjects = []string{}
 	}

@@ -39,12 +39,28 @@ type Extract struct {
 	OwnerID   string `json:"ownerId"`
 	// OwnerName is what a screen shows, resolved from the directory for an
 	// organization and equal to the username for a person.
-	OwnerName   string    `json:"ownerName,omitempty"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Subjects    []string  `json:"subjects"`
-	Modalities  []string  `json:"modalities"`
-	Visits      []string  `json:"visits"`
+	OwnerName   string   `json:"ownerName,omitempty"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Subjects    []string `json:"subjects"`
+	Modalities  []string `json:"modalities"`
+	Visits      []string `json:"visits"`
+	// Layout is the order of the directory levels a mount builds, and it is
+	// the other half of what an extract is.
+	//
+	// A selection says *which* files; a layout says how they are arranged to
+	// work on. The same selection organised subject-first answers "what does
+	// this patient have", and modality-first answers "show me every cornea
+	// scan I hold" - two different questions, one set of files, and until now
+	// only the first was expressible because the tree was built in a fixed
+	// order.
+	//
+	// A permutation of the three levels, never a subset: dropping one would
+	// put files from different visits in the same directory, where the ones
+	// sharing a name would overwrite each other and the study would quietly
+	// lose rows. Empty means the default, which is what every extract
+	// declared before this carried.
+	Layout      []string  `json:"layout,omitempty"`
 	ObjectCount int       `json:"objectCount"`
 	TotalBytes  int64     `json:"totalBytes"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -94,6 +110,73 @@ func normalize(values []string) []string {
 		}
 		seen[trimmed] = true
 		out = append(out, trimmed)
+	}
+	return out
+}
+
+// LevelSubject, LevelVisit and LevelModality are the three levels a mount can
+// be organised by. They are the ontology's own vocabulary - the one the scan
+// inferred and the one the filters use - so a layout names nothing new.
+const (
+	LevelSubject  = "subject"
+	LevelVisit    = "visit"
+	LevelModality = "modality"
+)
+
+// DefaultLayout is subject first: the arrangement every extract had before a
+// layout could be chosen, kept as the default so nothing moves underneath an
+// extract declared earlier.
+func DefaultLayout() []string {
+	return []string{LevelSubject, LevelVisit, LevelModality}
+}
+
+// NormaliseLayout accepts a permutation of the three levels and nothing else.
+//
+// Empty is the default rather than an error: an extract declared before
+// layouts existed has none, and a caller that does not care should not have to
+// name one. Anything else is refused with a reason, because a layout that was
+// silently corrected would arrange somebody's study differently from what they
+// asked for and say nothing.
+func NormaliseLayout(raw []string) ([]string, string) {
+	if len(raw) == 0 {
+		return DefaultLayout(), ""
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, 3)
+	for _, level := range raw {
+		level = strings.ToLower(strings.TrimSpace(level))
+		switch level {
+		case LevelSubject, LevelVisit, LevelModality:
+		default:
+			return nil, "a layout level must be one of subject, visit or modality"
+		}
+		if seen[level] {
+			return nil, "a layout names each level once"
+		}
+		seen[level] = true
+		out = append(out, level)
+	}
+	if len(out) != 3 {
+		return nil, "a layout names all three levels: subject, visit and modality"
+	}
+	return out, ""
+}
+
+// DirectoryFor places one member in the tree, following the layout.
+func DirectoryFor(layout []string, subject, visit, modality string) []string {
+	if len(layout) == 0 {
+		layout = DefaultLayout()
+	}
+	out := make([]string, 0, len(layout))
+	for _, level := range layout {
+		switch level {
+		case LevelSubject:
+			out = append(out, subject)
+		case LevelVisit:
+			out = append(out, visit)
+		case LevelModality:
+			out = append(out, modality)
+		}
 	}
 	return out
 }

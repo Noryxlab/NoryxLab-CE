@@ -16,12 +16,10 @@ import { useToast } from '@/components/ui/toast';
 import {
   useDatasets,
   useDatasources,
-  useOntologies,
   useProjectDatasets,
   useProjectDatasources,
   useExtracts,
   useProjectExtracts,
-  useProjectOntologies,
   useProjectRepositories,
   useRepositories,
   qk,
@@ -30,9 +28,19 @@ import {
 import { projectsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatNumber, formatRelative } from '@/lib/format';
-import type { Dataset, Datasource, Extract, Ontology, Repository } from '@/lib/api/types';
+import type { Dataset, Datasource, Extract, Repository } from '@/lib/api/types';
 
-const SECTIONS = ['datasets', 'datasources', 'ontologies', 'extracts', 'repositories'] as const;
+/* Pas d'ontologies ici, et c'est le modele qui le dit.
+ *
+ *  Cet ecran repond a "qu'est-ce que le workspace va voir". Une ontologie ne
+ *  se monte pas : elle decrit une source, elle ne la contient pas, et
+ *  workspaces.go ne contient pas une seule occurrence du mot. Le rattachement
+ *  existait donc comme un geste qui ne produisait rien de visible - on le
+ *  faisait, et rien n'arrivait.
+ *
+ *  Ce qui se monte est un extrait, dont le cas particulier sans filtre est
+ *  l'ontologie entiere. Le bouton est sur l'ontologie, dans le catalogue. */
+const SECTIONS = ['datasets', 'datasources', 'extracts', 'repositories'] as const;
 type Section = (typeof SECTIONS)[number];
 
 /**
@@ -105,12 +113,10 @@ export function ProjectDataPage() {
 
   const projectDatasets = useProjectDatasets(projectId);
   const projectDatasources = useProjectDatasources(projectId);
-  const projectOntologies = useProjectOntologies(projectId);
   const projectRepositories = useProjectRepositories(projectId);
 
   const allDatasets = useDatasets();
   const allDatasources = useDatasources();
-  const allOntologies = useOntologies();
   const projectExtracts = useProjectExtracts(projectId);
   const allExtracts = useExtracts();
   const allRepositories = useRepositories();
@@ -134,8 +140,6 @@ export function ProjectDataPage() {
           return projectsApi.attachDataset(id, input.id);
         case 'datasources':
           return projectsApi.attachDatasource(id, input.id);
-        case 'ontologies':
-          return projectsApi.attachOntology(id, input.id);
         case 'extracts':
           return projectsApi.attachExtract(id, input.id);
         case 'repositories':
@@ -154,8 +158,6 @@ export function ProjectDataPage() {
           return projectsApi.detachDataset(id, input.id);
         case 'datasources':
           return projectsApi.detachDatasource(id, input.id);
-        case 'ontologies':
-          return projectsApi.detachOntology(id, input.id);
         case 'extracts':
           return projectsApi.detachExtract(id, input.id);
         case 'repositories':
@@ -260,22 +262,6 @@ export function ProjectDataPage() {
     },
   ];
 
-  const ontologyColumns: Column<Ontology>[] = [
-    {
-      id: 'name',
-      header: t('common.name'),
-      sortValue: (ontology) => ontology.name,
-      cell: (ontology) => <span className="font-medium">{ontology.name}</span>,
-    },
-    {
-      id: 'source',
-      header: t('ontologies.source'),
-      cell: (ontology) => (
-        <span className="text-xs text-muted-foreground">{ontology.sourceName || '—'}</span>
-      ),
-    },
-  ];
-
   const repositoryColumns: Column<Repository>[] = [
     {
       id: 'name',
@@ -335,7 +321,6 @@ export function ProjectDataPage() {
         <TabsList>
           <TabsTrigger value="datasets">{t('nav.datasets')}</TabsTrigger>
           <TabsTrigger value="datasources">{t('nav.datasources')}</TabsTrigger>
-          <TabsTrigger value="ontologies">{t('nav.ontologies')}</TabsTrigger>
           <TabsTrigger value="extracts">{t('ontologies.extracts')}</TabsTrigger>
           <TabsTrigger value="repositories">{t('nav.repositories')}</TabsTrigger>
         </TabsList>
@@ -398,34 +383,6 @@ export function ProjectDataPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="ontologies" className="space-y-4">
-          <AttachBar
-            available={allOntologies.data ?? []}
-            attached={projectOntologies.data ?? []}
-            label={t('nav.ontologies')}
-            pending={attach.isPending}
-            onAttach={(id) => attach.mutate({ kind: 'ontologies', id })}
-          />
-          <Card>
-            <DataTable
-              data={projectOntologies.data}
-              columns={ontologyColumns}
-              rowKey={(ontology) => ontology.id}
-              isLoading={projectOntologies.isLoading}
-              isError={projectOntologies.isError}
-              error={projectOntologies.error}
-              onRetry={() => void projectOntologies.refetch()}
-              emptyState={
-                <EmptyState
-                  icon={Network}
-                  title={t('ontologies.empty')}
-                  description={t('ontologies.emptyHint')}
-                />
-              }
-              rowActions={(ontology) => detachAction('ontologies', ontology.id)}
-            />
-          </Card>
-        </TabsContent>
 
         {/* Un extrait se monte dans plusieurs projets sans etre duplique :
             c'est un lien, pas une appartenance. Detacher ne detruit rien - la

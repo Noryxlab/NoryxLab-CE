@@ -652,6 +652,12 @@ func migrationStatements() []string {
 		`UPDATE datasources SET owner_id=owner_user_id WHERE owner_id=''`,
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		// La disposition : l'ordre des niveaux que le montage construit.
+		//
+		// Vide pour tout ce qui existe deja, ce qui veut dire la disposition
+		// par defaut - sujet d'abord, celle que l'arbre codait en dur. Un
+		// extrait declare avant ce jour ne bouge donc pas.
+		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS layout_json JSONB NOT NULL DEFAULT '[]'`,
 		`UPDATE extracts SET owner_id=owner_user_id WHERE owner_id=''`,
 
 		// Un extrait se rattache comme tout ce qui est au-dessus de lui.

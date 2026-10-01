@@ -68,6 +68,7 @@ type ManifestLu = {
     unrecognisedObjects?: number;
     recognisedLayouts?: string[];
     layoutSamples?: string[];
+    directoryKeys?: number;
   };
 };
 
@@ -243,6 +244,75 @@ function OntologyFreshnessNote({ ontologyId }: { ontologyId: string }) {
  * assembling an extract by modality needs the second list by name, before they
  * publish an n.
  */
+/**
+ * Comment la plateforme lit cette source.
+ *
+ * Le pattern d'entree : quelle position d'un chemin porte le sujet, laquelle
+ * la date de visite, laquelle la modalite. C'est ce que le profil d'inference
+ * decide, et c'est ce que l'assistant propose quand on lui montre les formes.
+ *
+ * L'ecran n'en affichait que le nom - "health-file-path-v1" - qui ne dit rien
+ * a personne. Les formes reconnues, elles, le disent exactement : elles sont
+ * le pattern, mesure sur cette source et non promis en general. Et les formes
+ * qui n'ont rien produit disent ce qui est passe a cote, ce qui est la seule
+ * facon de savoir si la lecture est juste.
+ */
+function OntologyPattern({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const resume = (ontology.manifest as ManifestLu | undefined)?.summary;
+  const reconnues = resume?.recognisedLayouts ?? [];
+  const refusees = resume?.layoutSamples ?? [];
+  const dossiers = resume?.directoryKeys ?? 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.pattern')}</CardTitle>
+          <CardDescription>{t('ontologies.patternHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge tone="outline">{ontology.inferenceProfile || '—'}</Badge>
+          {dossiers > 0 ? (
+            <span>{t('ontologies.patternDirectories', { count: formatNumber(dossiers, locale) })}</span>
+          ) : null}
+        </div>
+
+        {reconnues.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('ontologies.patternNone')}</p>
+        ) : (
+          <div>
+            <p className="mb-1 text-xs font-medium">{t('ontologies.patternRecognised')}</p>
+            <ul className="space-y-0.5">
+              {reconnues.map((forme) => (
+                <li key={forme} className="font-mono text-xs text-muted-foreground">
+                  {forme}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {refusees.length > 0 ? (
+          <div>
+            <p className="mb-1 text-xs font-medium">{t('ontologies.patternUnrecognised')}</p>
+            <ul className="space-y-0.5">
+              {refusees.map((forme) => (
+                <li key={forme} className="font-mono text-xs text-muted-foreground">
+                  {forme}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
   const t = useT();
   const { locale } = useI18n();
@@ -467,6 +537,14 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
    *  Rien de coche vaut toutes les modalites, et c'est ecrit sous le champ
    *  plutot que laisse a deviner. */
   const [chosenModalities, setChosenModalities] = React.useState<string[]>([]);
+  /* La disposition : l'ordre des niveaux de l'arbre monte.
+   *
+   *  La selection dit quels fichiers, la disposition dit comment ils sont
+   *  ranges pour travailler. Par sujet on repond a "que possede ce patient",
+   *  par modalite a "montre-moi tous mes scans de cornee" - deux questions,
+   *  un seul ensemble de fichiers. L'arbre etait construit dans un ordre fixe,
+   *  donc seule la premiere etait exprimable. */
+  const [layout, setLayout] = React.useState<string>('subject,visit,modality');
   const coverage = useOntologyCompleteness(ontology.id);
   const availableModalities = coverage.data?.modalities ?? [];
 
@@ -490,15 +568,34 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
         // better than filing the extract under a project that will never mount it.
         modalities: chosenModalities,
         subjects: asList(subjects),
+        layout: layout.split(','),
       }),
     onSuccess: (created) => {
       toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
       setName('');
       setChosenModalities([]);
       setSubjects('');
+      setLayout('subject,visit,modality');
       invalidate(qk.ontologyExtracts(ontology.id));
     },
     onError: (error) => toast.error(error, t('ontologies.extractCreate')),
+  });
+
+  const createWhole = useMutation({
+    mutationFn: () =>
+      ontologiesApi.createExtract(ontology.id, {
+        name: ontology.name + ' — ' + t('ontologies.extractWholeSuffix'),
+        description: t('ontologies.extractWholeHint'),
+        modalities: [],
+        subjects: [],
+        layout: ['subject', 'visit', 'modality'],
+      }),
+    onSuccess: (created) => {
+      toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
+      invalidate(qk.ontologyExtracts(ontology.id));
+      invalidate(qk.extracts);
+    },
+    onError: (error) => toast.error(error, t('ontologies.extractWhole')),
   });
 
   const [transferred, setTransferred] = React.useState<Extract | null>(null);
@@ -524,7 +621,7 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
             event.preventDefault();
             if (name.trim()) create.mutate();
           }}
-          className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_1fr_auto] lg:items-end"
         >
           <Field label={t('common.name')}>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
@@ -568,6 +665,17 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
               )}
             </div>
           </Field>
+          <Field label={t('ontologies.extractLayout')} description={t('ontologies.extractLayoutHint')}>
+            <Select
+              value={layout}
+              onValueChange={setLayout}
+              options={[
+                { value: 'subject,visit,modality', label: t('ontologies.layoutSubjectFirst') },
+                { value: 'modality,subject,visit', label: t('ontologies.layoutModalityFirst') },
+                { value: 'visit,subject,modality', label: t('ontologies.layoutVisitFirst') },
+              ]}
+            />
+          </Field>
           <Field label={t('ontologies.extractSubjects')}>
             <Input
               value={subjects}
@@ -575,9 +683,27 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
               placeholder="PREMYOM1000-001"
             />
           </Field>
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
-            {t('ontologies.extractCreate')}
-          </Button>
+          <div className="flex gap-2">
+            <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
+              {t('ontologies.extractCreate')}
+            </Button>
+            {/* L'extrait maximal, c'est l'ontologie entiere.
+              *
+              *  Mecaniquement c'etait deja vrai - un filtre vide prend tout -
+              *  mais ce n'etait nomme nulle part, donc "et si je veux tout ?"
+              *  restait une question. Une ontologie ne se monte pas : elle
+              *  decrit, elle ne contient pas. Ce bouton est la facon de la
+              *  monter quand meme, en disant ce que ca veut dire. */}
+            <Button
+              type="button"
+              variant="secondary"
+              loading={createWhole.isPending}
+              onClick={() => createWhole.mutate()}
+              title={t('ontologies.extractWholeHint')}
+            >
+              {t('ontologies.extractWhole')}
+            </Button>
+          </div>
         </form>
 
         {extracts.data?.length ? (
@@ -1091,6 +1217,7 @@ export function OntologyCatalog() {
           if (!open) setMountedOntology(null);
         }}
       />
+      {selected ? <OntologyPattern ontology={selected} /> : null}
       {selected ? <OntologyNaming ontology={selected} /> : null}
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}

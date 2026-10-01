@@ -1134,6 +1134,8 @@ export interface MountedProjectList {
 /** A named selection of files, frozen when it is declared. It duplicates
  *  nothing: the paths point into the dataset where the data already lives, and
  *  a mount builds a tree of links over them. */
+export type ExtractLevel = 'subject' | 'visit' | 'modality';
+
 export interface Extract {
   ownerType?: string;
   ownerId?: string;
@@ -1147,6 +1149,10 @@ export interface Extract {
   subjects: string[];
   modalities: string[];
   visits: string[];
+  /** L'ordre des niveaux que le montage construit, et la seconde moitie de ce
+   *  qu'est un extrait : la selection dit quels fichiers, la disposition dit
+   *  comment ils sont ranges pour travailler. Absent = sujet d'abord. */
+  layout?: ExtractLevel[];
   objectCount: number;
   totalBytes: number;
   createdAt: string;
