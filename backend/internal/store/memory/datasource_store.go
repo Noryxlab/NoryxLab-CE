@@ -1,8 +1,10 @@
 package memory
 
 import (
+	"database/sql"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 )
@@ -84,4 +86,21 @@ func (s *DatasourceStore) Delete(id string) error {
 	}
 	s.items = out
 	return nil
+}
+
+// SetOwner hands the connector to somebody else, and touches nothing else.
+func (s *DatasourceStore) SetOwner(id, ownerType, ownerID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	trimmed := strings.TrimSpace(id)
+	for i := range s.items {
+		if s.items[i].ID != trimmed {
+			continue
+		}
+		s.items[i].OwnerType = strings.TrimSpace(ownerType)
+		s.items[i].OwnerID = strings.TrimSpace(ownerID)
+		s.items[i].UpdatedAt = time.Now().UTC()
+		return nil
+	}
+	return sql.ErrNoRows
 }

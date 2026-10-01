@@ -280,6 +280,10 @@ func (s *DatasourceStore) Create(item datasource.Datasource) error {
 func (s *DatasourceStore) Upsert(item datasource.Datasource) error {
 	return s.Store.UpsertDatasource(item)
 }
+func (s *DatasourceStore) SetOwner(id, ownerType, ownerID string) error {
+	return s.Store.SetDatasourceOwner(id, ownerType, ownerID)
+}
+
 func (s *DatasourceStore) Delete(id string) error { return s.Store.DeleteDatasource(id) }
 
 type StorageEndpointStore struct{ *Store }

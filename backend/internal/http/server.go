@@ -193,6 +193,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/extracts", h.CreateExtract)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/extracts", h.ListOntologyExtracts)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)
+	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/extracts/{extractID}", h.AttachProjectExtract)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/extracts/{extractID}", h.DetachProjectExtract)

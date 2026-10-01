@@ -9,8 +9,19 @@ import (
 )
 
 type Datasource struct {
-	ID                  string    `json:"id"`
-	OwnerUserID         string    `json:"ownerUserId"`
+	ID          string `json:"id"`
+	OwnerUserID string `json:"ownerUserId"`
+	// OwnerType and OwnerID carry the same meaning as on every other catalogue
+	// object: who the connector belongs to, and therefore who answers for it.
+	//
+	// A database connector outlives the person who declared it more often than
+	// anything else here - it points at a system the organization runs - and it
+	// was the last object that could not be handed on.
+	OwnerType string `json:"ownerType"`
+	OwnerID   string `json:"ownerId"`
+	// OwnerName is what a screen shows, resolved for a team or an organization
+	// and equal to the username for a person.
+	OwnerName           string    `json:"ownerName,omitempty"`
 	Name                string    `json:"name"`
 	Type                string    `json:"type"`
 	Source              string    `json:"source"`
@@ -58,8 +69,12 @@ func Internal(ownerUserID, name, database, username, passwordSecret, storageSize
 func New(ownerUserID, name, kind, host, database, username, passwordSecret, sslMode string, port int) Datasource {
 	now := time.Now().UTC()
 	return Datasource{
-		ID:             uuid.NewString(),
-		OwnerUserID:    ownerUserID,
+		ID:          uuid.NewString(),
+		OwnerUserID: ownerUserID,
+		// Le meme defaut que partout ailleurs dans le catalogue : son auteur,
+		// jusqu a ce que quelqu un le transfere.
+		OwnerType:      "user",
+		OwnerID:        ownerUserID,
 		Name:           name,
 		Type:           kind,
 		Source:         "external",

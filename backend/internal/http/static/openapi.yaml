@@ -5351,6 +5351,52 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}/ownership:
+    put:
+      tags: [Datasets]
+      summary: Hand a datasource to a person, a team or an organization
+      operationId: updateDatasourceOwner
+      description: >-
+        A database connector outlives the person who declared it more often than
+        anything else in the catalogue: it points at a system the organization
+        runs.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ownerType, ownerId]
+              properties:
+                ownerType:
+                  type: string
+                  enum: [user, team, organization]
+                ownerId:
+                  type: string
+                  description: A username, or a team or organization name or identifier.
+      responses:
+        '200':
+          description: The datasource, with its new owner.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
+        '400':
+          description: ownerType must be user, team or organization, and ownerId is required.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Datasource owner or global admin required, and membership of the destination.
+        '404':
+          description: No such datasource.
   /api/v1/extracts/{extractID}/ownership:
     put:
       tags: [Datasets]

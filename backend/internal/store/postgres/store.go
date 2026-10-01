@@ -646,6 +646,10 @@ func migrationStatements() []string {
 		// l UPDATE leur donne leur auteur : un extrait declare avant ce jour
 		// appartient a la personne qui l a declare, ce qui est ce qui etait
 		// vrai sans que la base sache le dire.
+		// Le dernier objet du catalogue a ne pas etre transferable.
+		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
+		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE datasources SET owner_id=owner_user_id WHERE owner_id=''`,
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_type TEXT NOT NULL DEFAULT 'user'`,
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE extracts SET owner_id=owner_user_id WHERE owner_id=''`,
@@ -2686,7 +2690,7 @@ func (s *Store) CountOntologyObjects(ontologyID string) (int, error) {
 }
 
 func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE owner_user_id=$1 ORDER BY updated_at DESC`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -2694,7 +2698,7 @@ func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, e
 	out := []datasource.Datasource{}
 	for rows.Next() {
 		var item datasource.Datasource
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -2703,7 +2707,7 @@ func (s *Store) ListDatasourcesByUser(userID string) ([]datasource.Datasource, e
 }
 
 func (s *Store) ListAllDatasources() ([]datasource.Datasource, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2711,7 +2715,7 @@ func (s *Store) ListAllDatasources() ([]datasource.Datasource, error) {
 	out := []datasource.Datasource{}
 	for rows.Next() {
 		var item datasource.Datasource
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -2721,8 +2725,8 @@ func (s *Store) ListAllDatasources() ([]datasource.Datasource, error) {
 
 func (s *Store) GetDatasourceByID(id string) (datasource.Datasource, bool, error) {
 	var item datasource.Datasource
-	err := s.db.QueryRow(`SELECT id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE id=$1`, strings.TrimSpace(id)).Scan(
-		&item.ID, &item.OwnerUserID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt,
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at FROM datasources WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return datasource.Datasource{}, false, nil
@@ -2734,8 +2738,8 @@ func (s *Store) GetDatasourceByID(id string) (datasource.Datasource, bool, error
 }
 
 func (s *Store) CreateDatasource(item datasource.Datasource) error {
-	_, err := s.db.Exec(`INSERT INTO datasources (id, owner_user_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
-		item.ID, item.OwnerUserID, item.Name, item.Type, item.Source, item.Host, item.Port, item.Database, item.Username, item.PasswordSecret, item.SSLMode, item.ServiceDefinitionID, item.Image, item.Dockerfile, item.System, item.Status, item.PodName, item.ServiceName, item.PVCName, item.StorageSize, item.HardwareTier, item.CreatedAt, item.UpdatedAt,
+	_, err := s.db.Exec(`INSERT INTO datasources (id, owner_user_id, owner_type, owner_id, name, type, source, host, port, database_name, username, password_secret, ssl_mode, service_definition_id, image, dockerfile, system, status, pod_name, service_name, pvc_name, storage_size, hardware_tier, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
+		item.ID, item.OwnerUserID, item.OwnerType, item.OwnerID, item.Name, item.Type, item.Source, item.Host, item.Port, item.Database, item.Username, item.PasswordSecret, item.SSLMode, item.ServiceDefinitionID, item.Image, item.Dockerfile, item.System, item.Status, item.PodName, item.ServiceName, item.PVCName, item.StorageSize, item.HardwareTier, item.CreatedAt, item.UpdatedAt,
 	)
 	return err
 }
@@ -3041,6 +3045,22 @@ func (s *Store) collectIDs(query string, arg string) ([]string, error) {
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// SetDatasourceOwner hands a connector to somebody else, and touches nothing
+// else: what it points at, its credentials and its history are what it is.
+func (s *Store) SetDatasourceOwner(id, ownerType, ownerID string) error {
+	result, err := s.db.Exec(
+		`UPDATE datasources SET owner_type=$2, owner_id=$3, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(id), strings.TrimSpace(ownerType), strings.TrimSpace(ownerID))
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (s *Store) AttachExtract(projectID, extractID string) error {
