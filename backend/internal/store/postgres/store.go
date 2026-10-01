@@ -3093,6 +3093,10 @@ func (s *Store) ListProjectExtractIDs(projectID string) ([]string, error) {
 	return s.collectIDs(`SELECT extract_id FROM project_extract_links WHERE project_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(projectID))
 }
 
+func (s *Store) ListDatasetProjectIDs(datasetID string) ([]string, error) {
+	return s.collectIDs(`SELECT project_id FROM project_datasets WHERE dataset_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(datasetID))
+}
+
 func (s *Store) ListExtractProjectIDs(extractID string) ([]string, error) {
 	return s.collectIDs(`SELECT project_id FROM project_extract_links WHERE extract_id=$1 ORDER BY created_at ASC`, strings.TrimSpace(extractID))
 }

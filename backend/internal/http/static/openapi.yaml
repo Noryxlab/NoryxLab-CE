@@ -245,6 +245,21 @@ components:
         tokens:
           type: integer
           description: How many of its credentials are live.
+    MountedProjectList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+        hidden:
+          type: integer
+          description: >-
+            How many projects mount this object that the caller may not know
+            about - not a member, or the project no longer exists.
     OntologyScanResult:
       type: object
       properties:
@@ -6973,6 +6988,128 @@ paths:
       responses:
         '204':
           description: Extract removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/projects:
+    get:
+      tags: [Datasets]
+      summary: List The Projects Mounting Dataset
+      description: >-
+        Where this dataset is mounted. Attaching only ever had one direction on
+        screen - a project listed what it mounted, and the object said nothing
+        about where it was mounted, which is backwards for an extract that
+        exists to be reused by several projects.
+
+
+        A project name carries a customer, a study, sometimes a person, so only
+        the projects the caller is a member of are named; an administrator gets
+        all of them. The rest are counted in `hidden`, because "mounted in two
+        projects you cannot see" is a true answer where silence would read as
+        "mounted nowhere" and invite somebody to delete it. A link to a project
+        that no longer exists is counted the same way.
+        
+      operationId: listDatasetProjects
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MountedProjectList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/projects:
+    get:
+      tags: [Datasets]
+      summary: List The Projects Mounting Ontology
+      description: >-
+        Where this ontology is mounted. Attaching only ever had one direction on
+        screen - a project listed what it mounted, and the object said nothing
+        about where it was mounted, which is backwards for an extract that
+        exists to be reused by several projects.
+
+
+        A project name carries a customer, a study, sometimes a person, so only
+        the projects the caller is a member of are named; an administrator gets
+        all of them. The rest are counted in `hidden`, because "mounted in two
+        projects you cannot see" is a true answer where silence would read as
+        "mounted nowhere" and invite somebody to delete it. A link to a project
+        that no longer exists is counted the same way.
+        
+      operationId: listOntologyProjects
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MountedProjectList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/extracts/{extractID}/projects:
+    get:
+      tags: [Datasets]
+      summary: List The Projects Mounting Extract
+      description: >-
+        Where this extract is mounted. Attaching only ever had one direction on
+        screen - a project listed what it mounted, and the object said nothing
+        about where it was mounted, which is backwards for an extract that
+        exists to be reused by several projects.
+
+
+        A project name carries a customer, a study, sometimes a person, so only
+        the projects the caller is a member of are named; an administrator gets
+        all of them. The rest are counted in `hidden`, because "mounted in two
+        projects you cannot see" is a true answer where silence would read as
+        "mounted nowhere" and invite somebody to delete it. A link to a project
+        that no longer exists is counted the same way.
+        
+
+        Seeing the extract at all follows its ontology, as everywhere else.
+      operationId: listExtractProjects
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MountedProjectList'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

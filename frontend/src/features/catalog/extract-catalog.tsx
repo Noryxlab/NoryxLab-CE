@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Pencil, Scissors, Trash2, UserRoundCog } from 'lucide-react';
+import { FolderOpen, Pencil, Scissors, Trash2, UserRoundCog } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -12,6 +12,7 @@ import { qk, useExtracts, useInvalidate, useOntologies } from '@/lib/api/queries
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
+import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
 import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
 
 /**
@@ -41,6 +42,7 @@ export function ExtractCatalog() {
   const ontologies = useOntologies();
   const [owned, setOwned] = React.useState<Extract | null>(null);
   const [renamed, setRenamed] = React.useState<Extract | null>(null);
+  const [mounted, setMounted] = React.useState<Extract | null>(null);
 
   const nomOntologie = (ontologyId: string) =>
     ontologies.data?.find((item) => item.id === ontologyId)?.name ?? ontologyId;
@@ -108,6 +110,11 @@ export function ExtractCatalog() {
       ),
     },
     {
+      id: 'projects',
+      header: t('mounts.title'),
+      cell: (extract) => <MountedProjects kind="extract" resourceId={extract.id} />,
+    },
+    {
       id: 'createdAt',
       header: t('common.createdAt'),
       sortValue: (extract) => extract.createdAt,
@@ -140,6 +147,10 @@ export function ExtractCatalog() {
           }
           rowActions={(extract) => (
             <>
+              <DropdownMenuItem onSelect={() => setMounted(extract)}>
+                <FolderOpen aria-hidden />
+                {t('mounts.title')}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setRenamed(extract)}>
                 <Pencil aria-hidden />
                 {t('ontologies.extractRename')}
@@ -173,6 +184,15 @@ export function ExtractCatalog() {
         open={Boolean(owned)}
         onOpenChange={(open) => {
           if (!open) setOwned(null);
+        }}
+      />
+      <ProjectMountsSheet
+        kind="extract"
+        resourceId={mounted?.id ?? null}
+        resourceName={mounted?.name}
+        open={Boolean(mounted)}
+        onOpenChange={(open) => {
+          if (!open) setMounted(null);
         }}
       />
       <ExtractRenameSheet

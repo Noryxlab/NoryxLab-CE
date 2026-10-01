@@ -372,6 +372,9 @@ func (s *ProjectResourceStore) ListProjectExtractIDs(projectID string) ([]string
 	return s.Store.ListProjectExtractIDs(projectID)
 }
 
+func (s *ProjectResourceStore) ListDatasetProjectIDs(datasetID string) ([]string, error) {
+	return s.Store.ListDatasetProjectIDs(datasetID)
+}
 func (s *ProjectResourceStore) ListExtractProjectIDs(extractID string) ([]string, error) {
 	return s.Store.ListExtractProjectIDs(extractID)
 }

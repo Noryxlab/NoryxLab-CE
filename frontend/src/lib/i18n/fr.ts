@@ -646,6 +646,19 @@ export const fr = {
     deleteWarning: 'Les projets rattachés perdront l’accès à cette source.',
   },
 
+  mounts: {
+    title: 'Projets',
+    hint: 'Un objet du catalogue se monte dans autant de projets qu’on veut : c’est un lien, pas une appartenance. Le détacher retire le montage, jamais l’objet.',
+    none: '—',
+    attach: 'Rattacher',
+    detach: 'Détacher',
+    attached: 'Rattaché au projet.',
+    detached: 'Détaché du projet.',
+    noProject: 'Vous n’êtes membre d’aucun projet.',
+    hidden: '+{count} non visible(s)',
+    hiddenHint: 'Monté aussi dans {count} projet(s) dont vous n’êtes pas membre, ou dont le projet a été supprimé.',
+  },
+
   ontologies: {
     describe: "Décrire la mise en page",
     describePrompt: "Aide-moi à décrire comment « {name} » est rangé, à partir des formes de chemins.",

@@ -21,6 +21,7 @@ import {
   repositoriesApi,
   secretsApi,
   teamsApi,
+  mountsApi,
   workspacesApi,
 } from './endpoints';
 import { describeStatus } from '@/components/ui/badge';
@@ -50,6 +51,9 @@ export const qk = {
   myOrganizations: ['organizations', 'mine'] as const,
 
   projects: ['projects'] as const,
+  /** Ou un objet du catalogue est monte. La cle porte le genre, parce que
+   *  trois objets differents repondent a la meme question. */
+  resourceMounts: (kind: string, id: string) => ['mounts', kind, id] as const,
   project: (projectId: string) => ['projects', projectId] as const,
   projectDatasets: (projectId: string) => ['projects', projectId, 'datasets'] as const,
   projectDatasources: (projectId: string) => ['projects', projectId, 'datasources'] as const,
@@ -218,6 +222,13 @@ export const useMyOrganizations = () =>
   });
 
 /* -- projects -------------------------------------------------------------- */
+
+export const useResourceMounts = (kind: 'dataset' | 'ontology' | 'extract', id: string | undefined) =>
+  useQuery({
+    queryKey: qk.resourceMounts(kind, id ?? ''),
+    queryFn: () => mountsApi[kind](id as string),
+    enabled: Boolean(id),
+  });
 
 export const useProjects = (options?: Options<Awaited<ReturnType<typeof projectsApi.list>>>) =>
   useQuery({ queryKey: qk.projects, queryFn: projectsApi.list, ...options });

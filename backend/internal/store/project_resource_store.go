@@ -4,6 +4,15 @@ type ProjectResourceStore interface {
 	AttachDataset(projectID, datasetID string) error
 	DetachDataset(projectID, datasetID string) error
 	ListProjectDatasetIDs(projectID string) ([]string, error)
+	// The other direction, for every attachable object.
+	//
+	// Attaching only ever had one direction on screen: a project listed what
+	// it mounted, and an object said nothing about where it was mounted. For
+	// an extract that is the wrong way round - it exists to be reused by
+	// several projects, which is the whole point of a link rather than an
+	// appartenance - and somebody looking at one had no way to ask the
+	// question from there.
+	ListDatasetProjectIDs(datasetID string) ([]string, error)
 	AttachRepository(projectID, repositoryID string) error
 	DetachRepository(projectID, repositoryID string) error
 	ListProjectRepositoryIDs(projectID string) ([]string, error)

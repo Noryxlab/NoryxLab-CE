@@ -83,6 +83,7 @@ import type {
   VersionInfo,
   Workspace,
   ServiceAccount,
+  MountedProjectList,
   WorkspaceStartup,
 } from './types';
 
@@ -482,6 +483,25 @@ export const teamsApi = {
    *  Exactly what the owner selector needs: the server refuses a transfer to a
    *  group you are not part of, so offering one would be offering a refusal. */
   mine: () => api.list<Team>(`${V1}/user/teams`),
+};
+
+/** Ou un objet du catalogue est monte.
+ *
+ *  Le rattachement n'avait qu'un sens a l'ecran : le projet listait ce qu'il
+ *  montait, l'objet ne disait rien de la ou il etait monte - ce qui est a
+ *  l'envers pour un extrait, qui existe pour etre repris par plusieurs
+ *  projets.
+ *
+ *  `hidden` compte les projets que l'appelant n'a pas a connaitre. "Monte dans
+ *  2 projets que vous ne voyez pas" est une reponse vraie ; le silence se
+ *  lirait "monte nulle part" et inviterait a supprimer. */
+export const mountsApi = {
+  dataset: (datasetId: string) =>
+    api.get<MountedProjectList>(`${V1}/datasets/${datasetId}/projects`),
+  ontology: (ontologyId: string) =>
+    api.get<MountedProjectList>(`${V1}/ontologies/${ontologyId}/projects`),
+  extract: (extractId: string) =>
+    api.get<MountedProjectList>(`${V1}/extracts/${extractId}/projects`),
 };
 
 export const ontologiesApi = {

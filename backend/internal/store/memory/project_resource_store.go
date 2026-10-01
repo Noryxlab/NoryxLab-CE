@@ -60,6 +60,20 @@ func (s *ProjectResourceStore) ListProjectDatasetIDs(projectID string) ([]string
 	return out, nil
 }
 
+func (s *ProjectResourceStore) ListDatasetProjectIDs(datasetID string) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	wanted := strings.TrimSpace(datasetID)
+	out := []string{}
+	for projectID, datasets := range s.projectDatasets {
+		if _, ok := datasets[wanted]; ok {
+			out = append(out, projectID)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 func (s *ProjectResourceStore) AttachRepository(projectID, repositoryID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

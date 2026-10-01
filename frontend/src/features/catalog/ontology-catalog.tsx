@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  FolderOpen,
   MessageCircle,
   Network,
   Pencil,
@@ -13,6 +14,7 @@ import {
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
+import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
 import { assistantAvailable, requestAssistant } from '@/lib/assistant-bridge';
@@ -930,6 +932,7 @@ export function OntologyCatalog() {
 
   const ontologies = useOntologies();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [mountedOntology, setMountedOntology] = React.useState<Ontology | null>(null);
   const selected = ontologies.data?.find((ontology) => ontology.id === selectedId) ?? null;
 
   const remove = useMutation({
@@ -978,6 +981,11 @@ export function OntologyCatalog() {
       cell: (ontology) => (
         <span className="text-xs text-muted-foreground">{ontology.inferenceProfile || '—'}</span>
       ),
+    },
+    {
+      id: 'projects',
+      header: t('mounts.title'),
+      cell: (ontology) => <MountedProjects kind="ontology" resourceId={ontology.id} />,
     },
     /* Pas de colonne de statut, et c'est delibere.
      *
@@ -1032,6 +1040,10 @@ export function OntologyCatalog() {
                 <Search aria-hidden />
                 {t('ontologies.query')}
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setMountedOntology(ontology)}>
+                <FolderOpen aria-hidden />
+                {t('mounts.title')}
+              </DropdownMenuItem>
               {/* Un bouton dedie, et pas le lanceur generique.
                 *
                 *  L'assistant porte une consigne par surface : celle-ci lui
@@ -1070,6 +1082,15 @@ export function OntologyCatalog() {
         />
       </Card>
 
+      <ProjectMountsSheet
+        kind="ontology"
+        resourceId={mountedOntology?.id ?? null}
+        resourceName={mountedOntology?.name}
+        open={Boolean(mountedOntology)}
+        onOpenChange={(open) => {
+          if (!open) setMountedOntology(null);
+        }}
+      />
       {selected ? <OntologyNaming ontology={selected} /> : null}
       {selected ? <OntologyQuery ontology={selected} /> : null}
       {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}

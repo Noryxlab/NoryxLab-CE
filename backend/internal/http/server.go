@@ -193,6 +193,11 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/extracts", h.CreateExtract)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/extracts", h.ListOntologyExtracts)
 	mux.HandleFunc("GET /api/v1/extracts", h.ListExtracts)
+	// Ou un objet du catalogue est monte. Le rattachement n'avait qu'un sens a
+	// l'ecran : le projet listait ce qu'il montait, l'objet ne disait rien.
+	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/projects", h.ListDatasetProjects)
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
+	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/members", h.GetExtractMembers)
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}", h.UpdateExtractMetadata)

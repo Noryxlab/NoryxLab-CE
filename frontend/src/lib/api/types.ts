@@ -1124,6 +1124,13 @@ export interface OntologyCompleteness {
   completeSubjects: number;
 }
 
+/** Les projets qui montent un objet du catalogue, et le nombre de ceux que
+ *  l'appelant n'a pas a connaitre. */
+export interface MountedProjectList {
+  items: { id: string; name: string }[];
+  hidden: number;
+}
+
 /** A named selection of files, frozen when it is declared. It duplicates
  *  nothing: the paths point into the dataset where the data already lives, and
  *  a mount builds a tree of links over them. */

@@ -640,6 +640,19 @@ export const en: Translations = {
     deleteWarning: 'Attached projects will lose access to this source.',
   },
 
+  mounts: {
+    title: 'Projects',
+    hint: 'A catalogue object mounts in as many projects as you like: it is a link, not an appartenance. Detaching removes the mount, never the object.',
+    none: '—',
+    attach: 'Attach',
+    detach: 'Detach',
+    attached: 'Attached to the project.',
+    detached: 'Detached from the project.',
+    noProject: 'You are not a member of any project.',
+    hidden: '+{count} not visible',
+    hiddenHint: 'Also mounted in {count} project(s) you are not a member of, or whose project has been deleted.',
+  },
+
   ontologies: {
     describe: 'Describe the layout',
     describePrompt: 'Help me describe how "{name}" is laid out, from the path shapes.',

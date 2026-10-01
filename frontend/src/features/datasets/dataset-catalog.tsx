@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Database, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Database, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
+import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { SearchInput } from '@/components/common/search-input';
@@ -686,6 +687,7 @@ export function DatasetCatalog({
   const [search, setSearch] = React.useState('');
   const [creating, setCreating] = React.useState(false);
   const [editing, setEditing] = React.useState<Dataset | null>(null);
+  const [mounted, setMounted] = React.useState<Dataset | null>(null);
 
   const selected = datasets.data?.find((dataset) => dataset.id === selectedId) ?? null;
 
@@ -749,6 +751,11 @@ export function DatasetCatalog({
       cell: (dataset) => <ResourceOwner owner={dataset} />,
     },
     {
+      id: 'projects',
+      header: t('mounts.title'),
+      cell: (dataset) => <MountedProjects kind="dataset" resourceId={dataset.id} />,
+    },
+    {
       id: 'updatedAt',
       header: t('common.updatedAt'),
       sortValue: (dataset) => dataset.updatedAt,
@@ -808,6 +815,10 @@ export function DatasetCatalog({
           rowActions={(dataset) => (
             <>
               <DropdownMenuItem onSelect={() => onSelect(dataset.id)}>{t('common.open')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setMounted(dataset)}>
+                <FolderOpen aria-hidden />
+                {t('mounts.title')}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setEditing(dataset)}>
                 <Pencil aria-hidden />
                 {t('common.edit')}
@@ -841,6 +852,16 @@ export function DatasetCatalog({
           <DatasetPermissions dataset={selected} />
         </>
       ) : null}
+
+      <ProjectMountsSheet
+        kind="dataset"
+        resourceId={mounted?.id ?? null}
+        resourceName={mounted?.name}
+        open={Boolean(mounted)}
+        onOpenChange={(open) => {
+          if (!open) setMounted(null);
+        }}
+      />
 
       <CreateDatasetSheet open={creating} onOpenChange={setCreating} />
       <EditDatasetSheet
