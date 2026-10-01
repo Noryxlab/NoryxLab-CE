@@ -58,6 +58,50 @@ could never define a study. Ontologies scanned before this refuse to produce an
 extract and ask for a rescan, rather than returning an empty selection that
 looks like a legitimate answer.
 
+**Declaring one.** An extract is a filter over the ontology's own vocabulary -
+modalities, subjects, visits - resolved once and frozen. The modalities are
+offered rather than typed: they are named and counted from the coverage above,
+exact spelling included, which is the part nobody can guess for a study they
+did not file. Selecting none means every modality, and the form says so under
+the field.
+
+That sentence used to live in the field's label, as "(empty = all)", and on
+2026-10-01 an extract declared as `Selena-extract-modality` came back carrying
+all 4,023 objects of its ontology because the field had stayed empty - nothing
+on the screen named the modalities it could have asked for. A wrong `n` is
+discovered months later, in a paper.
+
+**Rescanning.** Scanning a source already described refreshes that ontology
+rather than adding a second one beside it: the manifest and the stored paths
+are replaced, and the object keeps its identifier, its name, its owner, its
+permissions and the extracts declared over it - whose file lists are frozen, so
+a listing that changed underneath does not move their `n`. The reply says which
+happened, `created` or `updated`, and so does the message on screen.
+
+Only the same source with the same inference profile, and only among the
+ontologies the caller can already see: two profiles reading one bucket are two
+descriptions, and refreshing an invisible ontology would be editing somebody
+else's object through a scan. ADR-043 records this and what it costs - a
+refresh is not versioned, so the answer to a bad scan is another scan.
+
+**Correcting a name.** Both an ontology and an extract can be renamed, by their
+owner or a global administrator. An ontology's name is read off the source and
+comes out wrong - `SELENA-01` for a study its owner calls SELENA-001 - and an
+extract's is typed, which is worse. Before this the only way out was to produce
+the object again: for an ontology that left a duplicate behind, and for an
+extract it froze a *different* list over a bucket that keeps growing, so a
+rename became a different study.
+
+The label moves and nothing else does. The frozen file list, the author and the
+dates are what an extract is, so an `n` already published against a name still
+describes the same files. The name is a label and not a key: objects, extracts,
+permissions and project links all hang off the identifier.
+
+An ontology has no status to display. The field exists and only ever holds
+`active`; showing it rendered "Running" on every row, which is a word about
+execution applied to an object that does not execute. Freshness and coverage
+are what can be true or false about an ontology, and they have their own cards.
+
 **Ownership and attachment.** An ontology and an extract are owned the way a
 dataset is - by a user, a team or an organization - and both can be handed on.
 A team is the useful case: it is the unit that works together, so it is the
