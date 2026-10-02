@@ -109,12 +109,26 @@ func extractFillerScript(cacheRoot, treeName string) string {
 		fmt.Sprintf("while [ \"$voie\" -lt %d ]; do", extractFillerLanes),
 		"  (",
 		"    n=0",
-		"    while IFS='\t' read -r extract dataset subject visit modality path feuille; do",
+		// Les memes cinq champs que le manifeste ecrit, dans le meme ordre.
+		//
+		// Il en lisait sept - extract, dataset, subject, visit, modality,
+		// path, feuille - parce que les trois niveaux etaient autrefois des
+		// champs separes. Quand ils ont fusionne en un repertoire deja
+		// ordonne, ce lecteur n'a pas suivi : les affectations glissaient,
+		// "$path" tombait vide, la source designait un repertoire au lieu d'un
+		// fichier, et chaque ligne sortait en MANQUE. Un workspace isole
+		// recevait un arbre d'extraits vide - sans erreur ailleurs que dans ce
+		// journal.
+		"    while " + extractManifestReadLine() + "; do",
 		"      n=$((n+1))",
 		fmt.Sprintf("      [ $(( (n-1) %% %d )) -eq \"$voie\" ] || continue", extractFillerLanes),
 		"      source=/datasets/\"$dataset\"/\"$path\"",
 		"      blob=\"$objets\"/\"$dataset\"/\"$path\"",
-		"      dossier=\"$root\"/\"$extract\"/\"$subject\"/\"$visit\"/\"$modality\"",
+		// Le repertoire vient du manifeste, deja dans l'ordre que l'extrait a
+		// demande. Le joindre ici en sujet/visite/modalite est precisement ce
+		// qui rendait l'arbre toujours sujet-d'abord, quelle que soit la
+		// disposition declaree.
+		"      dossier=\"$root\"/\"$extract\"/\"$dir\"",
 		"      cible=\"$dossier\"/\"$feuille\"",
 		"      [ -f \"$cible\" ] && continue",
 		"      mkdir -p \"$(dirname \"$cible\")\" \"$(dirname \"$blob\")\" 2>/dev/null || continue",

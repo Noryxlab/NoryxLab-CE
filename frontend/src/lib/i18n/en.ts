@@ -756,7 +756,7 @@ export const en: Translations = {
     extractRenameHint: 'The label alone changes. The frozen file list, its author and its dates do not move: an n already published under this name still describes the same files.',
     extractDeleted: 'Extract deleted.',
     extractCatalogHint: 'An extract is a frozen subset of an ontology: a file list settled at the moment it is declared. It is handed on and attached to a project like a dataset. Declare one from the ontology it is drawn from.',
-    extractMountHint: 'Mounted in the project workspaces under /mnt/extracts/<name>/<subject>/<visit>/<modality>.',
+    extractMountHint: 'Mounted in the project workspaces under /extracts/<name>/, with the levels in the order this extract declared.',
     freshness: 'Freshness',
     freshnessMeasured: 'Measured {days} days ago, over {objects} objects.',
     freshnessMeasuredToday: 'Measured today, over {objects} objects.',

@@ -118,13 +118,22 @@ func asideContainer(aside *noryxruntime.SidecarSpec, defaultName string, volumes
 		}
 		sidecarMounts = append(sidecarMounts, mount)
 	}
-	for i, secret := range aside.Secrets {
+	for _, secret := range aside.Secrets {
 		secretName := strings.TrimSpace(secret.SecretName)
 		mountPath := strings.TrimSpace(secret.MountPath)
 		if secretName == "" || mountPath == "" {
 			continue
 		}
-		volumeName := fmt.Sprintf("secret-side-%d", i)
+		// Numbered by what the pod already declares, not by this loop.
+		//
+		// A pod spec calls this function twice - once for the container that
+		// runs beside, once for the one that runs before - and a per-loop
+		// index restarts at zero on the second call. Two volumes named
+		// secret-side-0 in one pod is a spec the API server refuses outright,
+		// so the workload would never start and the message would name a
+		// volume nobody wrote. The claim branch above already counted this
+		// way; this one did not.
+		volumeName := fmt.Sprintf("secret-side-%d", len(*volumes))
 		*volumes = append(*volumes, map[string]any{
 			"name": volumeName,
 			"secret": map[string]any{

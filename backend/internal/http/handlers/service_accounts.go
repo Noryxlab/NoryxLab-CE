@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -73,6 +74,13 @@ func (h Handlers) serviceAccountUsernames() (map[string]bool, error) {
 		return names, nil
 	}
 	members, err := h.keycloak.ListRealmRoleMembers(serviceAccountRole)
+	if errors.Is(err, keycloak.ErrRoleNotFound) {
+		// No service account has ever been marked on this installation, so the
+		// role does not exist. That is zero accounts, not a failure: treating
+		// it as one made every user listing log a 404 and drop the marker that
+		// says which actors are not people.
+		return names, nil
+	}
 	if err != nil {
 		return names, err
 	}

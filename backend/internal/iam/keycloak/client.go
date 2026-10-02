@@ -102,10 +102,22 @@ func (c *Client) ListRealmRoleMembers(role string) ([]User, error) {
 	var users []User
 	path := "roles/" + url.PathEscape(strings.TrimSpace(role)) + "/users?max=200"
 	if err := c.adminJSON(http.MethodGet, path, nil, &users); err != nil {
+		if strings.Contains(err.Error(), "Could not find role") {
+			// A role nobody holds yet does not exist in Keycloak: the platform
+			// creates it when it marks its first account. Reported as an error,
+			// that normal state had the caller log a 404 every minute and
+			// degrade a screen - so it is reported as what it is, and the
+			// caller decides whether zero members is news.
+			return nil, fmt.Errorf("%w: %s", ErrRoleNotFound, strings.TrimSpace(role))
+		}
 		return nil, err
 	}
 	return users, nil
 }
+
+// ErrRoleNotFound is a realm role that does not exist, which for a role the
+// platform creates on demand means nobody holds it yet.
+var ErrRoleNotFound = errors.New("realm role not found")
 
 func (c *Client) ListOrganizations() ([]Organization, error) {
 	var organizations []Organization

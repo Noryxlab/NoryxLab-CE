@@ -37,8 +37,8 @@ func TestOversizedExtractIsRefusedOutLoud(t *testing.T) {
 // wrong subject. Such a key is dropped, never repaired into something plausible.
 func TestExtractManifestDropsKeysThatWouldSplitARecord(t *testing.T) {
 	encoded, ok := encodeExtractManifest([]extractMountEntry{
-		{ExtractName: "c", DatasetDir: "d", SubjectID: "S1", Visit: "v1", Modality: "m", Path: "good/file.csv"},
-		{ExtractName: "c", DatasetDir: "d", SubjectID: "S1", Visit: "v1", Modality: "m", Path: "bad\tfile.csv"},
+		{ExtractName: "c", DatasetDir: "d", Dir: "S1/v1/m", Path: "good/file.csv"},
+		{ExtractName: "c", DatasetDir: "d", Dir: "S1/v1/m", Path: "bad\tfile.csv"},
 	})
 	if !ok || encoded == "" {
 		t.Fatal("a small manifest must encode")

@@ -90,7 +90,15 @@ func TestLeScriptNeComposePlusLesNiveaux(t *testing.T) {
 	if strings.Contains(lignes, `"$subject"/"$visit"/"$modality"`) {
 		t.Fatalf("le script compose encore les niveaux en dur :\n%s", lignes)
 	}
-	if !strings.Contains(lignes, `"$niveaux"`) {
-		t.Fatalf("le script doit lire le repertoire deja ordonne :\n%s", lignes)
+	// Le nom de la variable vient de extractManifestFields, pour que renommer
+	// une colonne ne laisse pas ce test valider l'ancien monde.
+	attendu := `"$dir"`
+	for _, nom := range extractManifestFields {
+		if nom == "dir" {
+			attendu = `"$` + nom + `"`
+		}
+	}
+	if !strings.Contains(lignes, attendu) {
+		t.Fatalf("le script doit lire le repertoire deja ordonne (%s) :\n%s", attendu, lignes)
 	}
 }

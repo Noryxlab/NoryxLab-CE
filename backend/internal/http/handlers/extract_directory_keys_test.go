@@ -96,8 +96,21 @@ func TestLArbreDesExtraitsEstACoteDesDatasets(t *testing.T) {
 		t.Fatalf("chemin = %q, attendu /extracts", workspaceExtractsPath)
 	}
 	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0), "\n")
-	if strings.Contains(lignes, "/mnt/extracts") {
-		t.Fatalf("l'arbre ne doit plus etre construit dans le volume du projet :\n%s", lignes)
+	// Ce qui est interdit, c'est d'y CONSTRUIRE. Le script mentionne encore
+	// /mnt/extracts, et doit le faire : il y reste des arbres d'avant le
+	// deplacement, qu'il ecarte une fois. Interdire la mention plutot que la
+	// construction aurait interdit ce nettoyage.
+	for _, construction := range []string{
+		"mkdir -p '/mnt/extracts'", `cible='/mnt/extracts'`, `dir='/mnt/extracts'`,
+		`ln -sfn "$target" '/mnt/extracts'`,
+	} {
+		if strings.Contains(lignes, construction) {
+			t.Fatalf("l'arbre est encore construit dans le volume du projet (%q) :\n%s",
+				construction, lignes)
+		}
+	}
+	if !strings.Contains(lignes, "mv '/mnt/extracts'") {
+		t.Fatalf("l'ancien arbre doit etre ecarte une fois :\n%s", lignes)
 	}
 	if !strings.Contains(lignes, "rm -rf '/extracts'") {
 		t.Fatalf("l'arbre doit etre reconstruit a chaque demarrage :\n%s", lignes)

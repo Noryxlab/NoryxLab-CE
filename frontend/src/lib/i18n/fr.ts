@@ -762,7 +762,7 @@ export const fr = {
     extractRenameHint: 'Le libellé seul change. La liste de fichiers figée, son auteur et ses dates ne bougent pas : un n déjà publié sous ce nom décrit toujours les mêmes fichiers.',
     extractDeleted: 'Extrait supprimé.',
     extractCatalogHint: 'Un extrait est un sous-ensemble figé d’une ontologie : une liste de fichiers arrêtée au moment où on la déclare. Il se cède et se rattache à un projet comme un dataset. Déclarez-en un depuis l’ontologie dont il est tiré.',
-    extractMountHint: 'Monté dans les workspaces du projet sous /mnt/extracts/<nom>/<sujet>/<visite>/<modalité>.',
+    extractMountHint: 'Monté dans les workspaces du projet sous /extracts/<nom>/, les niveaux dans l’ordre que cet extrait a déclaré.',
     freshness: 'Fraîcheur',
     freshnessMeasured: 'Mesurée il y a {days} jours, sur {objects} objets.',
     freshnessMeasuredToday: 'Mesurée aujourd’hui, sur {objects} objets.',

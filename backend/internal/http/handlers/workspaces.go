@@ -191,10 +191,12 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 		log.Printf("workspaces: the runtime listing failed, records are being served stale: %v", err)
 		return
 	}
+	vus := make(map[string]struct{}, len(runtimeItems))
 	for _, item := range runtimeItems {
 		if strings.TrimSpace(item.WorkspaceID) == "" || strings.TrimSpace(item.ProjectID) == "" {
 			continue
 		}
+		vus[item.WorkspaceID] = struct{}{}
 		h.ensureProjectInStore(item.ProjectID)
 		existingRecord, found, err := h.workspaceStore.GetByID(item.WorkspaceID)
 		if err != nil {
@@ -257,6 +259,49 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 			AccessToken: item.AccessToken,
 			CreatedAt:   createdAt,
 		}
+		_ = h.workspaceStore.Create(record)
+	}
+	h.markVanishedWorkspacesStopped(vus)
+}
+
+// markVanishedWorkspacesStopped tells the truth about a workspace whose pod is
+// no longer there.
+//
+// The loop above walks the pods the cluster reports and writes a record for
+// each. A record whose pod has disappeared entirely - evicted, reaped, deleted
+// by hand - is never visited, so it keeps the status it had when it was last
+// seen, forever. EMSE carried one marked `running` whose pod had been gone for
+// hours, which is the same lie the phase reading above was added to stop: its
+// owner clicks it and gets a proxy error from a screen that told them it was
+// fine.
+//
+// Marked, not deleted. The row holds the name its owner chose and the date it
+// was created, and a list that silently loses entries is harder to reason about
+// than one that says "stopped". The caller has already returned early if the
+// runtime listing failed, so an empty set here means an empty cluster rather
+// than an unanswered question.
+func (h Handlers) markVanishedWorkspacesStopped(seen map[string]struct{}) {
+	if h.workspaceStore == nil {
+		return
+	}
+	stored, err := h.workspaceStore.List()
+	if err != nil {
+		log.Printf("workspaces: cannot read the records to reconcile them: %v", err)
+		return
+	}
+	for _, record := range stored {
+		if _, alive := seen[record.ID]; alive {
+			continue
+		}
+		if record.Status == "stopped" {
+			continue
+		}
+		log.Printf("workspaces: %s (pod %s) has no pod in the cluster; recorded as stopped",
+			record.ID, record.PodName)
+		record.Status = "stopped"
+		// Delete then create, because Create does not upsert - the same pair
+		// the loop above uses.
+		_ = h.workspaceStore.Delete(record.ID)
 		_ = h.workspaceStore.Create(record)
 	}
 }
@@ -1481,12 +1526,22 @@ func workspaceBootstrapScript(
 			"  \"folders\": [",
 			"    { \"path\": \"/mnt\" },",
 			"    { \"path\": \"/repos\" },",
-			"    { \"path\": \"/datasets\" },",
 			// Beside the datasets, because that is what it is: a read-only
-			// view of one, organised the way the study thinks. The folder is
-			// listed whether or not an extract is mounted - an empty entry
-			// says "nothing attached here", where a missing one says nothing
-			// at all and sends somebody looking for a bug.
+			// view of one, organised the way the study thinks. Listed whether
+			// or not an extract is mounted when the directory exists - an
+			// empty entry says "nothing attached here", where a missing one
+			// says nothing at all and sends somebody looking for a bug.
+			//
+			// Conditional, and not by preference. An environment image built
+			// before /extracts joined the system Dockerfiles has no such
+			// directory, and the workspace runs as noryx, which cannot create
+			// one at the root. Listing a folder that is not there made the
+			// assistant fail its own startup scan - "ENOENT: no such file or
+			// directory, scandir '/extracts'" on every launch - which is a
+			// worse signal than the missing entry this was avoiding. Images
+			// catch up through the rebuild job, and then the entry is always
+			// there.
+			"    { \"path\": \"/datasets\" },",
 			"    { \"path\": \"/extracts\" }",
 			"  ],",
 			"  \"settings\": {",
@@ -1496,6 +1551,23 @@ func workspaceBootstrapScript(
 			"  }",
 			"}",
 			"EOF",
+			// Et l'entree /extracts s'en va si le repertoire n'existe pas.
+			//
+			// Retiree apres coup, et non omise dans le document, parce que ce
+			// heredoc est quote : rien ne s'y evalue, ce qui est exactement ce
+			// qu'on veut d'un fichier de configuration qui contient des
+			// accolades et des guillemets.
+			//
+			// Une image d'environnement construite avant que /extracts entre
+			// dans les Dockerfiles systeme n'a pas ce repertoire, et le
+			// workspace tourne en noryx, qui ne peut pas en creer a la racine.
+			// Lister un dossier absent faisait echouer le scan de demarrage de
+			// l'assistant - "ENOENT ... scandir '/extracts'" a chaque
+			// lancement - ce qui est un pire signal que l'entree manquante
+			// qu'on voulait eviter. La virgule de la ligne precedente part
+			// avec, sinon le JSON ne se relit plus.
+			fmt.Sprintf("if [ ! -d /extracts ]; then sed -i -e '/\"path\": \"\\/extracts\"/d' -e 's|{ \"path\": \"/datasets\" },|{ \"path\": \"/datasets\" }|' %s 2>/dev/null || true; fi",
+				shellQuote(profileMountPath+"/vscode/noryx.code-workspace")),
 			// Off by default. The tool reinstalls eight extensions from the
 			// marketplace and upgrades nine Python packages, and it did it while
 			// somebody was waiting for their editor: it rewrites the extensions

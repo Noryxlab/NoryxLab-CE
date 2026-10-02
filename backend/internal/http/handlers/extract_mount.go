@@ -41,6 +41,23 @@ const (
 	workspaceExtractsPath = "/extracts"
 )
 
+// extractManifestFields names the manifest's columns, in order, and is the
+// only place that does.
+//
+// Two shell scripts read this file - the bootstrap beside a workspace and the
+// filler before a job - and each had its own `read -r` list. When the three
+// level fields merged into one pre-ordered directory, one list was updated and
+// the other was not: its assignments shifted by two columns, the source path
+// came out empty, and every file in an isolated workspace was reported missing.
+// Deriving both lists from this one makes that drift impossible rather than
+// merely unlikely.
+var extractManifestFields = []string{"extract", "dataset", "dir", "path", "feuille"}
+
+// extractManifestReadLine is the shell that unpacks one record.
+func extractManifestReadLine() string {
+	return "IFS='\t' read -r " + strings.Join(extractManifestFields, " ")
+}
+
 type extractMountEntry struct {
 	ExtractName string
 	DatasetDir  string
@@ -52,11 +69,8 @@ type extractMountEntry struct {
 	// Composing the directory here makes the layout a property of the extract
 	// instead of a line of the bootstrap script - and leaves the shell with
 	// one less thing to get right.
-	Dir       string
-	SubjectID string
-	Visit     string
-	Modality  string
-	Path      string
+	Dir  string
+	Path string
 	// Leaf is where the file sits under the modality, and it is not its name.
 	//
 	// The tree used to place each file under its basename, which loses every
@@ -108,8 +122,8 @@ func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 		if strings.ContainsAny(entry.Path, "\t\n") {
 			continue
 		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\n",
-			entry.ExtractName, entry.DatasetDir, entry.Dir, entry.Path, entry.Leaf)
+		colonnes := []string{entry.ExtractName, entry.DatasetDir, entry.Dir, entry.Path, entry.Leaf}
+		fmt.Fprintln(writer, strings.Join(colonnes, "\t"))
 	}
 	if err := writer.Close(); err != nil {
 		return "", false
@@ -124,8 +138,79 @@ func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 // extractBootstrapLines rebuilds the tree at every start: the links are cheap,
 // and a workspace whose extract changed must not keep yesterday's shape.
 func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int) []string {
-	_ = projectMountPath
 	root := workspaceExtractsPath
+	lines := legacyExtractTreeLines(projectMountPath)
+	// Cree meme quand il n'y a rien a y mettre.
+	//
+	// L'espace de travail VS Code declare ce dossier, et un dossier declare
+	// mais absent faisait echouer le scan de demarrage de l'assistant. Une
+	// image d'environnement d'avant ce chemin ne le porte pas, donc le script
+	// le cree - avec repli par sudo, qui echoue sans bruit quand il n'y est
+	// pas, puisque l'entree de l'espace de travail se retire alors d'elle-meme.
+	lines = append(lines, extractRootLines(root)...)
+	lines = append(lines, extractTreeLines(root, hasManifest, refusedCount)...)
+	return lines
+}
+
+// legacyExtractTreeLines gets the old tree out of the way, once.
+//
+// The tree moved from <project>/extracts to /extracts, and nothing moved what
+// was already there. The project volume outlives the workspace, so every
+// project that mounted an extract before the move still carries a full tree of
+// working symlinks under /mnt/extracts - in the fixed subject/visit/modality
+// order, because that is all the old code could build.
+//
+// That is worse than clutter. The links resolve, so the directory does not
+// look stale: somebody opens /mnt/extracts, reads a differently shaped and
+// frozen-in-time view of the same study, and has no way to know. A researcher
+// found it before we did.
+//
+// Renamed, never deleted, and only when it holds nothing but directories and
+// symlinks. Whoever put their own files in a directory of that name keeps
+// them, and an operator who wants the old tree back has it.
+func legacyExtractTreeLines(projectMountPath string) []string {
+	mount := strings.TrimRight(strings.TrimSpace(projectMountPath), "/")
+	if mount == "" || mount == "/" {
+		return nil
+	}
+	legacy := mount + "/extracts"
+	aside := mount + "/extracts.deplace-vers-slash-extracts"
+	return []string{
+		fmt.Sprintf("if [ -d %s ] && [ ! -e %s ]; then", shellQuote(legacy), shellQuote(aside)),
+		// -not -type d -not -type l : anything that is neither a directory nor
+		// a symlink is somebody's own file, and this stops there.
+		fmt.Sprintf("  if [ -z \"$(find %s -not -type d -not -type l -print -quit 2>/dev/null)\" ]; then", shellQuote(legacy)),
+		fmt.Sprintf("    if mv %s %s 2>/dev/null; then", shellQuote(legacy), shellQuote(aside)),
+		fmt.Sprintf("      echo '[bootstrap] the old extract tree under %s was moved aside to %s; extracts now live at %s'", legacy, aside, workspaceExtractsPath),
+		"    fi",
+		"  else",
+		fmt.Sprintf("    echo '[bootstrap] %s holds files of your own and was left alone; extracts now live at %s'", legacy, workspaceExtractsPath),
+		"  fi",
+		"fi",
+	}
+}
+
+// extractRootLines makes sure the directory exists at all.
+//
+// It sits at the container root, which belongs to root, so the shipped images
+// create it and sudo covers an image that has not been rebuilt yet.
+//
+// It used to run only when an extract was being mounted, which left the
+// directory missing on every workspace without one - while the VS Code
+// workspace file declared it regardless, so the assistant failed its startup
+// scan with "ENOENT: no such file or directory, scandir '/extracts'" on every
+// launch. An empty folder is the signal that was wanted; an absent one is a
+// stack trace.
+func extractRootLines(root string) []string {
+	return []string{
+		fmt.Sprintf("if [ ! -d %s ]; then (mkdir -p %s 2>/dev/null || sudo mkdir -p %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root), shellQuote(root)),
+		fmt.Sprintf("if [ -d %s ] && [ ! -w %s ]; then (sudo chown noryx:noryx %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root), shellQuote(root)),
+	}
+}
+
+// extractTreeLines rebuilds the tree at every start: the links are cheap, and a
+// workspace whose extract changed must not keep yesterday's shape.
+func extractTreeLines(root string, hasManifest bool, refusedCount int) []string {
 	if refusedCount > 0 {
 		return []string{
 			fmt.Sprintf("echo '[bootstrap] %d extract file(s) not mounted: the selection is too large to ship in one manifest'", refusedCount),
@@ -138,20 +223,14 @@ func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCou
 	return []string{
 		"if [ -f /var/run/noryx/bootstrap/extracts.b64 ]; then",
 		"  echo '[bootstrap] building extract links'",
-		// The directory sits at the container root, which belongs to root, so
-		// the shipped images create it and sudo covers an image that has not
-		// been rebuilt yet. Said out loud when neither works: a missing
-		// /extracts with no explanation reads as a lost selection.
-		fmt.Sprintf("  if [ ! -d %s ]; then (mkdir -p %s 2>/dev/null || sudo mkdir -p %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root), shellQuote(root)),
-		fmt.Sprintf("  if [ ! -w %s ]; then (sudo chown noryx:noryx %s 2>/dev/null || true); fi", shellQuote(root), shellQuote(root)),
 		fmt.Sprintf("  if [ ! -w %s ]; then echo '[bootstrap] %s is not writable: the extract was not mounted'; else", shellQuote(root), root),
 		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
 		// mounted read-only, and the extract is a second way of looking at it.
-		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while IFS='\t' read -r extract dataset niveaux path feuille; do",
-		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; dir=%s/\"$extract\"/\"$niveaux\"", shellQuote(root)),
-		"    mkdir -p \"$dir\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",
-		"    ln -sfn \"$target\" \"$dir\"/\"$feuille\" 2>/dev/null || true",
+		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while " + extractManifestReadLine() + "; do",
+		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; cible=%s/\"$extract\"/\"$dir\"", shellQuote(root)),
+		"    mkdir -p \"$cible\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",
+		"    ln -sfn \"$target\" \"$cible\"/\"$feuille\" 2>/dev/null || true",
 		"  done",
 		fmt.Sprintf("  echo \"[bootstrap] extract links ready: $(find %s -type l 2>/dev/null | wc -l) file(s)\"", shellQuote(root)),
 		"  fi",
@@ -254,9 +333,6 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 				ExtractName: name,
 				DatasetDir:  directory,
 				Dir:         strings.Join(extractdomain.DirectoryFor(item.Layout, subject, visit, modality), "/"),
-				SubjectID:   subject,
-				Visit:       visit,
-				Modality:    modality,
 				Path:        member.Path,
 				Leaf:        extractLeaf(member.Path, member.Modality),
 			})
