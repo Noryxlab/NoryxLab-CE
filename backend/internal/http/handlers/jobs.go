@@ -20,12 +20,6 @@ type createJobRequest struct {
 	Command      []string `json:"command"`
 	Args         []string `json:"args"`
 	HardwareTier string   `json:"hardwareTier"`
-	// DataAccess chooses what this run can reach: "dataset", the attached
-	// datasets whole, or "extracts", only the frozen selections - with the
-	// buckets mounted nowhere the code can reach them (ADR-038). The same
-	// field, the same words and the same default as a workspace: a boundary
-	// that holds in one screen and not in a calculation is not a boundary.
-	DataAccess string `json:"dataAccess"`
 }
 
 func (h Handlers) ListJobs(w http.ResponseWriter, r *http.Request) {
@@ -125,17 +119,6 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
 	record.Extracts = montage.Names
 
-	// Isoler vers des extraits qu'on n'a pas, c'est un job sans donnees et
-	// sans explication - et la personne conclut que la plateforme a perdu son
-	// etude.
-	isolated := isolateToExtracts(req.DataAccess)
-	if refuseEmptyIsolation(isolated, montage) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "this project has no extract to isolate to: attach one, or run against the datasets",
-		})
-		return
-	}
-
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -200,26 +183,10 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Le remplisseur tourne AVANT le conteneur principal, et non a cote.
-		//
-		// Un job qui lit la moitie d'une selection calcule une autre etude, et
-		// un sidecar qui ne se termine jamais ferait un job qui ne se termine
-		// jamais : un conteneur d'initialisation repond aux deux.
-		var filler *noryxruntime.SidecarSpec
-		if isolated {
-			isolement, err := h.prepareExtractIsolation(jobName, req.Image, datasetVolumes)
-			if err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
-				return
-			}
-			volumes = append(volumes, isolement.Tree)
-			filler = isolement.Filler
-		} else {
-			volumes = append(volumes, datasetVolumes...)
-		}
+		// Ce que le projet a attache, et rien d'autre a decider ici.
+		volumes = append(volumes, datasetVolumes...)
 
 		err = h.runtime.CreateJob(noryxruntime.JobSpec{
-			Init:                    filler,
 			JobName:                 jobName,
 			Image:                   req.Image,
 			Command:                 command,

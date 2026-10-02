@@ -7,22 +7,6 @@ import (
 
 // Isolation is asked for, and an unknown answer never narrows anything.
 //
-// A mode nobody recognises must mean "the datasets, as before": silently
-// giving somebody less than they could reach yesterday is the kind of change
-// that looks like a bug for a week.
-func TestOnlyExtractsIsolates(t *testing.T) {
-	for _, mode := range []string{"extracts", "Extracts", " EXTRACTS "} {
-		if !isolateToExtracts(mode) {
-			t.Fatalf("%q must isolate", mode)
-		}
-	}
-	for _, mode := range []string{"", "dataset", "datasets", "full", "isolated", "extract"} {
-		if isolateToExtracts(mode) {
-			t.Fatalf("%q must not isolate", mode)
-		}
-	}
-}
-
 // The filler publishes a file only once it has landed.
 //
 // A tree whose paths error on open is worse than a tree that grows: the first

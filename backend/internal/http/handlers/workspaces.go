@@ -26,18 +26,6 @@ type createWorkspaceRequest struct {
 	Image        string `json:"image"`
 	StorageSize  string `json:"storageSize"`
 	HardwareTier string `json:"hardwareTier"`
-	// DataAccess chooses what the workspace can reach: "dataset", the whole
-	// attached datasets as today, or "extracts", only the selections - filled
-	// into the cache by a container beside it, with the buckets mounted
-	// nowhere the person can reach (ADR-038).
-	DataAccess string `json:"dataAccess"`
-}
-
-// isolateToExtracts reports whether this launch asked for the boundary rather
-// than the view. Unknown values mean "dataset": a mode nobody recognises must
-// not silently narrow what somebody could reach yesterday.
-func isolateToExtracts(mode string) bool {
-	return strings.EqualFold(strings.TrimSpace(mode), "extracts")
 }
 
 var (
@@ -674,22 +662,20 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				MountPath: profileMountPath,
 			})
 		}
-		// Asked for by the launch, and refused when nothing would be left: a
-		// workspace isolated to extracts it does not have is a workspace with
-		// no data at all, which is never what somebody meant.
-		isolated := isolateToExtracts(req.DataAccess)
-
 		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
 			return
 		}
-		// The dataset volumes are prepared either way - the filler needs them -
-		// and only mounted in the workspace when it asked to see the whole
-		// thing. This line is the boundary.
-		if !isolated {
-			volumes = append(volumes, datasetVolumes...)
-		}
+		// What the project attached, and nothing to decide here.
+		//
+		// The launch used to ask - datasets, or only the extracts - and nobody
+		// understood the question, the person who wrote it included. The
+		// project's attachments are the decision: a dataset the project
+		// attached is mounted, an extract the project attached is mounted, and
+		// the same is true of a workspace, a job, an application and a
+		// scheduled job alike.
+		volumes = append(volumes, datasetVolumes...)
 
 		// The developer assistant is an Enterprise capability; a Community
 		// build returns an empty configuration and the workspace starts
@@ -737,40 +723,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			extractManifest = ""
 		}
 
-		// A selection too large to ship refuses the launch rather than
-		// producing an empty tree. Mounted as links the same refusal costs a
-		// missing directory beside datasets that are still there; isolated, it
-		// costs a workspace with no data and no explanation - and the person
-		// concludes the platform lost their study.
-		if isolated && extractRefused > 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": fmt.Sprintf("this selection holds %d files, too many to ship in one manifest; narrow it or mount the datasets", extractRefused),
-				"code":  "extract_too_large",
-			})
-			return
-		}
-		if isolated && len(extractEntries) == 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "this project has no extract to isolate to; declare one first or launch on the datasets",
-				"code":  "no_extract",
-			})
-			return
-		}
-		var extractSidecar *noryxruntime.SidecarSpec
-		if isolated {
-			// La meme politique que pour un job ou une application : une
-			// frontiere qui ne vaut que dans un ecran n'est pas une frontiere.
-			// Ici le remplisseur travaille A COTE, parce qu'une personne
-			// commence sur le premier fichier lisible et non sur le dernier.
-			isolement, err := h.prepareExtractIsolation(podName, record.Image, datasetVolumes)
-			if err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
-				return
-			}
-			volumes = append(volumes, isolement.Tree)
-			extractSidecar = isolement.Filler
-		}
-
 		bootstrapScript := workspaceBootstrapScript(
 			req.IDE,
 			record.ID,
@@ -783,7 +735,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			attachedRepos,
 			len(attachedDatasets),
 			continueConfig,
-			extractManifest != "" && !isolated,
+			extractManifest != "",
 			extractRefused,
 		)
 		workspaceArgs = nil
@@ -861,7 +813,6 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
-			Sidecar:                 extractSidecar,
 			Secrets: []noryxruntime.SecretMount{{
 				SecretName: bootstrapSecretName,
 				MountPath:  "/var/run/noryx/bootstrap",

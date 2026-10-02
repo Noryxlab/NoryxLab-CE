@@ -9,51 +9,40 @@ import (
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
-// Les quatre charges appliquent la meme politique d'isolement.
+// Les quatre charges montent ce que le projet a attache, et ne demandent rien.
 //
-// Elle n'existait que pour le workspace, ce qui faisait de la garantie une
-// propriete d'un ecran et non de la plateforme : un job du meme projet montait
-// le bucket entier, donc "l'equipe voit la selection et rien d'autre" tenait
-// pendant qu'on tapait et cessait des qu'un calcul tournait. Une frontiere
-// avec une exception n'est pas une frontiere.
+// Le lancement posait une question - les datasets, ou seulement les extraits -
+// et personne ne la comprenait, celui qui l'a ecrite le premier. Ce n'etait pas
+// qu'une maladresse de formulation : repondre "extraits" faisait demarrer un
+// conteneur de plus, et deux workspaces isoles lances a neuf secondes d'ecart
+// se detruisaient l'un l'autre.
 //
-// Verifie sur le code plutot que par un runtime simule : ce qui compte est
-// qu'aucune des quatre ne retombe sur un montage des datasets quand on a
-// demande l'isolement, et c'est une propriete du texte.
-func TestLesQuatreChargesIsolentDeLaMemeFacon(t *testing.T) {
+// La decision appartient au projet. Un dataset qu'il attache est monte, un
+// extrait qu'il attache est monte, et c'est vrai d'un workspace, d'un job,
+// d'une application et d'une tache planifiee de la meme facon. La frontiere de
+// l'ADR-038 devient une consequence de l'attachement et non un mode : un projet
+// qui attache un extrait sans le dataset dont il est tire n'atteint pas le
+// bucket, parce que rien ne le monte la ou la charge peut le voir.
+//
+// Verifie sur le texte, parce que ce qui compte est qu'aucune des quatre ne
+// retombe sur une branche.
+func TestLesQuatreChargesMontentCeQueLeProjetAAttache(t *testing.T) {
 	for _, fichier := range []string{"workspaces.go", "jobs.go", "cronjobs.go", "apps.go"} {
 		source, err := os.ReadFile(fichier)
 		if err != nil {
 			t.Fatal(err)
 		}
 		texte := string(source)
-		if !strings.Contains(texte, "prepareExtractIsolation") {
-			t.Errorf("%s n'utilise pas la politique commune", fichier)
+		// Plus de champ, plus de mode, plus de branche.
+		for _, interdit := range []string{"DataAccess", "dataAccess", "isolateToExtracts", "if isolated"} {
+			if strings.Contains(texte, interdit) {
+				t.Errorf("%s porte encore %q : la question est revenue", fichier, interdit)
+			}
 		}
-		// Le point qui compte : les volumes de dataset ne sont ajoutes que
-		// dans la branche non isolee.
-		if fichier == "workspaces.go" {
-			continue // Le workspace les ajoute plus haut, derriere son propre test.
+		// Et les datasets du projet sont montes, sans condition.
+		if !regexp.MustCompile(`volumes = append\(volumes, datasetVolumes\.\.\.\)`).MatchString(texte) {
+			t.Errorf("%s ne monte pas les datasets du projet", fichier)
 		}
-		if !regexp.MustCompile(`(?s)if isolated \{.*?\} else \{\s*\S*volumes = append\(volumes, datasetVolumes\.\.\.\)`).MatchString(texte) {
-			t.Errorf("%s doit monter les datasets uniquement hors isolement", fichier)
-		}
-	}
-}
-
-// Isoler vers des extraits qu'on n'a pas est refuse, partout.
-//
-// Une charge isolee vers rien est une charge sans donnees et sans
-// explication : la personne conclut que la plateforme a perdu son etude.
-func TestIsolerVersRienEstRefuse(t *testing.T) {
-	if !refuseEmptyIsolation(true, extractMount{}) {
-		t.Fatal("isoler sans extrait doit etre refuse")
-	}
-	if refuseEmptyIsolation(true, extractMount{Manifest: "x"}) {
-		t.Fatal("isoler avec un extrait doit etre accepte")
-	}
-	if refuseEmptyIsolation(false, extractMount{}) {
-		t.Fatal("sans isolement, l'absence d'extrait n'est pas un probleme")
 	}
 }
 

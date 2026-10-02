@@ -228,7 +228,6 @@ export interface CreateWorkspaceInput {
   /** "dataset" (default) mounts the attached datasets whole; "extracts" mounts
    *  only the declared selections, filled into the cache by a container beside
    *  the workspace, with the buckets mounted nowhere the person can reach. */
-  dataAccess?: 'dataset' | 'extracts';
 }
 
 export const projectVariablesApi = {
