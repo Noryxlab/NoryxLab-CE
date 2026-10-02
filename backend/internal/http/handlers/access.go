@@ -269,10 +269,26 @@ func (h Handlers) requireIdentityFromSessionOrBearer(w http.ResponseWriter, r *h
 		return identity, true
 	}
 
-	token := strings.TrimSpace(r.Header.Get(authHeader))
-	token = strings.TrimPrefix(token, "Bearer ")
-	token = strings.TrimSpace(token)
-	if token != "" {
+	// Only our own scheme counts as a credential, and the distinction is not
+	// pedantry.
+	//
+	// JupyterLab sends `Authorization: token <the server token we gave it>` on
+	// every API call it makes - kernels, kernelspecs, sessions, terminals,
+	// settings. The previous test was "is the header non-empty", so that
+	// header went to the JWT verifier, which refused it as `invalid jwt
+	// format` and answered 401 - while the caller's perfectly good session
+	// cookie sat unread in the same request. The result was a notebook that
+	// opened and could not start a kernel, which is what a person calls
+	// "Jupyter does not work". VS Code was unaffected because it authenticates
+	// through the cookie and sends no Authorization header of its own.
+	//
+	// The header is deliberately left on the request. The workspace's own
+	// server issued that token and is entitled to check it, and the proxy
+	// forwards it untouched.
+	//
+	// bearerTokenFromHeader already lived in this file and already enforced
+	// the scheme. Using it here is what this function should always have done.
+	if _, err := bearerTokenFromHeader(r); err == nil {
 		return h.requireIdentity(w, r)
 	}
 

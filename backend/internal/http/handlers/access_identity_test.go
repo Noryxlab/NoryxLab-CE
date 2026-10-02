@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
-
 	"net/http/httptest"
 	"testing"
 
@@ -132,5 +132,65 @@ func TestNeitherIdentityPathTrustsTheUserHeader(t *testing.T) {
 		if _, ok := resolve(httptest.NewRecorder(), request(userHeader, "stef")); ok {
 			t.Fatalf("%s authenticated a bare user header", name)
 		}
+	}
+}
+
+// Le schema de JupyterLab ne doit pas manger la session du navigateur.
+//
+// JupyterLab envoie `Authorization: token <le jeton de serveur qu'on lui a
+// donne>` sur chacun de ses appels d'API - noyaux, sessions, terminaux,
+// reglages. Tant que la condition etait "l'en-tete est non vide", cet en-tete
+// partait au verificateur de JWT, qui le refusait en `invalid jwt format` et
+// rendait 401 - alors que le cookie de session du meme appel, parfaitement
+// valide, n'etait jamais lu. Resultat : un notebook qui s'ouvre et ne demarre
+// aucun noyau. VS Code n'etait pas touche : il s'authentifie par le cookie et
+// n'envoie pas d'en-tete Authorization.
+//
+// Le test porte sur la distinction de schema, pas sur le mot "jupyter" : tout
+// schema qui n'est pas le notre doit laisser passer a la session.
+func TestUnSchemaEtrangerNEmpechePasLaSession(t *testing.T) {
+	for _, entete := range []string{
+		"token abcdef0123456789", // JupyterLab
+		"Token abcdef0123456789", // la casse ne doit rien changer
+		"Basic dXNlcjpwYXNz",     // et tout autre schema
+	} {
+		// La propriete exacte : un schema etranger ne doit pas atteindre le
+		// verificateur de jetons. Tester le message de refus ne dirait rien,
+		// parce qu'un deploiement sans magasin de sessions refuse de toute
+		// facon - ce qu'on veut savoir, c'est quelle branche a ete prise.
+		espion := &verificateurEspion{}
+		handlers := Handlers{authMode: "oidc", authVerifier: espion}
+		if _, ok := handlers.requireIdentityFromSessionOrBearer(
+			httptest.NewRecorder(), request(authHeader, entete)); ok {
+			t.Fatalf("%q a authentifie alors qu'il n'y a pas de session", entete)
+		}
+		if espion.appels > 0 {
+			t.Fatalf("%q est parti au verificateur de jetons (%d appel(s)) ; "+
+				"le cookie de session de la meme requete n'aurait jamais ete lu",
+				entete, espion.appels)
+		}
+	}
+}
+
+// verificateurEspion compte ce qu'on lui soumet, et refuse tout.
+type verificateurEspion struct{ appels int }
+
+func (v *verificateurEspion) VerifyBearerToken(string) (auth.Identity, error) {
+	v.appels++
+	return auth.Identity{}, errors.New("invalid jwt format")
+}
+
+// Et notre propre schema continue d'aller au verificateur, sinon la correction
+// aurait desactive l'authentification par jeton.
+func TestNotreSchemaVaToujoursAuVerificateur(t *testing.T) {
+	espion := &verificateurEspion{}
+	handlers := Handlers{authMode: "oidc", authVerifier: espion}
+	if _, ok := handlers.requireIdentityFromSessionOrBearer(
+		httptest.NewRecorder(), request(authHeader, "Bearer pas-un-jwt")); ok {
+		t.Fatal("un jeton invalide a ete accepte")
+	}
+	if espion.appels != 1 {
+		t.Fatalf("%d appel(s) au verificateur, attendu 1 : la correction aurait "+
+			"desactive l'authentification par jeton", espion.appels)
 	}
 }
