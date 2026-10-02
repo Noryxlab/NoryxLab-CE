@@ -76,10 +76,27 @@ func extractFillerScript(cacheRoot, treeName string) string {
 		fmt.Sprintf("for arbre in %s/trees/*; do", shellQuote(cacheRoot)),
 		"  [ -d \"$arbre\" ] || continue",
 		"  [ \"$arbre\" = \"$root\" ] && continue",
-		"  if [ -z \"$(find \"$baux\"/\"$(basename \"$arbre\")\" -mmin -120 2>/dev/null)\" ]; then",
-		"    echo \"[filler] arbre abandonne retire : $(basename \"$arbre\")\"",
-		"    rm -rf \"$arbre\" \"$baux\"/\"$(basename \"$arbre\")\" 2>/dev/null",
-		"  fi",
+		"  nom=$(basename \"$arbre\")",
+		// Un bail recent protege l'arbre : son remplisseur le renouvelle toutes
+		// les dix minutes tant que le workspace vit.
+		"  [ -n \"$(find \"$baux\"/\"$nom\" -mmin -120 2>/dev/null)\" ] && continue",
+		// Pas de bail du tout : ce n'est PAS la preuve d'un abandon.
+		//
+		// Le kubelet cree trees/<nom> lui-meme, pour le subPath du conteneur
+		// principal, avant que le remplisseur du meme pod n'ait pu poser son
+		// bail. Pendant cette fenetre l'arbre existe sans bail, et cette boucle
+		// le prenait pour un residu : le 02/10 le remplisseur d'un workspace
+		// VS Code a efface l'arbre d'un workspace Jupyter demarre neuf secondes
+		// plus tot, dont le conteneur principal est mort sur
+		// "stale NFS file handle" en montant un chemin qui venait de
+		// disparaitre sous lui. Lancer un workspace isole cassait celui du
+		// voisin.
+		//
+		// L'age du repertoire tranche les deux cas : celui que le kubelet vient
+		// de creer est jeune, celui qu'un remplisseur mort a laisse est vieux.
+		"  [ -n \"$(find \"$arbre\" -maxdepth 0 -mmin -120 2>/dev/null)\" ] && continue",
+		"  echo \"[filler] arbre abandonne retire : $nom\"",
+		"  rm -rf \"$arbre\" \"$baux\"/\"$nom\" 2>/dev/null",
 		"done",
 		"debut=$(date +%s)",
 		// Eviction, here, because the cache only grows when a workspace
