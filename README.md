@@ -31,7 +31,7 @@ it to your Keycloak identity provider.
 | Install NoryxLab Community Edition | [Step-by-step installation guide](docs/INSTALL_CE.md) |
 | Understand infrastructure requirements | [Infrastructure prerequisites](docs/INFRA_PREREQUISITES.md) |
 | Use the platform as a data practitioner | [Projects](docs/PROJECTS.md), [datasets](docs/S3_DATASET_MOUNTS.md) and [workspaces](docs/WORKSPACES.md) |
-| Create and govern project agents | [Agents, teams and workflows](docs/AGENTS.md) |
+| Understand project agents and workflows | [Agent model and Enterprise runtime](docs/AGENTS.md) |
 | Integrate with the REST API | [API contract](docs/API.md) and the running platform's `/swagger` |
 | Operate or troubleshoot a deployment | [Operations guides](#operations) |
 | Contribute code | [Developer quick start](#developer-quick-start) and [contribution rules](#contributing) |
@@ -44,7 +44,6 @@ it to your Keycloak identity provider.
 | **Data** | S3-compatible datasets mounted directly into workloads, data sources and semantic catalog foundations |
 | **Environments** | Curated or custom Docker environments for Jupyter, VS Code and RStudio |
 | **Compute** | Interactive workspaces, one-off jobs, scheduled jobs and named hardware tiers |
-| **Agents** | Project-scoped agents, scheduled missions, teams, explicit mandates and run journals |
 | **Production** | Project applications, lifecycle operations and authenticated access routes |
 | **Identity** | Keycloak OIDC authentication and project-level access control |
 | **Integration** | Versioned REST API, public OpenAPI contract and Swagger UI |
@@ -66,7 +65,6 @@ Noryx frontend  --->  Noryx API  ---> PostgreSQL
 Kubernetes workloads
   |- workspaces (Jupyter, VS Code, RStudio)
   |- jobs and scheduled jobs
-  |- project-scoped agents and declared workflows
   `- published applications
 ```
 
@@ -81,9 +79,10 @@ repositories, environments, workloads, applications, S3 integration and
 baseline access control.
 
 NoryxLab Enterprise Edition is distributed separately. It adds organisation
-governance, advanced RBAC, audit, quotas, platform validation, controlled
-egress, backup operations and regulated-data workflows. The CE repository does
-not contain Enterprise source code or a runtime switch that unlocks it.
+governance, advanced RBAC, audit, quotas, the agent and workflow runtime,
+platform validation, controlled egress, backup operations and regulated-data
+workflows. The CE repository does not contain Enterprise source code or a
+runtime switch that unlocks it.
 
 - [Edition model](docs/EDITIONS.md)
 - [CE/EE extension boundary](docs/EE_EXTENSION_POINTS.md)
@@ -120,7 +119,7 @@ installation values in a private operations repository or secret manager.
 - [Jobs and history](docs/JOB_HISTORY.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
 - [Applications and Production](docs/APPS_V1.md) and [production operations](docs/PRODUCTION.md)
 - [Hardware tiers](docs/HARDWARE_TIERS.md)
-- [Agents, teams and workflows](docs/AGENTS.md)
+- [Agents, teams and workflows](docs/AGENTS.md) (public model; Enterprise runtime)
 
 ### Identity, Security And API
 
