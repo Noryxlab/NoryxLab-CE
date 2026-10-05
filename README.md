@@ -120,22 +120,17 @@ The reference topology requires:
 - Keycloak for OpenID Connect authentication;
 - a public DNS name and TLS termination.
 
-Start with the infrastructure prerequisites and VM bootstrap documents:
+Follow the [step-by-step CE installation guide](docs/INSTALL_CE.md). It starts
+with the infrastructure prerequisites, forces a review of all repository
+defaults before an apply, bootstraps and hardens Keycloak, then proves the
+first user journey with the deployment smoke test.
 
-1. [Infrastructure prerequisites](docs/INFRA_PREREQUISITES.md)
-2. [VM bootstrap](docs/BOOTSTRAP_VM.md)
-3. [Keycloak setup](docs/KEYCLOAK_SETUP.md)
-4. [Image security and Harbor mirroring](docs/IMAGE_SECURITY.md)
-
-The baseline manifests are in `deploy/k8s/base`:
-
-```bash
-kubectl apply --server-side --force-conflicts -k deploy/k8s/base
-kubectl -n noryx-ce get pods
-```
-
-For a production platform, use the documented deployment automation rather
-than treating this minimal command as a complete installation procedure.
+The baseline manifests in `deploy/k8s/base` are deliberately reference values,
+not a production command to run unchanged: they contain example registry and
+domain names, placeholder backup images, and demonstration secrets. Render a
+private installation overlay, validate it with
+`scripts/ops/validate-installation-manifest.sh`, then apply the rendered
+manifest.
 
 ## Security Model
 
@@ -186,6 +181,7 @@ in sync with the router. See [API documentation](docs/API.md).
 
 ### Operations
 
+- [Install Community Edition step by step](docs/INSTALL_CE.md)
 - [Backend runtime API](docs/BACKEND_RUNTIME_API.md)
 - [Workspace troubleshooting](docs/WORKSPACE_TROUBLESHOOTING.md)
 - [Recovery](docs/RECOVERY.md)
