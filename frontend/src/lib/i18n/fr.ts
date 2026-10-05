@@ -165,6 +165,25 @@ export const fr = {
     grantedBy: "Autorisé par {who}, {when}",
   },
   agents: {
+    tabAgents: "Agents",
+    tabWorkflows: "Workflows",
+    tabTeams: "Équipes",
+    statAgents: "Agents",
+    statAgentsHint: "{active} au travail sur {total}",
+    statWorkflows: "Workflows",
+    statWorkflowsHint: "{active} en service sur {total}",
+    statDecisions: "À décider",
+    statDecisionsHint: "Des runs attendent une personne",
+    statDecisionsNone: "Rien n’attend personne",
+    statGrants: "Droits d’agir",
+    statGrantsHint: "{granted} peuvent agir, {readers} regardent",
+    inboxTitle: "À décider",
+    inboxIntro:
+      "Ces runs attendent une personne nommée. Ils reprennent dès que vous avez tranché, et ne font rien d’ici là.",
+    inboxStep: "pas {index} · {step}",
+    grants: "Droits d’agir",
+    conceptLead:
+      "Un agent est ce que vous voyez : un collègue à qui vous laissez une consigne. Un workflow est ce qui s’exécute : une suite de pas, chacun confié au modèle ou à une personne. Un agent d’aujourd’hui est un workflow d’un seul pas.",
     title: "Agents",
     intro:
       "Des consignes permanentes, écrites dans vos mots. Un agent regarde à votre place et vous dit ce qu’il a vu.",
@@ -280,6 +299,22 @@ export const fr = {
     actionCallApi: "Appel API {call}",
   },
   workflows: {
+    pipelineTitle: "La séquence",
+    triggerNode: "Déclencheur",
+    reportNode: "Rapport",
+    whenTitle: "Quand",
+    whenInWords:
+      "Dire quand, en mots : « tous les matins à 8 h sauf le week-end »",
+    soon: "Bientôt",
+    onEvent: "Sur un événement",
+    eventJobFinished: "À la fin d’un job",
+    eventDatasetChanged: "Quand un dataset change",
+    stepVerbs: "Verbes",
+    stepReadsOnly: "Regarde et rapporte",
+    edit: "Modifier",
+    editSoon:
+      "La modification d’un workflow existant arrive. Pour l’instant, écrivez-en un nouveau.",
+    currentInstruction: "La consigne du pas en cours",
     title: "Workflows",
     intro:
       "Ce qui s’exécute quand un agent travaille : une suite de pas, chacun confié au modèle ou à une personne nommée. Le déroulé décide de la suite, pas le modèle.",

@@ -7,7 +7,7 @@ import * as React from "react";
 import { relativeTime, scheduleKey } from "./agent-roster";
 import { useT } from "@/lib/i18n";
 import type { Agent, AgentRun } from "@/lib/api/types";
-import { actionTakenLabel } from "./action-label";
+import { actionTakenLabel, grantLabel } from "./action-label";
 
 /**
  * Ce que l'agent a vu.
@@ -61,11 +61,18 @@ export function AgentJournal({
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
             {agent.mission}
           </p>
-          <p className="text-xs text-placeholder">
-            {t(scheduleKey(agent.schedule))}
-            {agent.actions.length > 0
-              ? ` · ${t("agents.mayRestart")}`
-              : ` · ${t("agents.readsOnly")}`}
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-placeholder">
+            <span>{t(scheduleKey(agent.schedule))}</span>
+            <span aria-hidden>·</span>
+            {agent.actions.length > 0 ? (
+              agent.actions.map((action) => (
+                <Badge key={action} tone="warning">
+                  {grantLabel(action, t)}
+                </Badge>
+              ))
+            ) : (
+              <span>{t("agents.readsOnly")}</span>
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">

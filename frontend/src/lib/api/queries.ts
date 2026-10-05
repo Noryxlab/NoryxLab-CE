@@ -1,4 +1,9 @@
-import { useQueries, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import {
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import {
   projectOrganizationRolesApi,
   projectTeamRolesApi,
@@ -23,8 +28,9 @@ import {
   teamsApi,
   mountsApi,
   workspacesApi,
-} from './endpoints';
-import { describeStatus } from '@/components/ui/badge';
+} from "./endpoints";
+import type { Workflow } from "./types";
+import { describeStatus } from "@/components/ui/badge";
 
 /**
  * Query keys, centralised so mutations can invalidate precisely instead of
@@ -32,108 +38,131 @@ import { describeStatus } from '@/components/ui/badge';
  * key, so invalidating it drops the whole project subtree.
  */
 export const qk = {
-  version: ['version'] as const,
-  platformOverview: ['platform', 'overview'] as const,
-  aiServices: ['ai-services', 'status'] as const,
-  agents: ['agents'] as const,
-  agentRuns: (id: string) => ['agents', id, 'runs'] as const,
-  agentTeams: ['agent-teams'] as const,
-  workflows: ['workflows'] as const,
-  workflowRuns: (id: string) => ['workflows', id, 'runs'] as const,
-  agentGovernance: ['admin', 'agent-governance'] as const,
-  adminRbacPolicy: ['admin', 'rbac-policy'] as const,
-  adminStorageCapacity: ['admin', 'storage-capacity'] as const,
-  assignableRoles: ['roles'] as const,
-  agentMandates: (teamId: string) => ['agent-teams', teamId, 'mandates'] as const,
-  hardwareTiers: ['hardware-tiers'] as const,
-  preferences: ['user', 'preferences'] as const,
-  organizations: ['organizations'] as const,
-  projectVariables: (projectId: string) => ['projects', projectId, 'variables'] as const,
-  buildLogs: (buildId: string) => ['builds', buildId, 'logs'] as const,
-  myOrganizations: ['organizations', 'mine'] as const,
+  version: ["version"] as const,
+  platformOverview: ["platform", "overview"] as const,
+  aiServices: ["ai-services", "status"] as const,
+  agents: ["agents"] as const,
+  agentRuns: (id: string) => ["agents", id, "runs"] as const,
+  agentTeams: ["agent-teams"] as const,
+  workflows: ["workflows"] as const,
+  workflowRuns: (id: string) => ["workflows", id, "runs"] as const,
+  agentGovernance: ["admin", "agent-governance"] as const,
+  adminRbacPolicy: ["admin", "rbac-policy"] as const,
+  adminStorageCapacity: ["admin", "storage-capacity"] as const,
+  assignableRoles: ["roles"] as const,
+  agentMandates: (teamId: string) =>
+    ["agent-teams", teamId, "mandates"] as const,
+  hardwareTiers: ["hardware-tiers"] as const,
+  preferences: ["user", "preferences"] as const,
+  organizations: ["organizations"] as const,
+  projectVariables: (projectId: string) =>
+    ["projects", projectId, "variables"] as const,
+  buildLogs: (buildId: string) => ["builds", buildId, "logs"] as const,
+  myOrganizations: ["organizations", "mine"] as const,
 
-  projects: ['projects'] as const,
+  projects: ["projects"] as const,
   /** Ou un objet du catalogue est monte. La cle porte le genre, parce que
    *  trois objets differents repondent a la meme question. */
-  resourceMounts: (kind: string, id: string) => ['mounts', kind, id] as const,
-  project: (projectId: string) => ['projects', projectId] as const,
-  projectDatasets: (projectId: string) => ['projects', projectId, 'datasets'] as const,
-  projectDatasources: (projectId: string) => ['projects', projectId, 'datasources'] as const,
-  projectOntologies: (projectId: string) => ['projects', projectId, 'ontologies'] as const,
-  projectExtracts: (projectId: string) => ['projects', projectId, 'extracts'] as const,
-  projectRepositories: (projectId: string) => ['projects', projectId, 'repositories'] as const,
-  projectFiles: (projectId: string, path: string) => ['projects', projectId, 'files', path] as const,
-  projectEgress: (projectId: string) => ['projects', projectId, 'egress'] as const,
+  resourceMounts: (kind: string, id: string) => ["mounts", kind, id] as const,
+  project: (projectId: string) => ["projects", projectId] as const,
+  projectDatasets: (projectId: string) =>
+    ["projects", projectId, "datasets"] as const,
+  projectDatasources: (projectId: string) =>
+    ["projects", projectId, "datasources"] as const,
+  projectOntologies: (projectId: string) =>
+    ["projects", projectId, "ontologies"] as const,
+  projectExtracts: (projectId: string) =>
+    ["projects", projectId, "extracts"] as const,
+  projectRepositories: (projectId: string) =>
+    ["projects", projectId, "repositories"] as const,
+  projectFiles: (projectId: string, path: string) =>
+    ["projects", projectId, "files", path] as const,
+  projectEgress: (projectId: string) =>
+    ["projects", projectId, "egress"] as const,
 
-  workspaces: (projectId?: string) => ['workspaces', projectId ?? 'all'] as const,
-  jobs: (projectId?: string) => ['jobs', projectId ?? 'all'] as const,
-  jobLogs: (jobId: string) => ['jobs', 'logs', jobId] as const,
-  cronJobs: (projectId?: string) => ['cronjobs', projectId ?? 'all'] as const,
-  apps: (projectId?: string) => ['apps', projectId ?? 'all'] as const,
-  appLogs: (appId: string) => ['apps', 'logs', appId] as const,
-  workspaceStartup: (id: string) => ['workspaces', id, 'startup'] as const,
-  appUsage: (appId: string) => ['apps', appId, 'usage'] as const,
-  projectUsage: (projectId: string) => ['projects', projectId, 'usage'] as const,
-  appRevisions: (appId: string) => ['apps', appId, 'revisions'] as const,
-  dashboards: (projectId?: string) => ['dashboards', projectId ?? 'all'] as const,
-  apis: (projectId?: string) => ['apis', projectId ?? 'all'] as const,
-  projectTokens: (projectId: string) => ['projects', projectId, 'tokens'] as const,
-  production: ['production', 'apps'] as const,
+  workspaces: (projectId?: string) =>
+    ["workspaces", projectId ?? "all"] as const,
+  jobs: (projectId?: string) => ["jobs", projectId ?? "all"] as const,
+  jobLogs: (jobId: string) => ["jobs", "logs", jobId] as const,
+  cronJobs: (projectId?: string) => ["cronjobs", projectId ?? "all"] as const,
+  apps: (projectId?: string) => ["apps", projectId ?? "all"] as const,
+  appLogs: (appId: string) => ["apps", "logs", appId] as const,
+  workspaceStartup: (id: string) => ["workspaces", id, "startup"] as const,
+  appUsage: (appId: string) => ["apps", appId, "usage"] as const,
+  projectUsage: (projectId: string) =>
+    ["projects", projectId, "usage"] as const,
+  appRevisions: (appId: string) => ["apps", appId, "revisions"] as const,
+  dashboards: (projectId?: string) =>
+    ["dashboards", projectId ?? "all"] as const,
+  apis: (projectId?: string) => ["apis", projectId ?? "all"] as const,
+  projectTokens: (projectId: string) =>
+    ["projects", projectId, "tokens"] as const,
+  production: ["production", "apps"] as const,
 
-  datasets: ['datasets'] as const,
-  datasetAccess: (datasetId: string) => ['datasets', datasetId, 'access'] as const,
-  datasetUsage: (datasetId: string) => ['datasets', datasetId, 'usage'] as const,
+  datasets: ["datasets"] as const,
+  datasetAccess: (datasetId: string) =>
+    ["datasets", datasetId, "access"] as const,
+  datasetUsage: (datasetId: string) =>
+    ["datasets", datasetId, "usage"] as const,
   datasetObjects: (datasetId: string, prefix: string) =>
-    ['datasets', datasetId, 'objects', prefix] as const,
+    ["datasets", datasetId, "objects", prefix] as const,
 
-  datasources: ['datasources'] as const,
-  datasourceDefinitions: ['datasource-definitions'] as const,
-  ontologies: ['ontologies'] as const,
-  extracts: ['extracts'] as const,
-  datasetPathLayout: (datasetId: string) => ['datasets', datasetId, 'path-layout'] as const,
-  ontologyFreshness: (ontologyId: string) => ['ontologies', ontologyId, 'freshness'] as const,
+  datasources: ["datasources"] as const,
+  datasourceDefinitions: ["datasource-definitions"] as const,
+  ontologies: ["ontologies"] as const,
+  extracts: ["extracts"] as const,
+  datasetPathLayout: (datasetId: string) =>
+    ["datasets", datasetId, "path-layout"] as const,
+  ontologyFreshness: (ontologyId: string) =>
+    ["ontologies", ontologyId, "freshness"] as const,
   ontologyCompleteness: (ontologyId: string) =>
-    ['ontologies', ontologyId, 'completeness'] as const,
-  ontologyExtracts: (ontologyId: string) => ['ontologies', ontologyId, 'extracts'] as const,
-  repositories: ['repositories'] as const,
-  secrets: ['secrets'] as const,
+    ["ontologies", ontologyId, "completeness"] as const,
+  ontologyExtracts: (ontologyId: string) =>
+    ["ontologies", ontologyId, "extracts"] as const,
+  repositories: ["repositories"] as const,
+  secrets: ["secrets"] as const,
 
-  environments: (projectId?: string) => ['environments', projectId ?? 'all'] as const,
-  builds: (projectId?: string) => ['builds', projectId ?? 'all'] as const,
-  dockerfile: (buildId: string) => ['builds', buildId, 'dockerfile'] as const,
+  environments: (projectId?: string) =>
+    ["environments", projectId ?? "all"] as const,
+  builds: (projectId?: string) => ["builds", projectId ?? "all"] as const,
+  dockerfile: (buildId: string) => ["builds", buildId, "dockerfile"] as const,
 
-  egressProfiles: ['egress', 'profiles'] as const,
-  egressRules: ['admin', 'egress', 'rules'] as const,
+  egressProfiles: ["egress", "profiles"] as const,
+  egressRules: ["admin", "egress", "rules"] as const,
 
-  adminOverview: ['admin', 'overview'] as const,
-  adminHealth: ['admin', 'health'] as const,
-  softwareInventory: ['admin', 'software-inventory'] as const,
-  adminHardwareTiers: ['admin', 'hardware-tiers'] as const,
-  myTeams: ['user', 'teams'] as const,
-  adminTeams: (organizationId: string) => ['admin', 'teams', organizationId] as const,
-  adminTeamMembers: (teamId: string) => ['admin', 'team-members', teamId] as const,
-  projectTeamRoles: (projectId: string) => ['projects', projectId, 'team-roles'] as const,
-  adminSmtp: ['admin', 'smtp'] as const,
-  apiTokens: ['user', 'api-tokens'] as const,
-  componentTokens: ['admin', 'component-tokens'] as const,
-  serviceAccounts: ['admin', 'service-accounts'] as const,
+  adminOverview: ["admin", "overview"] as const,
+  adminHealth: ["admin", "health"] as const,
+  softwareInventory: ["admin", "software-inventory"] as const,
+  adminHardwareTiers: ["admin", "hardware-tiers"] as const,
+  myTeams: ["user", "teams"] as const,
+  adminTeams: (organizationId: string) =>
+    ["admin", "teams", organizationId] as const,
+  adminTeamMembers: (teamId: string) =>
+    ["admin", "team-members", teamId] as const,
+  projectTeamRoles: (projectId: string) =>
+    ["projects", projectId, "team-roles"] as const,
+  adminSmtp: ["admin", "smtp"] as const,
+  apiTokens: ["user", "api-tokens"] as const,
+  componentTokens: ["admin", "component-tokens"] as const,
+  serviceAccounts: ["admin", "service-accounts"] as const,
   projectOrganizationRoles: (projectId: string) =>
-    ['projects', projectId, 'organization-roles'] as const,
-  adminHealthHistory: (days: number) => ['admin', 'health', 'history', days] as const,
-  adminSettings: ['admin', 'settings'] as const,
-  adminUsers: ['admin', 'users'] as const,
-  adminExecutions: ['admin', 'executions'] as const,
-  adminPods: ['admin', 'pods'] as const,
-  adminOrganizations: ['admin', 'organizations'] as const,
+    ["projects", projectId, "organization-roles"] as const,
+  adminHealthHistory: (days: number) =>
+    ["admin", "health", "history", days] as const,
+  adminSettings: ["admin", "settings"] as const,
+  adminUsers: ["admin", "users"] as const,
+  adminExecutions: ["admin", "executions"] as const,
+  adminPods: ["admin", "pods"] as const,
+  adminOrganizations: ["admin", "organizations"] as const,
   adminOrganizationMembers: (organizationId: string) =>
-    ['admin', 'organizations', organizationId, 'members'] as const,
-  adminAudit: ['admin', 'audit'] as const,
-  adminDataUsage: ['admin', 'data-usage'] as const,
-  adminRbacMatrix: ['admin', 'rbac-matrix'] as const,
-  adminStorageEndpoints: ['admin', 'storage-endpoints'] as const,
-  adminBackupStatus: ['admin', 'backups', 'status'] as const,
-  adminBackupRuns: ['admin', 'backups', 'runs'] as const,
-  adminModules: ['admin', 'modules'] as const,
+    ["admin", "organizations", organizationId, "members"] as const,
+  adminAudit: ["admin", "audit"] as const,
+  adminDataUsage: ["admin", "data-usage"] as const,
+  adminRbacMatrix: ["admin", "rbac-matrix"] as const,
+  adminStorageEndpoints: ["admin", "storage-endpoints"] as const,
+  adminBackupStatus: ["admin", "backups", "status"] as const,
+  adminBackupRuns: ["admin", "backups", "runs"] as const,
+  adminModules: ["admin", "modules"] as const,
 };
 
 /**
@@ -145,34 +174,56 @@ export const qk = {
  * settled, instead of running a fixed 5s timer forever like the previous UI's
  * `workspacesAutoRefreshTimer`.
  */
-function pollWhilePending<T extends { status?: string }>(items: T[] | undefined): number | false {
+function pollWhilePending<T extends { status?: string }>(
+  items: T[] | undefined,
+): number | false {
   if (!items || items.length === 0) return false;
   const converging = items.some((item) => describeStatus(item.status).pending);
   return converging ? 4000 : false;
 }
 
-type Options<T> = Omit<UseQueryOptions<T, unknown, T, readonly unknown[]>, 'queryKey' | 'queryFn'>;
+type Options<T> = Omit<
+  UseQueryOptions<T, unknown, T, readonly unknown[]>,
+  "queryKey" | "queryFn"
+>;
 
 /* -- platform -------------------------------------------------------------- */
 
-export const useVersion = () => useQuery({ queryKey: qk.version, queryFn: platformApi.version, staleTime: 300_000 });
+export const useVersion = () =>
+  useQuery({
+    queryKey: qk.version,
+    queryFn: platformApi.version,
+    staleTime: 300_000,
+  });
 
 export const usePlatformOverview = () =>
-  useQuery({ queryKey: qk.platformOverview, queryFn: platformApi.overview, refetchInterval: 30_000 });
+  useQuery({
+    queryKey: qk.platformOverview,
+    queryFn: platformApi.overview,
+    refetchInterval: 30_000,
+  });
 
 /** Interrogé régulièrement : un GPU loué s'arrête le soir, et un bandeau vert
  *  sur un service éteint est pire que pas de bandeau du tout. */
 export const useAIServices = () =>
-  useQuery({ queryKey: qk.aiServices, queryFn: platformApi.aiServices, refetchInterval: 60_000 });
+  useQuery({
+    queryKey: qk.aiServices,
+    queryFn: platformApi.aiServices,
+    refetchInterval: 60_000,
+  });
 
 /** Rafraichi regulierement : un agent horaire travaille pendant que la page est
  *  ouverte, et un tableau fige donne l'impression qu'il ne fait rien. */
 export const useAgents = () =>
-  useQuery({ queryKey: qk.agents, queryFn: platformApi.agents, refetchInterval: 30_000 });
+  useQuery({
+    queryKey: qk.agents,
+    queryFn: platformApi.agents,
+    refetchInterval: 30_000,
+  });
 
 export const useAgentRuns = (agentId: string | undefined) =>
   useQuery({
-    queryKey: qk.agentRuns(agentId ?? ''),
+    queryKey: qk.agentRuns(agentId ?? ""),
     queryFn: () => platformApi.agentRuns(agentId as string),
     enabled: Boolean(agentId),
     refetchInterval: 30_000,
@@ -181,15 +232,39 @@ export const useAgentRuns = (agentId: string | undefined) =>
 /** Rafraichis comme les agents : un run avance pendant que la page est
  *  ouverte, et un pas qui attend une personne doit apparaitre sans recharger. */
 export const useWorkflows = () =>
-  useQuery({ queryKey: qk.workflows, queryFn: platformApi.workflows, refetchInterval: 30_000 });
+  useQuery({
+    queryKey: qk.workflows,
+    queryFn: platformApi.workflows,
+    refetchInterval: 30_000,
+  });
 
 export const useWorkflowRuns = (workflowId: string | undefined) =>
   useQuery({
-    queryKey: qk.workflowRuns(workflowId ?? ''),
+    queryKey: qk.workflowRuns(workflowId ?? ""),
     queryFn: () => platformApi.workflowRuns(workflowId as string),
     enabled: Boolean(workflowId),
     refetchInterval: 15_000,
   });
+
+/** Les runs de plusieurs workflows a la fois, pour compter ce qui attend une
+ *  personne sans ouvrir chaque workflow. Memes clefs que le detail, donc le
+ *  cache est partage et une decision prise ici se voit la-bas. */
+export function useWorkflowRunsAll(workflows: Workflow[]) {
+  const results = useQueries({
+    queries: workflows.map((workflow) => ({
+      queryKey: qk.workflowRuns(workflow.id),
+      queryFn: () => platformApi.workflowRuns(workflow.id),
+      refetchInterval: 15_000,
+    })),
+  });
+  const runs = results.flatMap((result, index) => {
+    const workflow = workflows[index];
+    return workflow
+      ? (result.data ?? []).map((run) => ({ workflow, run }))
+      : [];
+  });
+  return { runs, loading: results.some((result) => result.isLoading) };
+}
 
 /** Les equipes changent quand quelqu'un les modifie, pas toutes seules : pas
  *  de rafraichissement automatique, contrairement aux agents qui travaillent
@@ -202,19 +277,23 @@ export const useAgentTeams = () =>
 
 export const useAgentMandates = (teamId: string | undefined) =>
   useQuery({
-    queryKey: qk.agentMandates(teamId ?? ''),
+    queryKey: qk.agentMandates(teamId ?? ""),
     queryFn: () => platformApi.agentMandates(teamId as string),
     enabled: Boolean(teamId),
   });
 
 export const useHardwareTiers = () =>
-  useQuery({ queryKey: qk.hardwareTiers, queryFn: platformApi.hardwareTiers, staleTime: 600_000 });
+  useQuery({
+    queryKey: qk.hardwareTiers,
+    queryFn: platformApi.hardwareTiers,
+    staleTime: 600_000,
+  });
 
 /** Polled while the build is still running, so somebody watching a rebuild
  *  sees it progress rather than a frozen panel. */
 export const useBuildLogs = (buildId: string | undefined, enabled = true) =>
   useQuery({
-    queryKey: qk.buildLogs(buildId ?? ''),
+    queryKey: qk.buildLogs(buildId ?? ""),
     queryFn: () => environmentsApi.buildLogs(buildId as string),
     enabled: Boolean(buildId) && enabled,
     refetchInterval: ({ state }) => (state.data?.pending ? 4000 : false),
@@ -222,13 +301,17 @@ export const useBuildLogs = (buildId: string | undefined, enabled = true) =>
 
 export const useProjectVariables = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectVariables(projectId ?? ''),
+    queryKey: qk.projectVariables(projectId ?? ""),
     queryFn: () => projectVariablesApi.list(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useOrganizations = () =>
-  useQuery({ queryKey: qk.organizations, queryFn: platformApi.organizations, staleTime: 120_000 });
+  useQuery({
+    queryKey: qk.organizations,
+    queryFn: platformApi.organizations,
+    staleTime: 120_000,
+  });
 
 export const useMyOrganizations = () =>
   useQuery({
@@ -239,62 +322,68 @@ export const useMyOrganizations = () =>
 
 /* -- projects -------------------------------------------------------------- */
 
-export const useResourceMounts = (kind: 'dataset' | 'ontology' | 'extract', id: string | undefined) =>
+export const useResourceMounts = (
+  kind: "dataset" | "ontology" | "extract",
+  id: string | undefined,
+) =>
   useQuery({
-    queryKey: qk.resourceMounts(kind, id ?? ''),
+    queryKey: qk.resourceMounts(kind, id ?? ""),
     queryFn: () => mountsApi[kind](id as string),
     enabled: Boolean(id),
   });
 
-export const useProjects = (options?: Options<Awaited<ReturnType<typeof projectsApi.list>>>) =>
-  useQuery({ queryKey: qk.projects, queryFn: projectsApi.list, ...options });
+export const useProjects = (
+  options?: Options<Awaited<ReturnType<typeof projectsApi.list>>>,
+) => useQuery({ queryKey: qk.projects, queryFn: projectsApi.list, ...options });
 
 export function useProject(projectId: string | undefined) {
   const query = useProjects({ enabled: Boolean(projectId) });
   return {
     ...query,
-    data: projectId ? query.data?.find((project) => project.id === projectId) : undefined,
+    data: projectId
+      ? query.data?.find((project) => project.id === projectId)
+      : undefined,
   };
 }
 
 export const useProjectDatasets = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectDatasets(projectId ?? ''),
+    queryKey: qk.projectDatasets(projectId ?? ""),
     queryFn: () => projectsApi.datasets(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useProjectDatasources = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectDatasources(projectId ?? ''),
+    queryKey: qk.projectDatasources(projectId ?? ""),
     queryFn: () => projectsApi.datasources(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useProjectOntologies = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectOntologies(projectId ?? ''),
+    queryKey: qk.projectOntologies(projectId ?? ""),
     queryFn: () => projectsApi.ontologies(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useProjectExtracts = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectExtracts(projectId ?? ''),
+    queryKey: qk.projectExtracts(projectId ?? ""),
     queryFn: () => projectsApi.extracts(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useProjectRepositories = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectRepositories(projectId ?? ''),
+    queryKey: qk.projectRepositories(projectId ?? ""),
     queryFn: () => projectsApi.repositories(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useProjectFiles = (projectId: string | undefined, path: string) =>
   useQuery({
-    queryKey: qk.projectFiles(projectId ?? '', path),
+    queryKey: qk.projectFiles(projectId ?? "", path),
     queryFn: () => projectsApi.files(projectId as string, path),
     enabled: Boolean(projectId),
   });
@@ -321,7 +410,7 @@ export function useJobs(projectId: string | undefined) {
 
 export const useJobLogs = (jobId: string | undefined) =>
   useQuery({
-    queryKey: qk.jobLogs(jobId ?? ''),
+    queryKey: qk.jobLogs(jobId ?? ""),
     queryFn: () => jobsApi.logs(jobId as string),
     enabled: Boolean(jobId),
   });
@@ -347,7 +436,7 @@ export function useApps(projectId: string | undefined) {
  *  the behaviour environment builds have always had. */
 export const useAppLogs = (appId: string | undefined) =>
   useQuery({
-    queryKey: qk.appLogs(appId ?? ''),
+    queryKey: qk.appLogs(appId ?? ""),
     queryFn: () => appsApi.logs(appId as string),
     enabled: Boolean(appId),
     refetchInterval: ({ state }) => (state.data?.pending ? 4000 : false),
@@ -357,7 +446,7 @@ export const useAppLogs = (appId: string | undefined) =>
  *  and no screen ever called it. */
 export const useAppUsage = (appId: string | undefined) =>
   useQuery({
-    queryKey: qk.appUsage(appId ?? ''),
+    queryKey: qk.appUsage(appId ?? ""),
     queryFn: () => appsApi.usage(appId as string),
     enabled: Boolean(appId),
   });
@@ -365,23 +454,26 @@ export const useAppUsage = (appId: string | undefined) =>
 /** What the project actually consumed, in the unit a bill is written in. */
 export const useProjectUsage = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectUsage(projectId ?? ''),
+    queryKey: qk.projectUsage(projectId ?? ""),
     queryFn: () => projectsApi.usage(projectId as string),
     enabled: Boolean(projectId),
   });
 
 export const useAppRevisions = (appId: string | undefined) =>
   useQuery({
-    queryKey: qk.appRevisions(appId ?? ''),
+    queryKey: qk.appRevisions(appId ?? ""),
     queryFn: () => appsApi.revisions(appId as string),
     enabled: Boolean(appId),
   });
 
 /** Interrogé tant que le workspace n'est pas prêt : c'est pendant l'attente que
  *  la question « où ça en est » se pose. */
-export const useWorkspaceStartup = (workspaceId: string | undefined, enabled = true) =>
+export const useWorkspaceStartup = (
+  workspaceId: string | undefined,
+  enabled = true,
+) =>
   useQuery({
-    queryKey: qk.workspaceStartup(workspaceId ?? ''),
+    queryKey: qk.workspaceStartup(workspaceId ?? ""),
     queryFn: () => workspacesApi.startup(workspaceId as string),
     enabled: Boolean(workspaceId) && enabled,
     refetchInterval: ({ state }) => (state.data?.stuck ? false : 4000),
@@ -398,7 +490,7 @@ export function useApis(projectId: string | undefined) {
 
 export const useProjectTokens = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectTokens(projectId ?? ''),
+    queryKey: qk.projectTokens(projectId ?? ""),
     queryFn: () => projectTokensApi.list(projectId as string),
     enabled: Boolean(projectId),
   });
@@ -413,25 +505,34 @@ export function useDashboards(projectId: string | undefined) {
 }
 
 export const useProductionApps = () =>
-  useQuery({ queryKey: qk.production, queryFn: productionApi.apps, refetchInterval: 30_000 });
+  useQuery({
+    queryKey: qk.production,
+    queryFn: productionApi.apps,
+    refetchInterval: 30_000,
+  });
 
 /* -- data ------------------------------------------------------------------ */
 
 /** The teams you belong to, for the owner selector. */
-export const useMyTeams = () => useQuery({ queryKey: qk.myTeams, queryFn: teamsApi.mine });
+export const useMyTeams = () =>
+  useQuery({ queryKey: qk.myTeams, queryFn: teamsApi.mine });
 
-export const useDatasets = () => useQuery({ queryKey: qk.datasets, queryFn: datasetsApi.list });
+export const useDatasets = () =>
+  useQuery({ queryKey: qk.datasets, queryFn: datasetsApi.list });
 
 export const useDatasetAccess = (datasetId: string | undefined) =>
   useQuery({
-    queryKey: qk.datasetAccess(datasetId ?? ''),
+    queryKey: qk.datasetAccess(datasetId ?? ""),
     queryFn: () => datasetsApi.access(datasetId as string),
     enabled: Boolean(datasetId),
   });
 
-export const useDatasetObjects = (datasetId: string | undefined, prefix: string) =>
+export const useDatasetObjects = (
+  datasetId: string | undefined,
+  prefix: string,
+) =>
   useQuery({
-    queryKey: qk.datasetObjects(datasetId ?? '', prefix),
+    queryKey: qk.datasetObjects(datasetId ?? "", prefix),
     queryFn: () => datasetsApi.objects(datasetId as string, prefix),
     enabled: Boolean(datasetId),
   });
@@ -440,14 +541,15 @@ export const useDatasetObjects = (datasetId: string | undefined, prefix: string)
  *  and the server keeps its own short cache on top. */
 export const useDatasetUsage = (datasetId: string | undefined) =>
   useQuery({
-    queryKey: qk.datasetUsage(datasetId ?? ''),
+    queryKey: qk.datasetUsage(datasetId ?? ""),
     queryFn: () => datasetsApi.usage(datasetId as string),
     enabled: Boolean(datasetId),
     staleTime: 10 * 60 * 1000,
     retry: false,
   });
 
-export const useDatasources = () => useQuery({ queryKey: qk.datasources, queryFn: datasourcesApi.list });
+export const useDatasources = () =>
+  useQuery({ queryKey: qk.datasources, queryFn: datasourcesApi.list });
 
 export const useDatasourceDefinitions = () =>
   useQuery({
@@ -456,7 +558,8 @@ export const useDatasourceDefinitions = () =>
     staleTime: 600_000,
   });
 
-export const useOntologies = () => useQuery({ queryKey: qk.ontologies, queryFn: ontologiesApi.list });
+export const useOntologies = () =>
+  useQuery({ queryKey: qk.ontologies, queryFn: ontologiesApi.list });
 
 export const useExtracts = () =>
   useQuery({ queryKey: qk.extracts, queryFn: ontologiesApi.allExtracts });
@@ -465,7 +568,7 @@ export const useExtracts = () =>
  *  bucket, which is seconds of work for a large study. */
 export const useOntologyFreshness = (ontologyId: string | undefined) =>
   useQuery({
-    queryKey: qk.ontologyFreshness(ontologyId ?? ''),
+    queryKey: qk.ontologyFreshness(ontologyId ?? ""),
     queryFn: () => ontologiesApi.freshness(ontologyId as string),
     enabled: Boolean(ontologyId),
     staleTime: 5 * 60 * 1000,
@@ -473,21 +576,23 @@ export const useOntologyFreshness = (ontologyId: string | undefined) =>
 
 export const useOntologyCompleteness = (ontologyId: string | undefined) =>
   useQuery({
-    queryKey: qk.ontologyCompleteness(ontologyId ?? ''),
+    queryKey: qk.ontologyCompleteness(ontologyId ?? ""),
     queryFn: () => ontologiesApi.completeness(ontologyId as string),
     enabled: Boolean(ontologyId),
   });
 
 export const useOntologyExtracts = (ontologyId: string | undefined) =>
   useQuery({
-    queryKey: qk.ontologyExtracts(ontologyId ?? ''),
+    queryKey: qk.ontologyExtracts(ontologyId ?? ""),
     queryFn: () => ontologiesApi.extracts(ontologyId as string),
     enabled: Boolean(ontologyId),
   });
 
-export const useRepositories = () => useQuery({ queryKey: qk.repositories, queryFn: repositoriesApi.list });
+export const useRepositories = () =>
+  useQuery({ queryKey: qk.repositories, queryFn: repositoriesApi.list });
 
-export const useSecrets = () => useQuery({ queryKey: qk.secrets, queryFn: secretsApi.list });
+export const useSecrets = () =>
+  useQuery({ queryKey: qk.secrets, queryFn: secretsApi.list });
 
 /* -- environments ---------------------------------------------------------- */
 
@@ -496,16 +601,21 @@ export function useEnvironments(projectId?: string) {
     queryKey: qk.environments(projectId),
     queryFn: () => environmentsApi.list(projectId),
     refetchInterval: ({ state }) =>
-      pollWhilePending(state.data?.map((item) => ({ status: item.latestStatus }))),
+      pollWhilePending(
+        state.data?.map((item) => ({ status: item.latestStatus })),
+      ),
   });
 }
 
 export const useBuilds = (projectId?: string) =>
-  useQuery({ queryKey: qk.builds(projectId), queryFn: () => environmentsApi.builds(projectId) });
+  useQuery({
+    queryKey: qk.builds(projectId),
+    queryFn: () => environmentsApi.builds(projectId),
+  });
 
 export const useDockerfile = (buildId: string | undefined) =>
   useQuery({
-    queryKey: qk.dockerfile(buildId ?? ''),
+    queryKey: qk.dockerfile(buildId ?? ""),
     queryFn: () => environmentsApi.dockerfile(buildId as string),
     enabled: Boolean(buildId),
   });
@@ -513,13 +623,18 @@ export const useDockerfile = (buildId: string | undefined) =>
 /* -- governance ------------------------------------------------------------ */
 
 export const useEgressProfiles = () =>
-  useQuery({ queryKey: qk.egressProfiles, queryFn: egressApi.profiles, staleTime: 600_000 });
+  useQuery({
+    queryKey: qk.egressProfiles,
+    queryFn: egressApi.profiles,
+    staleTime: 600_000,
+  });
 
-export const useEgressRules = () => useQuery({ queryKey: qk.egressRules, queryFn: egressApi.adminList });
+export const useEgressRules = () =>
+  useQuery({ queryKey: qk.egressRules, queryFn: egressApi.adminList });
 
 export const useProjectEgressRules = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectEgress(projectId ?? ''),
+    queryKey: qk.projectEgress(projectId ?? ""),
     queryFn: () => projectsApi.egressRules(projectId as string),
     enabled: Boolean(projectId),
   });
@@ -527,12 +642,17 @@ export const useProjectEgressRules = (projectId: string | undefined) =>
 /* -- administration -------------------------------------------------------- */
 
 export const useAdminOverview = () =>
-  useQuery({ queryKey: qk.adminOverview, queryFn: adminApi.overview, refetchInterval: 30_000 });
+  useQuery({
+    queryKey: qk.adminOverview,
+    queryFn: adminApi.overview,
+    refetchInterval: 30_000,
+  });
 
 export const usePlatformSettings = () =>
   useQuery({ queryKey: qk.adminSettings, queryFn: adminApi.settings });
 
-export const useAdminUsers = () => useQuery({ queryKey: qk.adminUsers, queryFn: adminApi.users });
+export const useAdminUsers = () =>
+  useQuery({ queryKey: qk.adminUsers, queryFn: adminApi.users });
 
 /** Platform health, polled so a condition that appears between two visits is
  *  still noticed. Failures are swallowed: an unreachable health endpoint must
@@ -556,8 +676,8 @@ export const useApiTokens = () =>
 
 export const useProjectOrganizationRoles = (projectId: string | undefined) =>
   useQuery({
-    queryKey: qk.projectOrganizationRoles(projectId ?? ''),
-    queryFn: () => projectOrganizationRolesApi.list(projectId ?? ''),
+    queryKey: qk.projectOrganizationRoles(projectId ?? ""),
+    queryFn: () => projectOrganizationRolesApi.list(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
@@ -579,29 +699,46 @@ export const usePlatformHealth = (enabled: boolean) =>
   });
 
 export const useAdminExecutions = () =>
-  useQuery({ queryKey: qk.adminExecutions, queryFn: adminApi.executions, refetchInterval: 15_000 });
+  useQuery({
+    queryKey: qk.adminExecutions,
+    queryFn: adminApi.executions,
+    refetchInterval: 15_000,
+  });
 
 export const useAdminPods = () =>
-  useQuery({ queryKey: qk.adminPods, queryFn: adminApi.pods, refetchInterval: 15_000 });
+  useQuery({
+    queryKey: qk.adminPods,
+    queryFn: adminApi.pods,
+    refetchInterval: 15_000,
+  });
 
 export const useAdminOrganizations = () =>
-  useQuery({ queryKey: qk.adminOrganizations, queryFn: adminApi.organizations });
+  useQuery({
+    queryKey: qk.adminOrganizations,
+    queryFn: adminApi.organizations,
+  });
 
 export const useOrganizationMembers = (organizationId: string | undefined) =>
   useQuery({
-    queryKey: qk.adminOrganizationMembers(organizationId ?? ''),
+    queryKey: qk.adminOrganizationMembers(organizationId ?? ""),
     queryFn: () => adminApi.organizationMembers(organizationId as string),
     enabled: Boolean(organizationId),
   });
 
-export const useAuditEvents = () => useQuery({ queryKey: qk.adminAudit, queryFn: () => adminApi.audit() });
+export const useAuditEvents = () =>
+  useQuery({ queryKey: qk.adminAudit, queryFn: () => adminApi.audit() });
 
-export const useDataUsage = () => useQuery({ queryKey: qk.adminDataUsage, queryFn: adminApi.dataUsage });
+export const useDataUsage = () =>
+  useQuery({ queryKey: qk.adminDataUsage, queryFn: adminApi.dataUsage });
 
-export const useSmtp = () => useQuery({ queryKey: qk.adminSmtp, queryFn: adminApi.smtp });
+export const useSmtp = () =>
+  useQuery({ queryKey: qk.adminSmtp, queryFn: adminApi.smtp });
 
 export const useAdminHardwareTiers = () =>
-  useQuery({ queryKey: qk.adminHardwareTiers, queryFn: adminApi.hardwareTiers });
+  useQuery({
+    queryKey: qk.adminHardwareTiers,
+    queryFn: adminApi.hardwareTiers,
+  });
 
 /** Every team of every organization, flattened for a picker.
  *
@@ -622,12 +759,13 @@ export function useAllTeams() {
     return (result.data ?? []).map((item) => ({
       id: item.id,
       name: item.name,
-      organizationName: organization?.name ?? '',
+      organizationName: organization?.name ?? "",
     }));
   });
   return {
     data,
-    isLoading: organizations.isLoading || results.some((result) => result.isLoading),
+    isLoading:
+      organizations.isLoading || results.some((result) => result.isLoading),
   };
 }
 
@@ -654,17 +792,30 @@ export const useProjectTeamRoles = (projectId: string) =>
     enabled: Boolean(projectId),
   });
 
-export const useRbacMatrix = () => useQuery({ queryKey: qk.adminRbacMatrix, queryFn: adminApi.rbacMatrix });
+export const useRbacMatrix = () =>
+  useQuery({ queryKey: qk.adminRbacMatrix, queryFn: adminApi.rbacMatrix });
 export const useStorageCapacity = () =>
-  useQuery({ queryKey: qk.adminStorageCapacity, queryFn: adminApi.storageCapacity, refetchInterval: 60_000 });
-export const useRbacPolicy = () => useQuery({ queryKey: qk.adminRbacPolicy, queryFn: adminApi.rbacPolicy });
+  useQuery({
+    queryKey: qk.adminStorageCapacity,
+    queryFn: adminApi.storageCapacity,
+    refetchInterval: 60_000,
+  });
+export const useRbacPolicy = () =>
+  useQuery({ queryKey: qk.adminRbacPolicy, queryFn: adminApi.rbacPolicy });
 // Les roles attribuables changent quand un administrateur edite la matrice,
 // c'est-a-dire rarement, et ils sont lus par chaque ecran de membres.
 export const useAssignableRoles = () =>
-  useQuery({ queryKey: qk.assignableRoles, queryFn: platformApi.assignableRoles, staleTime: 60_000 });
+  useQuery({
+    queryKey: qk.assignableRoles,
+    queryFn: platformApi.assignableRoles,
+    staleTime: 60_000,
+  });
 
 export const useStorageEndpoints = () =>
-  useQuery({ queryKey: qk.adminStorageEndpoints, queryFn: adminApi.storageEndpoints });
+  useQuery({
+    queryKey: qk.adminStorageEndpoints,
+    queryFn: adminApi.storageEndpoints,
+  });
 
 export const useBackupStatus = () =>
   useQuery({ queryKey: qk.adminBackupStatus, queryFn: adminApi.backupStatus });
@@ -677,7 +828,11 @@ export const useBackupRuns = () =>
   });
 
 export const useModules = () =>
-  useQuery({ queryKey: qk.adminModules, queryFn: adminApi.modules, staleTime: 600_000 });
+  useQuery({
+    queryKey: qk.adminModules,
+    queryFn: adminApi.modules,
+    staleTime: 600_000,
+  });
 
 /** Invalidates every query under a key prefix. */
 export function useInvalidate() {

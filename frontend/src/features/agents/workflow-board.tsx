@@ -1,5 +1,13 @@
 import * as React from "react";
-import { Check, Loader2, Plus, RotateCw, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  Pencil,
+  Plus,
+  RotateCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +33,13 @@ import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/i18n";
 import { relativeTime, scheduleKey } from "./agent-roster";
 import { WorkflowDialog } from "./workflow-dialog";
-import type {
-  Workflow,
-  WorkflowRun,
-  WorkflowRunStatus,
-  WorkflowStep,
-} from "@/lib/api/types";
+import {
+  WorkflowPipeline,
+  currentStep,
+  isTerminal,
+  stepKindLabel,
+} from "./workflow-pipeline";
+import type { Workflow, WorkflowRun, WorkflowRunStatus } from "@/lib/api/types";
 import { actionTakenLabel } from "./action-label";
 
 /**
@@ -54,15 +63,26 @@ import { actionTakenLabel } from "./action-label";
  */
 export function WorkflowsSection({
   projectId,
+  writing: writingFromPage = false,
+  onWritingChange,
 }: {
   projectId: string | undefined;
+  /** La page peut ouvrir l'editeur depuis son en-tete ; la section garde le
+   *  sien pour ses propres boutons. */
+  writing?: boolean;
+  onWritingChange?: (open: boolean) => void;
 }) {
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
   const workflows = useWorkflows();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [writing, setWriting] = React.useState(false);
+  const [writingHere, setWritingHere] = React.useState(false);
+  const writing = writingHere || writingFromPage;
+  const setWriting = (open: boolean) => {
+    setWritingHere(open);
+    onWritingChange?.(open);
+  };
   const [deleting, setDeleting] = React.useState<Workflow | null>(null);
 
   const items = (workflows.data ?? []).filter(
@@ -311,61 +331,24 @@ function MissionCard({
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-3">
+        <div className="min-w-0 flex-1 space-y-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-placeholder">
               {t("workflows.missionTitle")}
             </p>
             <h3 className="text-sm font-semibold">{workflow.name}</h3>
           </div>
-          <ol className="space-y-1.5">
-            {workflow.steps.map((step) => {
-              const stepRun = latest?.steps.find(
-                (item) => item.index === step.index,
-              );
-              const isCurrent = current !== null && current === step.index;
-              return (
-                <li
-                  key={step.index}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg px-2 py-1.5",
-                    isCurrent && "bg-brand-subtle",
-                  )}
-                >
-                  <span className="w-5 shrink-0 text-xs text-placeholder tabular-nums">
-                    {step.index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-sm font-medium">
-                        {step.name || stepKindLabel(step, t)}
-                      </span>
-                      <Badge
-                        tone={step.kind === "approval" ? "outline" : "neutral"}
-                      >
-                        {stepKindLabel(step, t)}
-                      </Badge>
-                      {stepRun && latest ? (
-                        <StatusBadge status={stepRun.status} />
-                      ) : null}
-                    </div>
-                    {step.kind === "agent" && step.instruction ? (
-                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {step.instruction}
-                      </p>
-                    ) : null}
-                    {step.kind === "approval" ? (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {t("workflows.waitingFor", {
-                          name: step.approverUserId ?? "",
-                        })}
-                      </p>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <WorkflowPipeline workflow={workflow} latest={latest} />
+          {current !== null && workflow.steps[current]?.kind === "agent" ? (
+            <div>
+              <p className="text-xs text-placeholder">
+                {t("workflows.currentInstruction")}
+              </p>
+              <p className="mt-0.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                {workflow.steps[current]?.instruction}
+              </p>
+            </div>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <Button
@@ -381,17 +364,32 @@ function MissionCard({
             )}
             {t("workflows.runNow")}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onDelete}
-            title={t("workflows.delete")}
-          >
-            <Trash2 className="size-4" aria-hidden />
-            <span className="sr-only">{t("workflows.delete")}</span>
-          </Button>
+          <div className="flex gap-1">
+            {/* L'editeur d'un workflow existant n'est pas encore la : le bouton
+                est a sa place, desactive, et dit pourquoi. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              title={t("workflows.editSoon")}
+            >
+              <Pencil className="size-4" aria-hidden />
+              <span className="sr-only">{t("workflows.edit")}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              title={t("workflows.delete")}
+            >
+              <Trash2 className="size-4" aria-hidden />
+              <span className="sr-only">{t("workflows.delete")}</span>
+            </Button>
+          </div>
         </div>
       </div>
+
+      <WhenRow workflow={workflow} />
 
       <dl className="mt-4 grid gap-3 border-t border-border pt-3 text-xs sm:grid-cols-3">
         <div>
@@ -583,22 +581,56 @@ function dotFor(status: WorkflowRunStatus): string {
   }
 }
 
-function isTerminal(status: WorkflowRunStatus): boolean {
-  return (
-    status === "succeeded" || status === "failed" || status === "cancelled"
+/**
+ * Quand il travaille.
+ *
+ * Les trois horaires d'aujourd'hui, et a cote ce qui vient : le dire en mots,
+ * et partir d'un evenement de la plateforme (ADR-046, phase 2). Montre ici
+ * plutot que cache, desactive et marque "bientot" : la page doit donner le
+ * concept entier, et un horaire qu'on ne peut pas encore ecrire en francais
+ * est un horaire qu'on sait deja ou mettre.
+ */
+function WhenRow({ workflow }: { workflow: Workflow }) {
+  const t = useT();
+  const soon = (
+    <Badge tone="outline" className="text-[10px]">
+      {t("workflows.soon")}
+    </Badge>
   );
-}
-
-/** Le premier pas non fini, derive du run comme le fait le serveur. */
-function currentStep(run: WorkflowRun): number | null {
-  const step = run.steps.find((item) => item.status !== "succeeded");
-  return step ? step.index : null;
-}
-
-type Translate = ReturnType<typeof useT>;
-
-function stepKindLabel(step: WorkflowStep, t: Translate): string {
-  return step.kind === "approval"
-    ? t("workflows.stepApproval")
-    : t("workflows.stepAgent");
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-placeholder">
+        {t("workflows.whenTitle")}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {(["manual", "hourly", "daily"] as const).map((option) => (
+          <span
+            key={option}
+            className={cn(
+              "rounded-lg border px-3 py-1.5 text-sm",
+              workflow.schedule === option
+                ? "border-brand bg-brand-subtle text-brand-subtle-foreground"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            {t(scheduleKey(option))}
+          </span>
+        ))}
+        <span className="flex min-w-64 flex-1 items-center gap-2 rounded-lg border border-dashed border-border px-3 py-1.5 text-sm text-placeholder">
+          <span className="truncate">{t("workflows.whenInWords")}</span>
+          {soon}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-placeholder">
+        <span>{t("workflows.onEvent")}</span>
+        <span className="rounded-md border border-dashed border-border px-2 py-0.5">
+          {t("workflows.eventJobFinished")}
+        </span>
+        <span className="rounded-md border border-dashed border-border px-2 py-0.5">
+          {t("workflows.eventDatasetChanged")}
+        </span>
+        {soon}
+      </div>
+    </div>
+  );
 }

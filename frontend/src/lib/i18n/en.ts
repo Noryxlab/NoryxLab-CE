@@ -162,6 +162,25 @@ export const en: Translations = {
     grantedBy: "Allowed by {who}, {when}",
   },
   agents: {
+    tabAgents: "Agents",
+    tabWorkflows: "Workflows",
+    tabTeams: "Teams",
+    statAgents: "Agents",
+    statAgentsHint: "{active} at work out of {total}",
+    statWorkflows: "Workflows",
+    statWorkflowsHint: "{active} in service out of {total}",
+    statDecisions: "To decide",
+    statDecisionsHint: "Runs are waiting for a person",
+    statDecisionsNone: "Nothing is waiting for anybody",
+    statGrants: "May act",
+    statGrantsHint: "{granted} may act, {readers} look and report",
+    inboxTitle: "To decide",
+    inboxIntro:
+      "These runs are waiting for a named person. They resume as soon as you decide, and do nothing until then.",
+    inboxStep: "step {index} · {step}",
+    grants: "May act",
+    conceptLead:
+      "An agent is what you see: a colleague you leave a standing instruction with. A workflow is what runs: a sequence of steps, each given to the model or to a person. An agent today is a one-step workflow.",
     title: "Agents",
     intro:
       "Standing instructions, in your own words. An agent watches for you and tells you what it saw.",
@@ -275,6 +294,21 @@ export const en: Translations = {
     actionCallApi: "API call {call}",
   },
   workflows: {
+    pipelineTitle: "The sequence",
+    triggerNode: "Trigger",
+    reportNode: "Report",
+    whenTitle: "When",
+    whenInWords: 'Say when, in words: "every morning at 8 except weekends"',
+    soon: "Soon",
+    onEvent: "On an event",
+    eventJobFinished: "When a job finishes",
+    eventDatasetChanged: "When a dataset changes",
+    stepVerbs: "Verbs",
+    stepReadsOnly: "Looks and reports",
+    edit: "Edit",
+    editSoon:
+      "Editing an existing workflow is coming. For now, write a new one.",
+    currentInstruction: "The instruction of the current step",
     title: "Workflows",
     intro:
       "What runs when an agent works: a sequence of steps, each handed to the model or to a named person. The sequence decides what comes next, not the model.",
