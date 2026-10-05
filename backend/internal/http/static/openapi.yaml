@@ -1197,6 +1197,75 @@ components:
           additionalProperties:
             type: string
 
+    WorkflowStep:
+      type: object
+      description: One unit of a workflow. The sequence is the order; the index is derived from the position.
+      properties:
+        index: { type: integer }
+        kind: { type: string, enum: [agent, approval] }
+        name: { type: string }
+        instruction: { type: string, description: "The standing text for an agent step, in its author's words. Never parsed." }
+        actions:
+          type: array
+          description: What an agent step may change, from the same closed list an agent holds.
+          items: { type: string, enum: [restart_app] }
+        approverUserId: { type: string, description: "Who an approval step waits for" }
+    Workflow:
+      type: object
+      properties:
+        id: { type: string }
+        ownerUserId: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        schedule: { type: string, enum: [manual, hourly, daily] }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowStep' }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastRunAt: { type: string, format: date-time }
+    WorkflowListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Workflow' }
+    WorkflowStepRun:
+      type: object
+      description: What happened at one step of one run. Actions are what the platform saw, never what the model said.
+      properties:
+        index: { type: integer }
+        status: { type: string, enum: [pending, running, waiting_approval, succeeded, failed, cancelled] }
+        attempts: { type: integer, description: "How many times this step was started; each attempt carries a new idempotency key" }
+        output: { type: string, description: "What the step produced, handed to the next step as context" }
+        actions:
+          type: array
+          items: { type: string }
+        error: { type: string }
+        approvedByUserId: { type: string }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+    WorkflowRun:
+      type: object
+      description: One execution, persisted after every step so that it can be resumed with no memory of the process that started it.
+      properties:
+        id: { type: string }
+        workflowId: { type: string }
+        status: { type: string, enum: [pending, running, waiting_approval, succeeded, failed, cancelled] }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowStepRun' }
+        error: { type: string, description: "Which step failed and why, once the attempts are spent" }
+        startedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+    WorkflowRunListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkflowRun' }
     Workspace:
       type: object
       required: [id, projectId, kind, name, image, podName, serviceName, status, accessUrl, createdAt]
@@ -8735,6 +8804,172 @@ paths:
       responses:
         '202':
           description: Accepted for delivery to the configured destination
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflow-runs/{runID}/approve:
+    post:
+      tags: [Platform]
+      summary: Let a run continue past the step it waits at; only the person the step names may
+      operationId: approveWorkflowRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The run, carried on past the approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflow-runs/{runID}/reject:
+    post:
+      tags: [Platform]
+      summary: Stop a run at the step it waits at; recorded as cancelled, not failed
+      operationId: rejectWorkflowRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The run, cancelled at the approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflows:
+    get:
+      tags: [Platform]
+      summary: "The workflows this user has written: what runs when an agent works (ADR-046)"
+      operationId: listWorkflows
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: The workflows this user owns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: "Write a workflow down: ordered steps, each a reasoning step or a wait for a named person"
+      operationId: createWorkflow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflows/{workflowID}:
+    delete:
+      tags: [Platform]
+      summary: Delete a workflow and every run it left behind
+      operationId: deleteWorkflow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workflowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Workflow deleted, with every run it left behind
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/workflows/{workflowID}/runs:
+    get:
+      tags: [Platform]
+      summary: The runs of one workflow, most recent first, with what happened at every step
+      operationId: listWorkflowRuns
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workflowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The runs of this workflow, most recent first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRunListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: Run the workflow now, as far as it goes before its first wait for a person
+      operationId: runWorkflowNow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workflowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The run, as far as it went before its first wait
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowRun'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

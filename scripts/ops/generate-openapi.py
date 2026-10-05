@@ -49,7 +49,7 @@ TAGS = [
     ("/api/v1/datasets", "Datasets"),
     ("/api/v1/datasources", "Datasets"),
     ("/api/v1/ontologies", "Datasets"),
-    ("/api/v1/cohorts", "Datasets"),
+    ("/api/v1/extracts", "Datasets"),
     ("/api/v1/repositories", "Repositories"),
     ("/api/v1/secrets", "Secrets"),
     ("/api/v1/user", "Account"),
@@ -155,13 +155,6 @@ ENVELOPES = {
         "totalBytes": "integer",
         "truncated": "boolean",
         "measuredAt": "string",
-    },
-    "CohortMembersResponse": {
-        "cohort": "$Cohort",
-        "members": "[$CohortMember]",
-        "subjects": "[string]",
-        "shown": "integer",
-        "total": "integer",
     },
     "ProjectQuotaResponse": {"quota": "$Quota", "usage": "$QuotaUsage", "limited": "boolean"},
     "ProjectUsageResponse": {"total": "$UsageTotal", "samples": "[$UsageSample]"},
@@ -302,7 +295,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
-    ("DELETE", "/api/v1/cohorts/{cohortID}"): ("204", "Cohort removed", None, None),
+    ("DELETE", "/api/v1/extracts/{extractID}"): ("204", "Extract removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),
     ("POST", "/api/v1/admin/alerts"): ("202", "Accepted for delivery to the configured destination", None, None),
@@ -312,6 +305,14 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/admin/service-accounts/{username}"): ("200", "Credentials revoked and the account disabled", "application/json", "ServiceAccountDisabled"),
     ("POST", "/api/v1/admin/component-tokens/{tokenID}/rotate"): ("201", "Replacement issued; the secret is shown once", "application/json", "ComponentTokenResponse"),
     ("POST", "/api/v1/projects/{projectID}/tokens"): ("201", "Token created; the secret is shown once", "application/json", "ProjectTokenResponse"),
+    # Workflows (ADR-046): what runs when an agent works.
+    ("GET", "/api/v1/workflows"): ("200", "The workflows this user owns", "application/json", "WorkflowListResponse"),
+    ("POST", "/api/v1/workflows"): ("201", "Workflow created", "application/json", "Workflow"),
+    ("DELETE", "/api/v1/workflows/{workflowID}"): ("204", "Workflow deleted, with every run it left behind", None, None),
+    ("GET", "/api/v1/workflows/{workflowID}/runs"): ("200", "The runs of this workflow, most recent first", "application/json", "WorkflowRunListResponse"),
+    ("POST", "/api/v1/workflows/{workflowID}/runs"): ("200", "The run, as far as it went before its first wait", "application/json", "WorkflowRun"),
+    ("POST", "/api/v1/workflow-runs/{runID}/approve"): ("200", "The run, carried on past the approval", "application/json", "WorkflowRun"),
+    ("POST", "/api/v1/workflow-runs/{runID}/reject"): ("200", "The run, cancelled at the approval", "application/json", "WorkflowRun"),
     ("GET", "/api/v1/agents"): ("200", "The agents this user has left standing instructions with", "application/json", "AgentListResponse"),
     ("POST", "/api/v1/agents"): ("201", "Agent created", "application/json", "Agent"),
     ("PATCH", "/api/v1/agents/{agentID}"): ("200", "Agent updated", "application/json", "Agent"),
@@ -325,8 +326,8 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/admin/component-tokens/{tokenID}"): ("204", "Credential revoked", None, None),
     ("GET", "/api/v1/workspaces/{workspaceID}/startup"): ("200", "Where the workspace is in its start", "application/json", "WorkspaceStartup"),
     ("GET", "/api/v1/datasets/{datasetID}/usage"): ("200", "How much the dataset holds", "application/json", "DatasetUsage"),
-    ("GET", "/api/v1/cohorts/{cohortID}/members"): ("200", "The files the cohort froze", "application/json", "CohortMembersResponse"),
-    ("POST", "/api/v1/ontologies/{ontologyID}/cohorts"): ("201", "Cohort created", "application/json", "Cohort"),
+    ("GET", "/api/v1/extracts/{extractID}/members"): ("200", "The files the extract froze", "application/json", "ExtractMembersResponse"),
+    ("POST", "/api/v1/ontologies/{ontologyID}/extracts"): ("201", "Extract declared", "application/json", "Extract"),
     ("POST", "/api/v1/projects/{projectID}/invitations"): ("201", "Member invited", "application/json", "InvitationResponse"),
     ("POST", "/api/v1/dataservices"): ("201", "Data service created", "application/json", "Datasource"),
     ("GET", "/api/v1/auth/login"): ("200", "The sign-in page", "text/html", None),
@@ -485,8 +486,8 @@ FAMILIES = [
     ("/api/v1/cronjobs", "Job", "internal/domain/job", {"Job": "Job"}),
     ("/api/v1/datasources", "Datasource", "internal/domain/datasource", {"Datasource": "Datasource"}),
     ("/api/v1/ontologies", "Ontology", "internal/domain/ontology", {"Ontology": "Ontology"}),
-    ("/api/v1/cohorts", "Cohort", "internal/domain/cohort", {"Cohort": "Cohort", "Member": "CohortMember"}),
-    ("/api/v1/ontologies/{ontologyID}/cohorts", "Cohort", "internal/domain/cohort", {"Cohort": "Cohort"}),
+    ("/api/v1/extracts", "Extract", "internal/domain/extract", {"Extract": "Extract", "Member": "ExtractMember"}),
+    ("/api/v1/ontologies/{ontologyID}/extracts", "Extract", "internal/domain/extract", {"Extract": "Extract"}),
     ("/api/v1/user/api-tokens", "ApiToken", "internal/domain/apitoken", {"Token": "ApiToken"}),
     ("/api/v1/projects/{projectID}/tokens", "ApiToken", "internal/domain/apitoken", {"Token": "ApiToken"}),
     ("/api/v1/admin/hardware-tiers", "AdminHardwareTier", "internal/domain/hardware", {"Tier": "AdminHardwareTier"}),
@@ -663,6 +664,15 @@ def apply_declared_responses(lines):
             stop = number + 1
             while stop < end and out[stop].startswith(indent + " "):
                 stop += 1
+            # Only a block this generator wrote may be replaced. A description
+            # a person wrote is worth more than a declared one, and the
+            # docstring at the top of this file promises as much: on
+            # POST /api/v1/ontologies/scans a hand-written "An existing
+            # ontology over the same source was refreshed" became "Success"
+            # on every run until this check existed.
+            placeholder = any(line.strip() == "description: Success" for line in out[number:stop])
+            if not placeholder:
+                break
             if other is not None:
                 code, description, media, ref = other
                 block = [f"{indent}'{code}':", f"{indent}  description: {description}"]

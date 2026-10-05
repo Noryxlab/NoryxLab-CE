@@ -879,6 +879,35 @@ func migrationStatements() []string {
 		)`,
 		`CREATE INDEX IF NOT EXISTS access_team_roles_team
 			ON access_team_roles (team_id)`,
+		// Workflows (ADR-046): what runs when an agent works. Steps and step
+		// runs are JSON on their row, because neither is ever read apart from
+		// its parent and a run is persisted whole after every step.
+		`CREATE TABLE IF NOT EXISTS workflows (
+			id TEXT PRIMARY KEY,
+			owner_user_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			schedule TEXT NOT NULL DEFAULT 'manual',
+			steps_json TEXT NOT NULL DEFAULT '[]',
+			enabled BOOLEAN NOT NULL DEFAULT TRUE,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			last_run_at TIMESTAMPTZ
+		)`,
+		`CREATE INDEX IF NOT EXISTS workflows_by_owner ON workflows (owner_user_id, created_at)`,
+		`CREATE TABLE IF NOT EXISTS workflow_runs (
+			id TEXT PRIMARY KEY,
+			workflow_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			steps_json TEXT NOT NULL DEFAULT '[]',
+			error TEXT NOT NULL DEFAULT '',
+			started_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			finished_at TIMESTAMPTZ
+		)`,
+		`CREATE INDEX IF NOT EXISTS workflow_runs_by_workflow ON workflow_runs (workflow_id, started_at DESC)`,
+		// The scheduler's question, every five minutes: what is unfinished.
+		`CREATE INDEX IF NOT EXISTS workflow_runs_unfinished ON workflow_runs (status, started_at)`,
 	}
 }
 

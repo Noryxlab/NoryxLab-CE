@@ -61,6 +61,7 @@ func main() {
 	// worse than an absent feature, because somebody relied on it.
 	var agentStore store.AgentStore
 	var agentTeamStore store.AgentTeamStore
+	var workflowStore store.WorkflowStore
 	var storageEndpointStore store.StorageEndpointStore = memory.NewStorageEndpointStore()
 
 	if strings.EqualFold(cfg.StoreBackend, "postgres") {
@@ -120,6 +121,7 @@ func main() {
 			backupRunStore = &postgres.BackupRunStore{Store: pg}
 			agentStore = &postgres.AgentStore{Store: pg}
 			agentTeamStore = &postgres.AgentTeamStore{Store: pg}
+			workflowStore = &postgres.WorkflowStore{Store: pg}
 			storageEndpointStore = &postgres.StorageEndpointStore{Store: pg}
 			log.Printf("postgres store backend enabled")
 		}
@@ -215,6 +217,7 @@ func main() {
 		handlers.Options{
 			AgentStore:                       agentStore,
 			AgentTeamStore:                   agentTeamStore,
+			WorkflowStore:                    workflowStore,
 			RegistryPullSecret:               cfg.RegistryPullSecret,
 			RegistryPushSecret:               cfg.RegistryPushSecret,
 			BootstrapAdminUser:               cfg.BootstrapAdminUser,

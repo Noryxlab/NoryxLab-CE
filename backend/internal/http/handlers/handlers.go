@@ -43,6 +43,7 @@ type Handlers struct {
 	roleBaseCache                    *rbacRoleBaseCache
 	backupRunStore                   store.BackupRunStore
 	agentStore                       store.AgentStore
+	workflowStore                    store.WorkflowStore
 	agentTeamStore                   store.AgentTeamStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
@@ -125,7 +126,10 @@ type Options struct {
 	AgentStore store.AgentStore
 	// AgentTeamStore holds the groups those agents work in. Separate from
 	// AgentStore because a team outlives its members and is edited on its own.
-	AgentTeamStore       store.AgentTeamStore
+	AgentTeamStore store.AgentTeamStore
+	// WorkflowStore holds what runs when an agent works (ADR-046): ordered
+	// steps and the durable runs that walk them.
+	WorkflowStore        store.WorkflowStore
 	RegistryPullSecret   string
 	RegistryPushSecret   string
 	BootstrapAdminUser   string
@@ -340,6 +344,7 @@ func New(
 		datasetSizeStore:                 options.DatasetSizeStore,
 		settings:                         options.Settings,
 		agentStore:                       options.AgentStore,
+		workflowStore:                    options.WorkflowStore,
 		agentTeamStore:                   options.AgentTeamStore,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,

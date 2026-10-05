@@ -126,6 +126,7 @@ func TestTheAPIDocumentDescribesNothingThatIsNotServed(t *testing.T) {
 			strings.Contains(path, "/assistant") || strings.Contains(path, "/admin/audit") ||
 			strings.Contains(path, "/agents") || strings.Contains(path, "/agent-teams") ||
 			strings.Contains(path, "/agent-governance") ||
+			strings.Contains(path, "/workflows") || strings.Contains(path, "/workflow-runs") ||
 			strings.Contains(path, "/admin/llmaas") {
 			continue
 		}
