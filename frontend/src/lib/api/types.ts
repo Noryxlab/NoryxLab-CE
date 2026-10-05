@@ -1404,6 +1404,78 @@ export interface AgentInput {
   role?: Agent['role'];
 }
 
+/** Un pas d'un workflow (ADR-046). La sequence est l'ordre ; l'index est
+ *  derive de la position, jamais saisi. */
+export interface WorkflowStep {
+  index: number;
+  /** Un pas de raisonnement confie au modele, ou une attente durable d'une
+   *  personne nommee. Liste fermee. */
+  kind: 'agent' | 'approval';
+  name: string;
+  /** La consigne d'un pas agent, dans les mots de l'auteur. Jamais interpretee. */
+  instruction?: string;
+  actions?: string[];
+  /** Qui un pas d'approbation attend. */
+  approverUserId?: string;
+}
+
+/** Ce qui s'execute quand un agent travaille : un projet, des horaires, une
+ *  sequence de pas. Un agent d'aujourd'hui est un workflow d'un seul pas. */
+export interface Workflow {
+  id: string;
+  ownerUserId: string;
+  projectId: string;
+  name: string;
+  schedule: 'manual' | 'hourly' | 'daily';
+  steps: WorkflowStep[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastRunAt?: string;
+}
+
+export type WorkflowRunStatus =
+  | 'pending'
+  | 'running'
+  | 'waiting_approval'
+  | 'succeeded'
+  | 'failed'
+  | 'cancelled';
+
+/** Ce qui s'est passe a un pas d'un run. Les actions sont ce que la
+ *  plateforme a vu, jamais ce que le modele a dit. */
+export interface WorkflowStepRun {
+  index: number;
+  status: WorkflowRunStatus;
+  attempts: number;
+  output?: string;
+  actions: string[];
+  error?: string;
+  approvedByUserId?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+/** Un run, persiste apres chaque pas : il se relit sans aucune memoire du
+ *  processus qui l'a lance. */
+export interface WorkflowRun {
+  id: string;
+  workflowId: string;
+  status: WorkflowRunStatus;
+  steps: WorkflowStepRun[];
+  error?: string;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt?: string;
+}
+
+export interface WorkflowInput {
+  projectId?: string;
+  name: string;
+  schedule: Workflow['schedule'];
+  steps: Array<Omit<WorkflowStep, 'index'>>;
+}
+
 export interface AIServicesStatus {
   /** Faux là où aucune passerelle n'est déployée : l'interface masque alors la
    *  brique au lieu d'afficher une panne pour ce qui n'a jamais été installé. */

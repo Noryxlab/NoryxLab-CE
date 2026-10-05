@@ -10,6 +10,9 @@ import type {
   AgentInput,
   AgentMandate,
   AgentRun,
+  Workflow,
+  WorkflowInput,
+  WorkflowRun,
   AgentTeam,
   AIServicesStatus,
   ApiToken,
@@ -110,6 +113,16 @@ export const platformApi = {
   runAgent: (id: string) => api.post<AgentRun>(`${V1}/agents/${id}/run`, {}),
   askAgent: (id: string, message: string) =>
     api.post<AgentRun>(`${V1}/agents/${id}/ask`, { message }),
+  // Workflows (ADR-046) : ce qui s'execute quand un agent travaille.
+  workflows: () => api.list<Workflow>(`${V1}/workflows`),
+  createWorkflow: (body: WorkflowInput) => api.post<Workflow>(`${V1}/workflows`, body),
+  deleteWorkflow: (id: string) => api.delete<void>(`${V1}/workflows/${id}`),
+  workflowRuns: (id: string) => api.list<WorkflowRun>(`${V1}/workflows/${id}/runs`),
+  runWorkflow: (id: string) => api.post<WorkflowRun>(`${V1}/workflows/${id}/runs`, {}),
+  approveWorkflowRun: (runId: string) =>
+    api.post<WorkflowRun>(`${V1}/workflow-runs/${runId}/approve`, {}),
+  rejectWorkflowRun: (runId: string) =>
+    api.post<WorkflowRun>(`${V1}/workflow-runs/${runId}/reject`, {}),
 
   agentTeams: () => api.list<AgentTeam>(`${V1}/agent-teams`),
   createAgentTeam: (body: { name: string; purpose: string; projectId?: string }) =>

@@ -17,6 +17,7 @@ import { AgentRoster } from '@/features/agents/agent-roster';
 import { AgentJournal } from '@/features/agents/agent-journal';
 import { RecruitDialog } from '@/features/agents/recruit-dialog';
 import { TeamBoard } from '@/features/agents/team-board';
+import { WorkflowsSection } from '@/features/agents/workflow-board';
 import { AllowAskDialog, FormTeamDialog } from '@/features/agents/team-dialogs';
 import { AIServicesCard } from '@/features/home/ai-services';
 import { platformApi } from '@/lib/api/endpoints';
@@ -160,6 +161,8 @@ export function AgentsPage() {
       {orphans.length > 0 ? (
         <OrphanRoster agents={orphans} onDismiss={setDismissing} />
       ) : null}
+
+      {projectId ? <WorkflowsSection projectId={projectId} /> : null}
 
       {items.length > 0 ? (
         <TeamsSection

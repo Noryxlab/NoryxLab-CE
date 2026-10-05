@@ -38,6 +38,8 @@ export const qk = {
   agents: ['agents'] as const,
   agentRuns: (id: string) => ['agents', id, 'runs'] as const,
   agentTeams: ['agent-teams'] as const,
+  workflows: ['workflows'] as const,
+  workflowRuns: (id: string) => ['workflows', id, 'runs'] as const,
   agentGovernance: ['admin', 'agent-governance'] as const,
   adminRbacPolicy: ['admin', 'rbac-policy'] as const,
   adminStorageCapacity: ['admin', 'storage-capacity'] as const,
@@ -174,6 +176,19 @@ export const useAgentRuns = (agentId: string | undefined) =>
     queryFn: () => platformApi.agentRuns(agentId as string),
     enabled: Boolean(agentId),
     refetchInterval: 30_000,
+  });
+
+/** Rafraichis comme les agents : un run avance pendant que la page est
+ *  ouverte, et un pas qui attend une personne doit apparaitre sans recharger. */
+export const useWorkflows = () =>
+  useQuery({ queryKey: qk.workflows, queryFn: platformApi.workflows, refetchInterval: 30_000 });
+
+export const useWorkflowRuns = (workflowId: string | undefined) =>
+  useQuery({
+    queryKey: qk.workflowRuns(workflowId ?? ''),
+    queryFn: () => platformApi.workflowRuns(workflowId as string),
+    enabled: Boolean(workflowId),
+    refetchInterval: 15_000,
   });
 
 /** Les equipes changent quand quelqu'un les modifie, pas toutes seules : pas
