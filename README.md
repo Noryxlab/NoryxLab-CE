@@ -1,43 +1,51 @@
-# NoryxLab Community Edition
+<p align="center">
+  <img src="frontend/public/favicon.svg" width="72" alt="NoryxLab logo">
+</p>
 
-NoryxLab is a Kubernetes-native platform for collaborative data work. It gives
-Python and R teams one project-oriented place to manage data, repositories,
-environments, interactive workspaces, jobs and applications.
+<h1 align="center">NoryxLab Community Edition</h1>
 
-The Community Edition (CE) is the public, self-hosted foundation of NoryxLab.
-It is designed to run on infrastructure you control, with S3-compatible object
-storage and Keycloak-based authentication.
+<p align="center">
+  A Kubernetes-native platform for collaborative data work.
+</p>
 
-> **Status:** actively developed. The supported deployment and API contracts
-> are documented below; upgrade testing on a representative non-production
-> cluster is recommended before production use.
+<p align="center">
+  <a href="https://github.com/Noryxlab/NoryxLab-CE/actions/workflows/ci.yml"><img src="https://github.com/Noryxlab/NoryxLab-CE/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MPL--2.0-1684ff.svg" alt="MPL-2.0 license"></a>
+  <a href="docs/INSTALL_CE.md"><img src="https://img.shields.io/badge/deployment-Kubernetes-326ce5.svg" alt="Kubernetes deployment"></a>
+  <a href="https://www.noryxlab.ai/docs/"><img src="https://img.shields.io/badge/documentation-NoryxLab-16a5a2.svg" alt="NoryxLab documentation"></a>
+</p>
 
-## What You Can Do
+NoryxLab gives Python and R teams one project-oriented place to manage data,
+repositories, environments, interactive workspaces, jobs and applications.
+The Community Edition is the public, self-hosted foundation: run it on your
+own Kubernetes infrastructure, use your own S3-compatible storage and connect
+it to your Keycloak identity provider.
 
-- Create collaborative projects and attach datasets, Git repositories,
-  environments, secrets and data connections.
-- Register S3-compatible datasets and mount them directly into workloads.
-- Build and manage curated or custom container environments from Dockerfiles.
-- Launch Jupyter, VS Code and RStudio workspaces with persistent project files.
-- Run one-off and scheduled Kubernetes jobs.
-- Publish project applications and operate their lifecycle through the
-  Production view.
-- Define named hardware tiers for workload limits.
-- Authenticate users through Keycloak and manage project-level access.
-- Consume a supported, versioned REST API and its local Swagger UI.
+> **Project status:** actively developed. Test upgrades on a representative
+> non-production cluster before production use.
 
-## Editions
+## Start Here
 
-CE contains the reusable platform core: projects, data, repositories,
-environments, workloads, applications, S3 integration and baseline access
-control.
+| I want to... | Start here |
+| --- | --- |
+| Install NoryxLab Community Edition | [Step-by-step installation guide](docs/INSTALL_CE.md) |
+| Understand infrastructure requirements | [Infrastructure prerequisites](docs/INFRA_PREREQUISITES.md) |
+| Use the platform as a data practitioner | [Projects](docs/PROJECTS.md), [datasets](docs/S3_DATASET_MOUNTS.md) and [workspaces](docs/WORKSPACES.md) |
+| Integrate with the REST API | [API contract](docs/API.md) and the running platform's `/swagger` |
+| Operate or troubleshoot a deployment | [Operations guides](#operations) |
+| Contribute code | [Developer quick start](#developer-quick-start) and [contribution rules](#contributing) |
 
-NoryxLab Enterprise Edition is distributed separately and adds organisation
-governance, advanced RBAC, audit, quotas, platform validation, controlled
-egress, backup operations and other enterprise capabilities. The CE repository
-does not contain Enterprise source code or a runtime switch that unlocks it.
-See [the edition model](docs/EDITIONS.md) and
-[the CE/EE extension boundary](docs/EE_EXTENSION_POINTS.md).
+## What You Can Build
+
+| Area | Community Edition capabilities |
+| --- | --- |
+| **Projects** | Collaborative projects, members, roles, Git repositories, secrets and data connections |
+| **Data** | S3-compatible datasets mounted directly into workloads, data sources and semantic catalog foundations |
+| **Environments** | Curated or custom Docker environments for Jupyter, VS Code and RStudio |
+| **Compute** | Interactive workspaces, one-off jobs, scheduled jobs and named hardware tiers |
+| **Production** | Project applications, lifecycle operations and authenticated access routes |
+| **Identity** | Keycloak OIDC authentication and project-level access control |
+| **Integration** | Versioned REST API, public OpenAPI contract and Swagger UI |
 
 ## Architecture
 
@@ -59,11 +67,80 @@ Kubernetes workloads
   `- published applications
 ```
 
-The control plane runs in Kubernetes. Workloads run as Kubernetes resources in
-a dedicated workload namespace. Harbor and the image build service are external
-components in the reference deployment.
+The control plane runs in Kubernetes. User workloads run as standard
+Kubernetes resources in a separate workload namespace. Harbor and the image
+build service are external components in the reference topology.
 
-## Quick Start for Development
+## Community And Enterprise
+
+Community Edition contains the reusable platform core: projects, data,
+repositories, environments, workloads, applications, S3 integration and
+baseline access control.
+
+NoryxLab Enterprise Edition is distributed separately. It adds organisation
+governance, advanced RBAC, audit, quotas, platform validation, controlled
+egress, backup operations and regulated-data workflows. The CE repository does
+not contain Enterprise source code or a runtime switch that unlocks it.
+
+- [Edition model](docs/EDITIONS.md)
+- [CE/EE extension boundary](docs/EE_EXTENSION_POINTS.md)
+
+## Install Community Edition
+
+The installation guide takes a new Kubernetes installation to a usable CE
+baseline: OIDC login, projects, datasets, workspaces, jobs and applications.
+It explicitly separates repository defaults from installation-specific values
+and ends with a smoke test and a complete first-user journey.
+
+1. Read the [step-by-step CE installation guide](docs/INSTALL_CE.md).
+2. Prepare the [cluster, registry, DNS and storage prerequisites](docs/INFRA_PREREQUISITES.md).
+3. Render a private installation overlay and run
+   `./scripts/ops/validate-installation-manifest.sh` before applying it.
+4. Bootstrap and harden [Keycloak](docs/KEYCLOAK_SETUP.md).
+5. Run the deployment smoke test and validate the first user journey.
+
+The manifests in `deploy/k8s/base` are reference values, not a production
+command to run unchanged. They deliberately contain example registry and
+domain names, placeholder backup images and demonstration secrets. Keep all
+installation values in a private operations repository or secret manager.
+
+## Documentation
+
+### Build And Use
+
+- [Projects](docs/PROJECTS.md)
+- [Datasets and direct S3 mounts](docs/S3_DATASET_MOUNTS.md)
+- [Data sources](docs/DATASOURCES_V1.md)
+- [Semantic catalog and ontology foundations](docs/ONTOLOGY.md)
+- [Environments](docs/ENVIRONMENTS.md)
+- [Workspaces](docs/WORKSPACES.md) and [workspace filesystem layout](docs/WORKSPACE_FILESYSTEM_LAYOUT.md)
+- [Jobs and history](docs/JOB_HISTORY.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
+- [Applications and Production](docs/APPS_V1.md) and [production operations](docs/PRODUCTION.md)
+- [Hardware tiers](docs/HARDWARE_TIERS.md)
+- [Agents](docs/AGENTS.md)
+
+### Identity, Security And API
+
+- [Keycloak setup](docs/KEYCLOAK_SETUP.md)
+- [RBAC model](docs/RBAC_MODEL.md)
+- [Organisations](docs/ORGANIZATIONS.md)
+- [Credentials and Git access](docs/CREDENTIALS.md)
+- [Workload network isolation](docs/WORKLOAD_NETWORK_ISOLATION.md)
+- [Supported API contract](docs/API.md)
+- [Backend runtime API](docs/BACKEND_RUNTIME_API.md)
+
+### Operations
+
+- [Install Community Edition step by step](docs/INSTALL_CE.md)
+- [Bootstrap a VM](docs/BOOTSTRAP_VM.md)
+- [Image security and Harbor mirroring](docs/IMAGE_SECURITY.md)
+- [Observability](docs/OBSERVABILITY.md)
+- [Recovery](docs/RECOVERY.md)
+- [Platform data and secrets](docs/PLATFORM_DATA_AND_SECRETS.md)
+- [Workspace troubleshooting](docs/WORKSPACE_TROUBLESHOOTING.md)
+- [Mail bridge](docs/MAIL.md)
+
+## Developer Quick Start
 
 Prerequisites:
 
@@ -83,7 +160,7 @@ The local API exposes `/healthz` and Swagger at `/swagger`. Local development
 uses the in-memory store unless PostgreSQL configuration is supplied. Do not
 enable header authentication outside a local development environment.
 
-Run the frontend:
+Run the frontend in a second terminal:
 
 ```bash
 npm --prefix frontend ci
@@ -102,91 +179,23 @@ npm --prefix frontend run build
 ./scripts/check-edition-boundary.sh
 ```
 
-GitHub Actions also scans the complete Git history for secrets, reachable Go
-vulnerabilities, production npm dependencies, Kubernetes configuration and the
-two built container images. It boots the CE manifests in an isolated Kind
-cluster and checks the backend health endpoint. The Kind overlay is CI-only:
-it replaces private registry references and removes ingress CRDs, without
-changing the deployment manifests used by installations.
-
-## Deploy on Kubernetes
-
-The reference topology requires:
-
-- a Kubernetes control-plane VM or cluster;
-- an external Harbor registry;
-- an external Docker build service;
-- S3-compatible storage, initially MinIO or an external endpoint;
-- Keycloak for OpenID Connect authentication;
-- a public DNS name and TLS termination.
-
-Follow the [step-by-step CE installation guide](docs/INSTALL_CE.md). It starts
-with the infrastructure prerequisites, forces a review of all repository
-defaults before an apply, bootstraps and hardens Keycloak, then proves the
-first user journey with the deployment smoke test.
-
-The baseline manifests in `deploy/k8s/base` are deliberately reference values,
-not a production command to run unchanged: they contain example registry and
-domain names, placeholder backup images, and demonstration secrets. Render a
-private installation overlay, validate it with
-`scripts/ops/validate-installation-manifest.sh`, then apply the rendered
-manifest.
-
-## Security Model
-
-- Production authentication is OIDC bearer-token validation against Keycloak.
-- `X-Noryx-User` is only accepted with `NORYX_AUTH_MODE=header`, for local
-  development; it is rejected under OIDC.
-- Service-to-service calls use `X-Noryx-Service-Token`.
-- Projects are the collaboration boundary. Project creators become admins;
-  admins manage project roles.
-- Three roles decide everything in Community: `viewer`, `editor`, `admin`.
-  Enterprise adds a matrix an installation fills in for itself, and roles of
-  its own that are held like any other — each one answering as the built-in it
-  declares as its base, which is also its ceiling.
-- Datasets are accessed through configured S3 endpoints and mounted directly
-  into workloads. Credentials are not embedded in images.
-
-Read [the RBAC model](docs/RBAC_MODEL.md),
-[Keycloak setup](docs/KEYCLOAK_SETUP.md) and
-[workload network isolation](docs/WORKLOAD_NETWORK_ISOLATION.md) before
-exposing a platform to users.
+GitHub Actions scans the complete Git history for secrets, checks reachable Go
+vulnerabilities and production npm dependencies, validates Kubernetes
+configuration and scans the two built container images. It also boots the CE
+manifests in an isolated Kind cluster and checks the backend health endpoint.
 
 ## API
 
-Noryx serves its API documentation from the running platform:
+The running platform exposes:
 
 - `/swagger`: supported public API
 - `/swagger/openapi.public.yaml`: supported OpenAPI contract
-- `/swagger?spec=full`: full implementation inventory, including internal UI
-  routes without compatibility guarantees
+- `/swagger?spec=full`: implementation inventory, including internal UI routes
+  without compatibility guarantees
 
-The API is versioned under `/api/v1`. CI checks that its OpenAPI documents stay
-in sync with the router. See [API documentation](docs/API.md).
-
-## Documentation
-
-### Platform concepts
-
-- [Projects](docs/PROJECTS.md)
-- [Datasets and S3 mounts](docs/S3_DATASET_MOUNTS.md)
-- [Environments](docs/ENVIRONMENTS.md)
-- [Workspaces](docs/WORKSPACES.md)
-- [Jobs and schedules](docs/JOB_HISTORY.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
-- [Applications and Production](docs/APPS_V1.md) and [Production](docs/PRODUCTION.md)
-- [Data sources](docs/DATASOURCES_V1.md)
-- [Hardware tiers](docs/HARDWARE_TIERS.md)
-- [Sending mail from a site that blocks SMTP](docs/MAIL.md)
-- [Agents: when to use one, and how they work](docs/AGENTS.md)
-
-### Operations
-
-- [Install Community Edition step by step](docs/INSTALL_CE.md)
-- [Backend runtime API](docs/BACKEND_RUNTIME_API.md)
-- [Workspace troubleshooting](docs/WORKSPACE_TROUBLESHOOTING.md)
-- [Recovery](docs/RECOVERY.md)
-- [Observability](docs/OBSERVABILITY.md)
-- [Platform data and secrets](docs/PLATFORM_DATA_AND_SECRETS.md)
+The API is versioned under `/api/v1`. CI checks that the OpenAPI documents stay
+in sync with the router. Read the [API documentation](docs/API.md) before
+integrating a client.
 
 ## Contributing
 
@@ -194,12 +203,12 @@ Contributions are welcome. Before opening a pull request:
 
 1. Keep CE source independent from Enterprise source code.
 2. Add or update tests for behavioural changes.
-3. Run the checks listed in the development section.
-4. Update the supported API document when changing a public route:
+3. Run the quality checks above.
+4. Regenerate the supported API document when changing a public route:
 
-```bash
-python3 scripts/ops/generate-openapi.py
-```
+   ```bash
+   python3 scripts/ops/generate-openapi.py
+   ```
 
 5. Describe the user-facing impact and deployment implications in the pull
    request.
@@ -210,7 +219,7 @@ exploit details in a public issue. Contact the maintainers privately first.
 ## License
 
 NoryxLab Community Edition is licensed under the
-[Mozilla Public License 2.0](LICENSE) (`MPL-2.0`). The MPL applies at file
-level: modifications to MPL-covered files remain under MPL-2.0 when
++[Mozilla Public License 2.0](LICENSE) (`MPL-2.0`). The MPL applies at file
++level: modifications to MPL-covered files remain under MPL-2.0 when
 distributed, while separate files can be combined with the Community Edition as
 part of a larger work under different terms.
