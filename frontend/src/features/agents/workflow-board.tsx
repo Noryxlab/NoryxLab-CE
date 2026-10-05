@@ -1,10 +1,10 @@
-import * as React from 'react';
-import { Check, Loader2, Plus, RotateCw, Trash2, X } from 'lucide-react';
-import { useMutation } from '@tanstack/react-query';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SectionHeader } from '@/components/common/page-header';
+import * as React from "react";
+import { Check, Loader2, Plus, RotateCw, Trash2, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SectionHeader } from "@/components/common/page-header";
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,26 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-import { platformApi } from '@/lib/api/endpoints';
-import { qk, useInvalidate, useWorkflowRuns, useWorkflows } from '@/lib/api/queries';
-import { useToast } from '@/components/ui/toast';
-import { useT } from '@/lib/i18n';
-import { relativeTime, scheduleKey } from './agent-roster';
-import { WorkflowDialog } from './workflow-dialog';
-import type { Workflow, WorkflowRun, WorkflowRunStatus, WorkflowStep } from '@/lib/api/types';
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { platformApi } from "@/lib/api/endpoints";
+import {
+  qk,
+  useInvalidate,
+  useWorkflowRuns,
+  useWorkflows,
+} from "@/lib/api/queries";
+import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n";
+import { relativeTime, scheduleKey } from "./agent-roster";
+import { WorkflowDialog } from "./workflow-dialog";
+import type {
+  Workflow,
+  WorkflowRun,
+  WorkflowRunStatus,
+  WorkflowStep,
+} from "@/lib/api/types";
+import { actionTakenLabel } from "./action-label";
 
 /**
  * Les workflows, sous les agents.
@@ -41,7 +52,11 @@ import type { Workflow, WorkflowRun, WorkflowRunStatus, WorkflowStep } from '@/l
  * l'endroit ou l'on vient de lire ce qu'il a trouve - pas dans une boite de
  * reception a cote.
  */
-export function WorkflowsSection({ projectId }: { projectId: string | undefined }) {
+export function WorkflowsSection({
+  projectId,
+}: {
+  projectId: string | undefined;
+}) {
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -50,8 +65,11 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
   const [writing, setWriting] = React.useState(false);
   const [deleting, setDeleting] = React.useState<Workflow | null>(null);
 
-  const items = (workflows.data ?? []).filter((item) => item.projectId === projectId);
-  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  const items = (workflows.data ?? []).filter(
+    (item) => item.projectId === projectId,
+  );
+  const selected =
+    items.find((item) => item.id === selectedId) ?? items[0] ?? null;
   const runs = useWorkflowRuns(selected?.id);
 
   const runNow = useMutation({
@@ -59,21 +77,26 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
     onSuccess: (run) => {
       invalidate(qk.workflows);
       if (selected) invalidate(qk.workflowRuns(selected.id));
-      if (run.error) toast.error(run.error, t('workflows.title'));
-      else toast.success(t('workflows.started'), t('workflows.title'));
+      if (run.error) toast.error(run.error, t("workflows.title"));
+      else toast.success(t("workflows.started"), t("workflows.title"));
     },
-    onError: (error) => toast.error(error, t('workflows.title')),
+    onError: (error) => toast.error(error, t("workflows.title")),
   });
 
   const decide = useMutation({
     mutationFn: ({ runId, approve }: { runId: string; approve: boolean }) =>
-      approve ? platformApi.approveWorkflowRun(runId) : platformApi.rejectWorkflowRun(runId),
+      approve
+        ? platformApi.approveWorkflowRun(runId)
+        : platformApi.rejectWorkflowRun(runId),
     onSuccess: (run, { approve }) => {
       invalidate(qk.workflowRuns(run.workflowId));
       invalidate(qk.workflows);
-      toast.success(approve ? t('workflows.approved') : t('workflows.rejected'), t('workflows.title'));
+      toast.success(
+        approve ? t("workflows.approved") : t("workflows.rejected"),
+        t("workflows.title"),
+      );
     },
-    onError: (error) => toast.error(error, t('workflows.title')),
+    onError: (error) => toast.error(error, t("workflows.title")),
   });
 
   const remove = useMutation({
@@ -81,21 +104,28 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
     onSuccess: (_result, id) => {
       invalidate(qk.workflows);
       if (selectedId === id) setSelectedId(null);
-      toast.success(t('workflows.deleted', { name: deleting?.name ?? '' }), t('workflows.title'));
+      toast.success(
+        t("workflows.deleted", { name: deleting?.name ?? "" }),
+        t("workflows.title"),
+      );
       setDeleting(null);
     },
-    onError: (error) => toast.error(error, t('workflows.title')),
+    onError: (error) => toast.error(error, t("workflows.title")),
   });
 
   return (
     <section className="space-y-4">
       <SectionHeader
-        title={t('workflows.title')}
-        description={t('workflows.intro')}
+        title={t("workflows.title")}
+        description={t("workflows.intro")}
         actions={
           items.length > 0 ? (
-            <Button variant="secondary" size="sm" onClick={() => setWriting(true)}>
-              {t('workflows.create')}
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setWriting(true)}
+            >
+              {t("workflows.create")}
             </Button>
           ) : null
         }
@@ -106,10 +136,14 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
           <p className="mx-auto max-w-lg text-sm leading-relaxed text-muted-foreground">
-            {t('workflows.emptyLead')}
+            {t("workflows.emptyLead")}
           </p>
-          <Button className="mt-5" variant="secondary" onClick={() => setWriting(true)}>
-            {t('workflows.createFirst')}
+          <Button
+            className="mt-5"
+            variant="secondary"
+            onClick={() => setWriting(true)}
+          >
+            {t("workflows.createFirst")}
           </Button>
         </div>
       ) : (
@@ -127,14 +161,14 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
               type="button"
               onClick={() => setWriting(true)}
               className={cn(
-                'flex w-44 flex-col items-center justify-center gap-2 rounded-xl border border-dashed',
-                'border-border-strong/70 px-4 py-5 text-sm text-muted-foreground transition',
-                'hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2',
-                'focus-visible:outline-[var(--noryx-ring)]',
+                "flex w-44 flex-col items-center justify-center gap-2 rounded-xl border border-dashed",
+                "border-border-strong/70 px-4 py-5 text-sm text-muted-foreground transition",
+                "hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2",
+                "focus-visible:outline-[var(--noryx-ring)]",
               )}
             >
               <Plus className="size-5" aria-hidden />
-              {t('workflows.create')}
+              {t("workflows.create")}
             </button>
           </div>
 
@@ -159,23 +193,32 @@ export function WorkflowsSection({ projectId }: { projectId: string | undefined 
         </>
       )}
 
-      <WorkflowDialog open={writing} onOpenChange={setWriting} projectId={projectId} />
-      <Dialog open={deleting !== null} onOpenChange={(open) => !open && setDeleting(null)}>
+      <WorkflowDialog
+        open={writing}
+        onOpenChange={setWriting}
+        projectId={projectId}
+      />
+      <Dialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('workflows.deleteTitle', { name: deleting?.name ?? '' })}</DialogTitle>
-            <DialogDescription>{t('workflows.deleteBody')}</DialogDescription>
+            <DialogTitle>
+              {t("workflows.deleteTitle", { name: deleting?.name ?? "" })}
+            </DialogTitle>
+            <DialogDescription>{t("workflows.deleteBody")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleting(null)}>
-              {t('common.cancel')}
+              {t("common.cancel")}
             </Button>
             <Button
               variant="danger"
               onClick={() => deleting && remove.mutate(deleting.id)}
               disabled={remove.isPending}
             >
-              {t('workflows.delete')}
+              {t("workflows.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -200,13 +243,17 @@ function WorkflowTile({
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        'flex w-44 flex-col items-start gap-1.5 rounded-xl border bg-surface px-4 py-4 text-left transition',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noryx-ring)]',
-        selected ? 'border-brand shadow-[0_0_0_1px_var(--noryx-brand)]' : 'border-border hover:border-border-strong',
-        !workflow.enabled && 'opacity-65',
+        "flex w-44 flex-col items-start gap-1.5 rounded-xl border bg-surface px-4 py-4 text-left transition",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noryx-ring)]",
+        selected
+          ? "border-brand shadow-[0_0_0_1px_var(--noryx-brand)]"
+          : "border-border hover:border-border-strong",
+        !workflow.enabled && "opacity-65",
       )}
     >
-      <span className="max-w-full truncate text-sm font-medium">{workflow.name}</span>
+      <span className="max-w-full truncate text-sm font-medium">
+        {workflow.name}
+      </span>
       {/* La sequence en miniature : autant de points que de pas, les
           approbations creusees. On voit la forme avant de lire. */}
       <span className="flex items-center gap-1" aria-hidden>
@@ -214,14 +261,17 @@ function WorkflowTile({
           <span
             key={step.index}
             className={cn(
-              'size-2 rounded-full',
-              step.kind === 'approval' ? 'border border-border-strong' : 'bg-border-strong',
+              "size-2 rounded-full",
+              step.kind === "approval"
+                ? "border border-border-strong"
+                : "bg-border-strong",
             )}
           />
         ))}
       </span>
       <span className="text-[11px] text-placeholder">
-        {t(scheduleKey(workflow.schedule))} · {relativeTime(workflow.lastRunAt, t)}
+        {t(scheduleKey(workflow.schedule))} ·{" "}
+        {relativeTime(workflow.lastRunAt, t)}
       </span>
     </button>
   );
@@ -249,13 +299,14 @@ function MissionCard({
   onDelete: () => void;
 }) {
   const t = useT();
-  const current = latest && !isTerminal(latest.status) ? currentStep(latest) : null;
+  const current =
+    latest && !isTerminal(latest.status) ? currentStep(latest) : null;
   const next =
-    workflow.schedule === 'hourly'
-      ? t('workflows.nextHourly')
-      : workflow.schedule === 'daily'
-        ? t('workflows.nextDaily')
-        : t('workflows.nextManual');
+    workflow.schedule === "hourly"
+      ? t("workflows.nextHourly")
+      : workflow.schedule === "daily"
+        ? t("workflows.nextDaily")
+        : t("workflows.nextManual");
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -263,20 +314,22 @@ function MissionCard({
         <div className="min-w-0 space-y-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-placeholder">
-              {t('workflows.missionTitle')}
+              {t("workflows.missionTitle")}
             </p>
             <h3 className="text-sm font-semibold">{workflow.name}</h3>
           </div>
           <ol className="space-y-1.5">
             {workflow.steps.map((step) => {
-              const stepRun = latest?.steps.find((item) => item.index === step.index);
+              const stepRun = latest?.steps.find(
+                (item) => item.index === step.index,
+              );
               const isCurrent = current !== null && current === step.index;
               return (
                 <li
                   key={step.index}
                   className={cn(
-                    'flex items-start gap-3 rounded-lg px-2 py-1.5',
-                    isCurrent && 'bg-brand-subtle',
+                    "flex items-start gap-3 rounded-lg px-2 py-1.5",
+                    isCurrent && "bg-brand-subtle",
                   )}
                 >
                   <span className="w-5 shrink-0 text-xs text-placeholder tabular-nums">
@@ -284,20 +337,28 @@ function MissionCard({
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-sm font-medium">{step.name || stepKindLabel(step, t)}</span>
-                      <Badge tone={step.kind === 'approval' ? 'outline' : 'neutral'}>
+                      <span className="text-sm font-medium">
+                        {step.name || stepKindLabel(step, t)}
+                      </span>
+                      <Badge
+                        tone={step.kind === "approval" ? "outline" : "neutral"}
+                      >
                         {stepKindLabel(step, t)}
                       </Badge>
-                      {stepRun && latest ? <StatusBadge status={stepRun.status} /> : null}
+                      {stepRun && latest ? (
+                        <StatusBadge status={stepRun.status} />
+                      ) : null}
                     </div>
-                    {step.kind === 'agent' && step.instruction ? (
+                    {step.kind === "agent" && step.instruction ? (
                       <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                         {step.instruction}
                       </p>
                     ) : null}
-                    {step.kind === 'approval' ? (
+                    {step.kind === "approval" ? (
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {t('workflows.waitingFor', { name: step.approverUserId ?? '' })}
+                        {t("workflows.waitingFor", {
+                          name: step.approverUserId ?? "",
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -307,43 +368,55 @@ function MissionCard({
           </ol>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onRun} disabled={running}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRun}
+            disabled={running}
+          >
             {running ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
               <RotateCw className="size-4" aria-hidden />
             )}
-            {t('workflows.runNow')}
+            {t("workflows.runNow")}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDelete} title={t('workflows.delete')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            title={t("workflows.delete")}
+          >
             <Trash2 className="size-4" aria-hidden />
-            <span className="sr-only">{t('workflows.delete')}</span>
+            <span className="sr-only">{t("workflows.delete")}</span>
           </Button>
         </div>
       </div>
 
       <dl className="mt-4 grid gap-3 border-t border-border pt-3 text-xs sm:grid-cols-3">
         <div>
-          <dt className="text-placeholder">{t('workflows.whereItIs')}</dt>
+          <dt className="text-placeholder">{t("workflows.whereItIs")}</dt>
           <dd className="mt-0.5 text-foreground">
             {current !== null && latest
-              ? t('workflows.atStep', {
+              ? t("workflows.atStep", {
                   index: current + 1,
-                  name: workflow.steps[current]?.name ?? '',
+                  name: workflow.steps[current]?.name ?? "",
                 })
-              : t('workflows.idle')}
+              : t("workflows.idle")}
           </dd>
         </div>
         <div>
-          <dt className="text-placeholder">{t('workflows.lastRun')}</dt>
+          <dt className="text-placeholder">{t("workflows.lastRun")}</dt>
           <dd className="mt-0.5 flex items-center gap-2 text-foreground">
             {relativeTime(latest?.startedAt, t)}
             {latest ? <StatusBadge status={latest.status} /> : null}
           </dd>
         </div>
         <div>
-          <dt className="text-placeholder">{t('workflows.nextRun')}</dt>
-          <dd className="mt-0.5 text-foreground">{workflow.enabled ? next : t('agents.paused')}</dd>
+          <dt className="text-placeholder">{t("workflows.nextRun")}</dt>
+          <dd className="mt-0.5 text-foreground">
+            {workflow.enabled ? next : t("agents.paused")}
+          </dd>
         </div>
       </dl>
     </div>
@@ -373,12 +446,14 @@ function RunTimeline({
   const t = useT();
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold">{t('workflows.runsTitle')}</h3>
+      <h3 className="text-sm font-semibold">{t("workflows.runsTitle")}</h3>
       {loading && runs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('workflows.loadingRuns')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("workflows.loadingRuns")}
+        </p>
       ) : runs.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          {t('workflows.neverRan')}
+          {t("workflows.neverRan")}
         </p>
       ) : (
         <ol className="relative space-y-0 border-l border-border pl-5">
@@ -387,55 +462,76 @@ function RunTimeline({
               <span
                 aria-hidden
                 className={cn(
-                  'absolute -left-[1.4rem] top-[1.15rem] size-2 rounded-full ring-2 ring-[var(--noryx-background)]',
+                  "absolute -left-[1.4rem] top-[1.15rem] size-2 rounded-full ring-2 ring-[var(--noryx-background)]",
                   dotFor(run.status),
                 )}
               />
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-xs text-placeholder tabular-nums">{relativeTime(run.startedAt, t)}</span>
+                <span className="text-xs text-placeholder tabular-nums">
+                  {relativeTime(run.startedAt, t)}
+                </span>
                 <StatusBadge status={run.status} />
               </div>
               {run.error ? (
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{run.error}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {run.error}
+                </p>
               ) : null}
               <ol className="mt-2 space-y-1.5">
                 {run.steps.map((stepRun) => {
                   const step = workflow.steps[stepRun.index];
-                  const waiting = run.status === 'waiting_approval' && stepRun.status === 'waiting_approval';
+                  const waiting =
+                    run.status === "waiting_approval" &&
+                    stepRun.status === "waiting_approval";
                   return (
-                    <li key={stepRun.index} className="rounded-lg bg-surface-muted px-3 py-2">
+                    <li
+                      key={stepRun.index}
+                      className="rounded-lg bg-surface-muted px-3 py-2"
+                    >
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-xs text-placeholder tabular-nums">{stepRun.index + 1}</span>
+                        <span className="text-xs text-placeholder tabular-nums">
+                          {stepRun.index + 1}
+                        </span>
                         <span className="text-sm font-medium">
-                          {step?.name || (step ? stepKindLabel(step, t) : '')}
+                          {step?.name || (step ? stepKindLabel(step, t) : "")}
                         </span>
                         <StatusBadge status={stepRun.status} />
                         {stepRun.attempts > 1 ? (
                           <span className="text-xs text-placeholder">
-                            {t('workflows.attempts', { count: stepRun.attempts })}
+                            {t("workflows.attempts", {
+                              count: stepRun.attempts,
+                            })}
                           </span>
                         ) : null}
                       </div>
                       {stepRun.output ? (
-                        <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">{stepRun.output}</p>
+                        <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">
+                          {stepRun.output}
+                        </p>
                       ) : null}
-                      {stepRun.error && stepRun.status !== 'succeeded' ? (
-                        <p className="mt-1 text-xs text-muted-foreground">{stepRun.error}</p>
+                      {stepRun.error && stepRun.status !== "succeeded" ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {stepRun.error}
+                        </p>
                       ) : null}
                       {stepRun.actions.length > 0 ? (
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {stepRun.actions.map((action, index) => (
                             <Badge key={`${action}-${index}`} tone="success">
-                              {t('agents.actionRestartApp')}
+                              {actionTakenLabel(action, t)}
                             </Badge>
                           ))}
                         </div>
                       ) : null}
                       {waiting ? (
                         <div className="mt-2 flex flex-wrap gap-2">
-                          <Button size="sm" onClick={() => onDecide(run.id, true)} disabled={deciding}>
+                          <Button
+                            size="sm"
+                            onClick={() => onDecide(run.id, true)}
+                            disabled={deciding}
+                          >
                             <Check className="size-4" aria-hidden />
-                            {t('workflows.approve')}
+                            {t("workflows.approve")}
                           </Button>
                           <Button
                             size="sm"
@@ -444,7 +540,7 @@ function RunTimeline({
                             disabled={deciding}
                           >
                             <X className="size-4" aria-hidden />
-                            {t('workflows.reject')}
+                            {t("workflows.reject")}
                           </Button>
                         </div>
                       ) : null}
@@ -464,12 +560,12 @@ function StatusBadge({ status }: { status: WorkflowRunStatus }) {
   const t = useT();
   const [tone, key] = (
     {
-      pending: ['neutral', 'workflows.statusPending'],
-      running: ['brand', 'workflows.statusRunning'],
-      waiting_approval: ['warning', 'workflows.statusWaiting'],
-      succeeded: ['success', 'workflows.statusSucceeded'],
-      failed: ['danger', 'workflows.statusFailed'],
-      cancelled: ['outline', 'workflows.statusCancelled'],
+      pending: ["neutral", "workflows.statusPending"],
+      running: ["brand", "workflows.statusRunning"],
+      waiting_approval: ["warning", "workflows.statusWaiting"],
+      succeeded: ["success", "workflows.statusSucceeded"],
+      failed: ["danger", "workflows.statusFailed"],
+      cancelled: ["outline", "workflows.statusCancelled"],
     } as const
   )[status];
   return <Badge tone={tone}>{t(key)}</Badge>;
@@ -477,28 +573,32 @@ function StatusBadge({ status }: { status: WorkflowRunStatus }) {
 
 function dotFor(status: WorkflowRunStatus): string {
   switch (status) {
-    case 'failed':
-      return 'bg-[var(--noryx-danger)]';
-    case 'succeeded':
-    case 'running':
-      return 'bg-brand';
+    case "failed":
+      return "bg-[var(--noryx-danger)]";
+    case "succeeded":
+    case "running":
+      return "bg-brand";
     default:
-      return 'bg-border-strong';
+      return "bg-border-strong";
   }
 }
 
 function isTerminal(status: WorkflowRunStatus): boolean {
-  return status === 'succeeded' || status === 'failed' || status === 'cancelled';
+  return (
+    status === "succeeded" || status === "failed" || status === "cancelled"
+  );
 }
 
 /** Le premier pas non fini, derive du run comme le fait le serveur. */
 function currentStep(run: WorkflowRun): number | null {
-  const step = run.steps.find((item) => item.status !== 'succeeded');
+  const step = run.steps.find((item) => item.status !== "succeeded");
   return step ? step.index : null;
 }
 
 type Translate = ReturnType<typeof useT>;
 
 function stepKindLabel(step: WorkflowStep, t: Translate): string {
-  return step.kind === 'approval' ? t('workflows.stepApproval') : t('workflows.stepAgent');
+  return step.kind === "approval"
+    ? t("workflows.stepApproval")
+    : t("workflows.stepAgent");
 }

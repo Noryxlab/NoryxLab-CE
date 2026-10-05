@@ -31,14 +31,34 @@ const (
 	ScheduleDaily  = "daily"
 )
 
-// ActionRestartApp is the one thing an agent may change, for now.
+// The closed list of what an agent may change. Two entries.
 //
-// Chosen because it is reversible and already routine: an app that has fallen
-// over is restarted, which is what a person would do, and the worst case of
-// doing it wrongly is an app that restarts when it did not need to. Anything
-// that destroys state, spends money, or reaches outside the platform is not on
-// this list and does not get here by being asked for nicely in a mission.
-const ActionRestartApp = "restart_app"
+// ActionRestartApp was the first and for a long time the only one: reversible,
+// already routine, and the worst case of doing it wrongly is an app that
+// restarts when it did not need to.
+//
+// ActionCallAPI is the platform's whole API, called as the owner (ADR-046).
+// The verbs an agent needs are the verbs the platform already has - launch a
+// job, write an object into a dataset, declare an extract, stop an app - and
+// each of them exists as an endpoint with its access check written once.
+// Re-describing them one by one as agent tools would be a second API, kept
+// in step by hand. So the grant is the API itself, with three things fixed
+// where the call is executed and not here: the identity is the owner's, the
+// access checks are the handlers' own, and every mutation is in the audit
+// trail with the agent named. Finer guard rails - per project, per path -
+// are a later chapter.
+const (
+	ActionRestartApp = "restart_app"
+	ActionCallAPI    = "call_api"
+)
+
+var knownActions = []string{ActionRestartApp, ActionCallAPI}
+
+// Actions is the closed list, in a stable order, for anything that needs to
+// show or validate it.
+func Actions() []string {
+	return append([]string{}, knownActions...)
+}
 
 type Agent struct {
 	ID          string `json:"id"`
@@ -175,7 +195,7 @@ func NormaliseActions(actions []string) []string {
 	seen := map[string]bool{}
 	for _, action := range actions {
 		action = strings.ToLower(strings.TrimSpace(action))
-		if action != ActionRestartApp || seen[action] {
+		if !ValidAction(action) || seen[action] {
 			continue
 		}
 		seen[action] = true
@@ -186,7 +206,13 @@ func NormaliseActions(actions []string) []string {
 
 // ValidAction reports whether a name is one the platform implements.
 func ValidAction(action string) bool {
-	return strings.ToLower(strings.TrimSpace(action)) == ActionRestartApp
+	action = strings.ToLower(strings.TrimSpace(action))
+	for _, known := range knownActions {
+		if action == known {
+			return true
+		}
+	}
+	return false
 }
 
 // roleFor derives the base role from what was granted.

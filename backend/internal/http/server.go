@@ -345,11 +345,18 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /swagger/openapi.public.yaml", GetPublicOpenAPI)
 	mux.HandleFunc("GET /swagger/assets/{file}", GetSwaggerAsset)
 
+	// Scope enforcement sits inside the audit middleware so a refusal is
+	// recorded like any other outcome: "this token tried and was stopped"
+	// is exactly what an audit is for.
+	handler := h.AuditMutations(h.EnforceTokenScopes(mux))
+
+	// The platform is also its own client: an agent calling the API as its
+	// owner goes through this same chain, audit included, and reads the same
+	// document a person reads at /swagger.
+	h.AttachAPI(handler, openAPISpec)
+
 	return &http.Server{
-		Addr: cfg.ListenAddr,
-		// Scope enforcement sits inside the audit middleware so a refusal is
-		// recorded like any other outcome: "this token tried and was stopped"
-		// is exactly what an audit is for.
-		Handler: h.AuditMutations(h.EnforceTokenScopes(mux)),
+		Addr:    cfg.ListenAddr,
+		Handler: handler,
 	}
 }

@@ -28,22 +28,27 @@ type Handlers struct {
 	// teamStore is optional: an installation without it behaves exactly
 	// as the platform did before teams existed, which is what makes this
 	// safe to deploy before the interface that drives it.
-	teamStore                        store.TeamStore
-	secretStore                      store.SecretStore
-	projectVariableStore             store.ProjectVariableStore
-	datasetStore                     store.DatasetStore
-	datasourceStore                  store.DatasourceStore
-	ontologyStore                    store.OntologyStore
-	extractStore                     store.ExtractStore
-	repositoryStore                  store.RepositoryStore
-	projectResourceStore             store.ProjectResourceStore
-	projectOntologyStore             store.ProjectOntologyStore
-	userPreferenceStore              store.UserPreferenceStore
-	rbacPolicyStore                  store.RBACPolicyStore
-	roleBaseCache                    *rbacRoleBaseCache
-	backupRunStore                   store.BackupRunStore
-	agentStore                       store.AgentStore
-	workflowStore                    store.WorkflowStore
+	teamStore            store.TeamStore
+	secretStore          store.SecretStore
+	projectVariableStore store.ProjectVariableStore
+	datasetStore         store.DatasetStore
+	datasourceStore      store.DatasourceStore
+	ontologyStore        store.OntologyStore
+	extractStore         store.ExtractStore
+	repositoryStore      store.RepositoryStore
+	projectResourceStore store.ProjectResourceStore
+	projectOntologyStore store.ProjectOntologyStore
+	userPreferenceStore  store.UserPreferenceStore
+	rbacPolicyStore      store.RBACPolicyStore
+	roleBaseCache        *rbacRoleBaseCache
+	backupRunStore       store.BackupRunStore
+	agentStore           store.AgentStore
+	workflowStore        store.WorkflowStore
+	// api is the platform's own HTTP surface, attached once the router exists,
+	// for the one caller inside the process that uses the API as a client: an
+	// agent acting as its owner. A pointer, because Handlers travels by value
+	// and the router is built after it.
+	api                              *apiSurface
 	agentTeamStore                   store.AgentTeamStore
 	notifier                         *notify.Notifier
 	workspaceMaxLifetime             time.Duration
@@ -314,6 +319,7 @@ func New(
 	}
 
 	return Handlers{
+		api:                              &apiSurface{},
 		projectStore:                     projectStore,
 		appStore:                         appStore,
 		buildStore:                       buildStore,

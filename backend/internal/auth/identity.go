@@ -1,6 +1,9 @@
 package auth
 
-import "strings"
+import (
+	"context"
+	"strings"
+)
 
 type Identity struct {
 	Subject  string
@@ -58,4 +61,23 @@ func (i Identity) MatchesEmail(email string) bool {
 
 type Verifier interface {
 	VerifyBearerToken(token string) (Identity, error)
+}
+
+// The identity a platform component resolved itself, carried in the request
+// context.
+//
+// An HTTP client cannot set a context value, which is the whole property: a
+// request that carries one was built inside this process by code that had
+// already decided who it acts for - an agent calling the API as its owner -
+// and the handlers take it as resolved rather than asking for a credential a
+// second time.
+type identityKey struct{}
+
+func WithIdentity(ctx context.Context, identity Identity) context.Context {
+	return context.WithValue(ctx, identityKey{}, identity)
+}
+
+func IdentityFrom(ctx context.Context) (Identity, bool) {
+	identity, ok := ctx.Value(identityKey{}).(Identity)
+	return identity, ok && strings.TrimSpace(identity.UserID()) != ""
 }

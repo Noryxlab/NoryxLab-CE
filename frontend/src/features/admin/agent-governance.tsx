@@ -1,17 +1,21 @@
-import { Bot, Download } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { DataTable, type Column } from '@/components/common/data-table';
-import { EmptyState } from '@/components/common/states';
-import { SectionHeader } from '@/components/common/page-header';
-import { Stat, StatGrid } from '@/components/common/stat';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { adminApi } from '@/lib/api/endpoints';
-import { useAgentGovernance } from '@/lib/api/queries';
-import { useI18n, useT } from '@/lib/i18n';
-import { formatNumber, formatRelative } from '@/lib/format';
-import type { AgentGovernanceMandate, AgentGovernanceRow } from '@/lib/api/types';
+import { Bot, Download } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DataTable, type Column } from "@/components/common/data-table";
+import { EmptyState } from "@/components/common/states";
+import { SectionHeader } from "@/components/common/page-header";
+import { Stat, StatGrid } from "@/components/common/stat";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { adminApi } from "@/lib/api/endpoints";
+import { useAgentGovernance } from "@/lib/api/queries";
+import { useI18n, useT } from "@/lib/i18n";
+import { formatNumber, formatRelative } from "@/lib/format";
+import type {
+  AgentGovernanceMandate,
+  AgentGovernanceRow,
+} from "@/lib/api/types";
+import { askActionLabel, grantLabel } from "@/features/agents/action-label";
 
 /**
  * Ce que les agents de cette installation ont le droit de faire.
@@ -35,65 +39,80 @@ export function AgentGovernanceSection() {
 
   const columns: Column<AgentGovernanceRow>[] = [
     {
-      id: 'name',
-      header: t('common.name'),
+      id: "name",
+      header: t("common.name"),
       sortValue: (row) => row.name,
       cell: (row) => (
         <div className="min-w-0">
           <p className="truncate font-medium">{row.name}</p>
           <p className="truncate text-xs text-muted-foreground">
             {row.project}
-            {row.team ? ` · ${row.team}` : ''}
+            {row.team ? ` · ${row.team}` : ""}
           </p>
         </div>
       ),
     },
     {
-      id: 'role',
-      header: t('agents.roleLabel'),
+      id: "role",
+      header: t("agents.roleLabel"),
       sortValue: (row) => row.role,
-      cell: (row) => <Badge tone="neutral">{t(`agents.role${capitalise(row.role)}` as never)}</Badge>,
+      cell: (row) => (
+        <Badge tone="neutral">
+          {t(`agents.role${capitalise(row.role)}` as never)}
+        </Badge>
+      ),
     },
     {
-      id: 'mayDo',
-      header: t('agentGovernance.mayDo'),
+      id: "mayDo",
+      header: t("agentGovernance.mayDo"),
       // Le droit d'agir est la colonne qu'on vient lire : elle est nommee en
       // clair, et son absence l'est aussi.
       cell: (row) =>
         row.mayDo.length > 0 ? (
-          <Badge tone="warning">{t('agents.mayRestart')}</Badge>
+          <span className="flex flex-wrap gap-1">
+            {row.mayDo.map((action) => (
+              <Badge key={action} tone="warning">
+                {grantLabel(action, t)}
+              </Badge>
+            ))}
+          </span>
         ) : (
-          <span className="text-xs text-muted-foreground">{t('agents.readsOnly')}</span>
+          <span className="text-xs text-muted-foreground">
+            {t("agents.readsOnly")}
+          </span>
         ),
     },
     {
-      id: 'state',
-      header: t('agentGovernance.state'),
+      id: "state",
+      header: t("agentGovernance.state"),
       cell: (row) => (
         <span className="text-xs text-muted-foreground">
-          {row.enabled ? t('agents.atWork') : t('agents.paused')} · {t(scheduleKeyOf(row.schedule))}
+          {row.enabled ? t("agents.atWork") : t("agents.paused")} ·{" "}
+          {t(scheduleKeyOf(row.schedule))}
         </span>
       ),
     },
     {
-      id: 'activity',
-      header: t('agentGovernance.activity'),
+      id: "activity",
+      header: t("agentGovernance.activity"),
       sortValue: (row) => row.acted,
       cell: (row) => (
         <span className="text-xs tabular-nums">
-          {t('agentGovernance.runsAndActions')
-            .replace('{runs}', formatNumber(row.runs, locale))
-            .replace('{actions}', formatNumber(row.acted, locale))}
+          {t("agentGovernance.runsAndActions")
+            .replace("{runs}", formatNumber(row.runs, locale))
+            .replace("{actions}", formatNumber(row.acted, locale))}
         </span>
       ),
     },
     {
-      id: 'lastRun',
-      header: t('agentGovernance.lastRun'),
-      sortValue: (row) => row.lastRunAt ?? '',
+      id: "lastRun",
+      header: t("agentGovernance.lastRun"),
+      sortValue: (row) => row.lastRunAt ?? "",
       cell: (row) => (
         <span className="text-xs text-muted-foreground">
-          {row.lastRunAt ? formatRelative(row.lastRunAt, locale) : t('agents.never')}
+          {row.lastRunAt
+            ? formatRelative(row.lastRunAt, locale)
+            : t("agents.never")}
         </span>
       ),
     },
@@ -102,33 +121,48 @@ export function AgentGovernanceSection() {
   return (
     <div className="space-y-5">
       <SectionHeader
-        title={t('agentGovernance.title')}
-        description={t('agentGovernance.intro')}
+        title={t("agentGovernance.title")}
+        description={t("agentGovernance.intro")}
         actions={
-          <Button variant="secondary" size="sm" onClick={() => void adminApi.exportAgentGovernanceCSV()}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void adminApi.exportAgentGovernanceCSV()}
+          >
             <Download className="size-4" aria-hidden />
-            {t('admin.exportCsv')}
+            {t("admin.exportCsv")}
           </Button>
         }
       />
 
       <StatGrid>
-        <Stat label={t('agentGovernance.agents')} loading={report.isLoading} value={formatNumber(summary?.agents, locale)} />
+        <Stat
+          label={t("agentGovernance.agents")}
+          loading={report.isLoading}
+          value={formatNumber(summary?.agents, locale)}
+        />
         {/* Combien peuvent changer quelque chose : ce n'est pas le nombre
             d'agents, et c'est le chiffre qu'une direction des risques demande
             en premier. */}
         <Stat
-          label={t('agentGovernance.canAct')}
+          label={t("agentGovernance.canAct")}
           loading={report.isLoading}
           value={formatNumber(summary?.canAct, locale)}
-          hint={t('agentGovernance.canActHint')}
+          hint={t("agentGovernance.canActHint")}
         />
-        <Stat label={t('agentGovernance.mandates')} loading={report.isLoading} value={formatNumber(summary?.mandates, locale)} />
         <Stat
-          label={t('agentGovernance.actions')}
+          label={t("agentGovernance.mandates")}
+          loading={report.isLoading}
+          value={formatNumber(summary?.mandates, locale)}
+        />
+        <Stat
+          label={t("agentGovernance.actions")}
           loading={report.isLoading}
           value={formatNumber(summary?.actions, locale)}
-          hint={t('agentGovernance.window').replace('{days}', String(report.data?.windowDays ?? 30))}
+          hint={t("agentGovernance.window").replace(
+            "{days}",
+            String(report.data?.windowDays ?? 30),
+          )}
         />
       </StatGrid>
 
@@ -144,14 +178,17 @@ export function AgentGovernanceSection() {
           emptyState={
             <EmptyState
               icon={Bot}
-              title={t('agentGovernance.noAgents')}
-              description={t('agentGovernance.noAgentsHint')}
+              title={t("agentGovernance.noAgents")}
+              description={t("agentGovernance.noAgentsHint")}
             />
           }
         />
       </Card>
 
-      <Organisation mandates={report.data?.mandates ?? []} loading={report.isLoading} />
+      <Organisation
+        mandates={report.data?.mandates ?? []}
+        loading={report.isLoading}
+      />
     </div>
   );
 }
@@ -175,12 +212,15 @@ function Organisation({
 
   return (
     <section className="space-y-2">
-      <SectionHeader title={t('agents.organisation')} description={t('agentGovernance.organisationIntro')} />
+      <SectionHeader
+        title={t("agents.organisation")}
+        description={t("agentGovernance.organisationIntro")}
+      />
       {loading ? (
         <Skeleton className="h-10 w-full" />
       ) : mandates.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          {t('agentGovernance.noMandates')}
+          {t("agentGovernance.noMandates")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -190,18 +230,18 @@ function Organisation({
               className="rounded-lg bg-surface-muted px-4 py-3"
             >
               <p className="text-sm leading-relaxed">
-                {t('agents.mandateSentence')
-                  .replace('{lead}', mandate.lead)
-                  .replace('{member}', mandate.member)
-                  .replace('{action}', actionLabel(mandate.action, t))}
+                {t("agents.mandateSentence")
+                  .replace("{lead}", mandate.lead)
+                  .replace("{member}", mandate.member)
+                  .replace("{action}", actionLabel(mandate.action, t))}
               </p>
               {/* Qui a autorise, et quand : premiere question posee sur toute
                   delegation. */}
               <p className="mt-1 text-xs text-muted-foreground">
-                {t('agentGovernance.grantedBy')
-                  .replace('{who}', mandate.grantedBy)
-                  .replace('{when}', formatRelative(mandate.since, locale))}
-                {mandate.team ? ` · ${mandate.team}` : ''}
+                {t("agentGovernance.grantedBy")
+                  .replace("{who}", mandate.grantedBy)
+                  .replace("{when}", formatRelative(mandate.since, locale))}
+                {mandate.team ? ` · ${mandate.team}` : ""}
               </p>
             </li>
           ))}
@@ -214,16 +254,15 @@ function Organisation({
 type Translate = ReturnType<typeof useT>;
 
 function actionLabel(action: string, t: Translate): string {
-  if (action === 'restart_app') return t('agents.askActionRestartApp');
-  return action;
+  return askActionLabel(action, t);
 }
 
 function capitalise(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function scheduleKeyOf(schedule: AgentGovernanceRow['schedule']) {
-  if (schedule === 'hourly') return 'agents.scheduleHourly' as const;
-  if (schedule === 'daily') return 'agents.scheduleDaily' as const;
-  return 'agents.scheduleManual' as const;
+function scheduleKeyOf(schedule: AgentGovernanceRow["schedule"]) {
+  if (schedule === "hourly") return "agents.scheduleHourly" as const;
+  if (schedule === "daily") return "agents.scheduleDaily" as const;
+  return "agents.scheduleManual" as const;
 }

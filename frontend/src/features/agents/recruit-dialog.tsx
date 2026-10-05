@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { useMutation } from '@tanstack/react-query';
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogBody,
@@ -8,18 +8,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { Input, Textarea } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { AgentFace } from './agent-face';
-import { scheduleKey } from './agent-roster';
-import { platformApi } from '@/lib/api/endpoints';
-import { qk, useAgentTeams, useInvalidate } from '@/lib/api/queries';
-import { useToast } from '@/components/ui/toast';
-import { useT } from '@/lib/i18n';
-import type { Agent } from '@/lib/api/types';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { AgentFace } from "./agent-face";
+import { scheduleKey } from "./agent-roster";
+import { platformApi } from "@/lib/api/endpoints";
+import { qk, useAgentTeams, useInvalidate } from "@/lib/api/queries";
+import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n";
+import type { Agent } from "@/lib/api/types";
+import { actionsFrom } from "./action-label";
 
 /**
  * Recruter.
@@ -40,9 +41,9 @@ import type { Agent } from '@/lib/api/types';
  */
 
 const EXAMPLES = [
-  'agents.exampleWorkspaces',
-  'agents.exampleApps',
-  'agents.exampleQuiet',
+  "agents.exampleWorkspaces",
+  "agents.exampleApps",
+  "agents.exampleQuiet",
 ] as const;
 
 export function RecruitDialog({
@@ -63,33 +64,36 @@ export function RecruitDialog({
   const toast = useToast();
   const invalidate = useInvalidate();
 
-  const [name, setName] = React.useState('');
-  const [mission, setMission] = React.useState('');
-  const [schedule, setSchedule] = React.useState<Agent['schedule']>('hourly');
+  const [name, setName] = React.useState("");
+  const [mission, setMission] = React.useState("");
+  const [schedule, setSchedule] = React.useState<Agent["schedule"]>("hourly");
   const [mayRestart, setMayRestart] = React.useState(false);
-  const [teamId, setTeamId] = React.useState('');
-  const [role, setRole] = React.useState<Agent['role']>('observer');
+  const [mayCallApi, setMayCallApi] = React.useState(false);
+  const [teamId, setTeamId] = React.useState("");
+  const [role, setRole] = React.useState<Agent["role"]>("observer");
   const teams = useAgentTeams();
 
   // Remis a l'etat du sujet chaque fois que la fenetre s'ouvre, sans quoi on
   // rouvre sur le brouillon de la fois precedente.
   React.useEffect(() => {
     if (!open) return;
-    setName(editing?.name ?? '');
-    setMission(editing?.mission ?? '');
-    setSchedule(editing?.schedule ?? 'hourly');
-    setMayRestart(Boolean(editing?.actions?.includes('restart_app')));
-    setTeamId(editing?.teamId ?? '');
-    setRole(editing?.role ?? 'observer');
+    setName(editing?.name ?? "");
+    setMission(editing?.mission ?? "");
+    setSchedule(editing?.schedule ?? "hourly");
+    setMayRestart(Boolean(editing?.actions?.includes("restart_app")));
+    setMayCallApi(Boolean(editing?.actions?.includes("call_api")));
+    setTeamId(editing?.teamId ?? "");
+    setRole(editing?.role ?? "observer");
   }, [open, editing]);
 
   // Le role est un plafond, pas une etiquette : un observateur ne garde aucune
   // action. Accorder le droit d'agir le fait donc passer operateur, au lieu de
   // laisser une fiche qui se contredit elle-meme.
+  const mayAct = mayRestart || mayCallApi;
   React.useEffect(() => {
-    if (mayRestart && role === 'observer') setRole('operator');
-    if (!mayRestart && role === 'operator') setRole('observer');
-  }, [mayRestart, role]);
+    if (mayAct && role === "observer") setRole("operator");
+    if (!mayAct && role === "operator") setRole("observer");
+  }, [mayAct, role]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -98,21 +102,25 @@ export function RecruitDialog({
         mission: mission.trim(),
         projectId,
         schedule,
-        actions: mayRestart ? ['restart_app'] : [],
+        actions: actionsFrom(mayRestart, mayCallApi),
         teamId,
         role,
       };
-      return editing ? platformApi.updateAgent(editing.id, body) : platformApi.createAgent(body);
+      return editing
+        ? platformApi.updateAgent(editing.id, body)
+        : platformApi.createAgent(body);
     },
     onSuccess: () => {
       invalidate(qk.agents);
       onOpenChange(false);
       toast.success(
-        editing ? t('agents.updated') : t('agents.hired', { name: name.trim() }),
-        t('agents.title'),
+        editing
+          ? t("agents.updated")
+          : t("agents.hired", { name: name.trim() }),
+        t("agents.title"),
       );
     },
-    onError: (error) => toast.error(error, t('agents.title')),
+    onError: (error) => toast.error(error, t("agents.title")),
   });
 
   const ready =
@@ -122,18 +130,20 @@ export function RecruitDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>{editing ? t('agents.editTitle') : t('agents.recruitTitle')}</DialogTitle>
-          <DialogDescription>{t('agents.recruitIntro')}</DialogDescription>
+          <DialogTitle>
+            {editing ? t("agents.editTitle") : t("agents.recruitTitle")}
+          </DialogTitle>
+          <DialogDescription>{t("agents.recruitIntro")}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-5">
           <div className="flex items-center gap-4">
-            <AgentFace name={name || '?'} mood="calm" size={56} />
+            <AgentFace name={name || "?"} mood="calm" size={56} />
             <div className="flex-1">
-              <Field label={t('agents.nameLabel')} required>
+              <Field label={t("agents.nameLabel")} required>
                 <Input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder={t('agents.namePlaceholder')}
+                  placeholder={t("agents.namePlaceholder")}
                   maxLength={60}
                   autoFocus
                 />
@@ -142,8 +152,8 @@ export function RecruitDialog({
           </div>
 
           <Field
-            label={t('agents.missionLabel')}
-            description={t('agents.missionHelp')}
+            label={t("agents.missionLabel")}
+            description={t("agents.missionHelp")}
             required
           >
             <Textarea
@@ -151,13 +161,15 @@ export function RecruitDialog({
               onChange={(event) => setMission(event.target.value)}
               rows={5}
               maxLength={4000}
-              placeholder={t('agents.missionPlaceholder')}
+              placeholder={t("agents.missionPlaceholder")}
             />
           </Field>
 
-          {mission.trim() === '' ? (
+          {mission.trim() === "" ? (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">{t('agents.examplesTitle')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("agents.examplesTitle")}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {EXAMPLES.map((key) => (
                   <button
@@ -173,35 +185,35 @@ export function RecruitDialog({
             </div>
           ) : null}
 
-          <Field label={t('agents.scheduleLabel')}>
+          <Field label={t("agents.scheduleLabel")}>
             <div className="flex flex-wrap gap-2">
-                {(['manual', 'hourly', 'daily'] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={schedule === option}
-                    onClick={() => setSchedule(option)}
-                    className={
-                      schedule === option
-                        ? 'rounded-lg border border-brand bg-brand-subtle px-3 py-1.5 text-sm text-brand-subtle-foreground'
-                        : 'rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:border-border-strong'
-                    }
-                  >
-                    {t(scheduleKey(option))}
-                  </button>
+              {(["manual", "hourly", "daily"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={schedule === option}
+                  onClick={() => setSchedule(option)}
+                  className={
+                    schedule === option
+                      ? "rounded-lg border border-brand bg-brand-subtle px-3 py-1.5 text-sm text-brand-subtle-foreground"
+                      : "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:border-border-strong"
+                  }
+                >
+                  {t(scheduleKey(option))}
+                </button>
               ))}
             </div>
           </Field>
 
           {(teams.data ?? []).length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t('agents.teamLabel')}>
+              <Field label={t("agents.teamLabel")}>
                 <select
                   value={teamId}
                   onChange={(event) => setTeamId(event.target.value)}
                   className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 >
-                  <option value="">{t('agents.noTeam')}</option>
+                  <option value="">{t("agents.noTeam")}</option>
                   {(teams.data ?? []).map((team) => (
                     <option key={team.id} value={team.id}>
                       {team.name}
@@ -210,32 +222,55 @@ export function RecruitDialog({
                 </select>
               </Field>
               {teamId ? (
-                <Field label={t('agents.roleLabel')}>
+                <Field label={t("agents.roleLabel")}>
                   <select
                     value={role}
-                    onChange={(event) => setRole(event.target.value as Agent['role'])}
+                    onChange={(event) =>
+                      setRole(event.target.value as Agent["role"])
+                    }
                     className="h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
                   >
                     {/* Observateur seulement quand rien ne lui est accorde :
                         le plafond du role est applique a l'ecriture, et offrir
                         un choix que le serveur annule est pire que ne pas
                         l'offrir. */}
-                    {!mayRestart ? <option value="observer">{t('agents.roleObserver')}</option> : null}
-                    {mayRestart ? <option value="operator">{t('agents.roleOperator')}</option> : null}
-                    <option value="lead">{t('agents.roleLead')}</option>
+                    {!mayAct ? (
+                      <option value="observer">
+                        {t("agents.roleObserver")}
+                      </option>
+                    ) : null}
+                    {mayAct ? (
+                      <option value="operator">
+                        {t("agents.roleOperator")}
+                      </option>
+                    ) : null}
+                    <option value="lead">{t("agents.roleLead")}</option>
                   </select>
                 </Field>
               ) : null}
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-border bg-surface-muted px-4 py-3">
+          <div className="space-y-3 rounded-lg border border-border bg-surface-muted px-4 py-3">
             <label className="flex items-start gap-3">
               <Switch checked={mayRestart} onCheckedChange={setMayRestart} />
               <span className="space-y-1">
-                <span className="block text-sm font-medium">{t('agents.mayRestartLabel')}</span>
+                <span className="block text-sm font-medium">
+                  {t("agents.mayRestartLabel")}
+                </span>
                 <span className="block text-xs leading-relaxed text-muted-foreground">
-                  {t('agents.mayRestartHelp')}
+                  {t("agents.mayRestartHelp")}
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3">
+              <Switch checked={mayCallApi} onCheckedChange={setMayCallApi} />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  {t("agents.mayCallApiLabel")}
+                </span>
+                <span className="block text-xs leading-relaxed text-muted-foreground">
+                  {t("agents.mayCallApiHelp")}
                 </span>
               </span>
             </label>
@@ -243,10 +278,13 @@ export function RecruitDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {t('common.cancel')}
+            {t("common.cancel")}
           </Button>
-          <Button onClick={() => save.mutate()} disabled={!ready || save.isPending}>
-            {editing ? t('common.save') : t('agents.hire')}
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!ready || save.isPending}
+          >
+            {editing ? t("common.save") : t("agents.hire")}
           </Button>
         </DialogFooter>
       </DialogContent>

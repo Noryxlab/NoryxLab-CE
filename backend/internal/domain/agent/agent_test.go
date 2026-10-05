@@ -76,3 +76,17 @@ func TestWhenAnAgentIsDue(t *testing.T) {
 		t.Fatal("a manual agent is never due on its own")
 	}
 }
+
+// The closed list has two entries, and the API verb is stored like the other.
+func TestTheAPIVerbIsOnTheClosedList(t *testing.T) {
+	kept := NormaliseActions([]string{"call_api", "CALL_API", "restart_app", "delete_everything"})
+	if len(kept) != 2 || kept[0] != ActionCallAPI || kept[1] != ActionRestartApp {
+		t.Fatalf("kept = %v", kept)
+	}
+	if !ValidAction("call_api") || ValidAction("call_api ") == false || ValidAction("call") {
+		t.Fatal("ValidAction disagrees with the list")
+	}
+	if len(Actions()) != 2 {
+		t.Fatalf("Actions() = %v", Actions())
+	}
+}

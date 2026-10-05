@@ -1,12 +1,13 @@
-import { Loader2, Pencil, RotateCw, Send, UserMinus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import * as React from 'react';
-import { relativeTime, scheduleKey } from './agent-roster';
-import { useT } from '@/lib/i18n';
-import type { Agent, AgentRun } from '@/lib/api/types';
+import { Loader2, Pencil, RotateCw, Send, UserMinus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import * as React from "react";
+import { relativeTime, scheduleKey } from "./agent-roster";
+import { useT } from "@/lib/i18n";
+import type { Agent, AgentRun } from "@/lib/api/types";
+import { actionTakenLabel } from "./action-label";
 
 /**
  * Ce que l'agent a vu.
@@ -54,36 +55,57 @@ export function AgentJournal({
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <h2 className="text-sm font-semibold">{t('agents.whatTheySaw', { name: agent.name })}</h2>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{agent.mission}</p>
+          <h2 className="text-sm font-semibold">
+            {t("agents.whatTheySaw", { name: agent.name })}
+          </h2>
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {agent.mission}
+          </p>
           <p className="text-xs text-placeholder">
             {t(scheduleKey(agent.schedule))}
-            {agent.actions.length > 0 ? ` · ${t('agents.mayRestart')}` : ` · ${t('agents.readsOnly')}`}
+            {agent.actions.length > 0
+              ? ` · ${t("agents.mayRestart")}`
+              : ` · ${t("agents.readsOnly")}`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Switch checked={agent.enabled} onCheckedChange={onToggle} />
-            {agent.enabled ? t('agents.atWork') : t('agents.paused')}
+            {agent.enabled ? t("agents.atWork") : t("agents.paused")}
           </label>
-          <Button variant="secondary" size="sm" onClick={onRun} disabled={running}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onRun}
+            disabled={running}
+          >
             {running ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
               <RotateCw className="size-4" aria-hidden />
             )}
-            {t('agents.runNow')}
+            {t("agents.runNow")}
           </Button>
           {/* Modifier et renvoyer vivent ici et pas sur la carte : la rangee se
               parcourt d'un regard, et deux boutons par collegue la
               transformeraient en tableau de bord. */}
-          <Button variant="ghost" size="sm" onClick={onEdit} title={t('common.edit')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEdit}
+            title={t("common.edit")}
+          >
             <Pencil className="size-4" aria-hidden />
-            <span className="sr-only">{t('common.edit')}</span>
+            <span className="sr-only">{t("common.edit")}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDismiss} title={t('agents.dismiss')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDismiss}
+            title={t("agents.dismiss")}
+          >
             <UserMinus className="size-4" aria-hidden />
-            <span className="sr-only">{t('agents.dismiss')}</span>
+            <span className="sr-only">{t("agents.dismiss")}</span>
           </Button>
         </div>
       </div>
@@ -91,10 +113,12 @@ export function AgentJournal({
       <AskBox name={agent.name} onAsk={onAsk} pending={asking} />
 
       {loading && runs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t('agents.loadingRuns')}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("agents.loadingRuns")}
+        </p>
       ) : runs.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-          {t('agents.neverRan')}
+          {t("agents.neverRan")}
         </p>
       ) : (
         <ol className="relative space-y-0 border-l border-border pl-5">
@@ -128,12 +152,12 @@ function AskBox({
   pending: boolean;
 }) {
   const t = useT();
-  const [message, setMessage] = React.useState('');
+  const [message, setMessage] = React.useState("");
   const send = () => {
     const asked = message.trim();
     if (!asked || pending) return;
     onAsk(asked);
-    setMessage('');
+    setMessage("");
   };
   return (
     <div className="flex items-center gap-2">
@@ -141,18 +165,22 @@ function AskBox({
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') send();
+          if (event.key === "Enter") send();
         }}
-        placeholder={t('agents.askPlaceholder').replace('{name}', name)}
+        placeholder={t("agents.askPlaceholder").replace("{name}", name)}
         disabled={pending}
       />
-      <Button variant="secondary" onClick={send} disabled={pending || message.trim().length === 0}>
+      <Button
+        variant="secondary"
+        onClick={send}
+        disabled={pending || message.trim().length === 0}
+      >
         {pending ? (
           <Loader2 className="size-4 animate-spin" aria-hidden />
         ) : (
           <Send className="size-4" aria-hidden />
         )}
-        {t('agents.ask')}
+        {t("agents.ask")}
       </Button>
     </div>
   );
@@ -170,9 +198,11 @@ function RunEntry({ run }: { run: AgentRun }) {
         <Dot tone="danger" />
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-xs text-placeholder tabular-nums">{when}</span>
-          <Badge tone="danger">{t('agents.failed')}</Badge>
+          <Badge tone="danger">{t("agents.failed")}</Badge>
         </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{run.error}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {run.error}
+        </p>
       </li>
     );
   }
@@ -183,7 +213,9 @@ function RunEntry({ run }: { run: AgentRun }) {
         <Dot tone="muted" />
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-xs text-placeholder tabular-nums">{when}</span>
-          <span className="text-xs text-placeholder">{t('agents.nothingToReport')}</span>
+          <span className="text-xs text-placeholder">
+            {t("agents.nothingToReport")}
+          </span>
         </div>
       </li>
     );
@@ -197,15 +229,20 @@ function RunEntry({ run }: { run: AgentRun }) {
           echange, pas un rapport sorti de nulle part. */}
       {run.question ? (
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          <span className="font-medium text-foreground">{t('agents.youAsked')}</span> {run.question}
+          <span className="font-medium text-foreground">
+            {t("agents.youAsked")}
+          </span>{" "}
+          {run.question}
         </p>
       ) : null}
-      <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">{run.report}</p>
+      <p className="mt-1 text-sm leading-relaxed whitespace-pre-line">
+        {run.report}
+      </p>
       {run.actions.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {run.actions.map((action, index) => (
             <Badge key={`${action}-${index}`} tone="success">
-              {t('agents.actionRestartApp')}
+              {actionTakenLabel(action, t)}
             </Badge>
           ))}
         </div>
@@ -214,13 +251,13 @@ function RunEntry({ run }: { run: AgentRun }) {
   );
 }
 
-function Dot({ tone }: { tone: 'brand' | 'danger' | 'muted' }) {
+function Dot({ tone }: { tone: "brand" | "danger" | "muted" }) {
   const color =
-    tone === 'danger'
-      ? 'bg-[var(--noryx-danger)]'
-      : tone === 'brand'
-        ? 'bg-brand'
-        : 'bg-border-strong';
+    tone === "danger"
+      ? "bg-[var(--noryx-danger)]"
+      : tone === "brand"
+        ? "bg-brand"
+        : "bg-border-strong";
   return (
     <span
       aria-hidden

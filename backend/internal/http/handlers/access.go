@@ -39,6 +39,12 @@ const (
 )
 
 func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
+	// A request built inside this process already knows who it is for: an
+	// agent calling the API as its owner. Nothing that came over the wire can
+	// carry this value, so it is taken as resolved.
+	if identity, ok := auth.IdentityFrom(r.Context()); ok {
+		return identity, true
+	}
 	token := strings.TrimSpace(r.Header.Get(authHeader))
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)
@@ -192,6 +198,9 @@ func (h Handlers) userIDFromSessionOrBearerNoWrite(r *http.Request) (string, boo
 }
 
 func (h Handlers) identityFromSessionOrBearerNoWrite(r *http.Request) (auth.Identity, bool) {
+	if identity, ok := auth.IdentityFrom(r.Context()); ok {
+		return identity, true
+	}
 	token := strings.TrimSpace(r.Header.Get(authHeader))
 	token = strings.TrimPrefix(token, "Bearer ")
 	token = strings.TrimSpace(token)

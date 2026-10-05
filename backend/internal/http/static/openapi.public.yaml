@@ -133,7 +133,7 @@ components:
         actions:
           type: array
           description: What this agent may change. Empty means it only looks and reports.
-          items: { type: string, enum: [restart_app] }
+          items: { type: string, enum: [restart_app, call_api] }
         enabled: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
@@ -1212,7 +1212,7 @@ components:
         actions:
           type: array
           description: What an agent step may change, from the same closed list an agent holds.
-          items: { type: string, enum: [restart_app] }
+          items: { type: string, enum: [restart_app, call_api] }
         approverUserId: { type: string, description: "Who an approval step waits for" }
     Workflow:
       type: object

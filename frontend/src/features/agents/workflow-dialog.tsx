@@ -1,6 +1,6 @@
-import * as React from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react';
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogBody,
@@ -9,18 +9,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { Input, Textarea } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { scheduleKey } from './agent-roster';
-import { platformApi } from '@/lib/api/endpoints';
-import { qk, useInvalidate } from '@/lib/api/queries';
-import { useToast } from '@/components/ui/toast';
-import { useT } from '@/lib/i18n';
-import type { Workflow, WorkflowInput } from '@/lib/api/types';
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { actionsFrom } from "./action-label";
+import { scheduleKey } from "./agent-roster";
+import { platformApi } from "@/lib/api/endpoints";
+import { qk, useInvalidate } from "@/lib/api/queries";
+import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n";
+import type { Workflow, WorkflowInput } from "@/lib/api/types";
 
 /**
  * Ecrire un workflow.
@@ -38,15 +39,23 @@ import type { Workflow, WorkflowInput } from '@/lib/api/types';
  */
 
 type Draft = {
-  kind: 'agent' | 'approval';
+  kind: "agent" | "approval";
   name: string;
   instruction: string;
   approverUserId: string;
   mayRestart: boolean;
+  mayCallApi: boolean;
 };
 
-const EMPTY_AGENT: Draft = { kind: 'agent', name: '', instruction: '', approverUserId: '', mayRestart: false };
-const EMPTY_APPROVAL: Draft = { kind: 'approval', name: '', instruction: '', approverUserId: '', mayRestart: false };
+const EMPTY_AGENT: Draft = {
+  kind: "agent",
+  name: "",
+  instruction: "",
+  approverUserId: "",
+  mayRestart: false,
+  mayCallApi: false,
+};
+const EMPTY_APPROVAL: Draft = { ...EMPTY_AGENT, kind: "approval" };
 
 export function WorkflowDialog({
   open,
@@ -61,26 +70,33 @@ export function WorkflowDialog({
   const toast = useToast();
   const invalidate = useInvalidate();
 
-  const [name, setName] = React.useState('');
-  const [schedule, setSchedule] = React.useState<Workflow['schedule']>('manual');
+  const [name, setName] = React.useState("");
+  const [schedule, setSchedule] =
+    React.useState<Workflow["schedule"]>("manual");
   const [steps, setSteps] = React.useState<Draft[]>([{ ...EMPTY_AGENT }]);
 
   React.useEffect(() => {
     if (!open) return;
-    setName('');
-    setSchedule('manual');
+    setName("");
+    setSchedule("manual");
     setSteps([{ ...EMPTY_AGENT }]);
   }, [open]);
 
   const update = (index: number, patch: Partial<Draft>) =>
-    setSteps((current) => current.map((step, at) => (at === index ? { ...step, ...patch } : step)));
-  const remove = (index: number) => setSteps((current) => current.filter((_, at) => at !== index));
+    setSteps((current) =>
+      current.map((step, at) => (at === index ? { ...step, ...patch } : step)),
+    );
+  const remove = (index: number) =>
+    setSteps((current) => current.filter((_, at) => at !== index));
   const move = (index: number, delta: -1 | 1) =>
     setSteps((current) => {
       const target = index + delta;
       if (target < 0 || target >= current.length) return current;
       const next = [...current];
-      [next[index], next[target]] = [next[target] as Draft, next[index] as Draft];
+      [next[index], next[target]] = [
+        next[target] as Draft,
+        next[index] as Draft,
+      ];
       return next;
     });
 
@@ -91,14 +107,18 @@ export function WorkflowDialog({
         name: name.trim(),
         schedule,
         steps: steps.map((step) =>
-          step.kind === 'agent'
+          step.kind === "agent"
             ? {
-                kind: 'agent',
+                kind: "agent",
                 name: step.name.trim(),
                 instruction: step.instruction.trim(),
-                actions: step.mayRestart ? ['restart_app'] : [],
+                actions: actionsFrom(step.mayRestart, step.mayCallApi),
               }
-            : { kind: 'approval', name: step.name.trim(), approverUserId: step.approverUserId.trim() },
+            : {
+                kind: "approval",
+                name: step.name.trim(),
+                approverUserId: step.approverUserId.trim(),
+              },
         ),
       };
       return platformApi.createWorkflow(body);
@@ -106,9 +126,12 @@ export function WorkflowDialog({
     onSuccess: () => {
       invalidate(qk.workflows);
       onOpenChange(false);
-      toast.success(t('workflows.written', { name: name.trim() }), t('workflows.title'));
+      toast.success(
+        t("workflows.written", { name: name.trim() }),
+        t("workflows.title"),
+      );
     },
-    onError: (error) => toast.error(error, t('workflows.title')),
+    onError: (error) => toast.error(error, t("workflows.title")),
   });
 
   const ready =
@@ -116,30 +139,32 @@ export function WorkflowDialog({
     Boolean(projectId) &&
     steps.length > 0 &&
     steps.every((step) =>
-      step.kind === 'agent' ? step.instruction.trim().length > 0 : step.approverUserId.trim().length > 0,
+      step.kind === "agent"
+        ? step.instruction.trim().length > 0
+        : step.approverUserId.trim().length > 0,
     );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>{t('workflows.editTitle')}</DialogTitle>
-          <DialogDescription>{t('workflows.createIntro')}</DialogDescription>
+          <DialogTitle>{t("workflows.editTitle")}</DialogTitle>
+          <DialogDescription>{t("workflows.createIntro")}</DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-5">
-          <Field label={t('workflows.nameLabel')} required>
+          <Field label={t("workflows.nameLabel")} required>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder={t('workflows.namePlaceholder')}
+              placeholder={t("workflows.namePlaceholder")}
               maxLength={80}
               autoFocus
             />
           </Field>
 
-          <Field label={t('workflows.scheduleLabel')}>
+          <Field label={t("workflows.scheduleLabel")}>
             <div className="flex flex-wrap gap-2">
-              {(['manual', 'hourly', 'daily'] as const).map((option) => (
+              {(["manual", "hourly", "daily"] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -147,8 +172,8 @@ export function WorkflowDialog({
                   onClick={() => setSchedule(option)}
                   className={
                     schedule === option
-                      ? 'rounded-lg border border-brand bg-brand-subtle px-3 py-1.5 text-sm text-brand-subtle-foreground'
-                      : 'rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:border-border-strong'
+                      ? "rounded-lg border border-brand bg-brand-subtle px-3 py-1.5 text-sm text-brand-subtle-foreground"
+                      : "rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition hover:border-border-strong"
                   }
                 >
                   {t(scheduleKey(option))}
@@ -157,79 +182,117 @@ export function WorkflowDialog({
             </div>
           </Field>
 
-          <Field label={t('workflows.stepsLabel')} description={t('workflows.stepsHelp')}>
+          <Field
+            label={t("workflows.stepsLabel")}
+            description={t("workflows.stepsHelp")}
+          >
             <ol className="space-y-3">
               {steps.map((step, index) => (
-                <li key={index} className="rounded-lg border border-border bg-surface p-3">
+                <li
+                  key={index}
+                  className="rounded-lg border border-border bg-surface p-3"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="w-5 text-xs text-placeholder tabular-nums">{index + 1}</span>
-                    <Badge tone={step.kind === 'approval' ? 'outline' : 'neutral'}>
-                      {step.kind === 'approval' ? t('workflows.stepApproval') : t('workflows.stepAgent')}
+                    <span className="w-5 text-xs text-placeholder tabular-nums">
+                      {index + 1}
+                    </span>
+                    <Badge
+                      tone={step.kind === "approval" ? "outline" : "neutral"}
+                    >
+                      {step.kind === "approval"
+                        ? t("workflows.stepApproval")
+                        : t("workflows.stepAgent")}
                     </Badge>
                     <Input
                       value={step.name}
-                      onChange={(event) => update(index, { name: event.target.value })}
-                      placeholder={t('workflows.stepNamePlaceholder')}
+                      onChange={(event) =>
+                        update(index, { name: event.target.value })
+                      }
+                      placeholder={t("workflows.stepNamePlaceholder")}
                       maxLength={60}
                       className="flex-1"
-                      aria-label={t('workflows.stepNameLabel')}
+                      aria-label={t("workflows.stepNameLabel")}
                     />
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
-                      title={t('workflows.moveUp')}
+                      title={t("workflows.moveUp")}
                     >
                       <ArrowUp className="size-4" aria-hidden />
-                      <span className="sr-only">{t('workflows.moveUp')}</span>
+                      <span className="sr-only">{t("workflows.moveUp")}</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => move(index, 1)}
                       disabled={index === steps.length - 1}
-                      title={t('workflows.moveDown')}
+                      title={t("workflows.moveDown")}
                     >
                       <ArrowDown className="size-4" aria-hidden />
-                      <span className="sr-only">{t('workflows.moveDown')}</span>
+                      <span className="sr-only">{t("workflows.moveDown")}</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => remove(index)}
                       disabled={steps.length === 1}
-                      title={t('workflows.removeStep')}
+                      title={t("workflows.removeStep")}
                     >
                       <Trash2 className="size-4" aria-hidden />
-                      <span className="sr-only">{t('workflows.removeStep')}</span>
+                      <span className="sr-only">
+                        {t("workflows.removeStep")}
+                      </span>
                     </Button>
                   </div>
 
-                  {step.kind === 'agent' ? (
+                  {step.kind === "agent" ? (
                     <div className="mt-3 space-y-3">
                       <Textarea
                         value={step.instruction}
-                        onChange={(event) => update(index, { instruction: event.target.value })}
+                        onChange={(event) =>
+                          update(index, { instruction: event.target.value })
+                        }
                         rows={3}
                         maxLength={4000}
-                        placeholder={t('workflows.stepInstructionPlaceholder')}
-                        aria-label={t('workflows.stepInstructionLabel')}
+                        placeholder={t("workflows.stepInstructionPlaceholder")}
+                        aria-label={t("workflows.stepInstructionLabel")}
                       />
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Switch
-                          checked={step.mayRestart}
-                          onCheckedChange={(checked) => update(index, { mayRestart: checked })}
-                        />
-                        {t('workflows.stepMayRestart')}
-                      </label>
+                      <div className="flex flex-wrap gap-x-5 gap-y-2">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch
+                            checked={step.mayRestart}
+                            onCheckedChange={(checked) =>
+                              update(index, { mayRestart: checked })
+                            }
+                          />
+                          {t("workflows.stepMayRestart")}
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch
+                            checked={step.mayCallApi}
+                            onCheckedChange={(checked) =>
+                              update(index, { mayCallApi: checked })
+                            }
+                          />
+                          {t("workflows.stepMayCallApi")}
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <div className="mt-3">
-                      <Field label={t('workflows.stepApproverLabel')} description={t('workflows.stepApproverHelp')}>
+                      <Field
+                        label={t("workflows.stepApproverLabel")}
+                        description={t("workflows.stepApproverHelp")}
+                      >
                         <Input
                           value={step.approverUserId}
-                          onChange={(event) => update(index, { approverUserId: event.target.value })}
+                          onChange={(event) =>
+                            update(index, {
+                              approverUserId: event.target.value,
+                            })
+                          }
                           maxLength={120}
                         />
                       </Field>
@@ -242,26 +305,33 @@ export function WorkflowDialog({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setSteps((current) => [...current, { ...EMPTY_AGENT }])}
+                onClick={() =>
+                  setSteps((current) => [...current, { ...EMPTY_AGENT }])
+                }
               >
-                {t('workflows.addAgentStep')}
+                {t("workflows.addAgentStep")}
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setSteps((current) => [...current, { ...EMPTY_APPROVAL }])}
+                onClick={() =>
+                  setSteps((current) => [...current, { ...EMPTY_APPROVAL }])
+                }
               >
-                {t('workflows.addApprovalStep')}
+                {t("workflows.addApprovalStep")}
               </Button>
             </div>
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {t('common.cancel')}
+            {t("common.cancel")}
           </Button>
-          <Button onClick={() => save.mutate()} disabled={!ready || save.isPending}>
-            {t('workflows.save')}
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!ready || save.isPending}
+          >
+            {t("workflows.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
