@@ -918,6 +918,10 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 			launch = append(launch, shellQuote(mot))
 		}
 	}
+	// After the install, before the launch: "importable" has to mean what it
+	// will mean when the application starts, and the warning has to be in the
+	// log before the traceback that it explains.
+	lines = append(lines, appDependencyCheckLines(mots)...)
 	defaultHTTP := fmt.Sprintf("python3 -m http.server %d --bind 0.0.0.0 --directory /mnt", port)
 	lines = append(lines,
 		// Where the requirements were just installed.
