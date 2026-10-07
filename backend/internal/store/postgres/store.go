@@ -565,6 +565,25 @@ func migrationStatements() []string {
 		// the next scan replaces and a declaration must not be.
 		`ALTER TABLE ontologies ADD COLUMN IF NOT EXISTS card_json JSONB`,
 		`ALTER TABLE ontologies ADD COLUMN IF NOT EXISTS structure_scan_json JSONB`,
+		// One source, one ontology - as a property of the schema and not only
+		// of the code path that creates them.
+		//
+		// EMSE carried two PREMYOM1000 over one bucket for a month, 31 subjects
+		// and 32, with nothing to say which was the live one. The scan path is
+		// what closed that, and this is what keeps it closed when somebody adds
+		// a second path later - which is the whole argument for a constraint
+		// over a check.
+		//
+		// It could not ship with the guarantee: a failing migration statement
+		// stops the backend from starting, and both clusters still carried a
+		// duplicate, so the index would have taken the platform down rather
+		// than protected it. They were resolved on 2026-10-07, in both cases by
+		// deleting the older photograph after moving the live project's link to
+		// the newer one. An installation that still carries a duplicate will
+		// refuse to start here, loudly, which is the right failure: it names a
+		// condition somebody has to decide about rather than guessing which
+		// twin to drop.
+		`CREATE UNIQUE INDEX IF NOT EXISTS ontologies_one_per_source ON ontologies (source_type, source_id)`,
 		`CREATE TABLE IF NOT EXISTS ontology_access (
 			ontology_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,

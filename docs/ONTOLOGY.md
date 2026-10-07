@@ -375,8 +375,26 @@ access rather than to scan again.
 Extracts are the exception, and always were: several extracts over one ontology
 is the point of an extract.
 
-**Not enforced in the database yet.** A unique index on `(source_type,
-source_id)` is the belt for this, and it cannot ship while a cluster still
-carries a duplicate: a failing migration statement stops the backend from
-starting, so the index would take the platform down rather than protect it.
-Resolve the duplicates, then add it.
+**Enforced in the database too**, by a unique index on `(source_type,
+source_id)` — because the scan path is what closed this, and the index is what
+keeps it closed when somebody adds a second path later. That is the argument for
+a constraint over a check.
+
+It could not ship with the guarantee: a failing migration statement stops the
+backend from starting, and both clusters carried a duplicate, so the index would
+have taken the platform down rather than protected it. Both were resolved on
+2026-10-07 — in each case by deleting the older photograph, after moving a live
+project's link to the newer one.
+
+**An installation that still carries a duplicate will refuse to start**, loudly,
+and that is the right failure: it names a condition somebody has to decide about
+rather than guessing which twin to drop. The repair is the one used here — move
+any live link to the ontology you keep, then delete the other with its access
+rows, its project links and its object rows.
+
+### Deleting an ontology leaves its object rows behind
+
+`DeleteOntology` removes the project links, the access rows and the ontology,
+and **not** `ontology_objects`. The duplicate deleted on EMSE carried 21 629 of
+them. Worth knowing before trusting a row count, and worth fixing in the cascade
+rather than in each cleanup script.
