@@ -123,3 +123,54 @@ Bootstrap logs include:
 - `[bootstrap] requirements detected at /mnt/requirements.txt`
 - `[bootstrap] requirements installation completed`
 - or no-file message when absent.
+
+### The dependency check
+
+After the install and before the launch, when the launch command names a Python
+file (`streamlit run app.py`, `python3 main.py`), the bootstrap reads that file's
+imports and compares them with what is installed and what `requirements.txt`
+declares. It writes one of three things:
+
+```
+[deps] MANQUANT  app.py importe 'plotly' et rien ne le fournit.
+[deps]           L'application va echouer. Ajoutez 'plotly' a /mnt/requirements.txt.
+```
+
+The application is going to crash on its first request. The module and the
+package to add are named, which beats the traceback the browser shows.
+
+```
+[deps] FRAGILE   app.py importe 'plotly', fourni par 'plotly',
+[deps]           que /mnt/requirements.txt ne declare pas. Ca marche maintenant
+[deps]           et cassera au prochain redemarrage du conteneur,
+[deps]           qui ne rejoue que /mnt/requirements.txt.
+```
+
+This is the one that matters. The module is importable — somebody ran `pip
+install` in the running container — so the application works today. **A pod is
+not a disk.** At the next restart the platform replays `requirements.txt` and
+nothing else, and the package is gone. The restart may be months away and will
+look like an unrelated platform fault. This warning was available at every start
+of the application that motivated it, for a month, before it broke.
+
+```
+[deps] les imports de app.py sont tous declares.
+```
+
+What it does not do, on purpose:
+
+- **It never fails the launch.** An application that half works is worth more
+  to its owner than a refusal, and a check that can take an application down is
+  a check somebody will have removed.
+- It reads only the entry file, not every script in the project — warning about
+  a stray script teaches the owner to ignore warnings.
+- It skips the standard library, relative imports, and anything inside a string
+  (imports are parsed with `ast`, not matched by regexp).
+- With no Python entry file (a shell entrypoint, the static server) there is no
+  check and no line: a reassuring message about a file never opened would be
+  worse than silence.
+
+A handful of packages whose import name differs from their package name are
+mapped (`cv2` → `opencv-python`, `sklearn` → `scikit-learn`, `yaml` →
+`PyYAML`, `PIL` → `pillow`). For anything else the module name is suggested,
+which is right far more often than not.
