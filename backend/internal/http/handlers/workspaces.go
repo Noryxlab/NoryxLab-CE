@@ -323,6 +323,27 @@ func workspaceAccessURL(kind, workspaceID string) string {
 	return fmt.Sprintf("/workspaces/%s/lab?reset", workspaceID)
 }
 
+// ensureProjectInStore puts a project back when its row is missing and a
+// workload the platform already knew still points at it.
+//
+// It exists for one case: the project store lost rows while the workloads
+// survived (RECOVERY.md). Without it those workloads belong to nothing and
+// vanish from every screen, because every screen finds a workload through its
+// project.
+//
+// What it must not do is invent a project for a workload that is leaving. That
+// produced one phantom "Recovered Project <id>" a night for a week on the EMSE
+// cluster, each with a fresh identifier, and an administrator had to open and
+// delete every one by hand. The cause was not here: the runtime listing
+// reported pods that were already terminating, so a project deleted on purpose
+// came back while its pod drained. The guard is in ListWorkspaces and
+// ListBuilds, which now skip an object with a deletionTimestamp.
+//
+// A guard was tried here first - recover only for a workload the store already
+// knew - and it was wrong twice over. It would not have stopped this (the test
+// suite's workspace was known, its record written a minute before the project
+// row went), and it defeats the purpose: both stores live in the same database,
+// so whatever loses project rows loses workspace rows with them.
 func (h Handlers) ensureProjectInStore(projectID string) {
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {

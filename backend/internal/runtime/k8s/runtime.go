@@ -1470,6 +1470,10 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 				Name              string            `json:"name"`
 				Labels            map[string]string `json:"labels"`
 				CreationTimestamp time.Time         `json:"creationTimestamp"`
+				// DeletionTimestamp is set the moment a delete is accepted and
+				// stays set while the pod drains. Until this was read, a pod on
+				// its way out was indistinguishable from a live one.
+				DeletionTimestamp *time.Time `json:"deletionTimestamp"`
 			} `json:"metadata"`
 			Spec struct {
 				Containers []struct {
@@ -1497,6 +1501,19 @@ func (r *Runtime) ListWorkspaces() ([]noryxruntime.WorkspaceRuntimeInfo, error) 
 		workspaceID := strings.TrimSpace(item.Metadata.Labels["noryx.io/workspace-id"])
 		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
 		if workspaceID == "" || projectID == "" {
+			continue
+		}
+		// A pod being deleted is not evidence of anything existing.
+		//
+		// Kubernetes deletion is asynchronous: the pod keeps its labels while
+		// it drains, so a workload deleted a second ago still answers a
+		// listing. Reading it as present put a workspace back on the screen it
+		// had just left, and - because the reconciler ensures the project
+		// behind every workload it sees - resurrected deleted projects as
+		// "Recovered Project <id>". One appeared every night for a week on the
+		// EMSE cluster, from the platform test suite deleting its own
+		// throwaway project while its pod was still terminating.
+		if item.Metadata.DeletionTimestamp != nil {
 			continue
 		}
 		kind := strings.ToLower(strings.TrimSpace(item.Metadata.Labels["noryx.io/workspace-kind"]))
@@ -1554,6 +1571,9 @@ func (r *Runtime) ListBuilds() ([]noryxruntime.BuildRuntimeInfo, error) {
 			Metadata struct {
 				Name   string            `json:"name"`
 				Labels map[string]string `json:"labels"`
+				// Same reason as ListWorkspaces: a job on its way out keeps its
+				// labels while it drains.
+				DeletionTimestamp *time.Time `json:"deletionTimestamp"`
 			} `json:"metadata"`
 			Spec struct {
 				Template struct {
@@ -1580,6 +1600,9 @@ func (r *Runtime) ListBuilds() ([]noryxruntime.BuildRuntimeInfo, error) {
 		buildID := strings.TrimSpace(item.Metadata.Labels["noryx.io/build-id"])
 		projectID := strings.TrimSpace(item.Metadata.Labels["noryx.io/project-id"])
 		if buildID == "" || projectID == "" {
+			continue
+		}
+		if item.Metadata.DeletionTimestamp != nil {
 			continue
 		}
 
