@@ -888,6 +888,7 @@ export const en: Translations = {
     queryPlaceholder: "ANTERION",
     source: "Source",
     profile: "Inference profile",
+    reading: "Reading",
     completeness: "Coverage",
     completenessHint:
       "How many subjects carry each modality, and which ones do not. An extract asked for by modality silently excludes the latter.",

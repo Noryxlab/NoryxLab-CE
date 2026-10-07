@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  FileText,
   FolderOpen,
   MessageCircle,
   Network,
@@ -1382,9 +1383,22 @@ export function OntologyCatalog() {
     },
     {
       id: 'profile',
-      header: t('ontologies.profile'),
+      header: t('ontologies.reading'),
+      /* La regle qui a pris CETTE photographie, pas le nom d'un profil.
+       *
+       *  C'est la decision d'ADR-040 : une ontologie porte la description avec
+       *  laquelle elle a ete construite, et non une etiquette pointant vers
+       *  quelque chose qui a pu changer depuis. Le panneau « Motif » le faisait
+       *  deja ; la liste, qu'on lit en premier, montrait l'etiquette. Depuis
+       *  que le profil ne distingue plus deux ontologies, elle ne disait meme
+       *  plus de quoi on parle. Le nom reste en repli pour les photographies
+       *  prises avant que la regle soit enregistree. */
       cell: (ontology) => (
-        <span className="text-xs text-muted-foreground">{ontology.inferenceProfile || '—'}</span>
+        <span className="text-xs text-muted-foreground">
+          {(ontology.manifest as ManifestLu | undefined)?.readingRule?.description ||
+            ontology.inferenceProfile ||
+            '—'}
+        </span>
       ),
     },
     {
@@ -1441,6 +1455,14 @@ export function OntologyCatalog() {
           }
           rowActions={(ontology) => (
             <>
+              {/* En premier, parce que c'est la premiere question qu'on se
+                *  pose devant une ontologie qu'on n'a pas construite : de quoi
+                *  parle cette donnee. Le reste - interroger, monter, relire la
+                *  disposition - suppose qu'on le sache deja. */}
+              <DropdownMenuItem onSelect={() => setSelectedId(ontology.id)}>
+                <FileText aria-hidden />
+                {t('ontologyCard.title')}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setSelectedId(ontology.id)}>
                 <Search aria-hidden />
                 {t('ontologies.query')}

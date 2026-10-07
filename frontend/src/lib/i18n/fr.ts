@@ -909,6 +909,7 @@ export const fr = {
     queryPlaceholder: "ANTERION",
     source: "Source",
     profile: "Profil d’inférence",
+    reading: "Lecture",
     completeness: "Couverture",
     completenessHint:
       "Combien de sujets portent chaque modalité, et lesquels ne l’ont pas. Un extrait demandé par modalité exclut silencieusement les seconds.",
