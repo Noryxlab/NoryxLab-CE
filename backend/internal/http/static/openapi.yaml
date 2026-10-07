@@ -361,7 +361,7 @@ components:
         totalBytes: { type: integer }
         truncated: { type: boolean }
         measuredAt: { type: string }
-    DatasetCard:
+    OntologyCard:
       type: object
       properties:
         declared:
@@ -398,7 +398,7 @@ components:
               note: { type: string }
         measuredBy: { type: string }
         measuredAt: { type: string, format: date-time }
-    DatasetStructureScan:
+    OntologyStructureScan:
       type: object
       properties:
         recorded: { type: boolean }
@@ -7303,10 +7303,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/datasets/{datasetID}/card:
+  /api/v1/ontologies/{ontologyID}/card:
     get:
       tags: [Datasets]
-      summary: Read What This Dataset Says About Itself
+      summary: Read What This Ontology Says The Data Means
       description: >-
         The declared card - study, population, purpose, what it must not be
         used for, legal basis, units, contact - with the control column beside
@@ -7321,12 +7321,12 @@ paths:
         "not_checkable" is honest about a purpose; "unverified" means nothing
         has measured it yet, which is what a declared pseudonymisation reads as
         until a structure scan has run.
-      operationId: getDatasetCard
+      operationId: getOntologyCard
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: datasetID
+        - name: ontologyID
           in: path
           required: true
           schema: { type: string }
@@ -7336,14 +7336,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetCard'
+                $ref: '#/components/schemas/OntologyCard'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     put:
       tags: [Datasets]
-      summary: Declare What This Dataset Is
+      summary: Declare What This Data Means
       description: >-
         Writes the declaration a reader needs in order to use a dataset they
         did not build. Empty fields stay empty and are shown as empty: an
@@ -7356,12 +7356,12 @@ paths:
         later edit. A body declaring nothing clears the card. Dataset owner or
         global administrator, because a card is what the dataset asserts about
         itself to everybody who can see it.
-      operationId: setDatasetCard
+      operationId: setOntologyCard
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: datasetID
+        - name: ontologyID
           in: path
           required: true
           schema: { type: string }
@@ -7371,7 +7371,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetCard'
+                $ref: '#/components/schemas/OntologyCard'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -7380,10 +7380,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/datasets/{datasetID}/structure-scan:
+  /api/v1/ontologies/{ontologyID}/structure-scan:
     get:
       tags: [Datasets]
-      summary: Read What Was Found Inside This Dataset's Files
+      summary: Read What Was Found Inside The Files
       description: >-
         The last audited pass that opened files rather than listing their keys:
         how many were read, which fields each format carries, the recorded
@@ -7394,12 +7394,12 @@ paths:
         Absent means nothing has ever opened a file here, which is why a
         declared pseudonymisation reads as unverified rather than agreeing with
         a check nobody ran.
-      operationId: getDatasetStructureScan
+      operationId: getOntologyStructureScan
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: datasetID
+        - name: ontologyID
           in: path
           required: true
           schema: { type: string }
@@ -7409,14 +7409,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetStructureScan'
+                $ref: '#/components/schemas/OntologyStructureScan'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     put:
       tags: [Datasets]
-      summary: Record An Audited Pass Over This Dataset's Files
+      summary: Record An Audited Pass Over The Files
       description: >-
         Reading inside files is a different act from listing their keys, over
         data that may be regulated, so the platform does not launch it: a
@@ -7436,12 +7436,12 @@ paths:
         A body naming no allowlist clears the record. Dataset owner or global
         administrator: on a regulated bucket, "no identifier was found" is the
         most consequential sentence the platform can hold.
-      operationId: setDatasetStructureScan
+      operationId: setOntologyStructureScan
       security:
         - bearerAuth: []
         - xNoryxUser: []
       parameters:
-        - name: datasetID
+        - name: ontologyID
           in: path
           required: true
           schema: { type: string }
@@ -7451,7 +7451,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetStructureScan'
+                $ref: '#/components/schemas/OntologyStructureScan'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

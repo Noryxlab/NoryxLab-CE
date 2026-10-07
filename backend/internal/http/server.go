@@ -204,13 +204,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/deletion-cost", h.GetDatasetDeletionCost)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/path-layout", h.GetDatasetPathLayout)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/path-layout", h.SetDatasetPathLayout)
-	// What the dataset says about itself, with the checks beside it (ADR-047).
-	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/card", h.GetDatasetCard)
-	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/card", h.SetDatasetCard)
-	// What one audited pass over this dataset's files found. Reading inside
-	// files is a separate act from listing their keys (ADR-047).
-	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/structure-scan", h.GetDatasetStructureScan)
-	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/structure-scan", h.SetDatasetStructureScan)
+
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/path-layout/trials", h.TryDatasetPathLayout)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)
@@ -228,6 +222,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/extracts/{extractID}", h.DeleteExtract)
 	mux.HandleFunc("POST /api/v1/ontologies/{ontologyID}/query", h.QueryOntology)
 	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}", h.UpdateOntologyMetadata)
+	// What this ontology says the data means, with the checks beside it, and
+	// what one audited pass over the files found (ADR-047).
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/card", h.GetOntologyCard)
+	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}/card", h.SetOntologyCard)
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/structure-scan", h.GetOntologyStructureScan)
+	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}/structure-scan", h.SetOntologyStructureScan)
 	mux.HandleFunc("DELETE /api/v1/ontologies/{ontologyID}", h.DeleteOntology)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/access", h.ListOntologyAccess)
 	mux.HandleFunc("PUT /api/v1/ontologies/{ontologyID}/access/{subjectType}/{subjectID}", h.SetOntologyAccess)

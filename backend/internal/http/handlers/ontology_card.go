@@ -7,16 +7,24 @@ import (
 	"strings"
 	"time"
 
-	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
 // The declared card, and the control column beside it (ADR-047).
 //
 // The scan produces an inventory of paths and says so honestly. What it cannot
-// produce is what the dataset is about, what it may be used for, what it must
-// not be used for, under what legal basis it was collected, or who to ask - and
+// produce is what the data *means*: what it may be used for, what it must not
+// be used for, under what legal basis it was collected, or who to ask - and
 // none of that is inferable from any number of bytes. So it is declared, by the
 // person who knows, and this file is where that declaration is read and written.
+//
+// On the ontology and not on the dataset. A dataset is a bucket with
+// credentials; the ontology is the layer that says what is in it, which is
+// where a description belongs - and a bucket can carry several studies read
+// several ways, so a card on the dataset would force one description on all of
+// them. It was on the dataset first, from a misreading of ADR-043: a rescan
+// replaces the manifest and keeps the ontology, so a card beside the manifest
+// survives a rescan exactly as the name does.
 //
 // It is never returned alone. Trust does not exclude verification: every
 // declared figure the platform can measure is compared with the most recent
@@ -48,14 +56,14 @@ type cardRequest struct {
 	Pseudonymised *bool    `json:"pseudonymised"`
 }
 
-func cardFrom(req cardRequest) datasetdomain.Card {
-	card := datasetdomain.Card{
+func cardFrom(req cardRequest) ontologydomain.Card {
+	card := ontologydomain.Card{
 		Study: req.Study, Release: req.Release, Population: req.Population,
 		Inclusion: req.Inclusion, Purpose: req.Purpose, OutOfScope: req.OutOfScope,
 		Limitations: req.Limitations, Provenance: req.Provenance,
 		LegalBasis: req.LegalBasis, Consent: req.Consent, Licence: req.Licence,
 		Units: req.Units, Conventions: req.Conventions, Contact: req.Contact,
-		Claims: datasetdomain.Claims{
+		Claims: ontologydomain.Claims{
 			Subjects: req.Subjects, Objects: req.Objects, Modalities: req.Modalities,
 			FirstVisit: req.FirstVisit, LastVisit: req.LastVisit,
 			Pseudonymised: req.Pseudonymised,
@@ -65,17 +73,38 @@ func cardFrom(req cardRequest) datasetdomain.Card {
 	return card
 }
 
-// GetDatasetCard returns what the dataset says about itself, with the checks.
-func (h Handlers) GetDatasetCard(w http.ResponseWriter, r *http.Request) {
-	item, ok := h.requireDatasetForLayout(w, r)
+// requireOntologyForCard resolves the ontology and refuses it to somebody who
+// cannot see it - 404 rather than 403, following the rest of this package:
+// whether an ontology exists is itself information over regulated data.
+func (h Handlers) requireOntologyForCard(w http.ResponseWriter, r *http.Request) (ontologydomain.Ontology, bool) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return ontologydomain.Ontology{}, false
+	}
+	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
+	if err != nil || !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return ontologydomain.Ontology{}, false
+	}
+	if !h.isGlobalAdmin(identity) && h.ontologyRole(item, identity) == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
+		return ontologydomain.Ontology{}, false
+	}
+	return item, true
+}
+
+// GetOntologyCard returns what this ontology says the data means, with the
+// checks beside it.
+func (h Handlers) GetOntologyCard(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.requireOntologyForCard(w, r)
 	if !ok {
 		return
 	}
-	measured := h.measuredFor(item.ID)
+	measured := h.measuredFor(item)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"declared": item.Card.Declared(),
 		"card":     item.Card,
-		"checks":   datasetdomain.CheckCard(item.Card, measured),
+		"checks":   ontologydomain.CheckCard(item.Card, measured),
 		// Named so a reader can judge the verdicts: a comparison against a
 		// month-old scan is a month-old answer, however fresh the comparison.
 		"measuredBy": measured.Method,
@@ -84,20 +113,20 @@ func (h Handlers) GetDatasetCard(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetDatasetCard stores the declaration, or clears it with an empty body.
-func (h Handlers) SetDatasetCard(w http.ResponseWriter, r *http.Request) {
+func (h Handlers) SetOntologyCard(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	item, ok := h.requireDatasetForLayout(w, r)
+	item, ok := h.requireOntologyForCard(w, r)
 	if !ok {
 		return
 	}
 	// Who may declare is who may grant: a card is what the dataset asserts
 	// about itself to everybody who can see it, which is an owner's statement
 	// and not a reader's note.
-	if !h.canManageDatasetAccess(item, identity) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset owner or global admin required"})
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
 		return
 	}
 
@@ -110,11 +139,11 @@ func (h Handlers) SetDatasetCard(w http.ResponseWriter, r *http.Request) {
 	}
 	card := cardFrom(req)
 	if !card.Declared() {
-		if err := h.datasetStore.SetCard(item.ID, nil); err != nil {
+		if err := h.ontologyStore.SetCard(item.ID, nil); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to clear the card"})
 			return
 		}
-		h.emitAudit(r, identity.UserID(), "dataset.card.cleared", "dataset", item.ID, "", "success", "", nil)
+		h.emitAudit(r, identity.UserID(), "ontology.card.cleared", "ontology", item.ID, "", "success", "", nil)
 		writeJSON(w, http.StatusOK, map[string]any{"declared": false})
 		return
 	}
@@ -129,64 +158,42 @@ func (h Handlers) SetDatasetCard(w http.ResponseWriter, r *http.Request) {
 	card.DeclaredBy = identity.UserID()
 	card.DeclaredAt = time.Now().UTC()
 
-	if err := h.datasetStore.SetCard(item.ID, &card); err != nil {
+	if err := h.ontologyStore.SetCard(item.ID, &card); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store the card"})
 		return
 	}
-	h.emitAudit(r, identity.UserID(), "dataset.card.declared", "dataset", item.ID, "", "success", "",
+	h.emitAudit(r, identity.UserID(), "ontology.card.declared", "ontology", item.ID, "", "success", "",
 		map[string]any{"version": card.Version, "fields": declaredFields(card)})
 
-	measured := h.measuredFor(item.ID)
+	measured := h.measuredFor(item)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"declared": true,
 		"card":     card,
-		"checks":   datasetdomain.CheckCard(&card, measured),
+		"checks":   ontologydomain.CheckCard(&card, measured),
 	})
 }
 
-// measuredFor collects what the platform knows about a dataset from its own
-// passes, so the checks have something to compare against.
+// measuredFor is what this ontology's own passes measured.
 //
-// The most recent ontology over this dataset, because that is the most recent
-// pass. An older one would answer a question nobody asked - and when there is
-// none, the figures are zero and the verdicts say "unverified" rather than
-// claiming agreement with a count that was never taken.
-func (h Handlers) measuredFor(datasetID string) datasetdomain.Measured {
-	measured := datasetdomain.Measured{}
-	// The structure scan first, because it answers a different question from
-	// the path scan and its absence is the reason a declared pseudonymisation
-	// reads as unverified rather than agreeing with a check nobody ran.
-	if item, found, err := h.datasetStore.GetByID(datasetID); err == nil && found && item.Structure != nil {
+// Its own manifest, which is simpler and truer than the previous version: that
+// one searched for "the most recent ontology over this dataset", which answered
+// a question nobody asked when a bucket carried two studies read two ways. An
+// ontology is a photograph; the card beside it is checked against that
+// photograph and no other.
+func (h Handlers) measuredFor(item ontologydomain.Ontology) ontologydomain.Measured {
+	measured := ontologydomain.Measured{}
+	// The structure scan first, because its absence is the reason a declared
+	// pseudonymisation reads as unverified rather than agreeing with a check
+	// nobody ran.
+	if item.Structure != nil {
 		measured.IdentifyingFieldsSeen = item.Structure.CarriedIdentifiers()
 		measured.IdentifyingMethod = item.Structure.Method
 		measured.IdentifyingAt = item.Structure.At
 	}
-	if h.ontologyStore == nil {
-		return measured
-	}
-	items, err := h.ontologyStore.ListAll()
-	if err != nil {
-		return measured
-	}
 	var manifest ontologyManifest
-	found := false
-	for _, item := range items {
-		if strings.TrimSpace(item.SourceID) != strings.TrimSpace(datasetID) {
-			continue
-		}
-		var candidate ontologyManifest
-		if err := json.Unmarshal(item.Manifest, &candidate); err != nil {
-			continue
-		}
-		if found && !candidate.GeneratedAt.After(manifest.GeneratedAt) {
-			continue
-		}
-		manifest, found = candidate, true
-	}
-	if !found {
+	if err := json.Unmarshal(item.Manifest, &manifest); err != nil {
 		return measured
 	}
-
 	measured.Subjects = manifest.Summary.Subjects
 	measured.Objects = int64(manifest.Summary.Objects)
 	measured.Method = "path scan"
@@ -242,7 +249,7 @@ func visitRange(manifest ontologyManifest) (string, string) {
 // declaredFields names what was filled in, for the audit entry. The values are
 // not audited: a card can hold a cohort's inclusion criteria, and an audit
 // trail is not where that belongs.
-func declaredFields(card datasetdomain.Card) []string {
+func declaredFields(card ontologydomain.Card) []string {
 	named := []struct {
 		name  string
 		value string

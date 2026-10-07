@@ -1,4 +1,4 @@
-package dataset
+package ontology
 
 import (
 	"strings"
@@ -18,11 +18,18 @@ import (
 // behind this type: a card is largely declared rather than measured, so the
 // larger half of the gap was a vocabulary gap. This file is that vocabulary.
 //
-// It lives on the dataset rather than on the ontology, beside PathLayout and
-// for the same reason: a rescan produces a new ontology (ADR-043), and a
-// declared card living there would be lost at every rescan. An ontology embeds
-// a snapshot of this with its version. The photograph keeps what it saw; the
-// subject keeps what it is.
+// It lives on the ontology, which is where meaning belongs: a dataset is a
+// bucket with credentials, and describing what the data *means* on the storage
+// object is a category error - it also forces one description on every ontology
+// that reads the same bucket, and a bucket can carry several studies read
+// several ways.
+//
+// It was first put on the dataset, on the reasoning that a rescan would lose a
+// card living on the ontology. That reading of ADR-043 was wrong: a rescan
+// "replaces the picture and keeps the object - its identifier, its name, its
+// owner and the extracts that point at it". The manifest is replaced; the
+// ontology row is not. A card stored beside the manifest survives a rescan
+// exactly as the name does.
 type Card struct {
 	// Version increments on every accepted edit, and an extract records the
 	// version it was cut against. Without it a cohort's n becomes

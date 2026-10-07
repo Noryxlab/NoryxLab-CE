@@ -29,9 +29,17 @@ type Ontology struct {
 	InferenceProfile string          `json:"inferenceProfile"`
 	Status           string          `json:"status"`
 	Manifest         json.RawMessage `json:"manifest"`
-	AccessRole       string          `json:"accessRole,omitempty"`
-	CreatedAt        time.Time       `json:"createdAt"`
-	UpdatedAt        time.Time       `json:"updatedAt"`
+	// Card is what this ontology says the data means, in a person's words
+	// (ADR-047). Beside the manifest rather than inside it: the manifest is
+	// the photograph a scan produced and is replaced by the next one, while
+	// this is a declaration and must not be.
+	Card *Card `json:"card,omitempty"`
+	// Structure is what the last audited pass over the files found. A
+	// measurement like the manifest, and like it replaced by the next pass.
+	Structure  *StructureScan `json:"structure,omitempty"`
+	AccessRole string         `json:"accessRole,omitempty"`
+	CreatedAt  time.Time      `json:"createdAt"`
+	UpdatedAt  time.Time      `json:"updatedAt"`
 }
 
 type Access struct {

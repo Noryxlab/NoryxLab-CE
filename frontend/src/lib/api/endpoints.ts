@@ -87,7 +87,7 @@ import type {
   Workspace,
   ServiceAccount,
   MountedProjectList,
-  DatasetCard,
+  OntologyCard,
   DatasetPathLayout,
   DatasetPathLayoutTrial,
   WorkspaceStartup,
@@ -529,14 +529,16 @@ export const pathLayoutApi = {
     api.post<DatasetPathLayoutTrial>(`${V1}/datasets/${datasetId}/path-layout/trials`, input),
 };
 
-/** Ce qu'un dataset dit de lui-meme (ADR-047).
+/** Ce qu'une ontologie dit du sens des donnees (ADR-047).
  *
- *  La card vit sur le dataset et non sur l'ontologie : un rescan produit une
- *  nouvelle ontologie, donc une card declaree y serait perdue a chaque fois. */
-export const datasetCardApi = {
-  get: (datasetId: string) => api.get<DatasetCard>(`${V1}/datasets/${datasetId}/card`),
-  set: (datasetId: string, input: Record<string, unknown>) =>
-    api.put<DatasetCard>(`${V1}/datasets/${datasetId}/card`, input),
+ *  Sur l'ontologie et non sur le dataset : un dataset est un bucket, le sens
+ *  appartient a la couche au-dessus. Un rescan remplace le manifeste et garde
+ *  l'ontologie, donc une card posee a cote du manifeste survit au rescan - ce
+ *  que la premiere version avait lu a l'envers. */
+export const ontologyCardApi = {
+  get: (ontologyId: string) => api.get<OntologyCard>(`${V1}/ontologies/${ontologyId}/card`),
+  set: (ontologyId: string, input: Record<string, unknown>) =>
+    api.put<OntologyCard>(`${V1}/ontologies/${ontologyId}/card`, input),
 };
 
 /** Ce que supprimer emporte.

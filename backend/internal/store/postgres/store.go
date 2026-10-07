@@ -449,14 +449,6 @@ func migrationStatements() []string {
 		// dire "la regle compilee en dur", celle que ces datasets ont deja
 		// utilisee.
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS path_layout_json JSONB`,
-		// What the dataset says about itself, in a person's words (ADR-047).
-		// Beside the layout and for the same reason: a rescan produces a new
-		// ontology, so a declared card living there would be lost every time.
-		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS card_json JSONB`,
-		// What the last audited pass over this dataset's files found. Separate
-		// from the card because one is declared and the other measured, and
-		// ADR-047's safeguard is that a reader can always tell which.
-		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS structure_scan_json JSONB`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_user_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE datasets SET owner_id=owner_user_id WHERE owner_id=''`,
 		`UPDATE datasets SET credential_user_id=owner_user_id WHERE credential_user_id=''`,
@@ -564,6 +556,15 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		// What an ontology says the data means, in a person's words, and what
+		// the last audited pass over the files found (ADR-047).
+		//
+		// On the ontology and not on the dataset: a dataset is a bucket with
+		// credentials, and meaning belongs to the layer above it. Beside the
+		// manifest rather than inside it, because the manifest is a photograph
+		// the next scan replaces and a declaration must not be.
+		`ALTER TABLE ontologies ADD COLUMN IF NOT EXISTS card_json JSONB`,
+		`ALTER TABLE ontologies ADD COLUMN IF NOT EXISTS structure_scan_json JSONB`,
 		`CREATE TABLE IF NOT EXISTS ontology_access (
 			ontology_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
@@ -2396,7 +2397,7 @@ func (s *Store) ListDatasetsBySubjects(subjects []dataset.Subject) ([]dataset.Da
 }
 
 func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, structure_scan_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2404,13 +2405,11 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		var layout, card, structure []byte
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &card, &structure, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var layout []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		item.PathLayout = decodePathLayout(layout)
-		item.Card = decodeCard(card)
-		item.Structure = decodeStructureScan(structure)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2418,8 +2417,8 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	var layout, card, structure []byte
-	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, structure_scan_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var layout []byte
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.OwnerType,
@@ -2435,8 +2434,6 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		&item.CredentialName,
 		&item.CredentialUserID,
 		&layout,
-		&card,
-		&structure,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -2446,8 +2443,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	if err != nil {
 		return dataset.Dataset{}, false, err
 	}
-	item.Card = decodeCard(card)
-	item.Structure = decodeStructureScan(structure)
+	item.PathLayout = decodePathLayout(layout)
 	return item, true, nil
 }
 
@@ -2500,7 +2496,7 @@ func (s *Store) SetDatasetPathLayout(datasetID string, layout *dataset.PathLayou
 // The version is the caller's: this layer stores what it is handed. Deciding
 // that an edit is an edit belongs with whoever read the previous version, not
 // with the statement that writes a row.
-func (s *Store) SetDatasetCard(datasetID string, card *dataset.Card) error {
+func (s *Store) SetOntologyCard(ontologyID string, card *ontology.Card) error {
 	var encoded any
 	if card != nil && card.Declared() {
 		raw, err := json.Marshal(card)
@@ -2509,8 +2505,8 @@ func (s *Store) SetDatasetCard(datasetID string, card *dataset.Card) error {
 		}
 		encoded = raw
 	}
-	result, err := s.db.Exec(`UPDATE datasets SET card_json=$2, updated_at=NOW() WHERE id=$1`,
-		strings.TrimSpace(datasetID), encoded)
+	result, err := s.db.Exec(`UPDATE ontologies SET card_json=$2, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(ontologyID), encoded)
 	if err != nil {
 		return err
 	}
@@ -2521,7 +2517,7 @@ func (s *Store) SetDatasetCard(datasetID string, card *dataset.Card) error {
 }
 
 // SetDatasetStructureScan records what one audited pass found, or clears it.
-func (s *Store) SetDatasetStructureScan(datasetID string, scan *dataset.StructureScan) error {
+func (s *Store) SetOntologyStructureScan(ontologyID string, scan *ontology.StructureScan) error {
 	var encoded any
 	if scan != nil {
 		raw, err := json.Marshal(scan)
@@ -2530,8 +2526,8 @@ func (s *Store) SetDatasetStructureScan(datasetID string, scan *dataset.Structur
 		}
 		encoded = raw
 	}
-	result, err := s.db.Exec(`UPDATE datasets SET structure_scan_json=$2, updated_at=NOW() WHERE id=$1`,
-		strings.TrimSpace(datasetID), encoded)
+	result, err := s.db.Exec(`UPDATE ontologies SET structure_scan_json=$2, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(ontologyID), encoded)
 	if err != nil {
 		return err
 	}
@@ -2541,11 +2537,11 @@ func (s *Store) SetDatasetStructureScan(datasetID string, scan *dataset.Structur
 	return nil
 }
 
-func decodeStructureScan(raw []byte) *dataset.StructureScan {
+func decodeStructureScan(raw []byte) *ontology.StructureScan {
 	if len(raw) == 0 {
 		return nil
 	}
-	var scan dataset.StructureScan
+	var scan ontology.StructureScan
 	if err := json.Unmarshal(raw, &scan); err != nil {
 		return nil
 	}
@@ -2555,11 +2551,11 @@ func decodeStructureScan(raw []byte) *dataset.StructureScan {
 // decodeCard reads a stored card back, and an unreadable one as none - for
 // decodePathLayout's reason: a dataset whose card cannot be parsed must still
 // list.
-func decodeCard(raw []byte) *dataset.Card {
+func decodeCard(raw []byte) *ontology.Card {
 	if len(raw) == 0 {
 		return nil
 	}
-	var card dataset.Card
+	var card ontology.Card
 	if err := json.Unmarshal(raw, &card); err != nil {
 		return nil
 	}
@@ -2672,7 +2668,7 @@ func (s *Store) ListOntologiesBySubjects(subjects []ontology.Subject) ([]ontolog
 		ownerConditions = append(ownerConditions, fmt.Sprintf("(o.owner_type=$%d AND o.owner_id=$%d)", i+1, i+2))
 		writerConditions = append(writerConditions, fmt.Sprintf("EXISTS (SELECT 1 FROM ontology_access a WHERE a.ontology_id=o.id AND a.subject_type=$%d AND a.subject_id=$%d AND a.role='writer')", i+1, i+2))
 	}
-	query := `SELECT o.id, o.owner_user_id, o.owner_type, o.owner_id, o.name, o.description, o.source_type, o.source_id, o.source_name, o.inference_profile, o.status, o.manifest_json, o.created_at, o.updated_at,
+	query := `SELECT o.id, o.owner_user_id, o.owner_type, o.owner_id, o.name, o.description, o.source_type, o.source_id, o.source_name, o.inference_profile, o.status, o.manifest_json, o.card_json, o.structure_scan_json, o.created_at, o.updated_at,
 		CASE WHEN ` + strings.Join(ownerConditions, " OR ") + ` THEN 'owner' WHEN ` + strings.Join(writerConditions, " OR ") + ` THEN 'writer' ELSE 'reader' END
 		FROM ontologies o
 		WHERE ` + strings.Join(conditions, " OR ") + ` ORDER BY o.updated_at DESC`
@@ -2684,16 +2680,19 @@ func (s *Store) ListOntologiesBySubjects(subjects []ontology.Subject) ([]ontolog
 	out := []ontology.Ontology{}
 	for rows.Next() {
 		var item ontology.Ontology
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
+		var card, structure []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &card, &structure, &item.CreatedAt, &item.UpdatedAt, &item.AccessRole); err != nil {
 			return nil, err
 		}
+		item.Card = decodeCard(card)
+		item.Structure = decodeStructureScan(structure)
 		out = append(out, item)
 	}
 	return out, rows.Err()
 }
 
 func (s *Store) ListAllOntologies() ([]ontology.Ontology, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at FROM ontologies ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, card_json, structure_scan_json, created_at, updated_at FROM ontologies ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2701,9 +2700,12 @@ func (s *Store) ListAllOntologies() ([]ontology.Ontology, error) {
 	out := []ontology.Ontology{}
 	for rows.Next() {
 		var item ontology.Ontology
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var card, structure []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &card, &structure, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
+		item.Card = decodeCard(card)
+		item.Structure = decodeStructureScan(structure)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2711,8 +2713,9 @@ func (s *Store) ListAllOntologies() ([]ontology.Ontology, error) {
 
 func (s *Store) GetOntologyByID(id string) (ontology.Ontology, bool, error) {
 	var item ontology.Ontology
-	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, created_at, updated_at FROM ontologies WHERE id=$1`, strings.TrimSpace(id)).Scan(
-		&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &item.CreatedAt, &item.UpdatedAt,
+	var card, structure []byte
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, source_type, source_id, source_name, inference_profile, status, manifest_json, card_json, structure_scan_json, created_at, updated_at FROM ontologies WHERE id=$1`, strings.TrimSpace(id)).Scan(
+		&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.SourceType, &item.SourceID, &item.SourceName, &item.InferenceProfile, &item.Status, &item.Manifest, &card, &structure, &item.CreatedAt, &item.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return ontology.Ontology{}, false, nil
@@ -2720,6 +2723,8 @@ func (s *Store) GetOntologyByID(id string) (ontology.Ontology, bool, error) {
 	if err != nil {
 		return ontology.Ontology{}, false, err
 	}
+	item.Card = decodeCard(card)
+	item.Structure = decodeStructureScan(structure)
 	return item, true, nil
 }
 

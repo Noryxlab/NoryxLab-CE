@@ -703,7 +703,7 @@ export const fr = {
     buildStarted: "Construction lancée. Vous pouvez suivre son avancement ici.",
   },
 
-  datasetCard: {
+  ontologyCard: {
     title: "Ce que ce jeu de données dit de lui-même",
     hint: "Le scan produit un inventaire de chemins. Ce dont le jeu de données parle — sa finalité, ce pour quoi il ne doit pas servir, sa base légale, ses unités, à qui demander — ne se déduit d’aucun octet : c’est déclaré.",
     declare: "Décrire",

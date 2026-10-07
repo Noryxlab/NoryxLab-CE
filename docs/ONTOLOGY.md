@@ -283,10 +283,18 @@ volumes — and says so honestly. What it cannot produce is what the dataset is
 collected under, the units a measurement is in, who to ask. None of that is
 inferable from any number of bytes, so it is **declared** (ADR-047).
 
-`GET /api/v1/datasets/{id}/card` and `PUT` the same path. The card lives on the
-dataset, beside its path layout, for a reason worth keeping in mind: a rescan
-produces a new ontology, so a declared card living on the ontology would be lost
-at every rescan.
+`GET /api/v1/ontologies/{id}/card` and `PUT` the same path.
+
+**It lives on the ontology, not on the dataset.** A dataset is a bucket with
+credentials; the ontology is the layer that says what is in it, which is where a
+description belongs — and a bucket can carry several studies read several ways,
+so a card on the dataset would force one description on all of them.
+
+It was put on the dataset first, from a misreading of ADR-043. That ADR says a
+rescan "replaces the picture and **keeps the object** — its identifier, its
+name, its owner and the extracts that point at it". The manifest is replaced;
+the ontology row is not. A card stored beside the manifest survives a rescan
+exactly as the name does.
 
 ### It is never returned alone
 
@@ -314,15 +322,29 @@ proxy for a purpose would be exactly the kind of claim ADR-034 forbids.
 ### The pseudonymisation claim
 
 `pseudonymised` reads as **`unverified`** until a structure scan has read the
-dataset's technical fields. That is the honest answer and the reason the field
+technical fields. That is the honest answer and the reason the field
 exists: the survey of `hds-for` on 2026-10-05 had to report 3 592 DICOM headers
 unchecked, and nothing in the platform could record that fact.
 
-Reading those fields is authorised (ADR-047, 2026-10-07) under conditions that
-are not yet implemented: a published per-field allowlist, no identifying field in
-it, values out only as distributions, every run audited, nothing written back.
-Until that ships, the verdict says `unverified` rather than claiming agreement
-with a check nobody ran.
+`PUT /api/v1/ontologies/{id}/structure-scan` records one audited pass, and
+`GET` reads the last one. The platform does not launch it: reading inside files
+is a different act over data that may be regulated, so a scanner runs under an
+allowlist and reports there — and that endpoint is the line in the audit trail
+saying it happened.
+
+What arrives is checked rather than trusted. A field listed as both recorded and
+identifying is refused: it would be read to be checked *and* read to be kept,
+and the second wins by accident. Values for a field that is identifying anywhere
+in the allowlist are refused. And a recorded field with more than 64 distinct
+values loses them — past that it is the column with extra steps, not a
+distribution.
+
+**Measured on 2026-10-07.** `hds-for` (premyom1000), 3 592 DICOM objects, zero
+unreadable: ten identifying fields carry a value, including `PatientName`,
+`PatientID` and `PatientBirthDate`. `hds-for-selena`, 2 009 objects, zero
+unreadable: the same ten. Neither is pseudonymised at the header level. The zero
+is what makes those verdicts mean anything — a scan that skipped files could not
+conclude.
 
 ### Versions
 

@@ -682,7 +682,7 @@ export const en: Translations = {
     buildStarted: "Build started. You can follow its progress here.",
   },
 
-  datasetCard: {
+  ontologyCard: {
     title: "What this dataset says about itself",
     hint: "The scan produces an inventory of paths. What the dataset is about — its purpose, what it must not be used for, its legal basis, its units, who to ask — is inferable from no number of bytes, so it is declared.",
     declare: "Describe",

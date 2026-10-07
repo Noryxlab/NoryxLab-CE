@@ -1147,16 +1147,17 @@ export interface DatasetPathLayout {
   description: string;
 }
 
-/** Ce qu'un dataset dit de lui-meme, et ce que la plateforme en verifie
- *  (ADR-047).
+/** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme en
+ *  verifie (ADR-047).
  *
  *  Le scan produit un inventaire de chemins et le dit honnetement. Ce qu'il ne
  *  peut pas produire, c'est ce dont le dataset *parle* : sa finalite, ce pour
  *  quoi il ne doit pas servir, la base legale, les unites, a qui demander.
- *  Rien de tout ca ne se deduit d'un octet, donc c'est declare.
+ *  Rien de tout ca ne se deduit d'un octet, donc c'est declare - et c'est porte
+ *  par l'ontologie, qui est la couche de sens, non par le bucket.
  *
  *  Et jamais rendu seul : la confiance n'exclut pas le controle. */
-export interface DatasetCardClaims {
+export interface OntologyCardClaims {
   subjects?: number;
   objects?: number;
   modalities?: string[];
@@ -1165,7 +1166,7 @@ export interface DatasetCardClaims {
   pseudonymised?: boolean;
 }
 
-export interface DatasetCardContent {
+export interface OntologyCardContent {
   version: number;
   study?: string;
   release?: string;
@@ -1181,7 +1182,7 @@ export interface DatasetCardContent {
   units?: string;
   conventions?: string;
   contact?: string;
-  claims?: DatasetCardClaims;
+  claims?: OntologyCardClaims;
   declaredBy?: string;
   declaredAt?: string;
 }
@@ -1189,16 +1190,16 @@ export interface DatasetCardContent {
 /** `not_checkable` est un verdict, pas un echec : rien ne peut mesurer une
  *  finalite. `unverified` veut dire que rien ne l'a encore mesuree - ce que dit
  *  une pseudonymisation declaree tant qu'aucun scan de structure n'a tourne. */
-export type DatasetCardVerdict =
+export type OntologyCardVerdict =
   | 'agrees'
   | 'differs'
   | 'undeclared'
   | 'unverified'
   | 'not_checkable';
 
-export interface DatasetCardCheck {
+export interface OntologyCardCheck {
   field: string;
-  verdict: DatasetCardVerdict;
+  verdict: OntologyCardVerdict;
   declared?: string;
   measured?: string;
   /** Comment la mesure a ete obtenue, nommee pour qu'on puisse en juger. */
@@ -1210,10 +1211,10 @@ export interface DatasetCardCheck {
   note?: string;
 }
 
-export interface DatasetCard {
+export interface OntologyCard {
   declared: boolean;
-  card?: DatasetCardContent | null;
-  checks: DatasetCardCheck[];
+  card?: OntologyCardContent | null;
+  checks: OntologyCardCheck[];
   measuredBy?: string;
   measuredAt?: string;
 }

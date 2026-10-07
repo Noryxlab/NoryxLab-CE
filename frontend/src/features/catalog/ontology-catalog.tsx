@@ -53,6 +53,7 @@ import {
   useInvalidate,
 } from '@/lib/api/queries';
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
+import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPathLayoutTrial } from '@/lib/api/types';
@@ -1492,6 +1493,10 @@ export function OntologyCatalog() {
           if (!open) setMountedOntology(null);
         }}
       />
+      {/* Ce que l'ontologie dit du sens des donnees vient avant ce que le scan
+          y a lu : on a besoin de savoir de quoi on parle avant de regarder les
+          formes de chemins. */}
+      {selected ? <OntologyCardPanel ontology={selected} /> : null}
       {selected ? <OntologyPattern ontology={selected} /> : null}
       {selected ? <OntologyNaming ontology={selected} /> : null}
       {selected ? <OntologyQuery ontology={selected} /> : null}

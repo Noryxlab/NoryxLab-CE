@@ -14,15 +14,6 @@ type DatasetStore interface {
 	// what lets a study that numbers its patients differently be read without
 	// anybody writing Go.
 	SetPathLayout(datasetID string, layout *dataset.PathLayout) error
-	// SetCard writes what this dataset says about itself, in a person's words
-	// (ADR-047), or clears it. Beside the layout and for the same reason: a
-	// rescan produces a new ontology, so a declared card living there would be
-	// lost at every rescan.
-	SetCard(datasetID string, card *dataset.Card) error
-	// SetStructureScan records what one audited pass over this dataset's files
-	// found. Reading inside files is a separate act from listing their keys,
-	// and this is where its result lands.
-	SetStructureScan(datasetID string, scan *dataset.StructureScan) error
 	Delete(id string) error
 	ListAccess(datasetID string) ([]dataset.Access, error)
 	UpdateOwner(datasetID, ownerType, ownerID string) error

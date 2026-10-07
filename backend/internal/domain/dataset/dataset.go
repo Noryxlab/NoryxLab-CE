@@ -33,22 +33,11 @@ type Dataset struct {
 	// holds the subject, the visit, the modality. Absent means the platform
 	// falls back to the rule it had compiled in, which is what every dataset
 	// declared before this used.
-	PathLayout *PathLayout `json:"pathLayout,omitempty"`
-	// Card is what this dataset says about itself, in a person's words
-	// (ADR-047). Absent means nobody has declared anything, which is a
-	// legitimate state and is shown as empty - an unanswered field is
-	// information, and filling it with a guess is what that ADR exists to
-	// avoid.
-	Card *Card `json:"card,omitempty"`
-	// Structure is what the last audited pass over this dataset's files found
-	// (ADR-047). Absent means nothing has ever opened a file here, which is
-	// why a declared pseudonymisation reads as unverified rather than agreeing
-	// with a check nobody ran.
-	Structure        *StructureScan `json:"structure,omitempty"`
-	CredentialName   string         `json:"-"`
-	CredentialUserID string         `json:"-"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
+	PathLayout       *PathLayout `json:"pathLayout,omitempty"`
+	CredentialName   string      `json:"-"`
+	CredentialUserID string      `json:"-"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	UpdatedAt        time.Time   `json:"updatedAt"`
 }
 
 type Access struct {

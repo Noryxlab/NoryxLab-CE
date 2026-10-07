@@ -6,10 +6,13 @@ import (
 	"strings"
 	"time"
 
-	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
-// Recording what one audited pass over a dataset's files found (ADR-047).
+// Recording what one audited pass over the files found (ADR-047).
+//
+// On the ontology, beside the manifest, because both are measurements of the
+// same subject: one reads keys, the other reads inside files.
 //
 // The path scan reads keys and this reads inside files, which is a different
 // act over regulated data. So it is not a scan the platform launches on its
@@ -23,34 +26,34 @@ import (
 // distribution loses its values.
 
 type structureScanRequest struct {
-	Allowlists         []datasetdomain.StructureAllowlist `json:"allowlists"`
-	Objects            int                                `json:"objects"`
-	Formats            map[string]int                     `json:"formats"`
-	Tags               map[string][]string                `json:"tags"`
-	Tallies            []datasetdomain.FieldTally         `json:"tallies"`
-	IdentifyingChecked []string                           `json:"identifyingChecked"`
-	IdentifyingPresent []string                           `json:"identifyingPresent"`
-	Unreadable         int                                `json:"unreadable"`
-	Method             string                             `json:"method"`
+	Allowlists         []ontologydomain.StructureAllowlist `json:"allowlists"`
+	Objects            int                                 `json:"objects"`
+	Formats            map[string]int                      `json:"formats"`
+	Tags               map[string][]string                 `json:"tags"`
+	Tallies            []ontologydomain.FieldTally         `json:"tallies"`
+	IdentifyingChecked []string                            `json:"identifyingChecked"`
+	IdentifyingPresent []string                            `json:"identifyingPresent"`
+	Unreadable         int                                 `json:"unreadable"`
+	Method             string                              `json:"method"`
 }
 
 // SetDatasetStructureScan records a pass, or clears the record with an empty
 // body.
-func (h Handlers) SetDatasetStructureScan(w http.ResponseWriter, r *http.Request) {
+func (h Handlers) SetOntologyStructureScan(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
-	item, ok := h.requireDatasetForLayout(w, r)
+	item, ok := h.requireOntologyForCard(w, r)
 	if !ok {
 		return
 	}
 	// Who may record is who may grant. A structure scan asserts something
-	// about the dataset to everybody who can see it - and on a regulated
+	// about the data to everybody who can see it - and on a regulated
 	// bucket, "no identifier was found" is the most consequential sentence the
 	// platform can hold.
-	if !h.canManageDatasetAccess(item, identity) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "dataset owner or global admin required"})
+	if !h.canManageOntologyAccess(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
 		return
 	}
 
@@ -62,11 +65,11 @@ func (h Handlers) SetDatasetStructureScan(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if len(req.Allowlists) == 0 {
-		if err := h.datasetStore.SetStructureScan(item.ID, nil); err != nil {
+		if err := h.ontologyStore.SetStructureScan(item.ID, nil); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to clear the structure scan"})
 			return
 		}
-		h.emitAudit(r, identity.UserID(), "dataset.structure_scan.cleared", "dataset", item.ID, "", "success", "", nil)
+		h.emitAudit(r, identity.UserID(), "ontology.structure_scan.cleared", "ontology", item.ID, "", "success", "", nil)
 		writeJSON(w, http.StatusOK, map[string]any{"recorded": false})
 		return
 	}
@@ -98,7 +101,7 @@ func (h Handlers) SetDatasetStructureScan(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	scan := datasetdomain.StructureScan{
+	scan := ontologydomain.StructureScan{
 		Allowlists: req.Allowlists, Objects: req.Objects, Formats: req.Formats,
 		Tags: req.Tags, Tallies: req.Tallies,
 		IdentifyingChecked: req.IdentifyingChecked,
@@ -116,14 +119,14 @@ func (h Handlers) SetDatasetStructureScan(w http.ResponseWriter, r *http.Request
 	// them.
 	scan.Normalise()
 
-	if err := h.datasetStore.SetStructureScan(item.ID, &scan); err != nil {
+	if err := h.ontologyStore.SetStructureScan(item.ID, &scan); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store the structure scan"})
 		return
 	}
 	// Audited with the figures that matter and none of the values: how many
 	// files were opened, which identifying fields were looked at, and which of
 	// them held something. That last list is the point of the whole pass.
-	h.emitAudit(r, identity.UserID(), "dataset.structure_scan.recorded", "dataset", item.ID, "", "success", "",
+	h.emitAudit(r, identity.UserID(), "ontology.structure_scan.recorded", "ontology", item.ID, "", "success", "",
 		map[string]any{
 			"objects":            scan.Objects,
 			"unreadable":         scan.Unreadable,
@@ -136,8 +139,8 @@ func (h Handlers) SetDatasetStructureScan(w http.ResponseWriter, r *http.Request
 }
 
 // GetDatasetStructureScan returns the last pass, if there was one.
-func (h Handlers) GetDatasetStructureScan(w http.ResponseWriter, r *http.Request) {
-	item, ok := h.requireDatasetForLayout(w, r)
+func (h Handlers) GetOntologyStructureScan(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.requireOntologyForCard(w, r)
 	if !ok {
 		return
 	}

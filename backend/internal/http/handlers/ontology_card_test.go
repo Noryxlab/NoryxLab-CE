@@ -64,11 +64,11 @@ func identifie(r *http.Request) *http.Request {
 
 func lis(t *testing.T, h Handlers, id string) map[string]any {
 	t.Helper()
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/datasets/"+id+"/card", nil)
-	r.SetPathValue("datasetID", id)
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/ontologies/"+id+"/card", nil)
+	r.SetPathValue("ontologyID", id)
 	r = identifie(r)
 	w := httptest.NewRecorder()
-	h.GetDatasetCard(w, r)
+	h.GetOntologyCard(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("code %d : %s", w.Code, w.Body.String())
 	}
@@ -91,13 +91,14 @@ func verdict(t *testing.T, payload map[string]any, champ string) map[string]any 
 	return nil
 }
 
-// Un dataset que personne n'a decrit se lit quand meme, et dit ce qu'il mesure.
+// Une ontologie que personne n'a decrite se lit quand meme, et dit ce qu'elle
+// mesure.
 //
-// C'est l'etat de depart de tous les datasets existants : la card est vide, et
-// une card vide est un etat legitime qui se montre comme vide.
-func TestUnDatasetSansCardSeLitEtMontreSesMesures(t *testing.T) {
+// C'est l'etat de depart de toutes les ontologies existantes : la card est
+// vide, et une card vide est un etat legitime qui se montre comme vide.
+func TestUneOntologieSansCardSeLitEtMontreSesMesures(t *testing.T) {
 	h, _ := handlersAvecDataset(t)
-	payload := lis(t, h, "ds-1")
+	payload := lis(t, h, "onto-1")
 	if payload["declared"] != false {
 		t.Fatalf("declared = %v, attendu false", payload["declared"])
 	}
@@ -116,16 +117,16 @@ func TestUneDeclarationEstVersionneeAttribueeEtConfrontee(t *testing.T) {
 	corps := `{"study":"SELENA","purpose":"mesurer la progression","subjects":32,
 	           "objects":24604,"modalities":["DICOM","OCT"],"firstVisit":"20240115",
 	           "pseudonymised":true}`
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card", strings.NewReader(corps))
-	r.SetPathValue("datasetID", "ds-1")
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(corps))
+	r.SetPathValue("ontologyID", "onto-1")
 	r = identifie(r)
 	w := httptest.NewRecorder()
-	h.SetDatasetCard(w, r)
+	h.SetOntologyCard(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("code %d : %s", w.Code, w.Body.String())
 	}
 
-	payload := lis(t, h, "ds-1")
+	payload := lis(t, h, "onto-1")
 	card := payload["card"].(map[string]any)
 	if card["version"] != float64(1) {
 		t.Fatalf("version = %v, attendu 1", card["version"])
@@ -155,12 +156,12 @@ func TestUneDeclarationEstVersionneeAttribueeEtConfrontee(t *testing.T) {
 	}
 
 	// Une seconde edition incremente, elle ne repart pas de un.
-	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card", strings.NewReader(`{"study":"SELENA v2"}`))
-	r2.SetPathValue("datasetID", "ds-1")
+	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{"study":"SELENA v2"}`))
+	r2.SetPathValue("ontologyID", "onto-1")
 	r2 = identifie(r2)
 	w2 := httptest.NewRecorder()
-	h.SetDatasetCard(w2, r2)
-	if v := lis(t, h, "ds-1")["card"].(map[string]any)["version"]; v != float64(2) {
+	h.SetOntologyCard(w2, r2)
+	if v := lis(t, h, "onto-1")["card"].(map[string]any)["version"]; v != float64(2) {
 		t.Fatalf("version apres seconde edition = %v, attendu 2", v)
 	}
 }
@@ -168,13 +169,13 @@ func TestUneDeclarationEstVersionneeAttribueeEtConfrontee(t *testing.T) {
 // Une declaration fausse est rapportee et conservee telle quelle.
 func TestUneDeclarationFausseEstRapporteeEtConservee(t *testing.T) {
 	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card",
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
 		strings.NewReader(`{"subjects":34,"modalities":["DICOM"]}`))
-	r.SetPathValue("datasetID", "ds-1")
+	r.SetPathValue("ontologyID", "onto-1")
 	r = identifie(r)
-	h.SetDatasetCard(httptest.NewRecorder(), r)
+	h.SetOntologyCard(httptest.NewRecorder(), r)
 
-	payload := lis(t, h, "ds-1")
+	payload := lis(t, h, "onto-1")
 	c := verdict(t, payload, "subjects")
 	if c["verdict"] != "differs" || c["declared"] != "34" || c["measured"] != "32" {
 		t.Fatalf("subjects : %+v", c)
@@ -193,20 +194,20 @@ func TestUneDeclarationFausseEstRapporteeEtConservee(t *testing.T) {
 // fausse et que personne ne sait encore par quoi la remplacer.
 func TestUnCorpsVideEffaceLaCard(t *testing.T) {
 	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card", strings.NewReader(`{"study":"SELENA"}`))
-	r.SetPathValue("datasetID", "ds-1")
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{"study":"SELENA"}`))
+	r.SetPathValue("ontologyID", "onto-1")
 	r = identifie(r)
-	h.SetDatasetCard(httptest.NewRecorder(), r)
+	h.SetOntologyCard(httptest.NewRecorder(), r)
 
-	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card", strings.NewReader(`{}`))
-	r2.SetPathValue("datasetID", "ds-1")
+	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{}`))
+	r2.SetPathValue("ontologyID", "onto-1")
 	r2 = identifie(r2)
 	w2 := httptest.NewRecorder()
-	h.SetDatasetCard(w2, r2)
+	h.SetOntologyCard(w2, r2)
 	if w2.Code != http.StatusOK {
 		t.Fatalf("code %d", w2.Code)
 	}
-	if lis(t, h, "ds-1")["declared"] != false {
+	if lis(t, h, "onto-1")["declared"] != false {
 		t.Fatal("la card n'a pas ete effacee")
 	}
 }
@@ -217,11 +218,11 @@ func TestLeScanDeStructureDateLeVerdict(t *testing.T) {
 	h, _ := handlersAvecDataset(t)
 
 	// On declare pseudonymise : sans scan, c'est non verifie.
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card",
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
 		strings.NewReader(`{"pseudonymised":true}`))
-	r.SetPathValue("datasetID", "ds-1")
-	h.SetDatasetCard(httptest.NewRecorder(), identifie(r))
-	if c := verdict(t, lis(t, h, "ds-1"), "pseudonymised"); c["verdict"] != "unverified" {
+	r.SetPathValue("ontologyID", "onto-1")
+	h.SetOntologyCard(httptest.NewRecorder(), identifie(r))
+	if c := verdict(t, lis(t, h, "onto-1"), "pseudonymised"); c["verdict"] != "unverified" {
 		t.Fatalf("avant le scan : %+v", c)
 	}
 
@@ -230,15 +231,15 @@ func TestLeScanDeStructureDateLeVerdict(t *testing.T) {
 	            "identifying":["PatientName","PatientID","PatientBirthDate"]}],
 	           "objects":3592,"identifyingChecked":["PatientName","PatientID","PatientBirthDate"],
 	           "method":"structure scan (pydicom)"}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("datasetID", "ds-1")
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("ontologyID", "onto-1")
 	ws := httptest.NewRecorder()
-	h.SetDatasetStructureScan(ws, identifie(rs))
+	h.SetOntologyStructureScan(ws, identifie(rs))
 	if ws.Code != http.StatusOK {
 		t.Fatalf("code %d : %s", ws.Code, ws.Body.String())
 	}
 
-	c := verdict(t, lis(t, h, "ds-1"), "pseudonymised")
+	c := verdict(t, lis(t, h, "onto-1"), "pseudonymised")
 	if c["verdict"] != "agrees" {
 		t.Fatalf("apres un scan propre : %+v", c)
 	}
@@ -253,19 +254,19 @@ func TestLeScanDeStructureDateLeVerdict(t *testing.T) {
 // Et un identifiant trouve contredit la declaration, en nommant le champ.
 func TestUnIdentifiantTrouveContreditLaDeclaration(t *testing.T) {
 	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card",
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
 		strings.NewReader(`{"pseudonymised":true}`))
-	r.SetPathValue("datasetID", "ds-1")
-	h.SetDatasetCard(httptest.NewRecorder(), identifie(r))
+	r.SetPathValue("ontologyID", "onto-1")
+	h.SetOntologyCard(httptest.NewRecorder(), identifie(r))
 
 	corps := `{"allowlists":[{"format":"dicom","identifying":["PatientName","PatientID"]}],
 	           "objects":3592,"identifyingChecked":["PatientName","PatientID"],
 	           "identifyingPresent":["PatientName"]}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("datasetID", "ds-1")
-	h.SetDatasetStructureScan(httptest.NewRecorder(), identifie(rs))
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("ontologyID", "onto-1")
+	h.SetOntologyStructureScan(httptest.NewRecorder(), identifie(rs))
 
-	if c := verdict(t, lis(t, h, "ds-1"), "pseudonymised"); c["verdict"] != "differs" {
+	if c := verdict(t, lis(t, h, "onto-1"), "pseudonymised"); c["verdict"] != "differs" {
 		t.Fatalf("%+v", c)
 	}
 }
@@ -277,10 +278,10 @@ func TestUnScannerNePeutPasEnregistrerUnChampIdentifiant(t *testing.T) {
 	corps := `{"allowlists":[{"format":"dicom","record":["Modality"],"identifying":["PatientName"]}],
 	           "objects":10,
 	           "tallies":[{"field":"PatientName","values":{"DUPONT":3},"distinct":1,"present":3}]}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("datasetID", "ds-1")
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("ontologyID", "onto-1")
 	w := httptest.NewRecorder()
-	h.SetDatasetStructureScan(w, identifie(rs))
+	h.SetOntologyStructureScan(w, identifie(rs))
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("code %d, attendu 400 : %s", w.Code, w.Body.String())
 	}

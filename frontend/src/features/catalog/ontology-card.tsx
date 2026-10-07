@@ -7,19 +7,24 @@ import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { datasetCardApi } from '@/lib/api/endpoints';
+import { ontologyCardApi } from '@/lib/api/endpoints';
 import { qk } from '@/lib/api/queries';
-import type { Dataset, DatasetCardCheck, DatasetCardContent, DatasetCardVerdict } from '@/lib/api/types';
+import type { Ontology, OntologyCardCheck, OntologyCardContent, OntologyCardVerdict } from '@/lib/api/types';
 import { useT, type TranslationKey } from '@/lib/i18n';
 
-/** Ce qu'un dataset dit de lui-meme, et ce que la plateforme en verifie
- *  (ADR-047).
+/** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme en
+ *  verifie (ADR-047).
  *
  *  Le scan produit un inventaire de chemins — sujets, visites, modalites,
  *  comptes, volumes — et le dit honnetement. Ce qu'il ne peut pas produire,
- *  c'est ce dont le dataset *parle* : sa finalite, ce pour quoi il ne doit pas
- *  servir, la base legale, les unites, a qui demander. Rien de tout ca ne se
- *  deduit d'un octet, et c'est la plus grande moitie de ce qui manquait.
+ *  c'est ce que la donnee *signifie* : sa finalite, ce pour quoi elle ne doit
+ *  pas servir, la base legale, les unites, a qui demander. Rien de tout ca ne
+ *  se deduit d'un octet, et c'est la plus grande moitie de ce qui manquait.
+ *
+ *  Sur l'ontologie et non sur le dataset : un dataset est un bucket avec des
+ *  identifiants, l'ontologie est la couche qui dit ce qu'il y a dedans. Mettre
+ *  la description sur le stockage forcerait de surcroit une seule description
+ *  a toutes les ontologies qui lisent le meme bucket.
  *
  *  L'ecran a une regle : une declaration confirmee et une declaration que
  *  personne n'a verifiee ne doivent pas se ressembler. C'est tout l'interet de
@@ -27,7 +32,7 @@ import { useT, type TranslationKey } from '@/lib/i18n';
  *  d'avertissement plutot qu'un ton neutre — un lecteur presse lit les couleurs
  *  avant les mots. */
 
-const TONES: Record<DatasetCardVerdict, 'success' | 'danger' | 'warning' | 'neutral' | 'outline'> = {
+const TONES: Record<OntologyCardVerdict, 'success' | 'danger' | 'warning' | 'neutral' | 'outline'> = {
   agrees: 'success',
   differs: 'danger',
   unverified: 'warning',
@@ -35,46 +40,46 @@ const TONES: Record<DatasetCardVerdict, 'success' | 'danger' | 'warning' | 'neut
   not_checkable: 'outline',
 };
 
-const VERDICT_LABELS: Record<DatasetCardVerdict, TranslationKey> = {
-  agrees: 'datasetCard.verdictAgrees',
-  differs: 'datasetCard.verdictDiffers',
-  unverified: 'datasetCard.verdictUnverified',
-  undeclared: 'datasetCard.verdictUndeclared',
-  not_checkable: 'datasetCard.verdictNotCheckable',
+const VERDICT_LABELS: Record<OntologyCardVerdict, TranslationKey> = {
+  agrees: 'ontologyCard.verdictAgrees',
+  differs: 'ontologyCard.verdictDiffers',
+  unverified: 'ontologyCard.verdictUnverified',
+  undeclared: 'ontologyCard.verdictUndeclared',
+  not_checkable: 'ontologyCard.verdictNotCheckable',
 };
 
 const FIELD_LABELS: Record<string, TranslationKey> = {
-  subjects: 'datasetCard.subjects',
-  objects: 'datasetCard.objects',
-  modalities: 'datasetCard.modalities',
-  firstVisit: 'datasetCard.firstVisit',
-  lastVisit: 'datasetCard.lastVisit',
-  pseudonymised: 'datasetCard.pseudonymised',
-  purpose: 'datasetCard.purpose',
-  outOfScope: 'datasetCard.outOfScope',
-  limitations: 'datasetCard.limitations',
-  legalBasis: 'datasetCard.legalBasis',
-  consent: 'datasetCard.consent',
-  licence: 'datasetCard.licence',
+  subjects: 'ontologyCard.subjects',
+  objects: 'ontologyCard.objects',
+  modalities: 'ontologyCard.modalities',
+  firstVisit: 'ontologyCard.firstVisit',
+  lastVisit: 'ontologyCard.lastVisit',
+  pseudonymised: 'ontologyCard.pseudonymised',
+  purpose: 'ontologyCard.purpose',
+  outOfScope: 'ontologyCard.outOfScope',
+  limitations: 'ontologyCard.limitations',
+  legalBasis: 'ontologyCard.legalBasis',
+  consent: 'ontologyCard.consent',
+  licence: 'ontologyCard.licence',
 };
 
 /** Les champs libres, dans l'ordre ou on les lit : ce que c'est, pour quoi,
  *  d'ou ca vient, comment le lire, a qui demander. */
-const PROSE: { key: keyof DatasetCardContent; label: TranslationKey; long?: boolean }[] = [
-  { key: 'study', label: 'datasetCard.study' },
-  { key: 'release', label: 'datasetCard.release' },
-  { key: 'population', label: 'datasetCard.population', long: true },
-  { key: 'inclusion', label: 'datasetCard.inclusion', long: true },
-  { key: 'purpose', label: 'datasetCard.purpose', long: true },
-  { key: 'outOfScope', label: 'datasetCard.outOfScope', long: true },
-  { key: 'limitations', label: 'datasetCard.limitations', long: true },
-  { key: 'provenance', label: 'datasetCard.provenance', long: true },
-  { key: 'legalBasis', label: 'datasetCard.legalBasis' },
-  { key: 'consent', label: 'datasetCard.consent' },
-  { key: 'licence', label: 'datasetCard.licence' },
-  { key: 'units', label: 'datasetCard.units' },
-  { key: 'conventions', label: 'datasetCard.conventions', long: true },
-  { key: 'contact', label: 'datasetCard.contact' },
+const PROSE: { key: keyof OntologyCardContent; label: TranslationKey; long?: boolean }[] = [
+  { key: 'study', label: 'ontologyCard.study' },
+  { key: 'release', label: 'ontologyCard.release' },
+  { key: 'population', label: 'ontologyCard.population', long: true },
+  { key: 'inclusion', label: 'ontologyCard.inclusion', long: true },
+  { key: 'purpose', label: 'ontologyCard.purpose', long: true },
+  { key: 'outOfScope', label: 'ontologyCard.outOfScope', long: true },
+  { key: 'limitations', label: 'ontologyCard.limitations', long: true },
+  { key: 'provenance', label: 'ontologyCard.provenance', long: true },
+  { key: 'legalBasis', label: 'ontologyCard.legalBasis' },
+  { key: 'consent', label: 'ontologyCard.consent' },
+  { key: 'licence', label: 'ontologyCard.licence' },
+  { key: 'units', label: 'ontologyCard.units' },
+  { key: 'conventions', label: 'ontologyCard.conventions', long: true },
+  { key: 'contact', label: 'ontologyCard.contact' },
 ];
 
 /** Un champ que la table ne connait pas s'affiche tel quel : un libelle
@@ -86,7 +91,7 @@ function labelFor(t: (key: TranslationKey) => string, field: string): string {
 
 type Draft = Record<string, string>;
 
-function draftFrom(card: DatasetCardContent | null | undefined): Draft {
+function draftFrom(card: OntologyCardContent | null | undefined): Draft {
   const draft: Draft = {};
   for (const { key } of PROSE) draft[key] = String(card?.[key] ?? '');
   draft.subjects = card?.claims?.subjects != null ? String(card.claims.subjects) : '';
@@ -124,23 +129,23 @@ function payloadFrom(draft: Draft): Record<string, unknown> {
   return payload;
 }
 
-export function DatasetCardPanel({ dataset }: { dataset: Dataset }) {
+export function OntologyCardPanel({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const client = useQueryClient();
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>({});
 
   const card = useQuery({
-    queryKey: qk.datasetCard(dataset.id),
-    queryFn: () => datasetCardApi.get(dataset.id),
-    enabled: Boolean(dataset.id),
+    queryKey: qk.ontologyCard(ontology.id),
+    queryFn: () => ontologyCardApi.get(ontology.id),
+    enabled: Boolean(ontology.id),
   });
 
   const save = useMutation({
-    mutationFn: () => datasetCardApi.set(dataset.id, payloadFrom(draft)),
+    mutationFn: () => ontologyCardApi.set(ontology.id, payloadFrom(draft)),
     onSuccess: () => {
       setEditing(false);
-      void client.invalidateQueries({ queryKey: qk.datasetCard(dataset.id) });
+      void client.invalidateQueries({ queryKey: qk.ontologyCard(ontology.id) });
     },
   });
 
@@ -156,12 +161,12 @@ export function DatasetCardPanel({ dataset }: { dataset: Dataset }) {
     <Card>
       <CardHeader>
         <CardHeaderText>
-          <CardTitle>{t('datasetCard.title')}</CardTitle>
-          <CardDescription>{t('datasetCard.hint')}</CardDescription>
+          <CardTitle>{t('ontologyCard.title')}</CardTitle>
+          <CardDescription>{t('ontologyCard.hint')}</CardDescription>
         </CardHeaderText>
         {!editing ? (
           <Button variant="secondary" onClick={startEditing} disabled={card.isLoading}>
-            {card.data?.declared ? t('datasetCard.edit') : t('datasetCard.declare')}
+            {card.data?.declared ? t('ontologyCard.edit') : t('ontologyCard.declare')}
           </Button>
         ) : null}
       </CardHeader>
@@ -183,7 +188,7 @@ export function DatasetCardPanel({ dataset }: { dataset: Dataset }) {
             {card.data?.declared ? (
               <Declared content={content} />
             ) : (
-              <p className="text-sm text-muted-foreground">{t('datasetCard.undeclaredAll')}</p>
+              <p className="text-sm text-muted-foreground">{t('ontologyCard.undeclaredAll')}</p>
             )}
 
             <Separator />
@@ -199,7 +204,7 @@ export function DatasetCardPanel({ dataset }: { dataset: Dataset }) {
   );
 }
 
-function Declared({ content }: { content: DatasetCardContent | null }) {
+function Declared({ content }: { content: OntologyCardContent | null }) {
   const t = useT();
   if (!content) return null;
   const filled = PROSE.filter(({ key }) => String(content[key] ?? '').trim() !== '');
@@ -214,7 +219,7 @@ function Declared({ content }: { content: DatasetCardContent | null }) {
         ))}
       </dl>
       <p className="text-xs text-muted-foreground">
-        {t('datasetCard.versionLine', {
+        {t('ontologyCard.versionLine', {
           version: String(content.version),
           who: content.declaredBy ?? '—',
         })}
@@ -233,7 +238,7 @@ function Control({
   measuredBy,
   measuredAt,
 }: {
-  checks: DatasetCardCheck[];
+  checks: OntologyCardCheck[];
   measuredBy?: string;
   measuredAt?: string;
 }) {
@@ -242,22 +247,22 @@ function Control({
 
   // Ce qui demande une action en haut : un ecart, puis une declaration que rien
   // n'a verifiee. Le reste suit.
-  const ordre: DatasetCardVerdict[] = ['differs', 'unverified', 'agrees', 'undeclared', 'not_checkable'];
+  const ordre: OntologyCardVerdict[] = ['differs', 'unverified', 'agrees', 'undeclared', 'not_checkable'];
   const tries = [...checks].sort((a, b) => ordre.indexOf(a.verdict) - ordre.indexOf(b.verdict));
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-sm font-medium">{t('datasetCard.control')}</h4>
+        <h4 className="text-sm font-medium">{t('ontologyCard.control')}</h4>
         {measuredBy ? (
           <p className="text-xs text-muted-foreground">
-            {t('datasetCard.measuredBy', {
+            {t('ontologyCard.measuredBy', {
               method: measuredBy,
               when: measuredAt ? new Date(measuredAt).toLocaleString() : '—',
             })}
           </p>
         ) : (
-          <p className="text-xs text-muted-foreground">{t('datasetCard.neverMeasured')}</p>
+          <p className="text-xs text-muted-foreground">{t('ontologyCard.neverMeasured')}</p>
         )}
       </div>
 
@@ -268,12 +273,12 @@ function Control({
             <Badge tone={TONES[check.verdict]}>{t(VERDICT_LABELS[check.verdict])}</Badge>
             {check.declared ? (
               <span className="text-xs text-muted-foreground">
-                {t('datasetCard.declaredValue')} <span className="font-mono">{check.declared}</span>
+                {t('ontologyCard.declaredValue')} <span className="font-mono">{check.declared}</span>
               </span>
             ) : null}
             {check.measured ? (
               <span className="text-xs text-muted-foreground">
-                {t('datasetCard.measuredValue')} <span className="font-mono">{check.measured}</span>
+                {t('ontologyCard.measuredValue')} <span className="font-mono">{check.measured}</span>
               </span>
             ) : null}
             {check.note ? (
@@ -325,17 +330,17 @@ function Editor({
       {/* Les figures verifiables, separees de la prose parce que la prose ne se
           verifie pas et que celles-ci le sont. */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium">{t('datasetCard.claims')}</h4>
-        <p className="text-xs text-muted-foreground">{t('datasetCard.claimsHint')}</p>
+        <h4 className="text-sm font-medium">{t('ontologyCard.claims')}</h4>
+        <p className="text-xs text-muted-foreground">{t('ontologyCard.claimsHint')}</p>
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label={t('datasetCard.subjects')}>
+          <Field label={t('ontologyCard.subjects')}>
             <Input
               inputMode="numeric"
               value={draft.subjects ?? ''}
               onChange={(event) => onChange('subjects', event.target.value)}
             />
           </Field>
-          <Field label={t('datasetCard.objects')}>
+          <Field label={t('ontologyCard.objects')}>
             <Input
               inputMode="numeric"
               value={draft.objects ?? ''}
@@ -343,34 +348,34 @@ function Editor({
             />
           </Field>
           <Field
-            label={t('datasetCard.pseudonymised')}
-            description={t('datasetCard.pseudonymisedHint')}
+            label={t('ontologyCard.pseudonymised')}
+            description={t('ontologyCard.pseudonymisedHint')}
           >
             <Select
               value={draft.pseudonymised ?? ''}
               onValueChange={(value) => onChange('pseudonymised', value)}
-              placeholder={t('datasetCard.notStated')}
+              placeholder={t('ontologyCard.notStated')}
               options={[
                 { value: 'true', label: t('common.yes') },
                 { value: 'false', label: t('common.no') },
               ]}
             />
           </Field>
-          <Field label={t('datasetCard.modalities')} className="sm:col-span-3">
+          <Field label={t('ontologyCard.modalities')} className="sm:col-span-3">
             <Input
               value={draft.modalities ?? ''}
               onChange={(event) => onChange('modalities', event.target.value)}
               placeholder="DICOM, OCT"
             />
           </Field>
-          <Field label={t('datasetCard.firstVisit')}>
+          <Field label={t('ontologyCard.firstVisit')}>
             <Input
               value={draft.firstVisit ?? ''}
               onChange={(event) => onChange('firstVisit', event.target.value)}
               placeholder="AAAAMMJJ"
             />
           </Field>
-          <Field label={t('datasetCard.lastVisit')}>
+          <Field label={t('ontologyCard.lastVisit')}>
             <Input
               value={draft.lastVisit ?? ''}
               onChange={(event) => onChange('lastVisit', event.target.value)}

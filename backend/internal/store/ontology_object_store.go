@@ -18,6 +18,15 @@ type OntologyStore interface {
 	// keeps the object: its identifier, its name, its owner and the extracts
 	// that point at it.
 	ReplaceManifest(ontologyID string, manifest []byte, generatedBy string) error
+
+	// SetCard writes what this ontology says the data means, in a person's
+	// words (ADR-047), or clears it. Beside the manifest rather than inside
+	// it: a rescan replaces the photograph and must not touch the declaration.
+	SetCard(ontologyID string, card *ontology.Card) error
+	// SetStructureScan records what one audited pass over the files found.
+	// Reading inside files is a separate act from listing their keys, and this
+	// is where its result lands.
+	SetStructureScan(ontologyID string, scan *ontology.StructureScan) error
 	Delete(id string) error
 	ListAccess(ontologyID string) ([]ontology.Access, error)
 	UpdateOwner(ontologyID, ownerType, ownerID string) error

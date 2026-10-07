@@ -106,6 +106,34 @@ func (s *OntologyObjectStore) ReplaceManifest(ontologyID string, manifest []byte
 	return nil
 }
 
+func (s *OntologyObjectStore) SetCard(ontologyID string, card *ontology.Card) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == strings.TrimSpace(ontologyID) {
+			s.items[i].Card = card
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	// Silencieux comme ReplaceManifest a cote : ce store sert les tests, et
+	// c'est le handler qui a deja verifie que l'ontologie existe.
+	return nil
+}
+
+func (s *OntologyObjectStore) SetStructureScan(ontologyID string, scan *ontology.StructureScan) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.items {
+		if s.items[i].ID == strings.TrimSpace(ontologyID) {
+			s.items[i].Structure = scan
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return nil
+}
+
 func (s *OntologyObjectStore) UpdateOwner(ontologyID, ownerType, ownerID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
