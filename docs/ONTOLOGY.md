@@ -398,3 +398,47 @@ rows, its project links and its object rows.
 and **not** `ontology_objects`. The duplicate deleted on EMSE carried 21 629 of
 them. Worth knowing before trusting a row count, and worth fixing in the cascade
 rather than in each cleanup script.
+
+## The three levels are named by the trade that owns the data
+
+The positions were configurable and the words were not. So a platform also sold
+to banks and insurers showed **subject**, **visit** and **modality** over a
+table of transactions — which is not a purity problem but a demo that loses the
+room, because the product visibly belongs to somebody else's business.
+
+A dataset's layout (ADR-045) now carries three optional names beside its three
+levels:
+
+```json
+{ "subjectLevel": 1, "visitLevel": 2, "modalityLevel": 3,
+  "subjectName": "patient", "visitName": "visite", "modalityName": "modalité" }
+```
+
+```json
+{ "subjectLevel": 0, "visitLevel": 1,
+  "subjectName": "client", "visitName": "mois" }
+```
+
+**This is adaptation to a trade, not configuration of a mechanism.** Three words
+somebody writes once — or that the assistant proposes from the path shapes it is
+already shown, which a person then confirms, exactly as it proposes the rule
+itself (ADR-040). Nothing else moves: the levels keep their positions, the
+columns keep their names, and only what a human reads follows the trade.
+
+Unnamed levels fall back to **entity / period / category** rather than to the
+clinical words. A platform that must guess should guess neutrally.
+
+The names are **recorded in the ontology's manifest** with the rule, for the
+reason the rule is recorded: a name changed afterwards would make an old
+photograph describe itself in a vocabulary it was never read with.
+
+### What already reads them, and what does not yet
+
+Reading them today: the layout description, the ontology list's Reading column,
+the completeness panel, the recognised-shapes panel, and the card's measured
+figures.
+
+Still hardcoded: the scan result toast, the extract form, and the freshness and
+query panels — roughly a dozen strings, each needing the words plumbed to where
+it renders. They say "sujets" and "modalités" in French whatever the dataset.
+Worth finishing before a demo outside health.

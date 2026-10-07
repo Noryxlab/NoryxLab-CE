@@ -874,6 +874,8 @@ export const en: Translations = {
     completenessSubjects:
       "{complete} of {total} subjects carry every modality in the study.",
     completenessModality: "Modality",
+    completenessWithout: "{entities} without this {category}",
+    patternRecognisedFor: "Recognised {entities}",
     completenessHolders: "Subjects",
     completenessMissing: "Subjects without this modality",
     completenessNoGap: "None",

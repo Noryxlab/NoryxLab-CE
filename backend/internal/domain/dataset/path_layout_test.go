@@ -71,12 +71,34 @@ func TestUneRegleIncoherenteEstRefusee(t *testing.T) {
 	}
 }
 
-// Et elle se lit en francais sur un ecran, parce que c'est ainsi qu'on la
-// verifie contre un chemin qu'on connait.
+// Et elle se lit sur un ecran, parce que c'est ainsi qu'on la verifie contre un
+// chemin qu'on connait - dans les mots du metier qui possede la donnee.
+//
+// Sans noms declares, les defauts sont generiques et non cliniques. Les
+// positions etaient configurables et les mots ne l'etaient pas, donc une
+// plateforme vendue a des banques affichait « sujet », « visite » et
+// « modalite » sur une table d'operations.
 func TestLaRegleSeDecrit(t *testing.T) {
 	regle := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3}
-	if regle.Describe() != "level 1 = subject, level 2 = visit, level 3 = modality" {
+	if regle.Describe() != "level 1 = entity, level 2 = period, level 3 = category" {
 		t.Fatalf("description = %q", regle.Describe())
+	}
+	clinique := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3,
+		SubjectName: "patient", VisitName: "visite", ModalityName: "modalite"}
+	if clinique.Describe() != "level 1 = patient, level 2 = visite, level 3 = modalite" {
+		t.Fatalf("description = %q", clinique.Describe())
+	}
+	banque := PathLayout{SubjectLevel: 0, VisitLevel: 1, ModalityLevel: LevelAbsent,
+		SubjectName: "client", VisitName: "mois"}
+	if banque.Describe() != "level 0 = client, level 1 = mois" {
+		t.Fatalf("description = %q", banque.Describe())
+	}
+	// Un nom tout en blancs retombe sur le defaut plutot que d'afficher du
+	// vide : un libelle invisible est pire qu'un libelle generique.
+	blanc := PathLayout{SubjectLevel: 0, VisitLevel: LevelAbsent, ModalityLevel: LevelAbsent,
+		SubjectName: "   "}
+	if blanc.Describe() != "level 0 = entity" {
+		t.Fatalf("description = %q", blanc.Describe())
 	}
 	absente := PathLayout{SubjectLevel: LevelAbsent}
 	if absente.Declared() {

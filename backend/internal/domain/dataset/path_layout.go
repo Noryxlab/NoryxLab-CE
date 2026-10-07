@@ -39,6 +39,46 @@ type PathLayout struct {
 	// "absent" is truer than pointing at a segment that means something else.
 	VisitLevel    int `json:"visitLevel"`
 	ModalityLevel int `json:"modalityLevel"`
+	// What the three levels are called, in this dataset's own trade.
+	//
+	// The positions were configurable and the words were not, so a platform
+	// sold to banks and insurers showed "subject", "visit" and "modality" over
+	// a table of transactions. That is not a purity problem: it is a demo that
+	// loses the room, because the product visibly belongs to somebody else's
+	// business.
+	//
+	// Adapting to a trade is not the same as configuring a mechanism. These are
+	// three words somebody writes once - or that the assistant proposes from
+	// the path shapes it is already shown, which a person then confirms
+	// (ADR-040). Nothing else changes: the levels keep their positions, the
+	// columns keep their names, and only what a human reads follows the trade.
+	//
+	// Empty means the platform's own defaults, which stay what every dataset
+	// declared before this used.
+	SubjectName  string `json:"subjectName,omitempty"`
+	VisitName    string `json:"visitName,omitempty"`
+	ModalityName string `json:"modalityName,omitempty"`
+}
+
+// Defaults, used wherever a layout names nothing. Generic rather than clinical:
+// an unnamed level is a grouping key, a time axis and a kind, whatever the
+// trade - and a platform that must guess should guess neutrally.
+const (
+	DefaultSubjectName  = "entity"
+	DefaultVisitName    = "period"
+	DefaultModalityName = "category"
+)
+
+// Subject, Visit and Modality are what to call each level on a screen.
+func (l PathLayout) Subject() string  { return named(l.SubjectName, DefaultSubjectName) }
+func (l PathLayout) Visit() string    { return named(l.VisitName, DefaultVisitName) }
+func (l PathLayout) Modality() string { return named(l.ModalityName, DefaultModalityName) }
+
+func named(declared, fallback string) string {
+	if trimmed := strings.TrimSpace(declared); trimmed != "" {
+		return trimmed
+	}
+	return fallback
 }
 
 // LevelAbsent marks a level this layout does not name.
@@ -56,12 +96,12 @@ func (l PathLayout) Describe() string {
 	if !l.Declared() {
 		return "no layout declared"
 	}
-	parts := []string{fmt.Sprintf("level %d = subject", l.SubjectLevel)}
+	parts := []string{fmt.Sprintf("level %d = %s", l.SubjectLevel, l.Subject())}
 	if l.VisitLevel >= 0 {
-		parts = append(parts, fmt.Sprintf("level %d = visit", l.VisitLevel))
+		parts = append(parts, fmt.Sprintf("level %d = %s", l.VisitLevel, l.Visit()))
 	}
 	if l.ModalityLevel >= 0 {
-		parts = append(parts, fmt.Sprintf("level %d = modality", l.ModalityLevel))
+		parts = append(parts, fmt.Sprintf("level %d = %s", l.ModalityLevel, l.Modality()))
 	}
 	return strings.Join(parts, ", ")
 }

@@ -101,6 +101,17 @@ type ontologyReadingRule struct {
 	ModalityLevel int    `json:"modalityLevel,omitempty"`
 	// Description reads on a screen: "level 1 = subject, level 2 = visit".
 	Description string `json:"description"`
+	// Names is what the three levels are called in this dataset's trade, as
+	// they stood when this photograph was taken.
+	//
+	// Recorded with the rule and for the same reason (ADR-040): a name that
+	// changed afterwards would make an old manifest describe itself in a
+	// vocabulary it was never read with. And a screen showing this photograph
+	// must label it the way it was taken, not the way the dataset is labelled
+	// today.
+	SubjectName  string `json:"subjectName,omitempty"`
+	VisitName    string `json:"visitName,omitempty"`
+	ModalityName string `json:"modalityName,omitempty"`
 }
 
 // describeReading records the rule a scan is about to apply.
@@ -112,6 +123,9 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 			VisitLevel:    dataset.LevelAbsent,
 			ModalityLevel: dataset.LevelAbsent,
 			Description:   "the platform's compiled rule: the first segment that looks like a subject identifier, then the next two as visit and modality",
+			SubjectName:   dataset.DefaultSubjectName,
+			VisitName:     dataset.DefaultVisitName,
+			ModalityName:  dataset.DefaultModalityName,
 		}
 	}
 	return ontologyReadingRule{
@@ -120,6 +134,9 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 		VisitLevel:    layout.VisitLevel,
 		ModalityLevel: layout.ModalityLevel,
 		Description:   layout.Describe(),
+		SubjectName:   layout.Subject(),
+		VisitName:     layout.Visit(),
+		ModalityName:  layout.Modality(),
 	}
 }
 

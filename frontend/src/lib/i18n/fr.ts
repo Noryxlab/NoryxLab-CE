@@ -895,6 +895,8 @@ export const fr = {
     completenessSubjects:
       "{complete} sujets sur {total} portent toutes les modalités de l’étude.",
     completenessModality: "Modalité",
+    completenessWithout: "{entities} sans cette {category}",
+    patternRecognisedFor: "{entities} reconnues",
     completenessHolders: "Sujets",
     completenessMissing: "Sujets sans cette modalité",
     completenessNoGap: "Aucun",

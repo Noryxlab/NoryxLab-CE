@@ -63,6 +63,37 @@ import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPa
  *
  *  Le type complet vit cote serveur ; declarer ici le strict necessaire evite
  *  de le dupliquer et dit en meme temps ce dont l'assistant a besoin. */
+/** Comment appeler les trois niveaux, dans le metier qui possede la donnee.
+ *
+ *  Les positions etaient configurables et les mots ne l'etaient pas, donc une
+ *  plateforme vendue aussi a des banques et a des assureurs affichait
+ *  « sujets », « visites » et « modalites » sur une table d'operations. Ce
+ *  n'est pas un probleme de purete : c'est une demo qui perd la salle, parce
+ *  que le produit appartient visiblement au metier de quelqu'un d'autre.
+ *
+ *  Les defauts sont generiques plutot que cliniques : un niveau sans nom est
+ *  une clef de regroupement, un axe temporel et une sorte, quel que soit le
+ *  metier. */
+/** Un pluriel suffisant pour un libelle : les mots du metier sont des noms
+ *  communs courts, et un « s » tient pour « entités », « clients »,
+ *  « patients ». Un mot deja au pluriel n'en gagne pas un second. */
+function pluriel(mot: string): string {
+  return mot.endsWith('s') || mot.endsWith('x') ? mot : `${mot}s`;
+}
+
+function capitaliser(mot: string): string {
+  return mot.charAt(0).toUpperCase() + mot.slice(1);
+}
+
+function motsDuMetier(ontology: Ontology | null | undefined) {
+  const regle = (ontology?.manifest as ManifestLu | undefined)?.readingRule;
+  return {
+    sujet: regle?.subjectName?.trim() || 'entité',
+    visite: regle?.visitName?.trim() || 'période',
+    modalite: regle?.modalityName?.trim() || 'catégorie',
+  };
+}
+
 type ManifestLu = {
   summary?: {
     objects?: number;
@@ -74,7 +105,17 @@ type ManifestLu = {
   };
   /** La regle qui a produit CETTE photographie, et non le nom d'un profil qui
    *  a pu changer depuis (ADR-040). */
-  readingRule?: { source?: string; description?: string };
+  readingRule?: {
+    source?: string;
+    description?: string;
+    /** Les mots du metier qui possede la donnee, tels qu'ils etaient quand
+     *  cette photographie a ete prise. Enregistres avec la regle et pour la
+     *  meme raison (ADR-040) : un nom change ensuite ferait decrire une vieille
+     *  photographie dans un vocabulaire avec lequel elle n'a jamais ete lue. */
+    subjectName?: string;
+    visitName?: string;
+    modalityName?: string;
+  };
 };
 
 /**
@@ -531,7 +572,9 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
           <p className="text-sm text-muted-foreground">{t('ontologies.patternNone')}</p>
         ) : (
           <div>
-            <p className="mb-1 text-xs font-medium">{t('ontologies.patternRecognised')}</p>
+            <p className="mb-1 text-xs font-medium">
+              {t('ontologies.patternRecognisedFor', { entities: pluriel(motsDuMetier(ontology).sujet) })}
+            </p>
             <ul className="space-y-0.5">
               {reconnues.map((forme) => (
                 <li key={forme} className="font-mono text-xs text-muted-foreground">
@@ -561,9 +604,11 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
   );
 }
 
-function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
+function OntologyCoverage({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const { locale } = useI18n();
+  const mots = motsDuMetier(ontology);
+  const ontologyId = ontology.id;
   const coverage = useOntologyCompleteness(ontologyId);
   const data = coverage.data;
   if (!data || data.modalities.length === 0) return null;
@@ -588,9 +633,9 @@ function OntologyCoverage({ ontologyId }: { ontologyId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>{t('ontologies.completenessModality')}</TableHead>
-                <TableHead className="text-right">{t('ontologies.completenessHolders')}</TableHead>
+                <TableHead className="text-right">{capitaliser(pluriel(mots.sujet))}</TableHead>
                 <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
-                <TableHead>{t('ontologies.completenessMissing')}</TableHead>
+                <TableHead>{t('ontologies.completenessWithout', { entities: pluriel(mots.sujet), category: mots.modalite })}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1536,7 +1581,7 @@ export function OntologyCatalog() {
       {selected ? <OntologyPattern ontology={selected} /> : null}
       {selected ? <OntologyNaming ontology={selected} /> : null}
       {selected ? <OntologyQuery ontology={selected} /> : null}
-      {selected ? <OntologyCoverage ontologyId={selected.id} /> : null}
+      {selected ? <OntologyCoverage ontology={selected} /> : null}
       {selected ? <OntologyExtracts ontology={selected} /> : null}
       {selected ? <OntologyOwnership ontology={selected} /> : null}
       {dialog}

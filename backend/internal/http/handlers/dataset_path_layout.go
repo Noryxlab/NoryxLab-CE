@@ -26,9 +26,14 @@ import (
 // installation with no assistant configured fills them itself.
 
 type pathLayoutRequest struct {
-	SubjectLevel  *int `json:"subjectLevel"`
-	VisitLevel    *int `json:"visitLevel"`
-	ModalityLevel *int `json:"modalityLevel"`
+	// The three words this dataset's trade uses for its levels. Optional: a
+	// layout that names none keeps the platform's generic defaults.
+	SubjectName   string `json:"subjectName"`
+	VisitName     string `json:"visitName"`
+	ModalityName  string `json:"modalityName"`
+	SubjectLevel  *int   `json:"subjectLevel"`
+	VisitLevel    *int   `json:"visitLevel"`
+	ModalityLevel *int   `json:"modalityLevel"`
 }
 
 // layoutFrom reads the request, treating an absent level as "not in the path"
@@ -44,6 +49,9 @@ func layoutFrom(req pathLayoutRequest) datasetdomain.PathLayout {
 		SubjectLevel:  level(req.SubjectLevel),
 		VisitLevel:    level(req.VisitLevel),
 		ModalityLevel: level(req.ModalityLevel),
+		SubjectName:   strings.TrimSpace(req.SubjectName),
+		VisitName:     strings.TrimSpace(req.VisitName),
+		ModalityName:  strings.TrimSpace(req.ModalityName),
 	}
 }
 
@@ -81,6 +89,9 @@ func (h Handlers) GetDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 			"visitLevel":    item.PathLayout.VisitLevel,
 			"modalityLevel": item.PathLayout.ModalityLevel,
 			"description":   item.PathLayout.Describe(),
+			"subjectName":   item.PathLayout.Subject(),
+			"visitName":     item.PathLayout.Visit(),
+			"modalityName":  item.PathLayout.Modality(),
 		}
 	}
 	writeJSON(w, http.StatusOK, payload)
@@ -136,6 +147,9 @@ func (h Handlers) SetDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 		"visitLevel":    layout.VisitLevel,
 		"modalityLevel": layout.ModalityLevel,
 		"description":   layout.Describe(),
+		"subjectName":   layout.Subject(),
+		"visitName":     layout.Visit(),
+		"modalityName":  layout.Modality(),
 	})
 }
 

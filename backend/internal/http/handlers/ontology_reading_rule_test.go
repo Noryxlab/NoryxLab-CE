@@ -18,8 +18,23 @@ func TestLaRegleAppliqueeEstEnregistree(t *testing.T) {
 	if declaree.Source != "declared" || declaree.SubjectLevel != 1 {
 		t.Fatalf("regle declaree = %+v", declaree)
 	}
-	if declaree.Description != "level 1 = subject, level 2 = visit, level 3 = modality" {
+	// Sans noms declares, les defauts sont generiques : la plateforme est aussi
+	// vendue a des banques, et « sujet » sur une table d'operations est une
+	// demo qui perd la salle.
+	if declaree.Description != "level 1 = entity, level 2 = period, level 3 = category" {
 		t.Fatalf("description = %q", declaree.Description)
+	}
+	// Et les mots du metier sont enregistres avec la regle, pour la meme raison
+	// que la regle l'est : un nom change ensuite ferait decrire une vieille
+	// photographie dans un vocabulaire avec lequel elle n'a jamais ete lue.
+	clinique := describeReading(&dataset.PathLayout{
+		SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3,
+		SubjectName: "patient", VisitName: "visite", ModalityName: "modalite"})
+	if clinique.SubjectName != "patient" || clinique.VisitName != "visite" {
+		t.Fatalf("noms enregistres = %+v", clinique)
+	}
+	if clinique.Description != "level 1 = patient, level 2 = visite, level 3 = modalite" {
+		t.Fatalf("description = %q", clinique.Description)
 	}
 
 	// Et l'absence de regle est une reponse, pas un vide : c'est la regle
