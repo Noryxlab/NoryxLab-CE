@@ -910,6 +910,8 @@ export const fr = {
     source: "Source",
     profile: "Profil d’inférence",
     reading: "Lecture",
+    readingDeclared: "Déclarée",
+    readingDefault: "Par défaut",
     completeness: "Couverture",
     completenessHint:
       "Combien de sujets portent chaque modalité, et lesquels ne l’ont pas. Un extrait demandé par modalité exclut silencieusement les seconds.",

@@ -889,6 +889,8 @@ export const en: Translations = {
     source: "Source",
     profile: "Inference profile",
     reading: "Reading",
+    readingDeclared: "Declared",
+    readingDefault: "Default",
     completeness: "Coverage",
     completenessHint:
       "How many subjects carry each modality, and which ones do not. An extract asked for by modality silently excludes the latter.",

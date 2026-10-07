@@ -1393,13 +1393,27 @@ export function OntologyCatalog() {
        *  que le profil ne distingue plus deux ontologies, elle ne disait meme
        *  plus de quoi on parle. Le nom reste en repli pour les photographies
        *  prises avant que la regle soit enregistree. */
-      cell: (ontology) => (
-        <span className="text-xs text-muted-foreground">
-          {(ontology.manifest as ManifestLu | undefined)?.readingRule?.description ||
-            ontology.inferenceProfile ||
-            '—'}
-        </span>
-      ),
+      cell: (ontology) => {
+        const regle = (ontology.manifest as ManifestLu | undefined)?.readingRule;
+        /* Compact dans la colonne, entier au survol.
+         *
+         *  La description de la regle par defaut est une phrase - « the first
+         *  segment that looks like a subject identifier, then the next two as
+         *  visit and modality » - qui dit la verite et ne tient pas dans une
+         *  cellule. Ce qu'une liste doit donner, c'est la difference entre deux
+         *  lignes : declaree ou par defaut. Le reste se lit au survol, et en
+         *  entier dans le panneau « Motif ». */
+        const compacte = regle?.source === 'declared'
+          ? regle.description || t('ontologies.readingDeclared')
+          : regle?.source === 'default'
+            ? t('ontologies.readingDefault')
+            : ontology.inferenceProfile || '—';
+        return (
+          <span className="text-xs text-muted-foreground" title={regle?.description || undefined}>
+            {compacte}
+          </span>
+        );
+      },
     },
     {
       id: 'projects',
