@@ -87,6 +87,7 @@ import type {
   Workspace,
   ServiceAccount,
   MountedProjectList,
+  DatasetCard,
   DatasetPathLayout,
   DatasetPathLayoutTrial,
   WorkspaceStartup,
@@ -526,6 +527,16 @@ export const pathLayoutApi = {
   /** Ce que la regle lirait, sur de vrais chemins, sans rien enregistrer. */
   try: (datasetId: string, input: Record<string, number | null>) =>
     api.post<DatasetPathLayoutTrial>(`${V1}/datasets/${datasetId}/path-layout/trials`, input),
+};
+
+/** Ce qu'un dataset dit de lui-meme (ADR-047).
+ *
+ *  La card vit sur le dataset et non sur l'ontologie : un rescan produit une
+ *  nouvelle ontologie, donc une card declaree y serait perdue a chaque fois. */
+export const datasetCardApi = {
+  get: (datasetId: string) => api.get<DatasetCard>(`${V1}/datasets/${datasetId}/card`),
+  set: (datasetId: string, input: Record<string, unknown>) =>
+    api.put<DatasetCard>(`${V1}/datasets/${datasetId}/card`, input),
 };
 
 /** Ce que supprimer emporte.

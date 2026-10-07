@@ -40,6 +40,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { presentRole } from '@/lib/presenters';
 import { useAuth } from '@/lib/auth';
+import { DatasetCardPanel } from './dataset-card';
 import { DatasetExplorer } from './dataset-explorer';
 import type { Dataset, DatasetAccess } from '@/lib/api/types';
 
@@ -868,6 +869,7 @@ export function DatasetCatalog({
 
       {selected ? (
         <>
+          <DatasetCardPanel dataset={selected} />
           <DatasetExplorer dataset={selected} />
           <DatasetCredentials dataset={selected} />
           <DatasetOwnership dataset={selected} />

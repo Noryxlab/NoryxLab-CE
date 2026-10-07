@@ -1147,6 +1147,77 @@ export interface DatasetPathLayout {
   description: string;
 }
 
+/** Ce qu'un dataset dit de lui-meme, et ce que la plateforme en verifie
+ *  (ADR-047).
+ *
+ *  Le scan produit un inventaire de chemins et le dit honnetement. Ce qu'il ne
+ *  peut pas produire, c'est ce dont le dataset *parle* : sa finalite, ce pour
+ *  quoi il ne doit pas servir, la base legale, les unites, a qui demander.
+ *  Rien de tout ca ne se deduit d'un octet, donc c'est declare.
+ *
+ *  Et jamais rendu seul : la confiance n'exclut pas le controle. */
+export interface DatasetCardClaims {
+  subjects?: number;
+  objects?: number;
+  modalities?: string[];
+  firstVisit?: string;
+  lastVisit?: string;
+  pseudonymised?: boolean;
+}
+
+export interface DatasetCardContent {
+  version: number;
+  study?: string;
+  release?: string;
+  population?: string;
+  inclusion?: string;
+  purpose?: string;
+  outOfScope?: string;
+  limitations?: string;
+  provenance?: string;
+  legalBasis?: string;
+  consent?: string;
+  licence?: string;
+  units?: string;
+  conventions?: string;
+  contact?: string;
+  claims?: DatasetCardClaims;
+  declaredBy?: string;
+  declaredAt?: string;
+}
+
+/** `not_checkable` est un verdict, pas un echec : rien ne peut mesurer une
+ *  finalite. `unverified` veut dire que rien ne l'a encore mesuree - ce que dit
+ *  une pseudonymisation declaree tant qu'aucun scan de structure n'a tourne. */
+export type DatasetCardVerdict =
+  | 'agrees'
+  | 'differs'
+  | 'undeclared'
+  | 'unverified'
+  | 'not_checkable';
+
+export interface DatasetCardCheck {
+  field: string;
+  verdict: DatasetCardVerdict;
+  declared?: string;
+  measured?: string;
+  /** Comment la mesure a ete obtenue, nommee pour qu'on puisse en juger. */
+  method?: string;
+  /** Quand la mesure a ete prise, pas quand la comparaison a tourne : une
+   *  comparaison fraiche contre un scan d'il y a un mois est une reponse d'il y
+   *  a un mois. */
+  at?: string;
+  note?: string;
+}
+
+export interface DatasetCard {
+  declared: boolean;
+  card?: DatasetCardContent | null;
+  checks: DatasetCardCheck[];
+  measuredBy?: string;
+  measuredAt?: string;
+}
+
 export interface DatasetPathLayoutTrial {
   items: { path: string; subject: string; visit: string; modality: string }[];
   recognised: number;
