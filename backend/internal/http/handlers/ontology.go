@@ -765,6 +765,24 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 		}
 		object.Manifest = raw
 	} else {
+		// Une source, une ontologie - y compris quand celle qui existe est
+		// invisible a l'appelant.
+		//
+		// Le rafraichissement ne regarde que les ontologies qu'il peut voir,
+		// deliberement : rafraichir une ontologie invisible serait modifier
+		// l'objet de quelqu'un d'autre par un scan. Mais sans cette
+		// verification, le scan creait une jumelle a la place - ce qui est
+		// pire, parce que deux ontologies decrivent alors le meme bucket et
+		// rien ne dit laquelle fait foi. On refuse, en expliquant quoi
+		// demander.
+		if autre, existe, err := h.ontologyOverSource(manifest); err == nil && existe {
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error": "cette source est deja decrite par une ontologie que vous ne pouvez pas voir ; demandez-en l'acces plutot que d'en creer une seconde",
+				"code":  "source_already_described",
+				"owner": autre.OwnerName,
+			})
+			return
+		}
 		object = ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
 		if err := h.ontologyStore.Create(object); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
@@ -824,14 +842,46 @@ func (h Handlers) ontologyToRefresh(identity auth.Identity, manifest ontologyMan
 		if !strings.EqualFold(strings.TrimSpace(item.SourceType), strings.TrimSpace(manifest.SourceType)) {
 			continue
 		}
-		if !strings.EqualFold(strings.TrimSpace(item.InferenceProfile), strings.TrimSpace(manifest.InferenceProfile)) {
-			continue
-		}
+		// Le profil ne separe plus deux ontologies.
+		//
+		// Il le faisait, et c'etait un second chemin vers le doublon : un
+		// rescan avec un autre profil creait une jumelle sur la meme source,
+		// et plus rien ne disait laquelle decrivait le bucket. Une source, une
+		// ontologie - et la difference entre deux photographies se lit dans la
+		// regle de lecture que chacune enregistre (ADR-040), qui est
+		// precisement ce a quoi cette regle sert.
 		if !trouvee || item.UpdatedAt.After(choisie.UpdatedAt) {
 			choisie, trouvee = item, true
 		}
 	}
 	return choisie, trouvee, nil
+}
+
+// ontologyOverSource finds any ontology over this source, visible or not.
+//
+// The companion of ontologyToRefresh, and the reason they are two functions:
+// that one answers "may I refresh this", this one answers "does one exist at
+// all". Conflating them is how a bucket ends up described twice - which EMSE
+// carried for a month, two PREMYOM1000 over one bucket with 31 and 32 subjects
+// and nothing to say which was the live one.
+func (h Handlers) ontologyOverSource(manifest ontologyManifest) (ontologydomain.Ontology, bool, error) {
+	sourceID := strings.TrimSpace(manifest.SourceID)
+	if sourceID == "" {
+		return ontologydomain.Ontology{}, false, nil
+	}
+	items, err := h.ontologyStore.ListAll()
+	if err != nil {
+		return ontologydomain.Ontology{}, false, err
+	}
+	for _, item := range items {
+		if strings.TrimSpace(item.SourceID) != sourceID {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.SourceType), strings.TrimSpace(manifest.SourceType)) {
+			return item, true, nil
+		}
+	}
+	return ontologydomain.Ontology{}, false, nil
 }
 
 func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem, bool, error) {

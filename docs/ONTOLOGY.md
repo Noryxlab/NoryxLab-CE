@@ -352,3 +352,31 @@ Each accepted edit increments the card version and records who wrote it. An
 extract records the version it was cut against, so a cohort's `n` stays
 explainable after a later edit — the same reason an ontology records the reading
 rule that produced it (ADR-040).
+
+## One source, one ontology
+
+EMSE carried two `PREMYOM1000` over one bucket for a month — 31 subjects and 32
+subjects, and nothing to say which was the live one. Two paths led there, and
+both are closed.
+
+**A different inference profile no longer separates two ontologies.** It did, so
+a rescan with another profile created a twin. One source, one ontology — and the
+difference between two photographs is read in the reading rule each one records
+(ADR-040), which is exactly what that rule is for.
+
+**An ontology the caller cannot see is still found.** Refreshing only looks among
+visible ontologies, deliberately: refreshing an invisible one would be editing
+somebody else's object through a scan. But the scan then created a twin instead,
+which is worse — two ontologies describing one bucket with nothing saying which
+holds. A scan over a source already described by an invisible ontology is now
+refused with `409 source_already_described`, and the message says to ask for
+access rather than to scan again.
+
+Extracts are the exception, and always were: several extracts over one ontology
+is the point of an extract.
+
+**Not enforced in the database yet.** A unique index on `(source_type,
+source_id)` is the belt for this, and it cannot ship while a cluster still
+carries a duplicate: a failing migration statement stops the backend from
+starting, so the index would take the platform down rather than protect it.
+Resolve the duplicates, then add it.
