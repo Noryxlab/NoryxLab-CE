@@ -375,33 +375,41 @@ components:
           type: object
           nullable: true
           description: >-
-            The declaration, as written. Carries its version, who wrote it and
-            when.
-        checks:
-          type: array
+            One paragraph, its version, and who wrote it. One field rather than
+            a form: a long form is a form nobody fills, and half the labels a
+            first version carried were a hospital's vocabulary on a platform
+            also sold to banks.
+          properties:
+            version: { type: integer }
+            text: { type: string }
+            declaredBy: { type: string }
+            declaredAt: { type: string, format: date-time }
+        measured:
+          type: object
           description: >-
-            One line per checkable field, including the ones nobody declared -
-            a reader who does not see a field cannot tell it apart from a field
-            that passed.
-          items:
-            type: object
-            properties:
-              field: { type: string }
-              verdict:
-                type: string
-                enum: [agrees, differs, undeclared, unverified, not_checkable]
-              declared: { type: string }
-              measured: { type: string }
-              method:
-                type: string
-                description: How the measurement was obtained, named so a reader can judge it.
-              at:
-                type: string
-                format: date-time
-                description: When the measurement was taken, not when the comparison ran.
-              note: { type: string }
-        measuredBy: { type: string }
-        measuredAt: { type: string, format: date-time }
+            What the platform counted itself, travelling with the declaration
+            so a card never appears alone. No verdicts: prose cannot be checked.
+          properties:
+            subjects: { type: integer }
+            objects: { type: integer }
+            modalities: { type: array, items: { type: string } }
+            firstVisit: { type: string }
+            lastVisit: { type: string }
+            method: { type: string }
+            at: { type: string, format: date-time }
+        structure:
+          type: object
+          description: Whether anything has ever looked inside the files, and what it found.
+          properties:
+            ran: { type: boolean }
+            identifiersPresent: { type: boolean, nullable: true }
+            checked: { type: array, items: { type: string } }
+            present:
+              type: array
+              items: { type: string }
+              description: Which identifying fields held a value. Names only.
+            method: { type: string }
+            at: { type: string, format: date-time }
     OntologyStructureScan:
       type: object
       properties:

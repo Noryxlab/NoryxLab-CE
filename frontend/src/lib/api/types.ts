@@ -1147,76 +1147,49 @@ export interface DatasetPathLayout {
   description: string;
 }
 
-/** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme en
- *  verifie (ADR-047).
+/** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme a
+ *  mesure a cote (ADR-047).
  *
- *  Le scan produit un inventaire de chemins et le dit honnetement. Ce qu'il ne
- *  peut pas produire, c'est ce dont le dataset *parle* : sa finalite, ce pour
- *  quoi il ne doit pas servir, la base legale, les unites, a qui demander.
- *  Rien de tout ca ne se deduit d'un octet, donc c'est declare - et c'est porte
- *  par l'ontologie, qui est la couche de sens, non par le bucket.
- *
- *  Et jamais rendu seul : la confiance n'exclut pas le controle. */
-export interface OntologyCardClaims {
+ *  Un seul champ libre : un formulaire de quatorze champs etiquetes est un
+ *  formulaire que personne ne remplit, et la moitie de ces etiquettes etait le
+ *  vocabulaire d'un hopital sur une plateforme vendue aussi a des banques.
+ *  Un paragraphe est neutre par construction. */
+export interface OntologyCardContent {
+  version: number;
+  text?: string;
+  declaredBy?: string;
+  declaredAt?: string;
+}
+
+/** Les chiffres que la plateforme a pris elle-meme. Ils voyagent avec la
+ *  declaration : une card qui ne repete que ce qu'on lui a dit est une
+ *  brochure. Sans verdict - une prose ne se verifie pas. */
+export interface OntologyMeasured {
   subjects?: number;
   objects?: number;
   modalities?: string[];
   firstVisit?: string;
   lastVisit?: string;
-  pseudonymised?: boolean;
-}
-
-export interface OntologyCardContent {
-  version: number;
-  study?: string;
-  release?: string;
-  population?: string;
-  inclusion?: string;
-  purpose?: string;
-  outOfScope?: string;
-  limitations?: string;
-  provenance?: string;
-  legalBasis?: string;
-  consent?: string;
-  licence?: string;
-  units?: string;
-  conventions?: string;
-  contact?: string;
-  claims?: OntologyCardClaims;
-  declaredBy?: string;
-  declaredAt?: string;
-}
-
-/** `not_checkable` est un verdict, pas un echec : rien ne peut mesurer une
- *  finalite. `unverified` veut dire que rien ne l'a encore mesuree - ce que dit
- *  une pseudonymisation declaree tant qu'aucun scan de structure n'a tourne. */
-export type OntologyCardVerdict =
-  | 'agrees'
-  | 'differs'
-  | 'undeclared'
-  | 'unverified'
-  | 'not_checkable';
-
-export interface OntologyCardCheck {
-  field: string;
-  verdict: OntologyCardVerdict;
-  declared?: string;
-  measured?: string;
-  /** Comment la mesure a ete obtenue, nommee pour qu'on puisse en juger. */
   method?: string;
-  /** Quand la mesure a ete prise, pas quand la comparaison a tourne : une
-   *  comparaison fraiche contre un scan d'il y a un mois est une reponse d'il y
-   *  a un mois. */
   at?: string;
-  note?: string;
+}
+
+/** Si quelque chose a deja regarde *dans* les fichiers, et ce qu'il y a trouve.
+ *  `ran: false` n'est pas « rien trouve » : c'est « personne n'a verifie ». */
+export interface OntologyStructureSummary {
+  ran: boolean;
+  identifiersPresent?: boolean | null;
+  checked?: string[];
+  present?: string[];
+  method?: string;
+  at?: string;
 }
 
 export interface OntologyCard {
   declared: boolean;
   card?: OntologyCardContent | null;
-  checks: OntologyCardCheck[];
-  measuredBy?: string;
-  measuredAt?: string;
+  measured?: OntologyMeasured;
+  structure?: OntologyStructureSummary;
 }
 
 export interface DatasetPathLayoutTrial {

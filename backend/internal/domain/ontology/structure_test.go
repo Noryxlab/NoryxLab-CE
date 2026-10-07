@@ -1,6 +1,9 @@
 package ontology
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Un champ dans les deux listes est l'erreur que cette verification existe pour
 // attraper : il serait lu pour etre verifie *et* lu pour etre garde, et le
@@ -16,7 +19,7 @@ func TestUnChampDansLesDeuxListesEstRefuse(t *testing.T) {
 	if probleme == "" {
 		t.Fatal("un champ a la fois enregistre et identifiant a ete accepte")
 	}
-	if !contient(probleme, "PatientID") {
+	if !strings.Contains(probleme, "PatientID") {
 		t.Fatalf("le message doit nommer le champ : %q", probleme)
 	}
 }

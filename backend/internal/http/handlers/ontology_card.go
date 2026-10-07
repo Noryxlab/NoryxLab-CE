@@ -10,13 +10,13 @@ import (
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
-// The declared card, and the control column beside it (ADR-047).
+// The declared card, and what the platform measured beside it (ADR-047).
 //
 // The scan produces an inventory of paths and says so honestly. What it cannot
 // produce is what the data *means*: what it may be used for, what it must not
-// be used for, under what legal basis it was collected, or who to ask - and
-// none of that is inferable from any number of bytes. So it is declared, by the
-// person who knows, and this file is where that declaration is read and written.
+// be used for, under what right it is held, who to ask - and none of that is
+// inferable from any number of bytes. So it is declared, by the person who
+// knows, in one paragraph.
 //
 // On the ontology and not on the dataset. A dataset is a bucket with
 // credentials; the ontology is the layer that says what is in it, which is
@@ -26,49 +26,18 @@ import (
 // replaces the manifest and keeps the ontology, so a card beside the manifest
 // survives a rescan exactly as the name does.
 //
-// It is never returned alone. Trust does not exclude verification: every
-// declared figure the platform can measure is compared with the most recent
-// scan, and the verdict sits beside the declaration rather than over it.
-// Replacing somebody's word with a measurement destroys the only evidence that
-// they disagreed, which is the interesting fact.
+// It is never returned alone. Trust does not exclude verification, so the
+// figures the platform took itself travel with the declaration - with no
+// verdicts, because prose cannot be checked. Here is what somebody wrote, here
+// is what we counted and when, and here is whether anything has ever looked
+// inside the files.
 
 type cardRequest struct {
-	Study       string `json:"study"`
-	Release     string `json:"release"`
-	Population  string `json:"population"`
-	Inclusion   string `json:"inclusion"`
-	Purpose     string `json:"purpose"`
-	OutOfScope  string `json:"outOfScope"`
-	Limitations string `json:"limitations"`
-	Provenance  string `json:"provenance"`
-	LegalBasis  string `json:"legalBasis"`
-	Consent     string `json:"consent"`
-	Licence     string `json:"licence"`
-	Units       string `json:"units"`
-	Conventions string `json:"conventions"`
-	Contact     string `json:"contact"`
-
-	Subjects      *int     `json:"subjects"`
-	Objects       *int64   `json:"objects"`
-	Modalities    []string `json:"modalities"`
-	FirstVisit    string   `json:"firstVisit"`
-	LastVisit     string   `json:"lastVisit"`
-	Pseudonymised *bool    `json:"pseudonymised"`
+	Text string `json:"text"`
 }
 
 func cardFrom(req cardRequest) ontologydomain.Card {
-	card := ontologydomain.Card{
-		Study: req.Study, Release: req.Release, Population: req.Population,
-		Inclusion: req.Inclusion, Purpose: req.Purpose, OutOfScope: req.OutOfScope,
-		Limitations: req.Limitations, Provenance: req.Provenance,
-		LegalBasis: req.LegalBasis, Consent: req.Consent, Licence: req.Licence,
-		Units: req.Units, Conventions: req.Conventions, Contact: req.Contact,
-		Claims: ontologydomain.Claims{
-			Subjects: req.Subjects, Objects: req.Objects, Modalities: req.Modalities,
-			FirstVisit: req.FirstVisit, LastVisit: req.LastVisit,
-			Pseudonymised: req.Pseudonymised,
-		},
-	}
+	card := ontologydomain.Card{Text: req.Text}
 	card.Normalise()
 	return card
 }
@@ -93,26 +62,17 @@ func (h Handlers) requireOntologyForCard(w http.ResponseWriter, r *http.Request)
 	return item, true
 }
 
-// GetOntologyCard returns what this ontology says the data means, with the
-// checks beside it.
+// GetOntologyCard returns what this ontology says the data means, with what
+// the platform measured beside it.
 func (h Handlers) GetOntologyCard(w http.ResponseWriter, r *http.Request) {
 	item, ok := h.requireOntologyForCard(w, r)
 	if !ok {
 		return
 	}
-	measured := h.measuredFor(item)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"declared": item.Card.Declared(),
-		"card":     item.Card,
-		"checks":   ontologydomain.CheckCard(item.Card, measured),
-		// Named so a reader can judge the verdicts: a comparison against a
-		// month-old scan is a month-old answer, however fresh the comparison.
-		"measuredBy": measured.Method,
-		"measuredAt": measured.At,
-	})
+	writeJSON(w, http.StatusOK, cardPayload(item, h.measuredFor(item)))
 }
 
-// SetDatasetCard stores the declaration, or clears it with an empty body.
+// SetOntologyCard stores the declaration, or clears it with an empty body.
 func (h Handlers) SetOntologyCard(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -122,9 +82,9 @@ func (h Handlers) SetOntologyCard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Who may declare is who may grant: a card is what the dataset asserts
-	// about itself to everybody who can see it, which is an owner's statement
-	// and not a reader's note.
+	// Who may declare is who may grant: a card is what this ontology asserts
+	// to everybody who can see it, which is an owner's statement and not a
+	// reader's note.
 	if !h.canManageOntologyAccess(item, identity) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
 		return
@@ -162,15 +122,13 @@ func (h Handlers) SetOntologyCard(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to store the card"})
 		return
 	}
+	// The length and not the text: a card can hold a cohort's inclusion
+	// criteria, and an audit trail is not where that belongs.
 	h.emitAudit(r, identity.UserID(), "ontology.card.declared", "ontology", item.ID, "", "success", "",
-		map[string]any{"version": card.Version, "fields": declaredFields(card)})
+		map[string]any{"version": card.Version, "characters": len(card.Text)})
 
-	measured := h.measuredFor(item)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"declared": true,
-		"card":     card,
-		"checks":   ontologydomain.CheckCard(&card, measured),
-	})
+	item.Card = &card
+	writeJSON(w, http.StatusOK, cardPayload(item, h.measuredFor(item)))
 }
 
 // measuredFor is what this ontology's own passes measured.
@@ -182,11 +140,12 @@ func (h Handlers) SetOntologyCard(w http.ResponseWriter, r *http.Request) {
 // photograph and no other.
 func (h Handlers) measuredFor(item ontologydomain.Ontology) ontologydomain.Measured {
 	measured := ontologydomain.Measured{}
-	// The structure scan first, because its absence is the reason a declared
-	// pseudonymisation reads as unverified rather than agreeing with a check
-	// nobody ran.
+	// The structure scan first, because whether anything has ever looked inside
+	// the files is the question a count of objects cannot answer.
 	if item.Structure != nil {
 		measured.IdentifyingFieldsSeen = item.Structure.CarriedIdentifiers()
+		measured.IdentifyingChecked = item.Structure.IdentifyingChecked
+		measured.IdentifyingPresent = item.Structure.IdentifyingPresent
 		measured.IdentifyingMethod = item.Structure.Method
 		measured.IdentifyingAt = item.Structure.At
 	}
@@ -246,28 +205,28 @@ func visitRange(manifest ontologyManifest) (string, string) {
 	return first, last
 }
 
-// declaredFields names what was filled in, for the audit entry. The values are
-// not audited: a card can hold a cohort's inclusion criteria, and an audit
-// trail is not where that belongs.
-func declaredFields(card ontologydomain.Card) []string {
-	named := []struct {
-		name  string
-		value string
-	}{
-		{"study", card.Study}, {"release", card.Release}, {"population", card.Population},
-		{"inclusion", card.Inclusion}, {"purpose", card.Purpose}, {"outOfScope", card.OutOfScope},
-		{"limitations", card.Limitations}, {"provenance", card.Provenance},
-		{"legalBasis", card.LegalBasis}, {"consent", card.Consent}, {"licence", card.Licence},
-		{"units", card.Units}, {"conventions", card.Conventions}, {"contact", card.Contact},
+// cardPayload is what both endpoints answer: the declaration, and what the
+// platform measured beside it.
+func cardPayload(item ontologydomain.Ontology, measured ontologydomain.Measured) map[string]any {
+	return map[string]any{
+		"declared": item.Card.Declared(),
+		"card":     item.Card,
+		"measured": map[string]any{
+			"subjects":   measured.Subjects,
+			"objects":    measured.Objects,
+			"modalities": measured.Modalities,
+			"firstVisit": measured.FirstVisit,
+			"lastVisit":  measured.LastVisit,
+			"method":     measured.Method,
+			"at":         measured.At,
+		},
+		"structure": map[string]any{
+			"ran":                measured.IdentifyingFieldsSeen != nil,
+			"identifiersPresent": measured.IdentifyingFieldsSeen,
+			"checked":            measured.IdentifyingChecked,
+			"present":            measured.IdentifyingPresent,
+			"method":             measured.IdentifyingMethod,
+			"at":                 measured.IdentifyingAt,
+		},
 	}
-	out := []string{}
-	for _, field := range named {
-		if strings.TrimSpace(field.value) != "" {
-			out = append(out, field.name)
-		}
-	}
-	if card.Claims.Declared() {
-		out = append(out, "claims")
-	}
-	return out
 }

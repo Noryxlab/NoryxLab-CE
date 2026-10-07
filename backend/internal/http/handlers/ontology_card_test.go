@@ -9,66 +9,50 @@ import (
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
-	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
-// Le manifeste que le scan aurait produit sur hds-for : 32 sujets, 24 604
-// objets, deux modalites, des visites datees.
+// Le manifeste qu'un scan aurait produit : 32 sujets, 24 604 objets.
 func manifesteMesure(t *testing.T) json.RawMessage {
 	t.Helper()
-	m := ontologyManifest{
+	raw, err := json.Marshal(ontologyManifest{
 		SourceType: "dataset", SourceID: "ds-1",
 		Summary:     ontologySummary{Subjects: 32, Objects: 24604},
 		GeneratedAt: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC),
 		Subjects: []ontologySubject{{
-			ID: "AAAAAAA1234-5678",
-			Visits: []ontologyVisit{
-				{Date: "20240115", Modalities: []ontologyModality{{Name: "DICOM"}}},
-				{Date: "20250630", Modalities: []ontologyModality{{Name: "OCT"}}},
-			},
+			ID:     "AAAAAAA1234-5678",
+			Visits: []ontologyVisit{{Date: "20240115", Modalities: []ontologyModality{{Name: "DICOM"}}}},
 		}},
-	}
-	raw, err := json.Marshal(m)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return raw
 }
 
-func handlersAvecDataset(t *testing.T) (Handlers, *memory.DatasetStore) {
+func handlersAvecOntologie(t *testing.T) Handlers {
 	t.Helper()
-	datasets := memory.NewDatasetStore()
-	if err := datasets.Create(datasetdomain.Dataset{
-		ID: "ds-1", Name: "hds-for", OwnerUserID: "stef", OwnerType: "user", OwnerID: "stef",
-		Bucket: "hds-for", Classification: "regulated",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	ontologies := memory.NewOntologyObjectStore()
-	if err := ontologies.Create(ontology.Ontology{
-		ID: "onto-1", Name: "hds-for", OwnerUserID: "stef", OwnerType: "user", OwnerID: "stef",
+	store := memory.NewOntologyObjectStore()
+	if err := store.Create(ontology.Ontology{
+		ID: "onto-1", Name: "PREMYOM1000", OwnerUserID: "stef", OwnerType: "user", OwnerID: "stef",
 		SourceType: "dataset", SourceID: "ds-1", Manifest: manifesteMesure(t),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	return Handlers{datasetStore: datasets, ontologyStore: ontologies}, datasets
+	return Handlers{ontologyStore: store}
 }
 
-// identifie attache l'identite par le sceau de contexte, comme ailleurs dans
-// ces tests : le handler ne connait que requireIdentity.
 func identifie(r *http.Request) *http.Request {
 	return r.WithContext(auth.WithIdentity(r.Context(), auth.Identity{Username: "stef"}))
 }
 
-func lis(t *testing.T, h Handlers, id string) map[string]any {
+func lisCard(t *testing.T, h Handlers) map[string]any {
 	t.Helper()
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/ontologies/"+id+"/card", nil)
-	r.SetPathValue("ontologyID", id)
-	r = identifie(r)
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/ontologies/onto-1/card", nil)
+	r.SetPathValue("ontologyID", "onto-1")
 	w := httptest.NewRecorder()
-	h.GetOntologyCard(w, r)
+	h.GetOntologyCard(w, identifie(r))
 	if w.Code != http.StatusOK {
 		t.Fatalf("code %d : %s", w.Code, w.Body.String())
 	}
@@ -79,213 +63,119 @@ func lis(t *testing.T, h Handlers, id string) map[string]any {
 	return out
 }
 
-func verdict(t *testing.T, payload map[string]any, champ string) map[string]any {
+func ecrisCard(t *testing.T, h Handlers, corps string) *httptest.ResponseRecorder {
 	t.Helper()
-	for _, brut := range payload["checks"].([]any) {
-		c := brut.(map[string]any)
-		if c["field"] == champ {
-			return c
-		}
-	}
-	t.Fatalf("aucun controle pour %q", champ)
-	return nil
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(corps))
+	r.SetPathValue("ontologyID", "onto-1")
+	w := httptest.NewRecorder()
+	h.SetOntologyCard(w, identifie(r))
+	return w
 }
 
 // Une ontologie que personne n'a decrite se lit quand meme, et dit ce qu'elle
-// mesure.
-//
-// C'est l'etat de depart de toutes les ontologies existantes : la card est
-// vide, et une card vide est un etat legitime qui se montre comme vide.
+// mesure. C'est l'etat de depart de toutes les ontologies existantes.
 func TestUneOntologieSansCardSeLitEtMontreSesMesures(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-	payload := lis(t, h, "onto-1")
+	payload := lisCard(t, handlersAvecOntologie(t))
 	if payload["declared"] != false {
 		t.Fatalf("declared = %v, attendu false", payload["declared"])
 	}
-	if payload["measuredBy"] != "path scan" {
-		t.Fatalf("measuredBy = %v, attendu \"path scan\"", payload["measuredBy"])
+	mesure := payload["measured"].(map[string]any)
+	if mesure["method"] != "path scan" || mesure["subjects"] != float64(32) {
+		t.Fatalf("les mesures doivent rester visibles sans declaration : %+v", mesure)
 	}
-	c := verdict(t, payload, "subjects")
-	if c["verdict"] != "undeclared" || c["measured"] != "32" {
-		t.Fatalf("subjects : %+v", c)
+	// Et rien n'a regarde dans les fichiers.
+	if payload["structure"].(map[string]any)["ran"] != false {
+		t.Fatalf("structure : %+v", payload["structure"])
 	}
 }
 
-// La declaration est ecrite, versionnee, attribuee - et confrontee.
-func TestUneDeclarationEstVersionneeAttribueeEtConfrontee(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-	corps := `{"study":"SELENA","purpose":"mesurer la progression","subjects":32,
-	           "objects":24604,"modalities":["DICOM","OCT"],"firstVisit":"20240115",
-	           "pseudonymised":true}`
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(corps))
-	r.SetPathValue("ontologyID", "onto-1")
-	r = identifie(r)
-	w := httptest.NewRecorder()
-	h.SetOntologyCard(w, r)
-	if w.Code != http.StatusOK {
+// Un paragraphe, versionne et attribue - et les mesures restent a cote.
+//
+// Un seul champ, parce qu'un formulaire de quatorze champs etiquetes est un
+// formulaire que personne ne remplit, et parce que la moitie de ces etiquettes
+// etait le vocabulaire d'un hopital sur une plateforme vendue aussi a des
+// banques.
+func TestUnParagrapheEstVersionneEtAttribue(t *testing.T) {
+	h := handlersAvecOntologie(t)
+	if w := ecrisCard(t, h, `{"text":"Cohorte PREMYOM1000. Ne pas utiliser pour du depistage."}`); w.Code != http.StatusOK {
 		t.Fatalf("code %d : %s", w.Code, w.Body.String())
 	}
-
-	payload := lis(t, h, "onto-1")
+	payload := lisCard(t, h)
 	card := payload["card"].(map[string]any)
-	if card["version"] != float64(1) {
-		t.Fatalf("version = %v, attendu 1", card["version"])
+	if card["version"] != float64(1) || card["declaredBy"] != "stef" {
+		t.Fatalf("card = %+v", card)
 	}
-	if card["declaredBy"] != "stef" {
-		t.Fatalf("declaredBy = %v, attendu stef", card["declaredBy"])
+	if !strings.Contains(card["text"].(string), "depistage") {
+		t.Fatalf("le texte n'a pas ete garde : %+v", card)
 	}
-	// Les figures justes sont confirmees.
-	for _, champ := range []string{"subjects", "objects", "modalities", "firstVisit"} {
-		if c := verdict(t, payload, champ); c["verdict"] != "agrees" {
-			t.Errorf("%s : %+v", champ, c)
-		}
-	}
-	// La prose ne se verifie pas, et le dire est un verdict.
-	if c := verdict(t, payload, "purpose"); c["verdict"] != "not_checkable" {
-		t.Errorf("purpose : %+v", c)
-	}
-	// Et la pseudonymisation reste non verifiee : aucun scan de structure n'a
-	// encore lu les champs techniques. C'est ce que l'enquete du 05/10/2026
-	// n'avait nulle part pour ecrire.
-	c := verdict(t, payload, "pseudonymised")
-	if c["verdict"] != "unverified" {
-		t.Fatalf("pseudonymised : %+v", c)
-	}
-	if c["note"] == "" {
-		t.Fatal("il faut dire pourquoi ce n'est pas verifie")
+	// Les mesures voyagent toujours avec la declaration : une card qui ne
+	// repete que ce qu'on lui a dit est une brochure.
+	if payload["measured"].(map[string]any)["objects"] != float64(24604) {
+		t.Fatalf("mesures = %+v", payload["measured"])
 	}
 
-	// Une seconde edition incremente, elle ne repart pas de un.
-	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{"study":"SELENA v2"}`))
-	r2.SetPathValue("ontologyID", "onto-1")
-	r2 = identifie(r2)
-	w2 := httptest.NewRecorder()
-	h.SetOntologyCard(w2, r2)
-	if v := lis(t, h, "onto-1")["card"].(map[string]any)["version"]; v != float64(2) {
-		t.Fatalf("version apres seconde edition = %v, attendu 2", v)
+	if w := ecrisCard(t, h, `{"text":"Deuxieme version."}`); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	if v := lisCard(t, h)["card"].(map[string]any)["version"]; v != float64(2) {
+		t.Fatalf("version = %v, attendu 2", v)
 	}
 }
 
-// Une declaration fausse est rapportee et conservee telle quelle.
-func TestUneDeclarationFausseEstRapporteeEtConservee(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
-		strings.NewReader(`{"subjects":34,"modalities":["DICOM"]}`))
-	r.SetPathValue("ontologyID", "onto-1")
-	r = identifie(r)
-	h.SetOntologyCard(httptest.NewRecorder(), r)
-
-	payload := lis(t, h, "onto-1")
-	c := verdict(t, payload, "subjects")
-	if c["verdict"] != "differs" || c["declared"] != "34" || c["measured"] != "32" {
-		t.Fatalf("subjects : %+v", c)
-	}
-	// La declaration n'a pas ete reecrite par la mesure.
-	if claims := payload["card"].(map[string]any)["claims"].(map[string]any); claims["subjects"] != float64(34) {
-		t.Fatalf("la declaration a ete reecrite : %+v", claims)
-	}
-	// Et l'ecart d'ensemble dit dans quel sens.
-	if c := verdict(t, payload, "modalities"); c["verdict"] != "differs" || c["note"] == "" {
-		t.Fatalf("modalities : %+v", c)
-	}
-}
-
-// Un corps vide efface la card : c'est la sortie quand une declaration s'avere
+// Un texte vide efface la card : c'est la sortie quand une description s'avere
 // fausse et que personne ne sait encore par quoi la remplacer.
-func TestUnCorpsVideEffaceLaCard(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{"study":"SELENA"}`))
-	r.SetPathValue("ontologyID", "onto-1")
-	r = identifie(r)
-	h.SetOntologyCard(httptest.NewRecorder(), r)
-
-	r2 := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card", strings.NewReader(`{}`))
-	r2.SetPathValue("ontologyID", "onto-1")
-	r2 = identifie(r2)
-	w2 := httptest.NewRecorder()
-	h.SetOntologyCard(w2, r2)
-	if w2.Code != http.StatusOK {
-		t.Fatalf("code %d", w2.Code)
+func TestUnTexteVideEffaceLaCard(t *testing.T) {
+	h := handlersAvecOntologie(t)
+	ecrisCard(t, h, `{"text":"quelque chose"}`)
+	if w := ecrisCard(t, h, `{"text":"   "}`); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
 	}
-	if lis(t, h, "onto-1")["declared"] != false {
+	if lisCard(t, h)["declared"] != false {
 		t.Fatal("la card n'a pas ete effacee")
 	}
 }
 
-// Le verdict de pseudonymisation devient date une fois le scan de structure
-// enregistre. C'est le passage de "non verifie" a une reponse.
-func TestLeScanDeStructureDateLeVerdict(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-
-	// On declare pseudonymise : sans scan, c'est non verifie.
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
-		strings.NewReader(`{"pseudonymised":true}`))
-	r.SetPathValue("ontologyID", "onto-1")
-	h.SetOntologyCard(httptest.NewRecorder(), identifie(r))
-	if c := verdict(t, lis(t, h, "onto-1"), "pseudonymised"); c["verdict"] != "unverified" {
-		t.Fatalf("avant le scan : %+v", c)
-	}
-
-	// Un scan passe, et ne trouve aucun identifiant.
+// Le scan de structure se montre a cote, avec sa date et les champs regardes.
+func TestLeScanDeStructureSeMontreAvecSaDate(t *testing.T) {
+	h := handlersAvecOntologie(t)
 	corps := `{"allowlists":[{"format":"dicom","record":["Modality"],
-	            "identifying":["PatientName","PatientID","PatientBirthDate"]}],
-	           "objects":3592,"identifyingChecked":["PatientName","PatientID","PatientBirthDate"],
-	           "method":"structure scan (pydicom)"}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("ontologyID", "onto-1")
-	ws := httptest.NewRecorder()
-	h.SetOntologyStructureScan(ws, identifie(rs))
-	if ws.Code != http.StatusOK {
-		t.Fatalf("code %d : %s", ws.Code, ws.Body.String())
-	}
-
-	c := verdict(t, lis(t, h, "onto-1"), "pseudonymised")
-	if c["verdict"] != "agrees" {
-		t.Fatalf("apres un scan propre : %+v", c)
-	}
-	if c["method"] != "structure scan (pydicom)" {
-		t.Fatalf("la methode doit etre nommee : %+v", c)
-	}
-	if c["at"] == nil || c["at"] == "" {
-		t.Fatalf("le verdict doit porter sa date : %+v", c)
-	}
-}
-
-// Et un identifiant trouve contredit la declaration, en nommant le champ.
-func TestUnIdentifiantTrouveContreditLaDeclaration(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
-	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/card",
-		strings.NewReader(`{"pseudonymised":true}`))
-	r.SetPathValue("ontologyID", "onto-1")
-	h.SetOntologyCard(httptest.NewRecorder(), identifie(r))
-
-	corps := `{"allowlists":[{"format":"dicom","identifying":["PatientName","PatientID"]}],
+	            "identifying":["PatientName","PatientID"]}],
 	           "objects":3592,"identifyingChecked":["PatientName","PatientID"],
-	           "identifyingPresent":["PatientName"]}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("ontologyID", "onto-1")
-	h.SetOntologyStructureScan(httptest.NewRecorder(), identifie(rs))
+	           "identifyingPresent":["PatientName"],
+	           "method":"structure scan (pydicom)"}`
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
+	r.SetPathValue("ontologyID", "onto-1")
+	w := httptest.NewRecorder()
+	h.SetOntologyStructureScan(w, identifie(r))
+	if w.Code != http.StatusOK {
+		t.Fatalf("code %d : %s", w.Code, w.Body.String())
+	}
 
-	if c := verdict(t, lis(t, h, "onto-1"), "pseudonymised"); c["verdict"] != "differs" {
-		t.Fatalf("%+v", c)
+	structure := lisCard(t, h)["structure"].(map[string]any)
+	if structure["ran"] != true || structure["identifiersPresent"] != true {
+		t.Fatalf("structure = %+v", structure)
+	}
+	if structure["method"] != "structure scan (pydicom)" || structure["at"] == "" {
+		t.Fatalf("la methode et la date doivent etre nommees : %+v", structure)
+	}
+	present := structure["present"].([]any)
+	if len(present) != 1 || present[0] != "PatientName" {
+		t.Fatalf("le champ fautif doit etre nomme, et lui seul : %+v", present)
 	}
 }
 
-// Un scanner qui tente d'enregistrer les valeurs d'un champ identifiant est
-// refuse. Le scanner est un client : ce qu'il envoie ne decide pas.
+// Un scanner ne peut pas enregistrer les valeurs d'un champ identifiant : il
+// est un client, ce qu'il envoie ne decide pas.
 func TestUnScannerNePeutPasEnregistrerUnChampIdentifiant(t *testing.T) {
-	h, _ := handlersAvecDataset(t)
+	h := handlersAvecOntologie(t)
 	corps := `{"allowlists":[{"format":"dicom","record":["Modality"],"identifying":["PatientName"]}],
 	           "objects":10,
 	           "tallies":[{"field":"PatientName","values":{"DUPONT":3},"distinct":1,"present":3}]}`
-	rs := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
-	rs.SetPathValue("ontologyID", "onto-1")
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/ontologies/onto-1/structure-scan", strings.NewReader(corps))
+	r.SetPathValue("ontologyID", "onto-1")
 	w := httptest.NewRecorder()
-	h.SetOntologyStructureScan(w, identifie(rs))
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("code %d, attendu 400 : %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "PatientName") {
-		t.Fatalf("le refus doit nommer le champ : %s", w.Body.String())
+	h.SetOntologyStructureScan(w, identifie(r))
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "PatientName") {
+		t.Fatalf("code %d : %s", w.Code, w.Body.String())
 	}
 }
