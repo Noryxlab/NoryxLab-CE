@@ -153,6 +153,14 @@ func (h Handlers) SetDatasetCard(w http.ResponseWriter, r *http.Request) {
 // claiming agreement with a count that was never taken.
 func (h Handlers) measuredFor(datasetID string) datasetdomain.Measured {
 	measured := datasetdomain.Measured{}
+	// The structure scan first, because it answers a different question from
+	// the path scan and its absence is the reason a declared pseudonymisation
+	// reads as unverified rather than agreeing with a check nobody ran.
+	if item, found, err := h.datasetStore.GetByID(datasetID); err == nil && found && item.Structure != nil {
+		measured.IdentifyingFieldsSeen = item.Structure.CarriedIdentifiers()
+		measured.IdentifyingMethod = item.Structure.Method
+		measured.IdentifyingAt = item.Structure.At
+	}
 	if h.ontologyStore == nil {
 		return measured
 	}
@@ -185,9 +193,6 @@ func (h Handlers) measuredFor(datasetID string) datasetdomain.Measured {
 	measured.At = manifest.GeneratedAt
 	measured.Modalities = modalitiesIn(manifest)
 	measured.FirstVisit, measured.LastVisit = visitRange(manifest)
-	// IdentifyingFieldsSeen stays nil: no structure scan exists yet, which is
-	// why a declared "pseudonymised" reads as unverified. ADR-047 authorises
-	// that scan; until it runs, saying so is the honest answer.
 	return measured
 }
 

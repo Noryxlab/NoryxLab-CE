@@ -453,6 +453,10 @@ func migrationStatements() []string {
 		// Beside the layout and for the same reason: a rescan produces a new
 		// ontology, so a declared card living there would be lost every time.
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS card_json JSONB`,
+		// What the last audited pass over this dataset's files found. Separate
+		// from the card because one is declared and the other measured, and
+		// ADR-047's safeguard is that a reader can always tell which.
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS structure_scan_json JSONB`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_user_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE datasets SET owner_id=owner_user_id WHERE owner_id=''`,
 		`UPDATE datasets SET credential_user_id=owner_user_id WHERE credential_user_id=''`,
@@ -2392,7 +2396,7 @@ func (s *Store) ListDatasetsBySubjects(subjects []dataset.Subject) ([]dataset.Da
 }
 
 func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, structure_scan_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2400,12 +2404,13 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		var layout, card []byte
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &card, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var layout, card, structure []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &card, &structure, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		item.PathLayout = decodePathLayout(layout)
 		item.Card = decodeCard(card)
+		item.Structure = decodeStructureScan(structure)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2413,8 +2418,8 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	var layout, card []byte
-	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var layout, card, structure []byte
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, structure_scan_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.OwnerType,
@@ -2431,6 +2436,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		&item.CredentialUserID,
 		&layout,
 		&card,
+		&structure,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -2441,6 +2447,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		return dataset.Dataset{}, false, err
 	}
 	item.Card = decodeCard(card)
+	item.Structure = decodeStructureScan(structure)
 	return item, true, nil
 }
 
@@ -2511,6 +2518,38 @@ func (s *Store) SetDatasetCard(datasetID string, card *dataset.Card) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// SetDatasetStructureScan records what one audited pass found, or clears it.
+func (s *Store) SetDatasetStructureScan(datasetID string, scan *dataset.StructureScan) error {
+	var encoded any
+	if scan != nil {
+		raw, err := json.Marshal(scan)
+		if err != nil {
+			return err
+		}
+		encoded = raw
+	}
+	result, err := s.db.Exec(`UPDATE datasets SET structure_scan_json=$2, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(datasetID), encoded)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func decodeStructureScan(raw []byte) *dataset.StructureScan {
+	if len(raw) == 0 {
+		return nil
+	}
+	var scan dataset.StructureScan
+	if err := json.Unmarshal(raw, &scan); err != nil {
+		return nil
+	}
+	return &scan
 }
 
 // decodeCard reads a stored card back, and an unreadable one as none - for

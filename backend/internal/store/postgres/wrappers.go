@@ -215,6 +215,9 @@ func (s *DatasetStore) SetPathLayout(datasetID string, layout *dataset.PathLayou
 func (s *DatasetStore) SetCard(datasetID string, card *dataset.Card) error {
 	return s.Store.SetDatasetCard(datasetID, card)
 }
+func (s *DatasetStore) SetStructureScan(datasetID string, scan *dataset.StructureScan) error {
+	return s.Store.SetDatasetStructureScan(datasetID, scan)
+}
 func (s *DatasetStore) Delete(id string) error { return s.Store.DeleteDataset(id) }
 func (s *DatasetStore) ListAccess(datasetID string) ([]dataset.Access, error) {
 	return s.Store.ListDatasetAccess(datasetID)

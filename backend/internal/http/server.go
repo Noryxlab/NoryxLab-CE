@@ -207,6 +207,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// What the dataset says about itself, with the checks beside it (ADR-047).
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/card", h.GetDatasetCard)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/card", h.SetDatasetCard)
+	// What one audited pass over this dataset's files found. Reading inside
+	// files is a separate act from listing their keys (ADR-047).
+	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/structure-scan", h.GetDatasetStructureScan)
+	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/structure-scan", h.SetDatasetStructureScan)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/path-layout/trials", h.TryDatasetPathLayout)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)

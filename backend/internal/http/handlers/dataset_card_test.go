@@ -210,3 +210,81 @@ func TestUnCorpsVideEffaceLaCard(t *testing.T) {
 		t.Fatal("la card n'a pas ete effacee")
 	}
 }
+
+// Le verdict de pseudonymisation devient date une fois le scan de structure
+// enregistre. C'est le passage de "non verifie" a une reponse.
+func TestLeScanDeStructureDateLeVerdict(t *testing.T) {
+	h, _ := handlersAvecDataset(t)
+
+	// On declare pseudonymise : sans scan, c'est non verifie.
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card",
+		strings.NewReader(`{"pseudonymised":true}`))
+	r.SetPathValue("datasetID", "ds-1")
+	h.SetDatasetCard(httptest.NewRecorder(), identifie(r))
+	if c := verdict(t, lis(t, h, "ds-1"), "pseudonymised"); c["verdict"] != "unverified" {
+		t.Fatalf("avant le scan : %+v", c)
+	}
+
+	// Un scan passe, et ne trouve aucun identifiant.
+	corps := `{"allowlists":[{"format":"dicom","record":["Modality"],
+	            "identifying":["PatientName","PatientID","PatientBirthDate"]}],
+	           "objects":3592,"identifyingChecked":["PatientName","PatientID","PatientBirthDate"],
+	           "method":"structure scan (pydicom)"}`
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("datasetID", "ds-1")
+	ws := httptest.NewRecorder()
+	h.SetDatasetStructureScan(ws, identifie(rs))
+	if ws.Code != http.StatusOK {
+		t.Fatalf("code %d : %s", ws.Code, ws.Body.String())
+	}
+
+	c := verdict(t, lis(t, h, "ds-1"), "pseudonymised")
+	if c["verdict"] != "agrees" {
+		t.Fatalf("apres un scan propre : %+v", c)
+	}
+	if c["method"] != "structure scan (pydicom)" {
+		t.Fatalf("la methode doit etre nommee : %+v", c)
+	}
+	if c["at"] == nil || c["at"] == "" {
+		t.Fatalf("le verdict doit porter sa date : %+v", c)
+	}
+}
+
+// Et un identifiant trouve contredit la declaration, en nommant le champ.
+func TestUnIdentifiantTrouveContreditLaDeclaration(t *testing.T) {
+	h, _ := handlersAvecDataset(t)
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/card",
+		strings.NewReader(`{"pseudonymised":true}`))
+	r.SetPathValue("datasetID", "ds-1")
+	h.SetDatasetCard(httptest.NewRecorder(), identifie(r))
+
+	corps := `{"allowlists":[{"format":"dicom","identifying":["PatientName","PatientID"]}],
+	           "objects":3592,"identifyingChecked":["PatientName","PatientID"],
+	           "identifyingPresent":["PatientName"]}`
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("datasetID", "ds-1")
+	h.SetDatasetStructureScan(httptest.NewRecorder(), identifie(rs))
+
+	if c := verdict(t, lis(t, h, "ds-1"), "pseudonymised"); c["verdict"] != "differs" {
+		t.Fatalf("%+v", c)
+	}
+}
+
+// Un scanner qui tente d'enregistrer les valeurs d'un champ identifiant est
+// refuse. Le scanner est un client : ce qu'il envoie ne decide pas.
+func TestUnScannerNePeutPasEnregistrerUnChampIdentifiant(t *testing.T) {
+	h, _ := handlersAvecDataset(t)
+	corps := `{"allowlists":[{"format":"dicom","record":["Modality"],"identifying":["PatientName"]}],
+	           "objects":10,
+	           "tallies":[{"field":"PatientName","values":{"DUPONT":3},"distinct":1,"present":3}]}`
+	rs := httptest.NewRequest(http.MethodPut, "/api/v1/datasets/ds-1/structure-scan", strings.NewReader(corps))
+	rs.SetPathValue("datasetID", "ds-1")
+	w := httptest.NewRecorder()
+	h.SetDatasetStructureScan(w, identifie(rs))
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("code %d, attendu 400 : %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "PatientName") {
+		t.Fatalf("le refus doit nommer le champ : %s", w.Body.String())
+	}
+}

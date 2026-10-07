@@ -39,11 +39,16 @@ type Dataset struct {
 	// legitimate state and is shown as empty - an unanswered field is
 	// information, and filling it with a guess is what that ADR exists to
 	// avoid.
-	Card             *Card     `json:"card,omitempty"`
-	CredentialName   string    `json:"-"`
-	CredentialUserID string    `json:"-"`
-	CreatedAt        time.Time `json:"createdAt"`
-	UpdatedAt        time.Time `json:"updatedAt"`
+	Card *Card `json:"card,omitempty"`
+	// Structure is what the last audited pass over this dataset's files found
+	// (ADR-047). Absent means nothing has ever opened a file here, which is
+	// why a declared pseudonymisation reads as unverified rather than agreeing
+	// with a check nobody ran.
+	Structure        *StructureScan `json:"structure,omitempty"`
+	CredentialName   string         `json:"-"`
+	CredentialUserID string         `json:"-"`
+	CreatedAt        time.Time      `json:"createdAt"`
+	UpdatedAt        time.Time      `json:"updatedAt"`
 }
 
 type Access struct {

@@ -133,6 +133,20 @@ func (s *DatasetStore) SetCard(datasetID string, card *dataset.Card) error {
 	return sql.ErrNoRows
 }
 
+func (s *DatasetStore) SetStructureScan(datasetID string, scan *dataset.StructureScan) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	target := strings.TrimSpace(datasetID)
+	for i := range s.items {
+		if s.items[i].ID == target {
+			s.items[i].Structure = scan
+			s.items[i].UpdatedAt = time.Now().UTC()
+			return nil
+		}
+	}
+	return sql.ErrNoRows
+}
+
 func (s *DatasetStore) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -398,6 +398,76 @@ components:
               note: { type: string }
         measuredBy: { type: string }
         measuredAt: { type: string, format: date-time }
+    DatasetStructureScan:
+      type: object
+      properties:
+        recorded: { type: boolean }
+        structure:
+          type: object
+          nullable: true
+          properties:
+            allowlists:
+              type: array
+              description: >-
+                The list that was in force, stored rather than referenced: a
+                scan that cannot say what it was allowed to read cannot be
+                compared with the next one.
+              items:
+                type: object
+                properties:
+                  format: { type: string }
+                  record:
+                    type: array
+                    items: { type: string }
+                    description: Fields whose values may be summarised. Low cardinality and non-identifying.
+                  identifying:
+                    type: array
+                    items: { type: string }
+                    description: >-
+                      Fields that must carry no value in a pseudonymised
+                      dataset. Looked at, reported as present or absent, never
+                      recorded - not even hashed, which is still a per-subject
+                      key.
+            objects: { type: integer }
+            unreadable:
+              type: integer
+              description: >-
+                Files that could not be parsed. Reported rather than hidden: a
+                scan that quietly skipped a thousand files and concluded "no
+                identifier found" would be worse than no scan.
+            formats:
+              type: object
+              additionalProperties: { type: integer }
+            tags:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+              description: The fields each format carries, with no value attached.
+            tallies:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  values:
+                    type: object
+                    additionalProperties: { type: integer }
+                  distinct: { type: integer }
+                  present: { type: integer }
+                  suppressed:
+                    type: boolean
+                    description: Values dropped for being too many to be a distribution.
+            identifyingChecked:
+              type: array
+              items: { type: string }
+            identifyingPresent:
+              type: array
+              items: { type: string }
+              description: Which identifying fields held a value. Names only.
+            ranBy: { type: string }
+            at: { type: string, format: date-time }
+            method: { type: string }
     DatasetPathLayout:
       type: object
       properties:
@@ -7302,6 +7372,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/structure-scan:
+    get:
+      tags: [Datasets]
+      summary: Read What Was Found Inside This Dataset's Files
+      description: >-
+        The last audited pass that opened files rather than listing their keys:
+        how many were read, which fields each format carries, the recorded
+        fields as distributions, and which identifying fields were looked at
+        and which of them held a value.
+
+
+        Absent means nothing has ever opened a file here, which is why a
+        declared pseudonymisation reads as unverified rather than agreeing with
+        a check nobody ran.
+      operationId: getDatasetStructureScan
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetStructureScan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Record An Audited Pass Over This Dataset's Files
+      description: >-
+        Reading inside files is a different act from listing their keys, over
+        data that may be regulated, so the platform does not launch it: a
+        scanner runs under an allowlist and reports here, and this is the line
+        in the audit trail that says it happened.
+
+
+        What arrives is checked rather than trusted. A field listed as both
+        recorded and identifying is refused - it would be read to be checked
+        and read to be kept, and the second wins by accident. Values for a
+        field that is identifying anywhere in the allowlist are refused. And a
+        recorded field with more distinct values than a distribution can hold
+        loses its values, because at that point it is the column with extra
+        steps.
+
+
+        A body naming no allowlist clears the record. Dataset owner or global
+        administrator: on a regulated bucket, "no identifier was found" is the
+        most consequential sentence the platform can hold.
+      operationId: setDatasetStructureScan
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetStructureScan'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
