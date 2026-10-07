@@ -836,21 +836,21 @@ export const en: Translations = {
   ontologies: {
     describe: "Describe the layout",
     describePrompt:
-      'Help me describe how "{name}" is laid out, from the path shapes.',
+      'Help me describe how "{name}" is laid out, from the path shapes: which level holds the grouping, which holds the time, which holds the kind - and what this trade calls those three things, one word each (patient / visit / modality, say, or client / month / operation).',
     title: "Ontologies",
     subtitle: "Your business objects above the raw data.",
     empty: "No ontology",
     emptyHint:
-      "An ontology describes your business objects above the data. Noryx builds the inventory by reading a dataset\u2019s object paths - never their content: studies, subjects, visits, modalities, volumes. What the dataset says about itself is declared on the dataset.",
+      "An ontology describes your business objects above the data. Noryx builds the inventory by reading a dataset\u2019s object paths - never their content: what groups them, when, and of what kind. What the data means is declared on the ontology.",
     scanTitle: "Scan a source",
     scanHint:
-      "The scan reads the dataset\u2019s object paths — never their content — and infers an inventory: study, subjects, visits, modalities, formats, volumes. That is a photograph, not a description: what the dataset is about — its purpose, what it must not be used for, its legal basis, its units — is declared on the dataset itself, and the platform then compares what was declared with what it measures. Scanning a source that is already described updates its ontology rather than adding a second one; extracts already declared keep their file list.",
+      "The scan reads the dataset\u2019s object paths — never their content — and infers an inventory: what groups the objects, when, of what kind, in what formats and what volume. That is a photograph, not a description: what the data means — its purpose, what it must not be used for, the right it is held under — is declared on the ontology, and the figures the platform took itself sit beside the declaration. Scanning a source that is already described updates its ontology rather than adding a second one; extracts already declared keep their file list.",
     describeSent:
       "Question sent to the assistant — open the panel to read the answer.",
     scanDataset: "Dataset",
-    scanDone: "Ontology created: {objects} objects, {subjects} subjects.",
+    scanDone: "Ontology created: {objects} objects, {subjects} {entities}.",
     scanRefreshed:
-      "Ontology updated: {objects} objects, {subjects} subjects. Extracts already declared keep their file list.",
+      "Ontology updated: {objects} objects, {subjects} {entities}. Extracts already declared keep their file list.",
     scanNoDataset:
       "No dataset attached to this project. Attach one from the project\u2019s Data tab.",
     scan: "Scan the source",
@@ -870,10 +870,10 @@ export const en: Translations = {
     readingDefault: "Default",
     completeness: "Coverage",
     completenessHint:
-      "How many subjects carry each modality, and which ones do not. An extract asked for by modality silently excludes the latter.",
+      "How many {entities} carry each {category}, and which ones do not. An extract asked for by {category} silently excludes the latter.",
     completenessSubjects:
-      "{complete} of {total} subjects carry every modality in the study.",
-    completenessModality: "Modality",
+      "{complete} of {total} {entities} carry every {category}.",
+    completenessModality: "Category",
     completenessWithout: "{entities} without this {category}",
     patternRecognisedFor: "Recognised {entities}",
     completenessHolders: "Subjects",
@@ -883,20 +883,20 @@ export const en: Translations = {
     extractsHint:
       "An extract freezes its file list the moment you declare it, so the same question asked next month still names the same study. Nothing is duplicated — mounting it builds a tree of links into the dataset.",
     extractCreate: "Declare an extract",
-    extractModalities: "Modalities",
-    extractModalitiesAll: "Nothing selected: every modality.",
+    extractModalities: "Categories",
+    extractModalitiesAll: "Nothing selected: everything.",
     extractModalitiesChosen: "Selected: {objects} objects.",
     extractModalitiesUnknown:
       "No modality measured on this ontology — the extract will take everything.",
-    extractSubjects: "Subjects (empty = all)",
+    extractSubjects: "Entities (empty = all)",
     extractLayout: "Layout",
     pattern: "How the source is read",
     patternRule: "Reading rule",
     scanChangedTitle: "What changed",
     scanChangedReading:
-      "The reading of the source changed: {objectsBefore} → {objectsAfter} objects, {subjectsBefore} → {subjectsAfter} subjects. The rule explains the difference, not the data.",
+      "The reading of the source changed: {objectsBefore} → {objectsAfter} objects, {subjectsBefore} → {subjectsAfter} {entities}. The rule explains the difference, not the data.",
     scanChangedData:
-      "The source moved, with the reading unchanged: {objectsBefore} → {objectsAfter} objects, {subjectsBefore} → {subjectsAfter} subjects.",
+      "The source moved, with the reading unchanged: {objectsBefore} → {objectsAfter} objects, {subjectsBefore} → {subjectsAfter} {entities}.",
     patternProducedWith: "Produced with the rule:",
     scanRuleDeclared: "This dataset declares its reading:",
     scanRuleWhereToChange:
@@ -905,15 +905,19 @@ export const en: Translations = {
     scanRuleDefaultHint:
       "The default rule applies: it looks for a segment that resembles a subject identifier, then takes the next two as the visit and the modality. If the scan recognises nothing, declare the reading on the ontology and scan again.",
     patternAsk: "Ask for a proposal",
-    patternSubject: "Subject read",
-    patternVisit: "Visit read",
-    patternModality: "Modality read",
+    patternSubject: "Level 1 read",
+    patternVisit: "Level 2 read",
+    patternModality: "Level 3 read",
     patternRuleHint:
       "A path level, counted from zero. For `SELENA/SELENA-01-001/20260218/ANTERION/…`: subject 1, visit 2, modality 3. Leave a level empty when the source does not carry it. Try it before you store it.",
     patternCompiled: "The platform’s default rule",
-    patternSubjectLevel: "Subject level",
-    patternVisitLevel: "Visit level",
-    patternModalityLevel: "Modality level",
+    patternNamesHint: "What this trade calls its three levels. Left empty, the platform says entity, period and category.",
+    patternSubjectName: "Grouping name",
+    patternVisitName: "Time level name",
+    patternModalityName: "Category name",
+    patternSubjectLevel: "Grouping level",
+    patternVisitLevel: "Time level",
+    patternModalityLevel: "Category level",
     patternTry: "Try it",
     patternSave: "Store the rule",
     patternSaved: "Rule stored. Rescan to apply it.",

@@ -432,13 +432,28 @@ The names are **recorded in the ontology's manifest** with the rule, for the
 reason the rule is recorded: a name changed afterwards would make an old
 photograph describe itself in a vocabulary it was never read with.
 
-### What already reads them, and what does not yet
+### Where they are filled in
 
-Reading them today: the layout description, the ontology list's Reading column,
-the completeness panel, the recognised-shapes panel, and the card's measured
+Three fields beside the three levels, on the dataset's layout form. Or the
+assistant proposes them: it is already shown the path shapes and asked which
+level holds the grouping, the time and the kind, and it now proposes what the
+trade calls them in the same answer — `names: patient / visit / modality`. It
+proposes, a person confirms, and a word nobody confirmed is worse than the
+generic default.
+
+### Where they are read
+
+Everywhere a screen names a level: the layout description, the list's Reading
+column, the completeness and recognised-shapes panels, the query panel, the
+extract form, the scan result and the rescan difference, and the card's
 figures.
 
-Still hardcoded: the scan result toast, the extract form, and the freshness and
-query panels — roughly a dozen strings, each needing the words plumbed to where
-it renders. They say "sujets" and "modalités" in French whatever the dataset.
-Worth finishing before a demo outside health.
+The prose that explains the platform itself is trade-neutral rather than
+parameterised — "what groups the objects, when, and of what kind" instead of
+"subjects, visits and modalities". A sentence about how the platform works
+should not assume whose data it is.
+
+What is deliberately **not** renamed: the Go fields, the JSON keys and the
+database columns. `subject_id` appears in 43 statements, `Subject` in 53 Go
+files; renaming them would be a data migration that breaks every stored
+manifest, to change words no user reads.

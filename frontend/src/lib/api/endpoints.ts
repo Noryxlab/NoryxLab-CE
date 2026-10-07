@@ -522,10 +522,10 @@ export const teamsApi = {
 export const pathLayoutApi = {
   get: (datasetId: string) =>
     api.get<DatasetPathLayout>(`${V1}/datasets/${datasetId}/path-layout`),
-  set: (datasetId: string, input: Record<string, number | null>) =>
+  set: (datasetId: string, input: Record<string, number | string | null>) =>
     api.put<DatasetPathLayout>(`${V1}/datasets/${datasetId}/path-layout`, input),
   /** Ce que la regle lirait, sur de vrais chemins, sans rien enregistrer. */
-  try: (datasetId: string, input: Record<string, number | null>) =>
+  try: (datasetId: string, input: Record<string, number | string | null>) =>
     api.post<DatasetPathLayoutTrial>(`${V1}/datasets/${datasetId}/path-layout/trials`, input),
 };
 

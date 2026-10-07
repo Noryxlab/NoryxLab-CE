@@ -155,7 +155,13 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
           <CardTitle>
             {t('ontologies.query')} — {ontology.name}
           </CardTitle>
-          <CardDescription>{t('ontologies.queryHint')}</CardDescription>
+          <CardDescription>
+            {t('ontologies.queryHint', {
+              entity: motsDuMetier(ontology).sujet,
+              period: motsDuMetier(ontology).visite,
+              category: motsDuMetier(ontology).modalite,
+            })}
+          </CardDescription>
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -389,6 +395,9 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
   const [subject, setSubject] = React.useState('');
   const [visit, setVisit] = React.useState('');
   const [modality, setModality] = React.useState('');
+  const [nomSujet, setNomSujet] = React.useState('');
+  const [nomVisite, setNomVisite] = React.useState('');
+  const [nomModalite, setNomModalite] = React.useState('');
   const [trial, setTrial] = React.useState<DatasetPathLayoutTrial | null>(null);
 
   React.useEffect(() => {
@@ -399,12 +408,23 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     setModality(
       data.modalityLevel != null && data.modalityLevel >= 0 ? String(data.modalityLevel) : '',
     );
+    setNomSujet(data.subjectName ?? '');
+    setNomVisite(data.visitName ?? '');
+    setNomModalite(data.modalityName ?? '');
   }, [current.data]);
 
   const niveaux = () => ({
     subjectLevel: subject.trim() === '' ? null : Number(subject),
     visitLevel: visit.trim() === '' ? null : Number(visit),
     modalityLevel: modality.trim() === '' ? null : Number(modality),
+    /* Les mots du metier, a cote des positions.
+     *
+     *  Trois champs qu'on remplit une fois, ou que l'assistant propose avec la
+     *  regle. Laisses vides, la plateforme reste generique - entite, periode,
+     *  categorie - plutot que de parler clinique a une banque. */
+    subjectName: nomSujet.trim(),
+    visitName: nomVisite.trim(),
+    modalityName: nomModalite.trim(),
   });
 
   const essai = useMutation({
@@ -456,6 +476,21 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
         </Field>
         <Field label={t('ontologies.patternModalityLevel')}>
           <Input value={modality} onChange={(event) => setModality(event.target.value)} placeholder="3" />
+        </Field>
+      </div>
+
+      {/* Les mots du metier qui possede la donnee. Vides, la plateforme reste
+          generique plutot que de parler clinique a une banque. */}
+      <p className="text-xs text-muted-foreground">{t('ontologies.patternNamesHint')}</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Field label={t('ontologies.patternSubjectName')}>
+          <Input value={nomSujet} onChange={(event) => setNomSujet(event.target.value)} placeholder="patient, client…" />
+        </Field>
+        <Field label={t('ontologies.patternVisitName')}>
+          <Input value={nomVisite} onChange={(event) => setNomVisite(event.target.value)} placeholder="visite, mois…" />
+        </Field>
+        <Field label={t('ontologies.patternModalityName')}>
+          <Input value={nomModalite} onChange={(event) => setNomModalite(event.target.value)} placeholder="modalité, opération…" />
         </Field>
       </div>
 
@@ -618,12 +653,20 @@ function OntologyCoverage({ ontology }: { ontology: Ontology }) {
       <CardHeader>
         <CardHeaderText>
           <CardTitle>{t('ontologies.completeness')}</CardTitle>
-          <CardDescription>{t('ontologies.completenessHint')}</CardDescription>
+          <CardDescription>
+            {t('ontologies.completenessHint', {
+              entities: pluriel(mots.sujet),
+              category: mots.modalite,
+            })}
+          </CardDescription>
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
           {t('ontologies.completenessSubjects', {
+            entities: pluriel(mots.sujet),
+            category: mots.modalite,
+            categories: pluriel(mots.modalite),
             complete: formatNumber(data.completeSubjects, locale),
             total: formatNumber(data.subjects, locale),
           })}
@@ -1134,6 +1177,9 @@ function OntologyScan() {
         t(response.refreshed ? 'ontologies.scanRefreshed' : 'ontologies.scanDone', {
           objects: formatNumber(summary?.objects ?? 0, locale),
           subjects: formatNumber(summary?.subjects ?? 0, locale),
+          // Les mots de la photographie qui vient d'etre prise, pas ceux du
+          // dataset tel qu'il est etiquete aujourd'hui.
+          entities: pluriel(motsDuMetier(response.item).sujet),
         }),
       );
       // Et pourquoi ca differe, quand ca differe.
@@ -1146,6 +1192,7 @@ function OntologyScan() {
       if (diff && (diff.previousObjects !== diff.currentObjects || diff.previousSubjects !== diff.currentSubjects)) {
         toast.success(
           t(diff.readingChanged ? 'ontologies.scanChangedReading' : 'ontologies.scanChangedData', {
+            entities: pluriel(motsDuMetier(response.item).sujet),
             objectsBefore: formatNumber(diff.previousObjects, locale),
             objectsAfter: formatNumber(diff.currentObjects, locale),
             subjectsBefore: formatNumber(diff.previousSubjects, locale),

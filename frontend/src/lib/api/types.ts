@@ -1145,6 +1145,12 @@ export interface DatasetPathLayout {
   visitLevel?: number;
   modalityLevel?: number;
   description: string;
+  /** Les mots du metier qui possede la donnee. Vides, la plateforme reste
+   *  generique - entite, periode, categorie - plutot que de parler clinique a
+   *  une banque. */
+  subjectName?: string;
+  visitName?: string;
+  modalityName?: string;
 }
 
 /** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme a
