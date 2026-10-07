@@ -274,3 +274,59 @@ The stored manifest contains:
 The ontology MVP intentionally avoids exposing health metadata extracted from file contents. Pseudonymized IDs, visit dates and object paths are still health-context metadata and must be handled as HDS data in Enterprise Edition.
 
 Future healthcare services may add controlled PHI checks, integrity checks and deeper schema extraction, but they must remain explicit and audited.
+
+## What a dataset says about itself
+
+The scan produces an inventory of paths — subjects, visits, modalities, counts,
+volumes — and says so honestly. What it cannot produce is what the dataset is
+*about*: its purpose, what it must not be used for, the legal basis it was
+collected under, the units a measurement is in, who to ask. None of that is
+inferable from any number of bytes, so it is **declared** (ADR-047).
+
+`GET /api/v1/datasets/{id}/card` and `PUT` the same path. The card lives on the
+dataset, beside its path layout, for a reason worth keeping in mind: a rescan
+produces a new ontology, so a declared card living on the ontology would be lost
+at every rescan.
+
+### It is never returned alone
+
+Trust does not exclude verification. Every declared figure the platform can
+measure is compared with the most recent scan, and the result is a line per
+field — including the fields nobody declared, because a reader who does not see
+a field cannot tell it apart from a field that passed.
+
+| Verdict | Means |
+|---|---|
+| `agrees` | the measurement matches the declaration |
+| `differs` | both are known and they do not match — a stale declaration and a wrong reading rule look identical here, and which it is belongs to a person |
+| `undeclared` | nothing was stated, so there is nothing to check |
+| `unverified` | stated, but nothing has measured it yet |
+| `not_checkable` | nothing could measure this, ever — a purpose, a legal basis |
+
+Three properties make this a control rather than a nag. **A check reports, it
+never overwrites**: the declaration stays as written and the verdict sits beside
+it, because replacing somebody's word with a measurement destroys the only
+evidence that they disagreed. **A check carries its method and the date of the
+measurement**, not of the comparison — a fresh comparison against a month-old
+scan is a month-old answer. And **`not_checkable` is a verdict**: inventing a
+proxy for a purpose would be exactly the kind of claim ADR-034 forbids.
+
+### The pseudonymisation claim
+
+`pseudonymised` reads as **`unverified`** until a structure scan has read the
+dataset's technical fields. That is the honest answer and the reason the field
+exists: the survey of `hds-for` on 2026-10-05 had to report 3 592 DICOM headers
+unchecked, and nothing in the platform could record that fact.
+
+Reading those fields is authorised (ADR-047, 2026-10-07) under conditions that
+are not yet implemented: a published per-field allowlist, no identifying field in
+it, values out only as distributions, every run audited, nothing written back.
+Until that ships, the verdict says `unverified` rather than claiming agreement
+with a check nobody ran.
+
+### Versions
+
+Each accepted edit increments the card version and records who wrote it. An
+extract records the version it was cut against, so a cohort's `n` stays
+explainable after a later edit — the same reason an ontology records the reading
+rule that produced it (ADR-040).

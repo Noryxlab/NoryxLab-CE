@@ -212,6 +212,9 @@ func (s *DatasetStore) UpdateMetadata(datasetID, name, description string) error
 func (s *DatasetStore) SetPathLayout(datasetID string, layout *dataset.PathLayout) error {
 	return s.Store.SetDatasetPathLayout(datasetID, layout)
 }
+func (s *DatasetStore) SetCard(datasetID string, card *dataset.Card) error {
+	return s.Store.SetDatasetCard(datasetID, card)
+}
 func (s *DatasetStore) Delete(id string) error { return s.Store.DeleteDataset(id) }
 func (s *DatasetStore) ListAccess(datasetID string) ([]dataset.Access, error) {
 	return s.Store.ListDatasetAccess(datasetID)

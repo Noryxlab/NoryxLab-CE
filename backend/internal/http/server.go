@@ -204,6 +204,9 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/deletion-cost", h.GetDatasetDeletionCost)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/path-layout", h.GetDatasetPathLayout)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/path-layout", h.SetDatasetPathLayout)
+	// What the dataset says about itself, with the checks beside it (ADR-047).
+	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/card", h.GetDatasetCard)
+	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/card", h.SetDatasetCard)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/path-layout/trials", h.TryDatasetPathLayout)
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/projects", h.ListOntologyProjects)
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/projects", h.ListExtractProjects)

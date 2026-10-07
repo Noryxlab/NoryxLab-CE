@@ -365,6 +365,43 @@ components:
         totalBytes: { type: integer }
         truncated: { type: boolean }
         measuredAt: { type: string }
+    DatasetCard:
+      type: object
+      properties:
+        declared:
+          type: boolean
+          description: Whether anybody has written anything. Empty is legitimate.
+        card:
+          type: object
+          nullable: true
+          description: >-
+            The declaration, as written. Carries its version, who wrote it and
+            when.
+        checks:
+          type: array
+          description: >-
+            One line per checkable field, including the ones nobody declared -
+            a reader who does not see a field cannot tell it apart from a field
+            that passed.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              verdict:
+                type: string
+                enum: [agrees, differs, undeclared, unverified, not_checkable]
+              declared: { type: string }
+              measured: { type: string }
+              method:
+                type: string
+                description: How the measurement was obtained, named so a reader can judge it.
+              at:
+                type: string
+                format: date-time
+                description: When the measurement was taken, not when the comparison ran.
+              note: { type: string }
+        measuredBy: { type: string }
+        measuredAt: { type: string, format: date-time }
     DatasetPathLayout:
       type: object
       properties:
@@ -6717,6 +6754,83 @@ paths:
                 $ref: '#/components/schemas/DeletionCost'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/card:
+    get:
+      tags: [Datasets]
+      summary: Read What This Dataset Says About Itself
+      description: >-
+        The declared card - study, population, purpose, what it must not be
+        used for, legal basis, units, contact - with the control column beside
+        it. None of that is inferable from any number of bytes, which is why it
+        is declared rather than scanned.
+
+
+        Never returned alone. Every declared figure the platform can measure is
+        compared with the most recent scan, and each comparison carries its
+        verdict, its method and the date of the measurement - a fresh
+        comparison against a month-old scan is a month-old answer. A verdict of
+        "not_checkable" is honest about a purpose; "unverified" means nothing
+        has measured it yet, which is what a declared pseudonymisation reads as
+        until a structure scan has run.
+      operationId: getDatasetCard
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetCard'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Declare What This Dataset Is
+      description: >-
+        Writes the declaration a reader needs in order to use a dataset they
+        did not build. Empty fields stay empty and are shown as empty: an
+        unanswered field is information, and filling it with a guess is what
+        this exists to avoid.
+
+
+        Each accepted edit increments the card version and records who wrote
+        it, so an extract can cite the version it was cut against even after a
+        later edit. A body declaring nothing clears the card. Dataset owner or
+        global administrator, because a card is what the dataset asserts about
+        itself to everybody who can see it.
+      operationId: setDatasetCard
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/datasets/{datasetID}/path-layout:

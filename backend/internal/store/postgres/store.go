@@ -449,6 +449,10 @@ func migrationStatements() []string {
 		// dire "la regle compilee en dur", celle que ces datasets ont deja
 		// utilisee.
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS path_layout_json JSONB`,
+		// What the dataset says about itself, in a person's words (ADR-047).
+		// Beside the layout and for the same reason: a rescan produces a new
+		// ontology, so a declared card living there would be lost every time.
+		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS card_json JSONB`,
 		`ALTER TABLE datasets ADD COLUMN IF NOT EXISTS credential_user_id TEXT NOT NULL DEFAULT ''`,
 		`UPDATE datasets SET owner_id=owner_user_id WHERE owner_id=''`,
 		`UPDATE datasets SET credential_user_id=owner_user_id WHERE credential_user_id=''`,
@@ -2388,7 +2392,7 @@ func (s *Store) ListDatasetsBySubjects(subjects []dataset.Subject) ([]dataset.Da
 }
 
 func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
-	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, created_at, updated_at FROM datasets ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -2396,11 +2400,12 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 	out := []dataset.Dataset{}
 	for rows.Next() {
 		var item dataset.Dataset
-		var layout []byte
-		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var layout, card []byte
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Description, &item.Bucket, &item.Prefix, &item.Provider, &item.Classification, &item.Endpoint, &item.Region, &item.CredentialName, &item.CredentialUserID, &layout, &card, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		item.PathLayout = decodePathLayout(layout)
+		item.Card = decodeCard(card)
 		out = append(out, item)
 	}
 	return out, rows.Err()
@@ -2408,8 +2413,8 @@ func (s *Store) ListAllDatasets() ([]dataset.Dataset, error) {
 
 func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	var item dataset.Dataset
-	var layout []byte
-	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var layout, card []byte
+	err := s.db.QueryRow(`SELECT id, owner_user_id, owner_type, owner_id, name, description, bucket, prefix, provider, classification, endpoint, region, credential_name, credential_user_id, path_layout_json, card_json, created_at, updated_at FROM datasets WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.OwnerUserID,
 		&item.OwnerType,
@@ -2425,6 +2430,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 		&item.CredentialName,
 		&item.CredentialUserID,
 		&layout,
+		&card,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -2434,6 +2440,7 @@ func (s *Store) GetDatasetByID(id string) (dataset.Dataset, bool, error) {
 	if err != nil {
 		return dataset.Dataset{}, false, err
 	}
+	item.Card = decodeCard(card)
 	return item, true, nil
 }
 
@@ -2479,6 +2486,48 @@ func (s *Store) SetDatasetPathLayout(datasetID string, layout *dataset.PathLayou
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+// SetDatasetCard writes the declared card, or clears it.
+//
+// The version is the caller's: this layer stores what it is handed. Deciding
+// that an edit is an edit belongs with whoever read the previous version, not
+// with the statement that writes a row.
+func (s *Store) SetDatasetCard(datasetID string, card *dataset.Card) error {
+	var encoded any
+	if card != nil && card.Declared() {
+		raw, err := json.Marshal(card)
+		if err != nil {
+			return err
+		}
+		encoded = raw
+	}
+	result, err := s.db.Exec(`UPDATE datasets SET card_json=$2, updated_at=NOW() WHERE id=$1`,
+		strings.TrimSpace(datasetID), encoded)
+	if err != nil {
+		return err
+	}
+	if affected, err := result.RowsAffected(); err == nil && affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// decodeCard reads a stored card back, and an unreadable one as none - for
+// decodePathLayout's reason: a dataset whose card cannot be parsed must still
+// list.
+func decodeCard(raw []byte) *dataset.Card {
+	if len(raw) == 0 {
+		return nil
+	}
+	var card dataset.Card
+	if err := json.Unmarshal(raw, &card); err != nil {
+		return nil
+	}
+	if !card.Declared() {
+		return nil
+	}
+	return &card
 }
 
 // decodePathLayout turns a stored rule back into one, and a missing or
