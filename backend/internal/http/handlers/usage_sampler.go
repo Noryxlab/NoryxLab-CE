@@ -62,7 +62,21 @@ func (h Handlers) StartUsageSampler(ctx context.Context) {
 // sampleUsage measures every project at one instant. All of them share the
 // same timestamp on purpose: two projects measured seconds apart would not add
 // up to what the platform held.
+//
+// It reconciles first, and that is not an optimisation. The records this reads
+// are brought up to date by syncWorkspacesFromRuntime, which until now ran only
+// when somebody opened the workspaces or the projects screen - while this sweep
+// runs every five minutes whether anybody is looking or not. So a workspace
+// whose pod had died went on being counted as held, at its full CPU and memory,
+// until a human happened to load a page. Measured on the EMSE cluster: 288
+// consecutive samples, twenty-four hours at five-minute intervals, charging one
+// workspace that no longer existed to a project that no longer existed either.
+//
+// Consumption that depends on somebody browsing the interface is not a
+// measurement. One listing against the cluster every five minutes is the price
+// of the figure being true.
 func (h Handlers) sampleUsage() {
+	h.syncWorkspacesFromRuntime("")
 	projects, err := h.projectStore.List()
 	if err != nil {
 		log.Printf("usage sampler: cannot list projects: %v", err)
