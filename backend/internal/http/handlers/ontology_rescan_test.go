@@ -65,12 +65,24 @@ func TestUnSecondScanRafraichitAuLieuDeDupliquer(t *testing.T) {
 	}
 }
 
-// Une autre source, ou un autre profil, reste une autre ontologie.
+// Une autre source reste une autre ontologie. Un autre profil, non.
 //
-// C'est la moitie qui protege : deux lectures differentes du meme bucket sont
-// deux descriptions, et ecraser l'une avec l'autre ferait disparaitre un
-// travail sans le dire.
-func TestUneAutreSourceOuUnAutreProfilResteUneAutreOntologie(t *testing.T) {
+// Ce test exigeait l'inverse pour le profil, et la raison etait bonne : deux
+// lectures du meme bucket sont deux descriptions, et ecraser l'une avec l'autre
+// ferait disparaitre un travail sans le dire. Ce qu'elle manquait, c'est ce que
+// la branche « pas trouve » faisait ensuite - elle creait une jumelle. Donc le
+// travail n'etait pas protege, il etait duplique, et EMSE a porte deux
+// PREMYOM1000 sur un bucket pendant un mois, 31 sujets et 32, sans rien pour
+// dire laquelle faisait foi.
+//
+// Une source, une ontologie - desormais garanti par un index unique sur
+// (source_type, source_id), donc l'ancienne attente n'est plus seulement
+// indesirable, elle est impossible a satisfaire. Ce qu'un rescan avec une autre
+// lecture change se lit dans la regle de lecture que chaque photographie
+// enregistre (ADR-040), qui est precisement ce a quoi elle sert : deux
+// photographies du meme bucket different soit parce que la donnee a bouge, soit
+// parce que la lecture a change, et le record doit pouvoir le dire.
+func TestUneAutreSourceResteUneAutreOntologieMaisPasUnAutreProfil(t *testing.T) {
 	h, _ := ontologiePour(t, "stef", "dataset-1", "health-file-path-v1")
 	identite := auth.Identity{Username: "stef", Subject: "stef"}
 
@@ -81,8 +93,8 @@ func TestUneAutreSourceOuUnAutreProfilResteUneAutreOntologie(t *testing.T) {
 	}
 	if _, trouvee, _ := h.ontologyToRefresh(identite, ontologyManifest{
 		SourceType: "dataset", SourceID: "dataset-1", InferenceProfile: "autre-profil-v1",
-	}); trouvee {
-		t.Error("un autre profil d'inference ne doit pas etre rafraichi")
+	}); !trouvee {
+		t.Error("un autre profil sur la meme source doit rafraichir, pas dupliquer")
 	}
 	if _, trouvee, _ := h.ontologyToRefresh(identite, ontologyManifest{
 		SourceType: "datasource", SourceID: "dataset-1", InferenceProfile: "health-file-path-v1",
