@@ -119,6 +119,7 @@ export const qk = {
   ontologyCompleteness: (ontologyId: string) =>
     ["ontologies", ontologyId, "completeness"] as const,
   ontologyScans: (ontologyId: string) => ["ontologies", ontologyId, "scans"] as const,
+  ontologyContent: (ontologyId: string) => ["ontologies", ontologyId, "content"] as const,
   ontologyExtracts: (ontologyId: string) =>
     ["ontologies", ontologyId, "extracts"] as const,
   repositories: ["repositories"] as const,

@@ -56,11 +56,10 @@ import {
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
-import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
+import { capitaliser, dateDeVisite, motsDuMetier, pluriel } from './ontology-words';
 import { formatNumber, formatRelative } from '@/lib/format';
 import type {
   Extract,
-  OntologyQueryItem,
   Ontology,
   OntologyScan,
   DatasetPathLayout,
@@ -113,7 +112,7 @@ function regleLisible(
 }
 
 type ManifestLu = {
-  subjects?: { id?: string }[];
+  subjects?: { id?: string; visits?: { modalities?: { name?: string }[] }[] }[];
   summary?: {
     objects?: number;
     subjects?: number;
@@ -149,39 +148,34 @@ type ManifestLu = {
  */
 function OntologyQuery({ ontology }: { ontology: Ontology }) {
   const t = useT();
-  const toast = useToast();
-  const [question, setQuestion] = React.useState('');
-  const [result, setResult] = React.useState<{
-    items?: OntologyQueryItem[];
-    count?: number;
-    limited?: boolean;
-  } | null>(null);
+  const { locale } = useI18n();
+  const mots = motsDuMetier(ontology);
+  const [saisie, setSaisie] = React.useState('');
+  const [filtre, setFiltre] = React.useState('');
 
-  const run = useMutation({
-    mutationFn: () => ontologiesApi.query(ontology.id, question.trim()),
-    onSuccess: (response) => {
-      if (response.error) {
-        toast.error(response.error, t('ontologies.query'));
-        setResult(null);
-        return;
-      }
-      setResult(response);
-    },
-    onError: (error) => toast.error(error, t('ontologies.query')),
+  // Le contenu s'affiche tout de suite, sans qu'on tape quoi que ce soit.
+  //
+  //  Le bloc ne montrait rien avant qu'on remplisse sa case, sous un titre
+  //  « Filtrer » : on ne filtre pas une liste qu'on ne voit pas. Explorer
+  //  d'abord, restreindre ensuite.
+  const resultat = useQuery({
+    queryKey: [...qk.ontologyContent(ontology.id), filtre],
+    queryFn: () => ontologiesApi.query(ontology.id, filtre),
+    enabled: Boolean(ontology.id),
   });
+  const items = resultat.data?.items ?? [];
+  const total = resultat.data?.count ?? items.length;
 
   return (
     <Card>
       <CardHeader>
         <CardHeaderText>
-          <CardTitle>
-            {t('ontologies.query')} — {ontology.name}
-          </CardTitle>
+          <CardTitle>{t('ontologies.content')}</CardTitle>
           <CardDescription>
-            {t('ontologies.queryHint', {
-              entity: motsDuMetier(ontology).sujet,
-              period: motsDuMetier(ontology).visite,
-              category: motsDuMetier(ontology).modalite,
+            {t('ontologies.contentHint', {
+              entity: mots.sujet,
+              period: mots.visite,
+              category: mots.modalite,
             })}
           </CardDescription>
         </CardHeaderText>
@@ -190,64 +184,80 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (question.trim()) run.mutate();
+            setFiltre(saisie.trim());
           }}
           className="flex items-end gap-2"
         >
-          <Field label={t('ontologies.queryLabel')} className="flex-1">
+          {/* Ce que la case cherche, dit sous la case.
+            *
+            *  Elle envoie un seul mot que le serveur cherche dans les trois
+            *  colonnes a la fois, et l'ecran annoncait « filtrez par entite,
+            *  periode ou categorie » - trois axes pour une case, donc une
+            *  promesse que la case ne tient pas. */}
+          <Field
+            label={t('ontologies.contentFilter')}
+            description={t('ontologies.contentFilterHint')}
+            className="flex-1"
+          >
             <Input
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder={t('ontologies.queryPlaceholder')}
+              value={saisie}
+              onChange={(event) => setSaisie(event.target.value)}
+              placeholder={premiereCategorie(ontology)}
             />
           </Field>
-          <Button type="submit" variant="primary" loading={run.isPending} disabled={!question.trim()}>
+          <Button type="submit" variant="secondary" loading={resultat.isFetching}>
             <Search aria-hidden />
-            {t('ontologies.query')}
+            {t('ontologies.contentApply')}
           </Button>
         </form>
 
-        {result ? (
-          result.items?.length ? (
-            <>
-              <p className="text-xs text-muted-foreground">
-                {t('ontologies.matches', {
-                  shown: String(result.items.length),
-                  total: String(result.count ?? result.items.length),
-                })}
-              </p>
-              <TableWrapper className="rounded-md border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('ontologies.object')}</TableHead>
-                      <TableHead>{t('common.type')}</TableHead>
-                      <TableHead>{t('ontologies.parent')}</TableHead>
-                      <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
+        {items.length === 0 ? (
+          <EmptyState title={filtre ? t('ontologies.noMatch') : t('ontologies.contentEmpty')} />
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              {t('ontologies.contentCount', {
+                shown: formatNumber(items.length, locale),
+                total: formatNumber(total, locale),
+              })}
+            </p>
+            <TableWrapper className="rounded-md border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{capitaliser(mots.sujet)}</TableHead>
+                    <TableHead>{capitaliser(mots.visite)}</TableHead>
+                    <TableHead>{capitaliser(mots.modalite)}</TableHead>
+                    <TableHead className="text-right">{t('ontologyCard.records')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={`${item.parent}/${item.object}/${item.type}`}>
+                      <TableCell className="font-mono text-xs">{item.object}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {dateDeVisite(item.parent, locale) || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs">{item.type}</TableCell>
+                      <TableCell className="text-right text-xs tabular-nums">
+                        {formatNumber(item.count, locale)}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.items.map((item) => (
-                      <TableRow key={`${item.parent}/${item.object}/${item.type}`}>
-                        <TableCell className="font-mono text-xs">{item.object}</TableCell>
-                        <TableCell className="text-xs">{item.type}</TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {item.parent || '—'}
-                        </TableCell>
-                        <TableCell className="text-right text-xs tabular-nums">{item.count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableWrapper>
-            </>
-          ) : (
-            <EmptyState title={t('ontologies.noMatch')} />
-          )
-        ) : null}
+                  ))}
+                </TableBody>
+              </Table>
+            </TableWrapper>
+          </>
+        )}
       </CardContent>
     </Card>
   );
+}
+
+/** Une categorie que cette ontologie porte vraiment, pour servir d'exemple. */
+function premiereCategorie(ontology: Ontology): string | undefined {
+  const sujets = (ontology.manifest as ManifestLu | undefined)?.subjects;
+  return sujets?.[0]?.visits?.[0]?.modalities?.[0]?.name?.trim() || undefined;
 }
 
 /**

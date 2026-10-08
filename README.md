@@ -30,7 +30,7 @@ it to your Keycloak identity provider.
 | --- | --- |
 | Install NoryxLab Community Edition | [Step-by-step installation guide](docs/INSTALL_CE.md) |
 | Understand infrastructure requirements | [Infrastructure prerequisites](docs/INFRA_PREREQUISITES.md) |
-| Use the platform as a data practitioner | [Projects](docs/PROJECTS.md), [datasets](docs/S3_DATASET_MOUNTS.md) and [workspaces](docs/WORKSPACES.md) |
+| Use the platform as a data practitioner | [Projects](docs/PROJECTS.md), [datasets](docs/S3_DATASET_MOUNTS.md), [bulk clinical imports](docs/DATASET_BULK_IMPORT.md) and [workspaces](docs/WORKSPACES.md) |
 | Understand project agents and workflows | [Agent model and Enterprise runtime](docs/AGENTS.md) |
 | Integrate with the REST API | [API contract](docs/API.md) and the running platform's `/swagger` |
 | Operate or troubleshoot a deployment | [Operations guides](#operations) |
@@ -112,6 +112,7 @@ installation values in a private operations repository or secret manager.
 
 - [Projects](docs/PROJECTS.md)
 - [Datasets and direct S3 mounts](docs/S3_DATASET_MOUNTS.md)
+- [Bulk dataset import from an external machine](docs/DATASET_BULK_IMPORT.md)
 - [Data sources](docs/DATASOURCES_V1.md)
 - [Semantic catalog and ontology foundations](docs/ONTOLOGY.md)
 - [Environments](docs/ENVIRONMENTS.md)

@@ -44,6 +44,22 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetUploadURLResponse:
+      type: object
+      properties:
+        transferId: { type: string }
+        method: { type: string }
+        url: { type: string }
+        expiresAt: { type: string, format: date-time }
+        bucket: { type: string }
+        key: { type: string }
+    DatasetUploadCompleteResponse:
+      type: object
+      properties:
+        verified: { type: boolean }
+        bucket: { type: string }
+        key: { type: string }
+        size: { type: integer }
     DatasetCredentialsUpdatedResponse:
       type: object
       properties:
@@ -2670,7 +2686,12 @@ paths:
                 size: { type: integer, format: int64 }
                 sha256: { type: string, description: Sender manifest checksum }
       responses:
-        '200': { description: Object presence and size verified }
+        '200':
+          description: Object presence and size verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetUploadCompleteResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }

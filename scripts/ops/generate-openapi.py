@@ -188,6 +188,8 @@ ENVELOPES = {
     "ProjectOrganizationRole": {"organizationId": "string", "organizationName": "string", "role": "string"},
     "ProjectOrganizationRoleListResponse": {"items": "[$ProjectOrganizationRole]"},
     "DatasetDownloadURLResponse": {"url": "string", "filename": "string", "expiresAt": "date-time"},
+    "DatasetUploadURLResponse": {"transferId": "string", "method": "string", "url": "string", "expiresAt": "date-time", "bucket": "string", "key": "string"},
+    "DatasetUploadCompleteResponse": {"verified": "boolean", "bucket": "string", "key": "string", "size": "integer"},
     "AssistantModel": {"id": "string", "object": "string", "created": "integer", "owned_by": "string"},
     "AssistantModelListResponse": {"object": "string", "data": "[$AssistantModel]"},
     "BackupTargetStatus": {
@@ -278,6 +280,8 @@ RESPONSES = {
     ("PUT", "/api/v1/datasets/{datasetID}"): "Dataset",
     ("PUT", "/api/v1/datasets/{datasetID}/ownership"): "Dataset",
     ("POST", "/api/v1/datasets/{datasetID}/download-url"): "DatasetDownloadURLResponse",
+    ("POST", "/api/v1/datasets/{datasetID}/upload-url"): "DatasetUploadURLResponse",
+    ("POST", "/api/v1/datasets/{datasetID}/upload-complete"): "DatasetUploadCompleteResponse",
     ("GET", "/api/v1/projects/{projectID}/organization-roles"): "ProjectOrganizationRoleListResponse",
     ("PUT", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): "ProjectOrganizationRole",
     ("GET", "/api/v1/assistant/developer/v1/models"): "AssistantModelListResponse",
