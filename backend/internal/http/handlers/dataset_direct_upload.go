@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
+
+	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 )
 
 // Direct uploads keep a bulk transfer out of the API pod. The platform only
@@ -59,6 +61,31 @@ type datasetUploadCompleteBatchRequest struct {
 	Objects []datasetUploadCompleteRequest `json:"objects"`
 }
 
+// datasetDirectUploadProblem says when a presigned URL cannot be used by the
+// sender it would be handed to.
+//
+// A presigned URL carries the host the platform's own client talks to. For a
+// dataset on the internal MinIO profile that host is a cluster service -
+// minio.noryx.svc.cluster.local - which resolves inside the cluster and
+// nowhere else. The platform was signing those happily and handing them to
+// machines outside: curl exit 6, "could not resolve host", several hundred
+// times, with nothing to connect the failure to its cause. Found on the first
+// real import against the DC, which is the only way it could have been found.
+//
+// Refusing names the other path rather than leaving somebody to guess: the
+// proxied upload works for any dataset, carries the bytes through the API,
+// and is the right answer when the store is not public.
+//
+// Only the internal profile is refused. An external endpoint is whatever an
+// operator configured, and the platform has no business second-guessing a
+// host it was told to use.
+func datasetDirectUploadProblem(item datasetdomain.Dataset) string {
+	if strings.EqualFold(strings.TrimSpace(item.Provider), "minio") {
+		return "this dataset is stored on the platform's internal object store, which is not reachable from outside the cluster; send it with PUT /api/v1/datasets/{datasetID}/objects/{path} instead"
+	}
+	return ""
+}
+
 func datasetDirectObjectKey(itemPrefix, raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || strings.HasPrefix(raw, "/") {
@@ -88,6 +115,11 @@ func (h Handlers) CreateDatasetUploadURL(w http.ResponseWriter, r *http.Request)
 	}
 	if !found || !h.canWriteDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if probleme := datasetDirectUploadProblem(item); probleme != "" {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": probleme, "code": "direct_upload_unavailable"})
 		return
 	}
 	var req datasetUploadURLRequest
@@ -217,6 +249,11 @@ func (h Handlers) CreateDatasetUploadURLs(w http.ResponseWriter, r *http.Request
 	}
 	if !found || !h.canWriteDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if probleme := datasetDirectUploadProblem(item); probleme != "" {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": probleme, "code": "direct_upload_unavailable"})
 		return
 	}
 	var req datasetUploadBatchRequest

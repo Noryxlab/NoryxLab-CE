@@ -15,11 +15,16 @@ import subprocess
 import sys
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
 # What one authorisation call covers. The server refuses more than this.
 BATCH = 200
+
+
+class DirectUploadUnavailable(RuntimeError):
+    """The dataset's object store is not reachable from outside the cluster."""
 
 
 def api(base, token, method, path, payload):
@@ -34,6 +39,8 @@ def api(base, token, method, path, payload):
             return json.load(response)
     except urllib.error.HTTPError as error:
         detail = error.read().decode(errors="replace")
+        if error.code == 409 and '"direct_upload_unavailable"' in detail:
+            raise DirectUploadUnavailable(detail) from error
         raise RuntimeError(f"Noryx {method} {path}: HTTP {error.code}: {detail}") from error
 
 
@@ -117,6 +124,33 @@ def authorize(args, entries):
     for refusal in answer.get("refused") or []:
         print(f"REFUSED {refusal.get('path')}: {refusal.get('reason')}", file=sys.stderr)
     return {item["path"]: item["url"] for item in answer.get("objects") or []}
+
+
+def send_through_noryx(args, local, relative, size, mtime):
+    """Send one object through the API, for a store that is not public.
+
+    The platform's internal object store answers on a cluster address, so a
+    presigned URL for it resolves nowhere outside. The bytes go through the
+    API instead: slower, and the only thing that works. No confirmation call
+    - the platform wrote the object itself, so it already knows.
+    """
+    checksum = digest(local)
+    with local.open("rb") as handle:
+        request = urllib.request.Request(
+            args.url.rstrip("/") + f"/api/v1/datasets/{args.dataset}/objects/" + urllib.parse.quote(relative),
+            data=handle.read(),
+            method="PUT",
+            headers={
+                "Authorization": "Bearer " + args.token,
+                "Content-Type": "application/octet-stream",
+            },
+        )
+        try:
+            urllib.request.urlopen(request, timeout=300).read()
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode(errors="replace")
+            raise RuntimeError(f"PUT {relative}: HTTP {error.code}: {detail}") from error
+    return relative, {"size": size, "mtime": mtime, "sha256": checksum}
 
 
 def send(args, local, relative, size, mtime, url):
@@ -208,18 +242,29 @@ def main():
             print(f"  … and {len(entries) - 20} more")
         return
 
-    failed = []
+    failed, through_api = [], False
     for lot in batched(entries, BATCH):
-        try:
-            urls = authorize(args, [(l, r, s, m) for l, r, s, m in lot])
-        except Exception as error:
-            print(f"FAILED to authorize a batch of {len(lot)}: {error}", file=sys.stderr)
-            failed.extend(relative for _, relative, _, _ in lot)
-            continue
+        urls = {}
+        if not through_api:
+            try:
+                urls = authorize(args, [(l, r, s, m) for l, r, s, m in lot])
+            except DirectUploadUnavailable:
+                # Said once, then simply taken: repeating it per batch would
+                # bury the hundred lines that matter.
+                print("direct upload is not available for this dataset; "
+                      "sending through the API instead", file=sys.stderr)
+                through_api = True
+            except Exception as error:
+                print(f"FAILED to authorize a batch of {len(lot)}: {error}", file=sys.stderr)
+                failed.extend(relative for _, relative, _, _ in lot)
+                continue
         sent = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
             futures = {}
             for local, relative, size, mtime in lot:
+                if through_api:
+                    futures[pool.submit(send_through_noryx, args, local, relative, size, mtime)] = relative
+                    continue
                 url = urls.get(relative)
                 if not url:
                     failed.append(relative)
@@ -234,6 +279,13 @@ def main():
                     print(f"FAILED {relative}: {error}", file=sys.stderr)
 
         if not sent:
+            continue
+        # Nothing to confirm when the platform wrote the object itself.
+        if through_api:
+            for relative, result in sent:
+                completed[relative] = result
+                record_state(args.state, relative, result, lock)
+            print(f"{len(sent)} sent ({len(completed)} total)")
             continue
         try:
             refused = confirm(args, sent)
