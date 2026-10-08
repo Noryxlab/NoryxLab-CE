@@ -116,3 +116,43 @@ func TestLesFormesReconnuesSontDecritesAPart(t *testing.T) {
 		}
 	}
 }
+
+// Une table de mesure est un axe, pas une liste de noms de fichiers.
+//
+// Le prefixe sujet etait conserve, donc la meme table apparaissait une fois
+// par sujet : PREMYOM1000-0001_Cornea_Basics, PREMYOM1000-0002_Cornea_Basics,
+// trente fois. Rien ne se comptait a travers les sujets et rien ne se
+// demandait. Depouille, l'ANTERION de PREMYOM1000 a sept tables, chacune
+// chez les trente sujets.
+func TestUneTableDeMesureEstPartageeEntreLesSujets(t *testing.T) {
+	premier := inferMeasurementTable("PREMYOM1000/PREMYOM1000-0001/20250430/ANTERION/PREMYOM1000-0001_Cornea_Basics.csv", "CSV", "PREMYOM1000-0001")
+	second := inferMeasurementTable("PREMYOM1000/PREMYOM1000-0002/20250501/ANTERION/PREMYOM1000-0002_Cornea_Basics.csv", "CSV", "PREMYOM1000-0002")
+	if premier != "Cornea_Basics" {
+		t.Fatalf("table = %q, attendu Cornea_Basics", premier)
+	}
+	if premier != second {
+		t.Errorf("deux sujets doivent partager la table : %q et %q", premier, second)
+	}
+}
+
+// Ce qui n'est pas une table reste sans nom plutot que devine.
+func TestCeQuiNEstPasUneTableResteSansNom(t *testing.T) {
+	for _, essai := range []struct{ chemin, format, sujet string }{
+		// Un export par acquisition : un fichier chacun, et ils enterreraient
+		// les sept vraies tables.
+		{"e/p1/20250507/ANTERION/1_ANTERION_COR_2025-05-07_111013_OD.csv", "CSV", "p1"},
+		// Le nom n'est que l'identifiant du sujet.
+		{"e/PREMYOM1000-0001/20250430/IRM/PREMYOM1000-0001.csv", "CSV", "autre"},
+		// Et une image n'est pas une table.
+		{"e/p1/20250430/ANTERION/DICOM/MC27/00000001", "", "p1"},
+	} {
+		if nom := inferMeasurementTable(essai.chemin, essai.format, essai.sujet); nom != "" && essai.format == "" {
+			t.Errorf("%q ne devrait nommer aucune table, obtenu %q", essai.chemin, nom)
+		}
+	}
+	// Le cas qui compte vraiment : un fichier dont le nom est exactement
+	// l'identifiant du sujet, une fois le prefixe retire.
+	if nom := inferMeasurementTable("e/p1/20250430/IRM/PREMYOM1000-0001.csv", "CSV", "autre"); nom != "" {
+		t.Errorf("un identifiant de sujet ne nomme pas une table, obtenu %q", nom)
+	}
+}

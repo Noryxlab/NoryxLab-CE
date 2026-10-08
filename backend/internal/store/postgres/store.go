@@ -621,6 +621,10 @@ func migrationStatements() []string {
 		// verrait le CREATE.
 		`ALTER TABLE ontology_objects ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_format_idx ON ontology_objects (ontology_id, format)`,
+		// La table de mesure, pour la meme raison que le genre : elle etait
+		// deja extraite, listee par modalite, et utilisable nulle part.
+		`ALTER TABLE ontology_objects ADD COLUMN IF NOT EXISTS measurement_table TEXT NOT NULL DEFAULT ''`,
+		`CREATE INDEX IF NOT EXISTS ontology_objects_table_idx ON ontology_objects (ontology_id, measurement_table)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_subject_idx ON ontology_objects (ontology_id, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_modality_idx ON ontology_objects (ontology_id, modality)`,
 		// Every photograph, not only the latest.
@@ -722,6 +726,7 @@ func migrationStatements() []string {
 		// Le genre de fichier retenu, a cote des trois axes de selection.
 		// ALTER et non colonne du CREATE : la table existe deja partout.
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS formats_json JSONB NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS tables_json JSONB NOT NULL DEFAULT '[]'`,
 		`CREATE TABLE IF NOT EXISTS extract_members (
 			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,
@@ -2966,13 +2971,13 @@ func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Obj
 	if _, err := tx.Exec(`DELETE FROM ontology_objects WHERE ontology_id=$1`, id); err != nil {
 		return err
 	}
-	statement, err := tx.Prepare(`INSERT INTO ontology_objects (ontology_id, path, subject_id, visit, modality, format, size_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (ontology_id, path) DO NOTHING`)
+	statement, err := tx.Prepare(`INSERT INTO ontology_objects (ontology_id, path, subject_id, visit, modality, format, measurement_table, size_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (ontology_id, path) DO NOTHING`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 	for _, object := range objects {
-		if _, err := statement.Exec(id, object.Path, object.SubjectID, object.Visit, object.Modality, object.Format, object.SizeBytes); err != nil {
+		if _, err := statement.Exec(id, object.Path, object.SubjectID, object.Visit, object.Modality, object.Format, object.Table, object.SizeBytes); err != nil {
 			return err
 		}
 	}
@@ -2980,7 +2985,7 @@ func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Obj
 }
 
 func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
-	query := `SELECT ontology_id, path, subject_id, visit, modality, format, size_bytes FROM ontology_objects WHERE ontology_id=$1`
+	query := `SELECT ontology_id, path, subject_id, visit, modality, format, measurement_table, size_bytes FROM ontology_objects WHERE ontology_id=$1`
 	args := []any{strings.TrimSpace(ontologyID)}
 	// An empty axis is "no constraint", never "nothing" - an extract named by
 	// modality alone spans every subject that carries it.
@@ -2992,6 +2997,7 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 		{"modality", filter.Modalities},
 		{"visit", filter.Visits},
 		{"format", filter.Formats},
+		{"measurement_table", filter.Tables},
 	} {
 		if len(axis.values) == 0 {
 			continue
@@ -3017,7 +3023,7 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 	out := []ontology.Object{}
 	for rows.Next() {
 		var item ontology.Object
-		if err := rows.Scan(&item.OntologyID, &item.Path, &item.SubjectID, &item.Visit, &item.Modality, &item.Format, &item.SizeBytes); err != nil {
+		if err := rows.Scan(&item.OntologyID, &item.Path, &item.SubjectID, &item.Visit, &item.Modality, &item.Format, &item.Table, &item.SizeBytes); err != nil {
 			return nil, err
 		}
 		out = append(out, item)

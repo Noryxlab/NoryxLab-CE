@@ -104,7 +104,11 @@ type Object struct {
 	// 37 MB of CSV inside 41 GB of images, so somebody who needs the numbers
 	// had to be handed twenty thousand patient images to get them. Selecting
 	// by kind is how a disclosure gets smaller than the folder it lives in.
-	Format    string `json:"format,omitempty"`
+	Format string `json:"format,omitempty"`
+	// Table is the measurement table a tabular file holds - Cornea_Basics,
+	// Cornea_Ectasia - without the identifier of whoever it belongs to. The
+	// axis somebody means when they ask for a level below the modality.
+	Table     string `json:"table,omitempty"`
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
@@ -118,5 +122,8 @@ type ObjectFilter struct {
 	// Formats narrows to kinds of file. Same rule as the others: empty means
 	// no constraint, never nothing.
 	Formats []string
-	Limit   int
+	// Tables narrows to measurement tables. Same rule: empty is no
+	// constraint.
+	Tables []string
+	Limit  int
 }

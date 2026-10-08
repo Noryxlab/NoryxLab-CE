@@ -1135,6 +1135,10 @@ export interface OntologyCompleteness {
   /** Vide sur une photographie prise avant qu'on compte les genres : « pas
    *  mesure », et non « cette etude ne contient aucun fichier ». */
   formats?: OntologyFormatCoverage[];
+  /** Les tables de mesure, totalisees pareil. Sept sur l'ANTERION de
+   *  PREMYOM1000, chacune chez les trente sujets - c'est a ca que ressemble
+   *  un axe, et c'est ce qu'une liste de noms de fichiers cachait. */
+  tables?: OntologyFormatCoverage[];
   completeSubjects: number;
 }
 

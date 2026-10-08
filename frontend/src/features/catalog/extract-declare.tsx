@@ -49,6 +49,13 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
    *  chiffres devait emporter les images, parce que la categorie etait la
    *  plus petite chose qu'on pouvait demander. */
   const [kinds, setKinds] = React.useState<string[]>([]);
+  /* La table de mesure : l'axe sous la categorie.
+   *
+   *  C'est ce que quelqu'un veut dire en demandant « un niveau de plus ».
+   *  Dans l'ANTERION de PREMYOM1000, le quatrieme segment de chemin contient
+   *  trois noms de dossier et 349 noms de fichiers, alors que les tables sont
+   *  sept, chacune chez les trente patients. */
+  const [tables, setTables] = React.useState<string[]>([]);
   /* La disposition : l'ordre des niveaux de l'arbre monte.
    *
    *  La selection dit quels fichiers, la disposition dit comment ils sont
@@ -72,6 +79,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
   const coverage = useOntologyCompleteness(ontology.id);
   const available = coverage.data?.modalities ?? [];
   const genres = coverage.data?.formats ?? [];
+  const mesures = coverage.data?.tables ?? [];
 
   // Repartir de zero quand on change d'ontologie, sinon le formulaire propose
   // de decouper la nouvelle avec les categories de l'ancienne.
@@ -80,6 +88,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     setSubjects('');
     setChosen([]);
     setKinds([]);
+    setTables([]);
     setNiveaux(['subject', 'visit', 'modality']);
   }, [ontology.id]);
 
@@ -87,6 +96,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     liste.includes(nom) ? liste.filter((item) => item !== nom) : [...liste, nom];
   const toggle = (nom: string) => setChosen((current) => bascule(current, nom));
   const toggleKind = (nom: string) => setKinds((current) => bascule(current, nom));
+  const toggleTable = (nom: string) => setTables((current) => bascule(current, nom));
 
   const asList = (raw: string) =>
     raw
@@ -110,6 +120,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         // mount it.
         modalities: chosen,
         formats: kinds,
+        tables: tables,
         subjects: asList(subjects),
         layout: niveaux,
       }),
@@ -117,6 +128,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
       setName('');
       setChosen([]);
       setKinds([]);
+      setTables([]);
       setSubjects('');
       setNiveaux(['subject', 'visit', 'modality']);
       done(created.objectCount);
@@ -138,6 +150,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         description: t('ontologies.extractWholeHint'),
         modalities: [],
         formats: [],
+        tables: [],
         subjects: [],
         layout: ['subject', 'visit', 'modality'],
       }),
@@ -165,9 +178,14 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     kinds.length === 0
       ? null
       : genres.filter((genre) => kinds.includes(genre.name)).reduce((t, g) => t + g.objects, 0);
-  const borneHaute = filtreEntites || prisParGenre !== null;
-  const annonce =
-    prisParGenre === null ? prisParCategorie : Math.min(prisParCategorie, prisParGenre);
+  const prisParTable =
+    tables.length === 0
+      ? null
+      : mesures.filter((m) => tables.includes(m.name)).reduce((t, m) => t + m.objects, 0);
+  const borneHaute = filtreEntites || prisParGenre !== null || prisParTable !== null;
+  const annonce = [prisParCategorie, prisParGenre, prisParTable]
+    .filter((valeur): valeur is number => valeur !== null)
+    .reduce((plus_petit, valeur) => Math.min(plus_petit, valeur), prisParCategorie);
 
   const lu = ontology.manifest as ManifestExtrait | undefined;
   const resume = lu?.summary;
@@ -274,6 +292,36 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
                     {genre.name}
                     <span className="opacity-70 tabular-nums">
                       {formatBytes(genre.totalBytes, locale)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </Field>
+          ) : null}
+
+          {/* Les tables de mesure, quand la photographie en a trouve. */}
+          {mesures.length > 0 ? (
+            <Field
+              label={t('ontologies.extractTables')}
+              description={
+                tables.length === 0
+                  ? t('ontologies.extractTablesAll')
+                  : t('ontologies.extractTablesChosen')
+              }
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {mesures.map((mesure) => (
+                  <Button
+                    key={mesure.name}
+                    type="button"
+                    size="sm"
+                    variant={tables.includes(mesure.name) ? 'primary' : 'secondary'}
+                    onClick={() => toggleTable(mesure.name)}
+                    aria-pressed={tables.includes(mesure.name)}
+                  >
+                    {mesure.name}
+                    <span className="opacity-70 tabular-nums">
+                      {formatNumber(mesure.objects, locale)}
                     </span>
                   </Button>
                 ))}

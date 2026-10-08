@@ -45,6 +45,10 @@ type ontologyCompleteness struct {
 	// rescan fills it, and an empty list reads as "not measured" rather than
 	// as "this study holds no files".
 	Formats []formatCoverage `json:"formats"`
+	// Tables is the measurement tables, totalled the same way. Seven on
+	// PREMYOM1000's ANTERION, each held by all thirty subjects - which is
+	// what an axis looks like, and what a list of file names was hiding.
+	Tables []formatCoverage `json:"tables"`
 	// Subjects holding every modality the study uses. The number an extract can
 	// count on without caveat.
 	CompleteSubjects int `json:"completeSubjects"`
@@ -95,6 +99,7 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 		Subjects:   len(manifest.Subjects),
 		Modalities: []modalityCoverage{},
 		Formats:    formatsIn(manifest),
+		Tables:     tablesIn(manifest),
 	}
 	for name, holders := range subjectsWith {
 		coverage := modalityCoverage{
@@ -135,13 +140,22 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 	return report
 }
 
+// tablesIn totals each measurement table across the whole photograph.
+func tablesIn(manifest ontologyManifest) []formatCoverage {
+	return tallyAcross(manifest, func(m ontologyModality) map[string]ontologyFormatTally { return m.TableCounts })
+}
+
 // formatsIn totals each kind of file across the whole photograph.
 func formatsIn(manifest ontologyManifest) []formatCoverage {
+	return tallyAcross(manifest, func(m ontologyModality) map[string]ontologyFormatTally { return m.FormatCounts })
+}
+
+func tallyAcross(manifest ontologyManifest, pick func(ontologyModality) map[string]ontologyFormatTally) []formatCoverage {
 	tallies := map[string]ontologyFormatTally{}
 	for _, subject := range manifest.Subjects {
 		for _, visit := range subject.Visits {
 			for _, modality := range visit.Modalities {
-				for name, tally := range modality.FormatCounts {
+				for name, tally := range pick(modality) {
 					running := tallies[name]
 					running.Objects += tally.Objects
 					running.TotalBytes += tally.TotalBytes

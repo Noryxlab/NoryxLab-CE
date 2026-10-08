@@ -50,6 +50,8 @@ type Extract struct {
 	// CSVs is a different thing from one that holds its images, and the
 	// difference has to be legible a year later.
 	Formats []string `json:"formats"`
+	// Tables is the measurement tables this extract keeps.
+	Tables []string `json:"tables"`
 	// Layout is the order of the directory levels a mount builds, and it is
 	// the other half of what an extract is.
 	//
@@ -84,7 +86,7 @@ type Member struct {
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
-func New(ownerUserID, ontologyID, projectID, name, description string, subjects, modalities, visits, formats []string) Extract {
+func New(ownerUserID, ontologyID, projectID, name, description string, subjects, modalities, visits, formats, tables []string) Extract {
 	now := time.Now().UTC()
 	return Extract{
 		ID:          uuid.NewString(),
@@ -101,6 +103,7 @@ func New(ownerUserID, ontologyID, projectID, name, description string, subjects,
 		Modalities:  normalize(modalities),
 		Visits:      normalize(visits),
 		Formats:     normalize(formats),
+		Tables:      normalize(tables),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

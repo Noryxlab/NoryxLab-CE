@@ -233,7 +233,10 @@ type ontologyModality struct {
 	// 20,115 files and 41 GB is the whole argument for selecting by kind.
 	// Beside Formats rather than replacing it, so a manifest written before
 	// this still decodes.
-	FormatCounts      map[string]ontologyFormatTally `json:"formatCounts,omitempty"`
+	FormatCounts map[string]ontologyFormatTally `json:"formatCounts,omitempty"`
+	// TableCounts is the same for measurement tables: how many files and
+	// bytes each one accounts for, which the list of names could not say.
+	TableCounts       map[string]ontologyFormatTally `json:"tableCounts,omitempty"`
 	MeasurementTables []string                       `json:"measurementTables"`
 	SamplePaths       []string                       `json:"samplePaths"`
 }
@@ -256,6 +259,7 @@ type ontologyModalityAcc struct {
 	totalBytes        int64
 	formats           map[string]struct{}
 	formatTallies     map[string]ontologyFormatTally
+	tableTallies      map[string]ontologyFormatTally
 	measurementTables map[string]struct{}
 	samplePaths       []string
 }
@@ -1238,7 +1242,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		if format != "" {
 			formats[format] = struct{}{}
 		}
-		table := inferMeasurementTable(relPath, format)
+		table := inferMeasurementTable(relPath, format, subjectID)
 		if table != "" {
 			tables[table] = struct{}{}
 		}
@@ -1255,6 +1259,10 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		}
 		if table != "" {
 			acc.measurementTables[table] = struct{}{}
+			tally := acc.tableTallies[table]
+			tally.Objects++
+			tally.TotalBytes += obj.Size
+			acc.tableTallies[table] = tally
 		}
 		if len(acc.samplePaths) < 3 {
 			acc.samplePaths = append(acc.samplePaths, relPath)
@@ -1265,6 +1273,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			Visit:     visitDate,
 			Modality:  modalityName,
 			Format:    format,
+			Table:     table,
 			SizeBytes: obj.Size,
 		})
 		return true
@@ -1546,14 +1555,35 @@ func inferObjectFormat(relPath string) string {
 	return "NO_EXT"
 }
 
-func inferMeasurementTable(relPath, format string) string {
+// inferMeasurementTable names the table a CSV holds, without the identifier
+// of whoever it belongs to.
+//
+// The subject prefix used to be kept, so the same table appeared once per
+// subject: PREMYOM1000-0001_Cornea_Basics, PREMYOM1000-0002_Cornea_Basics,
+// thirty of them. That is a list of files, not an axis - nothing could be
+// counted across subjects, and nothing could be asked for.
+//
+// Stripped, ANTERION has seven tables - Cornea_Basics, Cornea_Ectasia,
+// Cornea_Epithelium, Cornea_Segments_Rings, Cornea_Segments_Zones,
+// Cornea_Wavefront, Metrics_Basics - each present for all thirty subjects,
+// 36 files apiece. That is an axis, and it is the one somebody means when
+// they ask for a level below the modality.
+//
+// A name that is only the subject identifier names no table, and neither
+// does a per-acquisition export like 1_ANTERION_COR_2025-05-07_111013_OD:
+// those are one file each and would bury the seven real ones. They are left
+// unnamed rather than guessed at.
+func inferMeasurementTable(relPath, format, subjectID string) string {
 	if format != "CSV" && format != "TSV" {
 		return ""
 	}
 	base := path.Base(relPath)
 	ext := path.Ext(base)
 	name := strings.TrimSpace(strings.TrimSuffix(base, ext))
-	if ontologySubjectPattern.MatchString(name) || strings.HasPrefix(strings.ToLower(name), "patient_") {
+	if subject := strings.TrimSpace(subjectID); subject != "" {
+		name = strings.TrimSpace(strings.TrimPrefix(name, subject+"_"))
+	}
+	if name == "" || ontologySubjectPattern.MatchString(name) || strings.HasPrefix(strings.ToLower(name), "patient_") {
 		return ""
 	}
 	return name
@@ -1575,6 +1605,7 @@ func getOntologyModalityAcc(subjects map[string]*ontologySubjectAcc, subjectID, 
 		mod = &ontologyModalityAcc{
 			formats:           map[string]struct{}{},
 			formatTallies:     map[string]ontologyFormatTally{},
+			tableTallies:      map[string]ontologyFormatTally{},
 			measurementTables: map[string]struct{}{},
 		}
 		visit.modalities[modality] = mod
@@ -1625,12 +1656,17 @@ func materializeOntologySubjects(subjects map[string]*ontologySubjectAcc) ([]ont
 				for key, tally := range modAcc.formatTallies {
 					tallies[key] = tally
 				}
+				tableTallies := map[string]ontologyFormatTally{}
+				for key, tally := range modAcc.tableTallies {
+					tableTallies[key] = tally
+				}
 				mods = append(mods, ontologyModality{
 					Name:              name,
 					ObjectCount:       modAcc.objectCount,
 					TotalBytes:        modAcc.totalBytes,
 					Formats:           sortedKeys(modAcc.formats),
 					FormatCounts:      tallies,
+					TableCounts:       tableTallies,
 					MeasurementTables: sortedKeys(modAcc.measurementTables),
 					SamplePaths:       append([]string(nil), modAcc.samplePaths...),
 				})

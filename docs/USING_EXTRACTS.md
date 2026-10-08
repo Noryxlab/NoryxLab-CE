@@ -17,7 +17,7 @@ Two things make one:
 
 | | |
 |---|---|
-| **The selection** | which files — by category, by kind of file, by entity, or everything |
+| **The selection** | which files — by category, kind of file, measurement table, entity, or everything |
 | **The layout** | how the folders are arranged in the workspace |
 
 The same files arranged two ways answer two different questions. "What does
@@ -47,8 +47,8 @@ number with no provenance.
 
 ### 1 · What you take
 
-Three ways to narrow, and they combine: **categories**, **kinds of file**, and
-**entities**. Nothing ticked means everything.
+Four ways to narrow, and they combine: **categories**, **kinds of file**,
+**measurement tables**, and **entities**. Nothing ticked means everything.
 
 Kinds of file is the one that makes a disclosure smaller than the folder it
 lives in. On PREMYOM1000's ANTERION:
@@ -69,8 +69,20 @@ It also lets the viewer chrome go: `IHE_PDI/images/arrowdwn.gif` is the
 DICOM viewer's own decoration, not study data, and it is in every extract that
 takes a whole ANTERION.
 
-The kinds are counted at scan time, so an ontology scanned before this shows
-no kinds at all — not "no files". Rescan it.
+**Measurement tables** are the axis below the category. On PREMYOM1000's
+ANTERION there are seven — `Cornea_Basics`, `Cornea_Ectasia`,
+`Cornea_Epithelium`, `Cornea_Segments_Rings`, `Cornea_Segments_Zones`,
+`Cornea_Wavefront`, `Metrics_Basics` — each held by all thirty subjects, 36
+files apiece. Asking for the epithelium measurements of everybody is one
+tick.
+
+This is what people usually mean when they ask for a fourth path level, and
+a fourth path level would not give it to them: the fourth segment under
+ANTERION holds three folder names (`DICOM`, `IHE_PDI`, `DICOMDIR`) and 349
+distinct file names. The table is in the file name, not in the tree.
+
+Both axes are computed at scan time, so an ontology scanned before this shows
+neither — not "no files". Rescan it.
 
 Entities are a comma-separated list.
 

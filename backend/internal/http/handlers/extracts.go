@@ -41,6 +41,12 @@ type extractRequest struct {
 	// this, somebody who needed the numbers was handed the images too,
 	// because the modality was the smallest thing anybody could ask for.
 	Formats []string `json:"formats"`
+	// Tables narrows to measurement tables - Cornea_Basics, Cornea_Ectasia.
+	// The axis below the modality, and the one somebody means when they ask
+	// for a fourth level: on PREMYOM1000's ANTERION the fourth path segment
+	// holds three folder names and 349 file names, while the tables are
+	// seven, each held by all thirty subjects.
+	Tables []string `json:"tables"`
 	// Layout is the order of the directory levels the mount builds. Empty is
 	// the default, subject first, which is what every extract carried before
 	// the order could be chosen.
@@ -82,6 +88,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		Modalities: req.Modalities,
 		Visits:     req.Visits,
 		Formats:    req.Formats,
+		Tables:     req.Tables,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve the extract"})
@@ -132,7 +139,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats)
+	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats, req.Tables)
 	object.Layout = layout
 	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {
