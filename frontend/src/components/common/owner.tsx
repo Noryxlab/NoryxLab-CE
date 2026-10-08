@@ -132,7 +132,19 @@ export function OwnerTransfer({
   const unchanged = ownerType === (owner.ownerType ?? 'user') && ownerId === (owner.ownerId ?? '');
 
   return (
-    <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    <div className="space-y-2">
+      {/* Qui possede, avant a qui donner.
+        *
+        *  Les deux listes sont pre-remplies avec le proprietaire actuel, donc
+        *  l'information etait bien a l'ecran - sous l'etiquette « Nouveau
+        *  proprietaire », c'est-a-dire exactement la ou personne ne la
+        *  cherche. On l'ecrit une fois, en clair, et le champ redevient ce
+        *  qu'il pretend etre. */}
+      <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+        <span>{t('projects.ownerCurrent')}</span>
+        <ResourceOwner owner={owner} />
+      </p>
+      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <Field label={t('projects.ownerTypeLabel')}>
         <Select
           value={ownerType}
@@ -147,7 +159,11 @@ export function OwnerTransfer({
           ]}
         />
       </Field>
-      <Field label={t('projects.ownerLabel')}>
+      {/* Un bouton grise qui ne dit pas pourquoi se lit comme une panne. */}
+      <Field
+        label={t('projects.ownerLabel')}
+        description={unchanged ? t('projects.ownerUnchangedHint') : undefined}
+      >
         <Select
           value={ownerId}
           onValueChange={setOwnerId}
@@ -163,6 +179,7 @@ export function OwnerTransfer({
       >
         {label}
       </Button>
+      </div>
     </div>
   );
 }

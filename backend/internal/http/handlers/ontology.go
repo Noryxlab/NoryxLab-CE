@@ -115,6 +115,17 @@ type ontologyReadingRule struct {
 }
 
 // describeReading records the rule a scan is about to apply.
+//
+// The three names are carried only when somebody declared them. An undeclared
+// level has no name in this dataset's trade, and the platform's own fallback
+// word is not a fact about the data - it is a label on a screen, which belongs
+// to whoever renders that screen in whatever language it is read in.
+//
+// Sending "entity" here was the cause of the ugliest thing on the ontology
+// page: the French UI has its own fallbacks, they were never reached because
+// the field was never empty, and so one screen said "entity", "entitys",
+// "Entités", "Sujet" and "subject" for a single concept - a plural built by
+// gluing an s onto an English word nobody chose.
 func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 	if layout == nil || !layout.Declared() {
 		return ontologyReadingRule{
@@ -123,9 +134,6 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 			VisitLevel:    dataset.LevelAbsent,
 			ModalityLevel: dataset.LevelAbsent,
 			Description:   "the platform's compiled rule: the first segment that looks like a subject identifier, then the next two as visit and modality",
-			SubjectName:   dataset.DefaultSubjectName,
-			VisitName:     dataset.DefaultVisitName,
-			ModalityName:  dataset.DefaultModalityName,
 		}
 	}
 	return ontologyReadingRule{
@@ -134,9 +142,9 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 		VisitLevel:    layout.VisitLevel,
 		ModalityLevel: layout.ModalityLevel,
 		Description:   layout.Describe(),
-		SubjectName:   layout.Subject(),
-		VisitName:     layout.Visit(),
-		ModalityName:  layout.Modality(),
+		SubjectName:   strings.TrimSpace(layout.SubjectName),
+		VisitName:     strings.TrimSpace(layout.VisitName),
+		ModalityName:  strings.TrimSpace(layout.ModalityName),
 	}
 }
 
@@ -800,7 +808,10 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 			})
 			return
 		}
-		object = ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+manifest.SourceType, manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
+		// The source's name, not its type: "generated from dataset" put an
+		// internal word in front of somebody who had just scanned a bucket
+		// they could name themselves.
+		object = ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+sourceLabel(manifest), manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
 		if err := h.ontologyStore.Create(object); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
 			return
@@ -999,6 +1010,14 @@ func (h Handlers) canManageOntologyAccess(item ontologydomain.Ontology, identity
 	return h.isGlobalAdmin(identity) || h.ontologyRole(item, identity) == "owner"
 }
 
+// sourceLabel names what a scan read, the way its owner names it.
+func sourceLabel(manifest ontologyManifest) string {
+	if name := strings.TrimSpace(manifest.SourceName); name != "" {
+		return name
+	}
+	return strings.TrimSpace(manifest.SourceType)
+}
+
 func ontologyObjectName(manifest ontologyManifest) string {
 	if strings.TrimSpace(manifest.Study) != "" {
 		return strings.TrimSpace(manifest.Study)
@@ -1180,7 +1199,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			reconnus[shape]++
 		}
 		if study == "" {
-			study = inferStudy(subjectID)
+			study = studyFromPath(relPath, subjectID)
 		}
 		if visitDate == "" {
 			visitDate = "unknown"
@@ -1398,8 +1417,17 @@ func isAllDigits(value string) bool {
 	return true
 }
 
-// describeLayouts returns the most common shapes first: the point is to show
+// describeLayouts returns the shapes, most common first: the point is to show
 // somebody the convention their data actually follows.
+//
+// All of them. It used to keep the first eight and say nothing about the rest,
+// so the panel read as an inventory while hiding a tail - on SELENA the eight
+// shown accounted for 3,979 objects out of 3,994, and the fifteen others
+// appeared nowhere. A list that looks exhaustive and is not is worse than a
+// short one, because nobody thinks to ask what is missing. The tally that
+// feeds this is already capped at StructureTallyCap distinct shapes, so the
+// slice is bounded; deciding how many to show at once is the screen's job,
+// and it can only offer "show the rest" if it has been given the rest.
 func describeLayouts(layouts map[string]int) []string {
 	if len(layouts) == 0 {
 		return nil
@@ -1418,9 +1446,6 @@ func describeLayouts(layouts map[string]int) []string {
 		}
 		return entries[i].shape < entries[j].shape
 	})
-	if len(entries) > 8 {
-		entries = entries[:8]
-	}
 	out := make([]string, 0, len(entries))
 	for _, item := range entries {
 		out = append(out, fmt.Sprintf("%s (%d)", item.shape, item.count))
@@ -1428,12 +1453,33 @@ func describeLayouts(layouts map[string]int) []string {
 	return out
 }
 
-func inferStudy(subjectID string) string {
-	idx := strings.LastIndex(subjectID, "-")
-	if idx > 0 {
-		return subjectID[:idx]
+// studyFromPath reads the study's name instead of guessing it.
+//
+// It used to be chopped off the first subject identifier - everything before
+// the last dash - which is only ever right by luck. PREMYOM1000-0001 gave
+// PREMYOM1000, nobody looked again, and the rule shipped. SELENA-01-001 gives
+// SELENA-01, which is not the study: it is the investigating centre. The whole
+// catalogue then displayed a centre code as the name of a trial.
+//
+// The name is already in the path - it is the directory the subjects sit in -
+// so it is read rather than derived from an identifier whose internal
+// structure the platform has no business interpreting.
+//
+// Nothing is returned for a bucket whose subjects sit at the root, because
+// then the study genuinely is not named anywhere in the keys; the caller falls
+// back to the dataset's own name rather than inventing one.
+func studyFromPath(relPath, subjectID string) string {
+	segments := strings.Split(strings.Trim(relPath, "/"), "/")
+	for i, segment := range segments {
+		if strings.TrimSpace(segment) != subjectID {
+			continue
+		}
+		if i == 0 {
+			return ""
+		}
+		return strings.TrimSpace(segments[i-1])
 	}
-	return subjectID
+	return ""
 }
 
 func inferObjectFormat(relPath string) string {

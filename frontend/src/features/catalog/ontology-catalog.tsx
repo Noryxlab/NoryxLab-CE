@@ -6,6 +6,7 @@ import {
   FolderOpen,
   MessageCircle,
   Network,
+  ChevronRight,
   Pencil,
   Radar,
   Search,
@@ -55,7 +56,8 @@ import {
 } from '@/lib/api/queries';
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { OntologyCardPanel } from './ontology-card';
-import { useI18n, useT } from '@/lib/i18n';
+import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
+import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPathLayoutTrial } from '@/lib/api/types';
 
@@ -77,24 +79,41 @@ import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPa
 /** Un pluriel suffisant pour un libelle : les mots du metier sont des noms
  *  communs courts, et un « s » tient pour « entités », « clients »,
  *  « patients ». Un mot deja au pluriel n'en gagne pas un second. */
-function pluriel(mot: string): string {
-  return mot.endsWith('s') || mot.endsWith('x') ? mot : `${mot}s`;
-}
-
-function capitaliser(mot: string): string {
-  return mot.charAt(0).toUpperCase() + mot.slice(1);
-}
-
-function motsDuMetier(ontology: Ontology | null | undefined) {
+/* La regle de lecture, en francais, plutot que la prose du serveur.
+ *
+ *  Le bandeau affichait « the platform's compiled rule: the first segment that
+ *  looks like a subject identifier, then the next two as visit and modality » :
+ *  un commentaire de code servi a l'utilisateur. La regle est trois positions
+ *  et trois mots ; elle se reconstitue ici, dans la langue de l'ecran. */
+function regleLisible(
+  ontology: Ontology | null | undefined,
+  t: (key: TranslationKey, values?: Record<string, string | number>) => string,
+): string {
   const regle = (ontology?.manifest as ManifestLu | undefined)?.readingRule;
-  return {
-    sujet: regle?.subjectName?.trim() || 'entité',
-    visite: regle?.visitName?.trim() || 'période',
-    modalite: regle?.modalityName?.trim() || 'catégorie',
-  };
+  if (!regle || regle.source !== 'declared') return t('ontologies.patternRuleDefaultPlain');
+  const mots = motsDuMetier(ontology);
+  const niveaux = [
+    regle.subjectLevel !== undefined && regle.subjectLevel >= 0
+      ? t('ontologies.patternLevelIs', { level: String(regle.subjectLevel), name: mots.sujet })
+      : null,
+    regle.visitLevel !== undefined && regle.visitLevel >= 0
+      ? t('ontologies.patternLevelIs', { level: String(regle.visitLevel), name: mots.visite })
+      : null,
+    regle.modalityLevel !== undefined && regle.modalityLevel >= 0
+      ? t('ontologies.patternLevelIs', { level: String(regle.modalityLevel), name: mots.modalite })
+      : null,
+  ].filter(Boolean);
+  return niveaux.join(', ');
+}
+
+/* Un identifiant que cette ontologie porte vraiment, pour servir d'exemple. */
+function premiereEntite(ontology: Ontology | null | undefined): string | undefined {
+  const sujets = (ontology?.manifest as ManifestLu | undefined)?.subjects;
+  return sujets?.[0]?.id?.trim() || undefined;
 }
 
 type ManifestLu = {
+  subjects?: { id?: string }[];
   summary?: {
     objects?: number;
     subjects?: number;
@@ -108,6 +127,9 @@ type ManifestLu = {
   readingRule?: {
     source?: string;
     description?: string;
+    subjectLevel?: number;
+    visitLevel?: number;
+    modalityLevel?: number;
     /** Les mots du metier qui possede la donnee, tels qu'ils etaient quand
      *  cette photographie a ete prise. Enregistres avec la regle et pour la
      *  meme raison (ADR-040) : un nom change ensuite ferait decrire une vieille
@@ -165,7 +187,6 @@ function OntologyQuery({ ontology }: { ontology: Ontology }) {
         </CardHeaderText>
       </CardHeader>
       <CardContent className="space-y-4">
-        <OntologyFreshnessNote ontologyId={ontology.id} />
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -593,11 +614,7 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
             *  ne dit rien a personne ; ce qu'il faut savoir est que cette
             *  photographie-ci a ete prise avec cette regle-la. */}
           <span>{t('ontologies.patternProducedWith')}</span>
-          <Badge tone="outline">
-            {(ontology.manifest as ManifestLu | undefined)?.readingRule?.description ||
-              ontology.inferenceProfile ||
-              '—'}
-          </Badge>
+          <Badge tone="outline">{regleLisible(ontology, t)}</Badge>
           {dossiers > 0 ? (
             <span>{t('ontologies.patternDirectories', { count: formatNumber(dossiers, locale) })}</span>
           ) : null}
@@ -610,13 +627,7 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
             <p className="mb-1 text-xs font-medium">
               {t('ontologies.patternRecognisedFor', { entities: pluriel(motsDuMetier(ontology).sujet) })}
             </p>
-            <ul className="space-y-0.5">
-              {reconnues.map((forme) => (
-                <li key={forme} className="font-mono text-xs text-muted-foreground">
-                  {forme}
-                </li>
-              ))}
-            </ul>
+            <FormesListe formes={reconnues} />
           </div>
         )}
 
@@ -625,17 +636,50 @@ function OntologyPattern({ ontology }: { ontology: Ontology }) {
         {refusees.length > 0 ? (
           <div>
             <p className="mb-1 text-xs font-medium">{t('ontologies.patternUnrecognised')}</p>
-            <ul className="space-y-0.5">
-              {refusees.map((forme) => (
-                <li key={forme} className="font-mono text-xs text-muted-foreground">
-                  {forme}
-                </li>
-              ))}
-            </ul>
+            <FormesListe formes={refusees} />
           </div>
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+/* Une liste de formes qui avoue sa longueur.
+ *
+ *  Le serveur n'en renvoyait que huit, sans le dire : sur SELENA elles
+ *  totalisaient 3 979 objets sur 3 994, et les quinze autres n'apparaissaient
+ *  nulle part. Une liste qui a l'air exhaustive et ne l'est pas est pire
+ *  qu'une liste courte, parce que personne ne pense a demander ce qui manque.
+ *  On en montre huit - au-dela, un ecran ne se lit plus - et on dit combien
+ *  restent, avec de quoi les voir. */
+function FormesListe({ formes }: { formes: string[] }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const [tout, setTout] = React.useState(false);
+  const visibles = tout ? formes : formes.slice(0, 8);
+  const reste = formes.length - visibles.length;
+
+  return (
+    <>
+      <ul className="space-y-0.5">
+        {visibles.map((forme) => (
+          <li key={forme} className="font-mono text-xs text-muted-foreground">
+            {forme}
+          </li>
+        ))}
+      </ul>
+      {reste > 0 || tout ? (
+        <button
+          type="button"
+          onClick={() => setTout((current) => !current)}
+          className="mt-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          {tout
+            ? t('ontologies.patternShapesFewer')
+            : t('ontologies.patternShapesMore', { count: formatNumber(reste, locale) })}
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -647,6 +691,17 @@ function OntologyCoverage({ ontology }: { ontology: Ontology }) {
   const coverage = useOntologyCompleteness(ontologyId);
   const data = coverage.data;
   if (!data || data.modalities.length === 0) return null;
+
+  // Un controle qui passe n'est pas un rapport.
+  //
+  //  Le bloc existe pour une seule raison : prevenir qu'un extrait demande
+  //  par categorie exclut en silence les entites qui ne la portent pas. Sur
+  //  SELENA tout etait a 2/2 et « Aucun » partout - cinq lignes de tableau
+  //  pour dire qu'il n'y a rien a dire, juste au-dessus d'une phrase qui le
+  //  disait deja. Il ne s'affiche donc que lorsqu'il a quelque chose a
+  //  signaler, et la phrase rassurante suffit le reste du temps.
+  const trous = data.modalities.filter((modality) => modality.missingSubjects.length > 0);
+  if (trous.length === 0) return null;
 
   return (
     <Card>
@@ -682,7 +737,7 @@ function OntologyCoverage({ ontology }: { ontology: Ontology }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.modalities.map((modality) => (
+              {trous.map((modality) => (
                 <TableRow key={modality.name}>
                   <TableCell className="font-mono text-xs">{modality.name}</TableCell>
                   <TableCell className="text-right text-xs tabular-nums">
@@ -692,11 +747,7 @@ function OntologyCoverage({ ontology }: { ontology: Ontology }) {
                     {formatNumber(modality.objects, locale)}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {modality.missingSubjects.length === 0 ? (
-                      t('ontologies.completenessNoGap')
-                    ) : (
-                      <span className="font-mono">{modality.missingSubjects.join(', ')}</span>
-                    )}
+                    <span className="font-mono">{modality.missingSubjects.join(', ')}</span>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1013,10 +1064,13 @@ function OntologyExtracts({ ontology }: { ontology: Ontology }) {
             />
           </Field>
           <Field label={t('ontologies.extractSubjects')}>
+            {/* Un exemple pris dans cette ontologie, jamais une autre : le
+              *  champ affichait « PREMYOM1000-001 » sur la page de SELENA,
+              *  code en dur, et rien ne disait que c'etait un exemple. */}
             <Input
               value={subjects}
               onChange={(event) => setSubjects(event.target.value)}
-              placeholder="PREMYOM1000-001"
+              placeholder={premiereEntite(ontology)}
             />
           </Field>
           <div className="flex gap-2">
@@ -1336,6 +1390,50 @@ function OntologyNaming({ ontology }: { ontology: Ontology }) {
   );
 }
 
+/* La fiche : de quoi on parle, et ce qu'il y a dedans.
+ *
+ *  Le nom et la description etaient un bloc separe, trois rangs plus bas que
+ *  la card qui decrit la meme chose. Ils se lisent ensemble. L'etat de
+ *  fraicheur monte ici aussi : il etait loge dans le bloc « Filtrer », ou
+ *  personne ne va. */
+function OntologyIdentity({ ontology }: { ontology: Ontology }) {
+  return (
+    <div className="space-y-3">
+      <OntologyNaming ontology={ontology} />
+      <OntologyFreshnessNote ontologyId={ontology.id} />
+      <OntologyCardPanel ontology={ontology} />
+    </div>
+  );
+}
+
+/* Ce qui sert a administrer l'ontologie, plie par defaut.
+ *
+ *  Rien n'est supprime - la regle de lecture reste modifiable, l'exploration
+ *  des objets reste la (ADR-025), la propriete se transfere toujours. Mais
+ *  aucune des trois n'est ce qu'on vient faire ici, et les trois ensemble
+ *  faisaient les deux tiers de la hauteur de la page. */
+function OntologySettings({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  return (
+    <details className="group rounded-lg border border-border bg-surface-raised">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium marker:content-none">
+        <span className="inline-flex items-center gap-2">
+          <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
+          {t('ontologies.settings')}
+        </span>
+        <span className="ml-6 block text-xs font-normal text-muted-foreground">
+          {t('ontologies.settingsHint')}
+        </span>
+      </summary>
+      <div className="space-y-3 border-t border-border p-3">
+        <OntologyPattern ontology={ontology} />
+        <OntologyQuery ontology={ontology} />
+        <OntologyOwnership ontology={ontology} />
+      </div>
+    </details>
+  );
+}
+
 function OntologyOwnership({ ontology }: { ontology: Ontology }) {
   const t = useT();
   const toast = useToast();
@@ -1621,16 +1719,26 @@ export function OntologyCatalog() {
           if (!open) setMountedOntology(null);
         }}
       />
-      {/* Ce que l'ontologie dit du sens des donnees vient avant ce que le scan
-          y a lu : on a besoin de savoir de quoi on parle avant de regarder les
-          formes de chemins. */}
-      {selected ? <OntologyCardPanel ontology={selected} /> : null}
-      {selected ? <OntologyPattern ontology={selected} /> : null}
-      {selected ? <OntologyNaming ontology={selected} /> : null}
-      {selected ? <OntologyQuery ontology={selected} /> : null}
-      {selected ? <OntologyCoverage ontology={selected} /> : null}
-      {selected ? <OntologyExtracts ontology={selected} /> : null}
-      {selected ? <OntologyOwnership ontology={selected} /> : null}
+      {/* Deux blocs, puis un tiroir.
+        *
+        *  Il y en avait sept, empiles : la card, les formes de chemins, le
+        *  renommage, un filtre, un tableau de couverture, les extraits, la
+        *  propriete. Quelqu'un qui ouvre une ontologie pose trois questions -
+        *  c'est quoi, il y a quoi dedans, comment j'en prends un bout - et la
+        *  page repondait a la troisieme en sixieme position, apres deux blocs
+        *  de diagnostic et un tableau qui disait « rien a signaler ».
+        *
+        *  Ce qui reste a l'ouverture repond a ces trois questions. Le reste
+        *  est de l'administration : la regle de lecture, l'exploration des
+        *  objets, la propriete. Toujours la, jamais en travers. */}
+      {selected ? (
+        <>
+          <OntologyIdentity ontology={selected} />
+          <OntologyCoverage ontology={selected} />
+          <OntologyExtracts ontology={selected} />
+          <OntologySettings ontology={selected} />
+        </>
+      ) : null}
       {dialog}
     </div>
   );

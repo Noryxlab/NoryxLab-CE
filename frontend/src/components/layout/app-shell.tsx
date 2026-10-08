@@ -226,7 +226,20 @@ export function AppShell() {
             <AccountMenu />
           </header>
 
-          <main id="main" className="min-w-0 flex-1 px-3 py-5 sm:px-5 lg:px-6">
+          {/* De la place en bas pour ce qu'une extension pose par-dessus.
+            *
+            *  Le contrat d'extension autorise un lanceur flottant en bas a
+            *  droite, et l'assistant Enterprise en pose un : il recouvrait le
+            *  bouton « Transferer la propriete » en fin de page d'ontologie,
+            *  qui devenait inatteignable. Community n'a pas a connaitre cette
+            *  extension-la - elle sait seulement qu'il y en a, et reserve la
+            *  gouttiere que le contrat leur promet. */}
+          <main
+            id="main"
+            className={`min-w-0 flex-1 px-3 py-5 sm:px-5 lg:px-6 ${
+              (config.extensions ?? []).length > 0 ? 'pb-20' : ''
+            }`}
+          >
             <Outlet />
           </main>
         </div>

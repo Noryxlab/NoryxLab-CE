@@ -108,6 +108,16 @@ func (h Handlers) GetOntologyFreshness(w http.ResponseWriter, r *http.Request) {
 // countDatasetObjects lists a dataset and counts. It lists; it does not read
 // object contents, and it never writes: these buckets hold regulated data, and
 // the platform's business with them is to say what is there.
+//
+// It counts what the scan counts, and that is the whole point of the
+// lookahead below. It used to count every key, including the zero-byte
+// directory markers the scan deliberately skips, so the two figures could
+// never agree: SELENA was listed at 4,111 against a manifest of 3,994 and
+// declared "no longer describes its source" the instant it was created, by
+// exactly its 117 directory keys. Every ontology was permanently stale - by 3
+// on PREMYOM1000, by 117 here - which is worse than no freshness check at all,
+// because a warning that is always on is a warning nobody reads on the day the
+// study really does gain eleven subjects.
 func (h Handlers) countDatasetObjects(ctx context.Context, item dataset.Dataset) (int, error) {
 	client, _, err := h.datasetS3Client(item)
 	if err != nil {
@@ -120,15 +130,34 @@ func (h Handlers) countDatasetObjects(ctx context.Context, item dataset.Dataset)
 	listCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
+	return countListedObjects(client.ListObjects(listCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}))
+}
+
+// countListedObjects counts a listing the way the scan counts it.
+//
+// One entry of lookahead, exactly as buildDatasetOntologyManifest does it: an
+// S3 listing is sorted, so a directory key is immediately followed by what it
+// prefixes. Kept apart from the client so the arithmetic that caused the bug
+// can be tested without a bucket.
+func countListedObjects(listing <-chan minio.ObjectInfo) (int, error) {
 	count := 0
-	for object := range client.ListObjects(listCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+	var pending *minio.ObjectInfo
+	for object := range listing {
 		if object.Err != nil {
 			return 0, object.Err
 		}
-		count++
-		if count > ontologyScanMaxObjects {
-			break
+		next := object
+		if pending != nil && !estUneCleDeDossier(*pending, next.Key) {
+			count++
+			if count > ontologyScanMaxObjects {
+				return count, nil
+			}
 		}
+		pending = &next
+	}
+	// The last key prefixes nothing, by construction.
+	if pending != nil {
+		count++
 	}
 	return count, nil
 }

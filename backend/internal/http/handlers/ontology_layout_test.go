@@ -34,19 +34,29 @@ func TestAPathTheProfileCannotReadIsDescribedRatherThanDropped(t *testing.T) {
 	}
 }
 
-// Only the frequent shapes are worth showing, and a long tail must not push
-// them off the list.
-func TestOnlyTheFrequentShapesAreShown(t *testing.T) {
+// Every shape is reported, commonest first.
+//
+// It used to keep the eight commonest and say nothing about the rest, so the
+// panel read as an inventory while hiding a tail: on SELENA the eight shown
+// accounted for 3,979 objects out of 3,994, and the fifteen others appeared
+// nowhere. A list that looks exhaustive and is not is worse than a short one,
+// because nobody thinks to ask what is missing. How many to show at once is
+// the screen's decision, and it can only offer "show the rest" if it is given
+// the rest.
+func TestEveryShapeIsReportedCommonestFirst(t *testing.T) {
 	layouts := map[string]int{}
 	for index := 0; index < 20; index++ {
 		layouts[strings.Repeat("x", index+1)] = index + 1
 	}
 	described := describeLayouts(layouts)
-	if len(described) != 8 {
-		t.Fatalf("expected the eight commonest, got %d", len(described))
+	if len(described) != 20 {
+		t.Fatalf("expected every shape, got %d", len(described))
 	}
 	if !strings.Contains(described[0], "(20)") {
 		t.Errorf("the commonest should lead: %s", described[0])
+	}
+	if !strings.Contains(described[len(described)-1], "(1)") {
+		t.Errorf("the rarest should close the list: %s", described[len(described)-1])
 	}
 }
 

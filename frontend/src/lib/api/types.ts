@@ -1172,7 +1172,12 @@ export interface OntologyCardContent {
  *  brochure. Sans verdict - une prose ne se verifie pas. */
 export interface OntologyMeasured {
   subjects?: number;
+  /** Ce que la lecture a produit, donc ce qu'un extrait peut prendre. */
   objects?: number;
+  /** Les cles que la regle ne couvre pas. Montrees a part, jamais fondues
+   *  dans le total : la card affichait 3 994 en haut et avouait en bas une
+   *  forme qui n'avait rien produit, pour 3 993 objets reellement stockes. */
+  unreadable?: number;
   modalities?: string[];
   firstVisit?: string;
   lastVisit?: string;

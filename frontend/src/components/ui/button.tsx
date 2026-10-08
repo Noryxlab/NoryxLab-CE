@@ -8,7 +8,17 @@ const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium',
     'transition-colors select-none',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-    'disabled:pointer-events-none disabled:opacity-50',
+    // Un bouton desactive doit cesser d'avoir l'air actif.
+    //
+    //  L'opacite seule ne suffit pas sur une couleur de marque : sur la page
+    //  d'ontologie, « Essayer » (secondaire, gris) et « Enregistrer la regle »
+    //  (primaire, bleu) etaient desactives par la meme condition, et le second
+    //  paraissait cliquable a 50 % d'opacite. On lisait donc un ecran qui
+    //  semblait interdire ce qu'il recommandait et autoriser ce qu'il
+    //  deconseillait.
+    'disabled:pointer-events-none disabled:opacity-60',
+    'disabled:bg-surface-muted disabled:text-muted-foreground disabled:border-border',
+    'disabled:shadow-none disabled:[&_svg]:opacity-70',
     '[&_svg]:pointer-events-none [&_svg]:shrink-0',
   ),
   {

@@ -8,7 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { ontologyCardApi } from '@/lib/api/endpoints';
 import { qk } from '@/lib/api/queries';
 import type { Ontology, OntologyCard } from '@/lib/api/types';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { capitaliser, dateDeVisite, motsDuMetier, pluriel } from './ontology-words';
 
 /** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme a
  *  mesure a cote (ADR-047).
@@ -111,7 +112,7 @@ export function OntologyCardPanel({ ontology }: { ontology: Ontology }) {
             )}
 
             <Separator />
-            <Measured payload={card.data} />
+            <Measured payload={card.data} ontology={ontology} />
           </>
         )}
       </CardContent>
@@ -122,34 +123,59 @@ export function OntologyCardPanel({ ontology }: { ontology: Ontology }) {
 /** Ce que la plateforme a compte elle-meme, et si quelque chose a deja regarde
  *  dans les fichiers. Deux questions differentes : compter des objets ne dit
  *  rien de ce qu'ils contiennent. */
-function Measured({ payload }: { payload: OntologyCard | undefined }) {
+function Measured({
+  payload,
+  ontology,
+}: {
+  payload: OntologyCard | undefined;
+  ontology: Ontology;
+}) {
   const t = useT();
+  const { locale } = useI18n();
   if (!payload) return null;
   const { measured, structure } = payload;
+  // Les mots de cette ontologie, pas ceux de la plateforme : la card disait
+  // « Entites » pendant que la regle de lecture disait « patient ».
+  const mots = motsDuMetier(ontology);
+  const periode = measured?.firstVisit
+    ? [dateDeVisite(measured.firstVisit, locale), dateDeVisite(measured.lastVisit, locale) || '…']
+    : null;
 
   return (
     <div className="space-y-3">
       <h4 className="text-sm font-medium">{t('ontologyCard.measured')}</h4>
 
       <dl className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-        <Figure label={t('ontologyCard.entities')} value={measured?.subjects} />
+        <Figure label={capitaliser(pluriel(mots.sujet))} value={measured?.subjects} />
         <Figure label={t('ontologyCard.records')} value={measured?.objects} />
         {measured?.modalities?.length ? (
-          <Figure label={t('ontologyCard.categories')} value={measured.modalities.join(', ')} />
-        ) : null}
-        {measured?.firstVisit ? (
           <Figure
-            label={t('ontologyCard.period')}
-            value={`${measured.firstVisit} → ${measured.lastVisit || '…'}`}
+            label={capitaliser(pluriel(mots.modalite))}
+            value={measured.modalities.join(', ')}
+          />
+        ) : null}
+        {periode ? (
+          <Figure
+            label={capitaliser(mots.visite)}
+            value={periode[0] === periode[1] ? periode[0] : `${periode[0]} → ${periode[1]}`}
           />
         ) : null}
       </dl>
 
+      {/* Ce que la regle ne couvre pas, dit a cote du total plutot que fondu
+          dedans : un fichier hors lecture n'est pas une erreur, c'est une
+          chose a savoir avant de citer un n. */}
+      {measured?.unreadable ? (
+        <p className="text-xs text-muted-foreground">
+          {t('ontologyCard.unreadable', { count: measured.unreadable })}
+        </p>
+      ) : null}
+
       <p className="text-xs text-muted-foreground">
         {measured?.method
           ? t('ontologyCard.measuredBy', {
-              method: measured.method,
-              when: measured.at ? new Date(measured.at).toLocaleString() : '—',
+              method: t('ontologyCard.methodPathScan'),
+              when: measured.at ? new Date(measured.at).toLocaleString(locale) : '—',
             })
           : t('ontologyCard.neverMeasured')}
       </p>

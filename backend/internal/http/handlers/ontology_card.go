@@ -154,7 +154,9 @@ func (h Handlers) measuredFor(item ontologydomain.Ontology) ontologydomain.Measu
 		return measured
 	}
 	measured.Subjects = manifest.Summary.Subjects
-	measured.Objects = int64(manifest.Summary.Objects)
+	// What the reading produced, not what the listing walked past.
+	measured.Objects = int64(manifest.Summary.Objects - manifest.Summary.Unrecognised)
+	measured.Unreadable = int64(manifest.Summary.Unrecognised)
 	measured.Method = "path scan"
 	measured.At = manifest.GeneratedAt
 	measured.Modalities = modalitiesIn(manifest)
@@ -214,6 +216,7 @@ func cardPayload(item ontologydomain.Ontology, measured ontologydomain.Measured)
 		"measured": map[string]any{
 			"subjects":   measured.Subjects,
 			"objects":    measured.Objects,
+			"unreadable": measured.Unreadable,
 			"modalities": measured.Modalities,
 			"firstVisit": measured.FirstVisit,
 			"lastVisit":  measured.LastVisit,

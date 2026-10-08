@@ -22,8 +22,19 @@ import "time"
 // ever looked inside the files. Nothing claims agreement with a check nobody
 // ran.
 type Measured struct {
-	Subjects   int
-	Objects    int64
+	Subjects int
+	// Objects is what the reading actually produced, which is what an extract
+	// can take. The summary's own figure counts every key the scan walked,
+	// and those two differ by the files the rule does not cover: SELENA
+	// displayed 3,994 at the top of the card while the same page admitted, at
+	// the bottom, one shape that produced nothing - and the database held
+	// 3,993 rows. A card that contradicts itself on the only number somebody
+	// would quote is not a detail.
+	Objects int64
+	// Unreadable is how many keys the reading did not cover. Shown, never
+	// folded in: "3,993 objects" is the truth an extract honours, and "one
+	// file outside the reading" is the other half of it.
+	Unreadable int64
 	Modalities []string
 	FirstVisit string
 	LastVisit  string
