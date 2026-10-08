@@ -1,8 +1,9 @@
 # Using ontologies
 
 A guide for people who open the catalogue and want to get work done. The
-design reasoning and the storage model are in [ONTOLOGY.md](ONTOLOGY.md); this
-page is about the screens.
+design reasoning and the storage model are in [ONTOLOGY.md](ONTOLOGY.md), and
+what you do with an ontology once you have one is in
+[USING_EXTRACTS.md](USING_EXTRACTS.md); this page is about the screens.
 
 ## What an ontology is
 
@@ -179,6 +180,8 @@ The filter box searches one word across the three columns. Empty shows
 everything.
 
 ## 7. Cut an extract
+
+The full guide is [USING_EXTRACTS.md](USING_EXTRACTS.md). In short:
 
 Two things make an extract: **what you take**, and **how it is arranged**.
 
