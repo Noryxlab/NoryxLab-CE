@@ -2769,6 +2769,16 @@ func (s *Store) UpdateOntologyOwner(ontologyID, ownerType, ownerID string) error
 	return err
 }
 
+// DeleteOntology removes the ontology and everything that only exists because
+// of it.
+//
+// The file list was not among them. Deleting an ontology left its
+// ontology_objects rows orphaned - 3,993 of them for one SELENA scan - keyed
+// to an identifier nothing resolves any more. They are invisible, they are the
+// bulk of what an ontology weighs, and on a dataset rescanned a few times they
+// are the table that grows without bound. Worse for regulated data: those rows
+// carry object paths, and on these buckets a path is a patient identifier, so
+// "delete this ontology" has to mean the paths go too.
 func (s *Store) DeleteOntology(id string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -2779,6 +2789,9 @@ func (s *Store) DeleteOntology(id string) error {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM ontology_access WHERE ontology_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM ontology_objects WHERE ontology_id=$1`, strings.TrimSpace(id)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM ontologies WHERE id=$1`, strings.TrimSpace(id)); err != nil {

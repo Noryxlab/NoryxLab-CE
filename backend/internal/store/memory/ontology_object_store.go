@@ -168,6 +168,10 @@ func (s *OntologyObjectStore) Delete(id string) error {
 		}
 	}
 	s.access = access
+	// La liste de fichiers part avec l'ontologie, comme en Postgres : la
+	// laisser derriere soi orpheline etait le defaut, et un store de test qui
+	// ne le reproduit pas ne protege de rien.
+	delete(s.objects, target)
 	return nil
 }
 
