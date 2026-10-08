@@ -145,14 +145,40 @@ func (l PathLayout) Read(relPath string) (subject, visit, modality string) {
 		}
 		return strings.TrimSpace(segments[level])
 	}
+
+	// A path has to carry every level the rule names, and none of them may be
+	// the file itself.
+	//
+	// The rule is positional on purpose and asks no questions about what a
+	// segment looks like - that is what lets it read SELENA-01-001 and
+	// PREMYOM1000-0001 and a bank's client numbers with one mechanism. The
+	// price is that it will happily call anything a subject, and on
+	// 2026-10-08 it did: declaring "level 1 is the patient" on SELENA turned
+	// SELENA/checksums/checksum_20260918.tsv into a third patient named
+	// "checksums", whose visit was the file name and whose modality was
+	// unknown. One stray file, one phantom in the cohort - and the compiled
+	// rule it replaced had rejected the same file, because that one tested
+	// whether a segment resembled an identifier.
+	//
+	// Depth is the test that keeps the rule dumb and still correct. A rule
+	// that names a modality at level 3 says nothing about a path with no
+	// level 3; reporting it as unrecognised is the truth, and the shape then
+	// shows up in "shapes that produced nothing" where somebody can see it.
+	// The last segment is excluded for the older reason: a level pointing at
+	// the file would make every file its own subject, which is how a scan
+	// comes to report "4,026 subjects".
+	last := len(segments) - 1
+	for _, level := range []int{l.SubjectLevel, l.VisitLevel, l.ModalityLevel} {
+		if level < 0 {
+			continue
+		}
+		if level >= last || at(level) == "" {
+			return "", "", ""
+		}
+	}
+
 	subject = at(l.SubjectLevel)
 	if subject == "" {
-		return "", "", ""
-	}
-	// The last segment is the file itself. A rule pointing at it would make
-	// every file its own subject, which is the kind of mistake that produces
-	// "4,026 subjects" and reads as a broken scan.
-	if l.SubjectLevel == len(segments)-1 {
 		return "", "", ""
 	}
 	visit = strings.TrimPrefix(at(l.VisitLevel), "visit_")

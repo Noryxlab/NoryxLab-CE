@@ -105,3 +105,49 @@ func TestLaRegleSeDecrit(t *testing.T) {
 		t.Fatal("une regle sans sujet n'est pas declaree")
 	}
 }
+
+// Un fichier egare ne devient pas un patient.
+//
+// La regle est positionnelle par choix et ne juge pas a quoi ressemble un
+// segment - c'est ce qui lui permet de lire SELENA-01-001, PREMYOM1000-0001
+// et des numeros de client de banque avec un seul mecanisme. Le prix, c'est
+// qu'elle appellerait n'importe quoi un sujet, et le 2026-10-08 elle l'a
+// fait : declarer « niveau 1 = patient » sur SELENA a transforme
+// SELENA/checksums/checksum_20260918.tsv en troisieme patient nomme
+// « checksums », dont la visite etait le nom du fichier.
+//
+// La profondeur est le test qui garde la regle bete et juste quand meme.
+func TestUnFichierEgareNeDevientPasUnSujet(t *testing.T) {
+	layout := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3}
+
+	sujet, _, _ := layout.Read("SELENA/checksums/checksum_20260918.tsv")
+	if sujet != "" {
+		t.Fatalf("un chemin sans niveau 3 ne decrit aucun sujet, obtenu %q", sujet)
+	}
+
+	// Et la vraie donnee passe toujours.
+	sujet, visite, modalite := layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/scan.dcm")
+	if sujet != "SELENA-01-001" || visite != "20260218" || modalite != "ANTERION" {
+		t.Fatalf("lecture = %q/%q/%q", sujet, visite, modalite)
+	}
+	// Y compris plus profond : l'export DICOM d'ANTERION descend a dix.
+	sujet, _, modalite = layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/DICOM/MC27/26070/105568/449313/00000656")
+	if sujet != "SELENA-01-001" || modalite != "ANTERION" {
+		t.Fatalf("un chemin profond doit rester lu : %q/%q", sujet, modalite)
+	}
+}
+
+// Une regle qui ne nomme pas tous les niveaux n'exige pas ceux qu'elle tait.
+//
+// Une etude a une visite par patient n'a pas de niveau temporel, et exiger
+// une profondeur pour un niveau absent rejetterait toute la donnee.
+func TestUneRegleCourteNExigePasLesNiveauxQuElleTait(t *testing.T) {
+	layout := PathLayout{SubjectLevel: 0, VisitLevel: LevelAbsent, ModalityLevel: 1}
+	sujet, visite, modalite := layout.Read("PATIENT-7/IRM/scan.dcm")
+	if sujet != "PATIENT-7" || modalite != "IRM" {
+		t.Fatalf("lecture = %q/%q/%q", sujet, visite, modalite)
+	}
+	if visite != "" {
+		t.Errorf("un niveau tu ne doit rien produire, obtenu %q", visite)
+	}
+}
