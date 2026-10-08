@@ -116,6 +116,7 @@ installation values in a private operations repository or secret manager.
 - [Data sources](docs/DATASOURCES_V1.md)
 - [Semantic catalog and ontology foundations](docs/ONTOLOGY.md)
 - [Using ontologies](docs/USING_ONTOLOGIES.md) and [using extracts](docs/USING_EXTRACTS.md) — the guides for the screens
+- [Pushing data into a dataset](docs/PUSHING_TO_A_DATASET.md) — one page for an external sender
 - [Environments](docs/ENVIRONMENTS.md)
 - [Workspaces](docs/WORKSPACES.md) and [workspace filesystem layout](docs/WORKSPACE_FILESYSTEM_LAYOUT.md)
 - [Jobs and history](docs/JOB_HISTORY.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)

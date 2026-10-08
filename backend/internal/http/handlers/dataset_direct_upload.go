@@ -55,6 +55,10 @@ type datasetUploadCompleteRequest struct {
 	SHA256 string `json:"sha256,omitempty"`
 }
 
+type datasetUploadCompleteBatchRequest struct {
+	Objects []datasetUploadCompleteRequest `json:"objects"`
+}
+
 func datasetDirectObjectKey(itemPrefix, raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || strings.HasPrefix(raw, "/") {
@@ -284,4 +288,100 @@ func (h Handlers) CreateDatasetUploadURLs(w http.ResponseWriter, r *http.Request
 		"objects":    authorised,
 		"refused":    refused,
 	})
+}
+
+// ConfirmDatasetUploads verifies a batch of directly written objects.
+//
+// The authorisation side was batched and the confirmation side was not, which
+// left the confirmation as the whole cost: a terabyte of DICOM slices is some
+// 435,000 objects, so one call each is 435,000 round trips to close an import
+// whose URLs took two thousand. Verification still happens per object -
+// each one is stat-ed against its declared size, because that is the only
+// check worth making - but it happens inside one request.
+//
+// Partial, like the authorisation: an object that is absent or the wrong size
+// is reported on its own and the others are still recorded. A transfer that
+// lost three files out of four hundred thousand should tell you which three.
+func (h Handlers) ConfirmDatasetUploads(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
+		return
+	}
+	if !found || !h.canWriteDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	var req datasetUploadCompleteBatchRequest
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req) != nil || len(req.Objects) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a non-empty objects array is required"})
+		return
+	}
+	if len(req.Objects) > datasetUploadBatchMax {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("a batch confirms at most %d objects", datasetUploadBatchMax)})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil || client == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
+		return
+	}
+
+	verified := make([]map[string]any, 0, len(req.Objects))
+	failed := make([]map[string]string, 0)
+	var bytes int64
+
+	for _, object := range req.Objects {
+		key, valid := datasetDirectObjectKey(item.Prefix, object.Path)
+		if !valid || object.Size < 0 {
+			failed = append(failed, map[string]string{
+				"path": object.Path, "reason": "path and non-negative size are required"})
+			continue
+		}
+		info, err := client.StatObject(r.Context(), item.Bucket, key, minio.StatObjectOptions{})
+		if err != nil || info.Size != object.Size {
+			failed = append(failed, map[string]string{
+				"path": object.Path, "reason": "the uploaded object is absent or has an unexpected size"})
+			continue
+		}
+		bytes += info.Size
+		verified = append(verified, map[string]any{"path": object.Path, "key": key, "size": info.Size})
+	}
+
+	// One entry for the batch, and the checksums with it: the sender's
+	// manifest value is what makes an import auditable after the fact, and
+	// dropping it to save a column would be saving the wrong thing.
+	details := datasetTransferAuditDetails(item, "", bytes)
+	details["objects"] = len(verified)
+	details["failed"] = len(failed)
+	details["checksums"] = datasetUploadChecksums(req.Objects)
+	outcome := "success"
+	reason := "batch"
+	if len(verified) == 0 {
+		outcome = "failure"
+		reason = "verification_failed"
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload", "dataset", item.ID, "", outcome, reason, details)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"bucket":   item.Bucket,
+		"verified": verified,
+		"failed":   failed,
+	})
+}
+
+// datasetUploadChecksums keeps the sender's SHA-256 values beside their paths.
+func datasetUploadChecksums(objects []datasetUploadCompleteRequest) map[string]string {
+	out := map[string]string{}
+	for _, object := range objects {
+		if checksum := strings.ToLower(strings.TrimSpace(object.SHA256)); checksum != "" {
+			out[object.Path] = checksum
+		}
+	}
+	return out
 }

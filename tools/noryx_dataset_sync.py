@@ -55,18 +55,48 @@ def object_files(source):
 
 
 def load_state(path):
+    """Read the resume journal: one JSON record per confirmed object.
+
+    Still reads the old single-object format, so an import interrupted under
+    the previous version resumes instead of starting over.
+    """
     if not path.exists():
         return {}
-    with path.open() as handle:
-        data = json.load(handle)
-    return data.get("completed", {})
+    text = path.read_text()
+    if text.lstrip().startswith("{") and '"completed"' in text.split("\n", 1)[0]:
+        try:
+            return json.loads(text).get("completed", {})
+        except json.JSONDecodeError:
+            pass
+    completed = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        # A journal truncated by a kill keeps every whole line before the
+        # broken one: resuming from most of it beats starting over.
+        except json.JSONDecodeError:
+            continue
+        completed[record.pop("path")] = record
+    return completed
 
 
-def save_state(path, completed, lock):
+def record_state(path, relative, result, lock):
+    """Append one line, instead of rewriting everything.
+
+    The previous version serialised the whole map after every confirmed
+    object, holding a lock while it did. That is quadratic in bytes written
+    and it is the wall this hits first: at 435,000 objects - a terabyte of
+    2.3 MB DICOM slices - the map is about 48 MB, so moving one terabyte of
+    data would write ten terabytes of state, with every worker queued behind
+    each serialisation. On a study of four thousand files it is merely
+    wasteful, which is why it went unnoticed.
+    """
     with lock:
-        temporary = path.with_suffix(path.suffix + ".tmp")
-        temporary.write_text(json.dumps({"completed": completed}, indent=2, sort_keys=True) + "\n")
-        temporary.replace(path)
+        with path.open("a") as handle:
+            handle.write(json.dumps({"path": relative, **result}, sort_keys=True) + "\n")
 
 
 def authorize(args, entries):
@@ -90,7 +120,7 @@ def authorize(args, entries):
 
 
 def send(args, local, relative, size, mtime, url):
-    """Transfer one object, then confirm it.
+    """Transfer one object. Confirmation happens for the batch, afterwards.
 
     The checksum is computed here rather than in the planning pass, so a
     resume pays for the files it actually sends and nothing else.
@@ -101,10 +131,32 @@ def send(args, local, relative, size, mtime, url):
          "--upload-file", str(local), url],
         check=True,
     )
-    api(args.url, args.token, "POST", f"/api/v1/datasets/{args.dataset}/upload-complete", {
-        "path": relative, "size": size, "sha256": checksum,
-    })
     return relative, {"size": size, "mtime": mtime, "sha256": checksum}
+
+
+def confirm(args, sent):
+    """Confirm one batch, and say which objects the platform could not verify.
+
+    Per-object confirmation was the whole remaining cost once authorisation
+    was batched: a terabyte of DICOM slices is some 435,000 objects, so one
+    call each is 435,000 round trips to close an import whose URLs took two
+    thousand.
+    """
+    answer = api(
+        args.url,
+        args.token,
+        "POST",
+        f"/api/v1/datasets/{args.dataset}/upload-completions",
+        {"objects": [
+            {"path": relative, "size": result["size"], "sha256": result["sha256"]}
+            for relative, result in sent
+        ]},
+    )
+    refused = set()
+    for failure in answer.get("failed") or []:
+        refused.add(failure.get("path"))
+        print(f"UNVERIFIED {failure.get('path')}: {failure.get('reason')}", file=sys.stderr)
+    return refused
 
 
 def main():
@@ -115,7 +167,7 @@ def main():
     parser.add_argument("--token", default=os.getenv("NORYX_TOKEN"), help="datasets-scoped token; defaults to NORYX_TOKEN")
     parser.add_argument("--prefix", default="", help="destination prefix inside the dataset")
     parser.add_argument("--workers", type=int, default=4, help="simultaneous transfers (default: 4)")
-    parser.add_argument("--state", type=pathlib.Path, default=pathlib.Path(".noryx-import-state.json"), help="resume-state file")
+    parser.add_argument("--state", type=pathlib.Path, default=pathlib.Path(".noryx-import-state.jsonl"), help="resume journal")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if not args.token:
@@ -164,6 +216,7 @@ def main():
             print(f"FAILED to authorize a batch of {len(lot)}: {error}", file=sys.stderr)
             failed.extend(relative for _, relative, _, _ in lot)
             continue
+        sent = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
             futures = {}
             for local, relative, size, mtime in lot:
@@ -175,13 +228,29 @@ def main():
             for future in concurrent.futures.as_completed(futures):
                 relative = futures[future]
                 try:
-                    key, result = future.result()
-                    completed[key] = result
-                    save_state(args.state, completed, lock)
-                    print(f"confirmed {key}")
+                    sent.append(future.result())
                 except Exception as error:
                     failed.append(relative)
                     print(f"FAILED {relative}: {error}", file=sys.stderr)
+
+        if not sent:
+            continue
+        try:
+            refused = confirm(args, sent)
+        except Exception as error:
+            print(f"FAILED to confirm a batch of {len(sent)}: {error}", file=sys.stderr)
+            failed.extend(relative for relative, _ in sent)
+            continue
+        # Only what the platform verified goes into the journal: an object
+        # recorded as done that is not actually there would be skipped by
+        # every later resume, which is the one failure a resume must not have.
+        for relative, result in sent:
+            if relative in refused:
+                failed.append(relative)
+                continue
+            completed[relative] = result
+            record_state(args.state, relative, result, lock)
+        print(f"{len(sent) - len(refused)} confirmed ({len(completed)} total)")
 
     if failed:
         raise SystemExit(f"{len(failed)} object(s) failed; rerun the same command to resume")

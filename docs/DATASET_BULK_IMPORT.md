@@ -1,5 +1,8 @@
 # Bulk dataset import
 
+> Sending a study from your own machine? [PUSHING_TO_A_DATASET.md](PUSHING_TO_A_DATASET.md)
+> is the one-page version. This page is the reference.
+
 Use this path for a clinical import such as PREMYOM-1000 or SELENA: thousands
 of files, tens of GiB, and a sender outside the platform network.
 
@@ -22,9 +25,10 @@ Create a personal API token with the sole `datasets` scope. A token still acts
 as its owner, so it cannot reach a dataset that its owner cannot write. Revoke
 it when the import is complete.
 
-Authorisation is audited **per batch** — who, which dataset, how many objects,
-how many bytes — and confirmation **per object**, where the bytes that actually
-arrived are known. One entry per file in both places would be eight thousand
+Authorisation and confirmation are both audited **per batch** — who, which dataset, how many objects,
+how many bytes — — who, which dataset, how many objects, how many bytes, and the sender's
+SHA-256 values. Verification itself stays per object: each one is stat-ed
+against its declared size, because that is the only check worth making. One entry per file in both places would be eight thousand
 lines to move one study, which is a log nobody can read rather than a security
 property. Confirmation checks the object exists at the announced size and
 records the sender's SHA-256 manifest value.

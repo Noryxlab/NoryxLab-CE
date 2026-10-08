@@ -44,6 +44,12 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetUploadConfirmBatchResponse:
+      type: object
+      properties:
+        bucket: { type: string }
+        verified: { type: array }
+        failed: { type: array }
     DatasetUploadURLBatchResponse:
       type: object
       properties:
@@ -8862,6 +8868,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetUploadURLBatchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/upload-completions:
+    post:
+      tags: [Datasets]
+      summary: Confirm Dataset Uploads
+      operationId: confirmDatasetUploads
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetUploadConfirmBatchResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
