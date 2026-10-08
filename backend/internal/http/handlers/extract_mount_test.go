@@ -83,3 +83,29 @@ func TestUneRaisonAvecApostropheNeCassePasLeDemarrage(t *testing.T) {
 		t.Fatalf("sh -n refuse le script : %v\n%s", err, sortie)
 	}
 }
+
+// L'arbre est vide avant d'etre reconstruit, et le repertoire reste.
+//
+// `rm -rf /extracts` demande le droit d'ecrire dans `/`, qui appartient a
+// root : la commande echouait avec « Permission denied » au demarrage, et le
+// `&&` empechait le mkdir qui suivait. Les liens se construisaient quand
+// meme, dans le repertoire deja la - donc le defaut ne se voyait que dans le
+// log, et il laissait l'arbre precedent en place.
+//
+// C'est la panne que la migration de /mnt/extracts avait eu a nettoyer :
+// changez la disposition, relancez, et les deux arbres se superposent, tous
+// deux faits de liens valides, sans rien qui dise lequel fait foi.
+func TestLArbreEstVideAvantDEtreReconstruit(t *testing.T) {
+	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0, nil), "\n")
+	if strings.Contains(lignes, "rm -rf '/extracts'") {
+		t.Error("retirer /extracts demande d'ecrire dans /, qui appartient a root")
+	}
+	if !strings.Contains(lignes, "-mindepth 1 -delete") {
+		t.Fatalf("le contenu doit etre efface avant la reconstruction :\n%s", lignes)
+	}
+	// Et l'effacement ne doit pas pouvoir empecher la suite : sous set -e,
+	// un repertoire vide ferait echouer le demarrage entier.
+	if !strings.Contains(lignes, "-delete 2>/dev/null || true") {
+		t.Error("l'effacement doit tolerer un arbre deja vide")
+	}
+}

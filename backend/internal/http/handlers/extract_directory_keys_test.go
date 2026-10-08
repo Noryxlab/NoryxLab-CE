@@ -112,7 +112,16 @@ func TestLArbreDesExtraitsEstACoteDesDatasets(t *testing.T) {
 	if !strings.Contains(lignes, "mv '/mnt/extracts'") {
 		t.Fatalf("l'ancien arbre doit etre ecarte une fois :\n%s", lignes)
 	}
-	if !strings.Contains(lignes, "rm -rf '/extracts'") {
-		t.Fatalf("l'arbre doit etre reconstruit a chaque demarrage :\n%s", lignes)
+	// L'arbre est reconstruit a chaque demarrage - en vidant le repertoire,
+	// pas en le retirant.
+	//
+	// Ce test exigeait `rm -rf '/extracts'`, et cette commande n'a jamais
+	// fonctionne : retirer /extracts demande le droit d'ecrire dans /, qui
+	// appartient a root. Elle echouait a chaque demarrage en affichant
+	// « Permission denied », et le test la tenait en place. Un test peut
+	// maintenir un mecanisme casse aussi surement qu'il en protege un bon ;
+	// celui-ci verifie desormais l'effet et non la commande.
+	if !strings.Contains(lignes, "-mindepth 1 -delete") {
+		t.Fatalf("l'arbre doit etre vide a chaque demarrage :\n%s", lignes)
 	}
 }

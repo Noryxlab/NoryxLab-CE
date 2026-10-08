@@ -229,7 +229,25 @@ func extractTreeLines(root string, hasManifest bool, refusedCount int) []string 
 		"if [ -f /var/run/noryx/bootstrap/extracts.b64 ]; then",
 		"  echo '[bootstrap] building extract links'",
 		fmt.Sprintf("  if [ ! -w %s ]; then echo '[bootstrap] %s is not writable: the extract was not mounted'; else", shellQuote(root), root),
-		fmt.Sprintf("  rm -rf %s && mkdir -p %s", shellQuote(root), shellQuote(root)),
+		// Le contenu, jamais le repertoire lui-meme.
+		//
+		//  `rm -rf /extracts` demande le droit d'ecrire dans `/`, qui
+		//  appartient a root : la commande echouait, affichait « Permission
+		//  denied » dans le demarrage - ce qui ressemble a une panne - et le
+		//  `&&` empechait le mkdir qui suivait. Les liens se construisaient
+		//  quand meme, dans le repertoire deja la, donc le defaut etait
+		//  invisible sauf a lire le log.
+		//
+		//  Invisible et serieux : l'arbre n'etait donc jamais vide avant
+		//  d'etre reconstruit. Changez la disposition de l'extrait, relancez
+		//  le workspace, et les deux arbres se superposent - l'ancien ordre
+		//  et le nouveau, tous deux faits de liens valides, sans rien qui
+		//  dise lequel est le bon. C'est exactement ce que la migration de
+		//  /mnt/extracts vers /extracts avait eu a nettoyer.
+		//
+		//  `/extracts` appartient a l'utilisateur, donc son contenu s'efface.
+		fmt.Sprintf("  find %s -mindepth 1 -delete 2>/dev/null || true", shellQuote(root)),
+		fmt.Sprintf("  mkdir -p %s 2>/dev/null || true", shellQuote(root)),
 		// Links, never copies: the data stays in the dataset mount, which is
 		// mounted read-only, and the extract is a second way of looking at it.
 		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while " + extractManifestReadLine() + "; do",
