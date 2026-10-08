@@ -155,6 +155,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// Bulk clinical imports are authorized here but the bytes go directly to
 	// the configured object store through one short-lived presigned URL.
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/upload-url", h.CreateDatasetUploadURL)
+	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/upload-urls", h.CreateDatasetUploadURLs)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/upload-complete", h.ConfirmDatasetUpload)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/objects/{path...}", h.GetDatasetObject)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/objects/{path...}", h.PutDatasetObject)

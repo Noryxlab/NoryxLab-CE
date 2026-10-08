@@ -44,6 +44,14 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetUploadURLBatchResponse:
+      type: object
+      properties:
+        transferId: { type: string }
+        expiresAt: { type: string, format: date-time }
+        bucket: { type: string }
+        objects: { type: array }
+        refused: { type: array }
     DatasetUploadURLResponse:
       type: object
       properties:
@@ -8828,6 +8836,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkflowRun'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/upload-urls:
+    post:
+      tags: [Datasets]
+      summary: Create Dataset Upload U R Ls
+      operationId: createDatasetUploadURLs
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetUploadURLBatchResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

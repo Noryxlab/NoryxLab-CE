@@ -6,17 +6,32 @@ of files, tens of GiB, and a sender outside the platform network.
 ## Security model
 
 Noryx authenticates the sender and checks their `writer` access to exactly one
-dataset. It returns a fifteen-minute S3 URL for exactly one object. The file
-bytes then travel directly from the sender to the configured object store;
-Noryx never exposes the S3 access key or proxies the health data.
+dataset. It returns fifteen-minute S3 URLs, each for exactly one key that the
+**server** composes from the dataset's own prefix — a path that tries to climb
+out with `../` lands back inside it. The file bytes then travel directly from
+the sender to the configured object store; Noryx never exposes the S3 access
+key or proxies the health data.
+
+The sender declares each object's size when asking, so the platform's own
+object ceiling still applies. Without that declaration a presigned PUT passes
+through none of the checks the proxied upload makes, and the only remaining
+limit is S3's own — the same 5 GiB figure, by coincidence rather than by
+decision.
 
 Create a personal API token with the sole `datasets` scope. A token still acts
 as its owner, so it cannot reach a dataset that its owner cannot write. Revoke
 it when the import is complete.
 
-Every authorization and every confirmed object upload is written to the EE
-audit trail. Confirmation checks the object exists at the announced size and
+Authorisation is audited **per batch** — who, which dataset, how many objects,
+how many bytes — and confirmation **per object**, where the bytes that actually
+arrived are known. One entry per file in both places would be eight thousand
+lines to move one study, which is a log nobody can read rather than a security
+property. Confirmation checks the object exists at the announced size and
 records the sender's SHA-256 manifest value.
+
+Confirmation is the sender's statement, not a gate: nothing stops an object
+being written and never confirmed. What it buys is a record that says the
+object arrived whole, from whom, with which checksum.
 
 ## Import from FOR
 
@@ -33,10 +48,22 @@ python3 noryx_dataset_sync.py /data/PREMYOM1000 \
 
 The script needs Python 3 and `curl`. It writes `.noryx-import-state.json` in
 the current directory. Re-run the exact command after a network interruption:
-only files already confirmed with the same size and SHA-256 are skipped.
+files already confirmed at the same size and modification time are skipped.
 
-Use `--dry-run` to list the transfer volume before sending data. Keep workers
-at four initially; increase only after observing the source link and S3 API.
+It asks for URLs **two hundred at a time**, so moving SELENA costs about twenty
+authorisation calls rather than four thousand. And it hashes only what it is
+about to send: the first version read the whole study — nine gigabytes,
+single-threaded — before a single byte left, and did it again on every resume,
+which is exactly when it is least welcome. The SHA-256 is still computed for
+every transferred object and still recorded with it.
+
+Use `--dry-run` to list the volume and the first twenty objects before sending
+data. Keep workers at four initially; increase only after observing the source
+link and the S3 API.
+
+A refused object is named with its reason and the rest of the batch still
+goes: one bad name in a directory of four thousand should cost that file, not
+the import.
 
 ## Current boundary
 
