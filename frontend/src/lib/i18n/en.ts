@@ -918,6 +918,12 @@ export const en: Translations = {
     contentApply: "Filter",
     contentEmpty: "This ontology recognised no file.",
     contentCount: "{shown} of {total} row(s) shown.",
+    proposalPaste: "Paste the assistant's proposal",
+    proposalPasteHint: "Paste its whole answer. The three levels and the three words fill the form below — nothing is stored until you store it.",
+    proposalApply: "Read the proposal",
+    proposalRead: "Levels read: {levels} — words: {names}. Check it, try it, then store it.",
+    proposalNoNames: "none",
+    proposalUnreadable: "No reading found. Expected \"subject: level 1, visit: level 2, modality: level 3\", and if possible \"names: patient / visit / modality\".",
     patternProducedWith: "Produced with the rule:",
     scanRuleDeclared: "This dataset declares its reading:",
     scanRuleWhereToChange:

@@ -939,6 +939,12 @@ export const fr = {
     contentApply: "Filtrer",
     contentEmpty: "Cette ontologie n’a reconnu aucun fichier.",
     contentCount: "{shown} ligne(s) affichée(s) sur {total}.",
+    proposalPaste: "Coller la proposition de l’assistant",
+    proposalPasteHint: "Colle sa réponse entière. Les trois niveaux et les trois mots remplissent le formulaire ci-dessous — rien n’est enregistré avant que tu le fasses.",
+    proposalApply: "Lire la proposition",
+    proposalRead: "Niveaux lus : {levels} — mots : {names}. Vérifie, essaie, puis enregistre.",
+    proposalNoNames: "aucun",
+    proposalUnreadable: "Aucune lecture trouvée. Attendu : « subject: level 1, visit: level 2, modality: level 3 », et si possible « names: patient / visite / modalité ».",
     patternProducedWith: "Produite avec la règle :",
     scanRuleDeclared: "Ce dataset déclare sa lecture :",
     scanRuleWhereToChange:

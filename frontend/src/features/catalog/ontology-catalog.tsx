@@ -30,7 +30,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -57,6 +57,7 @@ import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoin
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
 import { capitaliser, dateDeVisite, motsDuMetier, pluriel } from './ontology-words';
+import { lireProposition, type ReadingProposal } from './reading-proposal';
 import { formatNumber, formatRelative } from '@/lib/format';
 import type {
   Extract,
@@ -430,6 +431,38 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
   const [nomVisite, setNomVisite] = React.useState('');
   const [nomModalite, setNomModalite] = React.useState('');
   const [trial, setTrial] = React.useState<DatasetPathLayoutTrial | null>(null);
+  const [proposition, setProposition] = React.useState('');
+  const [lue, setLue] = React.useState<ReadingProposal | null>(null);
+
+  /* Appliquer une proposition au formulaire, et rien d'autre.
+   *
+   *  L'assistant proposait « subject: level 1, visit: level 2, modality:
+   *  level 3 » et la boucle s'arretait la : il fallait recopier trois nombres
+   *  et trois mots a la main depuis un panneau de discussion, en se trompant
+   *  de niveau une fois sur trois. Une proposition qu'on ne peut pas
+   *  appliquer n'est pas une aide, c'est une dictee.
+   *
+   *  Ca remplit les champs et s'arrete. Rien n'est enregistre, rien n'est
+   *  applique au dataset : on voit les six valeurs, on les corrige, on essaie
+   *  sur de vrais chemins, puis on enregistre. L'assistant propose, quelqu'un
+   *  confirme (ADR-040) - la transcription cesse d'etre manuelle sans cesser
+   *  d'etre une confirmation. */
+  const appliquerLaProposition = () => {
+    const comprise = lireProposition(proposition);
+    if (!comprise) {
+      toast.error(t('ontologies.proposalUnreadable'), t('ontologies.proposalApply'));
+      return;
+    }
+    setSubject(String(comprise.subjectLevel));
+    setVisit(comprise.visitLevel === undefined ? '' : String(comprise.visitLevel));
+    setModality(comprise.modalityLevel === undefined ? '' : String(comprise.modalityLevel));
+    if (comprise.subjectName) setNomSujet(comprise.subjectName);
+    if (comprise.visitName) setNomVisite(comprise.visitName);
+    if (comprise.modalityName) setNomModalite(comprise.modalityName);
+    setLue(comprise);
+    // Ce qui vient d'etre lu rend l'essai precedent caduc.
+    setTrial(null);
+  };
 
   React.useEffect(() => {
     const data = current.data;
@@ -523,6 +556,45 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
         <Field label={t('ontologies.patternModalityName')}>
           <Input value={nomModalite} onChange={(event) => setNomModalite(event.target.value)} placeholder="modalité, opération…" />
         </Field>
+      </div>
+
+      {/* Entre la proposition et le formulaire, il manquait un pont. */}
+      <div className="space-y-2 rounded-md border border-dashed border-border p-3">
+        <Field
+          label={t('ontologies.proposalPaste')}
+          description={t('ontologies.proposalPasteHint')}
+        >
+          <Textarea
+            className="min-h-20 font-mono text-xs"
+            value={proposition}
+            onChange={(event) => setProposition(event.target.value)}
+            placeholder={'subject: level 1, visit: level 2, modality: level 3\nnames: patient / visite / modalité'}
+          />
+        </Field>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={proposition.trim() === ''}
+            onClick={appliquerLaProposition}
+          >
+            {t('ontologies.proposalApply')}
+          </Button>
+          {lue ? (
+            <span className="text-xs text-muted-foreground">
+              {t('ontologies.proposalRead', {
+                levels: [lue.subjectLevel, lue.visitLevel, lue.modalityLevel]
+                  .map((level) => (level === undefined ? '—' : String(level)))
+                  .join(' / '),
+                names: [lue.subjectName, lue.visitName, lue.modalityName].some(Boolean)
+                  ? [lue.subjectName, lue.visitName, lue.modalityName]
+                      .map((nom) => nom || '—')
+                      .join(' / ')
+                  : t('ontologies.proposalNoNames'),
+              })}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
