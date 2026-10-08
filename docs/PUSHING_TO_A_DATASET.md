@@ -32,9 +32,15 @@ python3 noryx_dataset_sync.py /data/PREMYOM1000 \
   --dry-run
 ```
 
-Drop `--dry-run` when the listed volume looks right. The script is
-`tools/noryx_dataset_sync.py` in the Noryx repository; copy it to the sending
-machine. It needs **Python 3 and `curl`**, nothing else.
+Drop `--dry-run` when the listed volume looks right.
+
+The script is one file, from the public repository:
+
+```bash
+curl -O https://raw.githubusercontent.com/Noryxlab/NoryxLab-CE/main/tools/noryx_dataset_sync.py
+```
+
+It needs **Python 3 and `curl`**, nothing else — no `pip install`.
 
 **Interrupted? Re-run the exact same command.** It keeps a journal
 (`.noryx-import-state.jsonl`) in the working directory and skips what the
@@ -110,8 +116,9 @@ it arrived whole, from you, with that checksum.
 | One object | **5 GiB maximum.** No multipart yet. |
 | Objects per authorisation call | 200 |
 | URL lifetime | 15 minutes |
-| Thousands of files | **Measured.** 1,957 objects pushed to the DC on 2026-10-08, byte-for-byte, and a resume of the same tree answered in 0.06 s. |
-| Tens of GiB | **Measured** through the extract path: 3,993 files / 9 GiB. |
+| Thousands of files | **Measured**, 2026-10-08: 1,957 objects, byte-for-byte against the bucket, and a resume of the same tree answered in 0.06 s. Through the API route. |
+| The direct route | **Measured**, 2026-10-08: a round trip to the Clever endpoint — presign, PUT straight from the sending machine, confirm — read back and compared. Three objects, not thousands. |
+| Tens of GiB in one run | Not measured. Nothing in the design objects; nobody has done it. |
 | Hundreds of thousands of files, terabytes | Designed for, not measured. Read the note below. |
 
 **Do not split or compress a regulated source file to get under 5 GiB**
@@ -120,8 +127,14 @@ reshaped is a study nobody can reproduce.
 
 ## At terabyte scale
 
-Nothing in the design breaks, and two things are worth knowing before
-launching a very large run:
+Nothing in the design breaks — and nobody has run one. Three things are worth
+knowing before launching a very large transfer:
+
+- **Your own network is the unknown**, not the platform. The measurements
+  above were taken from inside; a transfer out of your site has your egress,
+  your proxy and your firewall in the path, and none of that has been tested.
+  Send a few hundred files first and look at the rate before committing a
+  night to it.
 
 - **Transfer time is the link, not the platform.** The bytes go straight to
   storage, so a terabyte takes as long as a terabyte takes. Run it in `tmux`
