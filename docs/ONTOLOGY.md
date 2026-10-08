@@ -392,12 +392,76 @@ rather than guessing which twin to drop. The repair is the one used here — mov
 any live link to the ontology you keep, then delete the other with its access
 rows, its project links and its object rows.
 
-### Deleting an ontology leaves its object rows behind
+### Deleting an ontology deletes its object rows
 
-`DeleteOntology` removes the project links, the access rows and the ontology,
-and **not** `ontology_objects`. The duplicate deleted on EMSE carried 21 629 of
-them. Worth knowing before trusting a row count, and worth fixing in the cascade
-rather than in each cleanup script.
+It used to leave them: `DeleteOntology` removed the project links, the access
+rows and the ontology, and not `ontology_objects`. The duplicate deleted on
+EMSE carried 21 629 of them, one SELENA scan carried 3 993, all keyed to an
+identifier nothing resolves any more. They are invisible, they are the bulk of
+what an ontology weighs, and on a dataset rescanned a few times they are the
+table that grows without bound.
+
+Worse for regulated data: those rows carry object paths, and on these buckets
+a path is a patient identifier. "Delete this ontology" has to mean the paths
+go too. Fixed in the cascade, in both stores, rather than in each cleanup
+script.
+
+## What the page shows, and in what order
+
+Somebody opening an ontology asks three questions: what is it, what is in it,
+and how do I take a piece. The page had seven stacked blocks — the card, the
+path shapes, the renaming form, a filter, a coverage table, the extracts, the
+ownership transfer — and answered the third in sixth position.
+
+It now opens on two:
+
+1. **The card** — name, description, what the data means, what the platform
+   counted, and whether the ontology still describes its source.
+2. **Extracts** — the only thing that mounts (ADR-044), with a sentence
+   saying so: the ontology says what is there, the extract says what you take.
+
+Everything else moves into a closed **Settings** drawer: the reading rule, the
+object explorer (which ADR-025 asks for and which is therefore moved, not
+removed) and the ownership transfer. Coverage appears between the two only
+when it has something to report — a five-row table whose every cell says
+"nothing to report" is a passing check rendered as an inventory.
+
+### Figures that must agree with each other
+
+Three of them did not, and each was found by reading one page end to end.
+
+**The card's object count is what the reading produced**, not what the listing
+walked past. SELENA displayed 3 994 at the top while the same page admitted,
+at the bottom, one shape that had produced nothing — and the database held
+3 993 rows. Keys the rule does not cover are stated separately: present in the
+source, absent from extracts.
+
+**The freshness check counts what the scan counts.** It counted every key,
+directory markers included, while the scan deliberately skips them, so the two
+figures could never agree. SELENA listed 4 111 against a manifest of 3 994 and
+declared "no longer describes its source" the instant it was created, by
+exactly its 117 directory keys; PREMYOM1000 was permanently stale by 3. A
+warning that is always on is a warning nobody reads on the day the study
+really does recruit eleven subjects.
+
+**The shapes list is complete.** It kept the eight commonest and said nothing
+about the rest: on SELENA those eight accounted for 3 979 objects out of 3 994
+and the fifteen others appeared nowhere. The server returns them all and the
+screen offers the tail — a list that looks exhaustive and is not is worse than
+a short one.
+
+### The study's name is read, not guessed
+
+It was the first subject identifier with everything after the last dash
+removed. `PREMYOM1000-0001` gave `PREMYOM1000`, which was right by luck, so
+the rule shipped. `SELENA-01-001` gives `SELENA-01` — the investigating
+centre, not the study — and the catalogue displayed a centre code as the name
+of a trial, on every screen and on every extract cut from it.
+
+The name is in the path already: it is the directory the subjects sit in. A
+bucket whose subjects sit at the root names no study, and the dataset's own
+name is used rather than inventing one. A rescan keeps the name somebody may
+have corrected (ADR-043), so only new ontologies take the derived one.
 
 ## The three levels are named by the trade that owns the data
 
@@ -427,6 +491,14 @@ columns keep their names, and only what a human reads follows the trade.
 
 Unnamed levels fall back to **entity / period / category** rather than to the
 clinical words. A platform that must guess should guess neutrally.
+
+Those fallbacks belong to the **screen**, never to the manifest.
+`describeReading` used to send them, so a French page's own localised
+fallbacks were never reached: one page displayed `entity`, `entitys`,
+`Entités`, `Sujet` and `subject` for a single concept, the plural being an `s`
+glued onto an English word nobody had chosen. A name travels in the manifest
+only when somebody declared it; the rest is a label, and a label belongs to
+whoever renders it, in whatever language it is read in.
 
 The names are **recorded in the ontology's manifest** with the rule, for the
 reason the rule is recorded: a name changed afterwards would make an old
