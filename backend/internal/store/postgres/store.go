@@ -640,6 +640,21 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		)`,
 		`CREATE INDEX IF NOT EXISTS ontology_scans_ontology_idx ON ontology_scans (ontology_id, generated_at DESC)`,
+		// The photograph an ontology already holds is its first history entry.
+		//
+		// Without this the panel is empty on every existing installation until
+		// somebody rescans, which reads as a broken feature rather than as "no
+		// history was kept before today" - and the current manifest genuinely
+		// is a scan that happened, with its own date and author recorded
+		// inside it. Only where no history exists, so a second start adds
+		// nothing.
+		`INSERT INTO ontology_scans (id, ontology_id, manifest_json, generated_by, generated_at, created_at)
+		 SELECT gen_random_uuid()::text, o.id, o.manifest_json,
+		        COALESCE(o.manifest_json->>'generatedBy', ''),
+		        COALESCE((o.manifest_json->>'generatedAt')::timestamptz, o.updated_at),
+		        now()
+		 FROM ontologies o
+		 WHERE NOT EXISTS (SELECT 1 FROM ontology_scans s WHERE s.ontology_id = o.id)`,
 		// The rename from "cohort", applied before the tables below are
 		// created rather than after.
 		//
