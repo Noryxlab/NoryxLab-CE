@@ -885,7 +885,7 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		"fi",
 	}
 	// L'arbre des extraits, avant que l'application demarre : elle lit dedans.
-	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused)...)
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused, montage.Skipped)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)

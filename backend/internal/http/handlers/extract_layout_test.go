@@ -148,7 +148,7 @@ func TestToutesLesPermutationsSontAcceptees(t *testing.T) {
 // visite et modalite dans un ordre ecrit en dur. Le repertoire arrive
 // maintenant deja ordonne.
 func TestLeScriptNeComposePlusLesNiveaux(t *testing.T) {
-	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0), "\n")
+	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0, nil), "\n")
 	if strings.Contains(lignes, `"$subject"/"$visit"/"$modality"`) {
 		t.Fatalf("le script compose encore les niveaux en dur :\n%s", lignes)
 	}
@@ -162,5 +162,46 @@ func TestLeScriptNeComposePlusLesNiveaux(t *testing.T) {
 	}
 	if !strings.Contains(lignes, attendu) {
 		t.Fatalf("le script doit lire le repertoire deja ordonne (%s) :\n%s", attendu, lignes)
+	}
+}
+
+// La verification compose exactement ce que compose le montage.
+//
+// C'est tout l'interet : un controle qui construit un arbre legerement
+// different repond sur un arbre que personne ne construit. Deux valeurs
+// distinctes qui donnent le meme nom de repertoire apres assainissement
+// passeraient ici et se percuteraient la-bas - l'echec meme qu'on veut
+// eviter, entre par la porte de derriere.
+func TestLaVerificationAssainitCommeLeMontage(t *testing.T) {
+	// L'assainissement met en minuscules, donc deux sujets qui ne different
+	// que par la casse partagent un repertoire. Ca arrive sur un bucket
+	// rempli a la main, et la disposition complete ne protege pas de ca.
+	if sanitizeWorkspacePathName("P1") != sanitizeWorkspacePathName("p1") {
+		t.Skip("l'assainissement ne confond plus la casse")
+	}
+	membres := []ontologydomain.Object{
+		{Path: "ETUDE/P1/20260218/ANTERION/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "ETUDE/p1/20260218/ANTERION/1", SubjectID: "p1", Visit: "20260218", Modality: "ANTERION"},
+	}
+	if _, collide := layoutCollision(extractdomain.DefaultLayout(), membres); !collide {
+		t.Fatal("deux sujets qui s'assainissent pareil doivent etre vus avant le montage")
+	}
+}
+
+// Les cles de dossier sont ecartees avant le controle, comme au montage.
+//
+// Les monter cachait l'etude - un extrait de 4 019 fichiers en avait monte
+// 186 le 2026-10-01 - donc le montage les jette. Refuser une disposition
+// parce que deux d'entre elles se percutent serait refuser sur des fichiers
+// qui n'allaient jamais etre lies.
+func TestLesClesDeDossierNeFontPasEchouerLaVerification(t *testing.T) {
+	membres := []ontologydomain.Object{
+		{Path: "ETUDE/P1/20260218/ANTERION", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "ETUDE/P1/20260218/ANTERION/DICOM/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "ETUDE/P2/20260422/ANTERION", SubjectID: "P2", Visit: "20260422", Modality: "ANTERION"},
+		{Path: "ETUDE/P2/20260422/ANTERION/DICOM/1", SubjectID: "P2", Visit: "20260422", Modality: "ANTERION"},
+	}
+	if _, collide := layoutCollision([]string{"subject", "modality"}, membres); collide {
+		t.Fatal("les cles de dossier ne doivent pas provoquer de refus")
 	}
 }

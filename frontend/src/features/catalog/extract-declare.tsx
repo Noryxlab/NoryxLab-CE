@@ -11,6 +11,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatNumber } from '@/lib/format';
 import type { Ontology } from '@/lib/api/types';
 import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
+import { reordonner } from './extract-layout';
 
 /* Declarer un extrait.
  *
@@ -227,6 +228,8 @@ function premiereEntite(ontology: Ontology): string | undefined {
  *  une phrase, et « SELENA-01-001 / 18 fev. 2026 / ANTERION / ... » est un
  *  chemin qu'on reconnait. Le second se verifie d'un coup d'oeil, le premier
  *  se relit deux fois. */
+const TOUS: string[] = ['subject', 'visit', 'modality'];
+
 function LayoutBuilder({
   ontology,
   niveaux,
@@ -249,28 +252,24 @@ function LayoutBuilder({
     modality: premiereCategorie(ontology) ?? mots.modalite.toUpperCase(),
   };
 
-  /* Ce qu'on peut choisir a cette position : les niveaux pas encore pris,
-   *  plus celui qui occupe deja la place. Un niveau deja utilise ailleurs
-   *  n'est pas propose - le serveur le refuserait, et proposer un refus est
-   *  une facon de faire perdre du temps. */
-  const choixPour = (rang: number) => {
-    const pris = niveaux.filter((_, index) => index !== rang);
-    const libres = ['subject', 'visit', 'modality'].filter((level) => !pris.includes(level));
-    return libres.map((level) => ({ value: level, label: capitaliser(nomDuNiveau[level] ?? level) }));
-  };
+  /* Les trois niveaux sont toujours proposes, a chaque position.
+   *
+   *  Ils ne l'etaient pas : chaque menu n'offrait que les niveaux encore
+   *  libres, ce qui parait prudent et ne marche pas du tout. Avec les trois
+   *  niveaux places, aucun n'est libre, donc chaque menu proposait exactement
+   *  sa propre valeur - trois listes a un seul choix. Impossible de trier par
+   *  date : le seul geste qui en avait besoin etait celui qu'on empechait. */
+  const choix = TOUS.map((level) => ({
+    value: level,
+    label: capitaliser(nomDuNiveau[level] ?? level),
+  }));
 
-  const changer = (rang: number, level: string) => {
-    const suite = [...niveaux];
-    suite[rang] = level;
-    // Un niveau choisi deux fois chasse son doublon, plutot que de refuser :
-    // reordonner, c'est echanger deux positions, et faire ce qu'on veut dire
-    // vaut mieux qu'expliquer pourquoi on ne le fait pas.
-    onChange(suite.filter((value, index) => suite.indexOf(value) === index));
-  };
+
+  const changer = (rang: number, level: string) => onChange(reordonner(niveaux, rang, level));
 
   const retirer = (rang: number) => onChange(niveaux.filter((_, index) => index !== rang));
 
-  const suivant = ['subject', 'visit', 'modality'].find((level) => !niveaux.includes(level));
+  const suivant = TOUS.find((level) => !niveaux.includes(level));
 
   return (
     <div className="space-y-2">
@@ -282,7 +281,7 @@ function LayoutBuilder({
           <Select
             value={level}
             onValueChange={(value) => changer(rang, value)}
-            options={choixPour(rang)}
+            options={choix}
             className="flex-1"
           />
           {/* Retirer n'est propose que sur le dernier : un trou au milieu

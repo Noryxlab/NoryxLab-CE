@@ -48,7 +48,7 @@ func TestLeManifesteEtSesLecteursSAccordent(t *testing.T) {
 
 	// Et les deux scripts passent bien par cette ligne, plutot que de porter
 	// leur propre liste.
-	bootstrap := strings.Join(extractBootstrapLines("/mnt", true, 0), "\n")
+	bootstrap := strings.Join(extractBootstrapLines("/mnt", true, 0, nil), "\n")
 	filler := extractFillerScript("/cache", "wks-test")
 	for nom, script := range map[string]string{"bootstrap": bootstrap, "filler": filler} {
 		if !strings.Contains(script, ligne) {

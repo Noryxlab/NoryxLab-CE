@@ -275,7 +275,7 @@ func TestAViewerCannotRunAJob(t *testing.T) {
 // config, the pip cache and the editor settings for exactly this reason.
 func TestWorkspaceKeepsTheAssistantMemoryOnTheProfileVolume(t *testing.T) {
 	script := workspaceBootstrapScript("vscode", "w1", "token", "Someone", "someone@example.org",
-		false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "models: []", false, 0)
+		false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "models: []", false, 0, nil)
 
 	for _, expected := range []string{
 		"mkdir -p '/home/noryx/.noryx-profile/continue'",

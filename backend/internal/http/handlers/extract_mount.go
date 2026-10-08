@@ -137,9 +137,14 @@ func encodeExtractManifest(entries []extractMountEntry) (string, bool) {
 
 // extractBootstrapLines rebuilds the tree at every start: the links are cheap,
 // and a workspace whose extract changed must not keep yesterday's shape.
-func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int) []string {
+func extractBootstrapLines(projectMountPath string, hasManifest bool, refusedCount int, skipped []string) []string {
 	root := workspaceExtractsPath
 	lines := legacyExtractTreeLines(projectMountPath)
+	// Dit avant de construire quoi que ce soit, parce que c'est la raison
+	// pour laquelle /extracts sera vide ou plus court que prevu.
+	for _, reason := range skipped {
+		lines = append(lines, fmt.Sprintf("echo %s", shellQuote("[bootstrap] extract not mounted - "+reason)))
+	}
 	// Cree meme quand il n'y a rien a y mettre.
 	//
 	// L'espace de travail VS Code declare ce dossier, et un dossier declare
@@ -282,9 +287,9 @@ func withoutDirectoryKeys(members []extractdomain.Member) []extractdomain.Member
 // An extract whose dataset is not mounted in this workspace is left out: a link
 // into a directory that does not exist is a broken file, and a broken file in a
 // study directory is worse than an absent one.
-func (h Handlers) extractMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) []extractMountEntry {
+func (h Handlers) extractMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) ([]extractMountEntry, []string) {
 	if h.extractStore == nil || strings.TrimSpace(projectID) == "" {
-		return nil
+		return nil, nil
 	}
 	// Lu dans la table de liens, et non dans une colonne de l extrait.
 	//
@@ -296,10 +301,10 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 	extracts, err := h.projectExtracts(projectID)
 	if err != nil {
 		log.Printf("workspace started without extract links for project %s: %v", projectID, err)
-		return nil
+		return nil, nil
 	}
 	if len(extracts) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	mounted := map[string]string{}
@@ -308,14 +313,28 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 	}
 
 	entries := []extractMountEntry{}
+	// Ce qui n'a pas pu etre monte, et pourquoi.
+	//
+	//  C'etait un log serveur, donc invisible : on attachait un extrait a un
+	//  projet, on ouvrait un workspace, /extracts etait vide et rien nulle
+	//  part ne disait que le dataset d'origine n'etait pas monte la. Un
+	//  repertoire vide ressemble a une panne de la plateforme, alors que
+	//  c'est une case a cocher qui manque - et la phrase qui l'explique
+	//  existait deja, elle partait juste au mauvais endroit.
+	skipped := []string{}
 	for _, item := range extracts {
 		ontology, found, err := h.ontologyStore.GetByID(item.OntologyID)
 		if err != nil || !found {
+			skipped = append(skipped, fmt.Sprintf("%s: its ontology is gone", item.Name))
 			continue
 		}
 		directory, ok := mounted[strings.ToLower(strings.TrimSpace(ontology.SourceName))]
 		if !ok {
 			log.Printf("extract %s not mounted: its dataset %q is not attached to this workspace", item.ID, ontology.SourceName)
+			skipped = append(skipped, fmt.Sprintf(
+				"%s: its dataset %q is not attached to this project, so there is nothing for its links to point at",
+				item.Name, ontology.SourceName,
+			))
 			continue
 		}
 		members, err := h.extractStore.ListMembers(item.ID, 0)
@@ -338,7 +357,7 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 			})
 		}
 	}
-	return entries
+	return entries, skipped
 }
 
 // projectExtracts reads what this project has attached.
@@ -388,16 +407,19 @@ type extractMount struct {
 	Refused int
 	// Names is what was mounted, for the record a job keeps.
 	Names []string
+	// Skipped is what could not be mounted, each with its reason, so the
+	// workload can say it where somebody will read it.
+	Skipped []string
 }
 
 func (h Handlers) extractMountFor(projectID string, attachedDatasets []workspaceAttachedDataset) extractMount {
-	entries := h.extractMountEntries(projectID, attachedDatasets)
+	entries, skipped := h.extractMountEntries(projectID, attachedDatasets)
 	if len(entries) == 0 {
-		return extractMount{}
+		return extractMount{Skipped: skipped}
 	}
 	manifest, fits := encodeExtractManifest(entries)
 	if !fits {
-		return extractMount{Refused: len(entries)}
+		return extractMount{Refused: len(entries), Skipped: skipped}
 	}
 	seen := map[string]bool{}
 	names := []string{}
@@ -407,7 +429,7 @@ func (h Handlers) extractMountFor(projectID string, attachedDatasets []workspace
 			names = append(names, entry.ExtractName)
 		}
 	}
-	return extractMount{Manifest: manifest, Names: names}
+	return extractMount{Manifest: manifest, Names: names, Skipped: skipped}
 }
 
 // extractSecretData is what the bootstrap secret carries, or nothing.

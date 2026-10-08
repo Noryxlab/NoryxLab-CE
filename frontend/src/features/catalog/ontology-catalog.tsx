@@ -1217,9 +1217,58 @@ function OntologyIdentity({ ontology }: { ontology: Ontology }) {
     <div className="space-y-3">
       <OntologyNaming ontology={ontology} />
       <OntologyFreshnessNote ontologyId={ontology.id} />
+      <OntologyReadingPending ontology={ontology} />
       <OntologyCardPanel ontology={ontology} />
       <OntologyExtractsNote ontology={ontology} />
       <OntologyScanHistory ontology={ontology} />
+    </div>
+  );
+}
+
+/* La source est lue autrement depuis que cette photographie a ete prise.
+ *
+ *  Une regle enregistree ne s'applique qu'au prochain scan : le manifeste est
+ *  la photographie, et elle a ete prise avec la regle d'avant (ADR-040). Donc
+ *  on declare « patient / visite / modalite », on enregistre, et toute la page
+ *  continue a dire « entite / periode / categorie » - ce qui est exact, et se
+ *  lit comme un reglage qui n'a pas pris.
+ *
+ *  Le message du toast le disait, trois secondes, puis disparaissait. La
+ *  difference, elle, dure jusqu'au rescan, donc elle reste affichee jusque-la.
+ *  Ce n'est pas une erreur : c'est un travail en attente, avec le bouton qui
+ *  le termine. */
+function OntologyReadingPending({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const datasetId = ontology.sourceId;
+  const declaree = useQuery({
+    queryKey: qk.datasetPathLayout(datasetId),
+    queryFn: () => pathLayoutApi.get(datasetId),
+    enabled: Boolean(datasetId) && ontology.sourceType === 'dataset',
+  });
+
+  const regle = (ontology.manifest as ManifestLu | undefined)?.readingRule;
+  const dansLaSource = declaree.data;
+  if (!dansLaSource?.declared) return null;
+
+  // Les positions seules : les mots changent ce qu'on lit a l'ecran, les
+  // positions changent ce que le scan produit. Les deux valent un rescan,
+  // mais seules les positions rendent les chiffres faux.
+  const memeRegle =
+    regle?.source === 'declared' &&
+    regle.subjectLevel === dansLaSource.subjectLevel &&
+    (regle.visitLevel ?? -1) === (dansLaSource.visitLevel ?? -1) &&
+    (regle.modalityLevel ?? -1) === (dansLaSource.modalityLevel ?? -1) &&
+    (regle.subjectName ?? '') === (dansLaSource.subjectName ?? '') &&
+    (regle.visitName ?? '') === (dansLaSource.visitName ?? '') &&
+    (regle.modalityName ?? '') === (dansLaSource.modalityName ?? '');
+  if (memeRegle) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning-subtle px-3 py-2 text-xs">
+      <span className="font-medium">{t('ontologies.readingPending')}</span>
+      <span className="text-muted-foreground">
+        {t('ontologies.readingPendingHint', { rule: dansLaSource.description ?? '—' })}
+      </span>
     </div>
   );
 }

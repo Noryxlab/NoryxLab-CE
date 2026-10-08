@@ -21,6 +21,10 @@ func TestLeScriptDeDemarrageEstDuShellValide(t *testing.T) {
 		false, "/home/noryx/.noryx-profile", "/mnt",
 		[]workspaceAttachedRepo{{Name: "etude", URL: "https://example.org/etude.git", DefaultRef: "main"}},
 		2, "models: []", true, 3,
+		// Un extrait ecarte : sa raison est un echo, donc du shell a valider
+		// comme le reste - et c'est exactement le genre de ligne qu'une
+		// apostrophe dans un nom de dataset casserait.
+		[]string{`selena: its dataset "HDS-For" isn't attached to this project`},
 	)
 	if !strings.Contains(script, "jupyter_server_config.py") {
 		t.Fatal("le script ne contient plus l'ecriture qu'on cherche a proteger")
@@ -44,7 +48,7 @@ func TestLeScriptDeDemarrageEstDuShellValide(t *testing.T) {
 func TestUneConfigNonEcrivableNeTuePasLeWorkspace(t *testing.T) {
 	script := workspaceBootstrapScript(
 		"jupyter", "wks-2", "jeton", "Stef", "stef@example.org",
-		false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0,
+		false, "/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0, nil,
 	)
 	if !strings.Contains(script, "could not be written; continuing without it") {
 		t.Fatal("l'echec d'ecriture de la config doit etre tolere et dit, pas fatal")

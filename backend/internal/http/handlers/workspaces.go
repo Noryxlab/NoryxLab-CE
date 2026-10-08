@@ -736,7 +736,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 		// An extract mounts as a tree of links over the dataset that is already
 		// mounted: nothing is copied, and the source stays read-only.
-		extractEntries := h.extractMountEntries(req.ProjectID, attachedDatasets)
+		extractEntries, extractSkipped := h.extractMountEntries(req.ProjectID, attachedDatasets)
 		extractManifest, extractFits := encodeExtractManifest(extractEntries)
 		extractRefused := 0
 		if !extractFits {
@@ -758,6 +758,7 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			continueConfig,
 			extractManifest != "",
 			extractRefused,
+			extractSkipped,
 		)
 		workspaceArgs = nil
 		bootstrapSecretName := podName + "-bootstrap"
@@ -1296,6 +1297,7 @@ func workspaceBootstrapScript(
 	continueConfig string,
 	hasExtractManifest bool,
 	refusedExtractFiles int,
+	skippedExtracts []string,
 ) string {
 	lines := []string{
 		"set -e",
@@ -1370,7 +1372,7 @@ func workspaceBootstrapScript(
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
-	lines = append(lines, extractBootstrapLines(projectMountPath, hasExtractManifest, refusedExtractFiles)...)
+	lines = append(lines, extractBootstrapLines(projectMountPath, hasExtractManifest, refusedExtractFiles, skippedExtracts)...)
 
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)

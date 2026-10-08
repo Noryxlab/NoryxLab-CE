@@ -95,7 +95,7 @@ func TestLArbreDesExtraitsEstACoteDesDatasets(t *testing.T) {
 	if workspaceExtractsPath != "/extracts" {
 		t.Fatalf("chemin = %q, attendu /extracts", workspaceExtractsPath)
 	}
-	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0), "\n")
+	lignes := strings.Join(extractBootstrapLines("/mnt", true, 0, nil), "\n")
 	// Ce qui est interdit, c'est d'y CONSTRUIRE. Le script mentionne encore
 	// /mnt/extracts, et doit le faire : il y reste des arbres d'avant le
 	// deplacement, qu'il ecarte une fois. Interdire la mention plutot que la

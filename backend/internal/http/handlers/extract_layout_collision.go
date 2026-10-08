@@ -29,15 +29,28 @@ import (
 
 // layoutCollision reports the first two members a layout would place on the
 // same path, and which levels would separate them again.
+//
+// It composes exactly what the mount composes, and the "exactly" is the whole
+// of it. A check that builds a slightly different tree answers about a tree
+// nobody builds: two values that differ raw but sanitise to the same
+// directory name would pass here and collide there, which is the failure
+// this exists to prevent, arriving by the back door.
+//
+// Directory keys are dropped first, for the same reason - the mount drops
+// them, so an extract refused because two of them collide would be refused
+// over files that were never going to be linked.
 func layoutCollision(layout []string, members []ontologydomain.Object) (string, bool) {
-	// The same composition the mount performs: the directory from the layout,
-	// then the part of the source path below the modality. Anything else here
-	// would check a tree nobody builds.
-	seen := make(map[string]string, len(members))
-	for _, member := range members {
+	kept := withoutDirectoryKeys(asExtractMembers(members))
+	seen := make(map[string]string, len(kept))
+	for _, member := range kept {
 		place := strings.Join(
 			append(
-				extractdomain.DirectoryFor(layout, member.SubjectID, member.Visit, member.Modality),
+				extractdomain.DirectoryFor(
+					layout,
+					sanitizeWorkspacePathName(member.SubjectID),
+					sanitizeWorkspacePathName(member.Visit),
+					sanitizeWorkspacePathName(member.Modality),
+				),
 				extractLeaf(member.Path, member.Modality),
 			),
 			"/",
@@ -48,6 +61,22 @@ func layoutCollision(layout []string, members []ontologydomain.Object) (string, 
 		seen[place] = member.Path
 	}
 	return "", false
+}
+
+// asExtractMembers borrows the mount's own filters, which are written against
+// a frozen member rather than against a scanned object.
+func asExtractMembers(members []ontologydomain.Object) []extractdomain.Member {
+	out := make([]extractdomain.Member, 0, len(members))
+	for _, member := range members {
+		out = append(out, extractdomain.Member{
+			Path:      member.Path,
+			SubjectID: member.SubjectID,
+			Visit:     member.Visit,
+			Modality:  member.Modality,
+			SizeBytes: member.SizeBytes,
+		})
+	}
+	return out
 }
 
 // layoutCollisionMessage says what collided and what to add back.

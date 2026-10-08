@@ -475,7 +475,7 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		"fi",
 	}
 	// L'arbre des extraits, avant le code : il lit dedans.
-	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused)...)
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused, montage.Skipped)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)

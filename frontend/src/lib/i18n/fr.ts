@@ -884,6 +884,8 @@ export const fr = {
     reading: "Lecture",
     readingUnrecorded: "Non enregistrée",
     readingUnrecordedHint: "Cette photographie est antérieure à l’enregistrement de la règle : on ne sait pas comment elle a été lue. Un nouveau scan le dira.",
+    readingPending: "Cette photographie n’a pas été prise avec la règle actuelle.",
+    readingPendingHint: "La source déclare maintenant « {rule} ». Relancez un scan pour que les chiffres et les mots de cette page suivent.",
     readingDeclared: "Déclarée",
     readingDefault: "Par défaut",
     completeness: "Couverture",

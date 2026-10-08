@@ -863,6 +863,8 @@ export const en: Translations = {
     reading: "Reading",
     readingUnrecorded: "Not recorded",
     readingUnrecordedHint: "This photograph predates the rule being recorded: how it was read is unknown. A fresh scan will say.",
+    readingPending: "This photograph was not taken with the current rule.",
+    readingPendingHint: "The source now declares \"{rule}\". Scan again for this page's figures and words to follow.",
     readingDeclared: "Declared",
     readingDefault: "Default",
     completeness: "Coverage",
