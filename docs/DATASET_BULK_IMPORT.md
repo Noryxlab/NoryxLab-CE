@@ -69,6 +69,21 @@ A refused object is named with its reason and the rest of the batch still
 goes: one bad name in a directory of four thousand should cost that file, not
 the import.
 
+## Which datasets take which route
+
+A presigned URL carries the host the platform's own client talks to. For a
+dataset on the internal MinIO profile that is a cluster service, which
+resolves inside the cluster and nowhere else — so the direct route is refused
+with `direct_upload_unavailable` rather than signed and handed over. The
+client reads the code and sends through the API instead.
+
+Datasets on an external endpoint — the HDS buckets on Clever Cloud — take the
+direct route.
+
+This was found on the first real import, with 1,957 files failing on `curl`
+exit 6 and nothing connecting the failure to its cause. It is the kind of
+defect only a transfer from outside the cluster can show.
+
 ## Current boundary
 
 The first implementation uses one S3 PUT per object, capped at `5 GiB` per

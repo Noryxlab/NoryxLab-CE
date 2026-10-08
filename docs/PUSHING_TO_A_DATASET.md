@@ -49,9 +49,23 @@ your machine  ──1── Noryx: who are you, may you write here, give me URLs
               ──3── Noryx: these arrived, this size, this checksum
 ```
 
-Your files **never pass through Noryx**. Noryx decides who may write which
-key and signs short-lived URLs for exactly those keys; the bytes go from your
-machine to the storage. No S3 credential is ever given out.
+Your files **never pass through Noryx** — when the storage is reachable from
+outside. Noryx decides who may write which key and signs short-lived URLs for
+exactly those keys; the bytes go from your machine to the storage. No S3
+credential is ever given out.
+
+**Some datasets take the other route.** A dataset held on the platform's own
+internal object store answers on a cluster address that resolves nowhere
+outside it, so no signed URL for it could ever work. Noryx says so instead of
+handing you a dead URL, and the script switches by itself:
+
+```
+direct upload is not available for this dataset; sending through the API instead
+```
+
+Nothing to do about it. The bytes travel through the API, which is slower and
+works everywhere. The HDS buckets are on an external endpoint, so a clinical
+import takes the direct route.
 
 Two details that matter:
 
@@ -96,8 +110,9 @@ it arrived whole, from you, with that checksum.
 | One object | **5 GiB maximum.** No multipart yet. |
 | Objects per authorisation call | 200 |
 | URL lifetime | 15 minutes |
-| Thousands of files, tens of GiB | **Tested.** 3,993 files / 9 GiB verified end to end. |
-| Hundreds of thousands of files, terabytes | Should hold; not yet measured at that scale. Read the note below. |
+| Thousands of files | **Measured.** 1,957 objects pushed to the DC on 2026-10-08, byte-for-byte, and a resume of the same tree answered in 0.06 s. |
+| Tens of GiB | **Measured** through the extract path: 3,993 files / 9 GiB. |
+| Hundreds of thousands of files, terabytes | Designed for, not measured. Read the note below. |
 
 **Do not split or compress a regulated source file to get under 5 GiB**
 without recording the transformation. A study whose files were silently
@@ -127,6 +142,9 @@ Noryx answers 404 rather than 403 for a dataset you may not read, deliberately:
 whether a given dataset exists is itself information.
 
 **`413` on one object** — it is above 5 GiB. See the limits above.
+
+**`direct upload is not available for this dataset`** — not an error. See
+above; the script has already switched.
 
 **`REFUSED <path>`** — that one path was rejected, with its reason, and the
 rest of the batch went through. Fix the name and re-run; confirmed files are
