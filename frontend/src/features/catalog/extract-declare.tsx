@@ -132,9 +132,27 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     onError: (error) => toast.error(error, t('ontologies.extractWhole')),
   });
 
-  const chosenObjects = available
-    .filter((item) => chosen.includes(item.name))
-    .reduce((total, item) => total + item.objects, 0);
+  /* Ce que la selection prendra, dit avant de declarer.
+   *
+   *  Le formulaire ne disait nulle part combien de fichiers il allait geler.
+   *  Un extrait nomme « SELENA-modality » est reparti un jour avec un filtre
+   *  vide - donc l'ontologie entiere - et rien a l'ecran ne contredisait son
+   *  nom. Un n faux se decouvre trois mois plus tard, dans un article. */
+  const totalFichiers = available.reduce((total, item) => total + item.objects, 0);
+  const prisParCategorie =
+    chosen.length === 0
+      ? totalFichiers
+      : available
+          .filter((item) => chosen.includes(item.name))
+          .reduce((total, item) => total + item.objects, 0);
+  const filtreEntites = asList(subjects).length > 0;
+
+  const lu = ontology.manifest as ManifestExtrait | undefined;
+  const resume = lu?.summary;
+  // La date est a la racine du manifeste, pas dans son resume : c'est le
+  // moment ou la photographie a ete prise, et un extrait se raisonne contre
+  // elle.
+  const prisLe = lu?.generatedAt ? new Date(lu.generatedAt) : null;
 
   return (
     <form
@@ -142,63 +160,106 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         event.preventDefault();
         if (name.trim()) create.mutate();
       }}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1.4fr_1fr_1fr] lg:items-start"
+      className="space-y-5"
     >
-      <Field label={t('common.name')}>
+      {/* De quelle photographie on decoupe.
+        *
+        *  Un extrait gele une liste de fichiers prise dans UNE lecture a UN
+        *  moment : sans le dire, « 1 934 fichiers » est un chiffre sans
+        *  provenance, et les mots du formulaire - entite, periode - sortent
+        *  de nulle part. Ils viennent de la, et la ligne le dit. */}
+      <p className="text-xs text-muted-foreground">
+        {t('ontologies.extractFrom', {
+          name: ontology.name,
+          when: prisLe ? prisLe.toLocaleDateString(locale, { dateStyle: 'long' }) : '—',
+        })}{' '}
+        <span className="tabular-nums">
+          {t('ontologies.extractFromFigures', {
+            entities: formatNumber(resume?.subjects ?? 0, locale),
+            entityName: pluriel(mots.sujet),
+            files: formatNumber(totalFichiers, locale),
+            categories: formatNumber(available.length, locale),
+            categoryName: pluriel(mots.modalite),
+          })}
+        </span>
+      </p>
+
+      <Field label={t('common.name')} className="sm:max-w-sm">
         <Input value={name} onChange={(event) => setName(event.target.value)} />
       </Field>
 
-      <Field
-        label={t('ontologies.extractModalities')}
-        description={
-          chosen.length === 0
-            ? t('ontologies.extractModalitiesAll')
-            : t('ontologies.extractModalitiesChosen', {
-                objects: formatNumber(chosenObjects, locale),
-              })
-        }
-      >
-        <div className="flex flex-wrap gap-1.5">
-          {available.length === 0 ? (
-            <span className="text-xs text-muted-foreground">
-              {t('ontologies.extractModalitiesUnknown')}
-            </span>
-          ) : (
-            available.map((item) => (
-              <Button
-                key={item.name}
-                type="button"
-                size="sm"
-                variant={chosen.includes(item.name) ? 'primary' : 'secondary'}
-                onClick={() => toggle(item.name)}
-                aria-pressed={chosen.includes(item.name)}
-              >
-                {item.name}
-                <span className="opacity-70 tabular-nums">
-                  {formatNumber(item.objects, locale)}
+      {/* Deux questions, deux blocs, dans l'ordre ou on se les pose. */}
+      <Etape titre={t('ontologies.extractWhat')} sous={t('ontologies.extractWhatHint')}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field
+            label={capitaliser(pluriel(mots.modalite))}
+            description={t('ontologies.extractPickCategories', {
+              categories: pluriel(mots.modalite),
+            })}
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {available.length === 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  {t('ontologies.extractModalitiesUnknown')}
                 </span>
-              </Button>
-            ))
-          )}
+              ) : (
+                available.map((item) => (
+                  <Button
+                    key={item.name}
+                    type="button"
+                    size="sm"
+                    variant={chosen.includes(item.name) ? 'primary' : 'secondary'}
+                    onClick={() => toggle(item.name)}
+                    aria-pressed={chosen.includes(item.name)}
+                  >
+                    {item.name}
+                    <span className="opacity-70 tabular-nums">
+                      {formatNumber(item.objects, locale)}
+                    </span>
+                  </Button>
+                ))
+              )}
+            </div>
+          </Field>
+
+          <Field
+            label={capitaliser(pluriel(mots.sujet))}
+            description={t('ontologies.extractPickEntities', { entities: pluriel(mots.sujet) })}
+          >
+            {/* Un exemple pris dans cette ontologie, jamais une autre : le
+              *  champ affichait « PREMYOM1000-001 » sur la page de SELENA,
+              *  code en dur, et rien ne disait que c'etait un exemple. */}
+            <Input
+              value={subjects}
+              onChange={(event) => setSubjects(event.target.value)}
+              placeholder={premiereEntite(ontology)}
+            />
+          </Field>
         </div>
-      </Field>
 
-      <Field label={t('ontologies.extractLayout')} description={t('ontologies.extractLayoutHint')}>
-        <LayoutBuilder ontology={ontology} niveaux={niveaux} onChange={setNiveaux} />
-      </Field>
+        <p className="text-xs font-medium">
+          {filtreEntites
+            ? t('ontologies.extractTakesAtMost', {
+                files: formatNumber(prisParCategorie, locale),
+                total: formatNumber(totalFichiers, locale),
+              })
+            : t('ontologies.extractTakes', {
+                files: formatNumber(prisParCategorie, locale),
+                total: formatNumber(totalFichiers, locale),
+              })}
+        </p>
+      </Etape>
 
-      <Field label={t('ontologies.extractSubjects', { entities: pluriel(mots.sujet) })}>
-        {/* Un exemple pris dans cette ontologie, jamais une autre : le champ
-          *  affichait « PREMYOM1000-001 » sur la page de SELENA, code en dur,
-          *  et rien ne disait que c'etait un exemple. */}
-        <Input
-          value={subjects}
-          onChange={(event) => setSubjects(event.target.value)}
-          placeholder={premiereEntite(ontology)}
+      <Etape titre={t('ontologies.extractHow')} sous={t('ontologies.extractHowHint')}>
+        <LayoutBuilder
+          ontology={ontology}
+          niveaux={niveaux}
+          onChange={setNiveaux}
+          nomExtrait={name.trim()}
         />
-      </Field>
+      </Etape>
 
-      <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
+      <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
           {t('ontologies.extractCreate')}
         </Button>
@@ -234,10 +295,12 @@ function LayoutBuilder({
   ontology,
   niveaux,
   onChange,
+  nomExtrait,
 }: {
   ontology: Ontology;
   niveaux: string[];
   onChange: (niveaux: string[]) => void;
+  nomExtrait: string;
 }) {
   const t = useT();
   const mots = motsDuMetier(ontology);
@@ -259,9 +322,16 @@ function LayoutBuilder({
    *  niveaux places, aucun n'est libre, donc chaque menu proposait exactement
    *  sa propre valeur - trois listes a un seul choix. Impossible de trier par
    *  date : le seul geste qui en avait besoin etait celui qu'on empechait. */
+  /* Le mot, et une valeur que ce niveau porte vraiment.
+   *
+   *  « Entite » et « Periode » ne disent rien a quelqu'un qui n'a pas ecrit
+   *  le scan : ce sont des categories grammaticales, pas des choses qu'on
+   *  reconnait. « Entite — SELENA-01-001 » se comprend sans explication, et
+   *  l'exemple sort de cette ontologie-ci. */
   const choix = TOUS.map((level) => ({
     value: level,
     label: capitaliser(nomDuNiveau[level] ?? level),
+    hint: exemple[level],
   }));
 
 
@@ -300,10 +370,22 @@ function LayoutBuilder({
         </Button>
       ) : null}
 
-      <p className="font-mono text-xs text-muted-foreground">
-        {niveaux.map((level) => exemple[level] ?? level).join(' / ')}
-        {' / '}
-        <span className="opacity-60">{t('ontologies.layoutLeaf')}</span>
+      {/* Le chemin entier, tel qu'il existera dans le workspace.
+        *
+        *  L'apercu montrait les trois segments sans dire ou ils atterrissent,
+        *  donc il ressemblait a un resume de la regle plutot qu'a un endroit.
+        *  Avec /extracts et le nom devant, c'est un chemin qu'on peut aller
+        *  taper dans un terminal. */}
+      <p className="break-all font-mono text-xs">
+        <span className="text-muted-foreground">/extracts/</span>
+        <span>{nomExtrait || t('ontologies.layoutUnnamed')}</span>
+        {niveaux.map((level) => (
+          <span key={level}>
+            <span className="text-muted-foreground">/</span>
+            {exemple[level] ?? level}
+          </span>
+        ))}
+        <span className="text-muted-foreground">/{t('ontologies.layoutLeaf')}</span>
       </p>
       {niveaux.length < 3 ? (
         <p className="text-xs text-muted-foreground">{t('ontologies.layoutShortWarning')}</p>
@@ -324,4 +406,33 @@ function premiereCategorie(ontology: Ontology): string | undefined {
 
 type ManifestExtrait = {
   subjects?: { id?: string; visits?: { date?: string; modalities?: { name?: string }[] }[] }[];
+  summary?: { subjects?: number; objects?: number };
+  generatedAt?: string;
 };
+
+/* Une etape du formulaire : un titre qui dit la question, et sa reponse.
+ *
+ *  Les champs etaient poses cote a cote sans rien qui les regroupe, donc
+ *  « Categories » n'avait pas de sens : ni « prendre seulement celles-ci »
+ *  ni « ranger par celles-ci », juste un mot au-dessus de cinq boutons. Deux
+ *  questions se posent en declarant un extrait - ce qu'on emporte, comment
+ *  on le retrouve - et chacune a maintenant son titre. */
+function Etape({
+  titre,
+  sous,
+  children,
+}: {
+  titre: string;
+  sous: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-md border border-border p-3">
+      <div>
+        <h4 className="text-sm font-medium">{titre}</h4>
+        <p className="text-xs text-muted-foreground">{sous}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
