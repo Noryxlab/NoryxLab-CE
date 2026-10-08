@@ -113,6 +113,15 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": probleme})
 		return
 	}
+	// A layout that names fewer than three levels merges what it leaves out,
+	// and the mount builds links: two files on one path means one of them is
+	// not there. Checked against the selection, because only the files can
+	// say - dropping the visit is harmless on a study with one visit per
+	// patient and destructive on the next study along.
+	if conflit, collides := layoutCollision(layout, members); collides {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": conflit})
+		return
+	}
 
 	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
 	object.Layout = layout

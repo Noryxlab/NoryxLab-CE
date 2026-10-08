@@ -130,13 +130,27 @@ func DefaultLayout() []string {
 	return []string{LevelSubject, LevelVisit, LevelModality}
 }
 
-// NormaliseLayout accepts a permutation of the three levels and nothing else.
+// NormaliseLayout accepts one, two or three distinct levels, in any order.
+//
+// All three used to be required, so the tree always carried every level even
+// when one of them said nothing: on a study with a single visit per patient,
+// the middle directory holds one entry per patient and exists only to be
+// walked through. Dropping it is the arrangement somebody actually wants.
+//
+// Any order, too. The caller used to be offered three permutations of six,
+// for no reason beyond the three the screen happened to list - and "all my
+// cornea scans, whoever they belong to" is a different question from "what
+// does this patient have", over the same files.
 //
 // Empty is the default rather than an error: an extract declared before
 // layouts existed has none, and a caller that does not care should not have to
 // name one. Anything else is refused with a reason, because a layout that was
 // silently corrected would arrange somebody's study differently from what they
 // asked for and say nothing.
+//
+// A shorter layout can make two files land in the same place, and this
+// function cannot know: it sees a rule, not the files. The caller checks that
+// against the selection before freezing it - see Collision.
 func NormaliseLayout(raw []string) ([]string, string) {
 	if len(raw) == 0 {
 		return DefaultLayout(), ""
@@ -156,10 +170,25 @@ func NormaliseLayout(raw []string) ([]string, string) {
 		seen[level] = true
 		out = append(out, level)
 	}
-	if len(out) != 3 {
-		return nil, "a layout names all three levels: subject, visit and modality"
-	}
 	return out, ""
+}
+
+// Omitted names the levels a layout leaves out, in the platform's own order.
+//
+// Used to say what to add back when a layout files two files in one place -
+// "add the visit" is actionable where "this layout collides" is not.
+func Omitted(layout []string) []string {
+	present := map[string]bool{}
+	for _, level := range layout {
+		present[level] = true
+	}
+	out := []string{}
+	for _, level := range []string{LevelSubject, LevelVisit, LevelModality} {
+		if !present[level] {
+			out = append(out, level)
+		}
+	}
+	return out
 }
 
 // DirectoryFor places one member in the tree, following the layout.

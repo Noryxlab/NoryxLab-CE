@@ -910,6 +910,11 @@ export const fr = {
     extractModalitiesUnknown:
       "Aucune catégorie mesurée sur cette ontologie — l’extrait prendra tout.",
     extractSubjects: "{entities} (vide = toutes)",
+    layoutLevel: "Dossier {rank}",
+    layoutDrop: "Retirer",
+    layoutAdd: "Ajouter un dossier : {name}",
+    layoutLeaf: "fichiers…",
+    layoutShortWarning: "Un niveau en moins regroupe ce qu’il séparait. Si deux fichiers se retrouvent au même endroit, la déclaration est refusée en nommant lesquels.",
     extractLayout: "Disposition",
     pattern: "Lecture de la source",
     patternRule: "Règle de lecture",
@@ -986,9 +991,6 @@ export const fr = {
       "{count} clé(s) de dossier ignorée(s) : S3 n’a pas de dossiers, les compter gonflerait le n.",
     extractLayoutHint:
       "L’ordre des dossiers dans le workspace. La sélection dit quels fichiers, la disposition dit comment les retrouver.",
-    layoutSubjectFirst: "Sujet › visite › modalité",
-    layoutModalityFirst: "Modalité › sujet › visite",
-    layoutVisitFirst: "Visite › sujet › modalité",
     extractEmpty: "Aucun extrait pour cette ontologie.",
     extractCatalogEmpty: "Aucun extrait",
     extractCreated: "Extrait figé sur {count} fichiers.",

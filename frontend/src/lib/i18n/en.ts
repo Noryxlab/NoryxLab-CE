@@ -889,6 +889,11 @@ export const en: Translations = {
     extractModalitiesUnknown:
       "No modality measured on this ontology — the extract will take everything.",
     extractSubjects: "{entities} (empty = all)",
+    layoutLevel: "Folder {rank}",
+    layoutDrop: "Remove",
+    layoutAdd: "Add a folder: {name}",
+    layoutLeaf: "files…",
+    layoutShortWarning: "A level fewer merges what it separated. If two files would land in the same place, the declaration is refused and names them.",
     extractLayout: "Layout",
     pattern: "How the source is read",
     patternRule: "Reading rule",
@@ -965,9 +970,6 @@ export const en: Translations = {
       "{count} directory key(s) ignored: S3 has no directories, and counting them would inflate the n.",
     extractLayoutHint:
       "The order of the folders in the workspace. The selection says which files; the layout says how to find them.",
-    layoutSubjectFirst: "Subject › visit › modality",
-    layoutModalityFirst: "Modality › subject › visit",
-    layoutVisitFirst: "Visit › subject › modality",
     extractEmpty: "No extract for this ontology.",
     extractCatalogEmpty: "No extract",
     extractCreated: "Extract frozen over {count} files.",

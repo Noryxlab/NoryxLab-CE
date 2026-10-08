@@ -180,6 +180,32 @@ everything.
 
 ## 7. Cut an extract
 
+Two things make an extract: **what you take**, and **how it is arranged**.
+
+The selection — categories, entities — says which files. The layout says what
+the folders look like in the workspace, and it is built one folder at a time:
+
+```
+Folder 1  [ patient  ▾ ]      SELENA-01-001 / 18 Feb 2026 / ANTERION / files…
+Folder 2  [ visite   ▾ ]
+Folder 3  [ modalité ▾ ]
+```
+
+Any order. "What does this patient have" and "all my cornea scans, whoever
+they belong to" are different questions over the same files, and the second
+one wants the category first.
+
+You can also **stop before three**. On a study with a single visit per
+patient, the visit folder holds one entry per patient and exists only to be
+walked through; `patient / modalité` is the tree you actually want.
+
+Dropping a level merges what it separated, and the mount builds a tree of
+links — two files on one path means one of them is not there. So the platform
+checks the omission **against your actual selection** and refuses when it
+would lose a file, naming the two files and the level to add back. Harmless
+on a study with one visit per patient, destructive on the next study along:
+only the files can say which, so only the files are asked.
+
 Not on this page: extracts have their own catalogue entry, and that is where
 one is declared, with the ontology as the form's first field. The ontology
 page only tells you **how many extracts depend on it**, which is what deleting

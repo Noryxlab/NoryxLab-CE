@@ -10,7 +10,7 @@ import { qk, useInvalidate, useOntologyCompleteness } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatNumber } from '@/lib/format';
 import type { Ontology } from '@/lib/api/types';
-import { motsDuMetier, pluriel } from './ontology-words';
+import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
 
 /* Declarer un extrait.
  *
@@ -46,7 +46,19 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
    *  ranges pour travailler. Par sujet on repond a « que possede ce
    *  patient », par categorie a « montre-moi tous mes scans de cornee » -
    *  deux questions, un seul ensemble de fichiers. */
-  const [layout, setLayout] = React.useState('subject,visit,modality');
+  /* La disposition se construit niveau par niveau.
+   *
+   *  C'etait une liste de trois permutations sur six, choisies parce que
+   *  l'ecran les avait ecrites - et un menu unique « Sujet > visite >
+   *  modalite » ne montre pas qu'on decide d'un ordre, il a l'air d'un
+   *  reglage a prendre ou a laisser. Trois choix successifs disent ce qu'ils
+   *  sont : le premier dossier, puis le second, puis le troisieme.
+   *
+   *  On peut s'arreter avant trois. Sur une etude ou chaque patient n'a
+   *  qu'une visite, le repertoire de visite ne sert qu'a etre traverse, et
+   *  « patient / modalite » est l'arbre qu'on veut vraiment. Le serveur
+   *  refuse si deux fichiers s'y retrouveraient au meme endroit. */
+  const [niveaux, setNiveaux] = React.useState<string[]>(['subject', 'visit', 'modality']);
 
   const coverage = useOntologyCompleteness(ontology.id);
   const available = coverage.data?.modalities ?? [];
@@ -57,7 +69,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     setName('');
     setSubjects('');
     setChosen([]);
-    setLayout('subject,visit,modality');
+    setNiveaux(['subject', 'visit', 'modality']);
   }, [ontology.id]);
 
   const toggle = (nom: string) =>
@@ -87,13 +99,13 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         // mount it.
         modalities: chosen,
         subjects: asList(subjects),
-        layout: layout.split(','),
+        layout: niveaux,
       }),
     onSuccess: (created) => {
       setName('');
       setChosen([]);
       setSubjects('');
-      setLayout('subject,visit,modality');
+      setNiveaux(['subject', 'visit', 'modality']);
       done(created.objectCount);
     },
     onError: (error) => toast.error(error, t('ontologies.extractCreate')),
@@ -171,15 +183,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
       </Field>
 
       <Field label={t('ontologies.extractLayout')} description={t('ontologies.extractLayoutHint')}>
-        <Select
-          value={layout}
-          onValueChange={setLayout}
-          options={[
-            { value: 'subject,visit,modality', label: t('ontologies.layoutSubjectFirst') },
-            { value: 'modality,subject,visit', label: t('ontologies.layoutModalityFirst') },
-            { value: 'visit,subject,modality', label: t('ontologies.layoutVisitFirst') },
-          ]}
-        />
+        <LayoutBuilder ontology={ontology} niveaux={niveaux} onChange={setNiveaux} />
       </Field>
 
       <Field label={t('ontologies.extractSubjects', { entities: pluriel(mots.sujet) })}>
@@ -213,6 +217,112 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
 
 /** Un identifiant que cette ontologie porte vraiment, pour servir d'exemple. */
 function premiereEntite(ontology: Ontology): string | undefined {
-  const sujets = (ontology.manifest as { subjects?: { id?: string }[] } | undefined)?.subjects;
+  const sujets = (ontology.manifest as ManifestExtrait | undefined)?.subjects;
   return sujets?.[0]?.id?.trim() || undefined;
 }
+
+/* Trois choix successifs, et l'arbre qu'ils produisent.
+ *
+ *  L'apercu n'est pas un ornement : « sujet, puis visite, puis modalite » est
+ *  une phrase, et « SELENA-01-001 / 18 fev. 2026 / ANTERION / ... » est un
+ *  chemin qu'on reconnait. Le second se verifie d'un coup d'oeil, le premier
+ *  se relit deux fois. */
+function LayoutBuilder({
+  ontology,
+  niveaux,
+  onChange,
+}: {
+  ontology: Ontology;
+  niveaux: string[];
+  onChange: (niveaux: string[]) => void;
+}) {
+  const t = useT();
+  const mots = motsDuMetier(ontology);
+  const nomDuNiveau: Record<string, string> = {
+    subject: mots.sujet,
+    visit: mots.visite,
+    modality: mots.modalite,
+  };
+  const exemple: Record<string, string> = {
+    subject: premiereEntite(ontology) ?? mots.sujet.toUpperCase(),
+    visit: premiereVisite(ontology) ?? mots.visite.toUpperCase(),
+    modality: premiereCategorie(ontology) ?? mots.modalite.toUpperCase(),
+  };
+
+  /* Ce qu'on peut choisir a cette position : les niveaux pas encore pris,
+   *  plus celui qui occupe deja la place. Un niveau deja utilise ailleurs
+   *  n'est pas propose - le serveur le refuserait, et proposer un refus est
+   *  une facon de faire perdre du temps. */
+  const choixPour = (rang: number) => {
+    const pris = niveaux.filter((_, index) => index !== rang);
+    const libres = ['subject', 'visit', 'modality'].filter((level) => !pris.includes(level));
+    return libres.map((level) => ({ value: level, label: capitaliser(nomDuNiveau[level] ?? level) }));
+  };
+
+  const changer = (rang: number, level: string) => {
+    const suite = [...niveaux];
+    suite[rang] = level;
+    // Un niveau choisi deux fois chasse son doublon, plutot que de refuser :
+    // reordonner, c'est echanger deux positions, et faire ce qu'on veut dire
+    // vaut mieux qu'expliquer pourquoi on ne le fait pas.
+    onChange(suite.filter((value, index) => suite.indexOf(value) === index));
+  };
+
+  const retirer = (rang: number) => onChange(niveaux.filter((_, index) => index !== rang));
+
+  const suivant = ['subject', 'visit', 'modality'].find((level) => !niveaux.includes(level));
+
+  return (
+    <div className="space-y-2">
+      {niveaux.map((level, rang) => (
+        <div key={`${level}-${rang}`} className="flex items-center gap-2">
+          <span className="w-16 shrink-0 text-xs text-muted-foreground">
+            {t('ontologies.layoutLevel', { rank: String(rang + 1) })}
+          </span>
+          <Select
+            value={level}
+            onValueChange={(value) => changer(rang, value)}
+            options={choixPour(rang)}
+            className="flex-1"
+          />
+          {/* Retirer n'est propose que sur le dernier : un trou au milieu
+            *  n'est pas un arbre, c'est le meme arbre plus court. */}
+          {rang === niveaux.length - 1 && niveaux.length > 1 ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => retirer(rang)}>
+              {t('ontologies.layoutDrop')}
+            </Button>
+          ) : null}
+        </div>
+      ))}
+
+      {suivant ? (
+        <Button type="button" variant="ghost" size="sm" onClick={() => onChange([...niveaux, suivant])}>
+          {t('ontologies.layoutAdd', { name: nomDuNiveau[suivant] ?? suivant })}
+        </Button>
+      ) : null}
+
+      <p className="font-mono text-xs text-muted-foreground">
+        {niveaux.map((level) => exemple[level] ?? level).join(' / ')}
+        {' / '}
+        <span className="opacity-60">{t('ontologies.layoutLeaf')}</span>
+      </p>
+      {niveaux.length < 3 ? (
+        <p className="text-xs text-muted-foreground">{t('ontologies.layoutShortWarning')}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function premiereVisite(ontology: Ontology): string | undefined {
+  const sujets = (ontology.manifest as ManifestExtrait | undefined)?.subjects;
+  return sujets?.[0]?.visits?.[0]?.date?.trim() || undefined;
+}
+
+function premiereCategorie(ontology: Ontology): string | undefined {
+  const sujets = (ontology.manifest as ManifestExtrait | undefined)?.subjects;
+  return sujets?.[0]?.visits?.[0]?.modalities?.[0]?.name?.trim() || undefined;
+}
+
+type ManifestExtrait = {
+  subjects?: { id?: string; visits?: { date?: string; modalities?: { name?: string }[] }[] }[];
+};

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 )
 
 // La disposition est la seconde moitie de ce qu'est un extrait.
@@ -47,17 +48,31 @@ func TestUneDispositionVideEstCelleParDefaut(t *testing.T) {
 	}
 }
 
-// Une disposition partielle est refusee, et c'est le point qui protege.
+// Une disposition peut nommer un ou deux niveaux, et c'est la collision qui
+// protege - pas le compte de niveaux.
 //
-// Omettre un niveau mettrait dans un meme repertoire des fichiers de visites
-// differentes : ceux qui partagent un nom s'ecraseraient, et l'etude perdrait
-// des lignes en silence.
-func TestUneDispositionPartielleEstRefusee(t *testing.T) {
+// Les trois etaient exiges, donc l'arbre portait toujours un repertoire de
+// visite meme sur une etude ou chaque patient n'en a qu'une : un niveau qui
+// ne sert qu'a etre traverse. Le refus s'est deplace la ou il peut etre juste,
+// contre les fichiers reellement selectionnes.
+func TestUneDispositionPeutNommerMoinsDeTroisNiveaux(t *testing.T) {
 	for _, essai := range [][]string{
 		{"subject"},
 		{"subject", "modality"},
+		{"modality"},
+	} {
+		if _, probleme := extractdomain.NormaliseLayout(essai); probleme != "" {
+			t.Fatalf("%v refuse : %s", essai, probleme)
+		}
+	}
+}
+
+// Ce qui reste refuse : un niveau repete, et un mot qui n'est pas un niveau.
+func TestUneDispositionMalFormeeEstRefusee(t *testing.T) {
+	for _, essai := range [][]string{
 		{"subject", "subject", "modality"},
 		{"patient", "visit", "modality"},
+		{"subject", "visite"},
 	} {
 		if _, probleme := extractdomain.NormaliseLayout(essai); probleme == "" {
 			t.Fatalf("%v aurait du etre refuse", essai)
@@ -65,7 +80,54 @@ func TestUneDispositionPartielleEstRefusee(t *testing.T) {
 	}
 }
 
-// Les trois niveaux, dans n'importe quel ordre, sont acceptes.
+// Omettre un niveau est refuse quand ca ecrase, accepte quand ca n'ecrase pas.
+//
+// C'est la distinction entiere. Sur SELENA chaque patient n'a qu'une visite,
+// donc « patient / modalite » ne perd rien ; sur une etude a deux visites, la
+// meme disposition ferait disparaitre la seconde en silence - et un fichier
+// absent dont personne n'est prevenu est la pire facon de se tromper sur des
+// donnees.
+func TestUneDispositionQuiEcraseEstRefusee(t *testing.T) {
+	uneSeuleVisite := []ontologydomain.Object{
+		{Path: "SELENA/P1/20260218/ANTERION/DICOM/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "SELENA/P2/20260422/ANTERION/DICOM/1", SubjectID: "P2", Visit: "20260422", Modality: "ANTERION"},
+	}
+	if _, collide := layoutCollision([]string{"subject", "modality"}, uneSeuleVisite); collide {
+		t.Fatal("un patient par visite ne peut pas entrer en collision")
+	}
+
+	deuxVisites := []ontologydomain.Object{
+		{Path: "ETUDE/P1/20260218/ANTERION/DICOM/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "ETUDE/P1/20260422/ANTERION/DICOM/1", SubjectID: "P1", Visit: "20260422", Modality: "ANTERION"},
+	}
+	message, collide := layoutCollision([]string{"subject", "modality"}, deuxVisites)
+	if !collide {
+		t.Fatal("deux visites rangees sans niveau de visite doivent etre refusees")
+	}
+	// Le message doit etre actionnable : nommer le niveau a remettre.
+	if !strings.Contains(message, "visit") {
+		t.Errorf("le refus doit dire quoi ajouter : %s", message)
+	}
+	// Et nommer les deux fichiers, pour que la personne reconnaisse sa donnee.
+	if !strings.Contains(message, "20260218") || !strings.Contains(message, "20260422") {
+		t.Errorf("le refus doit nommer les deux chemins : %s", message)
+	}
+}
+
+// Les trois niveaux au complet ne peuvent pas entrer en collision : deux
+// fichiers d'un meme sujet, visite et modalite gardent leur chemin propre en
+// dessous.
+func TestLesTroisNiveauxNeCollisionnentPas(t *testing.T) {
+	membres := []ontologydomain.Object{
+		{Path: "ETUDE/P1/20260218/ANTERION/DICOM/MC27/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+		{Path: "ETUDE/P1/20260218/ANTERION/DICOM/MC28/1", SubjectID: "P1", Visit: "20260218", Modality: "ANTERION"},
+	}
+	if _, collide := layoutCollision(extractdomain.DefaultLayout(), membres); collide {
+		t.Fatal("la disposition complete ne doit jamais ecraser")
+	}
+}
+
+// Les six ordres sont acceptes - l'ecran n'en proposait que trois.
 func TestToutesLesPermutationsSontAcceptees(t *testing.T) {
 	ordres := [][]string{
 		{"subject", "visit", "modality"},
