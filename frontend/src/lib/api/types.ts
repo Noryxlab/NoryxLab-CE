@@ -1118,9 +1118,23 @@ export interface OntologyModalityCoverage {
   missingSubjects: string[];
 }
 
+/** Ce que chaque genre de fichier pese dans l'etude.
+ *
+ *  L'axe qui permet a une divulgation d'etre plus petite que le dossier ou
+ *  elle vit : sur l'ANTERION de PREMYOM1000 les mesures sont 349 CSV pour
+ *  37 Mo et les images 20 115 fichiers pour 41 Go. */
+export interface OntologyFormatCoverage {
+  name: string;
+  objects: number;
+  totalBytes: number;
+}
+
 export interface OntologyCompleteness {
   subjects: number;
   modalities: OntologyModalityCoverage[];
+  /** Vide sur une photographie prise avant qu'on compte les genres : « pas
+   *  mesure », et non « cette etude ne contient aucun fichier ». */
+  formats?: OntologyFormatCoverage[];
   completeSubjects: number;
 }
 

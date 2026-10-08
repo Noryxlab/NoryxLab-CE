@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/toast';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { qk, useInvalidate, useOntologyCompleteness } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
-import { formatNumber } from '@/lib/format';
+import { formatBytes, formatNumber } from '@/lib/format';
 import type { Ontology } from '@/lib/api/types';
 import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
 import { reordonner } from './extract-layout';
@@ -41,6 +41,14 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
    *  l'ecran ne contredisait son nom. Un n faux se decouvre trois mois plus
    *  tard, dans un article. */
   const [chosen, setChosen] = React.useState<string[]>([]);
+  /* Le genre de fichier, a cote des categories.
+   *
+   *  C'est la demande d'Essilor du 2026-10-08, et les chiffres la justifient
+   *  seuls : dans l'ANTERION de PREMYOM1000, les mesures sont 349 CSV pour
+   *  37 Mo et les images 20 115 fichiers pour 41 Go. Quelqu'un qui veut les
+   *  chiffres devait emporter les images, parce que la categorie etait la
+   *  plus petite chose qu'on pouvait demander. */
+  const [kinds, setKinds] = React.useState<string[]>([]);
   /* La disposition : l'ordre des niveaux de l'arbre monte.
    *
    *  La selection dit quels fichiers, la disposition dit comment ils sont
@@ -63,6 +71,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
 
   const coverage = useOntologyCompleteness(ontology.id);
   const available = coverage.data?.modalities ?? [];
+  const genres = coverage.data?.formats ?? [];
 
   // Repartir de zero quand on change d'ontologie, sinon le formulaire propose
   // de decouper la nouvelle avec les categories de l'ancienne.
@@ -70,13 +79,14 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     setName('');
     setSubjects('');
     setChosen([]);
+    setKinds([]);
     setNiveaux(['subject', 'visit', 'modality']);
   }, [ontology.id]);
 
-  const toggle = (nom: string) =>
-    setChosen((current) =>
-      current.includes(nom) ? current.filter((item) => item !== nom) : [...current, nom],
-    );
+  const bascule = (liste: string[], nom: string) =>
+    liste.includes(nom) ? liste.filter((item) => item !== nom) : [...liste, nom];
+  const toggle = (nom: string) => setChosen((current) => bascule(current, nom));
+  const toggleKind = (nom: string) => setKinds((current) => bascule(current, nom));
 
   const asList = (raw: string) =>
     raw
@@ -99,12 +109,14 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         // is better than filing the extract under a project that will never
         // mount it.
         modalities: chosen,
+        formats: kinds,
         subjects: asList(subjects),
         layout: niveaux,
       }),
     onSuccess: (created) => {
       setName('');
       setChosen([]);
+      setKinds([]);
       setSubjects('');
       setNiveaux(['subject', 'visit', 'modality']);
       done(created.objectCount);
@@ -125,6 +137,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         name: `${ontology.name} — ${t('ontologies.extractWholeSuffix')}`,
         description: t('ontologies.extractWholeHint'),
         modalities: [],
+        formats: [],
         subjects: [],
         layout: ['subject', 'visit', 'modality'],
       }),
@@ -146,6 +159,15 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
           .filter((item) => chosen.includes(item.name))
           .reduce((total, item) => total + item.objects, 0);
   const filtreEntites = asList(subjects).length > 0;
+  // Le filtre par genre croise celui des categories, donc on ne peut pas
+  // additionner : on annonce une borne haute et on le dit.
+  const prisParGenre =
+    kinds.length === 0
+      ? null
+      : genres.filter((genre) => kinds.includes(genre.name)).reduce((t, g) => t + g.objects, 0);
+  const borneHaute = filtreEntites || prisParGenre !== null;
+  const annonce =
+    prisParGenre === null ? prisParCategorie : Math.min(prisParCategorie, prisParGenre);
 
   const lu = ontology.manifest as ManifestExtrait | undefined;
   const resume = lu?.summary;
@@ -222,6 +244,43 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
             </div>
           </Field>
 
+          {/* Le genre de fichier, quand la photographie l'a compte.
+            *  Vide, on ne montre rien : une vieille photographie n'a pas
+            *  mesure les genres, et proposer un filtre sans valeurs serait
+            *  proposer un filtre qui ne filtre rien. */}
+          {genres.length > 0 ? (
+            <Field
+              label={t('ontologies.extractKinds')}
+              description={
+                kinds.length === 0
+                  ? t('ontologies.extractKindsAll')
+                  : t('ontologies.extractKindsChosen')
+              }
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {genres.map((genre) => (
+                  <Button
+                    key={genre.name}
+                    type="button"
+                    size="sm"
+                    variant={kinds.includes(genre.name) ? 'primary' : 'secondary'}
+                    onClick={() => toggleKind(genre.name)}
+                    aria-pressed={kinds.includes(genre.name)}
+                    title={t('ontologies.extractKindWeight', {
+                      objects: formatNumber(genre.objects, locale),
+                      size: formatBytes(genre.totalBytes, locale),
+                    })}
+                  >
+                    {genre.name}
+                    <span className="opacity-70 tabular-nums">
+                      {formatBytes(genre.totalBytes, locale)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </Field>
+          ) : null}
+
           <Field
             label={capitaliser(pluriel(mots.sujet))}
             description={t('ontologies.extractPickEntities', { entities: pluriel(mots.sujet) })}
@@ -238,13 +297,13 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         </div>
 
         <p className="text-xs font-medium">
-          {filtreEntites
+          {borneHaute
             ? t('ontologies.extractTakesAtMost', {
-                files: formatNumber(prisParCategorie, locale),
+                files: formatNumber(annonce, locale),
                 total: formatNumber(totalFichiers, locale),
               })
             : t('ontologies.extractTakes', {
-                files: formatNumber(prisParCategorie, locale),
+                files: formatNumber(annonce, locale),
                 total: formatNumber(totalFichiers, locale),
               })}
         </p>

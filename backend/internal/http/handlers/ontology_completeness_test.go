@@ -50,3 +50,53 @@ func TestCompletenessReportsNoGapWhenEveryoneHasIt(t *testing.T) {
 		t.Fatalf("completeSubjects = %d, want 2", report.CompleteSubjects)
 	}
 }
+
+// Les genres de fichier sont totalises, le plus volumineux d'abord.
+//
+// C'est l'axe qui permet a une divulgation d'etre plus petite que le dossier
+// ou elle vit. Sur l'ANTERION de PREMYOM1000 les mesures sont 349 CSV pour
+// 37 Mo et les images 20 115 fichiers pour 41 Go : prendre les chiffres
+// voulait dire emporter les images, parce que la modalite etait la plus
+// petite chose qu'on pouvait demander.
+func TestLesGenresDeFichierSontTotalises(t *testing.T) {
+	manifest := ontologyManifest{Subjects: []ontologySubject{
+		{ID: "p1", Visits: []ontologyVisit{{Date: "20250430", Modalities: []ontologyModality{
+			{Name: "ANTERION", FormatCounts: map[string]ontologyFormatTally{
+				"DICOM": {Objects: 10000, TotalBytes: 20 << 30},
+				"CSV":   {Objects: 175, TotalBytes: 18 << 20},
+			}},
+		}}}},
+		{ID: "p2", Visits: []ontologyVisit{{Date: "20250501", Modalities: []ontologyModality{
+			{Name: "ANTERION", FormatCounts: map[string]ontologyFormatTally{
+				"DICOM": {Objects: 10115, TotalBytes: 21 << 30},
+				"CSV":   {Objects: 174, TotalBytes: 19 << 20},
+			}},
+		}}}},
+	}}
+
+	formats := computeOntologyCompleteness(manifest).Formats
+	if len(formats) != 2 {
+		t.Fatalf("got %d format(s), want 2", len(formats))
+	}
+	// Le plus volumineux d'abord : c'est celui qu'on cherche en general a ne
+	// pas emporter.
+	if formats[0].Name != "DICOM" || formats[0].Objects != 20115 {
+		t.Errorf("premier = %s (%d), attendu DICOM (20115)", formats[0].Name, formats[0].Objects)
+	}
+	if formats[1].Name != "CSV" || formats[1].Objects != 349 {
+		t.Errorf("second = %s (%d), attendu CSV (349)", formats[1].Name, formats[1].Objects)
+	}
+}
+
+// Une photographie prise avant qu'on compte les genres rend une liste vide,
+// qui se lit « pas mesure » et non « cette etude ne contient aucun fichier ».
+func TestUneVieillePhotographieNeInventePasDeGenres(t *testing.T) {
+	manifest := ontologyManifest{Subjects: []ontologySubject{
+		{ID: "p1", Visits: []ontologyVisit{{Date: "20250430", Modalities: []ontologyModality{
+			{Name: "ANTERION", ObjectCount: 42, Formats: []string{"DICOM", "CSV"}},
+		}}}},
+	}}
+	if formats := computeOntologyCompleteness(manifest).Formats; len(formats) != 0 {
+		t.Fatalf("une vieille photographie ne doit rien totaliser, obtenu %v", formats)
+	}
+}

@@ -33,6 +33,14 @@ type extractRequest struct {
 	Subjects    []string `json:"subjects"`
 	Modalities  []string `json:"modalities"`
 	Visits      []string `json:"visits"`
+	// Formats narrows to kinds of file - DICOM, CSV, PNG.
+	//
+	// It is the axis that makes a disclosure smaller than the folder it lives
+	// in. On PREMYOM1000's ANTERION, the measurements are 349 CSV files
+	// totalling 37 MB and the images are 20,115 files totalling 41 GB; before
+	// this, somebody who needed the numbers was handed the images too,
+	// because the modality was the smallest thing anybody could ask for.
+	Formats []string `json:"formats"`
 	// Layout is the order of the directory levels the mount builds. Empty is
 	// the default, subject first, which is what every extract carried before
 	// the order could be chosen.
@@ -73,6 +81,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		Subjects:   req.Subjects,
 		Modalities: req.Modalities,
 		Visits:     req.Visits,
+		Formats:    req.Formats,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve the extract"})
@@ -123,7 +132,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits)
+	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats)
 	object.Layout = layout
 	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {

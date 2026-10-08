@@ -221,12 +221,26 @@ type ontologyVisit struct {
 }
 
 type ontologyModality struct {
-	Name              string   `json:"name"`
-	ObjectCount       int      `json:"objectCount"`
-	TotalBytes        int64    `json:"totalBytes"`
-	Formats           []string `json:"formats"`
-	MeasurementTables []string `json:"measurementTables"`
-	SamplePaths       []string `json:"samplePaths"`
+	Name        string   `json:"name"`
+	ObjectCount int      `json:"objectCount"`
+	TotalBytes  int64    `json:"totalBytes"`
+	Formats     []string `json:"formats"`
+	// FormatCounts is how many objects and bytes each kind of file accounts
+	// for, which the list of names alone could not say.
+	//
+	// Knowing that ANTERION holds CSV, DICOM, GIF and PNG is nearly useless;
+	// knowing that the CSVs are 349 files and 37 MB while the images are
+	// 20,115 files and 41 GB is the whole argument for selecting by kind.
+	// Beside Formats rather than replacing it, so a manifest written before
+	// this still decodes.
+	FormatCounts      map[string]ontologyFormatTally `json:"formatCounts,omitempty"`
+	MeasurementTables []string                       `json:"measurementTables"`
+	SamplePaths       []string                       `json:"samplePaths"`
+}
+
+type ontologyFormatTally struct {
+	Objects    int   `json:"objects"`
+	TotalBytes int64 `json:"totalBytes"`
 }
 
 type ontologySubjectAcc struct {
@@ -241,6 +255,7 @@ type ontologyModalityAcc struct {
 	objectCount       int
 	totalBytes        int64
 	formats           map[string]struct{}
+	formatTallies     map[string]ontologyFormatTally
 	measurementTables map[string]struct{}
 	samplePaths       []string
 }
@@ -1233,6 +1248,10 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		acc.totalBytes += obj.Size
 		if format != "" {
 			acc.formats[format] = struct{}{}
+			tally := acc.formatTallies[format]
+			tally.Objects++
+			tally.TotalBytes += obj.Size
+			acc.formatTallies[format] = tally
 		}
 		if table != "" {
 			acc.measurementTables[table] = struct{}{}
@@ -1245,6 +1264,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			SubjectID: subjectID,
 			Visit:     visitDate,
 			Modality:  modalityName,
+			Format:    format,
 			SizeBytes: obj.Size,
 		})
 		return true
@@ -1552,7 +1572,11 @@ func getOntologyModalityAcc(subjects map[string]*ontologySubjectAcc, subjectID, 
 	}
 	mod := visit.modalities[modality]
 	if mod == nil {
-		mod = &ontologyModalityAcc{formats: map[string]struct{}{}, measurementTables: map[string]struct{}{}}
+		mod = &ontologyModalityAcc{
+			formats:           map[string]struct{}{},
+			formatTallies:     map[string]ontologyFormatTally{},
+			measurementTables: map[string]struct{}{},
+		}
 		visit.modalities[modality] = mod
 	}
 	return mod
@@ -1597,11 +1621,16 @@ func materializeOntologySubjects(subjects map[string]*ontologySubjectAcc) ([]ont
 				subjModalities[name] = struct{}{}
 				subj.Stats.Objects += modAcc.objectCount
 				subj.Stats.TotalBytes += modAcc.totalBytes
+				tallies := map[string]ontologyFormatTally{}
+				for key, tally := range modAcc.formatTallies {
+					tallies[key] = tally
+				}
 				mods = append(mods, ontologyModality{
 					Name:              name,
 					ObjectCount:       modAcc.objectCount,
 					TotalBytes:        modAcc.totalBytes,
 					Formats:           sortedKeys(modAcc.formats),
+					FormatCounts:      tallies,
 					MeasurementTables: sortedKeys(modAcc.measurementTables),
 					SamplePaths:       append([]string(nil), modAcc.samplePaths...),
 				})

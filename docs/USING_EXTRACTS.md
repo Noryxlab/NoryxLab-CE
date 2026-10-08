@@ -17,7 +17,7 @@ Two things make one:
 
 | | |
 |---|---|
-| **The selection** | which files — by category, by entity, or everything |
+| **The selection** | which files — by category, by kind of file, by entity, or everything |
 | **The layout** | how the folders are arranged in the workspace |
 
 The same files arranged two ways answer two different questions. "What does
@@ -47,15 +47,40 @@ number with no provenance.
 
 ### 1 · What you take
 
-Categories are buttons with their file counts; entities are a comma-separated
-list. **Nothing ticked means everything.** The form says live what it will
-freeze — *"this extract will freeze 1,934 of 3,993 files"* — because an
-extract named `SELENA-modality` once left with an empty filter, took the whole
-ontology, and nothing on screen contradicted its name. A wrong n is discovered
-three months later, in a paper.
+Three ways to narrow, and they combine: **categories**, **kinds of file**, and
+**entities**. Nothing ticked means everything.
 
-Entities are filtered after categories, so with both set the figure is an
-upper bound and says so.
+Kinds of file is the one that makes a disclosure smaller than the folder it
+lives in. On PREMYOM1000's ANTERION:
+
+| kind | files | volume |
+|---|---|---|
+| DICOM images | 20 115 | 41 GB |
+| CSV measurements | 349 | 37 MB |
+| viewer chrome (PNG, GIF) | 140 | 7.7 MB |
+
+Somebody who needs the measurements needs 37 MB. Before kinds were
+selectable, the smallest thing they could ask for was the category — so they
+were handed twenty thousand patient images to get three hundred CSVs. Ticking
+`CSV` is the difference, and it is a governance difference, not a convenience
+one.
+
+It also lets the viewer chrome go: `IHE_PDI/images/arrowdwn.gif` is the
+DICOM viewer's own decoration, not study data, and it is in every extract that
+takes a whole ANTERION.
+
+The kinds are counted at scan time, so an ontology scanned before this shows
+no kinds at all — not "no files". Rescan it.
+
+Entities are a comma-separated list.
+
+The form says live what it will freeze — *"this extract will freeze 1,934 of
+3,993 files"* — because an extract named `SELENA-modality` once left with an
+empty filter, took the whole ontology, and nothing on screen contradicted its
+name. A wrong n is discovered three months later, in a paper.
+
+The three filters intersect, so with more than one set the figure is an upper
+bound and says so.
 
 **Mount the whole ontology** is the same thing with no filter at all, named so
 the question "and if I want everything?" has an answer on screen.

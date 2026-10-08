@@ -94,7 +94,18 @@ type Object struct {
 	SubjectID  string `json:"subjectId"`
 	Visit      string `json:"visit"`
 	Modality   string `json:"modality"`
-	SizeBytes  int64  `json:"sizeBytes"`
+	// Format is what kind of file this is - DICOM, CSV, PNG - inferred from
+	// the path at scan time and kept per object so an extract can select on
+	// it.
+	//
+	// It was already computed and already listed per modality in the
+	// manifest, and nowhere was it usable: taking the measurements of a
+	// modality meant taking the modality. On PREMYOM1000's ANTERION that is
+	// 37 MB of CSV inside 41 GB of images, so somebody who needs the numbers
+	// had to be handed twenty thousand patient images to get them. Selecting
+	// by kind is how a disclosure gets smaller than the folder it lives in.
+	Format    string `json:"format,omitempty"`
+	SizeBytes int64  `json:"sizeBytes"`
 }
 
 // ObjectFilter selects the files an extract is made of. An empty list means "no
@@ -104,5 +115,8 @@ type ObjectFilter struct {
 	Subjects   []string
 	Modalities []string
 	Visits     []string
-	Limit      int
+	// Formats narrows to kinds of file. Same rule as the others: empty means
+	// no constraint, never nothing.
+	Formats []string
+	Limit   int
 }

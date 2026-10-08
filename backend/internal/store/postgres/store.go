@@ -609,6 +609,18 @@ func migrationStatements() []string {
 			size_bytes BIGINT NOT NULL DEFAULT 0,
 			PRIMARY KEY (ontology_id, path)
 		)`,
+		// Le genre de fichier, a cote des trois axes.
+		//
+		// Il etait deja calcule au scan et deja liste par modalite dans le
+		// manifeste, et nulle part utilisable : prendre les mesures d'une
+		// modalite voulait dire prendre la modalite. Sur l'ANTERION de
+		// PREMYOM1000 c'est 37 Mo de CSV dans 41 Go d'images, donc il fallait
+		// remettre vingt mille images de patients a quelqu'un qui voulait les
+		// chiffres. Un ALTER plutot qu'une colonne dans le CREATE : la table
+		// existe sur les installations en service, et seule une base vierge
+		// verrait le CREATE.
+		`ALTER TABLE ontology_objects ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT ''`,
+		`CREATE INDEX IF NOT EXISTS ontology_objects_format_idx ON ontology_objects (ontology_id, format)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_subject_idx ON ontology_objects (ontology_id, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_modality_idx ON ontology_objects (ontology_id, modality)`,
 		// Every photograph, not only the latest.
@@ -707,6 +719,9 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		// Le genre de fichier retenu, a cote des trois axes de selection.
+		// ALTER et non colonne du CREATE : la table existe deja partout.
+		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS formats_json JSONB NOT NULL DEFAULT '[]'`,
 		`CREATE TABLE IF NOT EXISTS extract_members (
 			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,
@@ -2951,13 +2966,13 @@ func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Obj
 	if _, err := tx.Exec(`DELETE FROM ontology_objects WHERE ontology_id=$1`, id); err != nil {
 		return err
 	}
-	statement, err := tx.Prepare(`INSERT INTO ontology_objects (ontology_id, path, subject_id, visit, modality, size_bytes) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (ontology_id, path) DO NOTHING`)
+	statement, err := tx.Prepare(`INSERT INTO ontology_objects (ontology_id, path, subject_id, visit, modality, format, size_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (ontology_id, path) DO NOTHING`)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 	for _, object := range objects {
-		if _, err := statement.Exec(id, object.Path, object.SubjectID, object.Visit, object.Modality, object.SizeBytes); err != nil {
+		if _, err := statement.Exec(id, object.Path, object.SubjectID, object.Visit, object.Modality, object.Format, object.SizeBytes); err != nil {
 			return err
 		}
 	}
@@ -2965,7 +2980,7 @@ func (s *Store) ReplaceOntologyObjects(ontologyID string, objects []ontology.Obj
 }
 
 func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
-	query := `SELECT ontology_id, path, subject_id, visit, modality, size_bytes FROM ontology_objects WHERE ontology_id=$1`
+	query := `SELECT ontology_id, path, subject_id, visit, modality, format, size_bytes FROM ontology_objects WHERE ontology_id=$1`
 	args := []any{strings.TrimSpace(ontologyID)}
 	// An empty axis is "no constraint", never "nothing" - an extract named by
 	// modality alone spans every subject that carries it.
@@ -2976,6 +2991,7 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 		{"subject_id", filter.Subjects},
 		{"modality", filter.Modalities},
 		{"visit", filter.Visits},
+		{"format", filter.Formats},
 	} {
 		if len(axis.values) == 0 {
 			continue
@@ -3001,7 +3017,7 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 	out := []ontology.Object{}
 	for rows.Next() {
 		var item ontology.Object
-		if err := rows.Scan(&item.OntologyID, &item.Path, &item.SubjectID, &item.Visit, &item.Modality, &item.SizeBytes); err != nil {
+		if err := rows.Scan(&item.OntologyID, &item.Path, &item.SubjectID, &item.Visit, &item.Modality, &item.Format, &item.SizeBytes); err != nil {
 			return nil, err
 		}
 		out = append(out, item)

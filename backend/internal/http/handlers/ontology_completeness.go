@@ -25,9 +25,26 @@ type modalityCoverage struct {
 	MissingSubjects []string `json:"missingSubjects"`
 }
 
+// formatCoverage is how much of the study each kind of file accounts for.
+//
+// The axis that lets a disclosure be smaller than the folder it lives in:
+// on PREMYOM1000's ANTERION the measurements are 349 CSV files and 37 MB
+// while the images are 20,115 files and 41 GB, so somebody who needs the
+// numbers was being handed the images too - the modality was the smallest
+// thing anybody could ask for.
+type formatCoverage struct {
+	Name       string `json:"name"`
+	Objects    int    `json:"objects"`
+	TotalBytes int64  `json:"totalBytes"`
+}
+
 type ontologyCompleteness struct {
 	Subjects   int                `json:"subjects"`
 	Modalities []modalityCoverage `json:"modalities"`
+	// Formats is empty for a photograph taken before kinds were tallied. A
+	// rescan fills it, and an empty list reads as "not measured" rather than
+	// as "this study holds no files".
+	Formats []formatCoverage `json:"formats"`
 	// Subjects holding every modality the study uses. The number an extract can
 	// count on without caveat.
 	CompleteSubjects int `json:"completeSubjects"`
@@ -74,7 +91,11 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 		}
 	}
 
-	report := ontologyCompleteness{Subjects: len(manifest.Subjects), Modalities: []modalityCoverage{}}
+	report := ontologyCompleteness{
+		Subjects:   len(manifest.Subjects),
+		Modalities: []modalityCoverage{},
+		Formats:    formatsIn(manifest),
+	}
 	for name, holders := range subjectsWith {
 		coverage := modalityCoverage{
 			Name:            name,
@@ -112,4 +133,34 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 		}
 	}
 	return report
+}
+
+// formatsIn totals each kind of file across the whole photograph.
+func formatsIn(manifest ontologyManifest) []formatCoverage {
+	tallies := map[string]ontologyFormatTally{}
+	for _, subject := range manifest.Subjects {
+		for _, visit := range subject.Visits {
+			for _, modality := range visit.Modalities {
+				for name, tally := range modality.FormatCounts {
+					running := tallies[name]
+					running.Objects += tally.Objects
+					running.TotalBytes += tally.TotalBytes
+					tallies[name] = running
+				}
+			}
+		}
+	}
+	out := make([]formatCoverage, 0, len(tallies))
+	for name, tally := range tallies {
+		out = append(out, formatCoverage{Name: name, Objects: tally.Objects, TotalBytes: tally.TotalBytes})
+	}
+	// Largest first: the kind that dominates the volume is the one somebody
+	// is usually trying not to take.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Objects != out[j].Objects {
+			return out[i].Objects > out[j].Objects
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
 }
