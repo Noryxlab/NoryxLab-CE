@@ -681,6 +681,7 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
           search={search}
           onResetSearch={() => setSearch('')}
           onRowClick={(environment) => setSelectedId(environment.id)}
+          selectedKey={selectedId}
           defaultSort={{ columnId: 'updatedAt', direction: 'desc' }}
           emptyState={
             <EmptyState

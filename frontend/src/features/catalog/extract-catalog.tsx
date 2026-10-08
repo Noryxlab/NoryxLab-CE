@@ -155,6 +155,7 @@ export function ExtractCatalog() {
           error={extracts.error}
           onRetry={() => void extracts.refetch()}
           onRowClick={(extract) => setOpened(extract)}
+          selectedKey={opened?.id ?? null}
           defaultSort={{ columnId: 'createdAt', direction: 'desc' }}
           emptyState={
             <EmptyState

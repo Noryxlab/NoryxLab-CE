@@ -829,6 +829,7 @@ export function DatasetCatalog({
           search={search}
           onResetSearch={() => setSearch('')}
           onRowClick={(dataset) => onSelect(dataset.id)}
+          selectedKey={selectedId}
           defaultSort={{ columnId: 'updatedAt', direction: 'desc' }}
           emptyState={
             <EmptyState

@@ -383,6 +383,7 @@ export function JobsPage() {
           onRetry={() => void jobs.refetch()}
           defaultSort={{ columnId: 'started', direction: 'desc' }}
           onRowClick={(job) => setSelectedJobId(job.id)}
+          selectedKey={selectedJobId}
           emptyState={
             <EmptyState
               icon={Play}

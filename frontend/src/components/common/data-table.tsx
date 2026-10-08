@@ -47,6 +47,13 @@ export interface DataTableProps<T> {
   onResetSearch?: () => void;
   defaultSort?: { columnId: string; direction: 'asc' | 'desc' };
   onRowClick?: (row: T) => void;
+  /** La ligne dont le detail est ouvert dessous, comparee a rowKey.
+   *
+   *  Huit ecrans ouvrent un panneau sous le tableau quand on clique une
+   *  ligne, et aucun ne disait laquelle : on lisait une fiche sans savoir
+   *  a quoi elle se rapportait, et sur une liste triee par date de mise a
+   *  jour la ligne cliquee avait souvent bouge entre-temps. */
+  selectedKey?: string | null;
   rowActions?: (row: T) => React.ReactNode;
   className?: string;
 }
@@ -64,6 +71,7 @@ export function DataTable<T>({
   onResetSearch,
   defaultSort,
   onRowClick,
+  selectedKey = null,
   rowActions,
   className,
 }: DataTableProps<T>) {
@@ -160,9 +168,12 @@ export function DataTable<T>({
               </TableCell>
             </TableRow>
           ) : (
-            sorted.map((row) => (
+            sorted.map((row) => {
+              const selected = selectedKey != null && rowKey(row) === selectedKey;
+              return (
               <TableRow
                 key={rowKey(row)}
+                aria-selected={onRowClick ? selected : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 role={onRowClick ? 'button' : undefined}
@@ -176,7 +187,15 @@ export function DataTable<T>({
                       }
                     : undefined
                 }
-                className={cn(onRowClick && 'cursor-pointer')}
+                /* Une bordure a gauche et un fond, pas seulement un fond :
+                   sur une ligne de tableau deja survolee, un fond seul ne se
+                   distingue pas du survol, et la barre tient a n'importe quel
+                   contraste. */
+                className={cn(
+                  onRowClick && 'cursor-pointer',
+                  selected &&
+                    'bg-surface-muted shadow-[inset_3px_0_0_0_var(--color-brand)] hover:bg-surface-muted',
+                )}
               >
                 {columns.map((column) => (
                   <TableCell
@@ -199,7 +218,8 @@ export function DataTable<T>({
                   </TableCell>
                 ) : null}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>

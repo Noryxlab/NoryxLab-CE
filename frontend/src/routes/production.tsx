@@ -216,6 +216,7 @@ export function ProductionPage() {
           search={search}
           onResetSearch={() => setSearch('')}
           onRowClick={(app) => setSelected(app)}
+          selectedKey={selected?.id ?? null}
           defaultSort={{ columnId: 'publishedAt', direction: 'desc' }}
           emptyState={
             <EmptyState

@@ -1688,6 +1688,7 @@ export function OntologyCatalog() {
           error={ontologies.error}
           onRetry={() => void ontologies.refetch()}
           onRowClick={(ontology) => setSelectedId(ontology.id)}
+          selectedKey={selectedId}
           defaultSort={{ columnId: 'updatedAt', direction: 'desc' }}
           emptyState={
             <EmptyState
