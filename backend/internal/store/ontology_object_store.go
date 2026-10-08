@@ -34,6 +34,12 @@ type OntologyStore interface {
 	SetAccess(item ontology.Access) error
 	DeleteAccess(ontologyID, subjectType, subjectID string) error
 
+	// Every photograph, not only the latest. A rescan replaces the manifest,
+	// so without this the reading an extract was cut against is gone the next
+	// time anybody presses scan.
+	AppendOntologyScan(scan ontology.Scan) error
+	ListOntologyScans(ontologyID string) ([]ontology.Scan, error)
+
 	// The paths a scan recognised. An extract is a list of files, so it needs
 	// them; the manifest's three samples per modality never could be one.
 	ReplaceObjects(ontologyID string, objects []ontology.Object) error

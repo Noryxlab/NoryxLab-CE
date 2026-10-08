@@ -48,6 +48,7 @@ import type {
   Ontology,
   OntologyAccess,
   OntologyCompleteness,
+  OntologyScan,
   OntologyFreshness,
   OntologyManifestSummary,
   OntologyQueryItem,
@@ -614,6 +615,10 @@ export const ontologiesApi = {
     api.get<OntologyFreshness>(`${V1}/ontologies/${ontologyId}/freshness`),
   completeness: (ontologyId: string) =>
     api.get<OntologyCompleteness>(`${V1}/ontologies/${ontologyId}/completeness`),
+  /** Les photographies que cette ontologie a traversees, la plus recente en
+   *  tete, avec ce que chacune a change par rapport a la precedente. */
+  scans: (ontologyId: string) =>
+    api.get<{ scans: OntologyScan[] }>(`${V1}/ontologies/${ontologyId}/scans`),
   /** Every extract the caller can reach, for the catalogue and for the picker
    *  that attaches one to a project. */
   allExtracts: () => api.list<Extract>(`${V1}/extracts`),

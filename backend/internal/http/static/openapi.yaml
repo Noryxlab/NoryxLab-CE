@@ -7165,6 +7165,47 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/ontologies/{ontologyID}/scans:
+    get:
+      tags: [Datasets]
+      summary: List the scans this ontology has been through
+      description: >
+        Every photograph taken of the source, newest first, with what changed
+        against the one before it.
+
+
+        An ontology holds the latest manifest and nothing else: a rescan
+        replaces the picture and keeps the object. That leaves two questions
+        unanswerable afterwards. A subject count that moved from 2 to 31 is
+        either the study recruiting or the reading rule changing, and those
+        call for opposite reactions; and an extract freezes a file list
+        against a manifest the next scan overwrites, so the n of a cohort
+        becomes unexplainable. Each entry carries the counts, the rule that
+        produced them, and the difference with the previous scan - absent on
+        the oldest, because a baseline of zero would report a first scan as a
+        study that gained thirty-one subjects.
+      operationId: getOntologyScans
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /api/v1/ontologies/{ontologyID}/completeness:
     get:
       tags: [Datasets]

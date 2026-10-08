@@ -118,6 +118,7 @@ export const qk = {
     ["ontologies", ontologyId, "freshness"] as const,
   ontologyCompleteness: (ontologyId: string) =>
     ["ontologies", ontologyId, "completeness"] as const,
+  ontologyScans: (ontologyId: string) => ["ontologies", ontologyId, "scans"] as const,
   ontologyExtracts: (ontologyId: string) =>
     ["ontologies", ontologyId, "extracts"] as const,
   repositories: ["repositories"] as const,
@@ -573,6 +574,15 @@ export const useOntologyFreshness = (ontologyId: string | undefined) =>
     queryFn: () => ontologiesApi.freshness(ontologyId as string),
     enabled: Boolean(ontologyId),
     staleTime: 5 * 60 * 1000,
+  });
+
+/** L'historique des scans : des lignes deja en base, sans aller voir le
+ *  bucket - contrairement a la fraicheur. */
+export const useOntologyScans = (ontologyId: string | undefined) =>
+  useQuery({
+    queryKey: qk.ontologyScans(ontologyId ?? ""),
+    queryFn: () => ontologiesApi.scans(ontologyId as string),
+    enabled: Boolean(ontologyId),
   });
 
 export const useOntologyCompleteness = (ontologyId: string | undefined) =>

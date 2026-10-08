@@ -817,6 +817,18 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 			return
 		}
 	}
+	// The photograph is kept, not only hung on the wall.
+	//
+	// Best effort for the same reason as the object rows below: an ontology
+	// whose history could not be appended still describes its source, and
+	// throwing away a scan that took minutes over a bookkeeping row would be
+	// the wrong trade.
+	if err := h.ontologyStore.AppendOntologyScan(
+		ontologydomain.NewScan(object.ID, raw, identity.UserID(), manifest.GeneratedAt),
+	); err != nil {
+		log.Printf("ontology %s scanned without a history entry: %v", object.ID, err)
+	}
+
 	// Best effort, and said out loud when it fails: an ontology whose paths
 	// were not stored still describes the study correctly, it just cannot have
 	// an extract built from it - which is a thing to log, not a reason to throw

@@ -186,6 +186,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// Whether an ontology still describes its source: it is a photograph, and
 	// it was presented as a fact.
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/freshness", h.GetOntologyFreshness)
+	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/scans", h.GetOntologyScans)
 	// Who the study covers, and who an extract would silently leave out.
 	mux.HandleFunc("GET /api/v1/ontologies/{ontologyID}/completeness", h.GetOntologyCompleteness)
 	// An extract: a named selection of files, frozen when it is declared, so the

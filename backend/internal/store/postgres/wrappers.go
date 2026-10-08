@@ -265,6 +265,13 @@ func (s *OntologyStore) SetStructureScan(ontologyID string, scan *ontology.Struc
 func (s *OntologyStore) ReplaceManifest(ontologyID string, manifest []byte, generatedBy string) error {
 	return s.Store.ReplaceOntologyManifest(ontologyID, manifest, generatedBy)
 }
+func (s *OntologyStore) AppendOntologyScan(scan ontology.Scan) error {
+	return s.Store.AppendOntologyScan(scan)
+}
+func (s *OntologyStore) ListOntologyScans(ontologyID string) ([]ontology.Scan, error) {
+	return s.Store.ListOntologyScans(ontologyID)
+}
+
 func (s *OntologyStore) ReplaceObjects(ontologyID string, objects []ontology.Object) error {
 	return s.Store.ReplaceOntologyObjects(ontologyID, objects)
 }

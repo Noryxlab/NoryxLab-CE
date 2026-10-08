@@ -13,10 +13,16 @@ type OntologyObjectStore struct {
 	items   []ontology.Ontology
 	access  []ontology.Access
 	objects map[string][]ontology.Object
+	scans   map[string][]ontology.Scan
 }
 
 func NewOntologyObjectStore() *OntologyObjectStore {
-	return &OntologyObjectStore{items: []ontology.Ontology{}, access: []ontology.Access{}, objects: map[string][]ontology.Object{}}
+	return &OntologyObjectStore{
+		items:   []ontology.Ontology{},
+		access:  []ontology.Access{},
+		objects: map[string][]ontology.Object{},
+		scans:   map[string][]ontology.Scan{},
+	}
 }
 
 func (s *OntologyObjectStore) ListBySubjects(subjects []ontology.Subject) ([]ontology.Ontology, error) {
@@ -172,6 +178,7 @@ func (s *OntologyObjectStore) Delete(id string) error {
 	// laisser derriere soi orpheline etait le defaut, et un store de test qui
 	// ne le reproduit pas ne protege de rien.
 	delete(s.objects, target)
+	delete(s.scans, target)
 	return nil
 }
 
@@ -222,6 +229,27 @@ func (s *OntologyObjectStore) DeleteAccess(ontologyID, subjectType, subjectID st
 	}
 	s.access = out
 	return nil
+}
+
+// Les photographies, la plus recente en tete, et on elague comme en Postgres.
+func (s *OntologyObjectStore) AppendOntologyScan(scan ontology.Scan) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.scans == nil {
+		s.scans = map[string][]ontology.Scan{}
+	}
+	id := strings.TrimSpace(scan.OntologyID)
+	s.scans[id] = append([]ontology.Scan{scan}, s.scans[id]...)
+	if len(s.scans[id]) > ontology.ScanHistoryKept {
+		s.scans[id] = s.scans[id][:ontology.ScanHistoryKept]
+	}
+	return nil
+}
+
+func (s *OntologyObjectStore) ListOntologyScans(ontologyID string) ([]ontology.Scan, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]ontology.Scan(nil), s.scans[strings.TrimSpace(ontologyID)]...), nil
 }
 
 func (s *OntologyObjectStore) ReplaceObjects(ontologyID string, objects []ontology.Object) error {

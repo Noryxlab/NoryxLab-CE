@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -7,11 +8,9 @@ import {
   MessageCircle,
   Network,
   ChevronRight,
-  Pencil,
   Radar,
   Search,
   Trash2,
-  UserRoundCog,
 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
@@ -49,6 +48,7 @@ import {
   useOntologies,
   useOntologyFreshness,
   useOntologyCompleteness,
+  useOntologyScans,
   useOntologyExtracts,
   useDatasets,
   qk,
@@ -58,8 +58,15 @@ import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoin
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
 import { capitaliser, motsDuMetier, pluriel } from './ontology-words';
-import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
-import type { Extract, OntologyQueryItem, Ontology, DatasetPathLayout, DatasetPathLayoutTrial } from '@/lib/api/types';
+import { formatNumber, formatRelative } from '@/lib/format';
+import type {
+  Extract,
+  OntologyQueryItem,
+  Ontology,
+  OntologyScan,
+  DatasetPathLayout,
+  DatasetPathLayoutTrial,
+} from '@/lib/api/types';
 
 /* Ce que le manifeste porte et que cet ecran lit.
  *
@@ -104,12 +111,6 @@ function regleLisible(
       : null,
   ].filter(Boolean);
   return niveaux.join(', ');
-}
-
-/* Un identifiant que cette ontologie porte vraiment, pour servir d'exemple. */
-function premiereEntite(ontology: Ontology | null | undefined): string | undefined {
-  const sujets = (ontology?.manifest as ManifestLu | undefined)?.subjects;
-  return sujets?.[0]?.id?.trim() || undefined;
 }
 
 type ManifestLu = {
@@ -903,293 +904,6 @@ export function ExtractOwnershipSheet({
   );
 }
 
-function OntologyExtracts({ ontology }: { ontology: Ontology }) {
-  const t = useT();
-  const { locale } = useI18n();
-  const toast = useToast();
-  const invalidate = useInvalidate();
-  const { dialog, ask } = useConfirm();
-  const extracts = useOntologyExtracts(ontology.id);
-  const [name, setName] = React.useState('');
-  const [subjects, setSubjects] = React.useState('');
-  /* Les modalites se choisissent, elles ne se tapent plus.
-   *
-   *  Le champ etait libre, avec un exemple en filigrane, et l'ecran ne disait
-   *  nulle part comment le scan avait nomme les modalites de CETTE ontologie.
-   *  Le 2026-10-01, un extrait declare "Selena-extract-modality" est reparti
-   *  avec un filtre vide - donc les 4 023 objets de l'ontologie entiere - et
-   *  rien a l'ecran ne contredisait son nom. Un n faux se decouvre trois mois
-   *  plus tard, dans un article.
-   *
-   *  Rien de coche vaut toutes les modalites, et c'est ecrit sous le champ
-   *  plutot que laisse a deviner. */
-  const [chosenModalities, setChosenModalities] = React.useState<string[]>([]);
-  /* La disposition : l'ordre des niveaux de l'arbre monte.
-   *
-   *  La selection dit quels fichiers, la disposition dit comment ils sont
-   *  ranges pour travailler. Par sujet on repond a "que possede ce patient",
-   *  par modalite a "montre-moi tous mes scans de cornee" - deux questions,
-   *  un seul ensemble de fichiers. L'arbre etait construit dans un ordre fixe,
-   *  donc seule la premiere etait exprimable. */
-  const [layout, setLayout] = React.useState<string>('subject,visit,modality');
-  const coverage = useOntologyCompleteness(ontology.id);
-  const availableModalities = coverage.data?.modalities ?? [];
-
-  const toggleModality = (nom: string) =>
-    setChosenModalities((current) =>
-      current.includes(nom) ? current.filter((item) => item !== nom) : [...current, nom],
-    );
-
-  const asList = (raw: string) =>
-    raw
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-
-  const create = useMutation({
-    mutationFn: () =>
-      ontologiesApi.createExtract(ontology.id, {
-        name: name.trim(),
-        // Left to the server when the ontology belongs to exactly one project;
-        // it refuses with an explanation when the answer is ambiguous, which is
-        // better than filing the extract under a project that will never mount it.
-        modalities: chosenModalities,
-        subjects: asList(subjects),
-        layout: layout.split(','),
-      }),
-    onSuccess: (created) => {
-      toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
-      setName('');
-      setChosenModalities([]);
-      setSubjects('');
-      setLayout('subject,visit,modality');
-      invalidate(qk.ontologyExtracts(ontology.id));
-    },
-    onError: (error) => toast.error(error, t('ontologies.extractCreate')),
-  });
-
-  const createWhole = useMutation({
-    mutationFn: () =>
-      ontologiesApi.createExtract(ontology.id, {
-        name: ontology.name + ' — ' + t('ontologies.extractWholeSuffix'),
-        description: t('ontologies.extractWholeHint'),
-        modalities: [],
-        subjects: [],
-        layout: ['subject', 'visit', 'modality'],
-      }),
-    onSuccess: (created) => {
-      toast.success(t('ontologies.extractCreated', { count: formatNumber(created.objectCount, locale) }));
-      invalidate(qk.ontologyExtracts(ontology.id));
-      invalidate(qk.extracts);
-    },
-    onError: (error) => toast.error(error, t('ontologies.extractWhole')),
-  });
-
-  const [transferred, setTransferred] = React.useState<Extract | null>(null);
-  const [renamed, setRenamed] = React.useState<Extract | null>(null);
-
-  const remove = useMutation({
-    mutationFn: (extractId: string) => ontologiesApi.deleteExtract(extractId),
-    onSuccess: () => invalidate(qk.ontologyExtracts(ontology.id)),
-    onError: (error) => toast.error(error, t('ontologies.extractDeleteTitle')),
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardHeaderText>
-          <CardTitle>{t('ontologies.extracts')}</CardTitle>
-          <CardDescription>{t('ontologies.extractsHint')}</CardDescription>
-        </CardHeaderText>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (name.trim()) create.mutate();
-          }}
-          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_1fr_1fr_auto] lg:items-end"
-        >
-          <Field label={t('common.name')}>
-            <Input value={name} onChange={(event) => setName(event.target.value)} />
-          </Field>
-          <Field
-            label={t('ontologies.extractModalities')}
-            description={
-              chosenModalities.length === 0
-                ? t('ontologies.extractModalitiesAll')
-                : t('ontologies.extractModalitiesChosen', {
-                    objects: formatNumber(
-                      availableModalities
-                        .filter((item) => chosenModalities.includes(item.name))
-                        .reduce((total, item) => total + item.objects, 0),
-                      locale,
-                    ),
-                  })
-            }
-          >
-            <div className="flex flex-wrap gap-1.5">
-              {availableModalities.length === 0 ? (
-                <span className="text-xs text-muted-foreground">
-                  {t('ontologies.extractModalitiesUnknown')}
-                </span>
-              ) : (
-                availableModalities.map((item) => (
-                  <Button
-                    key={item.name}
-                    type="button"
-                    size="sm"
-                    variant={chosenModalities.includes(item.name) ? 'primary' : 'secondary'}
-                    onClick={() => toggleModality(item.name)}
-                    aria-pressed={chosenModalities.includes(item.name)}
-                  >
-                    {item.name}
-                    <span className="opacity-70 tabular-nums">
-                      {formatNumber(item.objects, locale)}
-                    </span>
-                  </Button>
-                ))
-              )}
-            </div>
-          </Field>
-          <Field label={t('ontologies.extractLayout')} description={t('ontologies.extractLayoutHint')}>
-            <Select
-              value={layout}
-              onValueChange={setLayout}
-              options={[
-                { value: 'subject,visit,modality', label: t('ontologies.layoutSubjectFirst') },
-                { value: 'modality,subject,visit', label: t('ontologies.layoutModalityFirst') },
-                { value: 'visit,subject,modality', label: t('ontologies.layoutVisitFirst') },
-              ]}
-            />
-          </Field>
-          <Field label={t('ontologies.extractSubjects')}>
-            {/* Un exemple pris dans cette ontologie, jamais une autre : le
-              *  champ affichait « PREMYOM1000-001 » sur la page de SELENA,
-              *  code en dur, et rien ne disait que c'etait un exemple. */}
-            <Input
-              value={subjects}
-              onChange={(event) => setSubjects(event.target.value)}
-              placeholder={premiereEntite(ontology)}
-            />
-          </Field>
-          <div className="flex gap-2">
-            <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim()}>
-              {t('ontologies.extractCreate')}
-            </Button>
-            {/* L'extrait maximal, c'est l'ontologie entiere.
-              *
-              *  Mecaniquement c'etait deja vrai - un filtre vide prend tout -
-              *  mais ce n'etait nomme nulle part, donc "et si je veux tout ?"
-              *  restait une question. Une ontologie ne se monte pas : elle
-              *  decrit, elle ne contient pas. Ce bouton est la facon de la
-              *  monter quand meme, en disant ce que ca veut dire. */}
-            <Button
-              type="button"
-              variant="secondary"
-              loading={createWhole.isPending}
-              onClick={() => createWhole.mutate()}
-              title={t('ontologies.extractWholeHint')}
-            >
-              {t('ontologies.extractWhole')}
-            </Button>
-          </div>
-        </form>
-
-        {extracts.data?.length ? (
-          <TableWrapper className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('common.name')}</TableHead>
-                  <TableHead className="text-right">{t('ontologies.objects')}</TableHead>
-                  <TableHead className="text-right">{t('common.size')}</TableHead>
-                  <TableHead>{t('common.owner')}</TableHead>
-                  <TableHead>{t('common.createdAt')}</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {extracts.data.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="text-xs font-medium">
-                      {item.name}
-                      {item.modalities.length ? (
-                        <span className="ml-2 font-mono text-xs text-muted-foreground">
-                          {item.modalities.join(', ')}
-                        </span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right text-xs tabular-nums">
-                      {formatNumber(item.objectCount, locale)}
-                    </TableCell>
-                    <TableCell className="text-right text-xs tabular-nums">
-                      {formatBytes(item.totalBytes, locale)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {item.ownerName || item.ownerId || '—'}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatRelative(item.createdAt, locale)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        title={t('ontologies.extractRename')}
-                        onClick={() => setRenamed(item)}
-                      >
-                        <Pencil aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        title={t('projects.transferOwnership')}
-                        onClick={() => setTransferred(item)}
-                      >
-                        <UserRoundCog aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          ask({
-                            title: t('ontologies.extractDeleteTitle'),
-                            description: t('ontologies.extractDeleteWarning'),
-                            confirmLabel: t('common.delete'),
-                            destructive: true,
-                            onConfirm: () => remove.mutateAsync(item.id),
-                          })
-                        }
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableWrapper>
-        ) : (
-          <EmptyState title={t('ontologies.extractEmpty')} />
-        )}
-        <p className="text-xs text-muted-foreground">{t('ontologies.extractMountHint')}</p>
-        <ExtractRenameSheet
-          extract={renamed}
-          open={renamed !== null}
-          onOpenChange={(open) => {
-            if (!open) setRenamed(null);
-          }}
-        />
-        <ExtractOwnershipSheet
-          extract={transferred}
-          open={transferred !== null}
-          onOpenChange={(open) => {
-            if (!open) setTransferred(null);
-          }}
-        />
-      </CardContent>
-      {dialog}
-    </Card>
-  );
-}
 
 /**
  * Launching a scan.
@@ -1402,7 +1116,160 @@ function OntologyIdentity({ ontology }: { ontology: Ontology }) {
       <OntologyNaming ontology={ontology} />
       <OntologyFreshnessNote ontologyId={ontology.id} />
       <OntologyCardPanel ontology={ontology} />
+      <OntologyExtractsNote ontology={ontology} />
+      <OntologyScanHistory ontology={ontology} />
     </div>
+  );
+}
+
+/* Combien d'extraits dependent de cette ontologie.
+ *
+ *  Un fait sur l'ontologie, pas un atelier : la page portait le formulaire de
+ *  decoupe entier, alors qu'on est dans « ontologie » et pas dans
+ *  « extrait ». Ce qui doit rester ici est qu'en supprimer une ou la
+ *  rescanner engage ce qui en a ete tire. La fabrication est dans l'entree de
+ *  catalogue qui porte les extraits. */
+function OntologyExtractsNote({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const extracts = useOntologyExtracts(ontology.id);
+  const count = extracts.data?.length ?? 0;
+
+  return (
+    <p className="px-1 text-xs text-muted-foreground">
+      {count === 0 ? t('ontologies.extractsNone') : null}
+      {count > 0
+        ? t('ontologies.extractsCount', { count: formatNumber(count, locale) })
+        : null}{' '}
+      <Link to="/catalog/extracts" className="underline underline-offset-2 hover:text-foreground">
+        {t('ontologies.extractDeclare')}
+      </Link>
+    </p>
+  );
+}
+
+/* Les scans que cette ontologie a traverses.
+ *
+ *  Un rescan remplace le manifeste et garde l'objet (ADR-043), ce qui est
+ *  juste pour l'objet et laisse deux questions sans reponse cinq minutes plus
+ *  tard. Un nombre de sujets qui passe de 2 a 31, c'est soit l'etude qui
+ *  recrute soit la regle de lecture qui a change - deux causes, deux
+ *  reactions opposees - et la plateforme le disait au moment du rescan avant
+ *  de jeter ce a quoi elle comparait. Et un extrait gele une liste de
+ *  fichiers contre un manifeste que le scan suivant ecrase, donc le n d'une
+ *  cohorte devient inexplicable.
+ *
+ *  Chaque ligne porte la regle qui l'a produite : sans elle, deux
+ *  photographies differentes ne se distinguent pas. */
+function OntologyScanHistory({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const mots = motsDuMetier(ontology);
+  const history = useOntologyScans(ontology.id);
+  const scans = history.data?.scans ?? [];
+  if (scans.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.scanHistory')}</CardTitle>
+          <CardDescription>{t('ontologies.scanHistoryHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <TableWrapper className="rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('ontologies.scanWhen')}</TableHead>
+                <TableHead>{t('common.owner')}</TableHead>
+                <TableHead className="text-right">{capitaliser(pluriel(mots.sujet))}</TableHead>
+                <TableHead className="text-right">{t('ontologyCard.records')}</TableHead>
+                <TableHead>{t('ontologies.patternRule')}</TableHead>
+                <TableHead>{t('ontologies.scanChanged')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {scans.map((scan) => (
+                <TableRow key={scan.id}>
+                  <TableCell className="whitespace-nowrap text-xs">
+                    {new Date(scan.generatedAt).toLocaleString(locale)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {scan.generatedBy || '—'}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {formatNumber(scan.subjects, locale)}
+                  </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {formatNumber(scan.objects, locale)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {scan.reading?.source === 'declared'
+                      ? t('ontologies.readingDeclared')
+                      : t('ontologies.readingDefault')}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    <ScanChange scan={scan} mots={mots} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableWrapper>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* Ce qu'un scan a change, et d'abord pourquoi.
+ *
+ *  La lecture passe avant les chiffres : quand elle a change, tous les autres
+ *  ecarts de la ligne s'expliquent par elle jusqu'a preuve du contraire, et
+ *  les lire comme une nouvelle sur la donnee est l'erreur que cette colonne
+ *  existe pour eviter. */
+function ScanChange({
+  scan,
+  mots,
+}: {
+  scan: OntologyScan;
+  mots: ReturnType<typeof motsDuMetier>;
+}) {
+  const t = useT();
+  const { locale } = useI18n();
+  const difference = scan.difference;
+  if (!difference) return <span>{t('ontologies.scanFirst')}</span>;
+
+  const ecarts: string[] = [];
+  const sujets = difference.currentSubjects - difference.previousSubjects;
+  const objets = difference.currentObjects - difference.previousObjects;
+  if (sujets !== 0) {
+    ecarts.push(
+      t('ontologies.scanDelta', {
+        count: `${sujets > 0 ? '+' : '−'}${formatNumber(Math.abs(sujets), locale)}`,
+        what: pluriel(mots.sujet),
+      }),
+    );
+  }
+  if (objets !== 0) {
+    ecarts.push(
+      t('ontologies.scanDelta', {
+        count: `${objets > 0 ? '+' : '−'}${formatNumber(Math.abs(objets), locale)}`,
+        what: t('ontologyCard.records').toLowerCase(),
+      }),
+    );
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {difference.readingChanged ? (
+        <Badge tone="warning" title={difference.currentReading || undefined}>
+          {t('ontologies.scanReadingChanged')}
+        </Badge>
+      ) : null}
+      <span>{ecarts.length > 0 ? ecarts.join(', ') : t('ontologies.scanUnchanged')}</span>
+    </span>
   );
 }
 
@@ -1735,7 +1602,6 @@ export function OntologyCatalog() {
         <>
           <OntologyIdentity ontology={selected} />
           <OntologyCoverage ontology={selected} />
-          <OntologyExtracts ontology={selected} />
           <OntologySettings ontology={selected} />
         </>
       ) : null}

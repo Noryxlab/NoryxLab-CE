@@ -394,17 +394,22 @@ rows, its project links and its object rows.
 
 ### Deleting an ontology deletes its object rows
 
-It used to leave them: `DeleteOntology` removed the project links, the access
-rows and the ontology, and not `ontology_objects`. The duplicate deleted on
-EMSE carried 21 629 of them, one SELENA scan carried 3 993, all keyed to an
-identifier nothing resolves any more. They are invisible, they are the bulk of
-what an ontology weighs, and on a dataset rescanned a few times they are the
-table that grows without bound.
+`DeleteOntology` removes the project links, the access rows and the ontology,
+and now `ontology_objects` explicitly.
 
-Worse for regulated data: those rows carry object paths, and on these buckets
-a path is a patient identifier. "Delete this ontology" has to mean the paths
-go too. Fixed in the cascade, in both stores, rather than in each cleanup
-script.
+**The explicit delete changes nothing in Postgres**, and the earlier claim here
+that it leaked was wrong: `ontology_objects.ontology_id` is declared
+`REFERENCES ontologies(id) ON DELETE CASCADE`, and the constraint is live on
+EMSE (`confdeltype = 'c'`). The database was already removing them. It is
+written out anyway because the statement should say what it means — these rows
+carry object paths, and on a regulated bucket a path is a patient identifier,
+so "delete this ontology" has to visibly mean the paths go too, rather than
+resting on a constraint nobody reads.
+
+**The in-memory store did leak**, and that one was real: its `Delete` removed
+the ontology and its access rows and left `objects` keyed by an identifier
+nothing resolves any more. A fake that does not reproduce the real store's
+contract protects nothing, which is why the test for this lives there.
 
 ## What the page shows, and in what order
 
@@ -416,15 +421,22 @@ ownership transfer — and answered the third in sixth position.
 It now opens on two:
 
 1. **The card** — name, description, what the data means, what the platform
-   counted, and whether the ontology still describes its source.
-2. **Extracts** — the only thing that mounts (ADR-044), with a sentence
-   saying so: the ontology says what is there, the extract says what you take.
+   counted, whether the ontology still describes its source, and the scans it
+   has been through.
+2. Everything administrative, in a closed **Settings** drawer: the reading
+   rule, the object explorer (which ADR-025 asks for and which is therefore
+   moved, not removed) and the ownership transfer.
 
-Everything else moves into a closed **Settings** drawer: the reading rule, the
-object explorer (which ADR-025 asks for and which is therefore moved, not
-removed) and the ownership transfer. Coverage appears between the two only
-when it has something to report — a five-row table whose every cell says
-"nothing to report" is a passing check rendered as an inventory.
+Coverage appears between the two only when it has something to report — a
+five-row table whose every cell says "nothing to report" is a passing check
+rendered as an inventory.
+
+**Extracts are not on this page.** The declaration form was here, which put a
+cutting workshop on the page of the object that *describes*; an extract has
+its own catalogue entry, and that is where one is declared, with the ontology
+as the form's first field exactly as a dataset is picked before scanning. What
+stays here is a fact about the ontology rather than an action on it: how many
+extracts depend on it, which is what deleting or rescanning one engages.
 
 ### Figures that must agree with each other
 
@@ -462,6 +474,42 @@ The name is in the path already: it is the directory the subjects sit in. A
 bucket whose subjects sit at the root names no study, and the dataset's own
 name is used rather than inventing one. A rescan keeps the name somebody may
 have corrected (ADR-043), so only new ontologies take the derived one.
+
+## Every scan is kept
+
+A rescan replaces the manifest and keeps the object (ADR-043). That is right
+for the object — an ontology is what the source looks like *now* — and it left
+two questions unanswerable five minutes later.
+
+A subject count that moved from 2 to 31 is either the study recruiting or the
+reading rule changing, and those call for opposite reactions. The platform
+says which at the moment of the rescan, then throws away what it compared
+against. And an extract freezes a file list and records the card version it
+was cut against, while the manifest it was cut *from* is overwritten the next
+time anybody presses scan — so "why does this cohort have 18 patients when the
+ontology says 31" has no answer in the data.
+
+So every scan is appended to `ontology_scans` and the ontology keeps pointing
+at the newest. `GET /api/v1/ontologies/{id}/scans` returns them newest first;
+each entry carries the counts, **the rule that produced them**, and the
+difference against the scan before it. The oldest row carries no difference —
+inventing a baseline of zero would report a first scan as a study that gained
+thirty-one subjects overnight, which is the false alarm the feature exists to
+remove.
+
+The rule travels with the row because without it two photographs cannot be
+told apart, and the whole point is telling them apart.
+
+**What it costs.** A manifest is an aggregate — subjects, visits, modalities,
+counts — not a file list, so a history is bounded by the shape of the study
+rather than by its size; the per-file rows stay in `ontology_objects` and only
+the current scan has them. Fifty photographs are kept per ontology, pruned on
+insert: a dataset rescanned by a cron keeps a row per run, and an unbounded
+table of manifests is the kind of slow leak only ever found by a disk alert.
+
+This is the groundwork for versioning an ontology object: the manifests are
+stored whole, so "read this ontology as it stood in March" is a query rather
+than a migration.
 
 ## The three levels are named by the trade that owns the data
 

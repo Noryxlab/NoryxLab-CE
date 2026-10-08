@@ -1196,6 +1196,50 @@ export interface OntologyStructureSummary {
   at?: string;
 }
 
+/** La regle qui a produit une photographie, telle qu'elle etait ce jour-la. */
+export interface OntologyReadingRule {
+  source?: string;
+  description?: string;
+  subjectLevel?: number;
+  visitLevel?: number;
+  modalityLevel?: number;
+  subjectName?: string;
+  visitName?: string;
+  modalityName?: string;
+}
+
+/** Ce qu'un rescan a change, et pourquoi : deux photographies different soit
+ *  parce que la donnee a bouge, soit parce que la lecture a change, et les
+ *  deux appellent des reactions opposees. */
+export interface OntologyScanDifference {
+  readingChanged: boolean;
+  previousReading?: string;
+  currentReading?: string;
+  previousObjects: number;
+  currentObjects: number;
+  previousSubjects: number;
+  currentSubjects: number;
+}
+
+/** Une photographie de la source, conservee apres que la suivante l'a
+ *  remplacee. Un rescan remplace le manifeste (ADR-043), donc sans historique
+ *  la lecture contre laquelle un extrait a ete decoupe disparait au scan
+ *  suivant. */
+export interface OntologyScan {
+  id: string;
+  generatedAt: string;
+  generatedBy?: string;
+  study?: string;
+  subjects: number;
+  visits: number;
+  modalities: number;
+  objects: number;
+  unreadable: number;
+  totalBytes: number;
+  reading: OntologyReadingRule;
+  difference?: OntologyScanDifference;
+}
+
 export interface OntologyCard {
   declared: boolean;
   card?: OntologyCardContent | null;

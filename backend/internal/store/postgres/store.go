@@ -611,6 +611,35 @@ func migrationStatements() []string {
 		)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_subject_idx ON ontology_objects (ontology_id, subject_id)`,
 		`CREATE INDEX IF NOT EXISTS ontology_objects_modality_idx ON ontology_objects (ontology_id, modality)`,
+		// Every photograph, not only the latest.
+		//
+		// A rescan replaces the manifest and the previous reading is gone
+		// (ADR-043), which is right for the object and wrong for the
+		// questions asked afterwards. A subject count that moved from 2 to 31
+		// has two possible causes - the study recruiting, or the reading rule
+		// changing - and the platform says which at the moment of the rescan;
+		// five minutes later nobody can check, because what it compared
+		// against no longer exists. An extract is worse off still: it freezes
+		// a file list and records the card version it was cut against, while
+		// the manifest it was cut from is overwritten the next time anybody
+		// presses scan.
+		//
+		// The manifest is an aggregate, not a file list, so a history is
+		// bounded by the shape of the study rather than by its size. The
+		// per-file rows stay in ontology_objects, and only the current scan
+		// has them.
+		//
+		// Created after `ontologies`, like the table above and for the same
+		// reason.
+		`CREATE TABLE IF NOT EXISTS ontology_scans (
+			id TEXT PRIMARY KEY,
+			ontology_id TEXT NOT NULL REFERENCES ontologies(id) ON DELETE CASCADE,
+			manifest_json JSONB NOT NULL,
+			generated_by TEXT NOT NULL DEFAULT '',
+			generated_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		)`,
+		`CREATE INDEX IF NOT EXISTS ontology_scans_ontology_idx ON ontology_scans (ontology_id, generated_at DESC)`,
 		// The rename from "cohort", applied before the tables below are
 		// created rather than after.
 		//
@@ -2772,13 +2801,13 @@ func (s *Store) UpdateOntologyOwner(ontologyID, ownerType, ownerID string) error
 // DeleteOntology removes the ontology and everything that only exists because
 // of it.
 //
-// The file list was not among them. Deleting an ontology left its
-// ontology_objects rows orphaned - 3,993 of them for one SELENA scan - keyed
-// to an identifier nothing resolves any more. They are invisible, they are the
-// bulk of what an ontology weighs, and on a dataset rescanned a few times they
-// are the table that grows without bound. Worse for regulated data: those rows
-// carry object paths, and on these buckets a path is a patient identifier, so
-// "delete this ontology" has to mean the paths go too.
+// The object rows are deleted here even though ontology_objects already
+// declares ON DELETE CASCADE and the database was therefore already removing
+// them. The statement should say what it means: these rows carry object
+// paths, and on a regulated bucket a path is a patient identifier, so "delete
+// this ontology" has to visibly mean the paths go too rather than resting on
+// a constraint nobody reads. The in-memory store had no such constraint and
+// did leak them, which is where the test for this lives.
 func (s *Store) DeleteOntology(id string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -2798,6 +2827,63 @@ func (s *Store) DeleteOntology(id string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// AppendOntologyScan records one photograph and prunes the oldest beyond
+// ScanHistoryKept.
+//
+// Pruned on insert rather than by a job: a dataset rescanned by a cron keeps a
+// row per run, and an unbounded table of manifests is the kind of slow leak
+// that is only ever found by a disk alert.
+func (s *Store) AppendOntologyScan(scan ontology.Scan) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(
+		`INSERT INTO ontology_scans (id, ontology_id, manifest_json, generated_by, generated_at, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6)`,
+		scan.ID, strings.TrimSpace(scan.OntologyID), []byte(scan.Manifest),
+		strings.TrimSpace(scan.GeneratedBy), scan.GeneratedAt, scan.CreatedAt,
+	); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		`DELETE FROM ontology_scans WHERE ontology_id=$1 AND id NOT IN (
+			SELECT id FROM ontology_scans WHERE ontology_id=$1
+			ORDER BY generated_at DESC, created_at DESC LIMIT $2
+		)`,
+		strings.TrimSpace(scan.OntologyID), ontology.ScanHistoryKept,
+	); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ListOntologyScans returns the photographs, newest first.
+func (s *Store) ListOntologyScans(ontologyID string) ([]ontology.Scan, error) {
+	rows, err := s.db.Query(
+		`SELECT id, ontology_id, manifest_json, generated_by, generated_at, created_at
+		 FROM ontology_scans WHERE ontology_id=$1
+		 ORDER BY generated_at DESC, created_at DESC`,
+		strings.TrimSpace(ontologyID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []ontology.Scan{}
+	for rows.Next() {
+		var item ontology.Scan
+		var manifest []byte
+		if err := rows.Scan(&item.ID, &item.OntologyID, &manifest, &item.GeneratedBy, &item.GeneratedAt, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		item.Manifest = manifest
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) ListOntologyAccess(ontologyID string) ([]ontology.Access, error) {

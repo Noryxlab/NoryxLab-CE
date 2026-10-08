@@ -4,7 +4,6 @@ import { FolderOpen, Pencil, Scissors, Trash2, UserRoundCog } from 'lucide-react
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
-import { Card } from '@/components/ui/card';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import { ontologiesApi } from '@/lib/api/endpoints';
@@ -14,7 +13,11 @@ import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
 import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
 import { ExtractDetail } from './extract-detail';
+import { ExtractDeclareForm } from './extract-declare';
 import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
+import { Card, CardContent, CardDescription, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
+import { Field } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
 
 /**
  * Les extraits du catalogue, tous, sans passer par leur ontologie.
@@ -141,6 +144,7 @@ export function ExtractCatalog() {
 
   return (
     <div className="space-y-4">
+      <DeclareExtract />
       <Card>
         <DataTable
           data={extracts.data}
@@ -220,5 +224,48 @@ export function ExtractCatalog() {
       />
       {dialog}
     </div>
+  );
+}
+
+/* Declarer un extrait, depuis l'entree de catalogue qui porte les extraits.
+ *
+ *  Le formulaire vivait sur la page d'une ontologie. C'est la page de l'objet
+ *  qui decrit - pas de celui qu'on emporte - et quelqu'un qui l'ouvrait pour
+ *  comprendre son jeu de donnees y trouvait un atelier de decoupe. Ici,
+ *  l'ontologie est le premier champ du formulaire, exactement comme on
+ *  choisit un dataset avant de le scanner. */
+function DeclareExtract() {
+  const t = useT();
+  const ontologies = useOntologies();
+  const [ontologyId, setOntologyId] = React.useState('');
+  const choisie = ontologies.data?.find((item) => item.id === ontologyId);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.extractDeclare')}</CardTitle>
+          <CardDescription>{t('ontologies.extractsHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Field label={t('nav.ontologies')} className="sm:max-w-sm">
+          <Select
+            value={ontologyId}
+            onValueChange={setOntologyId}
+            placeholder={t('ontologies.extractPickOntology')}
+            options={(ontologies.data ?? []).map((item) => ({
+              value: item.id,
+              label: item.name,
+              hint: item.sourceName || undefined,
+            }))}
+          />
+        </Field>
+        {/* Rien tant qu'aucune ontologie n'est choisie : un formulaire de
+          *  decoupe sans objet a decouper propose des categories qui
+          *  n'existent pas. */}
+        {choisie ? <ExtractDeclareForm ontology={choisie} /> : null}
+      </CardContent>
+    </Card>
   );
 }
