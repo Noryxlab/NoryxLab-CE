@@ -460,8 +460,25 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     if (comprise.visitName) setNomVisite(comprise.visitName);
     if (comprise.modalityName) setNomModalite(comprise.modalityName);
     setLue(comprise);
-    // Ce qui vient d'etre lu rend l'essai precedent caduc.
-    setTrial(null);
+    /* Et on l'essaie tout de suite.
+     *
+     *  Le bouton « Essayer » existait, la consigne disait « essayez avant
+     *  d'enregistrer », et une regle a ete enregistree le 2026-10-08 sans que
+     *  personne l'ait jamais presse - en demandant ensuite a quoi il servait.
+     *  Un controle qu'il faut penser a lancer est un controle qu'on saute.
+     *
+     *  Il ne lit rien dans les fichiers : il liste douze cles, applique la
+     *  regle et montre ce qu'elle en tire. C'est la seule facon de voir qu'un
+     *  niveau est decale d'un cran avant que tout un bucket soit range de
+     *  travers. */
+    essai.mutate({
+      subjectLevel: comprise.subjectLevel ?? null,
+      visitLevel: comprise.visitLevel ?? null,
+      modalityLevel: comprise.modalityLevel ?? null,
+      subjectName: comprise.subjectName ?? '',
+      visitName: comprise.visitName ?? '',
+      modalityName: comprise.modalityName ?? '',
+    });
   };
 
   React.useEffect(() => {
@@ -491,8 +508,12 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     modalityName: nomModalite.trim(),
   });
 
+  /* L'essai accepte une regle explicite, pour pouvoir tourner tout de suite
+   *  apres une proposition collee : l'etat React n'est pas encore a jour a cet
+   *  instant, et lire les champs donnerait l'ancienne regle. */
   const essai = useMutation({
-    mutationFn: () => pathLayoutApi.try(datasetId, niveaux()),
+    mutationFn: (explicite?: ReturnType<typeof niveaux>) =>
+      pathLayoutApi.try(datasetId, explicite ?? niveaux()),
     onSuccess: (data) => setTrial(data),
     onError: (error) => toast.error(error, t('ontologies.patternTry')),
   });
@@ -602,7 +623,7 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
           variant="secondary"
           loading={essai.isPending}
           disabled={subject.trim() === ''}
-          onClick={() => essai.mutate()}
+          onClick={() => essai.mutate(undefined)}
         >
           {t('ontologies.patternTry')}
         </Button>

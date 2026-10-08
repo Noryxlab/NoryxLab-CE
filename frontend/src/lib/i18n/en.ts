@@ -945,13 +945,12 @@ export const en: Translations = {
     patternSubjectLevel: "Grouping level",
     patternVisitLevel: "Time level",
     patternModalityLevel: "Category level",
-    patternTry: "Try it",
+    patternTry: "Try it on real paths",
     patternSave: "Store the rule",
     patternSaved: "Rule stored. Rescan to apply it.",
     patternClear: "Forget the rule",
     patternCleared: "Rule forgotten: the source goes back to the default rule.",
-    patternTrialResult:
-      "{recognised} path(s) recognised out of {sampled} tried.",
+    patternTrialResult: "The rule recognises {recognised} of the {sampled} paths tried. Here is what it reads on each — a level off by one shows up here, not after the scan.",
     extractWhole: "Mount the whole ontology",
     extractWholeSuffix: "everything",
     extractWholeHint:

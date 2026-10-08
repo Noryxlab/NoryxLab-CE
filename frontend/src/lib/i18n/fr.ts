@@ -966,13 +966,12 @@ export const fr = {
     patternSubjectLevel: "Niveau du regroupement",
     patternVisitLevel: "Niveau temporel",
     patternModalityLevel: "Niveau de la catégorie",
-    patternTry: "Essayer",
+    patternTry: "Essayer sur de vrais chemins",
     patternSave: "Enregistrer la règle",
     patternSaved: "Règle enregistrée. Relancez un scan pour l’appliquer.",
     patternClear: "Oublier la règle",
     patternCleared: "Règle oubliée : la source revient à la règle par défaut.",
-    patternTrialResult:
-      "{recognised} chemin(s) reconnu(s) sur {sampled} essayés.",
+    patternTrialResult: "La règle reconnaît {recognised} chemin(s) sur les {sampled} essayés. Voici ce qu’elle lit sur chacun — un niveau décalé se voit ici, pas après le scan.",
     extractWhole: "Monter l’ontologie entière",
     extractWholeSuffix: "tout",
     extractWholeHint:
