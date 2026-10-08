@@ -867,6 +867,8 @@ export const en: Translations = {
     source: "Source",
     profile: "Inference profile",
     reading: "Reading",
+    readingUnrecorded: "Not recorded",
+    readingUnrecordedHint: "This photograph predates the rule being recorded: how it was read is unknown. A fresh scan will say.",
     readingDeclared: "Declared",
     readingDefault: "Default",
     completeness: "Coverage",

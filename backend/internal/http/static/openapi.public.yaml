@@ -2613,6 +2613,70 @@ paths:
         '502':
           $ref: '#/components/responses/UpstreamError'
 
+  /api/v1/datasets/{datasetID}/upload-url:
+    post:
+      tags: [Datasets]
+      summary: Authorize one direct object-store upload
+      description: >-
+        Returns a short-lived S3 PUT URL after dataset RBAC checks. The data
+        bytes do not transit through Noryx and no object-store credential is exposed.
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string, description: Relative destination path }
+      responses:
+        '201':
+          description: One direct PUT URL, valid for fifteen minutes
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '501': { $ref: '#/components/responses/UpstreamError' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
+  /api/v1/datasets/{datasetID}/upload-complete:
+    post:
+      tags: [Datasets]
+      summary: Verify and record a direct object-store upload
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - in: path
+          name: datasetID
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path, size]
+              properties:
+                path: { type: string }
+                size: { type: integer, format: int64 }
+                sha256: { type: string, description: Sender manifest checksum }
+      responses:
+        '200': { description: Object presence and size verified }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Object is absent or differs from declared size }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+
   /api/v1/datasets/{datasetID}/objects/{path}:
     get:
       tags: [Datasets]

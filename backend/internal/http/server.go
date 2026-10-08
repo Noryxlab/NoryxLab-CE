@@ -152,6 +152,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// listed, so it is measured on demand and remembered for a while.
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/usage", h.GetDatasetUsage)
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/folders", h.CreateDatasetFolder)
+	// Bulk clinical imports are authorized here but the bytes go directly to
+	// the configured object store through one short-lived presigned URL.
+	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/upload-url", h.CreateDatasetUploadURL)
+	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/upload-complete", h.ConfirmDatasetUpload)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/objects/{path...}", h.GetDatasetObject)
 	mux.HandleFunc("PUT /api/v1/datasets/{datasetID}/objects/{path...}", h.PutDatasetObject)
 	mux.HandleFunc("DELETE /api/v1/datasets/{datasetID}/objects/{path...}", h.DeleteDatasetObject)

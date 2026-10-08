@@ -888,6 +888,8 @@ export const fr = {
     source: "Source",
     profile: "Profil d’inférence",
     reading: "Lecture",
+    readingUnrecorded: "Non enregistrée",
+    readingUnrecordedHint: "Cette photographie est antérieure à l’enregistrement de la règle : on ne sait pas comment elle a été lue. Un nouveau scan le dira.",
     readingDeclared: "Déclarée",
     readingDefault: "Par défaut",
     completeness: "Couverture",

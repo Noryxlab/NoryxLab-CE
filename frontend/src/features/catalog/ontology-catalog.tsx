@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
-  FileText,
   FolderOpen,
   MessageCircle,
   Network,
@@ -15,7 +14,7 @@ import {
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
-import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
+import { ProjectMountsSheet } from '@/components/common/project-mounts';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
 import { assistantAvailable, requestAssistant } from '@/lib/assistant-bridge';
@@ -1450,33 +1449,54 @@ export function OntologyCatalog() {
        *  que le profil ne distingue plus deux ontologies, elle ne disait meme
        *  plus de quoi on parle. Le nom reste en repli pour les photographies
        *  prises avant que la regle soit enregistree. */
+      /* Un mot par ligne, le meme mot d'une ligne a l'autre.
+       *
+       *  La colonne parlait trois langues a la fois : « Par defaut » sur deux
+       *  lignes, « level 1 = patient, level 2 = visite » sur une troisieme -
+       *  la phrase positionnelle du serveur, en anglais, dans une cellule -
+       *  et « health-file-path-v1 » sur une quatrieme, parce qu'une
+       *  photographie prise avant que la regle soit enregistree retombait sur
+       *  l'identifiant du profil. Trois vocabulaires pour une colonne dont le
+       *  seul travail est de distinguer deux lignes.
+       *
+       *  Ce qu'elle doit dire tient en un mot, et c'est une question de
+       *  qualite : une lecture declaree a ete confirmee par quelqu'un qui
+       *  connait l'etude, une lecture par defaut est une devinette, et les
+       *  chiffres de la ligne valent ce que vaut la lecture qui les a
+       *  produits. Le detail se lit au survol et en entier dans les reglages.
+       *
+       *  Une photographie sans regle enregistree ne dit « par defaut » pour
+       *  rien au monde : on ne sait pas comment elle a ete lue, et l'ecrire
+       *  serait affirmer un fait que personne n'a verifie. */
       cell: (ontology) => {
         const regle = (ontology.manifest as ManifestLu | undefined)?.readingRule;
-        /* Compact dans la colonne, entier au survol.
-         *
-         *  La description de la regle par defaut est une phrase - « the first
-         *  segment that looks like a subject identifier, then the next two as
-         *  visit and modality » - qui dit la verite et ne tient pas dans une
-         *  cellule. Ce qu'une liste doit donner, c'est la difference entre deux
-         *  lignes : declaree ou par defaut. Le reste se lit au survol, et en
-         *  entier dans le panneau « Motif ». */
-        const compacte = regle?.source === 'declared'
-          ? regle.description || t('ontologies.readingDeclared')
-          : regle?.source === 'default'
-            ? t('ontologies.readingDefault')
-            : ontology.inferenceProfile || '—';
+        if (!regle?.source) {
+          return (
+            <span className="text-xs text-muted-foreground" title={t('ontologies.readingUnrecordedHint')}>
+              {t('ontologies.readingUnrecorded')}
+            </span>
+          );
+        }
         return (
-          <span className="text-xs text-muted-foreground" title={regle?.description || undefined}>
-            {compacte}
+          <span className="text-xs text-muted-foreground" title={regleLisible(ontology, t)}>
+            {regle.source === 'declared'
+              ? t('ontologies.readingDeclared')
+              : t('ontologies.readingDefault')}
           </span>
         );
       },
     },
-    {
-      id: 'projects',
-      header: t('mounts.title'),
-      cell: (ontology) => <MountedProjects kind="ontology" resourceId={ontology.id} />,
-    },
+    /* Pas de colonne « Projets », et c'est la meme raison que le statut.
+     *
+     *  Elle affichait « — » sur presque chaque ligne, et un nom tronque sur
+     *  les autres. Ce qu'elle voulait dire - « quelque chose depend-il de
+     *  ceci ? » - compte a un seul moment, celui ou on s'apprete a supprimer
+     *  ou a rescanner, et c'est deja la que la plateforme le dit : le dialogue
+     *  de suppression annonce son cout, et la fiche compte les extraits qui en
+     *  sont tires. Rattacher ou detacher reste dans le menu de la ligne.
+     *
+     *  Une colonne qui pose une question au mauvais moment prend de la largeur
+     *  a celles qui repondent a la bonne. */
     /* Pas de colonne de statut, et c'est delibere.
      *
      *  Une ontologie n'est pas une charge : elle existe, elle ne tourne pas.
@@ -1526,18 +1546,20 @@ export function OntologyCatalog() {
           }
           rowActions={(ontology) => (
             <>
-              {/* En premier, parce que c'est la premiere question qu'on se
-                *  pose devant une ontologie qu'on n'a pas construite : de quoi
-                *  parle cette donnee. Le reste - interroger, monter, relire la
-                *  disposition - suppose qu'on le sache deja. */}
-              <DropdownMenuItem onSelect={() => setSelectedId(ontology.id)}>
-                <FileText aria-hidden />
-                {t('ontologyCard.title')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedId(ontology.id)}>
-                <Search aria-hidden />
-                {t('ontologies.query')}
-              </DropdownMenuItem>
+              {/* Des actions sur la ligne, et rien d'autre.
+                *
+                *  Il y en avait cinq, dont deux qui appelaient setSelectedId -
+                *  le meme clic que sur la ligne elle-meme, et le meme clic l'un
+                *  que l'autre, sous deux noms differents. « Ce que decrit cette
+                *  ontologie » et « Filtrer » ne faisaient pas ce qu'ils
+                *  disaient : ils ouvraient la fiche, ou ces deux choses se
+                *  trouvent parmi d'autres. Un menu qui nomme des blocs deja
+                *  visibles dessous n'est pas un menu, c'est un sommaire - et un
+                *  sommaire dont deux entrees menent au meme endroit.
+                *
+                *  Reste ce qu'on ne peut pas faire en cliquant la ligne :
+                *  rattacher a un projet, demander une lecture a l'assistant,
+                *  supprimer. */}
               <DropdownMenuItem onSelect={() => setMountedOntology(ontology)}>
                 <FolderOpen aria-hidden />
                 {t('mounts.title')}
