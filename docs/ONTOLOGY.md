@@ -1,5 +1,10 @@
 # Ontology
 
+> Looking for how to use the screens? [USING_ONTOLOGIES.md](USING_ONTOLOGIES.md)
+> is the guide for people opening the catalogue. This page is the design
+> reasoning and the storage model.
+
+
 **Where this is today, in one line:** it reads a dataset's object *paths* -
 never their content - and infers a first draft of the objects in it: a study,
 its pseudonymised subjects, their visits, modalities, formats and volumes.
