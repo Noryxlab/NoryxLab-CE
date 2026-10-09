@@ -46,9 +46,25 @@ func checkRepository(repoURL, secretValue string) ([]string, error) {
 	case "gitlab.com":
 		reqURL = "https://gitlab.com/api/v4/projects/" + url.PathEscape(repoPath)
 	default:
-		// Generic smart-HTTP git endpoint probe.
-		base := strings.TrimSuffix(strings.TrimSpace(repoURL), ".git")
-		reqURL = strings.TrimSuffix(base, "/") + ".git/info/refs?service=git-upload-pack"
+		// Git's own smart-HTTP probe, asking exactly what git asks.
+		//
+		// The address is used as the person gave it. This used to append
+		// ".git" to every URL, which is an invention: git requests
+		// `<url>/info/refs?service=git-upload-pack` with the URL unchanged,
+		// and a server is entitled to read a different name as a different
+		// repository.
+		//
+		// GitHub redirects between the two spellings, so the invention was
+		// invisible there for as long as the platform existed. Azure DevOps
+		// does not: `_git/mca.git` is a repository called "mca.git", which
+		// nobody has, so it answers 404 - and only once a credential has been
+		// accepted, because the sign-in challenge fires before the lookup.
+		// That is why the failure was impossible to reproduce without a valid
+		// token, and why it hit the one person who had one.
+		//
+		// The rule worth keeping: if git can clone it, the probe must reach
+		// it, which means asking for what git asks for and nothing else.
+		reqURL = strings.TrimRight(strings.TrimSpace(repoURL), "/") + "/info/refs?service=git-upload-pack"
 	}
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)

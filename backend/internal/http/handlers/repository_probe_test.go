@@ -113,3 +113,56 @@ func TestUnStatutInattenduNommeLAdresseSondee(t *testing.T) {
 		t.Errorf("l'erreur doit nommer l'adresse sondee : %v", err)
 	}
 }
+
+// La sonde demande exactement ce que git demande.
+//
+// Elle ajoutait « .git » a toute adresse, ce qui est une invention : git
+// requiert `<url>/info/refs?service=git-upload-pack` avec l'adresse telle
+// quelle, et un serveur a le droit de lire un autre nom comme un autre depot.
+//
+// GitHub redirige entre les deux orthographes, donc l'invention y etait
+// invisible. Azure DevOps non : « _git/mca.git » est un depot nomme
+// « mca.git », que personne n'a, d'ou un 404 - et seulement une fois un
+// identifiant accepte, parce que le defi de connexion passe avant la
+// recherche. C'est pourquoi la panne etait irreproductible sans jeton valide,
+// et pourquoi elle a frappe la seule personne qui en avait un.
+func TestLaSondeDemandeCeQueGitDemande(t *testing.T) {
+	for _, cas := range []struct{ donnee, attendu string }{
+		// Le cas de Samy : aucune extension, et aucune ne doit apparaitre.
+		{"/EL-GroupLensInnovation/EyeModel/_git/myopia-control-analysis",
+			"/EL-GroupLensInnovation/EyeModel/_git/myopia-control-analysis/info/refs"},
+		// Une adresse qui porte deja .git la garde : c'est le nom du depot.
+		{"/org/projet.git", "/org/projet.git/info/refs"},
+		// Une barre finale n'en fait pas deux.
+		{"/org/projet/", "/org/projet/info/refs"},
+	} {
+		var demande string
+		serveur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			demande = r.URL.Path
+			w.WriteHeader(http.StatusOK)
+		}))
+		if _, err := checkRepository(serveur.URL+cas.donnee, "jeton"); err != nil {
+			t.Errorf("%s : %v", cas.donnee, err)
+		}
+		serveur.Close()
+		if demande != cas.attendu {
+			t.Errorf("pour %q la sonde demande %q, attendu %q", cas.donnee, demande, cas.attendu)
+		}
+	}
+}
+
+// Et le service demande est bien celui du clone, pas celui de l'envoi.
+func TestLaSondeDemandeLeServiceDeLecture(t *testing.T) {
+	var requete string
+	serveur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requete = r.URL.RequestURI()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(serveur.Close)
+	if _, err := checkRepository(serveur.URL+"/org/projet", "jeton"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(requete, "?service=git-upload-pack") {
+		t.Errorf("la sonde doit demander git-upload-pack : %q", requete)
+	}
+}
