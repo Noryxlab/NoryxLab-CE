@@ -1,4 +1,6 @@
 # source_image target_image
 postgres:16 harbor.example.local/noryx-ce/postgres:16
 quay.io/keycloak/keycloak:26.6.2 harbor.example.local/noryx-ce/keycloak:26.6.2
-minio/minio:RELEASE.2025-02-18T16-25-55Z harbor.example.local/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z
+# Upstream stopped serving this release anonymously. NoryxLab mirrors the
+# unchanged upstream image at a pinned digest; see docs/IMAGE_MIRRORS.md.
+ghcr.io/noryxlab/noryx-ce-minio@sha256:5c1e0c9ca1c34b1f2a0f66345f5e2acd2efe98b3aa91089b5cf8ff08b593cda7 harbor.example.local/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z

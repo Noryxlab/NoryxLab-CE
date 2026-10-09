@@ -88,6 +88,12 @@ Mirror the runtime images from a trusted build host. The catalog targets use
 `harbor.example.local`; copy and edit the catalog in the private installation
 repository before running the command.
 
+The catalog pins the NoryxLab public mirror for the MinIO release used by CE.
+This avoids relying on upstream anonymous registry access during a new
+installation. It is an unchanged upstream MinIO image, not a Noryx image; its
+origin, digest and maintenance policy are documented in
+[Image mirrors](IMAGE_MIRRORS.md).
+
 ```bash
 docker login "$HARBOR_HOST"
 CATALOG_FILE=/path/to/installation/essential-images.txt \

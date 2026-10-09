@@ -23,12 +23,12 @@ images:
   - name: harbor.example.local/noryx-ce/keycloak
     newName: quay.io/keycloak/keycloak
     newTag: "26.6.2"
-  # quay.io, not Docker Hub: MinIO stopped serving this tag there, and the
-  # registry answers "repository does not exist" rather than anything about a
-  # tag - so the job failed on an image nobody in this repository had touched.
+  # A NoryxLab-controlled mirror of the unchanged upstream MinIO image. Both
+  # Docker Hub and Quay stopped serving this release anonymously. The digest
+  # is deliberate: CI must test the same immutable image as installers mirror.
   - name: harbor.example.local/noryx-ce/minio
-    newName: quay.io/minio/minio
-    newTag: "RELEASE.2025-02-18T16-25-55Z"
+    newName: ghcr.io/noryxlab/noryx-ce-minio
+    digest: sha256:5c1e0c9ca1c34b1f2a0f66345f5e2acd2efe98b3aa91089b5cf8ff08b593cda7
 
 patches:
   # A stock Kind cluster has no Traefik CRDs. They are validated in the
