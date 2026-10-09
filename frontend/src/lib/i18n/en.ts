@@ -1051,6 +1051,7 @@ export const en: Translations = {
   },
 
   repositories: {
+    createdUnreachable: "Repository added, but the check failed",
     title: "Git repositories",
     subtitle: "Repositories cloned into your workspaces under /repos.",
     create: "New repository",

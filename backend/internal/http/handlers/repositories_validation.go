@@ -71,7 +71,15 @@ func checkRepository(repoURL, secretValue string) ([]string, error) {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return scopes, fmt.Errorf("authentication failed (status=%d)", resp.StatusCode)
 	case http.StatusNotFound:
-		return scopes, fmt.Errorf("repository not found")
+		// A private repository answers 404 to a reader it does not recognise:
+		// the server hides existence rather than admitting to it, so "absent"
+		// and "not allowed" are the same answer and the message must not pick
+		// one. Saying "repository not found" to somebody looking at the
+		// repository in another tab is how a correct probe becomes an
+		// unhelpful one.
+		return scopes, fmt.Errorf("the address answered 404: either it does not exist, " +
+			"or the token cannot see it - a private repository gives the same answer to both. " +
+			"Check the address, and that the token carries read access to the code")
 	case http.StatusNonAuthoritativeInfo:
 		// Azure DevOps answers this with a sign-in page rather than 401.
 		return scopes, fmt.Errorf("authentication required: the provider asked for a sign-in. For Azure DevOps, store the secret as user:personal-access-token")
@@ -79,22 +87,59 @@ func checkRepository(repoURL, secretValue string) ([]string, error) {
 		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
 			return scopes, fmt.Errorf("authentication required: the provider redirected to a sign-in page. For Azure DevOps, store the secret as user:personal-access-token")
 		}
-		return scopes, fmt.Errorf("unexpected status=%d", resp.StatusCode)
+		// The probed address, not only the status: this probe is not the
+		// repository's own URL - it is built from it - and a caller comparing
+		// a surprising status against the address they typed is comparing two
+		// different things.
+		return scopes, fmt.Errorf("unexpected status=%d from %s", resp.StatusCode, reqURL)
 	}
 }
 
+// splitRepositoryCredential reads the stored secret the one way the whole
+// product reads it: "user:token", or a bare token belonging to "oauth2".
+//
+// The same rule the clone applies in the workspace (repositoryBootstrapLines).
+// Written down once here because the last time the two paths each had their
+// own idea of what a secret meant, validation authenticated correctly and the
+// clone sent the whole string as a password - so a repository reported
+// reachable would not clone.
+func splitRepositoryCredential(secretValue string) (user, pass string) {
+	secretValue = strings.TrimSpace(secretValue)
+	if before, after, found := strings.Cut(secretValue, ":"); found {
+		return before, after
+	}
+	return "oauth2", secretValue
+}
+
+// applyRepositoryAuthHeaders authenticates the probe the way the host expects.
+//
+// The distinction that matters: github.com and gitlab.com are probed through
+// their *API*, where a bare token legitimately is a bearer token. Every other
+// host is probed through git's own smart-HTTP endpoint, which speaks Basic and
+// nothing else - Azure DevOps rejects a personal access token presented as a
+// bearer, and answers with a sign-in redirect that reads to the caller as an
+// unreachable repository.
+//
+// Sending Bearer there was therefore guaranteed to fail for the most natural
+// way to store a token, which is to paste the token and nothing else.
 func applyRepositoryAuthHeaders(req *http.Request, host, secretValue string) {
 	secretValue = strings.TrimSpace(secretValue)
 	if secretValue == "" {
 		return
 	}
+	user, pass := splitRepositoryCredential(secretValue)
 
-	if creds := strings.SplitN(secretValue, ":", 2); len(creds) == 2 && creds[0] != "" {
-		req.SetBasicAuth(creds[0], creds[1])
-	} else {
-		req.Header.Set("Authorization", "Bearer "+secretValue)
-	}
-	if host == "gitlab.com" {
-		req.Header.Set("PRIVATE-TOKEN", secretValue)
+	switch host {
+	case "github.com", "gitlab.com":
+		if creds := strings.SplitN(secretValue, ":", 2); len(creds) == 2 && creds[0] != "" {
+			req.SetBasicAuth(creds[0], creds[1])
+		} else {
+			req.Header.Set("Authorization", "Bearer "+secretValue)
+		}
+		if host == "gitlab.com" {
+			req.Header.Set("PRIVATE-TOKEN", secretValue)
+		}
+	default:
+		req.SetBasicAuth(user, pass)
 	}
 }

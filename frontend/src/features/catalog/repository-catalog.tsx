@@ -131,9 +131,21 @@ export function RepositoryCatalog() {
         gitAuthorName: authorName.trim(),
         gitAuthorEmail: authorEmail.trim(),
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       invalidate(qk.repositories);
       setCreating(false);
+      /* Le depot est enregistre meme quand la sonde a echoue - c'est voulu,
+         une sonde ne decide pas a la place de qui connait son depot. Mais le
+         dire « ajoute » sans plus serait laisser quelqu'un partir sans savoir
+         qu'il est marque injoignable, et le decouvrir au lancement d'un
+         workspace. La raison est celle que la sonde a donnee. */
+      if (created?.reachable === false) {
+        toast.warning(
+          created.validationError || t('repositories.unreachable'),
+          t('repositories.createdUnreachable'),
+        );
+        return;
+      }
       toast.success(name.trim(), t('repositories.create'));
     },
     onError: (error) => toast.error(error, t('repositories.createTitle')),

@@ -1072,6 +1072,7 @@ export const fr = {
   },
 
   repositories: {
+    createdUnreachable: "Dépôt ajouté, mais la vérification a échoué",
     title: "Dépôts Git",
     subtitle: "Dépôts clonés dans vos workspaces sous /repos.",
     create: "Nouveau dépôt",

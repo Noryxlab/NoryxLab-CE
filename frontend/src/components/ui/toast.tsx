@@ -24,6 +24,10 @@ interface ToastContextValue {
   success: (description: string, title?: string) => void;
   error: (error: unknown, title?: string) => void;
   info: (description: string, title?: string) => void;
+  /** Ce qui a abouti mais demande une suite : la tonalite existait deja, son
+   *  raccourci manquait, et les appelants retombaient sur success - qui dit
+   *  que tout va bien - ou sur error - qui dit que rien n'a abouti. */
+  warning: (description: string, title?: string) => void;
 }
 
 const ToastContext = React.createContext<ToastContextValue | null>(null);
@@ -81,6 +85,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       toast,
       success: (description, title) => toast({ description, title, tone: 'success' }),
       info: (description, title) => toast({ description, title, tone: 'info' }),
+      warning: (description, title) => toast({ description, title, tone: 'warning', duration: 9000 }),
       error: (error, title) =>
         toast({ description: toMessage(error), title, tone: 'error', duration: 9000 }),
     }),

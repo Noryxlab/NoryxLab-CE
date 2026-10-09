@@ -74,14 +74,25 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	scopes, err := checkRepository(req.URL, secretValue)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
-		return
-	}
+	// The probe reports; it does not decide.
+	//
+	// This used to refuse the whole creation when the probe failed, which
+	// makes a guess authoritative over what the person knows. On 2026-10-09
+	// Samy could clone an Azure DevOps repository from a workspace and could
+	// not add it here: the probe answered 404 - the same answer a private
+	// repository gives any reader it does not recognise - and the form threw
+	// the repository away rather than recording it.
+	//
+	// A failed probe is now a property of the stored repository, which is
+	// what `reachable`, `validation_error` and `last_validated_at` have
+	// always been for, and what the catalogue already displays. The person
+	// keeps their repository, sees why it is marked unreachable, and can fix
+	// a token or re-run the check - none of which is possible for a record
+	// that was never written.
+	scopes, probeErr := checkRepository(req.URL, secretValue)
 
 	item := repository.New(userID, req.Name, req.URL, req.DefaultRef, req.AuthSecretName, authType, req.GitAuthorName, req.GitAuthorEmail)
-	setRepositoryValidation(&item, nil)
+	setRepositoryValidation(&item, probeErr)
 	item.TokenExcessScopes = excessiveTokenScopes(scopes)
 	if err := h.repositoryStore.Create(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create repository"})
@@ -136,11 +147,9 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	updatedScopes, err := checkRepository(req.URL, secretValue)
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository validation failed: " + err.Error()})
-		return
-	}
+	// Same rule as creation: an edit that cannot be saved because a probe
+	// disagrees is an edit somebody has to make somewhere else.
+	updatedScopes, probeErr := checkRepository(req.URL, secretValue)
 	item.Name = req.Name
 	item.URL = req.URL
 	item.DefaultRef = req.DefaultRef
@@ -148,7 +157,7 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	item.AuthType = authType
 	item.GitAuthorName = req.GitAuthorName
 	item.GitAuthorEmail = req.GitAuthorEmail
-	setRepositoryValidation(&item, nil)
+	setRepositoryValidation(&item, probeErr)
 	item.TokenExcessScopes = excessiveTokenScopes(updatedScopes)
 	item.UpdatedAt = time.Now().UTC()
 	if err := h.repositoryStore.Update(item); err != nil {
