@@ -12,6 +12,11 @@ func (h Handlers) GetVersion(w http.ResponseWriter, _ *http.Request) {
 		"backendVersion": h.backendVersion,
 		"edition":        h.edition,
 		"defaultTheme":   normalizeTheme(h.currentDefaultTheme()),
+		// Carried here, beside the theme, because the interface needs it on
+		// every dataset screen and this is the one cheap call it already
+		// makes. Resolved per request for the same reason the theme is: a
+		// change takes effect without a redeployment.
+		"datasetDownload": h.currentDatasetDownload(),
 	})
 }
 
@@ -24,4 +29,12 @@ func (h Handlers) currentDefaultTheme() string {
 		return h.settings.String(settings.KeyDefaultTheme)
 	}
 	return h.defaultTheme
+}
+
+// currentDatasetDownload says whether files may leave for a local machine.
+func (h Handlers) currentDatasetDownload() string {
+	if h.localDownloadBlocked() {
+		return settings.DatasetDownloadBlocked
+	}
+	return settings.DatasetDownloadAllowed
 }

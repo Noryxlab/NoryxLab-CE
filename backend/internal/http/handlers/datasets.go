@@ -24,6 +24,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/settings"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -827,6 +828,16 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
 		return
 	}
+	// This route serves previews as well as saving a file, and the request
+	// does not say which. So when downloads are withdrawn it narrows to what
+	// the interface can display rather than closing: closing it would take
+	// the viewer away too, and nobody asked for a platform you cannot read.
+	if h.localDownloadBlocked() && !previewableType(rel) {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "downloading dataset files to a local machine is disabled on this platform",
+		})
+		return
+	}
 	client, _, err := h.datasetS3Client(item)
 	if err != nil || client == nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
@@ -886,6 +897,45 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, written))
 }
 
+// localDownloadBlocked reports whether this installation withdraws downloads
+// to somebody's own machine.
+//
+// Resolved per request rather than at start-up, like every other setting, so
+// an administrator turning it on does not have to wait for a redeployment -
+// and so turning it off again is just as quick, which matters when the reason
+// was a mistake.
+func (h Handlers) localDownloadBlocked() bool {
+	if h.settings == nil {
+		return false
+	}
+	return h.settings.String(settings.KeyDatasetLocalDownload) == settings.DatasetDownloadBlocked
+}
+
+// previewableType reports whether a file is one the interface can display.
+//
+// The same list HDS root documents are limited to, without the root-only
+// rule. When downloads are withdrawn this is what still comes through the
+// object route, because that route serves previews as well: a CSV opens in
+// the viewer, a DICOM or an archive does not come out at all.
+//
+// It bounds casual export, and it is worth being exact about what it does
+// not do: a file the interface can display is a file a browser can save.
+// Somebody determined keeps what they can already read. The control removes
+// the gesture and the bulk routes, which is the difference between a
+// platform where data leaves by habit and one where it does not.
+func previewableType(relPath string) bool {
+	lower := strings.ToLower(strings.Trim(strings.TrimSpace(relPath), "/"))
+	for _, suffix := range []string{
+		".pdf", ".xlsx", ".ods", ".csv", ".txt", ".json", ".md", ".log",
+		".yaml", ".yml", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
+	} {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func hdsRootDocumentPreviewAllowed(relPath string) bool {
 	rel := strings.Trim(strings.TrimSpace(relPath), "/")
 	if rel == "" || strings.Contains(rel, "/") {
@@ -922,6 +972,12 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 	}
 	if item.Classification == "hds" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "HDS dataset ZIP download is disabled"})
+		return
+	}
+	if h.localDownloadBlocked() {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "downloading dataset files to a local machine is disabled on this platform",
+		})
 		return
 	}
 	var req downloadDatasetObjectsRequest
@@ -996,6 +1052,14 @@ func (h Handlers) CreateDatasetObjectDownloadURL(w http.ResponseWriter, r *http.
 	}
 	if item.Classification == "hds" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
+		return
+	}
+	// The one that matters most: a presigned URL leaves the platform's reach
+	// entirely, so it is refused outright rather than narrowed.
+	if h.localDownloadBlocked() {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "downloading dataset files to a local machine is disabled on this platform",
+		})
 		return
 	}
 	var req downloadDatasetObjectURLRequest

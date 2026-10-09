@@ -896,6 +896,10 @@ export interface VersionInfo {
   backendVersion: string;
   edition: string;
   defaultTheme: string;
+  /** `"blocked"` when this installation withdraws downloads to a local
+   *  machine. Carried here because the dataset screens need it and this is
+   *  the one cheap call the shell already makes. */
+  datasetDownload: 'allowed' | 'blocked';
 }
 
 export interface UserPreferences {

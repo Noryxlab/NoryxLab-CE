@@ -782,6 +782,8 @@ export const fr = {
     emptyFolder: "Ce dossier est vide",
     emptyFolderHint: "Téléversez un premier fichier pour commencer.",
     downloadSelection: "Télécharger la sélection",
+    downloadDisabled:
+      "Cette plateforme n’autorise pas la sortie des fichiers vers un poste local. Les fichiers restent consultables ici.",
     deleteSelection: "Supprimer la sélection",
     selectedCount: "{count} élément sélectionné",
     selectedCountPlural: "{count} éléments sélectionnés",

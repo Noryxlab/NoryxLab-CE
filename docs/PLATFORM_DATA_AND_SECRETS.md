@@ -69,6 +69,12 @@ Storage:
 - bucket is created automatically at dataset creation if missing
 - object listing returns files below the dataset prefix
 - CE manages standard datasets (`classification=non-hds`); regulated HDS datasets require Enterprise Edition
+- HDS datasets refuse direct download, ZIP export and presigned URLs; preview is limited to a document at the dataset root
+- the `datasets.local_download` platform setting withdraws the same three routes for **every** classification when set to
+  `blocked`, which is what a site analysing patient data asks for. Preview survives: the object route narrows to the file
+  types the interface can display, so a CSV opens and a DICOM or an archive does not come out. It bounds export by habit —
+  a file the interface can display is still a file a browser can save — and the setting is resolved per request, so turning
+  it on or off takes effect without a redeployment
 - Clever Cloud Cellar datasets are registered with `provider=clever-cloud`, an existing bucket, and an endpoint
 - datasets can be attached to or detached from projects by their owner or a global admin
 - external S3 credentials are provided at dataset creation, encrypted with the platform master key, and never exposed in dataset records or secret APIs

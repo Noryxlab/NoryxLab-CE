@@ -761,6 +761,8 @@ export const en: Translations = {
     emptyFolder: "This folder is empty",
     emptyFolderHint: "Upload a first file to get started.",
     downloadSelection: "Download selection",
+    downloadDisabled:
+      "This platform does not allow dataset files to be taken to a local machine. Files can be opened here.",
     deleteSelection: "Delete selection",
     selectedCount: "{count} item selected",
     selectedCountPlural: "{count} items selected",

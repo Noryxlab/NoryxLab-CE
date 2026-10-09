@@ -31,7 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
-import { useDatasetObjects, useDatasetUsage, qk, useInvalidate } from '@/lib/api/queries';
+import { useDatasetObjects, useDatasetUsage, useVersion, qk, useInvalidate } from '@/lib/api/queries';
 import { datasetsApi } from '@/lib/api/endpoints';
 import { getAuthHeaders } from '@/lib/api/client';
 import { useI18n, useT } from '@/lib/i18n';
@@ -157,7 +157,14 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
     setSelected(new Set());
   }, [dataset.id, prefix]);
 
+  const { data: version } = useVersion();
   const isHds = dataset.classification === 'hds';
+  /* Deux raisons distinctes de ne pas proposer le telechargement, et il faut
+     les garder separees : la classification du dataset, et un reglage de la
+     plateforme entiere. Les confondre dirait « HDS » a un utilisateur d'un
+     dataset ordinaire sur une installation verrouillee. */
+  const downloadWithdrawn = version?.datasetDownload === 'blocked';
+  const noDownload = isHds || downloadWithdrawn;
 
   const entries = React.useMemo(
     () =>
@@ -378,12 +385,19 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
             </span>
             <div className="ml-auto flex gap-2">
               {/* HDS datasets disable direct download and archive export, per
-                  the classification rules in ADR-013. */}
+                  the classification rules in ADR-013; an installation may
+                  withdraw it for every classification as well. */}
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={isHds}
-                title={isHds ? t('datasets.hdsWarning') : undefined}
+                disabled={noDownload}
+                title={
+                  isHds
+                    ? t('datasets.hdsWarning')
+                    : downloadWithdrawn
+                      ? t('datasets.downloadDisabled')
+                      : undefined
+                }
                 onClick={() =>
                   void datasetsApi
                     .downloadArchive(dataset.id, [...selected], `${dataset.name}.zip`)

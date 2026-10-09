@@ -71,11 +71,23 @@ const (
 	// are independent and either alone is enough.
 	KeyAlertEmail   = "alert.email"
 	KeyDefaultTheme = "ui.default_theme"
+	// KeyDatasetLocalDownload governs whether a dataset's files may leave the
+	// platform for somebody's own machine. HDS datasets refuse regardless
+	// (ADR-013); this decides the answer for every other classification,
+	// because a site that analyses patient data wants nothing landing on a
+	// laptop while a research site legitimately takes a CSV home.
+	KeyDatasetLocalDownload = "datasets.local_download"
 
 	// Facts, exposed for visibility and refused for writing.
 	KeyBackendVersion = "platform.backend_version"
 	KeyEdition        = "platform.edition"
 	KeyNamespace      = "platform.namespace"
+)
+
+// The two answers KeyDatasetLocalDownload accepts.
+const (
+	DatasetDownloadAllowed = "allowed"
+	DatasetDownloadBlocked = "blocked"
 )
 
 // Definitions is the complete registry.
@@ -88,6 +100,17 @@ func Definitions() []Definition {
 			Label:       "Maximum workspace lifetime",
 			Description: "A workspace is stopped past this age. \"0\" disables the sweep entirely. This is an age limit, not idle detection.",
 			Fallback:    "48h",
+		},
+		{
+			Key:    KeyDatasetLocalDownload,
+			EnvVar: "NORYX_DATASET_LOCAL_DOWNLOAD",
+			Kind:   KindEnum,
+			Values: []string{DatasetDownloadAllowed, DatasetDownloadBlocked},
+			Label:  "Download datasets to a local machine",
+			Description: "\"blocked\" withdraws the download and archive-export routes for every " +
+				"dataset, leaving previews in place: files can be read in the interface and not " +
+				"taken out of it. HDS datasets refuse regardless of this setting.",
+			Fallback: DatasetDownloadAllowed,
 		},
 		{
 			Key:         KeyAlertWebhookURL,
