@@ -9440,3 +9440,37 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/workspaces/{workspaceID}/restart:
+    post:
+      tags: [Workloads]
+      summary: Restart the software a workspace runs
+      description: >-
+        Replaces the workspace's pod under the same name, from its own live
+        specification: the volumes, the mounted datasets, the bootstrap and the
+        environment are whatever the launch decided, so a restart cannot return
+        a workspace different from the one the person had. The record, the
+        service and the volumes are untouched, so the access URL stays valid.
+        Requires the same right as launching. Needed by software that only
+        loads its extensions at start-up.
+      operationId: restartWorkspace
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workspaceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: The pod is being replaced; the workspace is reachable again within about a minute.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The workspace is not running, so there is no specification to restart from; launch it again instead.
+        '501':
+          description: This runtime cannot restart a pod.

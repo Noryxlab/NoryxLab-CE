@@ -48,6 +48,48 @@ function describeObject(object: StorageObject, prefix: string): { name: string; 
   return { name: trimmed.replace(/\/$/, ''), isFolder };
 }
 
+type DroppedFile = { file: File; path: string };
+
+/** Aplatit un depot en fichiers portant leur chemin relatif.
+ *
+ *  Les dossiers comptent autant que les fichiers : une serie DICOM est une
+ *  arborescence, et la deposer en perdant sa structure ne sert a rien.
+ *
+ *  `webkitGetAsEntry` doit etre appele avant que le gestionnaire ne rende la
+ *  main : la liste d'elements est videe des le retour de l'evenement. Les
+ *  entrees sont donc collectees d'abord, parcourues ensuite. */
+async function flattenDrop(items: DataTransferItemList): Promise<DroppedFile[]> {
+  const roots: FileSystemEntry[] = [];
+  for (const item of Array.from(items)) {
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) roots.push(entry);
+  }
+
+  const out: DroppedFile[] = [];
+  async function walk(entry: FileSystemEntry, prefix: string): Promise<void> {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) =>
+        (entry as FileSystemFileEntry).file(resolve, reject),
+      );
+      out.push({ file, path: `${prefix}${file.name}` });
+      return;
+    }
+    const reader = (entry as FileSystemDirectoryEntry).createReader();
+    // readEntries rend une page a la fois et signale la fin par une page vide.
+    // Un seul appel tronquerait un dossier vers la centaine d'entrees - soit,
+    // sur une serie DICOM, l'essentiel du contenu, et sans rien dire.
+    for (;;) {
+      const page = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+        reader.readEntries(resolve, reject),
+      );
+      if (page.length === 0) break;
+      for (const child of page) await walk(child, `${prefix}${entry.name}/`);
+    }
+  }
+  for (const root of roots) await walk(root, '');
+  return out;
+}
+
 function UploadDialog({
   dataset,
   prefix,
@@ -149,6 +191,13 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
   const [creatingFolder, setCreatingFolder] = React.useState(false);
   const [folderName, setFolderName] = React.useState('');
   const [renaming, setRenaming] = React.useState<{ from: string; to: string } | null>(null);
+  /* Un compteur et non un booleen : chaque enfant survole emet son propre
+     dragleave, et un booleen fait clignoter la zone pendant qu'on traverse
+     le tableau. */
+  const [dragDepth, setDragDepth] = React.useState(0);
+  const [dropping, setDropping] = React.useState<{ done: number; total: number; name: string } | null>(
+    null,
+  );
 
   const objects = useDatasetObjects(dataset.id, prefix);
 
@@ -156,6 +205,60 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
   React.useEffect(() => {
     setSelected(new Set());
   }, [dataset.id, prefix]);
+
+  /* Deposer dans le dossier ouvert, en gardant l'arborescence deposee.
+   *
+   *  Sequentiel et non en parallele : un depot de serie DICOM fait des
+   *  milliers de fichiers, et autant de requetes simultanees noient le
+   *  navigateur comme la passerelle. Un fichier a la fois donne aussi un
+   *  compteur qui veut dire quelque chose.
+   *
+   *  Rien n'est verifie ici sur le droit d'ecrire : c'est le serveur qui
+   *  tranche, comme pour le bouton de televersement, et son refus remonte
+   *  tel quel. Un controle cote navigateur en plus serait un deuxieme avis
+   *  a maintenir, qui finirait par contredire le premier. */
+  async function uploadDropped(files: DroppedFile[]) {
+    const headers = await getAuthHeaders();
+    const failed: string[] = [];
+    for (const [index, item] of files.entries()) {
+      setDropping({ done: index, total: files.length, name: item.path });
+      try {
+        await datasetsApi.upload(dataset.id, `${prefix}${item.path}`, item.file, { headers });
+      } catch {
+        failed.push(item.path);
+      }
+    }
+    setDropping(null);
+    invalidate(qk.datasetObjects(dataset.id, prefix));
+    if (failed.length === 0) {
+      toast.success(
+        t('datasets.dropDone', { count: String(files.length) }),
+        t('datasets.uploadTitle'),
+      );
+      return;
+    }
+    /* Les echecs sont nommes, et le nombre de reussites avec : « 3 fichiers
+       n'ont pas pu etre deposes » sans dire lesquels oblige a tout comparer
+       a la main. */
+    toast.error(
+      new Error(
+        t('datasets.dropPartly', {
+          ok: String(files.length - failed.length),
+          failed: String(failed.length),
+        }) + ' ' + failed.slice(0, 5).join(', '),
+      ),
+      t('datasets.uploadFailed'),
+    );
+  }
+
+  async function onDrop(event: React.DragEvent) {
+    event.preventDefault();
+    setDragDepth(0);
+    if (dropping) return;
+    const files = await flattenDrop(event.dataTransfer.items);
+    if (files.length === 0) return;
+    await uploadDropped(files);
+  }
 
   const { data: version } = useVersion();
   const isHds = dataset.classification === 'hds';
@@ -332,7 +435,43 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent
+        className="relative space-y-4"
+        onDragEnter={(event) => {
+          /* Seulement pour un depot de fichiers : faire reagir la zone a une
+             selection de texte traversee a la souris est du bruit. */
+          if (!event.dataTransfer.types.includes('Files')) return;
+          event.preventDefault();
+          setDragDepth((depth) => depth + 1);
+        }}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return;
+          // Sans preventDefault sur dragover, le navigateur refuse le depot et
+          // ouvre le fichier dans un onglet - ce qui, sur un DICOM, le
+          // telecharge.
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'copy';
+        }}
+        onDragLeave={() => setDragDepth((depth) => Math.max(0, depth - 1))}
+        onDrop={(event) => void onDrop(event)}
+      >
+        {dragDepth > 0 && !dropping ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-brand bg-brand-subtle/80">
+            <p className="text-sm font-medium text-brand-subtle-foreground">
+              {t('datasets.dropHere', { path: `/${prefix}` })}
+            </p>
+          </div>
+        ) : null}
+        {dropping ? (
+          <Progress
+            value={Math.round((dropping.done / Math.max(1, dropping.total)) * 100)}
+            label={t('datasets.dropProgress', {
+              done: String(dropping.done + 1),
+              total: String(dropping.total),
+              name: dropping.name,
+            })}
+          />
+        ) : null}
         <StatGrid className="sm:grid-cols-2 lg:grid-cols-2">
           <Stat
             label={t('datasets.filesCount')}

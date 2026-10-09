@@ -268,6 +268,11 @@ export const workspacesApi = {
     api.list<Workspace>(`${V1}/workspaces`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateWorkspaceInput) => api.post<Workspace>(`${V1}/workspaces`, input),
   remove: (workspaceId: string) => api.delete<void>(`${V1}/workspaces/${workspaceId}`),
+  /** Replaces the workspace's pod under the same name, from its own live
+   *  specification. The address stays valid, so there is nothing to reopen -
+   *  which is why this is a restart and not a relaunch. */
+  restart: (workspaceId: string) =>
+    api.post<Workspace>(`${V1}/workspaces/${workspaceId}/restart`, {}),
 };
 
 export interface CreateJobInput {

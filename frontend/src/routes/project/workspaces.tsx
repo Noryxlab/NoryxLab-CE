@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { Cpu, ExternalLink, HardDrive, Layers, Plus, Square, Terminal } from 'lucide-react';
+import { Cpu, ExternalLink, HardDrive, Layers, Plus, RotateCcw, Square, Terminal } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -23,10 +23,12 @@ function WorkspaceCard({
   workspace,
   environments,
   onStop,
+  onRestart,
 }: {
   workspace: Workspace;
   environments: Environment[];
   onStop: (workspace: Workspace) => void;
+  onRestart: (workspace: Workspace) => void;
 }) {
   const t = useT();
   const { locale } = useI18n();
@@ -107,6 +109,16 @@ function WorkspaceCard({
             {status.pending ? t('workspaces.openPending') : t('common.open')}
           </Button>
         )}
+        {/* Redémarrer avant arrêter : c'est le geste courant quand une
+            extension ne s'est pas chargée, et il ne détruit rien. Proposé
+            seulement sur un workspace qui tourne - il n'y a pas de pod à
+            remplacer sur un autre, et le serveur répond 409. */}
+        {running ? (
+          <Button variant="ghost" size="sm" onClick={() => onRestart(workspace)}>
+            <RotateCcw aria-hidden />
+            {t('workspaces.restart')}
+          </Button>
+        ) : null}
         <Button variant="ghost" size="sm" onClick={() => onStop(workspace)}>
           <Square aria-hidden />
           {t('workspaces.stop')}
@@ -139,6 +151,27 @@ export function WorkspacesPage() {
     },
     onError: (mutationError) => toast.error(mutationError, t('workspaces.stopTitle')),
   });
+
+  const restart = useMutation({
+    mutationFn: (workspaceId: string) => workspacesApi.restart(workspaceId),
+    onSuccess: () => {
+      invalidate(qk.workspaces(projectId), qk.projects);
+      toast.success(t('workspaces.restarted'), t('workspaces.restartTitle'));
+    },
+    onError: (mutationError) => toast.error(mutationError, t('workspaces.restartTitle')),
+  });
+
+  function confirmRestart(workspace: Workspace) {
+    // Confirmé, mais pas annoncé comme destructeur : rien n'est perdu, et
+    // teinter le bouton en rouge ferait hésiter sur le geste qu'on veut
+    // justement rendre facile.
+    ask({
+      title: t('workspaces.restartTitle'),
+      description: t('workspaces.restartWarning'),
+      confirmLabel: t('workspaces.restart'),
+      onConfirm: () => restart.mutateAsync(workspace.id),
+    });
+  }
 
   function confirmStop(workspace: Workspace) {
     ask({
@@ -189,6 +222,7 @@ export function WorkspacesPage() {
               workspace={workspace}
               environments={environments.data ?? []}
               onStop={confirmStop}
+              onRestart={confirmRestart}
             />
           ))}
         </div>

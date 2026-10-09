@@ -1203,34 +1203,48 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 		askPass := "/tmp/noryx-git-askpass-" + sanitizeWorkspacePathName(repo.Name)
 		credentialHelper := "/tmp/noryx-git-credential-" + sanitizeWorkspacePathName(repo.Name)
 		clonePrefix = fmt.Sprintf("GIT_ASKPASS=%s GIT_TERMINAL_PROMPT=0 ", shellQuote(askPass))
-		return []string{
-			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(askPass)),
-			"#!/bin/sh",
+		// The stored secret carries either "user:token" or a bare token.
+		//
+		// That convention existed in only one of the two places that needed
+		// it. Validation split it and authenticated correctly, so "Tester"
+		// reported the repository reachable; the clone sent the whole string
+		// as the password under a hardcoded "oauth2" username and failed. A
+		// person following the advice the interface itself gives - "for Azure
+		// DevOps, store the secret as user:personal-access-token" - got a
+		// repository that validated and would not clone, which is the worst
+		// of the three possible outcomes because the screen says it is fine.
+		//
+		// Split inside each script rather than in Go: the secret reaches the
+		// pod as an environment variable and never passes through this
+		// process. Per script rather than in exported variables, so two
+		// attached repositories cannot hand each other their credentials.
+		splitSecret := []string{
+			fmt.Sprintf("secret=$%s", repo.AuthEnvName),
+			"case \"$secret\" in",
+			"  *:*) user=${secret%%:*}; pass=${secret#*:} ;;",
+			"  *) user=oauth2; pass=$secret ;;",
+			"esac",
+		}
+		lines := []string{fmt.Sprintf("cat > %s <<'EOF'", shellQuote(askPass)), "#!/bin/sh"}
+		lines = append(lines, splitSecret...)
+		lines = append(lines,
 			"case \"$1\" in",
-			"  *Username*) printf '%s\\n' oauth2 ;;",
-			fmt.Sprintf("  *) printf '%%s\\n' \"$%s\" ;;", repo.AuthEnvName),
+			"  *Username*) printf '%s\\n' \"$user\" ;;",
+			"  *) printf '%s\\n' \"$pass\" ;;",
 			"esac",
 			"EOF",
 			fmt.Sprintf("chmod 700 %s", shellQuote(askPass)),
 			fmt.Sprintf("cat > %s <<'EOF'", shellQuote(credentialHelper)),
 			"#!/bin/sh",
 			"[ \"$1\" = get ] || exit 0",
-			"printf 'username=oauth2\\n'",
-			fmt.Sprintf("printf 'password=%%s\\n' \"$%s\"", repo.AuthEnvName),
+		)
+		lines = append(lines, splitSecret...)
+		lines = append(lines,
+			"printf 'username=%s\\n' \"$user\"",
+			"printf 'password=%s\\n' \"$pass\"",
 			"EOF",
-			fmt.Sprintf("chmod 700 %s", shellQuote(credentialHelper)),
-			fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
-			fmt.Sprintf("  %sgit -C %s pull --ff-only || echo '[bootstrap] pull failed for %s; the working copy is unchanged'", clonePrefix, shellQuote(repoDir), repo.Name),
-			"else",
-			fmt.Sprintf("  %sgit clone --depth 1 %s %s || {", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
-			fmt.Sprintf("    echo '[bootstrap] shallow clone of %s failed, retrying in full'", repo.Name),
-			fmt.Sprintf("    %sgit clone %s %s || echo '[bootstrap] CLONE FAILED for %s (%s); the workspace starts without it'", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir), repo.Name, strings.TrimSpace(repo.URL)),
-			"  }",
-			"fi",
-			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --replace-all credential.helper ''; fi", shellQuote(repoDir), shellQuote(repoDir)),
-			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --add credential.helper %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote("!"+credentialHelper)),
-			fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config credential.interactive never; fi", shellQuote(repoDir), shellQuote(repoDir)),
-		}
+		)
+		return append(lines, repositoryCloneLines(repo, repoDir, clonePrefix, credentialHelper)...)
 	}
 	return []string{
 		fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
@@ -1241,6 +1255,24 @@ func repositoryBootstrapLines(repo workspaceAttachedRepo, repoDir string) []stri
 		fmt.Sprintf("    git clone %s %s || echo '[bootstrap] CLONE FAILED for %s (%s); the workspace starts without it'", shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir), repo.Name, strings.TrimSpace(repo.URL)),
 		"  }",
 		"fi",
+	}
+}
+
+// repositoryCloneLines is the clone itself, shared by both credential paths.
+func repositoryCloneLines(repo workspaceAttachedRepo, repoDir, clonePrefix, credentialHelper string) []string {
+	return []string{
+		fmt.Sprintf("chmod 700 %s", shellQuote(credentialHelper)),
+		fmt.Sprintf("if [ -d %s/.git ]; then", shellQuote(repoDir)),
+		fmt.Sprintf("  %sgit -C %s pull --ff-only || echo '[bootstrap] pull failed for %s; the working copy is unchanged'", clonePrefix, shellQuote(repoDir), repo.Name),
+		"else",
+		fmt.Sprintf("  %sgit clone --depth 1 %s %s || {", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir)),
+		fmt.Sprintf("    echo '[bootstrap] shallow clone of %s failed, retrying in full'", repo.Name),
+		fmt.Sprintf("    %sgit clone %s %s || echo '[bootstrap] CLONE FAILED for %s (%s); the workspace starts without it'", clonePrefix, shellQuote(strings.TrimSpace(repo.URL)), shellQuote(repoDir), repo.Name, strings.TrimSpace(repo.URL)),
+		"  }",
+		"fi",
+		fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --replace-all credential.helper ''; fi", shellQuote(repoDir), shellQuote(repoDir)),
+		fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config --add credential.helper %s; fi", shellQuote(repoDir), shellQuote(repoDir), shellQuote("!"+credentialHelper)),
+		fmt.Sprintf("if [ -d %s/.git ]; then git -C %s config credential.interactive never; fi", shellQuote(repoDir), shellQuote(repoDir)),
 	}
 }
 
@@ -1820,6 +1852,80 @@ func (h Handlers) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		"name":    record.Name,
 		"podName": record.PodName,
 	})
+}
+
+// RestartWorkspace restarts the software a workspace runs, by replacing its
+// pod in place.
+//
+// The gap this closes: applications, dashboards, deployed endpoints and data
+// services all had a restart; workspaces had launch and delete and nothing
+// between. So a Slicer extension that only loads at start-up - nnInteractive
+// and ScriptEditor among them - could not be made to work at all: restarting
+// the application is impossible from inside Slicer's own interface when it is
+// the pod's main process, and the only remaining gesture was to delete the
+// workspace and launch another one, under a new identity.
+//
+// The pod is replaced under the same name, from its own live specification.
+// Nothing is re-derived here, and that is the point: the volumes, the
+// bootstrap secret, the environment and the mounted datasets are whatever the
+// launch decided, so a restart cannot quietly give back a workspace different
+// from the one the person had. The record, the service and the volumes are
+// untouched, so the address in their browser keeps working.
+//
+// What it does not do is bring back a workspace whose pod is gone. There is
+// nothing to read a specification from, and inventing one would be launching a
+// new workspace while calling it a restart.
+func (h Handlers) RestartWorkspace(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := strings.TrimSpace(r.PathValue("workspaceID"))
+	if workspaceID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "workspaceID is required"})
+		return
+	}
+	record, found, err := h.workspaceStore.GetByID(workspaceID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read workspace"})
+		return
+	}
+	if !found {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "workspace not found"})
+		return
+	}
+	// The same right that launches and deletes. Restarting is neither more
+	// nor less than relaunching what you could have launched.
+	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "workspace restart") {
+		return
+	}
+	operator, supported := h.runtime.(noryxruntime.PodOperator)
+	if h.runtime == nil || !supported {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "restart is not supported by this runtime"})
+		return
+	}
+	if err := operator.RestartPod(record.PodName); err != nil {
+		if isNotFoundError(err) {
+			// Named, because "restart failed" on a workspace whose pod is gone
+			// sends somebody looking for a fault that is not there.
+			writeJSON(w, http.StatusConflict, map[string]string{
+				"error": "this workspace is not running; launch it again instead",
+			})
+			return
+		}
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to restart workspace: " + err.Error()})
+		return
+	}
+	// The status is not written here, and deliberately. A workspace's status is
+	// read back from the runtime on every listing (syncWorkspacesFromRuntime),
+	// so the stored value is a cache and not the truth; setting it would need a
+	// store method that exists for nothing else, and would be overwritten by
+	// the next sweep anyway - with the real answer.
+	h.emitAudit(r, userID, "workspace.restart", "workspace", record.ID, record.ProjectID, "success", "", map[string]any{
+		"name":    record.Name,
+		"podName": record.PodName,
+	})
+	writeJSON(w, http.StatusAccepted, record)
 }
 
 // deleteWorkspaceResources tears down the Kubernetes objects backing a
