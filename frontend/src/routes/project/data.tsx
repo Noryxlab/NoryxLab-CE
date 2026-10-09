@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { Database, FolderGit2, Link2, Network, Plug, Unlink } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, FolderGit2, Link2, Network, Plug, Unlink } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
@@ -280,6 +280,31 @@ export function ProjectDataPage() {
       cell: (repository) => (
         <span className="font-mono text-xs text-muted-foreground">/repos/{repository.name}</span>
       ),
+    },
+    {
+      /* L'etat de la derniere verification, ici et pas seulement au
+         catalogue. Attacher un depot injoignable est permis - celui qui
+         attache en sait plus que la sonde - mais il doit le voir la ou il
+         vient de l'attacher, et non le decouvrir au lancement d'un workspace
+         devant un dossier /repos vide. */
+      id: 'reachable',
+      header: t('common.status'),
+      sortValue: (repository) => (repository.reachable ? 1 : 0),
+      cell: (repository) =>
+        repository.reachable ? (
+          <span className="flex items-center gap-1.5 text-xs text-success">
+            <CheckCircle2 className="size-3.5" aria-hidden />
+            {t('repositories.reachable')}
+          </span>
+        ) : (
+          <span
+            className="flex items-center gap-1.5 text-xs text-warning"
+            title={repository.validationError}
+          >
+            <AlertTriangle className="size-3.5" aria-hidden />
+            {t('repositories.unreachable')}
+          </span>
+        ),
     },
     {
       id: 'updatedAt',

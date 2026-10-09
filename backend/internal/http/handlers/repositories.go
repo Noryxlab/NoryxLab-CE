@@ -382,15 +382,23 @@ func (h Handlers) AttachProjectRepository(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
+	// Probed to refresh the flag, never to refuse the attachment.
+	//
+	// Creation stopped vetoing on a failed probe; this did not, so the refusal
+	// simply moved one screen later - Samy could add his Azure DevOps
+	// repository and then could not attach it, with the same sentence. A veto
+	// removed in one place and left in another is not removed.
+	//
+	// Attaching an unreachable repository is safe: a clone that fails at
+	// launch is already reported by the bootstrap and the workspace starts
+	// without it. What the person loses by being refused is the ability to
+	// set the project up at all, which is worse than a repository that may
+	// not clone - and they are the one who knows whether it will.
 	validationErr := validateRepositoryConnectivity(item.URL, secretValue)
 	setRepositoryValidation(&item, validationErr)
 	item.UpdatedAt = time.Now().UTC()
 	if err := h.repositoryStore.Update(item); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist repository validation"})
-		return
-	}
-	if validationErr != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "repository cannot be attached: " + validationErr.Error()})
 		return
 	}
 	if err := h.projectResourceStore.AttachRepository(projectID, repositoryID); err != nil {
