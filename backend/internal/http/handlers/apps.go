@@ -890,34 +890,10 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 	}
-	mots := make([]string, 0, len(launchArgv))
-	for _, word := range launchArgv {
-		if strings.TrimSpace(word) != "" {
-			mots = append(mots, strings.TrimSpace(word))
-		}
-	}
-	launch := make([]string, 0, len(mots))
-	// Un seul mot qui contient des espaces est une ligne de commande, pas un
-	// argv.
-	//
-	// Le contrat est bien "des mots" - le formulaire decoupe ce que la
-	// personne tape, et l'API prend command et args en tableaux - mais qui
-	// appelle l'API a la main ecrit ce qu'il aurait tape : un POST portant
-	// {"args":["python3 -m http.server 9000 --directory /tmp"]} devenait
-	// `exec 'python3 -m http.server ...'`, un seul mot, donc un programme de
-	// ce nom-la, introuvable : code 127, une seconde apres le demarrage, et
-	// une app "en echec" sans rien dire de plus.
-	//
-	// Un shell est donc interpose dans ce cas precis, et seulement celui-la :
-	// des que l'argv compte plusieurs mots, chacun reste un mot, ce qui est la
-	// propriete que le commentaire ci-dessus existe pour defendre.
-	if len(mots) == 1 && strings.ContainsAny(mots[0], " \t") {
-		launch = append(launch, "sh", "-c", shellQuote(mots[0]))
-	} else {
-		for _, mot := range mots {
-			launch = append(launch, shellQuote(mot))
-		}
-	}
+	// Les mots du lanceur, rendus par launch_argv.go : la meme regle sert aux
+	// jobs, qui la perdaient.
+	mots := commandWords(launchArgv)
+	launch := launchWords(mots)
 	// After the install, before the launch: "importable" has to mean what it
 	// will mean when the application starts, and the warning has to be in the
 	// log before the traceback that it explains.

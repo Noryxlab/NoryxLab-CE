@@ -129,12 +129,22 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
 		return
 	}
-	command := req.Command
-	args := req.Args
-	if len(command) == 0 {
-		command = []string{"/bin/sh", "-lc"}
-		args = []string{jobBootstrapScript(req.Args, attachedRepos, montage)}
-	}
+	// Always through the bootstrap, the way an app is.
+	//
+	// It used to run only when the caller named no command - and the screen
+	// names one. The jobs dialog sends what the user typed as `command`, so
+	// every job and every schedule started from the UI ran as the container's
+	// entrypoint with none of the platform's setup: no extract tree under
+	// /extracts, no repository in /repos, no requirements installed. The
+	// bootstrap secret was mounted beside it and read by nobody, which is what
+	// gave the gate away.
+	//
+	// Apps never had it and merge the two fields into one launch argv. These
+	// do the same now, because that is what the fields are for: `command` and
+	// `args` say what to run, not whether the platform should prepare the
+	// environment first.
+	command := []string{"/bin/sh", "-lc"}
+	args := []string{jobBootstrapScript(append(append([]string{}, req.Command...), req.Args...), attachedRepos, montage)}
 
 	if h.runtime != nil {
 		bootstrapSecretName := jobName + "-bootstrap"
@@ -480,8 +490,14 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
 	}
-	if len(userArgs) > 0 {
-		lines = append(lines, strings.Join(userArgs, " "))
+	// Chaque mot reste un mot, comme pour une app.
+	//
+	// Les mots etaient rejoints par des espaces et relus par le shell, donc un
+	// argument contenant une espace se cassait en deux. Le defaut dormait tant
+	// que l'ecran des jobs contournait ce script; il est vivant maintenant
+	// qu'il y passe.
+	if words := commandWords(userArgs); len(words) > 0 {
+		lines = append(lines, "exec "+strings.Join(launchWords(words), " "))
 	} else {
 		lines = append(lines, "echo 'job finished: no command provided'")
 	}
