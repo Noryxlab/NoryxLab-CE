@@ -1667,23 +1667,50 @@ func continueDeveloperAssistantConfig(publicURL, token, productName string) stri
 	if product == "" {
 		product = "Noryx"
 	}
-	return strings.Join([]string{
+	// Two entries, because they are two different answers.
+	//
+	// One entry named "noryx-workspace" offered no choice and told nobody
+	// which engine had replied: the assistant service overwrote the model
+	// with the installation's own, so a developer could not ask for more
+	// deliberation on a hard question or less on a quick one, and could not
+	// tell afterwards which they had got.
+	//
+	// The names are the gateway's tiers, deliberately. A label invented here
+	// would be a third vocabulary to keep in step with the gateway's and the
+	// assistant's, and the one thing this platform promises is that the
+	// engine underneath changes without anybody noticing - so the name a
+	// person picks has to be the name the routing understands.
+	//
+	// An installation that lists no allowed models keeps answering with its
+	// configured one for both, which is the previous behaviour rather than a
+	// broken menu: the choice becomes real when the deployment says which
+	// tiers it offers.
+	lines := []string{
 		"name: " + product + " Workspace",
 		"version: 0.0.1",
 		"schema: v1",
 		"models:",
-		"  - name: " + product + " Assistant",
-		"    provider: openai",
-		"    model: noryx-workspace",
-		"    apiBase: " + yamlSingleQuoted(apiBase),
-		"    apiKey: " + yamlSingleQuoted(token),
-		"    useResponsesApi: false",
-		"    roles:",
-		"      - chat",
-		"      - edit",
-		"      - apply",
-		"    capabilities:",
-		"      - tool_use",
+	}
+	for _, model := range []struct{ label, tier, note string }{
+		{product + " Assistant", "llmaas", "quick answers"},
+		{product + " Assistant (reasoning)", "llmaas-reasoning", "harder questions, slower"},
+	} {
+		lines = append(lines,
+			"  - name: "+model.label,
+			"    provider: openai",
+			"    model: "+model.tier,
+			"    apiBase: "+yamlSingleQuoted(apiBase),
+			"    apiKey: "+yamlSingleQuoted(token),
+			"    useResponsesApi: false",
+			"    roles:",
+			"      - chat",
+			"      - edit",
+			"      - apply",
+			"    capabilities:",
+			"      - tool_use",
+		)
+	}
+	return strings.Join(append(lines, []string{
 		"context:",
 		"  - provider: code",
 		"  - provider: diff",
@@ -1692,7 +1719,7 @@ func continueDeveloperAssistantConfig(publicURL, token, productName string) stri
 		"  - When the user asks about Git, repositories, commits, or pushes, inspect /repos and the relevant .git directory before saying a repository or remote is unavailable.",
 		"  - Git credentials are provisioned by " + product + " when a repository is attached to the project; use normal git commands from the repository directory instead of asking the user for credentials.",
 		"  - Do not ask for secrets, credentials, host paths, Kubernetes access, platform internals, or data from other workspaces.",
-	}, "\n")
+	}...), "\n")
 }
 
 func yamlSingleQuoted(value string) string {

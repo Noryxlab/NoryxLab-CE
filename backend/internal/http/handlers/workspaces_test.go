@@ -370,3 +370,47 @@ func TestRegulatedDataIsRecognisedWhateverTheSpelling(t *testing.T) {
 		}
 	}
 }
+
+// La configuration de Continue offre les deux paliers, nommes comme la
+// passerelle les nomme.
+//
+// Une seule entree, "noryx-workspace", n'offrait aucun choix et ne disait pas
+// qui avait repondu : le service assistant ecrasait le modele par celui de
+// l'installation. Un developpeur ne pouvait ni demander plus de deliberation
+// sur une question difficile, ni moins sur une rapide, ni savoir apres coup
+// ce qu'il avait eu.
+//
+// Les noms sont ceux des paliers de la passerelle, et pas des etiquettes
+// inventees ici : une troisieme nomenclature a tenir en phase avec celle de
+// la passerelle et celle de l'assistant finirait par diverger, et c'est le
+// nom que la personne choisit qui doit etre celui que le routage comprend.
+func TestLaConfigurationContinueOffreLesDeuxPaliers(t *testing.T) {
+	config := continueDeveloperAssistantConfig("https://datalab.example.org", "jeton", "Premyom")
+
+	for _, attendu := range []string{
+		"    model: llmaas\n",
+		"    model: llmaas-reasoning\n",
+		"  - name: Premyom Assistant\n",
+		"  - name: Premyom Assistant (reasoning)\n",
+	} {
+		if !strings.Contains(config, attendu) {
+			t.Errorf("la configuration doit porter %q :\n%s", attendu, config)
+		}
+	}
+	// L'ancien nom ne doit plus apparaitre : il ne correspond a aucun palier,
+	// et le laisser serait offrir une entree que le routage ne comprend pas.
+	if strings.Contains(config, "noryx-workspace") {
+		t.Errorf("l'ancien nom de modele ne doit plus etre propose :\n%s", config)
+	}
+	// Les deux entrees gardent les outils, sans quoi le mode agent ne marche
+	// que sur l'une des deux.
+	if strings.Count(config, "      - tool_use") != 2 {
+		t.Errorf("les deux modeles doivent declarer tool_use :\n%s", config)
+	}
+	// Et le reste du fichier survit a la boucle qui construit les modeles.
+	for _, attendu := range []string{"context:", "rules:", "  - provider: diff"} {
+		if !strings.Contains(config, attendu) {
+			t.Errorf("la configuration doit garder %q :\n%s", attendu, config)
+		}
+	}
+}
