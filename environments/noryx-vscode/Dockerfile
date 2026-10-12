@@ -1,7 +1,7 @@
 FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    OPENVSCODE_VERSION=1.99.3 \
+    OPENVSCODE_VERSION=1.109.5 \
     OPENVSCODE_DATA_DIR=/home/noryx/.openvscode-server \
     NORYX_WORKSPACE_IDE=vscode \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -79,8 +79,66 @@ RUN useradd -m -s /bin/bash noryx \
  && mkdir -p /mnt /repos /datasets /extracts /home/noryx/.noryx-profile /opt/noryx-vscode/data/Machine /opt/noryx-vscode/extensions \
  && chown -R noryx:noryx /home/noryx /mnt /repos /datasets /extracts /opt/noryx-vscode
 
+# Does every extension's runtime floor fit the Node this editor ships?
+#
+# The question that was never asked, and the one that cost the code assistant.
+# An extension is installed on its "engines.vscode" alone; "engines.node" is
+# checked by nobody. Continue 2.x wants Node 20.20.1, the editor pinned here
+# shipped 20.18.3, so it installed, reported success, and never activated. The
+# platform went on writing its configuration faithfully into a workspace where
+# the assistant did not exist, and the loss looked like a platform fault.
+#
+# Nothing here pins the extensions, deliberately: they come from a registry
+# and move on their own. What is pinned is the editor, so the mismatch is a
+# build-time fact and this is where it belongs - a failed build leaves
+# yesterday's image serving, which is a platform with an assistant.
+COPY <<'CHECK' /usr/local/bin/noryx-check-extension-runtimes
+import glob, json, re, sys
+
+node = open("/opt/noryx-vscode/NODE_VERSION").read().strip().lstrip("v")
+have = [int(p) for p in node.split(".")[:3]]
+problems = []
+for manifest in glob.glob("/opt/noryx-vscode/extensions/*/package.json"):
+    try:
+        engines = json.load(open(manifest)).get("engines", {})
+    except (OSError, ValueError):
+        continue
+    want = str(engines.get("node", "")).strip()
+    matched = re.match(r"^>=\s*(\d+)\.(\d+)\.(\d+)", want)
+    if not matched:
+        continue
+    floor = [int(g) for g in matched.groups()]
+    if have < floor:
+        problems.append(f"{manifest.split('/')[-2]} wants node {want}, image ships {node}")
+for problem in problems:
+    print("extension runtime mismatch:", problem, file=sys.stderr)
+if problems:
+    sys.exit(1)
+print(f"extension runtimes: all satisfied by node {node}")
+CHECK
+
 USER noryx
 
+# The editor's extensions, and a build that fails when one of them does not
+# arrive.
+#
+# This loop used to end in "|| true". A registry that answered badly - or an
+# extension whose identifier moved - therefore produced an image that built,
+# published and started, missing a tool the product promises. That is what
+# happened to the code assistant: Continue disappeared from the image, the
+# nightly rebuild changed IMAGE_BUILD, and the bootstrap dutifully copied the
+# new extension set over every profile that had one. The loss propagated to
+# people who already had it working.
+#
+# Failing the build is the right answer precisely because the rebuild is
+# nightly: a build that fails leaves yesterday's image in place, which is a
+# working platform. A build that succeeds half-equipped replaces it.
+#
+# The install is checked a second time against the disk, because reporting
+# success and producing nothing are not the same thing and only one of them
+# is visible here. Pylance is excluded from that check: it is proprietary and
+# resolves to a different directory name depending on what the registry
+# serves, so asserting its path would fail for a reason that is not a fault.
 RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
  && printf '%s\n' \
     '{' \
@@ -92,8 +150,13 @@ RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
     '}' > "/opt/noryx-vscode/data/Machine/settings.json" \
  && set -eux; \
     for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
-      openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext" || true; \
-    done
+      openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext"; \
+    done; \
+    for ext in ms-python.python ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
+      ls -d "/opt/noryx-vscode/extensions/$(echo "$ext" | tr "[:upper:]" "[:lower:]")"-* >/dev/null; \
+    done; \
+    /opt/openvscode-server/node --version > /opt/noryx-vscode/NODE_VERSION; \
+    python3 /usr/local/bin/noryx-check-extension-runtimes
 
 # What the workspace bootstrap compares against, to know this image has moved.
 #
