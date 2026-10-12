@@ -302,6 +302,45 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 	}
 	volumes = append(volumes, datasetVolumes...)
 
+	// Le manifeste des extraits fait partie de "tout ce qui l'entoure", et en
+	// avait ete oublie.
+	//
+	// Le script reutilise teste /var/run/noryx/bootstrap/extracts.b64 avant de
+	// construire quoi que ce soit, et un redemarrage ne montait aucun secret
+	// la : le fichier etait absent, le test echouait sans bruit, et une
+	// application qui avait un arbre d'extraits revenait sans. Rien ne le
+	// disait - le script est ecrit pour continuer, le pod est sain, /extracts
+	// est simplement vide.
+	//
+	// Recree plutot que simplement remonte : la selection a pu changer de
+	// forme depuis le demarrage, et le secret stocke rebatirait l'arbre que le
+	// projet ne demande plus. CreateSecret ecrase sur conflit, donc c'est la
+	// meme instruction dans les deux cas.
+	//
+	// Reste une limite que ceci ne leve pas : une app demarree quand le projet
+	// n'avait aucun extrait porte un script sans bloc de construction, et le
+	// record garde le script et non l'argv tape, donc le regenerer est
+	// impossible. Attacher un extrait ensuite demande une nouvelle app.
+	appSecretMounts := []noryxruntime.SecretMount{}
+	if data := extractSecretData(h.extractMountFor(record.ProjectID, attachedDatasets)); data != nil {
+		bootstrapSecretName := record.PodName + "-bootstrap"
+		if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
+			Name: bootstrapSecretName,
+			Data: data,
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "noryx-workload-bootstrap",
+				"noryx.io/app-id":        record.ID,
+			},
+		}); err != nil {
+			return fmt.Errorf("bootstrap secret: %w", err)
+		}
+		appSecretMounts = append(appSecretMounts, noryxruntime.SecretMount{
+			SecretName: bootstrapSecretName,
+			MountPath:  "/var/run/noryx/bootstrap",
+			ReadOnly:   true,
+		})
+	}
+
 	// Deleting first, and tolerating its absence: a stopped application has no
 	// pod, and that is the case this whole function exists to serve.
 	_ = h.runtime.DeletePod(record.PodName)
@@ -318,6 +357,7 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 		Image:                   record.Image,
 		Command:                 record.Command,
 		Args:                    record.Args,
+		Secrets:                 appSecretMounts,
 		Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 		Ports:                   []int{record.Port},
 		ReadinessPort:           record.Port,
