@@ -1438,6 +1438,20 @@ func (h Handlers) resolveOrganization(identifier string) (keycloak.Organization,
 	return keycloak.Organization{}, false
 }
 
+// datasetObjectsFollowTheRegistration says whether removing this dataset's
+// registration also destroys what it holds.
+//
+// Only for a bucket the platform created itself, and never for regulated data.
+// The provider is the weak half of that test: dataset.New defaults it to
+// "minio" when a caller names none, so an external bucket registered by a
+// script or by a form with the field left empty reads as local. The
+// classification is the half that cannot be defaulted into the wrong answer.
+func datasetObjectsFollowTheRegistration(item dataset.Dataset) bool {
+	return item.Classification != "hds" &&
+		item.Provider == "minio" &&
+		strings.TrimSpace(item.Bucket) != ""
+}
+
 func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -1468,7 +1482,32 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if item.Provider == "minio" && h.minioClient != nil && strings.TrimSpace(item.Bucket) != "" {
+	// Regulated data is never destroyed by removing its registration.
+	//
+	// The branch below empties the bucket and then removes it, and it is
+	// guarded by a provider string that defaults to "minio" whenever the
+	// caller named none - dataset.New does that, deliberately, for the
+	// platform's own buckets. So a regulated bucket registered without a
+	// provider, by a script or by a form that left the field empty, would be
+	// marked local and deleting the registration would delete the patients'
+	// files. Nothing about the classification was consulted.
+	//
+	// Measured on 2026-10-12 before withdrawing HDS access from the sandbox
+	// installation: the three HDS datasets there carried "s3" and
+	// "clever-cloud", so the branch would not have fired. That is luck, not
+	// design, and the operation about to be performed is exactly the one this
+	// would have turned into a disaster.
+	//
+	// So the two acts are separated. Withdrawing a dataset is a decision about
+	// access; destroying what it holds is a decision about data, and the
+	// second never rides along with the first. A platform-hosted bucket that
+	// genuinely has to go is emptied through the object routes, by somebody
+	// who typed that intent.
+	if item.Classification == "hds" && item.Provider == "minio" && h.minioClient != nil {
+		log.Printf("dataset %s (%s) deregistered; its bucket %q was kept: an HDS dataset's objects are never removed with its registration",
+			item.ID, item.Name, item.Bucket)
+	}
+	if datasetObjectsFollowTheRegistration(item) && h.minioClient != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
 		objects := h.minioClient.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Recursive: true})
