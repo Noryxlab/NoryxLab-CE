@@ -143,8 +143,17 @@ writes nothing to a regulated bucket.
 **Names are lowercased and cleaned.** `SELENA-01-001` becomes
 `selena-01-001`. It is the same rule every platform-built path follows.
 
-**The tree is rebuilt at every start.** It is emptied first, so changing an
-extract's layout and restarting gives you the new tree and not both at once.
+**The tree is rebuilt at every start.** It is emptied first, so two layouts
+never end up superimposed, both made of valid links with nothing saying which
+is current.
+
+**But a restart replays the list the workload started with.** The file list
+travels in a Kubernetes secret written when the workspace was launched, and
+restarting a workspace restarts its container against that same secret. So
+changing an extract's layout, or attaching a dataset the extract needed, and
+then restarting gives you the tree you already had. A **new** workspace picks
+up the change. An application is the exception since 2026-10-12: its restart
+recomputes the list first.
 
 The startup log says what happened:
 
@@ -166,7 +175,9 @@ of broken files. The startup log names it:
             to point at
 ```
 
-Attach the dataset to the same project and restart.
+Attach the dataset to the same project and launch a new workspace. Restarting
+the one you have will not do: it replays the list computed at launch, when the
+dataset was still missing.
 
 **The file list is too large to ship.** The list travels in a Kubernetes
 secret, capped at a megabyte. A very large extract is refused out loud rather

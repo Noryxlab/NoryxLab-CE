@@ -35,6 +35,16 @@ dataset and re-filter in its own code. That is the thing an extract exists to
 remove, and recording what was mounted is worth little while what was mounted
 could not be the selection.
 
+That last sentence was truer than intended until 2026-10-12. The script a job
+runs was built only when the request named no command, and the jobs screen
+names one - it sends what the user typed in `command`. So a job started from
+the interface ran as the container's entrypoint, with no extract tree, no
+repository cloned and no requirements installed, while this record named the
+extracts it was supposed to have read. The record claimed more than the run
+did, which is the one thing a provenance record must never do. Both halves are
+fixed: the environment is prepared whether or not a command is named, and a
+test asserts what the runtime receives rather than what the script says.
+
 Two details are worth knowing, because both are the difference between a
 record and a guess:
 
