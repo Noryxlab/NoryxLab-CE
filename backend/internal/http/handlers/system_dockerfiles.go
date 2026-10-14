@@ -169,6 +169,14 @@ USER noryx
 # nightly: a build that fails leaves yesterday's image in place, which is a
 # working platform. A build that succeeds half-equipped replaces it.
 #
+# Mais chaque extension est demandee jusqu'a trois fois avant d'abandonner.
+# Sans cela la stricture se retournait contre elle-meme : le 2026-10-14 la
+# reconstruction est tombee sur "read ECONNRESET" en recuperant
+# charliermarsh.ruff, et une coupure reseau d'une seconde a coute la nuit
+# entiere. Refuser une image amputee est juste; refuser une image parce que
+# le marketplace a hoquete ne l'est pas. Trois echecs de suite restent un
+# echec, et le build s'arrete alors en nommant l'extension.
+#
 # The install is checked a second time against the disk, because reporting
 # success and producing nothing are not the same thing and only one of them
 # is visible here. Pylance is excluded from that check: it is proprietary and
@@ -185,7 +193,13 @@ RUN mkdir -p "/opt/noryx-vscode/data/Machine" \
     '}' > "/opt/noryx-vscode/data/Machine/settings.json" \
  && set -eux; \
     for ext in ms-python.python ms-python.vscode-pylance ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
-      openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext"; \
+      installe=0; \
+      for essai in 1 2 3; do \
+        if openvscode-server --user-data-dir /opt/noryx-vscode/data --extensions-dir /opt/noryx-vscode/extensions --install-extension "$ext"; then installe=1; break; fi; \
+        echo "extension $ext: tentative $essai echouee, nouvelle tentative dans 5s" >&2; \
+        sleep 5; \
+      done; \
+      if [ "$installe" = 0 ]; then echo "extension $ext: abandon apres 3 tentatives" >&2; exit 1; fi; \
     done; \
     for ext in ms-python.python ms-python.debugpy ms-toolsai.jupyter charliermarsh.ruff Continue.continue; do \
       ls -d "/opt/noryx-vscode/extensions/$(echo "$ext" | tr "[:upper:]" "[:lower:]")"-* >/dev/null; \
