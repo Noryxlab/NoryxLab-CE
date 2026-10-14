@@ -49,6 +49,28 @@ spec:
         - podSelector:
             matchLabels:
               noryx.io/identity-backup: "true"
+        # And the database backup, which was missing here from the day it was
+        # scheduled.
+        #
+        # Both backups were added on 2026-09-14 with a label each; only the
+        # identity one was named in this policy. So pg_dump could not reach
+        # postgres, and the job's own wait loop reported "postgres injoignable"
+        # after sixty seconds - blaming the database for a refusal that came
+        # from this file.
+        #
+        # It stayed invisible because a CronJob that fails is a pod in
+        # Init:Error and nothing else: alerting has no destination on either
+        # installation. Measured on 2026-10-14, the sandbox had gone five days
+        # with no database backup while its identity backup ran nightly, which
+        # is the shape that hides this - half the backup working.
+        #
+        # The production installation did not have the gap, because somebody
+        # added the selector to the live object by hand and never brought it
+        # back here. That is worse than the gap: the next apply of this file
+        # would have removed it and taken the working backup with it.
+        - podSelector:
+            matchLabels:
+              noryx.io/database-backup: "true"
       ports:
         - protocol: TCP
           port: 5432
