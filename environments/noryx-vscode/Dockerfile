@@ -58,19 +58,15 @@ RUN mkdir -p /opt/openvscode-server \
     | tar -xz --strip-components=1 -C /opt/openvscode-server \
  && ln -sf /opt/openvscode-server/bin/openvscode-server /usr/local/bin/openvscode-server
 
-RUN python3 - <<'PY'
-import json
-from pathlib import Path
-p = Path("/opt/openvscode-server/product.json")
-data = json.loads(p.read_text(encoding="utf-8"))
-data["extensionsGallery"] = {
-    "serviceUrl": "https://marketplace.visualstudio.com/_apis/public/gallery",
-    "itemUrl": "https://marketplace.visualstudio.com/items",
-    "cacheUrl": "https://vscode.blob.core.windows.net/gallery/index",
-    "controlUrl": ""
-}
-p.write_text(json.dumps(data, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
-PY
+# Idem, et celui-ci etait pire parce qu'il etait muet.
+#
+# Un RUN heredoc passait a sh sa commande sans
+# son corps : python lisait une entree vide, ne faisait rien, et Kaniko
+# notait "No files were changed". Toutes les images reconstruites dans le
+# cluster partaient donc sans marketplace configure, et une extension
+# installee par un utilisateur n'avait aucune galerie a interroger.
+COPY environments/noryx-vscode/noryx-configure-extension-gallery /tmp/noryx-configure-extension-gallery
+RUN python3 /tmp/noryx-configure-extension-gallery && rm -f /tmp/noryx-configure-extension-gallery
 
 RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
@@ -92,30 +88,21 @@ RUN useradd -m -s /bin/bash noryx \
 # and move on their own. What is pinned is the editor, so the mismatch is a
 # build-time fact and this is where it belongs - a failed build leaves
 # yesterday's image serving, which is a platform with an assistant.
-COPY <<'CHECK' /usr/local/bin/noryx-check-extension-runtimes
-import glob, json, re, sys
-
-node = open("/opt/noryx-vscode/NODE_VERSION").read().strip().lstrip("v")
-have = [int(p) for p in node.split(".")[:3]]
-problems = []
-for manifest in glob.glob("/opt/noryx-vscode/extensions/*/package.json"):
-    try:
-        engines = json.load(open(manifest)).get("engines", {})
-    except (OSError, ValueError):
-        continue
-    want = str(engines.get("node", "")).strip()
-    matched = re.match(r"^>=\s*(\d+)\.(\d+)\.(\d+)", want)
-    if not matched:
-        continue
-    floor = [int(g) for g in matched.groups()]
-    if have < floor:
-        problems.append(f"{manifest.split('/')[-2]} wants node {want}, image ships {node}")
-for problem in problems:
-    print("extension runtime mismatch:", problem, file=sys.stderr)
-if problems:
-    sys.exit(1)
-print(f"extension runtimes: all satisfied by node {node}")
-CHECK
+# Copie d'un fichier du contexte, et non un heredoc.
+#
+# Ce bloc etait un COPY heredoc, de la syntaxe BuildKit. Docker
+# l'accepte, donc l'image construite sur la VM de build etait juste et a
+# ete deployee - et Kaniko, qui reconstruit les environnements dans le
+# cluster chaque nuit, ne la connait pas : il echoue sur
+# "failed to get files used from context: resolved envs is empty". Le
+# cronjob noryx-environment-rebuild a donc echoue chaque nuit depuis le
+# 2026-10-12, sans que rien ne le dise, l'alerte n'ayant pas de
+# destination sur cette installation.
+# Le chemin part de la racine du depot, parce que c'est le contexte des deux
+# constructeurs : le cronjob passe --context=git://...NoryxLab-CE.git et le
+# build documente est "docker build -f environments/noryx-vscode/Dockerfile .".
+# Un nom de fichier nu aurait ete cherche a la racine, et manque.
+COPY environments/noryx-vscode/noryx-check-extension-runtimes /usr/local/bin/noryx-check-extension-runtimes
 
 USER noryx
 

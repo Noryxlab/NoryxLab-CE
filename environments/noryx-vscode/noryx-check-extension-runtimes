@@ -1,0 +1,22 @@
+import glob, json, re, sys
+
+node = open("/opt/noryx-vscode/NODE_VERSION").read().strip().lstrip("v")
+have = [int(p) for p in node.split(".")[:3]]
+problems = []
+for manifest in glob.glob("/opt/noryx-vscode/extensions/*/package.json"):
+    try:
+        engines = json.load(open(manifest)).get("engines", {})
+    except (OSError, ValueError):
+        continue
+    want = str(engines.get("node", "")).strip()
+    matched = re.match(r"^>=\s*(\d+)\.(\d+)\.(\d+)", want)
+    if not matched:
+        continue
+    floor = [int(g) for g in matched.groups()]
+    if have < floor:
+        problems.append(f"{manifest.split('/')[-2]} wants node {want}, image ships {node}")
+for problem in problems:
+    print("extension runtime mismatch:", problem, file=sys.stderr)
+if problems:
+    sys.exit(1)
+print(f"extension runtimes: all satisfied by node {node}")
