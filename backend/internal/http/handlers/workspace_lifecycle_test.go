@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -312,7 +313,11 @@ func TestLePodDuWorkspacePorteLeGroupeDesImages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(source), "FSGroup:                 1000,") {
+	// Sur une expression reguliere et non sur le texte exact : l'assertion
+	// porte sur "le pod passe fsGroup 1000", pas sur un alignement. Ajouter un
+	// champ plus long au litteral faisait realigner gofmt et cassait le test
+	// sans que rien ne change dans le pod.
+	if !regexp.MustCompile(`FSGroup:\s+1000,`).Match(source) {
 		t.Fatal("le pod du workspace doit passer FSGroup: 1000, comme les images qu'il demarre")
 	}
 }

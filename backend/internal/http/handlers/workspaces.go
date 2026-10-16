@@ -736,12 +736,46 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 
 		// An extract mounts as a tree of links over the dataset that is already
 		// mounted: nothing is copied, and the source stays read-only.
-		extractEntries, extractSkipped := h.extractMountEntries(req.ProjectID, attachedDatasets)
+		extractEntries, extractSkipped, extractToFill := h.extractMountEntries(req.ProjectID, attachedDatasets)
 		extractManifest, extractFits := encodeExtractManifest(extractEntries)
 		extractRefused := 0
 		if !extractFits {
 			extractRefused = len(extractEntries)
 			extractManifest = ""
+		}
+
+		// Les selections dont le projet n'a pas attache le bucket.
+		//
+		// Elles ne peuvent pas etre des liens : rien ne monte le bucket la ou
+		// la charge pourrait le suivre, et c'est la frontiere qu'on veut.
+		// Alors le remplisseur monte ces buckets en lecture seule a cote,
+		// recopie les objets listes dans un cache partage par l'installation,
+		// et la charge recoit le sous-arbre du cache. Le bucket n'est jamais
+		// monte la ou la personne travaille.
+		//
+		// Le cache est partage, donc une deuxieme equipe sur la meme
+		// selection ne paie rien. L'autorite a ete verifiee une fois, au
+		// moment ou l'extrait a ete attache au projet.
+		var extractTree *noryxruntime.PersistentVolumeClaimMount
+		var extractFiller *noryxruntime.SidecarSpec
+		if extractManifest != "" && len(extractToFill) > 0 {
+			fillDatasets := make([]workspaceAttachedDataset, 0, len(extractToFill))
+			for _, source := range extractToFill {
+				fillDatasets = append(fillDatasets, source.Dataset)
+			}
+			fillMounts, err := h.ensureDatasetVolumeMounts(fillDatasets)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to mount the buckets an extract is drawn from: " + err.Error()})
+				return
+			}
+			isolation, err := h.prepareExtractIsolation(podName, record.Image, fillMounts)
+			if err != nil {
+				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
+				return
+			}
+			extractTree = &isolation.Tree
+			extractFiller = isolation.Filler
+			volumes = append(volumes, isolation.Tree)
 		}
 
 		bootstrapScript := workspaceBootstrapScript(
@@ -756,7 +790,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			attachedRepos,
 			len(attachedDatasets),
 			continueConfig,
-			extractManifest != "",
+			// Des liens seulement quand l'arbre n'arrive pas en volume : les
+			// deux veulent le meme /extracts, et un montage en lecture seule
+			// ne se laisse pas remplir de liens.
+			extractManifest != "" && extractTree == nil,
 			extractRefused,
 			extractSkipped,
 		)
@@ -820,10 +857,13 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			//
 			// 1000 as a literal, like the file browser already does for the
 			// same images (project_files.go).
-			FSGroup:                 1000,
-			Image:                   record.Image,
-			Command:                 workspaceCommand,
-			Args:                    workspaceArgs,
+			FSGroup: 1000,
+			Image:   record.Image,
+			Command: workspaceCommand,
+			Args:    workspaceArgs,
+			// Beside the main container, not before it: somebody starts
+			// working on the first file rather than waiting for the last.
+			Sidecar:                 extractFiller,
 			Env:                     envVars,
 			Ports:                   []int{8888},
 			ReadinessPort:           8888,

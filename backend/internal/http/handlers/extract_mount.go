@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sort"
 	"strings"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/security"
 )
 
 // Mounting an extract: a tree of links, not a copy.
@@ -305,9 +309,10 @@ func withoutDirectoryKeys(members []extractdomain.Member) []extractdomain.Member
 // An extract whose dataset is not mounted in this workspace is left out: a link
 // into a directory that does not exist is a broken file, and a broken file in a
 // study directory is worse than an absent one.
-func (h Handlers) extractMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) ([]extractMountEntry, []string) {
+func (h Handlers) extractMountEntries(projectID string, attachedDatasets []workspaceAttachedDataset) ([]extractMountEntry, []string, []extractFillSource) {
+	remplir := map[string]extractFillSource{}
 	if h.extractStore == nil || strings.TrimSpace(projectID) == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Lu dans la table de liens, et non dans une colonne de l extrait.
 	//
@@ -319,10 +324,10 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 	extracts, err := h.projectExtracts(projectID)
 	if err != nil {
 		log.Printf("workspace started without extract links for project %s: %v", projectID, err)
-		return nil, nil
+		return nil, nil, nil
 	}
 	if len(extracts) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	mounted := map[string]string{}
@@ -346,14 +351,29 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 			skipped = append(skipped, fmt.Sprintf("%s: its ontology is gone", item.Name))
 			continue
 		}
+		// The bucket is attached, or it is filled. Those are the only two
+		// outcomes, and which one applies is a consequence of what the
+		// project attached rather than a mode anybody selects.
 		directory, ok := mounted[strings.ToLower(strings.TrimSpace(ontology.SourceName))]
 		if !ok {
-			log.Printf("extract %s not mounted: its dataset %q is not attached to this workspace", item.ID, ontology.SourceName)
-			skipped = append(skipped, fmt.Sprintf(
-				"%s: its dataset %q is not attached to this project, so there is nothing for its links to point at",
-				item.Name, ontology.SourceName,
-			))
-			continue
+			// A selection granted without its bucket: the case an extract
+			// exists for. The links cannot point into a mount the workload
+			// does not have - that boundary holds and is the point - so the
+			// objects arrive by the filler instead, and the workload is given
+			// the cache subtree.
+			source, err := h.fillSourceForOntology(ontology)
+			if err != nil {
+				log.Printf("extract %s not mounted: %v", item.ID, err)
+				skipped = append(skipped, fmt.Sprintf(
+					"%s: its dataset %q is not attached to this project and could not be read to fill the selection",
+					item.Name, ontology.SourceName,
+				))
+				continue
+			}
+			directory = source.Directory
+			if _, seen := remplir[directory]; !seen {
+				remplir[directory] = source
+			}
 		}
 		members, err := h.extractStore.ListMembers(item.ID, 0)
 		if err != nil {
@@ -375,7 +395,22 @@ func (h Handlers) extractMountEntries(projectID string, attachedDatasets []works
 			})
 		}
 	}
-	return entries, skipped
+	sources := make([]extractFillSource, 0, len(remplir))
+	for _, directory := range sortedFillDirectories(remplir) {
+		sources = append(sources, remplir[directory])
+	}
+	return entries, skipped, sources
+}
+
+// sortedFillDirectories keeps the fill order stable, so two launches of the
+// same project produce the same pod specification and a diff means something.
+func sortedFillDirectories(sources map[string]extractFillSource) []string {
+	keys := make([]string, 0, len(sources))
+	for key := range sources {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // projectExtracts reads what this project has attached.
@@ -428,10 +463,36 @@ type extractMount struct {
 	// Skipped is what could not be mounted, each with its reason, so the
 	// workload can say it where somebody will read it.
 	Skipped []string
+	// ToFill names the source datasets an extract needs that the project has
+	// not attached, by directory name.
+	//
+	// This is the case an extract exists for: a selection granted without the
+	// bucket it is drawn from. The links cannot be built, because nothing
+	// mounts the bucket where the workload can see it - that is the ADR-038
+	// boundary, and it holds. What was missing is the other half: the objects
+	// have to arrive by another route, so the filler mounts those buckets
+	// read-only beside the workload and copies the listed objects into a
+	// shared cache, and the workload is given the cache subtree instead of a
+	// tree of links.
+	//
+	// Empty is the ordinary case - every extract's dataset is attached - and
+	// then nothing changes: the bootstrap builds links, no second container
+	// starts, and no byte is copied.
+	ToFill []extractFillSource
+}
+
+// extractFillSource is one bucket the filler must read, and nothing else may.
+type extractFillSource struct {
+	// Directory is the name the manifest uses, so the filler finds the object
+	// at /datasets/<Directory>/<path> exactly as the symlink case would have.
+	Directory string
+	// Dataset is what the platform needs to build that mount: bucket,
+	// endpoint and credentials. It never reaches the workload's container.
+	Dataset workspaceAttachedDataset
 }
 
 func (h Handlers) extractMountFor(projectID string, attachedDatasets []workspaceAttachedDataset) extractMount {
-	entries, skipped := h.extractMountEntries(projectID, attachedDatasets)
+	entries, skipped, toFill := h.extractMountEntries(projectID, attachedDatasets)
 	if len(entries) == 0 {
 		return extractMount{Skipped: skipped}
 	}
@@ -447,7 +508,7 @@ func (h Handlers) extractMountFor(projectID string, attachedDatasets []workspace
 			names = append(names, entry.ExtractName)
 		}
 	}
-	return extractMount{Manifest: manifest, Names: names, Skipped: skipped}
+	return extractMount{Manifest: manifest, Names: names, Skipped: skipped, ToFill: toFill}
 }
 
 // extractSecretData is what the bootstrap secret carries, or nothing.
@@ -533,4 +594,86 @@ func (h Handlers) prepareExtractIsolation(
 // and no explanation, and the person concludes the platform lost their study.
 func refuseEmptyIsolation(isolated bool, mount extractMount) bool {
 	return isolated && mount.Manifest == ""
+}
+
+// fillSourceFor builds the mount the filler needs for a dataset the project
+// has not attached.
+//
+// It deliberately does not consult canReadDataset, and that is the whole
+// design rather than an oversight. An extract exists to grant a selection
+// without the bucket it is drawn from: if the mount asked whether the caller
+// may read the bucket, the answer would always be no and the feature could
+// never work. The authority is checked once, where a person decides - at the
+// moment the extract is attached to a project - and the mount then honours
+// that attachment. Attaching an extract drawn from regulated data is reserved
+// to a platform administrator for exactly this reason.
+//
+// What is built here reaches the filler container and nothing else. The
+// workload is given the cache subtree, so the bucket is never mounted where
+// the person working can see it.
+//
+// Only the dedicated-credential path is covered: an HDS dataset cannot use the
+// internal MinIO profile - datasetS3Client refuses it outright - so a
+// selection drawn from regulated data always has credentials of its own.
+func (h Handlers) fillSourceFor(item dataset.Dataset) (extractFillSource, error) {
+	source := extractFillSource{
+		Directory: sanitizeWorkspacePathName(fallbackResourceName(item.Name, item.ID)),
+		Dataset: workspaceAttachedDataset{
+			ID:             item.ID,
+			Name:           fallbackResourceName(item.Name, item.ID),
+			Bucket:         strings.TrimSpace(item.Bucket),
+			Prefix:         strings.Trim(strings.TrimSpace(item.Prefix), "/"),
+			Endpoint:       strings.TrimSpace(item.Endpoint),
+			UseSSL:         true,
+			ReadOnly:       true,
+			Classification: strings.TrimSpace(item.Classification),
+		},
+	}
+	if strings.TrimSpace(item.CredentialName) == "" {
+		return extractFillSource{}, fmt.Errorf("dataset %s has no dedicated S3 credentials to fill an extract from", item.Name)
+	}
+	credentialUserID := item.CredentialUserID
+	if credentialUserID == "" {
+		credentialUserID = item.OwnerUserID
+	}
+	credentialItem, found, err := h.secretStore.GetByName(credentialUserID, item.CredentialName)
+	if err != nil {
+		return extractFillSource{}, err
+	}
+	if !found {
+		return extractFillSource{}, fmt.Errorf("dataset S3 credentials not found: %s", item.Name)
+	}
+	decrypted, err := security.DecryptString(h.secretsMasterKey, credentialItem.ValueEncrypted)
+	if err != nil {
+		return extractFillSource{}, err
+	}
+	var credential datasetS3Credential
+	if err := json.Unmarshal([]byte(decrypted), &credential); err != nil {
+		return extractFillSource{}, err
+	}
+	source.Dataset.AccessKey = credential.AccessKey
+	source.Dataset.SecretKey = credential.SecretKey
+	return source, nil
+}
+
+// fillSourceForOntology resolves the dataset an ontology was scanned from.
+//
+// By identifier and not by name: the name is what the manifest and the
+// attachment check compare, and a dataset that was renamed after its ontology
+// was scanned would stop resolving. The identifier is what the scan recorded.
+func (h Handlers) fillSourceForOntology(ontology ontologydomain.Ontology) (extractFillSource, error) {
+	if h.datasetStore == nil {
+		return extractFillSource{}, fmt.Errorf("no dataset store to fill from")
+	}
+	if strings.TrimSpace(ontology.SourceType) != "dataset" {
+		return extractFillSource{}, fmt.Errorf("ontology %s was not scanned from a dataset", ontology.ID)
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(ontology.SourceID))
+	if err != nil {
+		return extractFillSource{}, err
+	}
+	if !found {
+		return extractFillSource{}, fmt.Errorf("dataset %s is gone", ontology.SourceName)
+	}
+	return h.fillSourceFor(item)
 }
