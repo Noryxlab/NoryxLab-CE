@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"sort"
 	"strings"
 
@@ -635,6 +636,27 @@ func (h Handlers) fillSourceFor(item dataset.Dataset) (extractFillSource, error)
 			ReadOnly:       true,
 			Classification: strings.TrimSpace(item.Classification),
 		},
+	}
+	// A bucket the platform hosts itself uses the platform's own keys, like
+	// every other mount of it does.
+	//
+	// This branch was missing at first, on the reasoning that an HDS dataset
+	// cannot sit on the internal profile - datasetS3Client refuses it - and
+	// that regulated selections are what this feature is for. True, and
+	// irrelevant: an ordinary selection drawn from a platform-hosted dataset
+	// wants the same thing, and without this it fell back to the old
+	// behaviour of mounting nothing at all. The feature would have worked only
+	// for the data it is most careful with.
+	if item.Provider == "minio" {
+		endpoint, err := nodeReachableKubernetesServiceEndpoint(h.minioEndpoint, net.LookupHost)
+		if err != nil {
+			return extractFillSource{}, fmt.Errorf("resolve the platform storage endpoint: %w", err)
+		}
+		source.Dataset.Endpoint = endpoint
+		source.Dataset.AccessKey = h.minioAccessKey
+		source.Dataset.SecretKey = h.minioSecretKey
+		source.Dataset.UseSSL = h.minioUseSSL
+		return source, nil
 	}
 	if strings.TrimSpace(item.CredentialName) == "" {
 		return extractFillSource{}, fmt.Errorf("dataset %s has no dedicated S3 credentials to fill an extract from", item.Name)
