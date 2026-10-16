@@ -479,6 +479,13 @@ type extractMount struct {
 	// then nothing changes: the bootstrap builds links, no second container
 	// starts, and no byte is copied.
 	ToFill []extractFillSource
+	// TreeMounted is set once the caller has decided the tree arrives as a
+	// volume, so the bootstrap stops building links over a read-only mount.
+	//
+	// It is not derived from ToFill, because the manifest must stay in the
+	// secret either way: the filler reads it from there. Only the link
+	// building is suppressed, not the file list.
+	TreeMounted bool
 }
 
 // extractFillSource is one bucket the filler must read, and nothing else may.
@@ -704,4 +711,42 @@ func (h Handlers) extractSourceClassification(ontologyID string) (string, error)
 		return "", nil
 	}
 	return strings.ToLower(strings.TrimSpace(item.Classification)), nil
+}
+
+// extractFillFor is what a workload needs when the project granted a
+// selection without the bucket it is drawn from.
+//
+// It returns the cache subtree to mount where the extract goes, and the
+// container that fills it. Both are nil in the ordinary case - every extract's
+// dataset is attached - and then nothing changes: the bootstrap builds links,
+// no second container starts, and no byte is copied.
+//
+// The caller decides where the filler runs, and the two answers differ for a
+// reason. Beside a workspace, so somebody starts on the first file rather than
+// the last. Before a job or an application, because half a selection is a
+// different study and a wrong answer served quickly is still wrong.
+func (h Handlers) extractFillFor(name, image string, montage extractMount) (*noryxruntime.PersistentVolumeClaimMount, *noryxruntime.SidecarSpec, error) {
+	if montage.Manifest == "" || len(montage.ToFill) == 0 {
+		return nil, nil, nil
+	}
+	sources := make([]workspaceAttachedDataset, 0, len(montage.ToFill))
+	for _, source := range montage.ToFill {
+		sources = append(sources, source.Dataset)
+	}
+	mounts, err := h.ensureDatasetVolumeMounts(sources)
+	if err != nil {
+		return nil, nil, fmt.Errorf("mount the buckets an extract is drawn from: %w", err)
+	}
+	isolation, err := h.prepareExtractIsolation(name, image, mounts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("prepare the extract cache: %w", err)
+	}
+	tree := isolation.Tree
+	return &tree, isolation.Filler, nil
+}
+
+// extractMountFromParts rebuilds the mount from the pieces a workspace launch
+// already carries, so one helper serves all four workloads.
+func extractMountFromParts(manifest string, refused int, skipped []string, toFill []extractFillSource) extractMount {
+	return extractMount{Manifest: manifest, Refused: refused, Skipped: skipped, ToFill: toFill}
 }

@@ -756,26 +756,15 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		// Le cache est partage, donc une deuxieme equipe sur la meme
 		// selection ne paie rien. L'autorite a ete verifiee une fois, au
 		// moment ou l'extrait a ete attache au projet.
-		var extractTree *noryxruntime.PersistentVolumeClaimMount
-		var extractFiller *noryxruntime.SidecarSpec
-		if extractManifest != "" && len(extractToFill) > 0 {
-			fillDatasets := make([]workspaceAttachedDataset, 0, len(extractToFill))
-			for _, source := range extractToFill {
-				fillDatasets = append(fillDatasets, source.Dataset)
-			}
-			fillMounts, err := h.ensureDatasetVolumeMounts(fillDatasets)
-			if err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to mount the buckets an extract is drawn from: " + err.Error()})
-				return
-			}
-			isolation, err := h.prepareExtractIsolation(podName, record.Image, fillMounts)
-			if err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare the extract cache: " + err.Error()})
-				return
-			}
-			extractTree = &isolation.Tree
-			extractFiller = isolation.Filler
-			volumes = append(volumes, isolation.Tree)
+		// Les selections dont le projet n'a pas attache le bucket : l'arbre
+		// arrive en volume depuis le cache, et le remplisseur le peuple a cote.
+		extractTree, extractFiller, err := h.extractFillFor(podName, record.Image, extractMountFromParts(extractManifest, extractRefused, extractSkipped, extractToFill))
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		if extractTree != nil {
+			volumes = append(volumes, *extractTree)
 		}
 
 		bootstrapScript := workspaceBootstrapScript(

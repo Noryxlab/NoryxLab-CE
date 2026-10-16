@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -161,5 +163,59 @@ func TestUnDatasetAttacheNeDeclencheAucunRemplissage(t *testing.T) {
 	}
 	if len(montage.ToFill) != 0 {
 		t.Fatalf("rien n'est a remplir quand le bucket est attache: %+v", montage.ToFill)
+	}
+}
+
+// Les quatre charges recoivent une selection sans son bucket, de la meme facon.
+//
+// Verifie sur le texte, pour la meme raison que le test de politique a cote :
+// ce qui compte est qu'aucune des quatre ne reste en arriere. Une selection qui
+// se monte dans un workspace et pas dans un job donnerait une garantie qui
+// tient pendant qu'on tape et cesse des qu'un calcul tourne - c'est exactement
+// ce que l'ADR-044 avait eu a corriger sur la frontiere elle-meme.
+func TestLesQuatreChargesRemplissentUneSelectionSansSonBucket(t *testing.T) {
+	for _, cas := range []struct{ fichier, conteneur string }{
+		// Le workspace l'a a cote : on commence a travailler sur le premier
+		// fichier plutot que sur le dernier.
+		{"workspaces.go", "Sidecar:"},
+		// Les trois autres l'ont avant : une demi-selection est une autre
+		// etude, et une mauvaise reponse servie vite reste mauvaise.
+		{"jobs.go", "Init:"},
+		{"cronjobs.go", "Init:"},
+		{"apps.go", "Init:"},
+	} {
+		source, err := os.ReadFile(cas.fichier)
+		if err != nil {
+			t.Fatal(err)
+		}
+		texte := string(source)
+		if !strings.Contains(texte, "h.extractFillFor(") {
+			t.Errorf("%s ne remplit pas une selection dont le bucket n'est pas attache", cas.fichier)
+		}
+		if !strings.Contains(texte, cas.conteneur+"                    extractFiller,") &&
+			!strings.Contains(texte, cas.conteneur+" extractFiller,") &&
+			!regexp.MustCompile(regexp.QuoteMeta(cas.conteneur)+`\s+extractFiller,`).MatchString(texte) {
+			t.Errorf("%s ne lance pas le remplisseur en %s", cas.fichier, strings.TrimSuffix(cas.conteneur, ":"))
+		}
+		// Et aucune ne batit de liens par-dessus un montage en lecture seule.
+		if strings.Contains(texte, "extractBootstrapLines(") &&
+			!strings.Contains(texte, "!montage.TreeMounted") &&
+			!strings.Contains(texte, "extractTree == nil") {
+			t.Errorf("%s batirait des liens par-dessus l'arbre monte", cas.fichier)
+		}
+	}
+}
+
+// Et une app relancee ne reperd pas sa selection.
+func TestUneAppRelanceeGardeSaSelectionRemplie(t *testing.T) {
+	source, err := os.ReadFile("apps.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Deux appels : la creation et la relance. Un seul voudrait dire que l'une
+	// des deux reperd l'arbre, ce qui est le defaut corrige le 2026-10-12 sur
+	// le manifeste, une couche plus bas.
+	if n := strings.Count(string(source), "h.extractFillFor("); n < 2 {
+		t.Fatalf("la creation et la relance doivent remplir toutes les deux, trouve %d appel(s)", n)
 	}
 }

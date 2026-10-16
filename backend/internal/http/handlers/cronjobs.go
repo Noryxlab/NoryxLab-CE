@@ -114,6 +114,16 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 	// chaque semaine et doit lire les memes fichiers.
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
 
+	// Les selections dont le projet n'a pas attache le bucket. Le remplisseur
+	// tourne AVANT la charge et non a cote : une demi-selection est une autre
+	// etude, et une mauvaise reponse servie vite reste mauvaise.
+	extractTree, extractFiller, err := h.extractFillFor(cronJobName, req.Image, montage)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	montage.TreeMounted = extractTree != nil
+
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
@@ -167,6 +177,9 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 	}
 	// Ce que le projet a attache, et rien d'autre a decider ici.
 	volumes = append(volumes, datasetVolumes...)
+	if extractTree != nil {
+		volumes = append(volumes, *extractTree)
+	}
 
 	// Le secret qui porte la liste gelee. Sans lui le script construirait un
 	// arbre vide sans rien dire, ce qui est la pire des deux issues.
@@ -202,6 +215,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 			Image:                   req.Image,
 			Command:                 command,
 			Args:                    args,
+			Init:                    extractFiller,
 			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,

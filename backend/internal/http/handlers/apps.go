@@ -321,8 +321,20 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 	// n'avait aucun extrait porte un script sans bloc de construction, et le
 	// record garde le script et non l'argv tape, donc le regenerer est
 	// impossible. Attacher un extrait ensuite demande une nouvelle app.
+	// Le meme montage sert deux fois : le secret que le remplisseur lit, et la
+	// decision de monter l'arbre du cache. Une app relancee reperdrait sa
+	// selection si l'un des deux manquait.
+	montage := h.extractMountFor(record.ProjectID, attachedDatasets)
+	extractTree, extractFiller, err := h.extractFillFor(record.PodName, record.Image, montage)
+	if err != nil {
+		return fmt.Errorf("extract fill: %w", err)
+	}
+	if extractTree != nil {
+		volumes = append(volumes, *extractTree)
+	}
+
 	appSecretMounts := []noryxruntime.SecretMount{}
-	if data := extractSecretData(h.extractMountFor(record.ProjectID, attachedDatasets)); data != nil {
+	if data := extractSecretData(montage); data != nil {
 		bootstrapSecretName := record.PodName + "-bootstrap"
 		if err := h.runtime.CreateSecret(noryxruntime.SecretSpec{
 			Name: bootstrapSecretName,
@@ -357,6 +369,7 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 		Image:                   record.Image,
 		Command:                 record.Command,
 		Args:                    record.Args,
+		Init:                    extractFiller,
 		Secrets:                 appSecretMounts,
 		Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 		Ports:                   []int{record.Port},
@@ -636,6 +649,16 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	// depuis, est la meme exigence que pour un job.
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
 
+	// Les selections dont le projet n'a pas attache le bucket. Le remplisseur
+	// tourne AVANT la charge et non a cote : une demi-selection est une autre
+	// etude, et une mauvaise reponse servie vite reste mauvaise.
+	extractTree, extractFiller, err := h.extractFillFor(podName, req.Image, montage)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	montage.TreeMounted = extractTree != nil
+
 	command := []string{"/bin/sh", "-lc"}
 	bootstrapScript := appBootstrapScript(req.Port, append(append([]string{}, req.Command...), req.Args...), attachedRepos, montage)
 	args := []string{bootstrapScript}
@@ -684,6 +707,9 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		}
 		// Ce que le projet a attache, et rien d'autre a decider ici.
 		volumes = append(volumes, datasetVolumes...)
+		if extractTree != nil {
+			volumes = append(volumes, *extractTree)
+		}
 
 		appSecretMounts := []noryxruntime.SecretMount{}
 		if data := extractSecretData(montage); data != nil {
@@ -711,6 +737,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			Image:   record.Image,
 			Command: command,
 			Args:    args,
+			Init:    extractFiller,
 			Secrets: appSecretMounts,
 			Env:     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			Ports:   []int{record.Port},
@@ -925,7 +952,7 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		"fi",
 	}
 	// L'arbre des extraits, avant que l'application demarre : elle lit dedans.
-	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused, montage.Skipped)...)
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "" && !montage.TreeMounted, montage.Refused, montage.Skipped)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)

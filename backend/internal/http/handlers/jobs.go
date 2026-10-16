@@ -117,6 +117,16 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// pas en monter, donc l'objet servait en interactif et nulle part ailleurs,
 	// et "le meme n" se refaisait a la main dans le code.
 	montage := h.extractMountFor(req.ProjectID, attachedDatasets)
+
+	// Les selections dont le projet n'a pas attache le bucket. Le remplisseur
+	// tourne AVANT la charge et non a cote : une demi-selection est une autre
+	// etude, et une mauvaise reponse servie vite reste mauvaise.
+	extractTree, extractFiller, err := h.extractFillFor(jobName, req.Image, montage)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	montage.TreeMounted = extractTree != nil
 	record.Extracts = montage.Names
 
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
@@ -195,12 +205,16 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 		// Ce que le projet a attache, et rien d'autre a decider ici.
 		volumes = append(volumes, datasetVolumes...)
+		if extractTree != nil {
+			volumes = append(volumes, *extractTree)
+		}
 
 		err = h.runtime.CreateJob(noryxruntime.JobSpec{
 			JobName:                 jobName,
 			Image:                   req.Image,
 			Command:                 command,
 			Args:                    args,
+			Init:                    extractFiller,
 			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,
@@ -485,7 +499,7 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		"fi",
 	}
 	// L'arbre des extraits, avant le code : il lit dedans.
-	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "", montage.Refused, montage.Skipped)...)
+	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "" && !montage.TreeMounted, montage.Refused, montage.Skipped)...)
 	for _, repo := range attachedRepos {
 		repoDir := workspaceReposPath + "/" + sanitizeWorkspacePathName(repo.Name)
 		lines = append(lines, repositoryBootstrapLines(repo, repoDir)...)
