@@ -677,3 +677,31 @@ func (h Handlers) fillSourceForOntology(ontology ontologydomain.Ontology) (extra
 	}
 	return h.fillSourceFor(item)
 }
+
+// extractSourceClassification is the label of the dataset an extract is drawn
+// from, or empty when there is nothing to classify.
+//
+// Empty is deliberately not an error: an ontology scanned from something that
+// is not a dataset, or a dataset since deleted, leaves an extract that can
+// mount nothing anyway. Refusing the attachment there would answer a question
+// about authority with a message about a missing object.
+func (h Handlers) extractSourceClassification(ontologyID string) (string, error) {
+	if h.ontologyStore == nil || h.datasetStore == nil {
+		return "", nil
+	}
+	ontology, found, err := h.ontologyStore.GetByID(strings.TrimSpace(ontologyID))
+	if err != nil {
+		return "", err
+	}
+	if !found || strings.TrimSpace(ontology.SourceType) != "dataset" {
+		return "", nil
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(ontology.SourceID))
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", nil
+	}
+	return strings.ToLower(strings.TrimSpace(item.Classification)), nil
+}

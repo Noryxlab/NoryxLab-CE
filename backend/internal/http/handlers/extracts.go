@@ -425,6 +425,28 @@ func (h Handlers) AttachProjectExtract(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return
 	}
+	// A selection drawn from regulated data is attached by an administrator.
+	//
+	// Attaching an extract now delivers its bytes: since the project no longer
+	// has to attach the bucket, the filler reads it on the workload's behalf
+	// and the selection appears under /extracts. That is the feature, and it
+	// moves where the decision has to be taken. Before it, reaching an HDS
+	// selection required a grant on the dataset, and the grant was the
+	// decision; after it, attaching the extract is the decision.
+	//
+	// So the two are kept at the same level. A project role is enough for
+	// ordinary data. For data classified hds, the person who attaches it
+	// carries platform authority - which is what Cyril and Cedric already hold
+	// - and the audit entry names them.
+	if classification, err := h.extractSourceClassification(item.OntologyID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read what this extract is drawn from"})
+		return
+	} else if classification == "hds" && !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "this extract is drawn from regulated data; a platform administrator attaches it to a project",
+		})
+		return
+	}
 	if err := h.projectResourceStore.AttachExtract(projectID, extractID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach the extract"})
 		return
