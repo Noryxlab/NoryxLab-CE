@@ -279,3 +279,44 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * React Flow, dans les tokens du produit.
+ *
+ * La bibliotheque ne stylise que son propre mobilier - fond, controles,
+ * aretes, poignees - par des variables --xy-*. Les noeuds sont a nous et
+ * portent nos classes. Tout ce qui suit renvoie son mobilier vers nos
+ * tokens, pour que le canvas suive le theme clair et sombre sans une couleur
+ * en dur.
+ * ------------------------------------------------------------------------- */
+.react-flow {
+  --xy-background-color-default: transparent;
+  --xy-background-pattern-dots-color-default: var(--noryx-border);
+  --xy-edge-stroke-default: var(--noryx-border-strong);
+  --xy-edge-stroke-width-default: 1.5;
+  --xy-edge-stroke-selected-default: var(--noryx-brand);
+  --xy-handle-background-color-default: var(--noryx-border-strong);
+  --xy-handle-border-color-default: var(--noryx-surface);
+  --xy-controls-button-background-color-default: var(--noryx-surface);
+  --xy-controls-button-background-color-hover-default: var(--noryx-surface-muted);
+  --xy-controls-button-color-default: var(--noryx-muted-foreground);
+  --xy-controls-button-color-hover-default: var(--noryx-foreground);
+  --xy-controls-button-border-color-default: var(--noryx-border);
+  --xy-controls-box-shadow-default: var(--noryx-shadow-sm);
+}
+.react-flow .react-flow__controls {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+/* L'arete qui mene au pas en cours : la couleur de marque, et le mouvement
+   que la bibliotheque anime deja. */
+.react-flow .react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--noryx-brand);
+}
+.react-flow .react-flow__edge .react-flow__edge-path {
+  stroke: var(--xy-edge-stroke-default);
+}
+.react-flow .react-flow__arrowhead polyline {
+  stroke: var(--noryx-border-strong);
+  fill: var(--noryx-border-strong);
+}

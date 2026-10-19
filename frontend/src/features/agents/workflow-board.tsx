@@ -33,8 +33,9 @@ import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/i18n";
 import { relativeTime, scheduleKey } from "./agent-roster";
 import { WorkflowDialog } from "./workflow-dialog";
+import { WorkflowCanvas } from "./workflow-canvas";
+import { WorkflowInspector } from "./workflow-inspector";
 import {
-  WorkflowPipeline,
   currentStep,
   isTerminal,
   stepKindLabel,
@@ -198,8 +199,10 @@ export function WorkflowsSection({
                 workflow={selected}
                 latest={runs.data?.[0]}
                 running={runNow.isPending}
+                deciding={decide.isPending}
                 onRun={() => runNow.mutate(selected.id)}
                 onDelete={() => setDeleting(selected)}
+                onDecide={(runId, approve) => decide.mutate({ runId, approve })}
               />
               <RunTimeline
                 workflow={selected}
@@ -309,18 +312,28 @@ function MissionCard({
   workflow,
   latest,
   running,
+  deciding,
   onRun,
   onDelete,
+  onDecide,
 }: {
   workflow: Workflow;
   latest: WorkflowRun | undefined;
   running: boolean;
+  deciding: boolean;
   onRun: () => void;
   onDelete: () => void;
+  onDecide: (runId: string, approve: boolean) => void;
 }) {
   const t = useT();
   const current =
     latest && !isTerminal(latest.status) ? currentStep(latest) : null;
+  // Le pas ouvert dans l'inspecteur. Par defaut celui qui travaille, pour
+  // qu'un run en cours s'ouvre sur ce qui se passe ; un clic en choisit un
+  // autre, un changement de workflow remet a zero.
+  const [picked, setPicked] = React.useState<number | null>(null);
+  React.useEffect(() => setPicked(null), [workflow.id]);
+  const opened = picked ?? current;
   const next =
     workflow.schedule === "hourly"
       ? t("workflows.nextHourly")
@@ -338,17 +351,24 @@ function MissionCard({
             </p>
             <h3 className="text-sm font-semibold">{workflow.name}</h3>
           </div>
-          <WorkflowPipeline workflow={workflow} latest={latest} />
-          {current !== null && workflow.steps[current]?.kind === "agent" ? (
-            <div>
-              <p className="text-xs text-placeholder">
-                {t("workflows.currentInstruction")}
-              </p>
-              <p className="mt-0.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                {workflow.steps[current]?.instruction}
-              </p>
-            </div>
-          ) : null}
+          {/* Le canvas au centre, l'inspecteur a droite : la disposition que
+              tout outil d'automatisation a installee dans les habitudes. Sur
+              un ecran etroit l'inspecteur passe dessous. */}
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <WorkflowCanvas
+              workflow={workflow}
+              latest={latest}
+              selectedIndex={opened}
+              onSelectStep={setPicked}
+            />
+            <WorkflowInspector
+              workflow={workflow}
+              latest={latest}
+              index={opened}
+              deciding={deciding}
+              onDecide={onDecide}
+            />
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <Button
