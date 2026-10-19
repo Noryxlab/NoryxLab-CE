@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/agent"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workflow"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
@@ -166,5 +168,58 @@ func TestCeQuiTourneEstCompteApart(t *testing.T) {
 		if !isRunningStatus(etat) {
 			t.Errorf("%q ne compte pas comme en marche", etat)
 		}
+	}
+}
+
+// Un agent et un workflow partent avec leur projet, et sont montres avant.
+//
+// Ils gardaient l'identifiant d'un projet disparu : aucune page ne les
+// trouvait plus - chacune cherche un agent par son projet - et leur
+// proprietaire ne pouvait ni les voir ni les renvoyer.
+func TestLesAgentsEtWorkflowsPartentAvecLeProjet(t *testing.T) {
+	h, item := projetAvecCharges(t)
+	agents := memory.NewAgentStore()
+	if err := agents.Create(agent.New("stef", item.ID, "Nestor", "surveille", agent.ScheduleHourly, nil)); err != nil {
+		t.Fatal(err)
+	}
+	if err := agents.Create(agent.New("stef", "autre-projet", "Anna", "surveille", agent.ScheduleHourly, nil)); err != nil {
+		t.Fatal(err)
+	}
+	workflows := memory.NewWorkflowStore()
+	if err := workflows.Create(workflow.New("stef", item.ID, "Veille", agent.ScheduleDaily, []workflow.Step{
+		{Kind: workflow.KindAgent, Name: "Chercher", Instruction: "Cherche."},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	h.agentStore = agents
+	h.workflowStore = workflows
+
+	refus := supprimer(t, h, item.ID, "")
+	if refus.Code != http.StatusConflict {
+		t.Fatalf("status = %d; un projet qui tient un agent doit etre montre avant", refus.Code)
+	}
+	var corps struct {
+		Items []projectWorkloadItem `json:"items"`
+	}
+	if err := json.Unmarshal(refus.Body.Bytes(), &corps); err != nil {
+		t.Fatal(err)
+	}
+	sortes := map[string]int{}
+	for _, it := range corps.Items {
+		sortes[it.Kind]++
+	}
+	if sortes["agent"] != 1 || sortes["workflow"] != 1 {
+		t.Errorf("l'inventaire montre %v ; attendu un agent et un workflow", sortes)
+	}
+
+	if rep := supprimer(t, h, item.ID, "?force=true"); rep.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", rep.Code, rep.Body.String())
+	}
+	restants, _ := agents.ListAll()
+	if len(restants) != 1 || restants[0].Name != "Anna" {
+		t.Errorf("agents restants = %v ; seul celui de l'autre projet doit rester", restants)
+	}
+	if defs, _ := workflows.ListAll(); len(defs) != 0 {
+		t.Errorf("%d workflow(s) ont survecu a leur projet", len(defs))
 	}
 }

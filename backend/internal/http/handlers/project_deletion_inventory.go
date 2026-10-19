@@ -75,7 +75,78 @@ func (h Handlers) projectWorkloads(projectID string) projectInventory {
 			}
 		}
 	}
+	// Agents and workflows are standing instructions, not pods, but they are
+	// workloads in the sense that matters here: one left behind by its
+	// project kept its project identifier, appeared on no screen - every
+	// screen finds an agent through its project - and was out of its owner's
+	// reach. Three of them on the DC on 2026-10-19, after their project was
+	// deleted from the interface. Listed so the person deleting sees them,
+	// and deleted with the project when they confirm.
+	if h.agentStore != nil {
+		if items, err := h.agentStore.ListAll(); err == nil {
+			for _, item := range items {
+				if item.ProjectID == projectID {
+					add("agent", item.ID, item.Name, standingStatus(item.Enabled, item.Schedule))
+				}
+			}
+		}
+	}
+	if h.workflowStore != nil {
+		if items, err := h.workflowStore.ListAll(); err == nil {
+			for _, item := range items {
+				if item.ProjectID == projectID {
+					add("workflow", item.ID, item.Name, standingStatus(item.Enabled, item.Schedule))
+				}
+			}
+		}
+	}
 	return inventory
+}
+
+// standingStatus words an agent's or workflow's state the way a pod's status
+// is worded, so the same inventory can count it: one that will act on its
+// own is running, one that is paused or waits for a hand is not.
+func standingStatus(enabled bool, schedule string) string {
+	if enabled && schedule != "manual" {
+		return "scheduled"
+	}
+	return "stopped"
+}
+
+// deleteProjectAgents removes the agents and workflows a project held, with
+// what each left behind, and reports how many went.
+func (h Handlers) deleteProjectAgents(projectID string) (agents, workflows int, err error) {
+	if h.agentStore != nil {
+		items, listErr := h.agentStore.ListAll()
+		if listErr != nil {
+			return 0, 0, listErr
+		}
+		for _, item := range items {
+			if item.ProjectID != projectID {
+				continue
+			}
+			if err := h.agentStore.Delete(item.ID); err != nil {
+				return agents, workflows, err
+			}
+			agents++
+		}
+	}
+	if h.workflowStore != nil {
+		items, listErr := h.workflowStore.ListAll()
+		if listErr != nil {
+			return agents, 0, listErr
+		}
+		for _, item := range items {
+			if item.ProjectID != projectID {
+				continue
+			}
+			if err := h.workflowStore.Delete(item.ID); err != nil {
+				return agents, workflows, err
+			}
+			workflows++
+		}
+	}
+	return agents, workflows, nil
 }
 
 // isRunningStatus is deliberately generous about the words.
