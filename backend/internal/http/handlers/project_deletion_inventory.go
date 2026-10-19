@@ -100,6 +100,18 @@ func (h Handlers) projectWorkloads(projectID string) projectInventory {
 			}
 		}
 	}
+	// An extract belongs to a project the way an agent does, and was left
+	// behind by the same hole: `anterion-3-sujets` survived the deletion of
+	// Premyom-data on 2026-10-19 pointing at a project that no longer
+	// existed, so no screen could reach it - and it named three subjects.
+	// A selection nobody can see is a selection nobody can withdraw.
+	if h.extractStore != nil {
+		if items, err := h.extractStore.ListByProject(projectID); err == nil {
+			for _, item := range items {
+				add("extract", item.ID, item.Name, "")
+			}
+		}
+	}
 	return inventory
 }
 
@@ -111,6 +123,27 @@ func standingStatus(enabled bool, schedule string) string {
 		return "scheduled"
 	}
 	return "stopped"
+}
+
+// deleteProjectExtracts removes the selections declared in a project. The
+// files they named are not touched: an extract is a list, and deleting the
+// list is a decision about access, never about data.
+func (h Handlers) deleteProjectExtracts(projectID string) (int, error) {
+	if h.extractStore == nil {
+		return 0, nil
+	}
+	items, err := h.extractStore.ListByProject(projectID)
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, item := range items {
+		if err := h.extractStore.Delete(item.ID); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
 }
 
 // deleteProjectAgents removes the agents and workflows a project held, with

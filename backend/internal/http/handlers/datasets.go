@@ -1522,6 +1522,25 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// What was read from this dataset goes with it.
+	//
+	// An ontology is a reading of a source and an extract is a selection
+	// inside that reading; neither means anything once the source is gone.
+	// They used to stay: withdrawing the three HDS datasets from the sandbox
+	// on 2026-10-19 left `PREMYOM1000` pointing at a dataset that no longer
+	// existed and `anterion-3-sujets` naming three subjects, both reachable
+	// from no screen. Access had been withdrawn everywhere except in the two
+	// rows that said which patients had been selected.
+	//
+	// Removed before the dataset rather than after: if this fails, derived
+	// views of a dataset that still exists are missing, and a rescan rebuilds
+	// them. The other order leaves exactly the orphans this repairs.
+	if removed, err := h.deleteDatasetReadings(datasetID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete what was read from this dataset: " + err.Error()})
+		return
+	} else if removed > 0 {
+		log.Printf("dataset %s (%s): %d ontology/extract row(s) read from it were removed with it", item.ID, item.Name, removed)
+	}
 	if err := h.datasetStore.Delete(datasetID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete dataset"})
 		return
@@ -1534,6 +1553,42 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		_ = h.secretStore.Delete(credentialUserID, item.CredentialName)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// deleteDatasetReadings removes the ontologies scanned from this dataset and
+// the extracts cut from them, and says how many rows went. The files they
+// listed are never touched: these rows are readings, not data.
+func (h Handlers) deleteDatasetReadings(datasetID string) (int, error) {
+	if h.ontologyStore == nil {
+		return 0, nil
+	}
+	ontologies, err := h.ontologyStore.ListAll()
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, item := range ontologies {
+		if item.SourceType != "dataset" || item.SourceID != datasetID {
+			continue
+		}
+		if h.extractStore != nil {
+			extracts, err := h.extractStore.ListByOntology(item.ID)
+			if err != nil {
+				return removed, err
+			}
+			for _, selection := range extracts {
+				if err := h.extractStore.Delete(selection.ID); err != nil {
+					return removed, err
+				}
+				removed++
+			}
+		}
+		if err := h.ontologyStore.Delete(item.ID); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
 }
 
 func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {

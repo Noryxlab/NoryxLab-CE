@@ -367,6 +367,11 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete project agents: " + err.Error()})
 		return
 	}
+	extracts, err := h.deleteProjectExtracts(projectID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete project extracts: " + err.Error()})
+		return
+	}
 
 	if err := h.projectStore.DeleteProject(projectID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete project"})
@@ -379,7 +384,7 @@ func (h Handlers) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	// journal should be able to tell them apart.
 	h.emitAudit(r, userID, "project.delete", "project", projectID, projectID, "success", "",
 		map[string]any{"workloads": len(inventory.Items), "running": inventory.Running,
-			"agents": agents, "workflows": workflows})
+			"agents": agents, "workflows": workflows, "extracts": extracts})
 }
 
 func (h Handlers) deleteProjectWorkspaces(projectID string) error {
