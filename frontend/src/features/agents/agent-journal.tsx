@@ -5,6 +5,9 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import * as React from "react";
 import { relativeTime, scheduleKey } from "./agent-roster";
+import { agentAsWorkflow, agentRunAsWorkflowRun } from "./agent-as-workflow";
+import { WorkflowCanvas, type CanvasSelection } from "./workflow-canvas";
+import { WorkflowInspector } from "./workflow-inspector";
 import { useT } from "@/lib/i18n";
 import type { Agent, AgentRun } from "@/lib/api/types";
 import { actionTakenLabel, grantLabel } from "./action-label";
@@ -22,6 +25,11 @@ import { actionTakenLabel, grantLabel } from "./action-label";
  * plateforme, jamais depuis le rapport. Le rapport est du texte produit par un
  * modele, et c'est la seule partie de cette page qui peut se tromper avec
  * aplomb.
+ *
+ * Au-dessus du carnet, l'agent est dessine comme ce qu'il est : un workflow
+ * d'un seul pas, sur le meme canvas et avec le meme inspecteur que les
+ * workflows. Sa consigne se lit en ouvrant le pas, son dernier passage s'y
+ * voit avec sa sortie et ce que la plateforme l'a vu faire.
  */
 
 interface AgentJournalProps {
@@ -50,6 +58,12 @@ export function AgentJournal({
   asking,
 }: AgentJournalProps) {
   const t = useT();
+  const asWorkflow = React.useMemo(() => agentAsWorkflow(agent), [agent]);
+  const latest = React.useMemo(() => agentRunAsWorkflowRun(runs[0]), [runs]);
+  // Le pas est ouvert d'office : c'est la qu'est la consigne, et un agent
+  // n'en a qu'un. Un clic sur le fond le referme, un autre le rouvre.
+  const [picked, setPicked] = React.useState<CanvasSelection>(0);
+  React.useEffect(() => setPicked(0), [agent.id]);
 
   return (
     <section className="space-y-4">
@@ -58,9 +72,6 @@ export function AgentJournal({
           <h2 className="text-sm font-semibold">
             {t("agents.whatTheySaw", { name: agent.name })}
           </h2>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {agent.mission}
-          </p>
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-placeholder">
             <span>{t(scheduleKey(agent.schedule))}</span>
             <span aria-hidden>·</span>
@@ -115,6 +126,22 @@ export function AgentJournal({
             <span className="sr-only">{t("agents.dismiss")}</span>
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <WorkflowCanvas
+          workflow={asWorkflow}
+          latest={latest}
+          selectedIndex={picked}
+          onSelectStep={setPicked}
+        />
+        <WorkflowInspector
+          workflow={asWorkflow}
+          latest={latest}
+          index={picked}
+          deciding={false}
+          onDecide={() => undefined}
+        />
       </div>
 
       <AskBox name={agent.name} onAsk={onAsk} pending={asking} />

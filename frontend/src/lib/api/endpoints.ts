@@ -118,6 +118,8 @@ export const platformApi = {
   // Workflows (ADR-046) : ce qui s'execute quand un agent travaille.
   workflows: () => api.list<Workflow>(`${V1}/workflows`),
   createWorkflow: (body: WorkflowInput) => api.post<Workflow>(`${V1}/workflows`, body),
+  updateWorkflow: (id: string, body: Partial<WorkflowInput> & { enabled?: boolean }) =>
+    api.patch<Workflow>(`${V1}/workflows/${id}`, body),
   deleteWorkflow: (id: string) => api.delete<void>(`${V1}/workflows/${id}`),
   workflowRuns: (id: string) => api.list<WorkflowRun>(`${V1}/workflows/${id}/runs`),
   runWorkflow: (id: string) => api.post<WorkflowRun>(`${V1}/workflows/${id}/runs`, {}),

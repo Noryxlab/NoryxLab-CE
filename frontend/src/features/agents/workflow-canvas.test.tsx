@@ -86,4 +86,28 @@ describe("deriveCanvas", () => {
     const { nodes } = deriveCanvas(workflow, waiting, 2, t);
     expect(nodes.filter((n) => n.data.selected).map((n) => n.id)).toEqual(["s2"]);
   });
+
+  it("en edition, chaque fleche insere a sa position et rien ne s'anime", () => {
+    const { nodes, edges } = deriveCanvas(workflow, waiting, "trigger", t, true);
+    expect(edges.map((e) => e.type)).toEqual(["insert", "insert", "insert", "insert"]);
+    expect(edges.map((e) => e.data?.at)).toEqual([0, 1, 2, 3]);
+    expect(edges.some((e) => e.animated)).toBe(false);
+    // Le run n'a pas sa place sur un brouillon : aucun pas n'est courant.
+    expect(nodes.some((n) => n.data.current)).toBe(false);
+    expect(nodes.find((n) => n.id === "trigger")?.data.selected).toBe(true);
+  });
+
+  it("en edition, un pas sans consigne ou sans approbateur se signale", () => {
+    const incomplete: Workflow = {
+      ...workflow,
+      steps: [
+        { index: 0, kind: "agent", name: "", instruction: "   " },
+        { index: 1, kind: "approval", name: "Relire", approverUserId: "" },
+      ],
+    };
+    const { nodes } = deriveCanvas(incomplete, undefined, null, t, true);
+    expect(nodes.find((n) => n.id === "s0")?.data.invalid).toBe(true);
+    expect(nodes.find((n) => n.id === "s0")?.data.title).toBe("workflows.stepUntitled");
+    expect(nodes.find((n) => n.id === "s1")?.data.invalid).toBe(true);
+  });
 });

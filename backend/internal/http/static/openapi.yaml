@@ -9316,6 +9316,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/workflows/{workflowID}:
+    patch:
+      tags: [Platform]
+      summary: "Rewrite a workflow: its name, schedule, steps or whether it runs; steps cannot change under an unfinished run"
+      operationId: updateWorkflow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workflowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Workflow updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '409':
+          description: A run is still going; the steps cannot change under it
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Platform]
       summary: Delete a workflow and every run it left behind

@@ -5,6 +5,7 @@ import {
   Pencil,
   Plus,
   RotateCw,
+  Save,
   Trash2,
   X,
 } from "lucide-react";
@@ -12,6 +13,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { SectionHeader } from "@/components/common/page-header";
 import {
   Dialog,
@@ -33,14 +36,19 @@ import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/i18n";
 import { relativeTime, scheduleKey } from "./agent-roster";
 import { WorkflowDialog } from "./workflow-dialog";
-import { WorkflowCanvas } from "./workflow-canvas";
+import { WorkflowCanvas, type CanvasSelection } from "./workflow-canvas";
 import { WorkflowInspector } from "./workflow-inspector";
 import {
   currentStep,
   isTerminal,
   stepKindLabel,
 } from "./workflow-pipeline";
-import type { Workflow, WorkflowRun, WorkflowRunStatus } from "@/lib/api/types";
+import type {
+  Workflow,
+  WorkflowRun,
+  WorkflowRunStatus,
+  WorkflowStep,
+} from "@/lib/api/types";
 import { actionTakenLabel } from "./action-label";
 
 /**
@@ -307,6 +315,12 @@ function WorkflowTile({
  * la, ou il en est, et quand il a travaille. Tout est derive : le pas courant
  * vient du dernier run, le prochain passage des horaires. Rien ici n'est une
  * phrase qu'il faudrait tenir a jour.
+ *
+ * Le crayon ouvre l'edition sur place : le canvas montre le brouillon, chaque
+ * fleche porte un +, et le pas clique se remplit dans l'inspecteur. Rien ne
+ * part avant Enregistrer, et Annuler rend le workflow tel qu'il etait. Les
+ * pas ne changent pas sous un run qui attend quelqu'un : la plateforme le
+ * refuse, et le dit.
  */
 function MissionCard({
   workflow,
@@ -326,14 +340,122 @@ function MissionCard({
   onDecide: (runId: string, approve: boolean) => void;
 }) {
   const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
   const current =
     latest && !isTerminal(latest.status) ? currentStep(latest) : null;
   // Le pas ouvert dans l'inspecteur. Par defaut celui qui travaille, pour
   // qu'un run en cours s'ouvre sur ce qui se passe ; un clic en choisit un
   // autre, un changement de workflow remet a zero.
-  const [picked, setPicked] = React.useState<number | null>(null);
-  React.useEffect(() => setPicked(null), [workflow.id]);
-  const opened = picked ?? current;
+  const [picked, setPicked] = React.useState<CanvasSelection>(null);
+  // Le brouillon en edition, ou rien. Une copie : le workflow affiche reste
+  // la verite tant qu'on n'a pas enregistre.
+  const [draft, setDraft] = React.useState<Workflow | null>(null);
+  React.useEffect(() => {
+    setPicked(null);
+    setDraft(null);
+  }, [workflow.id]);
+  const editing = draft !== null;
+  const shown = draft ?? workflow;
+  const opened = picked ?? (editing ? null : current);
+
+  const startEditing = () => {
+    setDraft({ ...workflow, steps: workflow.steps.map((step) => ({ ...step })) });
+    setPicked(null);
+  };
+  const patchDraft = (change: (current: Workflow) => Workflow) =>
+    setDraft((current) => (current ? change(current) : current));
+  const reindex = (steps: WorkflowStep[]) =>
+    steps.map((step, index) => ({ ...step, index }));
+  const insertAt = React.useCallback((at: number) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const steps = [...current.steps];
+      steps.splice(at, 0, {
+        index: at,
+        kind: "agent",
+        name: "",
+        instruction: "",
+        actions: [],
+      });
+      return { ...current, steps: steps.map((step, index) => ({ ...step, index })) };
+    });
+    setPicked(at);
+  }, []);
+  const changeStep = (index: number, patch: Partial<WorkflowStep>) =>
+    patchDraft((current) => ({
+      ...current,
+      steps: current.steps.map((step) =>
+        step.index === index ? { ...step, ...patch } : step,
+      ),
+    }));
+  const removeStep = (index: number) => {
+    patchDraft((current) => ({
+      ...current,
+      steps: reindex(current.steps.filter((step) => step.index !== index)),
+    }));
+    setPicked(null);
+  };
+  const moveStep = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= shown.steps.length) return;
+    patchDraft((current) => {
+      const steps = [...current.steps];
+      const a = steps[index];
+      const b = steps[target];
+      if (!a || !b) return current;
+      steps[index] = b;
+      steps[target] = a;
+      return { ...current, steps: reindex(steps) };
+    });
+    setPicked(target);
+  };
+
+  const save = useMutation({
+    mutationFn: (item: Workflow) =>
+      platformApi.updateWorkflow(item.id, {
+        name: item.name.trim(),
+        schedule: item.schedule,
+        steps: item.steps.map((step) =>
+          step.kind === "agent"
+            ? {
+                kind: "agent",
+                name: step.name.trim(),
+                instruction: (step.instruction ?? "").trim(),
+                actions: step.actions ?? [],
+              }
+            : {
+                kind: "approval",
+                name: step.name.trim(),
+                approverUserId: (step.approverUserId ?? "").trim(),
+              },
+        ),
+      }),
+    onSuccess: (saved) => {
+      invalidate(qk.workflows);
+      setDraft(null);
+      setPicked(null);
+      toast.success(t("workflows.updated", { name: saved.name }), t("workflows.title"));
+    },
+    onError: (error) => toast.error(error, t("workflows.title")),
+  });
+  const toggle = useMutation({
+    mutationFn: (enabled: boolean) =>
+      platformApi.updateWorkflow(workflow.id, { enabled }),
+    onSuccess: () => invalidate(qk.workflows),
+    onError: (error) => toast.error(error, t("workflows.title")),
+  });
+
+  const ready =
+    editing &&
+    shown.name.trim().length > 0 &&
+    shown.steps.length > 0 &&
+    shown.steps.every((step) =>
+      step.kind === "agent"
+        ? (step.instruction ?? "").trim().length > 0
+        : (step.approverUserId ?? "").trim().length > 0,
+    );
+
   const next =
     workflow.schedule === "hourly"
       ? t("workflows.nextHourly")
@@ -347,96 +469,159 @@ function MissionCard({
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-placeholder">
-              {t("workflows.missionTitle")}
+              {editing ? t("workflows.editing") : t("workflows.missionTitle")}
             </p>
-            <h3 className="text-sm font-semibold">{workflow.name}</h3>
+            {editing ? (
+              <Input
+                value={shown.name}
+                onChange={(event) =>
+                  patchDraft((current) => ({ ...current, name: event.target.value }))
+                }
+                maxLength={80}
+                className="mt-1 max-w-md"
+                aria-label={t("workflows.nameLabel")}
+              />
+            ) : (
+              <h3 className="text-sm font-semibold">{workflow.name}</h3>
+            )}
           </div>
           {/* Le canvas au centre, l'inspecteur a droite : la disposition que
               tout outil d'automatisation a installee dans les habitudes. Sur
               un ecran etroit l'inspecteur passe dessous. */}
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px]">
             <WorkflowCanvas
-              workflow={workflow}
+              workflow={shown}
               latest={latest}
               selectedIndex={opened}
               onSelectStep={setPicked}
+              editing={editing}
+              onInsertAt={insertAt}
             />
             <WorkflowInspector
-              workflow={workflow}
+              workflow={shown}
               latest={latest}
               index={opened}
               deciding={deciding}
               onDecide={onDecide}
+              editing={editing}
+              onChangeStep={changeStep}
+              onRemoveStep={removeStep}
+              onMoveStep={moveStep}
+              onChangeSchedule={(schedule) =>
+                patchDraft((current) => ({ ...current, schedule }))
+              }
             />
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onRun}
-            disabled={running}
-          >
-            {running ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <RotateCw className="size-4" aria-hidden />
-            )}
-            {t("workflows.runNow")}
-          </Button>
-          <div className="flex gap-1">
-            {/* L'editeur d'un workflow existant n'est pas encore la : le bouton
-                est a sa place, desactive, et dit pourquoi. */}
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled
-              title={t("workflows.editSoon")}
-            >
-              <Pencil className="size-4" aria-hidden />
-              <span className="sr-only">{t("workflows.edit")}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDelete}
-              title={t("workflows.delete")}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              <span className="sr-only">{t("workflows.delete")}</span>
-            </Button>
-          </div>
+          {editing ? (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDraft(null);
+                  setPicked(null);
+                }}
+                disabled={save.isPending}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => draft && save.mutate(draft)}
+                disabled={!ready || save.isPending}
+              >
+                {save.isPending ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="size-4" aria-hidden />
+                )}
+                {t("common.save")}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Switch
+                  checked={workflow.enabled}
+                  onCheckedChange={(enabled) => toggle.mutate(enabled)}
+                  disabled={toggle.isPending}
+                />
+                {workflow.enabled ? t("agents.atWork") : t("agents.paused")}
+              </label>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onRun}
+                disabled={running}
+              >
+                {running ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <RotateCw className="size-4" aria-hidden />
+                )}
+                {t("workflows.runNow")}
+              </Button>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={startEditing}
+                  title={t("workflows.edit")}
+                >
+                  <Pencil className="size-4" aria-hidden />
+                  <span className="sr-only">{t("workflows.edit")}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  title={t("workflows.delete")}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                  <span className="sr-only">{t("workflows.delete")}</span>
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <WhenRow workflow={workflow} />
+      <WhenRow
+        workflow={shown}
+        editing={editing}
+        onChange={(schedule) => patchDraft((current) => ({ ...current, schedule }))}
+      />
 
-      <dl className="mt-4 grid gap-3 border-t border-border pt-3 text-xs sm:grid-cols-3">
-        <div>
-          <dt className="text-placeholder">{t("workflows.whereItIs")}</dt>
-          <dd className="mt-0.5 text-foreground">
-            {current !== null && latest
-              ? t("workflows.atStep", {
-                  index: current + 1,
-                  name: workflow.steps[current]?.name ?? "",
-                })
-              : t("workflows.idle")}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-placeholder">{t("workflows.lastRun")}</dt>
-          <dd className="mt-0.5 flex items-center gap-2 text-foreground">
-            {relativeTime(latest?.startedAt, t)}
-            {latest ? <StatusBadge status={latest.status} /> : null}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-placeholder">{t("workflows.nextRun")}</dt>
-          <dd className="mt-0.5 text-foreground">
-            {workflow.enabled ? next : t("agents.paused")}
-          </dd>
-        </div>
-      </dl>
+      {editing ? null : (
+        <dl className="mt-4 grid gap-3 border-t border-border pt-3 text-xs sm:grid-cols-3">
+          <div>
+            <dt className="text-placeholder">{t("workflows.whereItIs")}</dt>
+            <dd className="mt-0.5 text-foreground">
+              {current !== null && latest
+                ? t("workflows.atStep", {
+                    index: current + 1,
+                    name: workflow.steps[current]?.name ?? "",
+                  })
+                : t("workflows.idle")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-placeholder">{t("workflows.lastRun")}</dt>
+            <dd className="mt-0.5 flex items-center gap-2 text-foreground">
+              {relativeTime(latest?.startedAt, t)}
+              {latest ? <StatusBadge status={latest.status} /> : null}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-placeholder">{t("workflows.nextRun")}</dt>
+            <dd className="mt-0.5 text-foreground">
+              {workflow.enabled ? next : t("agents.paused")}
+            </dd>
+          </div>
+        </dl>
+      )}
     </div>
   );
 }
@@ -610,7 +795,15 @@ function dotFor(status: WorkflowRunStatus): string {
  * concept entier, et un horaire qu'on ne peut pas encore ecrire en francais
  * est un horaire qu'on sait deja ou mettre.
  */
-function WhenRow({ workflow }: { workflow: Workflow }) {
+function WhenRow({
+  workflow,
+  editing,
+  onChange,
+}: {
+  workflow: Workflow;
+  editing: boolean;
+  onChange: (schedule: Workflow["schedule"]) => void;
+}) {
   const t = useT();
   const soon = (
     <Badge tone="outline" className="text-[10px]">
@@ -623,19 +816,36 @@ function WhenRow({ workflow }: { workflow: Workflow }) {
         {t("workflows.whenTitle")}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {(["manual", "hourly", "daily"] as const).map((option) => (
-          <span
-            key={option}
-            className={cn(
-              "rounded-lg border px-3 py-1.5 text-sm",
-              workflow.schedule === option
-                ? "border-brand bg-brand-subtle text-brand-subtle-foreground"
-                : "border-border text-muted-foreground",
-            )}
-          >
-            {t(scheduleKey(option))}
-          </span>
-        ))}
+        {(["manual", "hourly", "daily"] as const).map((option) =>
+          editing ? (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={workflow.schedule === option}
+              onClick={() => onChange(option)}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-sm transition",
+                workflow.schedule === option
+                  ? "border-brand bg-brand-subtle text-brand-subtle-foreground"
+                  : "border-border text-muted-foreground hover:border-border-strong",
+              )}
+            >
+              {t(scheduleKey(option))}
+            </button>
+          ) : (
+            <span
+              key={option}
+              className={cn(
+                "rounded-lg border px-3 py-1.5 text-sm",
+                workflow.schedule === option
+                  ? "border-brand bg-brand-subtle text-brand-subtle-foreground"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              {t(scheduleKey(option))}
+            </span>
+          ),
+        )}
         <span className="flex min-w-64 flex-1 items-center gap-2 rounded-lg border border-dashed border-border px-3 py-1.5 text-sm text-placeholder">
           <span className="truncate">{t("workflows.whenInWords")}</span>
           {soon}

@@ -313,8 +313,6 @@ export const fr = {
     stepVerbs: "Verbes",
     stepReadsOnly: "Regarde et rapporte",
     edit: "Modifier",
-    editSoon:
-      "La modification d’un workflow existant arrive. Pour l’instant, écrivez-en un nouveau.",
     currentInstruction: "La consigne du pas en cours",
     title: "Workflows",
     intro:
@@ -382,6 +380,17 @@ export const fr = {
     statusSucceeded: "Terminé",
     statusFailed: "En échec",
     statusCancelled: "Arrêté",
+    stepUntitled: "Pas sans nom",
+    editHint:
+      "Cliquez + sur une flèche pour insérer un pas, ou un pas pour le modifier.",
+    insertHere: "Insérer un pas ici",
+    moveLeft: "Avancer",
+    moveRight: "Reculer",
+    updated: "{name} est mis à jour.",
+    triggerTitle: "Le déclencheur",
+    triggerHelp: "Quand le déroulé démarre. Les pas suivent, dans l’ordre.",
+    editing: "Modification",
+    stepKindLabel: "Sorte de pas",
     canvasTitle: "Le déroulé",
     inspectorTitle: "Le pas",
     selectStep: "Cliquez un pas pour le lire.",

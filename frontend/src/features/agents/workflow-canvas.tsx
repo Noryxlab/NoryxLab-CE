@@ -2,17 +2,21 @@ import * as React from "react";
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   Position,
   ReactFlow,
+  getSmoothStepPath,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Bot, Clock, FileText, UserCheck } from "lucide-react";
+import { Bot, Clock, FileText, Plus, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -37,15 +41,28 @@ import type {
  * La disposition est une ligne de gauche a droite, pas un graphe libre : la
  * sequence est ce que le dossier recommande la ou le controle compte
  * (ADR-046), et les aretes arriveront avec les mandats qui les porteront. Les
- * noeuds ne se deplacent pas - rien ici n'est un reglage a sauvegarder, tout
- * est l'etat que la plateforme a enregistre.
+ * noeuds ne se deplacent pas - la position est l'ordre, et l'ordre se change
+ * dans l'inspecteur, pas en tirant une boite.
+ *
+ * En edition, le meme canvas montre le brouillon : chaque fleche porte un +
+ * qui insere un pas a cet endroit, et un pas qui manque de consigne ou
+ * d'approbateur se voit. Rien ne part tant qu'on n'a pas enregistre.
  */
+
+/** Ce qui est ouvert dans l'inspecteur : un pas par son index, le
+ *  declencheur, ou rien. */
+export type CanvasSelection = number | "trigger" | null;
 
 interface WorkflowCanvasProps {
   workflow: Workflow;
   latest?: WorkflowRun;
-  selectedIndex: number | null;
-  onSelectStep: (index: number | null) => void;
+  selectedIndex: CanvasSelection;
+  onSelectStep: (selection: CanvasSelection) => void;
+  /** Le brouillon s'edite : les fleches portent un +, les pas incomplets se
+   *  signalent, rien ne s'anime. */
+  editing?: boolean;
+  /** Inserer un pas a cette position (0 = avant le premier). */
+  onInsertAt?: (at: number) => void;
   className?: string;
 }
 
@@ -62,7 +79,12 @@ type CanvasData = {
   verbs: string[];
   footer?: string;
   status?: WorkflowRunStatus;
+  /** En edition : le pas manque de ce qu'il lui faut pour etre ecrit. */
+  invalid?: boolean;
+  editing?: boolean;
 };
+
+type InsertEdgeData = { at: number };
 
 type CanvasNode = Node<CanvasData, "step">;
 
@@ -81,10 +103,11 @@ type Translate = ReturnType<typeof useT>;
 export function deriveCanvas(
   workflow: Workflow,
   latest: WorkflowRun | undefined,
-  selectedIndex: number | null,
+  selectedIndex: CanvasSelection,
   t: Translate,
+  editing = false,
 ): { nodes: CanvasNode[]; edges: Edge[] } {
-  const active = Boolean(latest && !isTerminal(latest.status));
+  const active = !editing && Boolean(latest && !isTerminal(latest.status));
   const current = active && latest ? currentStep(latest) : null;
   const finished = latest?.status === "succeeded";
 
@@ -100,15 +123,23 @@ export function deriveCanvas(
         title: t(scheduleKey(workflow.schedule)),
         tone: workflow.enabled ? "brand" : "muted",
         current: false,
-        selected: false,
+        selected: selectedIndex === "trigger",
         attempts: 0,
         verbs: [],
+        editing,
       },
     },
   ];
   workflow.steps.forEach((step, i) => {
-    const stepRun = latest?.steps.find((item) => item.index === step.index);
+    const stepRun = editing
+      ? undefined
+      : latest?.steps.find((item) => item.index === step.index);
     const isCurrent = current !== null && current === step.index;
+    const invalid =
+      editing &&
+      (step.kind === "agent"
+        ? !(step.instruction ?? "").trim()
+        : !(step.approverUserId ?? "").trim());
     nodes.push({
       id: `s${step.index}`,
       type: "step",
@@ -117,8 +148,9 @@ export function deriveCanvas(
       data: {
         kind: step.kind,
         eyebrow: `${step.index + 1} · ${stepKindLabel(step, t)}`,
-        title: step.name || stepKindLabel(step, t),
-        tone: toneFor(stepRun?.status, isCurrent),
+        title:
+          step.name || (editing ? t("workflows.stepUntitled") : stepKindLabel(step, t)),
+        tone: invalid ? "warning" : toneFor(stepRun?.status, isCurrent),
         current: isCurrent,
         selected: selectedIndex === step.index,
         attempts: stepRun?.attempts ?? 0,
@@ -128,6 +160,8 @@ export function deriveCanvas(
             ? t("workflows.waitingFor", { name: step.approverUserId ?? "" })
             : undefined,
         status: stepRun?.status,
+        invalid,
+        editing,
       },
     });
   });
@@ -144,27 +178,37 @@ export function deriveCanvas(
         : latest?.status === "failed"
           ? t("workflows.statusFailed")
           : "…",
-      tone: finished ? "success" : latest?.status === "failed" ? "danger" : "muted",
+      tone:
+        !editing && finished
+          ? "success"
+          : !editing && latest?.status === "failed"
+            ? "danger"
+            : "muted",
       current: false,
       selected: false,
       attempts: 0,
       verbs: [],
+      editing,
     },
   });
 
   // Une arete par voisinage. Elle s'anime vers le pas qui travaille, et
-  // seulement vers lui : c'est ainsi qu'on voit ou en est la nuit.
+  // seulement vers lui : c'est ainsi qu'on voit ou en est la nuit. En
+  // edition elle porte a la place l'endroit ou un + insere un pas : la
+  // i-eme arete insere en position i.
   const edges = nodes.flatMap((from, i): Edge[] => {
     const to = nodes[i + 1];
     if (!to) return [];
     const live = active && (to.data.current || to.data.status === "running");
+    const data: InsertEdgeData | undefined = editing ? { at: i } : undefined;
     return [
       {
         id: `${from.id}-${to.id}`,
         source: from.id,
         target: to.id,
-        type: "smoothstep",
+        type: editing ? "insert" : "smoothstep",
         animated: live,
+        data,
         markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
       },
     ];
@@ -172,51 +216,120 @@ export function deriveCanvas(
   return { nodes, edges };
 }
 
+/** Le + d'une arete appelle ce que le canvas a recu, sans le transporter
+ *  dans la donnee de l'arete - la derivation reste une valeur pure. */
+const InsertContext = React.createContext<((at: number) => void) | undefined>(undefined);
+
 export function WorkflowCanvas({
   workflow,
   latest,
   selectedIndex,
   onSelectStep,
+  editing = false,
+  onInsertAt,
   className,
 }: WorkflowCanvasProps) {
   const t = useT();
   const { nodes, edges } = React.useMemo(
-    () => deriveCanvas(workflow, latest, selectedIndex, t),
-    [workflow, latest, selectedIndex, t],
+    () => deriveCanvas(workflow, latest, selectedIndex, t, editing),
+    [workflow, latest, selectedIndex, t, editing],
   );
 
   return (
     <div
       className={cn(
-        "h-64 w-full overflow-hidden rounded-xl border border-border bg-surface-muted/40",
+        "h-64 w-full overflow-hidden rounded-xl border bg-surface-muted/40",
+        editing ? "border-dashed border-brand/60" : "border-border",
         className,
       )}
       aria-label={t("workflows.canvasTitle")}
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        fitView
-        fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
-        minZoom={0.4}
-        maxZoom={1.4}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        panOnScroll
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: true }}
-        onNodeClick={(_, node) => {
-          if (node.id.startsWith("s")) onSelectStep(Number(node.id.slice(1)));
-        }}
-        onPaneClick={() => onSelectStep(null)}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
-        <Controls showInteractive={false} position="bottom-right" />
-      </ReactFlow>
+      <InsertContext.Provider value={onInsertAt}>
+        <ReactFlow
+          // Le nombre de pas change en edition : on recadre a chaque fois,
+          // sinon le pas insere a droite sort du cadre.
+          key={`${workflow.id}-${editing}-${workflow.steps.length}`}
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          fitView
+          fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
+          minZoom={0.4}
+          maxZoom={1.4}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          panOnScroll
+          zoomOnDoubleClick={false}
+          proOptions={{ hideAttribution: true }}
+          onNodeClick={(_, node) => {
+            if (node.id === "trigger") onSelectStep("trigger");
+            else if (node.id.startsWith("s")) onSelectStep(Number(node.id.slice(1)));
+            else onSelectStep(null);
+          }}
+          onPaneClick={() => onSelectStep(null)}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
+          <Controls showInteractive={false} position="bottom-right" />
+        </ReactFlow>
+      </InsertContext.Provider>
     </div>
   );
 }
+
+/**
+ * Une arete qui porte un +. Le bouton est rendu hors du SVG, au milieu du
+ * trace, et insere un pas la ou l'on clique - ce que fait tout outil du
+ * genre, et ce que la main cherche d'elle-meme.
+ */
+function InsertEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  data,
+}: EdgeProps<Edge<InsertEdgeData>>) {
+  const t = useT();
+  const insert = React.useContext(InsertContext);
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} />
+      <EdgeLabelRenderer>
+        <button
+          type="button"
+          title={t("workflows.insertHere")}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (data && insert) insert(data.at);
+          }}
+          className={cn(
+            "nodrag nopan pointer-events-auto absolute flex size-6 items-center justify-center rounded-full",
+            "border border-brand bg-background text-brand shadow-sm transition hover:bg-brand hover:text-brand-foreground",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--noryx-ring)]",
+          )}
+          style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+        >
+          <Plus className="size-3.5" aria-hidden />
+          <span className="sr-only">{t("workflows.insertHere")}</span>
+        </button>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const EDGE_TYPES = { insert: InsertEdge };
 
 function StepNodeView({ data }: NodeProps<CanvasNode>) {
   const t = useT();
@@ -228,7 +341,8 @@ function StepNodeView({ data }: NodeProps<CanvasNode>) {
         : data.kind === "approval"
           ? UserCheck
           : Bot;
-  const clickable = data.kind === "agent" || data.kind === "approval";
+  const clickable =
+    data.kind === "agent" || data.kind === "approval" || (data.kind === "trigger" && data.editing);
   return (
     <div
       className={cn(
@@ -237,6 +351,7 @@ function StepNodeView({ data }: NodeProps<CanvasNode>) {
         borderFor(data.tone),
         data.current && "shadow-[0_0_0_2px_var(--noryx-brand)]",
         data.selected && "outline-2 outline-offset-2 outline-[var(--noryx-ring)]",
+        data.invalid && "border-dashed",
         clickable ? "cursor-pointer hover:border-border-strong" : "cursor-default",
       )}
     >
