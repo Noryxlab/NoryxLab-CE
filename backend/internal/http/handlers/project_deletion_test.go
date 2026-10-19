@@ -225,53 +225,38 @@ func TestLesAgentsEtWorkflowsPartentAvecLeProjet(t *testing.T) {
 	}
 }
 
-// Un extrait part avec son projet, et est montre avant.
+// Un extrait ne part pas avec son projet : il est detache.
 //
-// `anterion-3-sujets` a survecu a la suppression de Premyom-data en pointant
-// sur un projet disparu : aucune page ne le trouvait, et il nommait trois
-// sujets. Une selection que personne ne voit est une selection que personne
-// ne peut retirer.
-func TestLesExtraitsPartentAvecLeProjet(t *testing.T) {
+// Un objet du catalogue est lie a un projet, jamais possede par lui - un
+// extrait existe pour etre reutilise par plusieurs, c'est tout l'interet d'un
+// lien plutot que d'une appartenance. Les lignes de lien ne portent une clef
+// etrangere que sur l'objet, donc sans detachement elles survivent au projet
+// et pointent sur un identifiant que plus rien ne resout.
+func TestLesExtraitsSontDetachesEtNonSupprimes(t *testing.T) {
 	h, item := projetAvecCharges(t)
 	extraits := memory.NewExtractStore()
-	mien := extract.New("stef", "onto-1", item.ID, "anterion-3-sujets", "",
+	selection := extract.New("stef", "onto-1", item.ID, "anterion-3-sujets", "",
 		[]string{"PREMYOM1000-0023"}, []string{"ANTERION"}, nil, nil, nil)
-	if err := extraits.Create(mien, nil); err != nil {
+	if err := extraits.Create(selection, nil); err != nil {
 		t.Fatal(err)
 	}
-	autre := extract.New("stef", "onto-1", "autre-projet", "ailleurs", "", nil, nil, nil, nil, nil)
-	if err := extraits.Create(autre, nil); err != nil {
+	liens := memory.NewProjectResourceStore()
+	if err := liens.AttachExtract(item.ID, selection.ID); err != nil {
 		t.Fatal(err)
 	}
 	h.extractStore = extraits
+	h.projectResourceStore = liens
 
-	refus := supprimer(t, h, item.ID, "")
-	if refus.Code != http.StatusConflict {
-		t.Fatalf("status = %d ; un projet qui tient un extrait doit etre montre avant", refus.Code)
-	}
-	var corps struct {
-		Items []projectWorkloadItem `json:"items"`
-	}
-	if err := json.Unmarshal(refus.Body.Bytes(), &corps); err != nil {
-		t.Fatal(err)
-	}
-	vu := false
-	for _, it := range corps.Items {
-		if it.Kind == "extract" && it.Name == "anterion-3-sujets" {
-			vu = true
-		}
-	}
-	if !vu {
-		t.Errorf("l'inventaire ne montre pas l'extrait : %v", corps.Items)
-	}
-
-	if rep := supprimer(t, h, item.ID, "?force=true"); rep.Code != http.StatusNoContent {
+	// Un extrait n'est pas une charge : il n'a pas a figurer dans l'inventaire
+	// qui demande confirmation, et il n'empeche pas la suppression.
+	rep := supprimer(t, h, item.ID, "?force=true")
+	if rep.Code != http.StatusNoContent {
 		t.Fatalf("status = %d, body = %s", rep.Code, rep.Body.String())
 	}
-	if restants, _ := extraits.ListByProject(item.ID); len(restants) != 0 {
-		t.Errorf("%d extrait(s) ont survecu a leur projet", len(restants))
+	if _, trouve, _ := extraits.GetByID(selection.ID); !trouve {
+		t.Error("l'extrait a ete supprime avec son projet ; il devait survivre")
 	}
-	if ailleurs, _ := extraits.ListByProject("autre-projet"); len(ailleurs) != 1 {
-		t.Error("l'extrait d'un autre projet a ete emporte")
+	if ids, _ := liens.ListProjectExtractIDs(item.ID); len(ids) != 0 {
+		t.Errorf("%d lien(s) survivent au projet", len(ids))
 	}
 }

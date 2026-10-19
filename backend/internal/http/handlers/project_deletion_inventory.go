@@ -100,18 +100,6 @@ func (h Handlers) projectWorkloads(projectID string) projectInventory {
 			}
 		}
 	}
-	// An extract belongs to a project the way an agent does, and was left
-	// behind by the same hole: `anterion-3-sujets` survived the deletion of
-	// Premyom-data on 2026-10-19 pointing at a project that no longer
-	// existed, so no screen could reach it - and it named three subjects.
-	// A selection nobody can see is a selection nobody can withdraw.
-	if h.extractStore != nil {
-		if items, err := h.extractStore.ListByProject(projectID); err == nil {
-			for _, item := range items {
-				add("extract", item.ID, item.Name, "")
-			}
-		}
-	}
 	return inventory
 }
 
@@ -125,25 +113,45 @@ func standingStatus(enabled bool, schedule string) string {
 	return "stopped"
 }
 
-// deleteProjectExtracts removes the selections declared in a project. The
-// files they named are not touched: an extract is a list, and deleting the
-// list is a decision about access, never about data.
-func (h Handlers) deleteProjectExtracts(projectID string) (int, error) {
-	if h.extractStore == nil {
+// detachProjectLinks removes what a project had attached, and nothing more.
+//
+// A catalogue object is linked to a project, never owned by one: an extract
+// exists to be reused by several of them, which is the whole point of a link
+// rather than an appartenance. So a deletion detaches, and the dataset, the
+// ontology and the selection outlive the project that mounted them - ready
+// to be attached somewhere else.
+//
+// The link rows carry a foreign key on the object and none on the project,
+// so without this they survive the project and point at an identifier
+// nothing resolves.
+func (h Handlers) detachProjectLinks(projectID string) (int, error) {
+	if h.projectResourceStore == nil {
 		return 0, nil
 	}
-	items, err := h.extractStore.ListByProject(projectID)
-	if err != nil {
-		return 0, err
+	detached := 0
+	type pair struct {
+		list   func(string) ([]string, error)
+		detach func(string, string) error
 	}
-	removed := 0
-	for _, item := range items {
-		if err := h.extractStore.Delete(item.ID); err != nil {
-			return removed, err
+	for _, kind := range []pair{
+		{h.projectResourceStore.ListProjectExtractIDs, h.projectResourceStore.DetachExtract},
+		{h.projectResourceStore.ListProjectOntologyIDs, h.projectResourceStore.DetachOntology},
+		{h.projectResourceStore.ListProjectDatasetIDs, h.projectResourceStore.DetachDataset},
+		{h.projectResourceStore.ListProjectRepositoryIDs, h.projectResourceStore.DetachRepository},
+		{h.projectResourceStore.ListProjectDatasourceIDs, h.projectResourceStore.DetachDatasource},
+	} {
+		ids, err := kind.list(projectID)
+		if err != nil {
+			return detached, err
 		}
-		removed++
+		for _, id := range ids {
+			if err := kind.detach(projectID, id); err != nil {
+				return detached, err
+			}
+			detached++
+		}
 	}
-	return removed, nil
+	return detached, nil
 }
 
 // deleteProjectAgents removes the agents and workflows a project held, with
