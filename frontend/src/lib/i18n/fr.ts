@@ -801,6 +801,10 @@ export const fr = {
     uploadPathLabel: "Dossier de destination",
     uploadFileLabel: "Fichier",
     newFolder: "Nouveau dossier",
+    move: "Déplacer",
+    moveDone: "{count} élément(s) déplacé(s).",
+    moveFailed: "Déplacement impossible : {names}",
+    moveHint: "Glissez une ligne sur un dossier pour l’y déplacer.",
     rename: "Renommer",
     renameNewName: "Nouveau nom",
     renameHint:

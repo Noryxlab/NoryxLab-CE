@@ -779,6 +779,10 @@ export const en: Translations = {
     uploadPathLabel: "Destination folder",
     uploadFileLabel: "File",
     newFolder: "New folder",
+    move: "Move",
+    moveDone: "{count} item(s) moved.",
+    moveFailed: "Could not move: {names}",
+    moveHint: "Drag a row onto a folder to move it there.",
     rename: "Rename",
     renameNewName: "New name",
     renameHint:

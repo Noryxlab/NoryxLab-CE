@@ -55,6 +55,12 @@ export interface DataTableProps<T> {
    *  jour la ligne cliquee avait souvent bouge entre-temps. */
   selectedKey?: string | null;
   rowActions?: (row: T) => React.ReactNode;
+  /** Attributs poses sur la ligne elle-meme.
+   *
+   *  Une echappatoire, pour ce qui doit vivre sur le <tr> et nulle part
+   *  ailleurs : le glisser-deposer en a besoin - on tire une ligne et on la
+   *  depose sur une autre - et une cellule ne peut pas le porter a sa place. */
+  rowProps?: (row: T) => React.HTMLAttributes<HTMLTableRowElement>;
   className?: string;
 }
 
@@ -73,6 +79,7 @@ export function DataTable<T>({
   onRowClick,
   selectedKey = null,
   rowActions,
+  rowProps,
   className,
 }: DataTableProps<T>) {
   const [sort, setSort] = React.useState<{ columnId: string; direction: 'asc' | 'desc' } | null>(
@@ -170,9 +177,13 @@ export function DataTable<T>({
           ) : (
             sorted.map((row) => {
               const selected = selectedKey != null && rowKey(row) === selectedKey;
+              // La className du rowProps se fusionne au lieu d'etre ecrasee :
+              // le tableau pose la sienne plus bas, et la derniere gagnerait.
+              const { className: rowClassName, ...rowAttributes } = rowProps?.(row) ?? {};
               return (
               <TableRow
                 key={rowKey(row)}
+                {...rowAttributes}
                 aria-selected={onRowClick ? selected : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
@@ -195,6 +206,7 @@ export function DataTable<T>({
                   onRowClick && 'cursor-pointer',
                   selected &&
                     'bg-surface-muted shadow-[inset_3px_0_0_0_var(--color-brand)] hover:bg-surface-muted',
+                  rowClassName,
                 )}
               >
                 {columns.map((column) => (

@@ -33,6 +33,7 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { useDatasetObjects, useDatasetUsage, useVersion, qk, useInvalidate } from '@/lib/api/queries';
 import { datasetsApi } from '@/lib/api/endpoints';
+import { moveTarget } from './move-target';
 import { getAuthHeaders } from '@/lib/api/client';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatDateTime, formatNumber } from '@/lib/format';
@@ -347,6 +348,76 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
     onError: (error) => toast.error(error, t('datasets.rename')),
   });
 
+  /* Deplacer en tirant, plutot qu'en tapant un chemin.
+   *
+   *  Renommer existait deja et fait le meme travail cote serveur - un
+   *  deplacement est un renommage dont seul le dossier change - mais il fallait
+   *  ouvrir une boite et ecrire le chemin de destination. Pour ranger une etude
+   *  patient par patient, c'est l'operation qu'on refait cent fois.
+   *
+   *  Ce qui est tire : la selection si la ligne tiree en fait partie, la ligne
+   *  seule sinon. C'est ce que fait tout gestionnaire de fichiers, et l'inverse
+   *  - tirer une ligne et deplacer une selection qui ne la contient pas -
+   *  surprend toujours. */
+  const [dragged, setDragged] = React.useState<string[] | null>(null);
+  const [over, setOver] = React.useState<string | null>(null);
+  const [moving, setMoving] = React.useState(false);
+
+  /* Le fil d'Ariane accepte le depot, et c'est la seule facon de faire
+   *  remonter un fichier : sans lui on ne sait que descendre. Le marqueur de
+   *  survol est prefixe d'un caractere nul pour ne pas se confondre avec la
+   *  clef d'une ligne, qui peut porter le meme chemin. */
+  function dropOnFolder(folder: string): React.HTMLAttributes<HTMLButtonElement> {
+    if (dragged === null || moving) return {};
+    const marque = `\u0000${folder}`;
+    return {
+      onDragOver: (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        setOver(marque);
+      },
+      onDragLeave: () => setOver((current) => (current === marque ? null : current)),
+      onDrop: (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const keys = dragged;
+        setDragged(null);
+        setOver(null);
+        if (keys) void moveTo(keys, folder);
+      },
+    };
+  }
+
+  async function moveTo(keys: string[], folder: string) {
+    setMoving(true);
+    const failed: string[] = [];
+    let moved = 0;
+    for (const key of keys) {
+      const target = moveTarget(key, folder);
+      // Sans effet ou impossible : on n'envoie rien, le serveur n'aurait
+      // qu'une erreur a rendre pour un geste qui ne demandait rien.
+      if (target === null || target === 'refused') continue;
+      try {
+        await datasetsApi.renameObject(dataset.id, key, target);
+        moved += 1;
+      } catch {
+        failed.push(key.replace(/\/$/, '').split('/').pop() ?? key);
+      }
+    }
+    setMoving(false);
+    invalidate(qk.datasetObjects(dataset.id, prefix));
+    setSelected(new Set());
+    if (failed.length > 0) {
+      toast.error(
+        new Error(t('datasets.moveFailed', { names: failed.slice(0, 5).join(', ') })),
+        t('datasets.move'),
+      );
+      return;
+    }
+    if (moved === 0) return;
+    toast.success(t('datasets.moveDone', { count: String(moved) }), t('datasets.move'));
+  }
+
   const columns: Column<(typeof entries)[number]>[] = [
     {
       id: 'select',
@@ -493,7 +564,11 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
           <button
             type="button"
             onClick={() => setPrefix('')}
-            className="flex items-center gap-1 rounded px-1.5 py-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            {...dropOnFolder('')}
+            className={cn(
+              'flex items-center gap-1 rounded px-1.5 py-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              over === '\u0000racine' && 'bg-brand-subtle text-brand-subtle-foreground',
+            )}
           >
             <Home className="size-3.5" aria-hidden />
             {dataset.name}
@@ -504,9 +579,12 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
               <button
                 type="button"
                 onClick={() => setPrefix(`${segments.slice(0, index + 1).join('/')}/`)}
+                {...dropOnFolder(`${segments.slice(0, index + 1).join('/')}/`)}
                 className={cn(
                   'rounded px-1.5 py-1 transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   index === segments.length - 1 ? 'font-medium text-foreground' : 'text-muted-foreground',
+                  over === `\u0000${segments.slice(0, index + 1).join('/')}/` &&
+                    'bg-brand-subtle text-brand-subtle-foreground',
                 )}
               >
                 {segment}
@@ -602,6 +680,56 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
           defaultSort={{ columnId: 'name', direction: 'asc' }}
           onRowClick={(entry) => {
             if (entry.isFolder) setPrefix(`${prefix}${entry.name}/`);
+          }}
+          rowProps={(entry) => {
+            const key = entry.object.key;
+            const target = entry.isFolder ? `${prefix}${entry.name}/` : null;
+            const accepte =
+              target !== null &&
+              dragged !== null &&
+              !moving &&
+              dragged.some((tire) => {
+                const ou = moveTarget(tire, target);
+                return ou !== null && ou !== 'refused';
+              });
+            return {
+              draggable: !moving,
+              onDragStart: (event) => {
+                const keys = selected.has(key) ? [...selected] : [key];
+                setDragged(keys);
+                event.dataTransfer.effectAllowed = 'move';
+                // Un type a nous : le depot exterieur regarde 'Files', et les
+                // deux ne doivent pas se confondre.
+                event.dataTransfer.setData('application/x-noryx-objects', keys.join('\n'));
+              },
+              onDragEnd: () => {
+                setDragged(null);
+                setOver(null);
+              },
+              onDragOver: accepte
+                ? (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = 'move';
+                    setOver(key);
+                  }
+                : undefined,
+              onDragLeave: accepte ? () => setOver((current) => (current === key ? null : current)) : undefined,
+              onDrop: accepte
+                ? (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const keys = dragged;
+                    setDragged(null);
+                    setOver(null);
+                    if (keys && target) void moveTo(keys, target);
+                  }
+                : undefined,
+              className: cn(
+                dragged?.includes(key) && 'opacity-50',
+                over === key && 'bg-brand-subtle shadow-[inset_0_0_0_2px_var(--color-brand)]',
+              ),
+            };
           }}
           emptyState={
             <EmptyState

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +82,26 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 
 	source, err := client.StatObject(ctx, item.Bucket, fromKey, minio.StatObjectOptions{})
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "the object to rename does not exist"})
+		// Not a single object: it may be a folder, which is a prefix rather
+		// than a thing. Only then, so a plain rename keeps its exact
+		// behaviour and its one-object audit line.
+		if !isNoSuchKey(err) {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the object to rename could not be read"})
+			return
+		}
+		count, moveErr := h.renameDatasetFolder(ctx, client, item, fromKey, toKey)
+		switch {
+		case errors.Is(moveErr, errNothingToMove):
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "the object to rename does not exist"})
+		case moveErr != nil:
+			h.emitAdvancedAudit(r, identity.UserID(), "dataset.folder.renamed", "dataset", item.ID, "",
+				"failure", "move_failed", datasetRenameAuditDetails(item, fromRel, toRel, 0))
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": moveErr.Error()})
+		default:
+			h.emitAdvancedAudit(r, identity.UserID(), "dataset.folder.renamed", "dataset", item.ID, "",
+				"success", "", datasetRenameAuditDetails(item, fromRel, toRel, int64(count)))
+			writeJSON(w, http.StatusOK, map[string]any{"from": fromRel, "to": toRel, "objects": count})
+		}
 		return
 	}
 
@@ -153,3 +173,111 @@ func datasetRenameAuditDetails(item dataset.Dataset, from, to string, size int64
 	details["to"] = to
 	return details
 }
+
+// How many objects one move may carry.
+//
+// A folder move is one HTTP call that does N server-side copies, and the
+// handler holds a ten-minute budget. A patient folder is hundreds of files
+// and a study is thousands, which fits; the root of a 381 GB dataset does
+// not, and the honest failure is to say so with the count before starting
+// rather than to time out halfway and leave the dataset in two states.
+const maxObjectsPerFolderMove = 10000
+
+// renameDatasetFolder moves everything under one prefix to another.
+//
+// The rename handler above stats a single object, so a folder - which is a
+// prefix, not a thing - answered "the object to rename does not exist". The
+// interface offered the button anyway, on any single selection, so renaming
+// a folder was an affordance that always failed.
+//
+// The order is what matters: every object is copied and each copy verified by
+// size before a single source is removed. A move that fails halfway therefore
+// leaves the originals untouched, and the copies it had already made are
+// swept away. The dataset is never in a state where a file exists under
+// neither name - which, on study data somebody is reorganising, is the only
+// property worth protecting.
+func (h Handlers) renameDatasetFolder(
+	ctx context.Context, client *minio.Client, item dataset.Dataset, fromKey, toKey string,
+) (int, error) {
+	fromPrefix, toPrefix := fromKey+"/", toKey+"/"
+	if strings.HasPrefix(toPrefix, fromPrefix) {
+		return 0, errors.New("a folder cannot be moved inside itself")
+	}
+
+	sources := []minio.ObjectInfo{}
+	for object := range client.ListObjects(ctx, item.Bucket,
+		minio.ListObjectsOptions{Prefix: fromPrefix, Recursive: true}) {
+		if object.Err != nil {
+			return 0, errors.New("the folder could not be listed")
+		}
+		sources = append(sources, object)
+		if len(sources) > maxObjectsPerFolderMove {
+			return 0, errors.New("this folder holds more than " +
+				itoa(maxObjectsPerFolderMove) + " files; move its sub-folders one at a time")
+		}
+	}
+	if len(sources) == 0 {
+		return 0, errNothingToMove
+	}
+
+	// Refused before anything is copied, and for the whole move: a folder that
+	// merged itself into an existing one, file by file, would be impossible to
+	// undo and impossible to describe afterwards.
+	for _, source := range sources {
+		target := toPrefix + strings.TrimPrefix(source.Key, fromPrefix)
+		if _, err := client.StatObject(ctx, item.Bucket, target, minio.StatObjectOptions{}); err == nil {
+			return 0, errors.New("the destination already holds " +
+				strings.TrimPrefix(source.Key, fromPrefix))
+		} else if !isNoSuchKey(err) {
+			return 0, errors.New("the destination could not be checked")
+		}
+	}
+
+	copied := []string{}
+	for _, source := range sources {
+		target := toPrefix + strings.TrimPrefix(source.Key, fromPrefix)
+		if _, err := client.CopyObject(ctx,
+			minio.CopyDestOptions{Bucket: item.Bucket, Object: target},
+			minio.CopySrcOptions{Bucket: item.Bucket, Object: source.Key}); err != nil {
+			h.sweepCopies(ctx, client, item, copied)
+			return 0, errors.New("the copy failed at " +
+				strings.TrimPrefix(source.Key, fromPrefix) + "; nothing was moved")
+		}
+		// Verified by size, for the same reason as a single object: a copy
+		// that reported success and landed short must not be followed by the
+		// deletion of the only complete one.
+		landed, err := client.StatObject(ctx, item.Bucket, target, minio.StatObjectOptions{})
+		if err != nil || landed.Size != source.Size {
+			h.sweepCopies(ctx, client, item, append(copied, target))
+			return 0, errors.New("the copy of " +
+				strings.TrimPrefix(source.Key, fromPrefix) + " could not be verified; nothing was moved")
+		}
+		copied = append(copied, target)
+	}
+
+	// Every copy stands. Only now do the originals go.
+	for _, source := range sources {
+		if err := client.RemoveObject(ctx, item.Bucket, source.Key, minio.RemoveObjectOptions{}); err != nil {
+			return len(sources), errors.New("the folder was copied but " +
+				strings.TrimPrefix(source.Key, fromPrefix) + " could not be removed; both names now exist")
+		}
+	}
+	// The folder marker, when the store keeps one. Absent on most, and its
+	// absence is not a failure.
+	_ = client.RemoveObject(ctx, item.Bucket, fromPrefix, minio.RemoveObjectOptions{})
+	return len(sources), nil
+}
+
+// errNothingToMove separates "this prefix holds nothing" from a real failure,
+// so the handler can answer "does not exist" as it always did.
+var errNothingToMove = errors.New("no object under this prefix")
+
+// sweepCopies removes what a failed move had already written. Best effort: the
+// move has failed either way, and the originals are what matters.
+func (h Handlers) sweepCopies(ctx context.Context, client *minio.Client, item dataset.Dataset, keys []string) {
+	for _, key := range keys {
+		_ = client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{})
+	}
+}
+
+func itoa(n int) string { return strconv.Itoa(n) }
