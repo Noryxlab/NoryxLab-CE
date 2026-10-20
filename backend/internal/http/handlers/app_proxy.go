@@ -47,7 +47,8 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
-	if !h.requireAppAccess(w, r, record) {
+	identity, ok := h.requireAppAccess(w, r, record)
+	if !ok {
 		return
 	}
 	if r.Method == http.MethodGet && strings.TrimSpace(r.PathValue("path")) == "" {
@@ -89,6 +90,12 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("X-Forwarded-Port", "443")
 		req.Header.Set("X-Forwarded-Prefix", forwardedPrefix+record.Slug)
 		req.Header.Set("X-Forwarded-For", r.RemoteAddr)
+		// Who is browsing, for the app to tailor what it shows. Always set,
+		// so a value the client put on its own request never reaches the app:
+		// on a public app without a session these are simply empty.
+		req.Header.Set("X-Noryx-User", identity.UserID())
+		req.Header.Set("X-Noryx-User-Email", identity.Email)
+		req.Header.Set("X-Noryx-User-Name", identity.Username)
 		req.Host = r.Host
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
@@ -111,19 +118,23 @@ func (h Handlers) ProxyApp(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(w, r)
 }
 
-func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, record app.App) bool {
+// requireAppAccess answers whether the caller may reach the app, and who the
+// caller is: on a public app the identity is whatever session exists, possibly
+// none.
+func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, record app.App) (auth.Identity, bool) {
 	mode := strings.ToLower(strings.TrimSpace(record.AccessMode))
 	if mode == "public" {
-		return true
+		identity, _ := h.identityFromSessionOrBearerNoWrite(r)
+		return identity, true
 	}
 	identity, ok := h.identityFromSessionOrBearerNoWrite(r)
 	if !ok {
 		if shouldRedirectToInteractiveLogin(r) {
 			redirectToInteractiveLogin(w, r)
-			return false
+			return auth.Identity{}, false
 		}
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing authenticated session"})
-		return false
+		return auth.Identity{}, false
 	}
 	// A project token reaches its own project's applications, and stops there.
 	//
@@ -134,21 +145,21 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	// were unknown.
 	if project := strings.TrimSpace(identity.TokenProjectID); project != "" {
 		if project == strings.TrimSpace(record.ProjectID) {
-			return true
+			return identity, true
 		}
 		writeJSON(w, http.StatusForbidden, map[string]string{
 			"error": "this token belongs to another project",
 		})
-		return false
+		return auth.Identity{}, false
 	}
 	if h.isGlobalAdmin(identity) {
-		return true
+		return identity, true
 	}
 	// The effective owner, which is no longer necessarily the person who
 	// launched it: an app transferred to an organization or to a service
 	// account is reached by whoever that owner covers.
 	if appIdentityMatches(identity, firstNonEmpty(record.OwnerID, record.OwnerUserID)) {
-		return true
+		return identity, true
 	}
 	switch mode {
 	case "private":
@@ -159,20 +170,20 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	case "users":
 		for _, userID := range record.AllowedUsers {
 			if appIdentityMatches(identity, userID) {
-				return true
+				return identity, true
 			}
 		}
 	case "organization":
 		for _, organizationID := range record.AllowedOrganizations {
 			if h.userBelongsToOrganization(identity.Subject, organizationID) || h.userBelongsToOrganization(identity.UserID(), organizationID) {
-				return true
+				return identity, true
 			}
 		}
 	default:
-		return h.requireProjectRole(w, record.ProjectID, identity.UserID(), actionLaunch, "app access")
+		return identity, h.requireProjectRole(w, record.ProjectID, identity.UserID(), actionLaunch, "app access")
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "app access denied"})
-	return false
+	return auth.Identity{}, false
 }
 
 func appIdentityMatches(identity auth.Identity, expected string) bool {

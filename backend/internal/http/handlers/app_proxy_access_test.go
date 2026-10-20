@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
@@ -32,6 +35,7 @@ func appProxyFixture(t *testing.T, mode string, record *app.App) Handlers {
 	return Handlers{
 		projectStore: projects,
 		accessStore:  accessStore,
+		appStore:     memory.NewAppStore(),
 		sessionStore: memory.NewSessionStore(),
 		authMode:     "oidc",
 		keycloak: fakeKeycloak(t, map[string][]keycloak.Organization{
@@ -46,7 +50,7 @@ func TestAPublishedAppIsReachableWithoutSigningIn(t *testing.T) {
 	h := appProxyFixture(t, "public", &record)
 
 	recorder := httptest.NewRecorder()
-	if !h.requireAppAccess(recorder, httptest.NewRequest(http.MethodGet, "/apps/x/", nil), record) {
+	if _, ok := h.requireAppAccess(recorder, httptest.NewRequest(http.MethodGet, "/apps/x/", nil), record); !ok {
 		t.Fatalf("a public app must be reachable by anyone, got %d", recorder.Code)
 	}
 }
@@ -60,7 +64,7 @@ func TestAPrivateAppIsTheOwnersAlone(t *testing.T) {
 	owner := withSession(t, h, "owner")
 	request := httptest.NewRequest(http.MethodGet, "/apps/x/", nil)
 	request.AddCookie(owner)
-	if !h.requireAppAccess(httptest.NewRecorder(), request, record) {
+	if _, ok := h.requireAppAccess(httptest.NewRecorder(), request, record); !ok {
 		t.Error("the owner must reach their own private app")
 	}
 
@@ -70,7 +74,7 @@ func TestAPrivateAppIsTheOwnersAlone(t *testing.T) {
 	request = httptest.NewRequest(http.MethodGet, "/apps/x/", nil)
 	request.AddCookie(other)
 	recorder := httptest.NewRecorder()
-	if h.requireAppAccess(recorder, request, record) {
+	if _, ok := h.requireAppAccess(recorder, request, record); ok {
 		t.Error("a project member must not reach a private app")
 	}
 	if recorder.Code != http.StatusForbidden {
@@ -87,14 +91,14 @@ func TestAnOrganizationAppAdmitsItsMembersOnly(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodGet, "/apps/x/", nil)
 	request.AddCookie(withSession(t, h, "colleague"))
-	if !h.requireAppAccess(httptest.NewRecorder(), request, record) {
+	if _, ok := h.requireAppAccess(httptest.NewRecorder(), request, record); !ok {
 		t.Error("a member of the named organization must be admitted")
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/apps/x/", nil)
 	request.AddCookie(withSession(t, h, "outsider"))
 	recorder := httptest.NewRecorder()
-	if h.requireAppAccess(recorder, request, record) {
+	if _, ok := h.requireAppAccess(recorder, request, record); ok {
 		t.Error("a member of another organization must not be admitted")
 	}
 }
@@ -109,7 +113,7 @@ func TestABrowserIsRedirectedAndAClientIsAnswered(t *testing.T) {
 	browser := httptest.NewRequest(http.MethodGet, "/apps/x/page", nil)
 	browser.Header.Set("Accept", "text/html")
 	recorder := httptest.NewRecorder()
-	if h.requireAppAccess(recorder, browser, record) {
+	if _, ok := h.requireAppAccess(recorder, browser, record); ok {
 		t.Fatal("an anonymous visitor must not be admitted to a private app")
 	}
 	if recorder.Code != http.StatusFound {
@@ -122,7 +126,7 @@ func TestABrowserIsRedirectedAndAClientIsAnswered(t *testing.T) {
 	client := httptest.NewRequest(http.MethodGet, "/apps/x/api", nil)
 	client.Header.Set("Accept", "application/json")
 	recorder = httptest.NewRecorder()
-	if h.requireAppAccess(recorder, client, record) {
+	if _, ok := h.requireAppAccess(recorder, client, record); ok {
 		t.Fatal("an anonymous client must not be admitted")
 	}
 	if recorder.Code != http.StatusUnauthorized {
@@ -140,5 +144,42 @@ func TestTheLoginRedirectNeverLeavesThePlatform(t *testing.T) {
 	location := recorder.Header().Get("Location")
 	if location == "" || location[0] != '/' {
 		t.Fatalf("the redirect must stay on this platform, got %q", location)
+	}
+}
+
+// The proxy tells the app who is browsing, and only the proxy does: a value
+// the client put on its own request is replaced, on a public app by nothing.
+func TestTheProxyTellsTheAppWhoIsBrowsing(t *testing.T) {
+	seen := make(chan http.Header, 2)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer target.Close()
+	targetURL, _ := url.Parse(target.URL)
+	host, portText, _ := net.SplitHostPort(targetURL.Host)
+	port, _ := strconv.Atoi(portText)
+
+	record := app.App{OwnerUserID: "owner", Slug: "x", Kind: "app", ServiceName: host, Port: port}
+	h := appProxyFixture(t, "public", &record)
+	if err := h.appStore.Upsert(record); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /apps/{slug}/{path...}", h.ProxyApp)
+
+	spoofed := httptest.NewRequest(http.MethodGet, "/apps/x/api", nil)
+	spoofed.Header.Set("X-Noryx-User", "admin")
+	mux.ServeHTTP(httptest.NewRecorder(), spoofed)
+	if got := (<-seen).Get("X-Noryx-User"); got != "" {
+		t.Errorf("an anonymous visitor must reach the app as nobody, got %q", got)
+	}
+
+	owner := withSession(t, h, "owner")
+	signed := httptest.NewRequest(http.MethodGet, "/apps/x/api", nil)
+	signed.AddCookie(owner)
+	mux.ServeHTTP(httptest.NewRecorder(), signed)
+	if got := (<-seen).Get("X-Noryx-User"); got != "owner" {
+		t.Errorf("the app must learn who is browsing, got %q", got)
 	}
 }
