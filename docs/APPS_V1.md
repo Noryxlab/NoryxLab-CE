@@ -174,3 +174,21 @@ A handful of packages whose import name differs from their package name are
 mapped (`cv2` → `opencv-python`, `sklearn` → `scikit-learn`, `yaml` →
 `PyYAML`, `PIL` → `pillow`). For anything else the module name is suggested,
 which is right far more often than not.
+
+## What the proxy tells your app
+
+Every request the platform forwards to an app, dashboard or API carries:
+
+| Header | Value |
+|---|---|
+| `X-Forwarded-Prefix` | the path the app is mounted on, e.g. `/apps/my-app` |
+| `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port` | how the browser reached the platform |
+| `X-Noryx-User` | the user id of the person browsing |
+| `X-Noryx-User-Email` | their e-mail |
+| `X-Noryx-User-Name` | their username |
+
+The identity headers are always set by the proxy, never copied from the
+client, so an app can trust them: a value a caller puts on its own request is
+replaced. On a public app reached without a session they are empty. Use them
+to tailor what the app shows to the person in front of it; the decision to let
+that person reach the app at all is the platform's, through the access mode.
