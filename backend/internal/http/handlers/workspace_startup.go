@@ -211,5 +211,15 @@ func buildStartupReport(recorded string, status noryxruntime.PodStatus, events [
 		report.OutOfMemory = true
 		report.Stuck = true
 	}
+	// Same reasoning as the memory kill, for the other quota. An eviction for
+	// ephemeral storage arrives as a failed phase with a message that names a
+	// number, and the remedy - write where it persists - is not something the
+	// number suggests.
+	if notice, evicted := outOfDiskStatus(status); evicted {
+		at("environment").State = "failed"
+		at("environment").Detail = "environment_out_of_disk"
+		at("environment").Technical = notice
+		report.Stuck = true
+	}
 	return report
 }

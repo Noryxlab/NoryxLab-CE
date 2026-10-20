@@ -291,6 +291,10 @@ type PodStatus struct {
 	// otherwise have to know to look for.
 	OutOfMemory   bool      `json:"outOfMemory,omitempty"`
 	OutOfMemoryAt time.Time `json:"outOfMemoryAt,omitempty"`
+	// OutOfDisk reports that the node evicted this workload for writing more
+	// than its ephemeral storage allowance. Distinct from OutOfMemory: the
+	// remedy is not a bigger tier but writing somewhere that persists.
+	OutOfDisk bool `json:"outOfDisk,omitempty"`
 }
 
 // PodEvent is one thing Kubernetes recorded about a pod, in its own words. The

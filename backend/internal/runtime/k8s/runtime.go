@@ -770,6 +770,14 @@ func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
 			}
 		}
 	}
+	// An eviction for ephemeral storage is written on the pod, not on a
+	// container: the kubelet reclaims the whole pod and says so in its
+	// reason and message. Read here rather than inferred from the phase,
+	// because "Failed" alone is what a crashed process looks like too.
+	if strings.EqualFold(pod.Status.Reason, "Evicted") &&
+		strings.Contains(strings.ToLower(pod.Status.Message), "ephemeral local storage") {
+		status.OutOfDisk = true
+	}
 	return status, nil
 }
 

@@ -506,6 +506,8 @@ export const en: Translations = {
       "The data storage could not be attached. Tell your administrator.",
     reason_environment_failed:
       "The session stopped while it was being prepared.",
+    reason_environment_out_of_disk:
+      "The session wrote more than its temporary space allows. Put environments and caches in /mnt, ~/.noryx-profile or /datasets — only those survive a stop.",
     reason_environment_restarting: "The session keeps restarting.",
     reason_environment_out_of_memory:
       "Closed because it ran out of memory. Relaunch it on a larger machine size.",

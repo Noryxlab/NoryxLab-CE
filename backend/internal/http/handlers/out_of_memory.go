@@ -29,3 +29,27 @@ func outOfMemoryStatus(status noryxruntime.PodStatus) (string, bool) {
 	}
 	return outOfMemoryNotice, true
 }
+
+// What a workload evicted for disk says about itself.
+//
+// Kubernetes reports "Evicted: Pod ephemeral local storage usage exceeds the
+// total limit of containers 8Gi", which names a quota and leaves the person
+// to guess what filled it. What filled it is almost always a Python
+// environment or a package cache built in the home directory, because only
+// three paths in a workspace are persistent and the home directory is not one
+// of them - so the same mistake loses the work twice: the session is killed,
+// and what it had installed would have vanished at the next stop anyway.
+//
+// So the notice names the cause and the one place that fixes both.
+const outOfDiskNotice = "La session a écrit plus que son espace temporaire autorisé et a été arrêtée. " +
+	"Seuls /mnt (le projet), ~/.noryx-profile (votre espace personnel) et /datasets survivent à un arrêt : " +
+	"installez les environnements et les caches à l'un de ces emplacements."
+
+// outOfDiskStatus reports whether this status is an eviction for ephemeral
+// storage, in which case the notice replaces whatever Kubernetes had to say.
+func outOfDiskStatus(status noryxruntime.PodStatus) (string, bool) {
+	if !status.OutOfDisk {
+		return "", false
+	}
+	return outOfDiskNotice, true
+}

@@ -518,6 +518,8 @@ export const fr = {
       "Le stockage des données n’a pas pu être rattaché. Prévenez votre administrateur.",
     reason_environment_failed:
       "La session s’est arrêtée pendant sa préparation.",
+    reason_environment_out_of_disk:
+      "La session a écrit plus que son espace temporaire autorisé. Installez les environnements et les caches dans /mnt, ~/.noryx-profile ou /datasets — seuls ces emplacements survivent à un arrêt.",
     reason_environment_restarting: "La session redémarre en boucle.",
     reason_environment_out_of_memory:
       "Fermée pour cause de manque de mémoire. Relancez sur une taille de machine plus grande.",
