@@ -68,6 +68,9 @@ jobs:
 
       - name: The embedded system Dockerfiles match environments/
         run: python3 scripts/ops/embed-system-dockerfiles.py --check
+
+      - name: The platform refreshes the images it starts
+        run: python3 scripts/ops/check-environment-image-tags.py --check
       - run: go -C backend test ./...
 
       # The initial floor is intentionally below the 18% baseline measured on
