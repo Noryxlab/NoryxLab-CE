@@ -55,3 +55,48 @@ Niveau 3 : Modalité`);
     expect(lireProposition('subject: level 1, visit: level 99')?.visitLevel).toBeUndefined();
   });
 });
+
+/* La proposition reelle de l'assistant pour SELENA, collee telle quelle.
+ *
+ *  Elle donne les trois positions dans la forme attendue, puis mentionne la
+ *  quatrieme en prose, a l'envers : « le niveau 4 porte le type de données ».
+ *  C'est ce texte-la que quelqu'un colle, et le niveau 4 n'etait pas trouve. */
+const PROPOSITION_SELENA = `subject: level 1, visit: level 2, modality: level 3
+names: patient / visite / modalité
+
+Je note que le niveau 4 porte le type de données (sous-catégorie), mais que la
+règle de lecture ne définit que trois positions principales : sujet, visite et
+modalité. Le niveau 3 reste donc le niveau de la modalité (l'instrument ou
+l'examen principal), et le niveau 4 est un sous-niveau optionnel qui ne fait
+pas partie de la structure principale de lecture.`;
+
+describe('le niveau sous la modalité', () => {
+  it('se lit dans la proposition de SELENA, écrite à l’envers', () => {
+    const lue = lireProposition(PROPOSITION_SELENA);
+    expect(lue).not.toBeNull();
+    expect(lue?.subjectLevel).toBe(1);
+    expect(lue?.visitLevel).toBe(2);
+    expect(lue?.modalityLevel).toBe(3);
+    expect(lue?.dataTypeLevel).toBe(4);
+    expect(lue?.modalityName).toBe('modalité');
+  });
+
+  it('se lit aussi dans la forme que la consigne demande', () => {
+    const lue = lireProposition(
+      'subject: level 1, visit: level 2, modality: level 3, data type: level 4\nnames: patient / visite / modalité / type',
+    );
+    expect(lue?.dataTypeLevel).toBe(4);
+    expect(lue?.dataTypeName).toBe('type');
+  });
+
+  /* Une phrase qui parle d'un quatrieme niveau sans le designer ne doit rien
+   *  remplir : un champ rempli de travers se voit moins qu'un champ vide. */
+  it('reste absent quand la proposition n’en nomme pas', () => {
+    const lue = lireProposition(
+      'subject: level 1, visit: level 2, modality: level 3\nnames: patient / visite / modalité\nIl existe un sous-niveau optionnel au niveau 4 que je ne décris pas.',
+    );
+    expect(lue?.subjectLevel).toBe(1);
+    expect(lue?.dataTypeLevel).toBeUndefined();
+    expect(lue?.dataTypeName).toBeUndefined();
+  });
+});

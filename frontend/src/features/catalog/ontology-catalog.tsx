@@ -471,9 +471,11 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     setSubject(String(comprise.subjectLevel));
     setVisit(comprise.visitLevel === undefined ? '' : String(comprise.visitLevel));
     setModality(comprise.modalityLevel === undefined ? '' : String(comprise.modalityLevel));
+    if (comprise.dataTypeLevel !== undefined) setTypeDonnees(String(comprise.dataTypeLevel));
     if (comprise.subjectName) setNomSujet(comprise.subjectName);
     if (comprise.visitName) setNomVisite(comprise.visitName);
     if (comprise.modalityName) setNomModalite(comprise.modalityName);
+    if (comprise.dataTypeName) setNomTypeDonnees(comprise.dataTypeName);
     setLue(comprise);
     /* Et on l'essaie tout de suite.
      *
@@ -490,13 +492,15 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
       subjectLevel: comprise.subjectLevel ?? null,
       visitLevel: comprise.visitLevel ?? null,
       modalityLevel: comprise.modalityLevel ?? null,
-      // L'assistant ne propose pas encore ce niveau : l'essai part avec la
-      // valeur du formulaire, pour ne pas effacer ce que quelqu'un a saisi.
-      dataTypeLevel: typeDonnees.trim() === '' ? null : Number(typeDonnees),
+      // Ce que la proposition nomme, sinon ce qui est deja saisi : une
+      // proposition qui ne parle pas du quatrieme niveau ne doit pas effacer
+      // celui que quelqu'un vient d'ecrire.
+      dataTypeLevel:
+        comprise.dataTypeLevel ?? (typeDonnees.trim() === '' ? null : Number(typeDonnees)),
       subjectName: comprise.subjectName ?? '',
       visitName: comprise.visitName ?? '',
       modalityName: comprise.modalityName ?? '',
-      dataTypeName: nomTypeDonnees.trim(),
+      dataTypeName: comprise.dataTypeName ?? nomTypeDonnees.trim(),
     });
   };
 
@@ -632,7 +636,9 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
             className="min-h-20 font-mono text-xs"
             value={proposition}
             onChange={(event) => setProposition(event.target.value)}
-            placeholder={'subject: level 1, visit: level 2, modality: level 3\nnames: patient / visite / modalité'}
+            placeholder={
+              'subject: level 1, visit: level 2, modality: level 3, data type: level 4\nnames: patient / visite / modalité / type de données'
+            }
           />
         </Field>
         <div className="flex flex-wrap items-center gap-2">

@@ -25,9 +25,15 @@ export interface ReadingProposal {
   subjectLevel?: number;
   visitLevel?: number;
   modalityLevel?: number;
+  /** Le niveau sous la modalite, quand la proposition en nomme un. Absent
+   *  sinon : l'assistant decrit souvent trois positions et mentionne la
+   *  quatrieme en passant, et un champ qu'il n'a pas propose ne doit pas
+   *  arriver a zero dans le formulaire. */
+  dataTypeLevel?: number;
   subjectName?: string;
   visitName?: string;
   modalityName?: string;
+  dataTypeName?: string;
 }
 
 /** Les niveaux, dans la forme que la consigne impose a l'assistant. */
@@ -43,11 +49,40 @@ function niveau(texte: string, clef: string): number | undefined {
   return valeur >= 0 && valeur <= 15 ? valeur : undefined;
 }
 
+/** Le niveau sous la modalite, dans les deux sens ou une phrase le dit.
+ *
+ *  La consigne demande « data type: level 4 », et c'est la forme cherchee
+ *  d'abord. Mais une proposition ecrite en prose le dit a l'envers - « je
+ *  note que le niveau 4 porte le type de donnees (sous-categorie) » - et
+ *  refuser cette phrase-la renvoie quelqu'un a recopier un chiffre a la main,
+ *  ce que cette case existe precisement pour eviter.
+ *
+ *  Les mots acceptes sont nommes un par un plutot que devines : « sous-niveau
+ *  optionnel » parle aussi du quatrieme niveau sans le designer, et une
+ *  correspondance large remplirait le formulaire avec le niveau d'une phrase
+ *  qui n'en proposait aucun. */
+const MOTS_DU_TYPE = '(?:data\\s*type|type\\s+de\\s+donn[ée]es|sous-cat[ée]gorie|subcategory|kind)';
+
+function niveauDuType(texte: string): number | undefined {
+  const direct = niveau(texte, MOTS_DU_TYPE);
+  if (direct !== undefined) return direct;
+  // « le niveau 4 porte le type de donnees » : le chiffre avant les mots,
+  // dans la meme proposition - pas au bout d'un paragraphe.
+  const inverse = new RegExp(`(?:level|niveau)\\s*(\\d{1,2})[^.\\n]{0,40}?${MOTS_DU_TYPE}`, 'i');
+  const trouve = inverse.exec(texte);
+  if (!trouve) return undefined;
+  const valeur = Number(trouve[1]);
+  return valeur >= 0 && valeur <= 15 ? valeur : undefined;
+}
+
 /** Les mots du metier : « names: patient / visite / modalité ». */
-function noms(texte: string): [string?, string?, string?] {
-  const motif = /\bnames?\s*:?\s*([^\n/]{1,40})\/([^\n/]{1,40})\/([^\n/]{1,40})/i;
+function noms(texte: string): [string?, string?, string?, string?] {
+  // Le quatrieme nom est facultatif : « patient / visite / modalité » reste
+  // la forme courante, et une proposition qui ajoute « / type » la donne.
+  const motif =
+    /\bnames?\s*:?\s*([^\n/]{1,40})\/([^\n/]{1,40})\/([^\n/]{1,40})(?:\/([^\n/]{1,40}))?/i;
   const trouve = motif.exec(texte);
-  if (!trouve) return [undefined, undefined, undefined];
+  if (!trouve) return [undefined, undefined, undefined, undefined];
   const propre = (brut: string | undefined) => {
     if (!brut) return undefined;
     const mot = brut.trim().replace(/[.;,]+$/, '');
@@ -55,7 +90,7 @@ function noms(texte: string): [string?, string?, string?] {
     // dans une etiquette de colonne ne tient pas.
     return mot && !mot.includes(' ') ? mot : undefined;
   };
-  return [propre(trouve[1]), propre(trouve[2]), propre(trouve[3])];
+  return [propre(trouve[1]), propre(trouve[2]), propre(trouve[3]), propre(trouve[4])];
 }
 
 /** lireProposition rend ce qu'elle a compris, et rien de plus.
@@ -68,14 +103,16 @@ export function lireProposition(texte: string): ReadingProposal | null {
   const brut = texte.trim();
   if (!brut) return null;
 
-  const [sujet, visite, modalite] = noms(brut);
+  const [sujet, visite, modalite, typeDonnees] = noms(brut);
   const proposition: ReadingProposal = {
     subjectLevel: niveau(brut, 'subject'),
     visitLevel: niveau(brut, 'visit'),
     modalityLevel: niveau(brut, 'modality'),
+    dataTypeLevel: niveauDuType(brut),
     subjectName: sujet,
     visitName: visite,
     modalityName: modalite,
+    dataTypeName: typeDonnees,
   };
 
   // Sans niveau de regroupement il n'y a pas de lecture : la refuser en
