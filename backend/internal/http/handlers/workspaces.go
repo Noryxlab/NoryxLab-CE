@@ -197,6 +197,15 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 		if strings.TrimSpace(item.AccessToken) == "" && found {
 			item.AccessToken = existingRecord.AccessToken
 		}
+		// Le lanceur, que le pod ne porte pas : une etiquette Kubernetes
+		// n'accepte ni "@" ni certaines formes d'identifiant, et un workspace
+		// est lance par une personne dont le nom en contient. Il se conserve
+		// donc depuis la ligne existante ; une ligne perdue retombe sur le
+		// role de projet, comme avant ce champ.
+		lanceur := ""
+		if found {
+			lanceur = existingRecord.OwnerUserID
+		}
 
 		recordName := item.PodName
 		if found && strings.TrimSpace(existingRecord.Name) != "" {
@@ -245,6 +254,7 @@ func (h Handlers) syncWorkspacesFromRuntime(_ string) {
 			Status:      workspaceStatusFromPhase(item.Phase),
 			AccessURL:   accessURL,
 			AccessToken: item.AccessToken,
+			OwnerUserID: lanceur,
 			CreatedAt:   createdAt,
 		}
 		_ = h.workspaceStore.Create(record)
@@ -606,6 +616,9 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		accessToken,
 	)
 	record.ImageDigest = imageDigest
+	// Qui le lance, parce que ce sont ses droits qui le remplissent : les
+	// datasets montes trois lignes plus bas sont resolus pour cette identite.
+	record.OwnerUserID = userID
 	record.AccessURL = workspaceAccessURL(req.IDE, record.ID)
 	record.PVCName = pvcName
 	record.PVCClass = h.workspacePVCClass
@@ -914,6 +927,8 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"image":        record.Image,
 		"hardwareTier": tier.ID,
 	})
+	// Dit au lancement, le seul moment ou quelqu'un regarde.
+	record.Withheld = h.attachmentsWithheldFrom(req.ProjectID, identity)
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -978,6 +993,42 @@ func sanitizeK8sName(raw string) string {
 		out = out[:50]
 	}
 	return strings.Trim(out, "-")
+}
+
+// attachmentsWithheldFrom names what this project attaches and this person is
+// not given.
+//
+// The resolver below drops both cases with a bare `continue`: a dataset the
+// launcher holds no read on, and a repository belonging to somebody else - a
+// repository is personal, which is the decision and not an oversight.
+// Dropping them is right; dropping them silently is what made "my data is not
+// there" unanswerable. It asks the same two functions rather than restating
+// their rules, so the list cannot drift from the filter.
+func (h Handlers) attachmentsWithheldFrom(projectID string, identity auth.Identity) []string {
+	userID := identity.UserID()
+	withheld := []string{}
+	if ids, err := h.projectResourceStore.ListProjectDatasetIDs(projectID); err == nil {
+		for _, id := range ids {
+			item, found, err := h.datasetStore.GetByID(id)
+			if err != nil || !found || h.canReadDataset(item, identity) {
+				continue
+			}
+			withheld = append(withheld, fallbackResourceName(item.Name, item.ID))
+		}
+	}
+	if h.repositoryStore == nil {
+		return withheld
+	}
+	if ids, err := h.projectResourceStore.ListProjectRepositoryIDs(projectID); err == nil {
+		for _, id := range ids {
+			item, found, err := h.repositoryStore.GetByID(id)
+			if err != nil || !found || strings.EqualFold(strings.TrimSpace(item.OwnerUserID), strings.TrimSpace(userID)) {
+				continue
+			}
+			withheld = append(withheld, fallbackResourceName(item.Name, item.ID))
+		}
+	}
+	return withheld
 }
 
 func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity auth.Identity, includeExternalDatasets bool) ([]workspaceAttachedRepo, []workspaceAttachedDataset, error) {

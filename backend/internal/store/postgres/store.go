@@ -350,6 +350,7 @@ func migrationStatements() []string {
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS owner_user_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS result TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL`,
@@ -1890,7 +1891,7 @@ func (s *Store) CreatePod(p pod.Launch) error {
 }
 
 func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at, owner_user_id FROM workspaces ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1917,6 +1918,7 @@ func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
 			&w.AccessURL,
 			&w.AccessToken,
 			&w.CreatedAt,
+			&w.OwnerUserID,
 		); err != nil {
 			return nil, err
 		}
@@ -1927,7 +1929,7 @@ func (s *Store) ListWorkspaces() ([]workspace.Workspace, error) {
 
 func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 	var w workspace.Workspace
-	err := s.db.QueryRow(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at FROM workspaces WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at, owner_user_id FROM workspaces WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&w.ID,
 		&w.ProjectID,
 		&w.Kind,
@@ -1946,6 +1948,7 @@ func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 		&w.AccessURL,
 		&w.AccessToken,
 		&w.CreatedAt,
+		&w.OwnerUserID,
 	)
 	if err == sql.ErrNoRows {
 		return workspace.Workspace{}, false, nil
@@ -1957,7 +1960,7 @@ func (s *Store) GetWorkspaceByID(id string) (workspace.Workspace, bool, error) {
 }
 
 func (s *Store) CreateWorkspace(w workspace.Workspace) error {
-	_, err := s.db.Exec(`INSERT INTO workspaces (id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+	_, err := s.db.Exec(`INSERT INTO workspaces (id, project_id, kind, name, image, image_digest, pod_name, service_name, pvc_name, pvc_class, pvc_size, pvc_mount_path, cpu, memory, status, access_url, access_token, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
 		w.ID,
 		w.ProjectID,
 		w.Kind,
@@ -1976,6 +1979,7 @@ func (s *Store) CreateWorkspace(w workspace.Workspace) error {
 		w.AccessURL,
 		w.AccessToken,
 		w.CreatedAt,
+		w.OwnerUserID,
 	)
 	return err
 }

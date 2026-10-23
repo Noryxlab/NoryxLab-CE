@@ -1,7 +1,17 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { Cpu, ExternalLink, HardDrive, Layers, Plus, RotateCcw, Square, Terminal } from 'lucide-react';
+import {
+  Cpu,
+  ExternalLink,
+  HardDrive,
+  Layers,
+  Plus,
+  RotateCcw,
+  Square,
+  Terminal,
+  UserRound,
+} from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { EmptyState, ErrorState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -12,6 +22,7 @@ import { SkeletonCards } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { useEnvironments, useWorkspaces, qk, useInvalidate } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
+import { useAuth } from '@/lib/auth';
 import { useI18n, useT } from '@/lib/i18n';
 import { WorkspaceStartup } from '@/features/workspaces/workspace-startup';
 import { formatDuration, formatQuantity, imageRepository } from '@/lib/format';
@@ -46,6 +57,17 @@ function WorkspaceCard({
   );
   const status = describeStatus(workspace.status, locale);
   const running = status.tone === 'success';
+  // Lance par quelqu'un d'autre : la session porte ses droits, donc elle ne
+  // s'ouvre pas ici. Le bouton le dit avant le clic plutot qu'apres.
+  const { identity } = useAuth();
+  const owner = (workspace.ownerUserId ?? '').trim();
+  const foreign = Boolean(
+    owner &&
+      identity &&
+      owner.toLowerCase() !== identity.username.toLowerCase() &&
+      owner.toLowerCase() !== identity.subject.toLowerCase() &&
+      owner.toLowerCase() !== (identity.email ?? '').toLowerCase(),
+  );
 
   return (
     <Card className="flex flex-col">
@@ -78,6 +100,19 @@ function WorkspaceCard({
         <p className="text-xs text-muted-foreground">
           {t('common.duration')} · {formatDuration(workspace.createdAt, new Date(), locale)}
         </p>
+        {/* De qui est cette session.
+            Un workspace est rempli pour une seule personne - les datasets
+            dedans sont ceux qu'elle peut lire - et depuis cette version, elle
+            seule l'ouvre. Le dire ici evite de cliquer sur Ouvrir pour
+            l'apprendre. */}
+        {foreign ? (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <UserRound className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">
+              {t('workspaces.launchedBy')} {workspace.ownerUserId}
+            </span>
+          </p>
+        ) : null}
         <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
           <Layers className="size-3.5 shrink-0" aria-hidden />
           <span className="truncate" title={workspace.image}>
@@ -97,7 +132,11 @@ function WorkspaceCard({
       <CardFooter className="justify-between">
         {/* The open action follows the backend status rather than optimistic
             timing — the lesson recorded in docs/onyxia-lessons.md. */}
-        {running && workspace.accessUrl ? (
+        {foreign ? (
+          <Button variant="primary" size="sm" disabled title={t('workspaces.foreignHint')}>
+            {t('common.open')}
+          </Button>
+        ) : running && workspace.accessUrl ? (
           <Button variant="primary" size="sm" asChild>
             <a href={workspace.accessUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink aria-hidden />

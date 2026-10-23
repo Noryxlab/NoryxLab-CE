@@ -11,6 +11,7 @@ import (
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	projectdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
+	workspacedomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
@@ -215,5 +216,63 @@ func TestUnProjetConfieAUneEquipeAUnProprietaire(t *testing.T) {
 	}
 	if h.projectOwnedBy(item, "etranger") {
 		t.Fatal("un etranger a l'equipe possede le projet")
+	}
+}
+
+// Un workspace s'ouvre par la personne qui l'a lance.
+//
+// Les datasets dedans ont ete resolus pour une seule identite, au lancement.
+// Le seul role de projet gardait la porte, donc un collegue entrait dans le
+// workspace d'un autre et lisait ce qui y avait ete monte pour lui, sans
+// detenir aucun droit sur cette donnee. Et une ligne anterieure a ce champ ne
+// porte pas de lanceur : elle retombe sur le role de projet, parce que
+// personne ne doit perdre sa session sur une migration.
+func TestUnWorkspaceSOuvreParSonLanceur(t *testing.T) {
+	h := Handlers{}
+	sien := workspacedomain.Workspace{ID: "w1", ProjectID: "p1", OwnerUserID: "chercheuse"}
+	chercheuse := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
+	collegue := auth.Identity{Username: "collegue", Subject: "collegue"}
+
+	if !h.workspaceBelongsTo(sien, chercheuse) {
+		t.Fatal("le lanceur n'entre plus dans son propre workspace")
+	}
+	if h.workspaceBelongsTo(sien, collegue) {
+		t.Fatal("un collegue entre dans le workspace d'un autre")
+	}
+
+	ancien := workspacedomain.Workspace{ID: "w2", ProjectID: "p1"}
+	if !h.workspaceBelongsTo(ancien, collegue) {
+		t.Fatal("une ligne sans lanceur doit retomber sur le role de projet")
+	}
+}
+
+// Et le lancement dit ce qu'il n'a pas monte.
+//
+// Le filtre etait un "continue" muet : un projet qui attache trois datasets
+// demarrait un workspace avec un seul et ne disait rien. La personne voit un
+// repertoire vide, sans moyen de savoir si la donnee manque ou si c'est elle.
+func TestLeLancementDitCeQuIlNAPasMonte(t *testing.T) {
+	datasets := memory.NewDatasetStore()
+	lisible := datasetdomain.Dataset{ID: "d1", Name: "Ouvert", OwnerType: "user", OwnerID: "chercheuse"}
+	refuse := datasetdomain.Dataset{ID: "d2", Name: "Essilor-data", OwnerType: "organization", OwnerID: "org-essilor"}
+	for _, item := range []datasetdomain.Dataset{lisible, refuse} {
+		if err := datasets.Create(item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ressources := memory.NewProjectResourceStore()
+	if err := ressources.AttachDataset("p1", "d1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ressources.AttachDataset("p1", "d2"); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{
+		datasetStore: datasets, projectResourceStore: ressources,
+		keycloak: annuaireEssilor(t, "chercheuse"),
+	}
+	retenus := h.attachmentsWithheldFrom("p1", auth.Identity{Username: "chercheuse", Subject: "chercheuse"})
+	if len(retenus) != 1 || retenus[0] != "essilor-data" {
+		t.Fatalf("ce qui n'est pas monte = %v", retenus)
 	}
 }

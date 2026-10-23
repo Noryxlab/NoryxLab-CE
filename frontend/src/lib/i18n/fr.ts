@@ -551,6 +551,10 @@ export const fr = {
     stop: "Arrêter",
     launched: "Workspace lancé. Il sera accessible dès qu’il aura démarré.",
     restart: "Redémarrer",
+    launchedBy: "Lancé par",
+    foreignHint:
+      "Cette session a été lancée par quelqu'un d'autre : elle monte ses droits sur les données, pas les vôtres. Lancez la vôtre.",
+    withheld: "Non monté, faute de droit sur la donnée :",
     restartTitle: "Redémarrer le workspace",
     restartWarning: "Le logiciel redémarre ; vos fichiers et vos données montées ne bougent pas. Utile quand une extension ne se charge qu'au démarrage. Comptez une minute avant de pouvoir rouvrir.",
     restarted: "Le workspace redémarre.",

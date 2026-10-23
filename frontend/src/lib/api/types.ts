@@ -84,6 +84,12 @@ export interface Workspace {
   memory: string;
   status: string;
   accessUrl: string;
+  /** Qui l'a lance, donc de qui les droits l'ont rempli : un workspace se
+   *  monte pour une seule personne, et la porte demande le meme droit. */
+  ownerUserId?: string;
+  /** Ce que le projet attache et que cette personne n'a pas eu. Rendu par le
+   *  lancement seulement, le seul moment ou quelqu'un regarde. */
+  withheld?: string[];
   createdAt: string;
 }
 

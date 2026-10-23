@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/workspacekind"
 )
@@ -38,7 +40,21 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeWorkspaceGone(w, r)
 		return
 	}
+	// Le role de projet, puis la personne.
+	//
+	// Un workspace est rempli pour une seule identite : les datasets dedans
+	// sont ceux que cette personne peut lire, resolus au lancement. Le seul
+	// role de projet gardait la porte, donc un collegue entrait dans le
+	// workspace d'un autre et lisait ce qui y avait ete monte pour lui -
+	// sans detenir aucun droit sur cette donnee. C'etait le contournement le
+	// plus large du modele.
 	if !h.requireProjectRole(w, record.ProjectID, identity.UserID(), actionLaunch, "workspace access") {
+		return
+	}
+	if !h.workspaceBelongsTo(record, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "a workspace is opened by the person who launched it; launch your own",
+		})
 		return
 	}
 
@@ -96,6 +112,26 @@ func (h Handlers) ProxyWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy.ServeHTTP(w, r)
+}
+
+// workspaceBelongsTo reports whether this caller is the person the workspace
+// was filled for.
+//
+// A row written before the launcher was recorded, or rebuilt from a cluster
+// listing with no record left, carries none: that falls back to the project
+// role the caller has already passed, which is what the platform did for
+// every workspace until now. A global administrator keeps the access they
+// have everywhere else, because somebody has to be able to look at a session
+// that will not start.
+func (h Handlers) workspaceBelongsTo(record workspace.Workspace, identity auth.Identity) bool {
+	owner := strings.TrimSpace(record.OwnerUserID)
+	if owner == "" || h.isGlobalAdmin(identity) {
+		return true
+	}
+	return strings.EqualFold(owner, strings.TrimSpace(identity.UserID())) ||
+		strings.EqualFold(owner, strings.TrimSpace(identity.Subject)) ||
+		identity.MatchesUsername(owner) ||
+		identity.MatchesEmail(owner)
 }
 
 func workspaceProxyTargetPath(kind, workspaceID, rest string) string {

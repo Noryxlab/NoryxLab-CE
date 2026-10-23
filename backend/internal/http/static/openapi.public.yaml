@@ -1470,6 +1470,19 @@ components:
         memory: { type: string }
         status: { type: string }
         accessUrl: { type: string }
+        ownerUserId:
+          type: string
+          description: >-
+            Who launched it, and therefore whose rights filled it. A workspace
+            is mounted for one person; the door asks for the same right.
+            Absent on a session that predates the field.
+        withheld:
+          type: array
+          items: { type: string }
+          description: >-
+            What the project attaches and this person was not given: a dataset
+            they hold no read on, or somebody else's repository. Returned by
+            the launch only, which is the moment anybody is looking.
         createdAt:
           type: string
           format: date-time

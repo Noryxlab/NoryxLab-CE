@@ -75,7 +75,12 @@ func (h Handlers) requireDatasetForLayout(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return datasetdomain.Dataset{}, false
 	}
-	if !h.isGlobalAdmin(identity) && h.datasetRole(item, identity) == "" {
+	// Voir n'est pas lire : qui administre le dataset entre ici.
+	//
+	// L'ecriture de la regle de lecture, juste a cote, demande
+	// l'administration : on pouvait donc ecrire la regle sans pouvoir la
+	// relire, et decider d'une suppression sans voir ce qu'elle emporte.
+	if !h.canSeeDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return datasetdomain.Dataset{}, false
 	}

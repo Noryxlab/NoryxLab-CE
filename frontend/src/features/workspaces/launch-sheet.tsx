@@ -116,9 +116,22 @@ export function LaunchWorkspaceSheet({
         name: name.trim() || undefined,
         hardwareTier: tierId || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       invalidate(qk.workspaces(projectId), qk.projects);
       onOpenChange(false);
+      // Ce que le projet attache et que cette personne n'a pas eu.
+      //
+      // Le filtre etait muet : un projet qui attache trois datasets demarrait
+      // une session avec un seul, et on voyait un repertoire vide sans savoir
+      // si la donnee manquait ou si c'etait soi. Dit au lancement, le seul
+      // moment ou quelqu'un regarde.
+      const withheld = created?.withheld ?? [];
+      if (withheld.length > 0) {
+        toast.info(
+          `${t('workspaces.withheld')} ${withheld.join(', ')}`,
+          t('workspaces.title'),
+        );
+      }
       toast.success(t('workspaces.launched'), t('workspaces.title'));
     },
     onError: (error) => toast.error(error, t('workspaces.createTitle')),

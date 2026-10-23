@@ -125,15 +125,31 @@ the shipped role document carries that row too - administration on the data
 columns, not RW. A compliance document that overstates access is worse than
 none.
 
-### What is still open
+### A workspace carries one person's rights
 
-`ProxyWorkspace` admits anybody holding the project's launch role, while the
-datasets inside that workspace were resolved for the identity that started it.
-So a colleague can enter a running workspace and read what was mounted for
-somebody else. Closing it needs a launcher recorded on the workspace, which
-the table does not have yet; `extract_isolation_policy_test.go` currently
-fixes the opposite behaviour deliberately, so the decision is explicit rather
-than forgotten.
+The datasets inside a workspace are the ones its launcher may read, resolved
+at the moment it starts. Nothing recorded who that was, so the only thing
+guarding the door was the project's launch role: a colleague could open a
+running session and read what had been mounted for somebody else, holding no
+right over that data at all. It was the widest way around the model.
+
+The workspace now records its launcher, and entering asks for the same right
+that filled it - the project role first, then the person. A global
+administrator keeps the access they have everywhere, because somebody has to
+be able to look at a session that will not start. A row written before the
+field exists, or rebuilt from a cluster listing with no record left, carries
+no launcher and falls back to the project role: nobody loses a running session
+to a migration.
+
+Repositories stay personal. A repository has one owner and no sharing, which
+is the decision rather than an omission - so a repository somebody else
+attached is not cloned into your workspace.
+
+What a workspace leaves out is now said. Both filters were a silent
+`continue`, so a project attaching three datasets started a session with one
+and said nothing; you saw an empty folder with no way to tell whether the data
+was missing or you were. The launch returns what it withheld, by name, and the
+screen shows it.
 
 ### Project membership roles
 

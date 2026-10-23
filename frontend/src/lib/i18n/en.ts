@@ -537,6 +537,10 @@ export const en: Translations = {
     stop: "Stop",
     launched: "Workspace launched. It will be reachable once it has started.",
     restart: "Restart",
+    launchedBy: "Launched by",
+    foreignHint:
+      "Somebody else launched this session: it mounts their rights over the data, not yours. Launch your own.",
+    withheld: "Not mounted, for want of a right over the data:",
     restartTitle: "Restart workspace",
     restartWarning: "The software restarts; your files and mounted data are untouched. Useful when an extension only loads at start-up. Allow a minute before reopening.",
     restarted: "The workspace is restarting.",
