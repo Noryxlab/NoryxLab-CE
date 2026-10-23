@@ -224,6 +224,15 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}", h.UpdateExtractMetadata)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)
+	// Les lectures accordees sur un extrait, a cote de sa propriete : donner
+	// une selection ne doit pas vouloir dire donner l'etude, ni s'en
+	// dessaisir. Memes chemins que pour un dataset, parce que c'est la meme
+	// question posee un cran plus loin.
+	mux.HandleFunc("GET /api/v1/extracts/{extractID}/access", h.ListExtractAccess)
+	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}", h.SetExtractAccess)
+	mux.HandleFunc("DELETE /api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}", h.DeleteExtractAccess)
+	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/access/{userID}", h.SetExtractAccess)
+	mux.HandleFunc("DELETE /api/v1/extracts/{extractID}/access/{userID}", h.DeleteExtractAccess)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/extracts", h.ListProjectExtracts)
 	mux.HandleFunc("PUT /api/v1/projects/{projectID}/extracts/{extractID}", h.AttachProjectExtract)
 	mux.HandleFunc("DELETE /api/v1/projects/{projectID}/extracts/{extractID}", h.DetachProjectExtract)

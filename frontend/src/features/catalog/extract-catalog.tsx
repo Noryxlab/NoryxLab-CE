@@ -12,7 +12,7 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
 import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
-import { ExtractDetail } from './extract-detail';
+import { ExtractDetail, ExtractPermissions } from './extract-detail';
 import { ExtractDeclareForm } from './extract-declare';
 import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
 import { Card, CardContent, CardDescription, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
@@ -206,6 +206,9 @@ export function ExtractCatalog() {
         }}
       />
       {opened ? <ExtractDetail extract={opened} /> : null}
+      {/* Et a qui il est prete : la question vient juste apres "qu'est-ce
+          qu'il contient", parce que c'est la meme conversation. */}
+      {opened ? <ExtractPermissions extract={opened} /> : null}
 
       <ProjectMountsSheet
         kind="extract"

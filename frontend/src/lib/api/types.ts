@@ -1322,6 +1322,20 @@ export interface DeletionCost {
 
 export type ExtractLevel = 'subject' | 'visit' | 'modality';
 
+/** Une lecture accordee sur un extrait.
+ *
+ *  Preter une selection sans preter l'etude dont elle sort, et sans s'en
+ *  dessaisir : un extrait est gele, donc le seul role est la lecture. */
+export interface ExtractAccess {
+  extractId: string;
+  subjectType: string;
+  subjectId: string;
+  subjectName?: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Extract {
   ownerType?: string;
   ownerId?: string;

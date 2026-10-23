@@ -40,6 +40,23 @@ components:
       name: X-Noryx-User
 
   schemas:
+    ExtractAccess:
+      type: object
+      properties:
+        extractId: { type: string }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        subjectName: { type: string }
+        role: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ExtractAccessListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ExtractAccess' }
+        canManage: { type: boolean }
     DatasetUploadConfirmBatchResponse:
       type: object
       properties:
@@ -5771,6 +5788,174 @@ paths:
           description: Datasource owner or global admin required, and membership of the destination.
         '404':
           description: No such datasource.
+  /api/v1/extracts/{extractID}/access:
+    get:
+      tags: [Datasets]
+      summary: Who may read this extract
+      description: >-
+        The owner first, then everybody the extract was lent to. Readable by
+        anybody who can see the extract: sharing is a fact its readers are
+        entitled to know, while only the owner changes it.
+      operationId: listExtractAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The grants, the owner among them.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        extractId: { type: string }
+                        subjectType: { type: string, enum: [user, team, organization] }
+                        subjectId: { type: string }
+                        subjectName: { type: string }
+                        role: { type: string, enum: [owner, reader] }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+                  canManage: { type: boolean }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No such extract, or not visible to the caller.
+  /api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}:
+    put:
+      tags: [Datasets]
+      summary: Lend this extract, read-only
+      description: >-
+        Grants a read on the selection without granting the study it was cut
+        from, and without parting with the extract. An extract is frozen, so
+        the only role is reader.
+      operationId: setExtractAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string, enum: [user, team, organization] }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+          description: A username, a team identifier, or an organization name or identifier.
+      responses:
+        '200':
+          description: The grant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractAccess'
+        '400':
+          description: Unknown subject, or the owner's own role.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Extract owner or global admin required.
+        '404':
+          description: No such extract.
+    delete:
+      tags: [Datasets]
+      summary: Take that read back
+      operationId: deleteExtractAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string, enum: [user, team, organization] }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: The grant is gone.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Extract owner or global admin required.
+        '404':
+          description: No such extract.
+  /api/v1/extracts/{extractID}/access/{userID}:
+    put:
+      tags: [Datasets]
+      summary: Lend this extract to a person
+      description: The short form of the grant above, for a user.
+      operationId: setExtractAccessForUser
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The grant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractAccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Extract owner or global admin required.
+        '404':
+          description: No such extract.
+    delete:
+      tags: [Datasets]
+      summary: Take a person's read back
+      operationId: deleteExtractAccessForUser
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: The grant is gone.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Extract owner or global admin required.
+        '404':
+          description: No such extract.
   /api/v1/extracts/{extractID}/ownership:
     put:
       tags: [Datasets]

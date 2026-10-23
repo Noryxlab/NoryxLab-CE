@@ -91,6 +91,29 @@ type Member struct {
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
+// Access is a read-only grant on one extract.
+//
+// An extract was visible to whoever could see the ontology it was cut from,
+// and to nobody else: handing a selection to a partner meant handing them the
+// whole study, or transferring the extract and losing it. That is the wrong
+// pair of choices for the object whose entire purpose is to be smaller than
+// the study - the filler already fetches its files for a workload that has no
+// right to the bucket, so the mechanism was there and the permission was not.
+//
+// The subject is a person, a team or an organization, as on a dataset, and
+// the role is "reader": an extract is frozen, so there is nothing to write.
+type Access struct {
+	ExtractID   string `json:"extractId"`
+	SubjectType string `json:"subjectType"`
+	SubjectID   string `json:"subjectId"`
+	// SubjectName is who that identifier belongs to, resolved for display: a
+	// list of UUIDs is an access list nobody checks.
+	SubjectName string    `json:"subjectName,omitempty"`
+	Role        string    `json:"role"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
 // InheritOwner files this extract under the owner of the ontology it cuts.
 //
 // Same reason as the ontology: an extract is a view of somebody else's study,

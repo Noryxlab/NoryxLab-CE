@@ -738,6 +738,21 @@ func migrationStatements() []string {
 		// precedents : la selection est ce que quelqu'un relit un an apres
 		// pour savoir ce qui a ete communique.
 		`ALTER TABLE extracts ADD COLUMN IF NOT EXISTS data_types_json JSONB NOT NULL DEFAULT '[]'`,
+		// Les lectures accordees sur un extrait.
+		//
+		// Un extrait n'etait visible que par qui voyait l'ontologie : donner
+		// une selection a un partenaire voulait dire lui donner l'etude, ou
+		// lui transferer l'extrait et le perdre. Meme forme que
+		// dataset_access, parce que c'est la meme question.
+		`CREATE TABLE IF NOT EXISTS extract_access (
+			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
+			subject_type TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (extract_id, subject_type, subject_id)
+		)`,
 		`CREATE TABLE IF NOT EXISTS extract_members (
 			extract_id TEXT NOT NULL REFERENCES extracts(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,

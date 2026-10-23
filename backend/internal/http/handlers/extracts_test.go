@@ -362,3 +362,95 @@ func TestLaPaterniteSuitLaSource(t *testing.T) {
 		t.Fatal("une source sans proprietaire doit laisser l'objet ou il est")
 	}
 }
+
+// Un extrait se prete en lecture, sans donner l'etude ni s'en dessaisir.
+//
+// Avant, un extrait n'etait visible que par qui voyait l'ontologie : donner
+// une selection a l'INRIA voulait dire lui donner SELENA entiere, ou lui
+// transferer l'extrait et le perdre. C'est la mauvaise paire de choix pour
+// l'objet dont le but est d'etre plus petit que l'etude.
+func TestUnExtraitSePreteEnLecture(t *testing.T) {
+	ontologies := memory.NewOntologyObjectStore()
+	lue := ontologydomain.New("proprietaire", "SELENA", "", "dataset", "d1", "HDS-For-selena", "", []byte(`{}`))
+	if err := ontologies.Create(lue); err != nil {
+		t.Fatal(err)
+	}
+	if err := ontologies.ReplaceObjects(lue.ID, []ontologydomain.Object{
+		{Path: "SELENA/S1/v1/ANTERION/TabulatedData/b.csv", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", DataType: "TabulatedData", SizeBytes: 10},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	extraits := memory.NewExtractStore()
+	selection := extractdomain.New("proprietaire", lue.ID, "", "pour-inria", "", nil, []string{"ANTERION"}, nil, nil, nil, []string{"TabulatedData"})
+	if err := extraits.Create(selection, nil); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{authMode: "header", ontologyStore: ontologies, extractStore: extraits}
+
+	lire := func(user string) int {
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/extracts/"+selection.ID+"/members", nil)
+		request.Header.Set(userHeader, user)
+		request.SetPathValue("extractID", selection.ID)
+		recorder := httptest.NewRecorder()
+		h.GetExtractMembers(recorder, request)
+		return recorder.Code
+	}
+
+	// Avant la permission : l'invite ne voit rien, parce qu'il ne voit pas
+	// l'ontologie.
+	if code := lire("inria"); code != http.StatusNotFound {
+		t.Fatalf("sans permission = %d, 404 etait attendu", code)
+	}
+
+	// Le proprietaire accorde la lecture.
+	accorder := httptest.NewRequest(http.MethodPut, "/api/v1/extracts/"+selection.ID+"/access/user/inria", nil)
+	accorder.Header.Set(userHeader, "proprietaire")
+	accorder.SetPathValue("extractID", selection.ID)
+	accorder.SetPathValue("subjectType", "user")
+	accorder.SetPathValue("subjectID", "inria")
+	recorder := httptest.NewRecorder()
+	h.SetExtractAccess(recorder, accorder)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("octroi = %d, %s", recorder.Code, recorder.Body.String())
+	}
+
+	// Apres : l'invite lit l'extrait, et toujours pas l'ontologie.
+	if code := lire("inria"); code != http.StatusOK {
+		t.Fatalf("avec permission = %d, 200 etait attendu", code)
+	}
+	listeOnto := httptest.NewRequest(http.MethodGet, "/api/v1/ontologies/"+lue.ID+"/completeness", nil)
+	listeOnto.Header.Set(userHeader, "inria")
+	listeOnto.SetPathValue("ontologyID", lue.ID)
+	vueOnto := httptest.NewRecorder()
+	h.GetOntologyCompleteness(vueOnto, listeOnto)
+	if vueOnto.Code != http.StatusNotFound {
+		t.Fatalf("l'ontologie reste fermee : %d", vueOnto.Code)
+	}
+
+	// L'invite ne peut pas re-preter ce qu'on lui a prete.
+	repret := httptest.NewRequest(http.MethodPut, "/api/v1/extracts/"+selection.ID+"/access/user/ailleurs", nil)
+	repret.Header.Set(userHeader, "inria")
+	repret.SetPathValue("extractID", selection.ID)
+	repret.SetPathValue("subjectType", "user")
+	repret.SetPathValue("subjectID", "ailleurs")
+	vueRepret := httptest.NewRecorder()
+	h.SetExtractAccess(vueRepret, repret)
+	if vueRepret.Code != http.StatusForbidden {
+		t.Fatalf("un lecteur ne redistribue pas : %d", vueRepret.Code)
+	}
+
+	// Et la permission se reprend.
+	retirer := httptest.NewRequest(http.MethodDelete, "/api/v1/extracts/"+selection.ID+"/access/user/inria", nil)
+	retirer.Header.Set(userHeader, "proprietaire")
+	retirer.SetPathValue("extractID", selection.ID)
+	retirer.SetPathValue("subjectType", "user")
+	retirer.SetPathValue("subjectID", "inria")
+	vueRetrait := httptest.NewRecorder()
+	h.DeleteExtractAccess(vueRetrait, retirer)
+	if vueRetrait.Code != http.StatusNoContent {
+		t.Fatalf("retrait = %d", vueRetrait.Code)
+	}
+	if code := lire("inria"); code != http.StatusNotFound {
+		t.Fatalf("apres retrait = %d, 404 etait attendu", code)
+	}
+}

@@ -199,3 +199,69 @@ func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
 	}
 	return nil
 }
+
+// ListAccess reads the grants on one extract, oldest first so a screen shows
+// them in the order somebody granted them.
+func (s *ExtractStore) ListAccess(extractID string) ([]extract.Access, error) {
+	rows, err := s.db.Query(`SELECT extract_id, subject_type, subject_id, role, created_at, updated_at FROM extract_access WHERE extract_id=$1 ORDER BY created_at`, strings.TrimSpace(extractID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Access{}
+	for rows.Next() {
+		var item extract.Access
+		if err := rows.Scan(&item.ExtractID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *ExtractStore) GetAccess(extractID, subjectType, subjectID string) (extract.Access, bool, error) {
+	var item extract.Access
+	err := s.db.QueryRow(`SELECT extract_id, subject_type, subject_id, role, created_at, updated_at FROM extract_access WHERE extract_id=$1 AND subject_type=$2 AND subject_id=$3`,
+		strings.TrimSpace(extractID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID)).
+		Scan(&item.ExtractID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return extract.Access{}, false, nil
+	}
+	if err != nil {
+		return extract.Access{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *ExtractStore) SetAccess(item extract.Access) error {
+	_, err := s.db.Exec(`INSERT INTO extract_access (extract_id, subject_type, subject_id, role, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6)
+		ON CONFLICT (extract_id, subject_type, subject_id) DO UPDATE SET role=EXCLUDED.role, updated_at=EXCLUDED.updated_at`,
+		strings.TrimSpace(item.ExtractID), strings.TrimSpace(item.SubjectType), strings.TrimSpace(item.SubjectID), strings.TrimSpace(item.Role), item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *ExtractStore) DeleteAccess(extractID, subjectType, subjectID string) error {
+	_, err := s.db.Exec(`DELETE FROM extract_access WHERE extract_id=$1 AND subject_type=$2 AND subject_id=$3`,
+		strings.TrimSpace(extractID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
+	return err
+}
+
+func (s *ExtractStore) ListGrantedTo(subjectType, subjectID string) ([]extract.Extract, error) {
+	rows, err := s.db.Query(`SELECT e.id, e.ontology_id, e.project_id, e.owner_user_id, e.owner_type, e.owner_id, e.name, e.description, e.subjects_json, e.modalities_json, e.visits_json, e.formats_json, e.tables_json, e.data_types_json, e.layout_json, e.object_count, e.total_bytes, e.created_at, e.updated_at
+		FROM extracts e JOIN extract_access a ON a.extract_id = e.id
+		WHERE a.subject_type=$1 AND a.subject_id=$2 ORDER BY e.created_at DESC`,
+		strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Extract{}
+	for rows.Next() {
+		item, err := scanExtract(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}

@@ -21,5 +21,13 @@ type ExtractStore interface {
 	// frozen file list, its author and its dates are what the extract is, and
 	// a transfer does not rewrite history.
 	SetOwner(id, ownerType, ownerID string) error
+	// Les lectures accordees sur un extrait, a cote de sa propriete.
+	ListAccess(extractID string) ([]extract.Access, error)
+	GetAccess(extractID, subjectType, subjectID string) (extract.Access, bool, error)
+	SetAccess(item extract.Access) error
+	DeleteAccess(extractID, subjectType, subjectID string) error
+	// Les extraits pretes a un sujet, pour qu'un lecteur les trouve dans son
+	// catalogue : un droit sans chemin pour l'exercer n'est pas un droit.
+	ListGrantedTo(subjectType, subjectID string) ([]extract.Extract, error)
 	Delete(id string) error
 }

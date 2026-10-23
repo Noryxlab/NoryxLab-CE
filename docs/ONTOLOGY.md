@@ -649,3 +649,23 @@ created, because a bookkeeping lookup must never fail a scan that worked.
 
 A global administrator transfers either object afterwards, through the
 ownership endpoints that already existed.
+
+
+## Lending an extract
+
+An extract was visible to whoever could read the ontology it was cut from, and
+to nobody else. Handing a selection to a partner therefore meant handing them
+the whole study, or transferring the extract and losing it - the wrong pair of
+choices for the object whose entire purpose is to be smaller than the study.
+
+An extract now carries its own grants, like a dataset: a person, a team or an
+organization is given a **read** on it. One role only, because an extract is
+frozen and there is nothing to write. The owner grants and revokes; a reader
+sees the list - knowing who else holds a disclosure is a reader's business -
+and cannot pass it on.
+
+A lent extract appears in its reader's own catalogue, because a right with no
+path to exercise it is not a right, and it stays out of theirs when the grant
+is taken back. Reading it requires nothing of the study: the filler already
+fetched an extract's files for a workload that had no right to the bucket, so
+the mechanism was there before the permission was.

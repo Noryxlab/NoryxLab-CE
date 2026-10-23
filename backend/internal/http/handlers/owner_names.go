@@ -127,6 +127,19 @@ func (h Handlers) nameAccessSubjects(items []datasetdomain.Access) {
 	}
 }
 
+// nameExtractAccessSubjects resolves the identifiers of an extract's grants,
+// for the same reason as a dataset's: a list of UUIDs is a list nobody checks.
+func (h Handlers) nameExtractAccessSubjects(items []extractdomain.Access) {
+	passerelle := make([]datasetdomain.Access, len(items))
+	for index, item := range items {
+		passerelle[index] = datasetdomain.Access{SubjectType: item.SubjectType, SubjectID: item.SubjectID}
+	}
+	h.nameAccessSubjects(passerelle)
+	for index := range items {
+		items[index].SubjectName = passerelle[index].SubjectName
+	}
+}
+
 type extractOwner struct{ item *extractdomain.Extract }
 
 func (o extractOwner) ownerKind() string        { return o.item.OwnerType }

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
@@ -272,8 +273,12 @@ func (h Handlers) DeleteExtract(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// An extract is visible to whoever can read the ontology it came from: it names
-// files in that ontology's source and nothing else.
+// An extract is visible to whoever can read the ontology it came from, and to
+// whoever it was granted to.
+//
+// The second half is what makes an extract a disclosure rather than a
+// bookmark: handing a selection to a partner used to mean handing them the
+// whole study, or transferring the extract and losing it.
 func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identity auth.Identity, item extractdomain.Extract, ok bool) {
 	resolved, authorised := h.requireIdentity(w, r)
 	if !authorised {
@@ -295,11 +300,39 @@ func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identi
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
+	// Un lecteur de l'extrait entre ici sans rien devoir a l'ontologie : c'est
+	// tout l'objet d'une divulgation plus petite que l'etude.
+	if h.extractRole(item, resolved) != "" {
+		return resolved, item, true
+	}
 	if !h.isGlobalAdmin(resolved) && h.ontologyRole(ontology, resolved) == "" {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	return resolved, item, true
+}
+
+// extractRole answers what this person may do with the extract itself.
+//
+// "owner" for whoever it belongs to, "reader" for a subject it was granted
+// to, empty for everybody else. Separate from the ontology's role on purpose:
+// an extract exists to be handed over without its study, so being allowed to
+// read a selection must not require being allowed to read what it was cut
+// from.
+func (h Handlers) extractRole(item extractdomain.Extract, identity auth.Identity) string {
+	if h.canManageExtract(item, identity) {
+		return "owner"
+	}
+	if h.extractStore == nil {
+		return ""
+	}
+	for _, subject := range h.ontologySubjects(identity) {
+		access, found, err := h.extractStore.GetAccess(item.ID, subject.Type, subject.ID)
+		if err == nil && found && strings.TrimSpace(access.Role) != "" {
+			return "reader"
+		}
+	}
+	return ""
 }
 
 // canManageExtract reports whether this person may hand the extract on, or
@@ -525,11 +558,13 @@ func (h Handlers) ListProjectExtracts(w http.ResponseWriter, r *http.Request) {
 // ListExtracts is the catalogue entry: every extract the caller can reach,
 // without naming an ontology first.
 //
-// Visibility is the ontology's, not the extract's own. An extract is a frozen
-// selection over one ontology's subjects, so somebody who cannot read the
-// ontology has no business seeing a selection drawn from it - even one handed
-// to their team. Ownership decides who may transfer or delete it; the ontology
-// decides who may see that it exists.
+// Visibility is the ontology's, plus what was lent.
+//
+// An extract drawn from an ontology somebody cannot read stays invisible to
+// them - a selection over a study they have no business seeing. The exception
+// is the one the object exists for: an extract granted to them, which they
+// must find in their own catalogue, because a right with no path to exercise
+// it is not a right. Ownership still decides who may transfer or delete it.
 func (h Handlers) ListExtracts(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -553,6 +588,140 @@ func (h Handlers) ListExtracts(w http.ResponseWriter, r *http.Request) {
 		}
 		items = append(items, listed...)
 	}
+	// Et ce qui leur a ete prete, sans doublon avec ce qui precede.
+	vus := map[string]bool{}
+	for _, item := range items {
+		vus[item.ID] = true
+	}
+	for _, subject := range h.ontologySubjects(identity) {
+		pretes, err := h.extractStore.ListGrantedTo(subject.Type, subject.ID)
+		if err != nil {
+			continue
+		}
+		for _, item := range pretes {
+			if !vus[item.ID] {
+				vus[item.ID] = true
+				items = append(items, item)
+			}
+		}
+	}
 	h.nameExtractOwners(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// ListExtractAccess shows who may read this extract besides its owner.
+func (h Handlers) ListExtractAccess(w http.ResponseWriter, r *http.Request) {
+	identity, item, ok := h.requireExtract(w, r)
+	if !ok {
+		return
+	}
+	// Voir la liste n'est pas la changer : un lecteur a le droit de savoir
+	// avec qui il partage, le proprietaire seul decide.
+	grants, err := h.extractStore.ListAccess(item.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list extract permissions"})
+		return
+	}
+	// Le proprietaire en tete, comme sur un dataset : la liste repond "qui
+	// peut lire", et le proprietaire en fait partie.
+	tous := append([]extractdomain.Access{{
+		ExtractID: item.ID, SubjectType: item.OwnerType, SubjectID: item.OwnerID,
+		Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+	}}, grants...)
+	h.nameExtractAccessSubjects(tous)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":     tous,
+		"canManage": h.canManageExtract(item, identity),
+	})
+}
+
+// SetExtractAccess grants a read on this extract to a person, a team or an
+// organization.
+func (h Handlers) SetExtractAccess(w http.ResponseWriter, r *http.Request) {
+	identity, item, ok := h.requireExtract(w, r)
+	if !ok {
+		return
+	}
+	if !h.canManageExtract(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "extract owner or global admin required"})
+		return
+	}
+	subjectType, subjectID, status, probleme := h.grantSubject(r)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
+		return
+	}
+	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner role cannot be changed"})
+		return
+	}
+	// Un extrait est gele : il n'y a rien a y ecrire, donc un seul role.
+	now := time.Now().UTC()
+	access := extractdomain.Access{ExtractID: item.ID, SubjectType: subjectType, SubjectID: subjectID, Role: "reader", CreatedAt: now, UpdatedAt: now}
+	if existing, exists, _ := h.extractStore.GetAccess(item.ID, subjectType, subjectID); exists {
+		access.CreatedAt = existing.CreatedAt
+	}
+	if err := h.extractStore.SetAccess(access); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to set extract permission"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "extract.access.grant", "extract", item.ID, item.ProjectID, "success", "", map[string]any{
+		"subjectType": subjectType, "subjectId": subjectID, "role": access.Role, "name": item.Name,
+	})
+	writeJSON(w, http.StatusOK, access)
+}
+
+// DeleteExtractAccess takes that read back.
+func (h Handlers) DeleteExtractAccess(w http.ResponseWriter, r *http.Request) {
+	identity, item, ok := h.requireExtract(w, r)
+	if !ok {
+		return
+	}
+	if !h.canManageExtract(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "extract owner or global admin required"})
+		return
+	}
+	subjectType, subjectID, status, probleme := h.grantSubject(r)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
+		return
+	}
+	if err := h.extractStore.DeleteAccess(item.ID, subjectType, subjectID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete extract permission"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "extract.access.revoke", "extract", item.ID, item.ProjectID, "success", "", map[string]any{
+		"subjectType": subjectType, "subjectId": subjectID, "name": item.Name,
+	})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// grantSubject reads who a grant is about, and resolves a name to its
+// identifier - a team is granted by the name somebody reads on a screen, not
+// by a UUID they would have to look up first.
+func (h Handlers) grantSubject(r *http.Request) (string, string, int, string) {
+	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
+	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	if subjectType == "" {
+		subjectType = "user"
+		subjectID = strings.TrimSpace(r.PathValue("userID"))
+	}
+	if !isGrantableSubjectType(subjectType) || subjectID == "" {
+		return "", "", http.StatusBadRequest, "valid subjectType and subjectID are required"
+	}
+	switch strings.ToLower(subjectType) {
+	case "organization":
+		organization, found := h.resolveOrganization(subjectID)
+		if !found {
+			return "", "", http.StatusBadRequest, "no organization named " + subjectID
+		}
+		subjectID = organization.ID
+	case "team":
+		team, found := h.resolveTeam(subjectID)
+		if !found {
+			return "", "", http.StatusBadRequest, "no team with identifier " + subjectID
+		}
+		subjectID = team.ID
+	}
+	return subjectType, subjectID, 0, ""
 }

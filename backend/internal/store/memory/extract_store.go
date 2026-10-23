@@ -13,6 +13,7 @@ type ExtractStore struct {
 	mu      sync.RWMutex
 	items   []extract.Extract
 	members map[string][]extract.Member
+	access  []extract.Access
 }
 
 func NewExtractStore() *ExtractStore {
@@ -118,4 +119,72 @@ func (s *ExtractStore) SetOwner(id, ownerType, ownerID string) error {
 	}
 	// Dire qu on n a rien trouve plutot que de rendre un succes silencieux.
 	return sql.ErrNoRows
+}
+
+func (s *ExtractStore) ListAccess(extractID string) ([]extract.Access, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []extract.Access{}
+	for _, item := range s.access {
+		if item.ExtractID == strings.TrimSpace(extractID) {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (s *ExtractStore) GetAccess(extractID, subjectType, subjectID string) (extract.Access, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, item := range s.access {
+		if item.ExtractID == extractID && strings.EqualFold(item.SubjectType, subjectType) && item.SubjectID == subjectID {
+			return item, true, nil
+		}
+	}
+	return extract.Access{}, false, nil
+}
+
+func (s *ExtractStore) SetAccess(item extract.Access) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.access {
+		if s.access[i].ExtractID == item.ExtractID && strings.EqualFold(s.access[i].SubjectType, item.SubjectType) && s.access[i].SubjectID == item.SubjectID {
+			s.access[i] = item
+			return nil
+		}
+	}
+	s.access = append(s.access, item)
+	return nil
+}
+
+func (s *ExtractStore) DeleteAccess(extractID, subjectType, subjectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	gardes := s.access[:0]
+	for _, item := range s.access {
+		if item.ExtractID == extractID && strings.EqualFold(item.SubjectType, subjectType) && item.SubjectID == subjectID {
+			continue
+		}
+		gardes = append(gardes, item)
+	}
+	s.access = gardes
+	return nil
+}
+
+func (s *ExtractStore) ListGrantedTo(subjectType, subjectID string) ([]extract.Extract, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	pretes := map[string]bool{}
+	for _, grant := range s.access {
+		if strings.EqualFold(grant.SubjectType, subjectType) && grant.SubjectID == subjectID {
+			pretes[grant.ExtractID] = true
+		}
+	}
+	out := []extract.Extract{}
+	for _, item := range s.items {
+		if pretes[item.ID] {
+			out = append(out, item)
+		}
+	}
+	return out, nil
 }

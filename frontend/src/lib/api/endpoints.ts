@@ -25,6 +25,7 @@ import type {
   BackupRun,
   Build,
   Extract,
+  ExtractAccess,
   CreatedUser,
   CronJob,
   Dataset,
@@ -639,6 +640,17 @@ export const ontologiesApi = {
   extractIntegrity: (extractId: string) =>
     api.get<ExtractIntegrity>(`${V1}/extracts/${extractId}/integrity`),
   deleteExtract: (extractId: string) => api.delete<void>(`${V1}/extracts/${extractId}`),
+  /** Qui peut lire cet extrait, et les deux gestes pour le dire. */
+  extractAccess: (extractId: string) => api.list<ExtractAccess>(`${V1}/extracts/${extractId}/access`),
+  grantExtract: (extractId: string, subjectType: string, subjectId: string) =>
+    api.put<ExtractAccess>(
+      `${V1}/extracts/${extractId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+      {},
+    ),
+  revokeExtract: (extractId: string, subjectType: string, subjectId: string) =>
+    api.delete<void>(
+      `${V1}/extracts/${extractId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+    ),
   /** Hands an extract to a person, a team or an organization. */
   setExtractOwner: (extractId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Extract>(`${V1}/extracts/${extractId}/ownership`, input),
