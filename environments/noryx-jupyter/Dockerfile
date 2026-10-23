@@ -27,6 +27,22 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Where a user's own packages are installed.
+#
+# pip finds the interpreter's site-packages read-only - it belongs to the image -
+# and says so before falling back to a user install: "Defaulting to user
+# installation because normal site-packages is not writeable". That fallback
+# landed in ~/.local, which is the pod's ephemeral disk: a few large wheels
+# (torch and its CUDA dependencies) filled the 8Gi allowance and the session was
+# evicted mid-install, having also lost every package at the previous restart.
+# Pointing the user base at the profile makes an install persist and stop
+# counting against the ephemeral allowance; a virtual environment is unaffected,
+# which is why PIP_USER is deliberately not set (pip refuses a user install
+# inside a venv).
+ENV PYTHONUSERBASE=/home/noryx/.noryx-profile/.local \
+    NPM_CONFIG_PREFIX=/home/noryx/.noryx-profile/.local \
+    PATH=/home/noryx/.noryx-profile/.local/bin:$PATH
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git sudo tini \
  && rm -rf /var/lib/apt/lists/*
