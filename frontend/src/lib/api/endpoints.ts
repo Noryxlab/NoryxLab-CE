@@ -640,6 +640,19 @@ export const ontologiesApi = {
   extractIntegrity: (extractId: string) =>
     api.get<ExtractIntegrity>(`${V1}/extracts/${extractId}/integrity`),
   deleteExtract: (extractId: string) => api.delete<void>(`${V1}/extracts/${extractId}`),
+  /** Qui peut lire cette ontologie, et les deux gestes pour le dire. */
+  ontologyAccess: (ontologyId: string) =>
+    api.list<OntologyAccess>(`${V1}/ontologies/${ontologyId}/access`),
+  grantOntology: (ontologyId: string, subjectType: string, subjectId: string, role: string) =>
+    api.put<OntologyAccess>(
+      `${V1}/ontologies/${ontologyId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+      { role },
+    ),
+  revokeOntology: (ontologyId: string, subjectType: string, subjectId: string) =>
+    api.delete<void>(
+      `${V1}/ontologies/${ontologyId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+    ),
+
   /** Qui peut lire cet extrait, et les deux gestes pour le dire. */
   extractAccess: (extractId: string) => api.list<ExtractAccess>(`${V1}/extracts/${extractId}/access`),
   grantExtract: (extractId: string, subjectType: string, subjectId: string) =>

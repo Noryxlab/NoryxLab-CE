@@ -420,7 +420,9 @@ func (h Handlers) ListOntologyAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	owner := ontologydomain.Access{OntologyID: item.ID, UserID: item.OwnerID, SubjectType: item.OwnerType, SubjectID: item.OwnerID, Role: "owner", CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-	writeJSON(w, http.StatusOK, map[string]any{"items": append([]ontologydomain.Access{owner}, items...), "canManage": h.canManageOntologyAccess(item, identity)})
+	tous := append([]ontologydomain.Access{owner}, items...)
+	h.nameOntologyAccessSubjects(tous)
+	writeJSON(w, http.StatusOK, map[string]any{"items": tous, "canManage": h.canManageOntologyAccess(item, identity)})
 }
 
 func (h Handlers) SetOntologyAccess(w http.ResponseWriter, r *http.Request) {

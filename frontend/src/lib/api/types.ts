@@ -18,6 +18,9 @@ export type OwnerType = 'user' | 'organization';
  *  team has no one to answer for that. */
 export type GrantSubjectType = OwnerType | 'team';
 export type AccessRole = 'reader' | 'writer' | 'admin';
+/** Le role tel qu'une liste de permissions le renvoie : les memes, plus le
+ *  proprietaire, que le serveur pose en tete et qui ne se retire pas. */
+export type GrantedRole = AccessRole | 'owner';
 export type ProjectRole = 'viewer' | 'editor' | 'admin';
 
 /** Une charge portee par un projet, telle que la suppression la detruirait. */
@@ -299,7 +302,10 @@ export interface OntologyAccess {
   userId?: string;
   subjectType: GrantSubjectType;
   subjectId: string;
-  role: AccessRole;
+  /** Qui porte cet identifiant, resolu pour l'affichage : une liste d'UUID
+   *  est une liste que personne ne verifie. */
+  subjectName?: string;
+  role: GrantedRole;
   createdAt: string;
   updatedAt: string;
 }

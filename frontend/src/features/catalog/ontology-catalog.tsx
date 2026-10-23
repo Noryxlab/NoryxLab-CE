@@ -43,29 +43,15 @@ import {
 } from '@/components/ui/table';
 import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import {
-  useOntologies,
-  useOntologyFreshness,
-  useOntologyCompleteness,
-  useOntologyScans,
-  useOntologyExtracts,
-  useDatasets,
-  qk,
-  useInvalidate,
-} from '@/lib/api/queries';
+import { qk, useAdminUsers, useAllTeams, useDatasets, useInvalidate, useOntologies, useOntologyAccess, useOntologyCompleteness, useOntologyExtracts, useOntologyFreshness, useOntologyScans, useOrganizations } from '@/lib/api/queries';
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
 import { capitaliser, dateDeVisite, motsDuMetier, pluriel } from './ontology-words';
 import { lireProposition, type ReadingProposal } from './reading-proposal';
 import { formatNumber, formatRelative } from '@/lib/format';
-import type {
-  Extract,
-  Ontology,
-  OntologyScan,
-  DatasetPathLayout,
-  DatasetPathLayoutTrial,
-} from '@/lib/api/types';
+import { presentRole } from '@/lib/presenters';
+import type { DatasetPathLayout, DatasetPathLayoutTrial, Extract, Ontology, OntologyAccess, OntologyScan } from '@/lib/api/types';
 
 /* Ce que le manifeste porte et que cet ecran lit.
  *
@@ -1452,6 +1438,7 @@ function OntologySettings({ ontology }: { ontology: Ontology }) {
         <OntologyPattern ontology={ontology} />
         <OntologyQuery ontology={ontology} />
         <OntologyOwnership ontology={ontology} />
+        <OntologyPermissions ontology={ontology} />
       </div>
     </details>
   );
@@ -1787,5 +1774,175 @@ export function OntologyCatalog() {
       ) : null}
       {dialog}
     </div>
+  );
+}
+
+
+/**
+ * Qui peut lire cette ontologie, en plus de son proprietaire.
+ *
+ * Les trois routes existaient cote serveur depuis longtemps et aucune page ne
+ * les appelait : on pouvait donner une ontologie, pas la preter. La capacite
+ * etait la, inatteignable - ce qui revient au meme qu'une capacite absente,
+ * sauf qu'on ne la cherche plus.
+ */
+function OntologyPermissions({ ontology }: { ontology: Ontology }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const access = useOntologyAccess(ontology.id);
+  const users = useAdminUsers();
+  const organizations = useOrganizations();
+  const teams = useAllTeams();
+
+  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
+  const [subjectId, setSubjectId] = React.useState('');
+  const [role, setRole] = React.useState('reader');
+
+  const grant = useMutation({
+    mutationFn: () => ontologiesApi.grantOntology(ontology.id, subjectType, subjectId, role),
+    onSuccess: () => {
+      invalidate(qk.ontologyAccess(ontology.id));
+      setSubjectId('');
+    },
+    onError: (error) => toast.error(error, t('ontologies.grant')),
+  });
+
+  const revoke = useMutation({
+    mutationFn: (entry: OntologyAccess) =>
+      ontologiesApi.revokeOntology(ontology.id, entry.subjectType, entry.subjectId),
+    onSuccess: () => invalidate(qk.ontologyAccess(ontology.id)),
+    onError: (error) => toast.error(error, t('ontologies.revoke')),
+  });
+
+  const subjectOptions =
+    subjectType === 'organization'
+      ? (organizations.data ?? []).map((organization) => ({
+          value: organization.alias ?? organization.id,
+          label: organization.name,
+        }))
+      : subjectType === 'team'
+        ? teams.data.map((team) => ({
+            value: team.id,
+            label: team.name,
+            hint: team.organizationName || undefined,
+          }))
+        : (users.data ?? []).map((user) => ({
+            value: user.username ?? user.id,
+            label: user.username ?? user.id,
+            hint: user.email ?? undefined,
+          }));
+
+  const entries = access.data ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('ontologies.permissions')}</CardTitle>
+          <CardDescription>{t('ontologies.permissionsHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+          <Field label={t('common.type')}>
+            <Select
+              value={subjectType}
+              onValueChange={(value) => {
+                setSubjectType(
+                  value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
+                );
+                setSubjectId('');
+              }}
+              options={[
+                { value: 'user', label: t('common.user') },
+                { value: 'team', label: t('common.team') },
+                { value: 'organization', label: t('common.organization') },
+              ]}
+            />
+          </Field>
+          <Field label={t('rbac.subject')}>
+            <Select
+              value={subjectId}
+              onValueChange={setSubjectId}
+              options={subjectOptions}
+              placeholder={t('common.search')}
+            />
+          </Field>
+          <Field label={t('common.role')}>
+            <Select
+              value={role}
+              onValueChange={setRole}
+              options={[
+                { value: 'reader', label: presentRole('reader', locale) },
+                { value: 'writer', label: presentRole('writer', locale) },
+              ]}
+            />
+          </Field>
+          <Button
+            variant="primary"
+            disabled={!subjectId}
+            loading={grant.isPending}
+            onClick={() => grant.mutate()}
+          >
+            {t('ontologies.grant')}
+          </Button>
+        </div>
+
+        <TableWrapper>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('rbac.subject')}</TableHead>
+                <TableHead>{t('common.type')}</TableHead>
+                <TableHead>{t('common.role')}</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={`${entry.subjectType}:${entry.subjectId}`}>
+                  <TableCell>
+                    <span className="font-medium">{entry.subjectName || entry.subjectId}</span>
+                    {entry.subjectName && entry.subjectName !== entry.subjectId ? (
+                      <div className="truncate font-mono text-xs text-muted-foreground">
+                        {entry.subjectId}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone="outline">
+                      {entry.subjectType === 'organization'
+                        ? t('common.organization')
+                        : entry.subjectType === 'team'
+                          ? t('common.team')
+                          : t('common.user')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge tone={entry.role === 'owner' ? 'brand' : 'outline'}>
+                      {presentRole(entry.role, locale)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {entry.role === 'owner' ? null : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t('ontologies.revoke')}
+                        onClick={() => revoke.mutate(entry)}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableWrapper>
+      </CardContent>
+    </Card>
   );
 }

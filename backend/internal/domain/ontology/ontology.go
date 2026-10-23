@@ -43,10 +43,12 @@ type Ontology struct {
 }
 
 type Access struct {
-	OntologyID  string    `json:"ontologyId"`
-	UserID      string    `json:"userId,omitempty"`
-	SubjectType string    `json:"subjectType"`
-	SubjectID   string    `json:"subjectId"`
+	OntologyID  string `json:"ontologyId"`
+	UserID      string `json:"userId,omitempty"`
+	SubjectType string `json:"subjectType"`
+	SubjectID   string `json:"subjectId"`
+	// SubjectName is who that identifier belongs to, resolved for display.
+	SubjectName string    `json:"subjectName,omitempty"`
 	Role        string    `json:"role"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`

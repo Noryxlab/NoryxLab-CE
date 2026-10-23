@@ -100,6 +100,7 @@ export const qk = {
   production: ["production", "apps"] as const,
 
   datasets: ["datasets"] as const,
+  ontologyAccess: (ontologyId: string) => ["ontology-access", ontologyId] as const,
   extractAccess: (extractId: string) => ["extract-access", extractId] as const,
   datasetAccess: (datasetId: string) =>
     ["datasets", datasetId, "access"] as const,
@@ -523,6 +524,13 @@ export const useMyTeams = () =>
 
 export const useDatasets = () =>
   useQuery({ queryKey: qk.datasets, queryFn: datasetsApi.list });
+
+export const useOntologyAccess = (ontologyId: string | undefined) =>
+  useQuery({
+    queryKey: qk.ontologyAccess(ontologyId ?? ""),
+    queryFn: () => ontologiesApi.ontologyAccess(ontologyId as string),
+    enabled: Boolean(ontologyId),
+  });
 
 export const useExtractAccess = (extractId: string | undefined) =>
   useQuery({
