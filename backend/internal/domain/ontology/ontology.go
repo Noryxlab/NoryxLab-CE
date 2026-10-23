@@ -108,7 +108,13 @@ type Object struct {
 	// Table is the measurement table a tabular file holds - Cornea_Basics,
 	// Cornea_Ectasia - without the identifier of whoever it belongs to. The
 	// axis somebody means when they ask for a level below the modality.
-	Table     string `json:"table,omitempty"`
+	Table string `json:"table,omitempty"`
+	// DataType is the folder below the modality, when the dataset's layout
+	// names one: CorneaMaps, SegmentOverlays, DICOM. Format says what kind of
+	// file it is, Table says which measurement it holds, and neither can say
+	// which part of the instrument's output it belongs to - the overlays and
+	// the viewer images inside the DICOM export are both PNG.
+	DataType  string `json:"dataType,omitempty"`
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
@@ -125,5 +131,8 @@ type ObjectFilter struct {
 	// Tables narrows to measurement tables. Same rule: empty is no
 	// constraint.
 	Tables []string
-	Limit  int
+	// DataTypes narrows to the folders below the modality. Same rule: empty
+	// is no constraint, never nothing.
+	DataTypes []string
+	Limit     int
 }

@@ -108,6 +108,12 @@ function regleLisible(
     regle.modalityLevel !== undefined && regle.modalityLevel >= 0
       ? t('ontologies.patternLevelIs', { level: String(regle.modalityLevel), name: mots.modalite })
       : null,
+    regle.dataTypeLevel !== undefined && regle.dataTypeLevel > 0
+      ? t('ontologies.patternLevelIs', {
+          level: String(regle.dataTypeLevel),
+          name: regle.dataTypeName?.trim() || t('ontologies.patternDataTypeWord'),
+        })
+      : null,
   ].filter(Boolean);
   return niveaux.join(', ');
 }
@@ -130,6 +136,7 @@ type ManifestLu = {
     subjectLevel?: number;
     visitLevel?: number;
     modalityLevel?: number;
+    dataTypeLevel?: number;
     /** Les mots du metier qui possede la donnee, tels qu'ils etaient quand
      *  cette photographie a ete prise. Enregistres avec la regle et pour la
      *  meme raison (ADR-040) : un nom change ensuite ferait decrire une vieille
@@ -137,6 +144,7 @@ type ManifestLu = {
     subjectName?: string;
     visitName?: string;
     modalityName?: string;
+    dataTypeName?: string;
   };
 };
 
@@ -427,6 +435,13 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
   const [subject, setSubject] = React.useState('');
   const [visit, setVisit] = React.useState('');
   const [modality, setModality] = React.useState('');
+  /* Le niveau sous la modalite, facultatif et nouveau.
+   *
+   *  C'est celui qui rend une divulgation plus fine que la modalite : les
+   *  surimpressions de segmentation d'une etude sans ses images DICOM. Laisse
+   *  vide, rien ne change pour les datasets declares avant lui. */
+  const [typeDonnees, setTypeDonnees] = React.useState('');
+  const [nomTypeDonnees, setNomTypeDonnees] = React.useState('');
   const [nomSujet, setNomSujet] = React.useState('');
   const [nomVisite, setNomVisite] = React.useState('');
   const [nomModalite, setNomModalite] = React.useState('');
@@ -475,9 +490,13 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
       subjectLevel: comprise.subjectLevel ?? null,
       visitLevel: comprise.visitLevel ?? null,
       modalityLevel: comprise.modalityLevel ?? null,
+      // L'assistant ne propose pas encore ce niveau : l'essai part avec la
+      // valeur du formulaire, pour ne pas effacer ce que quelqu'un a saisi.
+      dataTypeLevel: typeDonnees.trim() === '' ? null : Number(typeDonnees),
       subjectName: comprise.subjectName ?? '',
       visitName: comprise.visitName ?? '',
       modalityName: comprise.modalityName ?? '',
+      dataTypeName: nomTypeDonnees.trim(),
     });
   };
 
@@ -489,15 +508,20 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     setModality(
       data.modalityLevel != null && data.modalityLevel >= 0 ? String(data.modalityLevel) : '',
     );
+    setTypeDonnees(
+      data.dataTypeLevel != null && data.dataTypeLevel > 0 ? String(data.dataTypeLevel) : '',
+    );
     setNomSujet(data.subjectName ?? '');
     setNomVisite(data.visitName ?? '');
     setNomModalite(data.modalityName ?? '');
+    setNomTypeDonnees(data.dataTypeName ?? '');
   }, [current.data]);
 
   const niveaux = () => ({
     subjectLevel: subject.trim() === '' ? null : Number(subject),
     visitLevel: visit.trim() === '' ? null : Number(visit),
     modalityLevel: modality.trim() === '' ? null : Number(modality),
+    dataTypeLevel: typeDonnees.trim() === '' ? null : Number(typeDonnees),
     /* Les mots du metier, a cote des positions.
      *
      *  Trois champs qu'on remplit une fois, ou que l'assistant propose avec la
@@ -506,6 +530,7 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
     subjectName: nomSujet.trim(),
     visitName: nomVisite.trim(),
     modalityName: nomModalite.trim(),
+    dataTypeName: nomTypeDonnees.trim(),
   });
 
   /* L'essai accepte une regle explicite, pour pouvoir tourner tout de suite
@@ -534,6 +559,7 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
       setSubject('');
       setVisit('');
       setModality('');
+      setTypeDonnees('');
       setTrial(null);
       toast.success(t('ontologies.patternCleared'));
     },
@@ -562,6 +588,16 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
         <Field label={t('ontologies.patternModalityLevel')}>
           <Input value={modality} onChange={(event) => setModality(event.target.value)} placeholder="3" />
         </Field>
+        <Field
+          label={t('ontologies.patternDataTypeLevel')}
+          description={t('ontologies.patternDataTypeHint')}
+        >
+          <Input
+            value={typeDonnees}
+            onChange={(event) => setTypeDonnees(event.target.value)}
+            placeholder="4"
+          />
+        </Field>
       </div>
 
       {/* Les mots du metier qui possede la donnee. Vides, la plateforme reste
@@ -576,6 +612,13 @@ function PatternEditor({ ontology }: { ontology: Ontology }) {
         </Field>
         <Field label={t('ontologies.patternModalityName')}>
           <Input value={nomModalite} onChange={(event) => setNomModalite(event.target.value)} placeholder="modalité, opération…" />
+        </Field>
+        <Field label={t('ontologies.patternDataTypeName')}>
+          <Input
+            value={nomTypeDonnees}
+            onChange={(event) => setNomTypeDonnees(event.target.value)}
+            placeholder="type de données, pièce…"
+          />
         </Field>
       </div>
 

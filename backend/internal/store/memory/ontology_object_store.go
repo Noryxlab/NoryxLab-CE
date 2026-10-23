@@ -271,7 +271,8 @@ func (s *OntologyObjectStore) ListObjects(ontologyID string, filter ontology.Obj
 			!matchesAxis(filter.Modalities, object.Modality) ||
 			!matchesAxis(filter.Visits, object.Visit) ||
 			!matchesAxis(filter.Formats, object.Format) ||
-			!matchesAxis(filter.Tables, object.Table) {
+			!matchesAxis(filter.Tables, object.Table) ||
+			!matchesAxis(filter.DataTypes, object.DataType) {
 			continue
 		}
 		out = append(out, object)

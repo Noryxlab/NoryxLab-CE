@@ -99,6 +99,7 @@ type ontologyReadingRule struct {
 	SubjectLevel  int    `json:"subjectLevel,omitempty"`
 	VisitLevel    int    `json:"visitLevel,omitempty"`
 	ModalityLevel int    `json:"modalityLevel,omitempty"`
+	DataTypeLevel int    `json:"dataTypeLevel,omitempty"`
 	// Description reads on a screen: "level 1 = subject, level 2 = visit".
 	Description string `json:"description"`
 	// Names is what the three levels are called in this dataset's trade, as
@@ -112,6 +113,7 @@ type ontologyReadingRule struct {
 	SubjectName  string `json:"subjectName,omitempty"`
 	VisitName    string `json:"visitName,omitempty"`
 	ModalityName string `json:"modalityName,omitempty"`
+	DataTypeName string `json:"dataTypeName,omitempty"`
 }
 
 // describeReading records the rule a scan is about to apply.
@@ -133,6 +135,7 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 			SubjectLevel:  dataset.LevelAbsent,
 			VisitLevel:    dataset.LevelAbsent,
 			ModalityLevel: dataset.LevelAbsent,
+			DataTypeLevel: dataset.LevelAbsent,
 			Description:   "the platform's compiled rule: the first segment that looks like a subject identifier, then the next two as visit and modality",
 		}
 	}
@@ -141,10 +144,12 @@ func describeReading(layout *dataset.PathLayout) ontologyReadingRule {
 		SubjectLevel:  layout.SubjectLevel,
 		VisitLevel:    layout.VisitLevel,
 		ModalityLevel: layout.ModalityLevel,
+		DataTypeLevel: layout.DataTypeLevel,
 		Description:   layout.Describe(),
 		SubjectName:   strings.TrimSpace(layout.SubjectName),
 		VisitName:     strings.TrimSpace(layout.VisitName),
 		ModalityName:  strings.TrimSpace(layout.ModalityName),
+		DataTypeName:  strings.TrimSpace(layout.DataTypeName),
 	}
 }
 
@@ -153,7 +158,8 @@ func sameReading(a, b ontologyReadingRule) bool {
 	return a.Source == b.Source &&
 		a.SubjectLevel == b.SubjectLevel &&
 		a.VisitLevel == b.VisitLevel &&
-		a.ModalityLevel == b.ModalityLevel
+		a.ModalityLevel == b.ModalityLevel &&
+		a.DataTypeLevel == b.DataTypeLevel
 }
 
 type ontologyListItem struct {
@@ -236,7 +242,13 @@ type ontologyModality struct {
 	FormatCounts map[string]ontologyFormatTally `json:"formatCounts,omitempty"`
 	// TableCounts is the same for measurement tables: how many files and
 	// bytes each one accounts for, which the list of names could not say.
-	TableCounts       map[string]ontologyFormatTally `json:"tableCounts,omitempty"`
+	TableCounts map[string]ontologyFormatTally `json:"tableCounts,omitempty"`
+	// DataTypes is what the modality holds below itself - CorneaMaps,
+	// SegmentOverlays, DICOM - with the same tally, and for the same reason
+	// the modalities themselves are listed: an extract's author selects from
+	// what the scan found rather than typing a folder name from memory.
+	DataTypes         []string                       `json:"dataTypes,omitempty"`
+	DataTypeCounts    map[string]ontologyFormatTally `json:"dataTypeCounts,omitempty"`
 	MeasurementTables []string                       `json:"measurementTables"`
 	SamplePaths       []string                       `json:"samplePaths"`
 }
@@ -261,6 +273,7 @@ type ontologyModalityAcc struct {
 	formatTallies     map[string]ontologyFormatTally
 	tableTallies      map[string]ontologyFormatTally
 	measurementTables map[string]struct{}
+	dataTypeTallies   map[string]ontologyFormatTally
 	samplePaths       []string
 }
 
@@ -1210,7 +1223,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			truncated = true
 			return false
 		}
-		subjectID, visitDate, modalityName := lireLeChemin(item.PathLayout, relPath)
+		subjectID, visitDate, modalityName, dataType := lireLeChemin(item.PathLayout, relPath)
 		if subjectID == "" {
 			// Counted and described, never dropped in silence. The shape is
 			// recorded rather than the path: these are health-context
@@ -1264,6 +1277,12 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			tally.TotalBytes += obj.Size
 			acc.tableTallies[table] = tally
 		}
+		if dataType != "" {
+			tally := acc.dataTypeTallies[dataType]
+			tally.Objects++
+			tally.TotalBytes += obj.Size
+			acc.dataTypeTallies[dataType] = tally
+		}
 		if len(acc.samplePaths) < 3 {
 			acc.samplePaths = append(acc.samplePaths, relPath)
 		}
@@ -1274,6 +1293,7 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 			Modality:  modalityName,
 			Format:    format,
 			Table:     table,
+			DataType:  dataType,
 			SizeBytes: obj.Size,
 		})
 		return true
@@ -1607,6 +1627,7 @@ func getOntologyModalityAcc(subjects map[string]*ontologySubjectAcc, subjectID, 
 			formatTallies:     map[string]ontologyFormatTally{},
 			tableTallies:      map[string]ontologyFormatTally{},
 			measurementTables: map[string]struct{}{},
+			dataTypeTallies:   map[string]ontologyFormatTally{},
 		}
 		visit.modalities[modality] = mod
 	}
@@ -1660,6 +1681,13 @@ func materializeOntologySubjects(subjects map[string]*ontologySubjectAcc) ([]ont
 				for key, tally := range modAcc.tableTallies {
 					tableTallies[key] = tally
 				}
+				dataTypeTallies := map[string]ontologyFormatTally{}
+				dataTypeNames := make([]string, 0, len(modAcc.dataTypeTallies))
+				for key, tally := range modAcc.dataTypeTallies {
+					dataTypeTallies[key] = tally
+					dataTypeNames = append(dataTypeNames, key)
+				}
+				sort.Strings(dataTypeNames)
 				mods = append(mods, ontologyModality{
 					Name:              name,
 					ObjectCount:       modAcc.objectCount,
@@ -1667,6 +1695,8 @@ func materializeOntologySubjects(subjects map[string]*ontologySubjectAcc) ([]ont
 					Formats:           sortedKeys(modAcc.formats),
 					FormatCounts:      tallies,
 					TableCounts:       tableTallies,
+					DataTypes:         dataTypeNames,
+					DataTypeCounts:    dataTypeTallies,
 					MeasurementTables: sortedKeys(modAcc.measurementTables),
 					SamplePaths:       append([]string(nil), modAcc.samplePaths...),
 				})
@@ -1743,11 +1773,15 @@ func estUneCleDeDossier(obj minio.ObjectInfo, suivante string) bool {
 // defaut, pour les datasets qui n'en declarent pas - c'est-a-dire tous ceux
 // qui existaient avant. Une installation sans assistant n'est donc bloquee par
 // rien : elle saisit trois niveaux, ou elle ne touche a rien.
-func lireLeChemin(layout *dataset.PathLayout, relPath string) (subjectID, visitDate, modality string) {
+func lireLeChemin(layout *dataset.PathLayout, relPath string) (subjectID, visitDate, modality, dataType string) {
 	if layout != nil && layout.Declared() {
 		return layout.Read(relPath)
 	}
-	return inferOntologyPath(relPath)
+	// La regle compilee ne connait que trois niveaux : elle ne nomme aucun
+	// type de donnees, et en inventer un serait grouper sur un segment que
+	// personne n'a choisi.
+	subjectID, visitDate, modality = inferOntologyPath(relPath)
+	return subjectID, visitDate, modality, ""
 }
 
 // ontologyRefreshDiff says what a rescan changed, and why.

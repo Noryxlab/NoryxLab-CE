@@ -78,7 +78,7 @@ answers "what does this patient have"; modality-first answers "show me every
 cornea scan I hold". Two questions, one set of files, and until 2026-10-01 only
 the first was expressible because the tree was built in a fixed order.
 
-A layout is a permutation of the three levels and never a subset. Dropping one
+A layout is a permutation of the three directory levels and never a subset. Dropping one
 would put files from different visits in the same directory, where the ones
 sharing a name would overwrite each other - a loss that surfaces as an `n`
 nobody can reproduce.
@@ -133,7 +133,8 @@ take the next two as the visit and the modality. A dataset can now carry its
 own rule instead - which path level holds the subject, which the visit, which
 the modality, counted from zero. For
 `SELENA/SELENA-01-001/20260218/ANTERION/DICOM/f.dcm`: subject 1, visit 2,
-modality 3. A level left empty means the source does not carry it, which is a
+modality 3, and - for a study that files its instruments' output in folders -
+a fourth: the **data type**, the level below the modality. A level left empty means the source does not carry it, which is a
 real answer for a study with one visit per patient.
 
 It is positional and deliberately not a regular expression. A rule somebody can
@@ -582,3 +583,35 @@ What is deliberately **not** renamed: the Go fields, the JSON keys and the
 database columns. `subject_id` appears in 43 statements, `Subject` in 53 Go
 files; renaming them would be a data migration that breaks every stored
 manifest, to change words no user reads.
+
+
+## The level below the modality
+
+A modality is a folder of everything one instrument produced, and that is
+usually too much to hand over. SELENA's ANTERION is 4,467 DICOM images, 175
+segmentation overlays, 30 corneal maps and 30 tabulated measurements; a
+partner who needs the overlays has no business receiving the images.
+
+Two axes already cut below the modality - the **format** and the
+**measurement table** - and neither can express this one. The overlays are
+PNG, and so are five images belonging to the web viewer shipped inside the
+DICOM export: selecting by kind hands over the viewer's furniture with the
+measurements. What separates them is the folder the instrument itself wrote.
+
+So a dataset's layout may name a fourth level, the **data type**, and an
+extract may select on it. It differs from the other three in one way that
+matters: **its absence from a path is normal**. A study files its ANTERION
+under CorneaMaps/, DICOM/, SegmentOverlays/ and lays its OPTOS out as loose
+files under the modality - the first has a data type, the second has none,
+and both are read. Treating a missing segment here the way the other levels
+treat it would report whole modalities as unrecognised.
+
+Level 0 is never a data type: it sits below the modality, which sits below
+the subject. A layout built in code that names three levels stays a
+three-level layout instead of quietly acquiring a fourth at the root, and a
+layout stored before this level existed decodes as not naming it.
+
+The mount is unchanged. The tree still has three directory levels, and the
+data type appears where it already appeared - inside the leaf, which keeps
+everything below the modality segment. An extract of SELENA's overlays mounts
+as `/extracts/<name>/<subject>/<visit>/ANTERION/SegmentOverlays/<file>`.

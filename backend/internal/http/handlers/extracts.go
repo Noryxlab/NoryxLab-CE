@@ -47,6 +47,16 @@ type extractRequest struct {
 	// holds three folder names and 349 file names, while the tables are
 	// seven, each held by all thirty subjects.
 	Tables []string `json:"tables"`
+	// DataTypes narrows to the folders a modality files below itself -
+	// CorneaMaps, SegmentOverlays, DICOM.
+	//
+	// It is the axis the other two cannot express. SELENA's ANTERION holds
+	// 175 segmentation overlays and, inside its DICOM export, five images
+	// belonging to the web viewer: both are PNG, so selecting by kind hands
+	// over the viewer's furniture with the measurements. The folder is what
+	// the instrument itself separated, and what the study was re-filed to
+	// make selectable.
+	DataTypes []string `json:"dataTypes"`
 	// Layout is the order of the directory levels the mount builds. Empty is
 	// the default, subject first, which is what every extract carried before
 	// the order could be chosen.
@@ -89,6 +99,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		Visits:     req.Visits,
 		Formats:    req.Formats,
 		Tables:     req.Tables,
+		DataTypes:  req.DataTypes,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve the extract"})
@@ -139,7 +150,7 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats, req.Tables)
+	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats, req.Tables, req.DataTypes)
 	object.Layout = layout
 	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {

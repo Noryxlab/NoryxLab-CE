@@ -1,6 +1,9 @@
 package dataset
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 // La regle positionnelle lit les deux etudes qui existent, et c'est le point.
 //
@@ -10,13 +13,13 @@ import "testing"
 // patients autrement et il a fallu du Go. Une regle ecrite par dataset suffit.
 func TestLaRegleLitLesDeuxDispositions(t *testing.T) {
 	premyom := PathLayout{SubjectLevel: 0, VisitLevel: 1, ModalityLevel: 2}
-	sujet, visite, modalite := premyom.Read("PREMYOM1000-0023/20260218/ANTERION/scan.dcm")
+	sujet, visite, modalite, _ := premyom.Read("PREMYOM1000-0023/20260218/ANTERION/scan.dcm")
 	if sujet != "PREMYOM1000-0023" || visite != "20260218" || modalite != "ANTERION" {
 		t.Fatalf("premyom = %q %q %q", sujet, visite, modalite)
 	}
 
 	selena := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3}
-	sujet, visite, modalite = selena.Read("SELENA/SELENA-01-001/20260218/ANTERION/DICOM/MC27/f.dcm")
+	sujet, visite, modalite, _ = selena.Read("SELENA/SELENA-01-001/20260218/ANTERION/DICOM/MC27/f.dcm")
 	if sujet != "SELENA-01-001" || visite != "20260218" || modalite != "ANTERION" {
 		t.Fatalf("selena = %q %q %q", sujet, visite, modalite)
 	}
@@ -28,7 +31,7 @@ func TestLaRegleLitLesDeuxDispositions(t *testing.T) {
 // "absent" est plus vrai que designer un segment qui veut dire autre chose.
 func TestUnNiveauAbsentEstUneReponse(t *testing.T) {
 	regle := PathLayout{SubjectLevel: 0, VisitLevel: LevelAbsent, ModalityLevel: 1}
-	sujet, visite, modalite := regle.Read("P-001/ANTERION/scan.dcm")
+	sujet, visite, modalite, _ := regle.Read("P-001/ANTERION/scan.dcm")
 	if sujet != "P-001" || visite != "" || modalite != "ANTERION" {
 		t.Fatalf("lu = %q %q %q", sujet, visite, modalite)
 	}
@@ -38,13 +41,13 @@ func TestUnNiveauAbsentEstUneReponse(t *testing.T) {
 // reconnu et decrira sa forme, au lieu de le ranger quelque part de plausible.
 func TestUnCheminTropCourtNeProduitRien(t *testing.T) {
 	regle := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3}
-	if sujet, _, _ := regle.Read("fichier.csv"); sujet != "" {
+	if sujet, _, _, _ := regle.Read("fichier.csv"); sujet != "" {
 		t.Fatalf("sujet = %q, attendu aucun", sujet)
 	}
 	// Et une regle qui designe le fichier lui-meme ne fait pas de chaque
 	// fichier un sujet - c'est ce qui produirait "4 026 sujets".
 	surLeFichier := PathLayout{SubjectLevel: 3, VisitLevel: LevelAbsent, ModalityLevel: LevelAbsent}
-	if sujet, _, _ := surLeFichier.Read("a/b/c/fichier.csv"); sujet != "" {
+	if sujet, _, _, _ := surLeFichier.Read("a/b/c/fichier.csv"); sujet != "" {
 		t.Fatalf("sujet = %q : le dernier segment est le fichier", sujet)
 	}
 }
@@ -120,18 +123,18 @@ func TestLaRegleSeDecrit(t *testing.T) {
 func TestUnFichierEgareNeDevientPasUnSujet(t *testing.T) {
 	layout := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3}
 
-	sujet, _, _ := layout.Read("SELENA/checksums/checksum_20260918.tsv")
+	sujet, _, _, _ := layout.Read("SELENA/checksums/checksum_20260918.tsv")
 	if sujet != "" {
 		t.Fatalf("un chemin sans niveau 3 ne decrit aucun sujet, obtenu %q", sujet)
 	}
 
 	// Et la vraie donnee passe toujours.
-	sujet, visite, modalite := layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/scan.dcm")
+	sujet, visite, modalite, _ := layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/scan.dcm")
 	if sujet != "SELENA-01-001" || visite != "20260218" || modalite != "ANTERION" {
 		t.Fatalf("lecture = %q/%q/%q", sujet, visite, modalite)
 	}
 	// Y compris plus profond : l'export DICOM d'ANTERION descend a dix.
-	sujet, _, modalite = layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/DICOM/MC27/26070/105568/449313/00000656")
+	sujet, _, modalite, _ = layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/DICOM/MC27/26070/105568/449313/00000656")
 	if sujet != "SELENA-01-001" || modalite != "ANTERION" {
 		t.Fatalf("un chemin profond doit rester lu : %q/%q", sujet, modalite)
 	}
@@ -143,11 +146,68 @@ func TestUnFichierEgareNeDevientPasUnSujet(t *testing.T) {
 // une profondeur pour un niveau absent rejetterait toute la donnee.
 func TestUneRegleCourteNExigePasLesNiveauxQuElleTait(t *testing.T) {
 	layout := PathLayout{SubjectLevel: 0, VisitLevel: LevelAbsent, ModalityLevel: 1}
-	sujet, visite, modalite := layout.Read("PATIENT-7/IRM/scan.dcm")
+	sujet, visite, modalite, _ := layout.Read("PATIENT-7/IRM/scan.dcm")
 	if sujet != "PATIENT-7" || modalite != "IRM" {
 		t.Fatalf("lecture = %q/%q/%q", sujet, visite, modalite)
 	}
 	if visite != "" {
 		t.Errorf("un niveau tu ne doit rien produire, obtenu %q", visite)
+	}
+}
+
+// Le niveau sous la modalite se lit quand il existe, et son absence n'est pas
+// un rejet.
+//
+// C'est la difference avec les trois autres : une etude range son ANTERION en
+// CorneaMaps/, DICOM/, SegmentOverlays/, et pose son OPTOS en vrac sous la
+// modalite. Les deux doivent etre lus, l'un avec un type de donnees, l'autre
+// sans. Exiger la profondeur ici rendrait toute une modalite illisible.
+func TestLeTypeDeDonneesEstFacultatifParChemin(t *testing.T) {
+	layout := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3, DataTypeLevel: 4}
+
+	sujet, visite, modalite, typeDonnees := layout.Read(
+		"SELENA/SELENA-01-001/20260218/ANTERION/CorneaMaps/SELENA-01-001_1_ANTERION_COR.csv")
+	if sujet != "SELENA-01-001" || visite != "20260218" || modalite != "ANTERION" || typeDonnees != "CorneaMaps" {
+		t.Fatalf("lecture = %q/%q/%q/%q", sujet, visite, modalite, typeDonnees)
+	}
+
+	// Un fichier pose directement sous la modalite : lu, sans type de donnees.
+	sujet, _, modalite, typeDonnees = layout.Read(
+		"SELENA/SELENA-01-001/20260218/OPTOS/1.2.826.0.1.3680043.214.4624425.dcm")
+	if sujet != "SELENA-01-001" || modalite != "OPTOS" {
+		t.Fatalf("un fichier sous la modalite doit rester lu : %q/%q", sujet, modalite)
+	}
+	if typeDonnees != "" {
+		t.Fatalf("aucun type de donnees ne doit etre invente : %q", typeDonnees)
+	}
+
+	// Et l'interieur de l'export DICOM garde le type du dossier qui le porte.
+	_, _, _, typeDonnees = layout.Read(
+		"SELENA/SELENA-01-001/20260218/ANTERION/DICOM/DICOM/MC27/26070/105568/449313/00000656")
+	if typeDonnees != "DICOM" {
+		t.Fatalf("type de donnees = %q", typeDonnees)
+	}
+}
+
+// Une disposition ecrite avant ce niveau ne doit pas se reveiller en nommant
+// le niveau 0. Le zero de Go dit "racine" la ou la donnee dit "rien".
+func TestUneDispositionAncienneNAPasDeTypeDeDonnees(t *testing.T) {
+	var layout PathLayout
+	if err := json.Unmarshal([]byte(`{"subjectLevel":1,"visitLevel":2,"modalityLevel":3}`), &layout); err != nil {
+		t.Fatal(err)
+	}
+	if layout.DataTypeLevel != LevelAbsent {
+		t.Fatalf("niveau de type de donnees = %d, attendu absent", layout.DataTypeLevel)
+	}
+	if _, _, _, typeDonnees := layout.Read("SELENA/SELENA-01-001/20260218/ANTERION/CorneaMaps/x.csv"); typeDonnees != "" {
+		t.Fatalf("une disposition ancienne ne doit rien grouper : %q", typeDonnees)
+	}
+}
+
+// Deux niveaux ne peuvent pas designer le meme segment.
+func TestLeTypeDeDonneesNeRecouvrePasUnAutreNiveau(t *testing.T) {
+	layout := PathLayout{SubjectLevel: 1, VisitLevel: 2, ModalityLevel: 3, DataTypeLevel: 3}
+	if layout.Validate() == "" {
+		t.Fatal("une disposition qui met le type de donnees sur la modalite doit etre refusee")
 	}
 }

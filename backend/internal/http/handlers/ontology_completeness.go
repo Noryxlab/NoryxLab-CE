@@ -49,6 +49,10 @@ type ontologyCompleteness struct {
 	// PREMYOM1000's ANTERION, each held by all thirty subjects - which is
 	// what an axis looks like, and what a list of file names was hiding.
 	Tables []formatCoverage `json:"tables"`
+	// DataTypes is the folders a modality files below itself, totalled the
+	// same way. Empty on a photograph taken before a dataset named that
+	// level, which is "not measured" rather than "this study has none".
+	DataTypes []formatCoverage `json:"dataTypes"`
 	// Subjects holding every modality the study uses. The number an extract can
 	// count on without caveat.
 	CompleteSubjects int `json:"completeSubjects"`
@@ -100,6 +104,7 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 		Modalities: []modalityCoverage{},
 		Formats:    formatsIn(manifest),
 		Tables:     tablesIn(manifest),
+		DataTypes:  dataTypesIn(manifest),
 	}
 	for name, holders := range subjectsWith {
 		coverage := modalityCoverage{
@@ -143,6 +148,11 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 // tablesIn totals each measurement table across the whole photograph.
 func tablesIn(manifest ontologyManifest) []formatCoverage {
 	return tallyAcross(manifest, func(m ontologyModality) map[string]ontologyFormatTally { return m.TableCounts })
+}
+
+// dataTypesIn totals each folder below a modality across the whole photograph.
+func dataTypesIn(manifest ontologyManifest) []formatCoverage {
+	return tallyAcross(manifest, func(m ontologyModality) map[string]ontologyFormatTally { return m.DataTypeCounts })
 }
 
 // formatsIn totals each kind of file across the whole photograph.

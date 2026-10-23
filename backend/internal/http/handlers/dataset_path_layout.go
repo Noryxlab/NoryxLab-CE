@@ -28,12 +28,17 @@ import (
 type pathLayoutRequest struct {
 	// The three words this dataset's trade uses for its levels. Optional: a
 	// layout that names none keeps the platform's generic defaults.
-	SubjectName   string `json:"subjectName"`
-	VisitName     string `json:"visitName"`
-	ModalityName  string `json:"modalityName"`
+	SubjectName  string `json:"subjectName"`
+	VisitName    string `json:"visitName"`
+	ModalityName string `json:"modalityName"`
+	// DataTypeName names the level below the modality, for the studies that
+	// file one. Optional like the others, and absent on every dataset
+	// declared before it existed.
+	DataTypeName  string `json:"dataTypeName"`
 	SubjectLevel  *int   `json:"subjectLevel"`
 	VisitLevel    *int   `json:"visitLevel"`
 	ModalityLevel *int   `json:"modalityLevel"`
+	DataTypeLevel *int   `json:"dataTypeLevel"`
 }
 
 // layoutFrom reads the request, treating an absent level as "not in the path"
@@ -49,9 +54,11 @@ func layoutFrom(req pathLayoutRequest) datasetdomain.PathLayout {
 		SubjectLevel:  level(req.SubjectLevel),
 		VisitLevel:    level(req.VisitLevel),
 		ModalityLevel: level(req.ModalityLevel),
+		DataTypeLevel: level(req.DataTypeLevel),
 		SubjectName:   strings.TrimSpace(req.SubjectName),
 		VisitName:     strings.TrimSpace(req.VisitName),
 		ModalityName:  strings.TrimSpace(req.ModalityName),
+		DataTypeName:  strings.TrimSpace(req.DataTypeName),
 	}
 }
 
@@ -159,6 +166,7 @@ type pathLayoutTrial struct {
 	Subject  string `json:"subject"`
 	Visit    string `json:"visit"`
 	Modality string `json:"modality"`
+	DataType string `json:"dataType"`
 }
 
 const (
@@ -203,11 +211,11 @@ func (h Handlers) TryDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 	trials := make([]pathLayoutTrial, 0, len(paths))
 	recognised := 0
 	for _, path := range paths {
-		subject, visit, modality := layout.Read(path)
+		subject, visit, modality, dataType := layout.Read(path)
 		if subject != "" {
 			recognised++
 		}
-		trials = append(trials, pathLayoutTrial{Path: path, Subject: subject, Visit: visit, Modality: modality})
+		trials = append(trials, pathLayoutTrial{Path: path, Subject: subject, Visit: visit, Modality: modality, DataType: dataType})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":       trials,

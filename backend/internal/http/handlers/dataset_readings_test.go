@@ -38,11 +38,11 @@ func TestRetirerUnDatasetEmporteSesOntologiesEtLeursExtraits(t *testing.T) {
 
 	extraits := memory.NewExtractStore()
 	selection := extract.New("stef", lue.ID, "p1", "anterion-3-sujets", "",
-		[]string{"PREMYOM1000-0023"}, []string{"ANTERION"}, nil, nil, nil)
+		[]string{"PREMYOM1000-0023"}, []string{"ANTERION"}, nil, nil, nil, nil)
 	if err := extraits.Create(selection, nil); err != nil {
 		t.Fatal(err)
 	}
-	intacte := extract.New("stef", ailleurs.ID, "p1", "autre-extrait", "", nil, nil, nil, nil, nil)
+	intacte := extract.New("stef", ailleurs.ID, "p1", "autre-extrait", "", nil, nil, nil, nil, nil, nil)
 	if err := extraits.Create(intacte, nil); err != nil {
 		t.Fatal(err)
 	}

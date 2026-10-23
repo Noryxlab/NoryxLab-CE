@@ -56,6 +56,14 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
    *  trois noms de dossier et 349 noms de fichiers, alors que les tables sont
    *  sept, chacune chez les trente patients. */
   const [tables, setTables] = React.useState<string[]>([]);
+  /* Le dossier sous la modalite : l'axe que ni le genre ni la table ne disent.
+   *
+   *  L'ANTERION de SELENA porte 175 surimpressions de segmentation et, dans
+   *  son export DICOM, les images du visualiseur web livre avec le support :
+   *  les deux sont des PNG. Demander « les PNG » rend le mobilier du
+   *  visualiseur avec les mesures ; demander le dossier rend ce que
+   *  l'appareil a lui-meme separe. */
+  const [dossiers, setDossiers] = React.useState<string[]>([]);
   /* La disposition : l'ordre des niveaux de l'arbre monte.
    *
    *  La selection dit quels fichiers, la disposition dit comment ils sont
@@ -80,6 +88,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
   const available = coverage.data?.modalities ?? [];
   const genres = coverage.data?.formats ?? [];
   const mesures = coverage.data?.tables ?? [];
+  const typesDeDonnees = coverage.data?.dataTypes ?? [];
 
   // Repartir de zero quand on change d'ontologie, sinon le formulaire propose
   // de decouper la nouvelle avec les categories de l'ancienne.
@@ -97,6 +106,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
   const toggle = (nom: string) => setChosen((current) => bascule(current, nom));
   const toggleKind = (nom: string) => setKinds((current) => bascule(current, nom));
   const toggleTable = (nom: string) => setTables((current) => bascule(current, nom));
+  const toggleDossier = (nom: string) => setDossiers((current) => bascule(current, nom));
 
   const asList = (raw: string) =>
     raw
@@ -121,6 +131,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         modalities: chosen,
         formats: kinds,
         tables: tables,
+        dataTypes: dossiers,
         subjects: asList(subjects),
         layout: niveaux,
       }),
@@ -129,6 +140,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
       setChosen([]);
       setKinds([]);
       setTables([]);
+      setDossiers([]);
       setSubjects('');
       setNiveaux(['subject', 'visit', 'modality']);
       done(created.objectCount);
@@ -151,6 +163,7 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
         modalities: [],
         formats: [],
         tables: [],
+        dataTypes: [],
         subjects: [],
         layout: ['subject', 'visit', 'modality'],
       }),
@@ -182,8 +195,15 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     tables.length === 0
       ? null
       : mesures.filter((m) => tables.includes(m.name)).reduce((t, m) => t + m.objects, 0);
-  const borneHaute = filtreEntites || prisParGenre !== null || prisParTable !== null;
-  const annonce = [prisParCategorie, prisParGenre, prisParTable]
+  const prisParDossier =
+    dossiers.length === 0
+      ? null
+      : typesDeDonnees
+          .filter((type) => dossiers.includes(type.name))
+          .reduce((total, type) => total + type.objects, 0);
+  const borneHaute =
+    filtreEntites || prisParGenre !== null || prisParTable !== null || prisParDossier !== null;
+  const annonce = [prisParCategorie, prisParGenre, prisParTable, prisParDossier]
     .filter((valeur): valeur is number => valeur !== null)
     .reduce((plus_petit, valeur) => Math.min(plus_petit, valeur), prisParCategorie);
 
@@ -292,6 +312,36 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
                     {genre.name}
                     <span className="opacity-70 tabular-nums">
                       {formatBytes(genre.totalBytes, locale)}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </Field>
+          ) : null}
+
+          {/* Les dossiers sous la modalite, quand la lecture en a nomme. */}
+          {typesDeDonnees.length > 0 ? (
+            <Field
+              label={t('ontologies.extractDataTypes')}
+              description={
+                dossiers.length === 0
+                  ? t('ontologies.extractDataTypesAll')
+                  : t('ontologies.extractDataTypesChosen')
+              }
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {typesDeDonnees.map((type) => (
+                  <Button
+                    key={type.name}
+                    type="button"
+                    size="sm"
+                    variant={dossiers.includes(type.name) ? 'primary' : 'secondary'}
+                    onClick={() => toggleDossier(type.name)}
+                    aria-pressed={dossiers.includes(type.name)}
+                  >
+                    {type.name}
+                    <span className="opacity-70 tabular-nums">
+                      {formatNumber(type.objects, locale)}
                     </span>
                   </Button>
                 ))}

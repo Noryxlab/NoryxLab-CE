@@ -1,6 +1,7 @@
 package dataset
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -39,6 +40,17 @@ type PathLayout struct {
 	// "absent" is truer than pointing at a segment that means something else.
 	VisitLevel    int `json:"visitLevel"`
 	ModalityLevel int `json:"modalityLevel"`
+	// DataTypeLevel is the level below the modality: the kind of data the
+	// instrument produced, which is the axis somebody means when they ask for
+	// a subset of a modality rather than the modality.
+	//
+	// It is the one level whose absence from a path is normal. A study files
+	// its ANTERION as CorneaMaps/, DICOM/, SegmentOverlays/ and its OPTOS as
+	// loose files under the modality: the first has a data type, the second
+	// has none, and both are correctly read. Treating a missing segment here
+	// the way the other levels treat it - as a path the rule does not cover -
+	// would report whole modalities as unrecognised.
+	DataTypeLevel int `json:"dataTypeLevel"`
 	// What the three levels are called, in this dataset's own trade.
 	//
 	// The positions were configurable and the words were not, so a platform
@@ -58,6 +70,24 @@ type PathLayout struct {
 	SubjectName  string `json:"subjectName,omitempty"`
 	VisitName    string `json:"visitName,omitempty"`
 	ModalityName string `json:"modalityName,omitempty"`
+	DataTypeName string `json:"dataTypeName,omitempty"`
+}
+
+// UnmarshalJSON keeps a layout written before the data-type level readable.
+//
+// Those rows name three levels and nothing else, and Go would decode the
+// missing field as level 0 - which is not "absent", it is "the study name is
+// the data type". Every ontology scanned since would then group by a segment
+// nobody chose. An absent key means absent level, and that has to be said
+// explicitly because the zero value cannot say it.
+func (l *PathLayout) UnmarshalJSON(raw []byte) error {
+	type brut PathLayout
+	valeurs := brut{DataTypeLevel: LevelAbsent}
+	if err := json.Unmarshal(raw, &valeurs); err != nil {
+		return err
+	}
+	*l = PathLayout(valeurs)
+	return nil
 }
 
 // Defaults, used wherever a layout names nothing. Generic rather than clinical:
@@ -67,12 +97,28 @@ const (
 	DefaultSubjectName  = "entity"
 	DefaultVisitName    = "period"
 	DefaultModalityName = "category"
+	DefaultDataTypeName = "kind"
 )
 
 // Subject, Visit and Modality are what to call each level on a screen.
 func (l PathLayout) Subject() string  { return named(l.SubjectName, DefaultSubjectName) }
 func (l PathLayout) Visit() string    { return named(l.VisitName, DefaultVisitName) }
 func (l PathLayout) Modality() string { return named(l.ModalityName, DefaultModalityName) }
+func (l PathLayout) DataType() string { return named(l.DataTypeName, DefaultDataTypeName) }
+
+// dataTypeLevel reads the level, and refuses level 0.
+//
+// The data type sits below the modality, which sits below the subject: the
+// first segment of a path is never a kind of data. Saying so here is what
+// lets a PathLayout built in code - a literal naming three levels, of which
+// there are many - stay a three-level layout instead of quietly acquiring a
+// fourth at the root, which is what Go's zero value would otherwise mean.
+func (l PathLayout) dataTypeLevel() int {
+	if l.DataTypeLevel <= 0 {
+		return LevelAbsent
+	}
+	return l.DataTypeLevel
+}
 
 func named(declared, fallback string) string {
 	if trimmed := strings.TrimSpace(declared); trimmed != "" {
@@ -103,6 +149,9 @@ func (l PathLayout) Describe() string {
 	if l.ModalityLevel >= 0 {
 		parts = append(parts, fmt.Sprintf("level %d = %s", l.ModalityLevel, l.Modality()))
 	}
+	if level := l.dataTypeLevel(); level >= 0 {
+		parts = append(parts, fmt.Sprintf("level %d = %s", level, l.DataType()))
+	}
 	return strings.Join(parts, ", ")
 }
 
@@ -115,7 +164,7 @@ func (l PathLayout) Validate() string {
 	if l.SubjectLevel < 0 {
 		return "a layout must say which level holds the subject"
 	}
-	if l.SubjectLevel > 15 || l.VisitLevel > 15 || l.ModalityLevel > 15 {
+	if l.SubjectLevel > 15 || l.VisitLevel > 15 || l.ModalityLevel > 15 || l.DataTypeLevel > 15 {
 		return "a path level above 15 is not a layout, it is a typo"
 	}
 	if l.VisitLevel >= 0 && l.VisitLevel == l.SubjectLevel {
@@ -127,6 +176,16 @@ func (l PathLayout) Validate() string {
 	if l.VisitLevel >= 0 && l.ModalityLevel >= 0 && l.VisitLevel == l.ModalityLevel {
 		return "the visit and the modality cannot be the same level"
 	}
+	if level := l.dataTypeLevel(); level >= 0 {
+		switch level {
+		case l.SubjectLevel:
+			return "the data type and the subject cannot be the same level"
+		case l.VisitLevel:
+			return "the data type and the visit cannot be the same level"
+		case l.ModalityLevel:
+			return "the data type and the modality cannot be the same level"
+		}
+	}
 	return ""
 }
 
@@ -137,7 +196,7 @@ func (l PathLayout) Validate() string {
 // is the same answer the hardcoded rule gave, and for the same reason: a file
 // the rule does not cover is a fact to report, never a file to file somewhere
 // plausible.
-func (l PathLayout) Read(relPath string) (subject, visit, modality string) {
+func (l PathLayout) Read(relPath string) (subject, visit, modality, dataType string) {
 	segments := strings.Split(strings.Trim(relPath, "/"), "/")
 	at := func(level int) string {
 		if level < 0 || level >= len(segments) {
@@ -173,20 +232,27 @@ func (l PathLayout) Read(relPath string) (subject, visit, modality string) {
 			continue
 		}
 		if level >= last || at(level) == "" {
-			return "", "", ""
+			return "", "", "", ""
 		}
 	}
 
 	subject = at(l.SubjectLevel)
 	if subject == "" {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	visit = strings.TrimPrefix(at(l.VisitLevel), "visit_")
 	modality = strings.TrimPrefix(at(l.ModalityLevel), "modality_")
 	if modality != "" {
 		modality = strings.ToUpper(modality)
 	}
-	return subject, visit, modality
+	// The data type is read where the others are required: a path that stops
+	// above this level simply carries none, and keeps its subject, its visit
+	// and its modality. The level pointing at the file itself is the same
+	// absence - a file is not a kind of data.
+	if level := l.dataTypeLevel(); level >= 0 && level < last {
+		dataType = strings.TrimSpace(segments[level])
+	}
+	return subject, visit, modality, dataType
 }
 
 // ParseLayoutLevel reads a level from a form field, where empty means absent.

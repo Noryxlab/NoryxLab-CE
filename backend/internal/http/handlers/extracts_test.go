@@ -171,3 +171,70 @@ func TestTheExtractCatalogueIsEmptyWithoutAStore(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 }
+
+// Le dossier sous la modalite est selectionnable, et c'est le seul axe qui
+// separe deux fichiers de meme genre.
+//
+// L'ANTERION de SELENA porte des surimpressions de segmentation et, dans son
+// export DICOM, les images du visualiseur web livre avec le support. Les deux
+// sont des PNG : demander "les PNG d'ANTERION" rend le mobilier du visualiseur
+// avec les mesures. C'est pour rendre ce niveau selectionnable que l'etude a
+// ete rerangee.
+func TestUnExtraitSeSelectionneSousLaModalite(t *testing.T) {
+	ontologies := memory.NewOntologyObjectStore()
+	objet := ontologydomain.New("user-1", "SELENA", "", "dataset", "dataset-1", "HDS-For-selena", "health-file-path-v1", []byte(`{}`))
+	if err := ontologies.Create(objet); err != nil {
+		t.Fatal(err)
+	}
+	if err := ontologies.ReplaceObjects(objet.ID, []ontologydomain.Object{
+		{Path: "SELENA/S1/v1/ANTERION/SegmentOverlays/od.png", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", Format: "PNG", DataType: "SegmentOverlays", SizeBytes: 10},
+		{Path: "SELENA/S1/v1/ANTERION/DICOM/IHE_PDI/images/valxhtml.png", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", Format: "PNG", DataType: "DICOM", SizeBytes: 20},
+		{Path: "SELENA/S1/v1/ANTERION/CorneaMaps/cor.csv", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", Format: "CSV", DataType: "CorneaMaps", SizeBytes: 30},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{authMode: "header", ontologyStore: ontologies, extractStore: memory.NewExtractStore()}
+
+	// Par genre : le visualiseur part avec les mesures.
+	parGenre := postExtract(t, h, objet.ID, map[string]any{
+		"name": "par-genre", "modalities": []string{"ANTERION"}, "formats": []string{"PNG"},
+	})
+	var genre extractdomain.Extract
+	if err := json.Unmarshal(parGenre.Body.Bytes(), &genre); err != nil {
+		t.Fatal(err)
+	}
+	if genre.ObjectCount != 2 {
+		t.Fatalf("selection par genre = %d objets, les deux PNG etaient attendus", genre.ObjectCount)
+	}
+
+	// Par dossier : seules les surimpressions.
+	parDossier := postExtract(t, h, objet.ID, map[string]any{
+		"name": "par-dossier", "modalities": []string{"ANTERION"}, "dataTypes": []string{"SegmentOverlays"},
+	})
+	if parDossier.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", parDossier.Code, parDossier.Body.String())
+	}
+	var dossier extractdomain.Extract
+	if err := json.Unmarshal(parDossier.Body.Bytes(), &dossier); err != nil {
+		t.Fatal(err)
+	}
+	if dossier.ObjectCount != 1 {
+		t.Fatalf("selection par dossier = %d objets, une seule surimpression etait attendue", dossier.ObjectCount)
+	}
+	if len(dossier.DataTypes) != 1 || dossier.DataTypes[0] != "SegmentOverlays" {
+		t.Fatalf("la selection doit rester lisible dans l'extrait : %v", dossier.DataTypes)
+	}
+
+	// Et deux dossiers a la fois, sans l'export DICOM.
+	deux := postExtract(t, h, objet.ID, map[string]any{
+		"name": "mesures-et-surimpressions", "modalities": []string{"ANTERION"},
+		"dataTypes": []string{"SegmentOverlays", "CorneaMaps"},
+	})
+	var paire extractdomain.Extract
+	if err := json.Unmarshal(deux.Body.Bytes(), &paire); err != nil {
+		t.Fatal(err)
+	}
+	if paire.ObjectCount != 2 {
+		t.Fatalf("deux dossiers = %d objets", paire.ObjectCount)
+	}
+}

@@ -1143,6 +1143,11 @@ export interface OntologyCompleteness {
    *  PREMYOM1000, chacune chez les trente sujets - c'est a ca que ressemble
    *  un axe, et c'est ce qu'une liste de noms de fichiers cachait. */
   tables?: OntologyFormatCoverage[];
+  /** Les dossiers qu'une modalite range sous elle - CorneaMaps,
+   *  SegmentOverlays, DICOM. L'axe que le genre ne sait pas dire : les
+   *  surimpressions de segmentation et les images du visualiseur enfermees
+   *  dans l'export DICOM sont toutes des PNG. */
+  dataTypes?: OntologyFormatCoverage[];
   completeSubjects: number;
 }
 
@@ -1166,6 +1171,10 @@ export interface DatasetPathLayout {
   subjectLevel?: number;
   visitLevel?: number;
   modalityLevel?: number;
+  /** Le niveau sous la modalite : le genre de donnee que l'appareil a produit.
+   *  Le seul dont l'absence sur un chemin est normale - une modalite qui pose
+   *  ses fichiers en vrac n'en a pas, et se lit quand meme. */
+  dataTypeLevel?: number;
   description: string;
   /** Les mots du metier qui possede la donnee. Vides, la plateforme reste
    *  generique - entite, periode, categorie - plutot que de parler clinique a
@@ -1173,6 +1182,7 @@ export interface DatasetPathLayout {
   subjectName?: string;
   visitName?: string;
   modalityName?: string;
+  dataTypeName?: string;
 }
 
 /** Ce qu'une ontologie dit du sens des donnees, et ce que la plateforme a
@@ -1225,9 +1235,11 @@ export interface OntologyReadingRule {
   subjectLevel?: number;
   visitLevel?: number;
   modalityLevel?: number;
+  dataTypeLevel?: number;
   subjectName?: string;
   visitName?: string;
   modalityName?: string;
+  dataTypeName?: string;
 }
 
 /** Ce qu'un rescan a change, et pourquoi : deux photographies different soit

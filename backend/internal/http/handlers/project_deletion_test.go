@@ -236,7 +236,7 @@ func TestLesExtraitsSontDetachesEtNonSupprimes(t *testing.T) {
 	h, item := projetAvecCharges(t)
 	extraits := memory.NewExtractStore()
 	selection := extract.New("stef", "onto-1", item.ID, "anterion-3-sujets", "",
-		[]string{"PREMYOM1000-0023"}, []string{"ANTERION"}, nil, nil, nil)
+		[]string{"PREMYOM1000-0023"}, []string{"ANTERION"}, nil, nil, nil, nil)
 	if err := extraits.Create(selection, nil); err != nil {
 		t.Fatal(err)
 	}
