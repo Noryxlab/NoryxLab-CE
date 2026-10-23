@@ -956,6 +956,7 @@ export const fr = {
     extractKindsAll: "Ne prendre que ces genres. Rien de coché : tous.",
     extractKindsChosen: "Les autres genres resteront dans la source.",
     extractKindWeight: "{objects} fichiers, {size}",
+    extractOwnershipHint: "Le propriétaire décide qui peut lire l'extrait et qui peut le supprimer.",
     extractPermissions: "Qui peut lire cet extrait",
     extractPermissionsHint: "Prêter la sélection sans prêter l'étude dont elle sort, et sans s'en dessaisir.",
     extractGrant: "Prêter",

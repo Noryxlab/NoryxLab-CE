@@ -934,6 +934,7 @@ export const en: Translations = {
     extractKindsAll: "Take only these kinds. None ticked: all of them.",
     extractKindsChosen: "The other kinds stay in the source.",
     extractKindWeight: "{objects} files, {size}",
+    extractOwnershipHint: "The owner decides who may read the extract and who may delete it.",
     extractPermissions: "Who may read this extract",
     extractPermissionsHint: "Lend the selection without lending the study it was cut from, and without parting with it.",
     extractGrant: "Lend",

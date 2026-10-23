@@ -1012,50 +1012,6 @@ export function ExtractRenameSheet({
   );
 }
 
-export function ExtractOwnershipSheet({
-  extract,
-  open,
-  onOpenChange,
-}: {
-  extract: Extract | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const t = useT();
-  const toast = useToast();
-  const invalidate = useInvalidate();
-
-  const transfer = useMutation({
-    mutationFn: (input: { ownerType: string; ownerId: string }) =>
-      ontologiesApi.setExtractOwner(extract?.id ?? '', input),
-    onSuccess: () => {
-      invalidate(qk.ontologies);
-      invalidate(qk.extracts);
-      toast.success(t('projects.transferOwnership'));
-      onOpenChange(false);
-    },
-    onError: (error) => toast.error(error, t('projects.transferOwnership')),
-  });
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent title={extract?.name ?? t('projects.transferOwnership')}>
-        <SheetBody>
-          {extract ? (
-            <OwnerTransfer
-              owner={extract}
-              pending={transfer.isPending}
-              onTransfer={(input) => transfer.mutate(input)}
-              label={t('projects.transferOwnership')}
-            />
-          ) : null}
-        </SheetBody>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-
 /**
  * Launching a scan.
  *

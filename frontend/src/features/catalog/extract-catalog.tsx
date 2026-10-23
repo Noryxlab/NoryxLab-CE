@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { FolderOpen, Pencil, Scissors, Trash2, UserRoundCog } from 'lucide-react';
+import { FolderOpen, Pencil, Scissors, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
@@ -12,9 +12,9 @@ import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
 import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
-import { ExtractDetail, ExtractPermissions } from './extract-detail';
+import { ExtractDetail, ExtractOwnership, ExtractPermissions } from './extract-detail';
 import { ExtractDeclareForm } from './extract-declare';
-import { ExtractOwnershipSheet, ExtractRenameSheet } from './ontology-catalog';
+import { ExtractRenameSheet } from './ontology-catalog';
 import { Card, CardContent, CardDescription, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
@@ -44,7 +44,6 @@ export function ExtractCatalog() {
   // Pour nommer l'ontologie d'origine : l'extrait ne porte que son
   // identifiant, et un identifiant ne dit rien a personne.
   const ontologies = useOntologies();
-  const [owned, setOwned] = React.useState<Extract | null>(null);
   const [renamed, setRenamed] = React.useState<Extract | null>(null);
   const [mounted, setMounted] = React.useState<Extract | null>(null);
   const [opened, setOpened] = React.useState<Extract | null>(null);
@@ -174,10 +173,6 @@ export function ExtractCatalog() {
                 <Pencil aria-hidden />
                 {t('ontologies.extractRename')}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setOwned(extract)}>
-                <UserRoundCog aria-hidden />
-                {t('projects.transferOwnership')}
-              </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={() =>
@@ -198,16 +193,10 @@ export function ExtractCatalog() {
         />
       </Card>
 
-      <ExtractOwnershipSheet
-        extract={owned}
-        open={Boolean(owned)}
-        onOpenChange={(open) => {
-          if (!open) setOwned(null);
-        }}
-      />
       {opened ? <ExtractDetail extract={opened} /> : null}
-      {/* Et a qui il est prete : la question vient juste apres "qu'est-ce
-          qu'il contient", parce que c'est la meme conversation. */}
+      {/* Puis a qui il appartient, et a qui il est prete - dans cet ordre et
+          a cet endroit, comme un dataset et une ontologie. */}
+      {opened ? <ExtractOwnership extract={opened} /> : null}
       {opened ? <ExtractPermissions extract={opened} /> : null}
 
       <ProjectMountsSheet

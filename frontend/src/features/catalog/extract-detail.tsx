@@ -21,6 +21,7 @@ import {
   TableRow,
   TableWrapper,
 } from '@/components/ui/table';
+import { OwnerTransfer } from '@/components/common/owner';
 import { Field } from '@/components/ui/field';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
@@ -350,6 +351,53 @@ export function ExtractPermissions({ extract }: { extract: Extract }) {
             </TableBody>
           </Table>
         </TableWrapper>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+/**
+ * A qui appartient cet extrait.
+ *
+ * Le transfert vivait dans le menu a trois points de la ligne, alors qu'un
+ * dataset et une ontologie le posent en bas de leur detail, au-dessus de
+ * leurs permissions. Trois objets du meme catalogue, trois endroits ou
+ * chercher la meme chose : la propriete se range ou les deux autres la
+ * rangent, avec les lectures juste en dessous, parce que c'est une seule
+ * conversation - qui le detient, et qui peut le lire.
+ */
+export function ExtractOwnership({ extract }: { extract: Extract }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) =>
+      ontologiesApi.setExtractOwner(extract.id, input),
+    onSuccess: () => {
+      invalidate(qk.extracts);
+      invalidate(qk.extractAccess(extract.id));
+      toast.success(t('projects.transferOwnership'));
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardHeaderText>
+          <CardTitle>{t('projects.transferOwnership')}</CardTitle>
+          <CardDescription>{t('ontologies.extractOwnershipHint')}</CardDescription>
+        </CardHeaderText>
+      </CardHeader>
+      <CardContent>
+        <OwnerTransfer
+          owner={extract}
+          pending={transfer.isPending}
+          onTransfer={(input) => transfer.mutate(input)}
+          label={t('projects.transferOwnership')}
+        />
       </CardContent>
     </Card>
   );
