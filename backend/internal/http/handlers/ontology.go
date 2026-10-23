@@ -1014,19 +1014,21 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 	subjects := []ontologydomain.Subject{{Type: "user", ID: identity.UserID()}}
 	// Les equipes, que les datasets connaissaient deja et pas les ontologies :
 	// une ontologie ne pouvait donc meme pas etre partagee avec une equipe.
-	teamIDs := h.callerTeamIDs(identity)
-	for _, teamID := range teamIDs {
+	for _, teamID := range h.callerTeamIDs(identity) {
 		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
 	}
+	// Et c'est tout, comme sur un dataset : une organisation possede, et
+	// posseder n'est pas lire. Les trois objets du catalogue decrivent la
+	// meme donnee ; en laisser un repondre autrement serait une porte
+	// derriere la porte.
+	return subjects
+}
+
+// ontologyAdminSubjects is the data subjects plus the caller's organizations:
+// who may transfer, grant and delete, which is not who may read.
+func (h Handlers) ontologyAdminSubjects(identity auth.Identity) []ontologydomain.Subject {
+	subjects := h.ontologySubjects(identity)
 	if h.keycloak == nil {
-		return subjects
-	}
-	// Meme regle que sur un dataset, et pour la meme raison : une ontologie
-	// est une lecture de la donnee de quelqu'un, et un extrait une vue de
-	// cette lecture. Les trois objets decrivent la meme donnee ; les laisser
-	// repondre differemment a "qui peut voir" serait une porte derriere la
-	// porte qu'on vient de fermer.
-	if !h.organizationSubjectsApply(identity, teamIDs) {
 		return subjects
 	}
 	identifier := strings.TrimSpace(identity.Subject)
@@ -1041,6 +1043,23 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
 	}
 	return subjects
+}
+
+// canAdministerOntology mirrors the dataset rule one level down.
+func (h Handlers) canAdministerOntology(item ontologydomain.Ontology, identity auth.Identity) bool {
+	if h.isGlobalAdmin(identity) {
+		return true
+	}
+	ownerType, ownerID := item.OwnerType, item.OwnerID
+	if ownerType == "" {
+		ownerType, ownerID = "user", item.OwnerUserID
+	}
+	for _, subject := range h.ontologyAdminSubjects(identity) {
+		if strings.EqualFold(ownerType, subject.Type) && strings.EqualFold(ownerID, subject.ID) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h Handlers) ontologyRole(item ontologydomain.Ontology, identity auth.Identity) string {
@@ -1066,7 +1085,7 @@ func (h Handlers) canReadOntologyObjectID(ontologyID string, identity auth.Ident
 }
 
 func (h Handlers) canManageOntologyAccess(item ontologydomain.Ontology, identity auth.Identity) bool {
-	return h.isGlobalAdmin(identity) || h.ontologyRole(item, identity) == "owner"
+	return h.canAdministerOntology(item, identity)
 }
 
 // sourceLabel names what a scan read, the way its owner names it.

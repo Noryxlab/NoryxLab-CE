@@ -10,75 +10,121 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
 )
 
-// Appartenir a une organisation, sans equipe, ne donne rien.
+// Posseder n'est pas lire.
 //
-// C'etait l'inverse, et ca donnait le role de PROPRIETAIRE : lire, ecrire,
-// supprimer, et distribuer les droits. Un compte cree le 2026-10-23 pour un
-// essai, pose dans Essilor et dans aucune equipe, pouvait donc supprimer un
-// bucket HDS le jour de son arrivee. L'equipe est l'unite dans laquelle on
-// ajoute quelqu'un volontairement ; l'organisation dit ou une personne
-// travaille, pas ce qu'elle peut lire.
-func TestUneOrganisationSansEquipeNeDonneRien(t *testing.T) {
+// Appartenir a une organisation donnait le role de proprietaire sur tout ce
+// qu'elle possede : lire, ecrire, supprimer, distribuer les droits. Sur la
+// plateforme de production, huit buckets HDS appartiennent a une organisation,
+// si bien qu'un compte pose dans Essilor pouvait effacer de la donnee de sante
+// le jour de son arrivee. Un compte d'essai cree le 2026-10-23 l'a montre.
+//
+// Le modele separe desormais les deux questions. Une organisation possede : on
+// transfere, on accorde, on supprime en son nom. Le droit sur la donnee, lui,
+// se donne - a une personne, a une equipe - et se relit dans la matrice des
+// acces.
+func TestUneOrganisationPossedeMaisNeLitPas(t *testing.T) {
 	equipes := memory.NewTeamStore()
 	if err := equipes.Create(team.Team{ID: "equipe-essilor", OrganizationID: "org-essilor", Name: "Recherche"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := equipes.AddMember("equipe-essilor", "ancienne"); err != nil {
+	if err := equipes.AddMember("equipe-essilor", "chercheuse"); err != nil {
 		t.Fatal(err)
 	}
+	datasets := memory.NewDatasetStore()
 	h := Handlers{
-		teamStore: equipes,
+		teamStore:    equipes,
+		datasetStore: datasets,
 		keycloak: fakeKeycloak(t, map[string][]keycloak.Organization{
-			"ancienne": {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
-			"nouveau":  {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
+			"chercheuse": {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
+			"nouveau":    {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
 		}),
 	}
-	hds := datasetdomain.Dataset{ID: "d1", Name: "HDS-Essilor", OwnerType: "organization", OwnerID: "org-essilor", Classification: "hds"}
-
-	// Le nouveau venu : dans l'organisation, dans aucune equipe.
-	nouveau := auth.Identity{Username: "nouveau", Subject: "nouveau"}
-	if role := h.datasetRole(hds, nouveau); role != "" {
-		t.Fatalf("un compte sans equipe ne doit rien tenir, role = %q", role)
-	}
-	if h.canReadDataset(hds, nouveau) {
-		t.Fatal("un compte sans equipe ne doit pas lire un dataset de l'organisation")
-	}
-
-	// Un membre d'equipe de la meme organisation garde ce qu'il avait.
-	ancienne := auth.Identity{Username: "ancienne", Subject: "ancienne"}
-	if role := h.datasetRole(hds, ancienne); role != "owner" {
-		t.Fatalf("un membre d'equipe garde l'heritage de son organisation, role = %q", role)
-	}
-
-	// Et une permission nominative suffit, sans equipe : c'est la le droit
-	// explicite que la regle laisse passer.
-	datasets := memory.NewDatasetStore()
+	// Classification laissee vide : en edition Community les datasets HDS sont
+	// masques par une autre regle, qui se teste ailleurs et n'a rien a voir
+	// avec celle-ci.
+	hds := datasetdomain.Dataset{ID: "d1", Name: "Essilor-data", OwnerType: "organization", OwnerID: "org-essilor"}
 	if err := datasets.Create(hds); err != nil {
 		t.Fatal(err)
 	}
+
+	chercheuse := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
+	nouveau := auth.Identity{Username: "nouveau", Subject: "nouveau"}
+
+	// Personne ne lit par appartenance, equipe ou pas.
+	for nom, qui := range map[string]auth.Identity{"avec equipe": chercheuse, "sans equipe": nouveau} {
+		if role := h.datasetRole(hds, qui); role != "" {
+			t.Fatalf("%s : role sur la donnee = %q, aucun n'etait attendu", nom, role)
+		}
+		if h.canReadDataset(hds, qui) {
+			t.Fatalf("%s : l'appartenance ne doit pas ouvrir la donnee", nom)
+		}
+	}
+
+	// Mais les deux administrent ce que leur organisation possede : le
+	// catalogue le montre, et les droits se donnent depuis la.
+	for nom, qui := range map[string]auth.Identity{"avec equipe": chercheuse, "sans equipe": nouveau} {
+		if !h.canAdministerDataset(hds, qui) {
+			t.Fatalf("%s : un membre de l'organisation proprietaire doit pouvoir administrer", nom)
+		}
+		if !h.canSeeDataset(hds, qui) {
+			t.Fatalf("%s : l'objet administre doit rester visible au catalogue", nom)
+		}
+		if h.canWriteDataset(hds, qui) {
+			t.Fatalf("%s : administrer n'est pas ecrire", nom)
+		}
+	}
+
+	// Un droit nominatif ouvre la donnee, et rien d'autre.
 	if err := datasets.SetAccess(datasetdomain.Access{DatasetID: hds.ID, SubjectType: "user", SubjectID: "nouveau", Role: "reader"}); err != nil {
 		t.Fatal(err)
 	}
-	h.datasetStore = datasets
 	if role := h.datasetRole(hds, nouveau); role != "reader" {
-		t.Fatalf("un droit nominatif doit passer, role = %q", role)
+		t.Fatalf("droit nominatif = %q", role)
+	}
+
+	// Un droit d'equipe aussi.
+	if err := datasets.SetAccess(datasetdomain.Access{DatasetID: hds.ID, SubjectType: "team", SubjectID: "equipe-essilor", Role: "writer"}); err != nil {
+		t.Fatal(err)
+	}
+	if role := h.datasetRole(hds, chercheuse); role != "writer" {
+		t.Fatalf("droit d'equipe = %q", role)
+	}
+	if !h.canWriteDataset(hds, chercheuse) {
+		t.Fatal("un droit d'ecriture accorde a l'equipe doit ecrire")
+	}
+	// Et il n'emporte pas l'administration : on peut ecrire sans pouvoir
+	// donner la donnee a quelqu'un d'autre.
+	autre := auth.Identity{Username: "autre", Subject: "autre"}
+	if h.canAdministerDataset(hds, autre) {
+		t.Fatal("un inconnu n'administre rien")
 	}
 }
 
-// Un magasin d'equipes injoignable ne coupe pas la plateforme.
-//
-// La question "cette personne a-t-elle une equipe" doit etre repondable avant
-// d'etre opposable : sans ce garde-fou, une panne du magasin rendrait tout le
-// monde sans equipe et couperait tous les acces herites d'un coup.
-func TestUnMagasinDEquipesAbsentNeCoupeRien(t *testing.T) {
-	h := Handlers{
-		teamStore: nil,
-		keycloak: fakeKeycloak(t, map[string][]keycloak.Organization{
-			"quelquun": {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
-		}),
+// Un dataset possede par une equipe se lit par ses membres : l'equipe est
+// l'unite ou l'on ajoute quelqu'un volontairement, donc c'est elle qui porte
+// le droit sur la donnee.
+func TestUneEquipeProprietaireLitSaDonnee(t *testing.T) {
+	equipes := memory.NewTeamStore()
+	if err := equipes.Create(team.Team{ID: "equipe-mri", OrganizationID: "org-for", Name: "MRI"}); err != nil {
+		t.Fatal(err)
 	}
-	hds := datasetdomain.Dataset{ID: "d1", Name: "HDS-Essilor", OwnerType: "organization", OwnerID: "org-essilor"}
-	if role := h.datasetRole(hds, auth.Identity{Username: "quelquun", Subject: "quelquun"}); role != "owner" {
-		t.Fatalf("sans magasin d'equipes, l'heritage reste : role = %q", role)
+	if err := equipes.AddMember("equipe-mri", "membre"); err != nil {
+		t.Fatal(err)
+	}
+	datasets := memory.NewDatasetStore()
+	h := Handlers{teamStore: equipes, datasetStore: datasets}
+	item := datasetdomain.Dataset{ID: "d2", Name: "IRM", OwnerType: "team", OwnerID: "equipe-mri"}
+	if err := datasets.Create(item); err != nil {
+		t.Fatal(err)
+	}
+	membre := auth.Identity{Username: "membre", Subject: "membre"}
+	if role := h.datasetRole(item, membre); role != "owner" {
+		t.Fatalf("role du membre de l'equipe proprietaire = %q", role)
+	}
+	if !h.canReadDataset(item, membre) || !h.canWriteDataset(item, membre) || !h.canAdministerDataset(item, membre) {
+		t.Fatal("l'equipe proprietaire lit, ecrit et administre")
+	}
+	if h.canReadDataset(item, auth.Identity{Username: "dehors", Subject: "dehors"}) {
+		t.Fatal("quelqu'un hors de l'equipe ne lit rien")
 	}
 }

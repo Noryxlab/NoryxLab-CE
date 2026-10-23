@@ -350,7 +350,9 @@ func (h Handlers) canManageExtract(item extractdomain.Extract, identity auth.Ide
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	for _, subject := range h.ontologySubjects(identity) {
+	// Les sujets d'administration : l'organisation proprietaire administre ce
+	// qu'elle possede, sans que cela lui ouvre la donnee.
+	for _, subject := range h.ontologyAdminSubjects(identity) {
 		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
 			return true
 		}

@@ -37,27 +37,33 @@ Dataset ACLs are managed by the dataset owner or a global admin. Attaching a
 dataset to a project remains a separate operation because it exposes the dataset
 to project workloads. Regulated HDS policies are an Enterprise Edition concern.
 
-### An organization without a team grants nothing
+### Owning is not reading
 
-Belonging to an organization used to be enough to inherit what it owns, and
-what it granted was the **owner** role: read, write, delete, and the right to
-hand out access. On a platform where eight HDS buckets are organization-owned,
-an account created and dropped into an organization held, on its first day,
-the power to delete a health dataset it had never been introduced to. An
-account made for a test on 2026-10-23 is what showed it.
+Two questions were one. Belonging to an organization granted the **owner**
+role on everything it owns - read, write, delete, and the right to hand out
+access - so on a platform where eight HDS buckets are organization-owned, an
+account created and dropped into an organization held, on its first day, the
+power to delete a health dataset it had never been introduced to. An account
+made for a test on 2026-10-23 is what showed it.
 
-So inheritance now requires a team. A team is the unit somebody is
-deliberately added to; membership of an organization says where a person
-works, not what they may read. A caller in no team keeps exactly what was
-given to them by name - their own objects and every explicit grant - and
-nothing else.
+The two questions are now answered separately, for datasets, ontologies and
+extracts alike:
 
-Two safeguards. The question "does this person belong to a team" has to be
-answerable before it is enforced: a team store that is absent or cannot reply
-degrades to the previous behaviour rather than cutting every inherited access
-at once. And the rule covers datasets, ontologies and extracts together, since
-all three describe the same data and a door left open on one is a door left
-open.
+- **Owning** is administering: transfer, rename, delete, and decide who gets
+  access. It reaches the owning user, the members of the owning team, and the
+  members of the owning organization.
+- **The right over the data** - read, write, mount, fill an extract - comes
+  from being the owning user, belonging to the owning team, or holding an
+  explicit grant. An organization grants nothing here.
+
+So a person who runs an organization may hand its bucket to a team without
+being able to open one file in it, and a researcher granted that bucket may
+read every file without being able to give it away. Both see the object in
+their catalogue, because deciding who may read something requires seeing that
+it exists - and the catalogue shows what each may do with it.
+
+A team is the unit somebody is deliberately added to, which is why it carries
+the data right; membership of an organization says where a person works.
 
 Project roles are untouched: an organization grant on a project still reaches
 its members. What changed is the right over the data, which is the thing this

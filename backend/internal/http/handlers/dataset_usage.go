@@ -45,7 +45,10 @@ func (h Handlers) GetDatasetUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
-	if err != nil || !found || !h.canReadDataset(item, identity) {
+	// Ce que l'objet pese et coute se lit par qui l'administre, sans
+	// ouvrir son contenu : decider qui doit y acceder suppose de savoir ce
+	// qu'on donne.
+	if err != nil || !found || !h.canSeeDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}

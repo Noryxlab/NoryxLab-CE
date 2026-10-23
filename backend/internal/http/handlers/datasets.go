@@ -123,14 +123,33 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 
 func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	subjects := []dataset.Subject{{Type: "user", ID: identity.UserID()}}
-	teamIDs := h.callerTeamIDs(identity)
-	for _, teamID := range teamIDs {
+	for _, teamID := range h.callerTeamIDs(identity) {
 		subjects = append(subjects, dataset.Subject{Type: "team", ID: teamID})
 	}
+	// Et c'est tout : une organisation ne donne aucun droit sur la donnee.
+	//
+	// Elle en donnait le droit le plus fort - proprietaire, donc lecture,
+	// ecriture, suppression et distribution des droits - a chacun de ses
+	// membres. Le 2026-10-23 on a exige une equipe, ce qui fermait le cas du
+	// nouveau venu sans rien dire du modele ; la suite est celle-ci : une
+	// organisation possede, et posseder n'est pas lire. Ce qui se lit se
+	// donne, nominativement ou a une equipe, et se relit dans la matrice des
+	// acces.
+	return subjects
+}
+
+// datasetAdminSubjects is who this caller administers for, which is the data
+// subjects plus their organizations.
+//
+// An organization owns objects and somebody has to be able to transfer them,
+// grant access to them and delete them - but administering an object is not
+// reading it. The split is the whole point: a person who runs the Essilor
+// organization may hand its HDS bucket to a team without being able to open a
+// single file in it, and a researcher granted that bucket may read every file
+// without being able to give it away.
+func (h Handlers) datasetAdminSubjects(identity auth.Identity) []dataset.Subject {
+	subjects := h.datasetSubjects(identity)
 	if h.keycloak == nil {
-		return subjects
-	}
-	if !h.organizationSubjectsApply(identity, teamIDs) {
 		return subjects
 	}
 	identifier := strings.TrimSpace(identity.Subject)
@@ -147,43 +166,30 @@ func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	return subjects
 }
 
-// organizationSubjectsApply says whether this caller inherits what their
-// organizations own.
-//
-// Belonging to an organization used to be enough, and it granted the OWNER
-// role - read, write, delete and the right to hand out access - on every
-// object that organization owns. On EMSE that was eight HDS buckets, so an
-// account created and dropped into Essilor held, on its first day, the power
-// to delete a health dataset it had never been introduced to. An account made
-// for a test on 2026-10-23 is what showed it.
-//
-// Essilor's rule, and it is theirs to set over their own data: an
-// organization without a team confers nothing. A team is the unit somebody is
-// deliberately added to, so it is the unit that carries the data right;
-// membership of the organization says where a person works, not what they may
-// read.
-//
-// The question has to be answerable before it is enforced. A team store that
-// is absent or cannot reply would otherwise make every caller teamless and cut
-// the whole platform in one request - so an unanswerable question degrades to
-// the previous behaviour rather than to a refusal, and says so in the log.
-func (h Handlers) organizationSubjectsApply(identity auth.Identity, teamIDs []string) bool {
-	if len(teamIDs) > 0 {
+// canAdministerDataset reports whether this caller may transfer, rename,
+// delete the dataset or decide who reads it - and says nothing about whether
+// they may read it themselves.
+func (h Handlers) canAdministerDataset(item dataset.Dataset, identity auth.Identity) bool {
+	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	if h.teamStore == nil {
-		return true
+	ownerType, ownerID := item.OwnerType, item.OwnerID
+	if ownerType == "" {
+		ownerType, ownerID = "user", item.OwnerUserID
 	}
-	for _, identifier := range []string{identity.Username, identity.Email, identity.Subject} {
-		if strings.TrimSpace(identifier) == "" {
-			continue
-		}
-		if _, err := h.teamStore.ListByUser(strings.TrimSpace(identifier)); err != nil {
-			log.Printf("access: teams unavailable for %s, organization inheritance kept: %v", identifier, err)
+	for _, subject := range h.datasetAdminSubjects(identity) {
+		if strings.EqualFold(ownerType, subject.Type) && strings.EqualFold(ownerID, subject.ID) {
 			return true
 		}
 	}
 	return false
+}
+
+// canSeeDataset is what a catalogue and a permissions screen need: the object
+// exists, here is who owns it and who was granted it. It does not open a
+// single byte - that is canReadDataset.
+func (h Handlers) canSeeDataset(item dataset.Dataset, identity auth.Identity) bool {
+	return h.datasetAvailableInEdition(item) && (h.canReadDataset(item, identity) || h.canAdministerDataset(item, identity))
 }
 
 func (h Handlers) datasetAvailableInEdition(item dataset.Dataset) bool {
@@ -223,7 +229,7 @@ func (h Handlers) canManageDatasetAccess(item dataset.Dataset, identity auth.Ide
 	if item.Classification == "hds" {
 		return h.isGlobalAdmin(identity)
 	}
-	return h.isGlobalAdmin(identity) || h.datasetRole(item, identity) == "owner"
+	return h.canAdministerDataset(item, identity)
 }
 
 var bucketNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
@@ -1165,7 +1171,7 @@ func (h Handlers) ListDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 500, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || !h.canReadDataset(item, identity) {
+	if !found || !h.canSeeDataset(item, identity) {
 		writeJSON(w, 404, map[string]string{"error": "dataset not found"})
 		return
 	}
