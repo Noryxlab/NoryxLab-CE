@@ -222,6 +222,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// casses, qu'un carnet decouvre un open() a la fois.
 	mux.HandleFunc("GET /api/v1/extracts/{extractID}/integrity", h.GetExtractIntegrity)
 	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/ownership", h.UpdateDatasourceOwner)
+	// Les droits sur un connecteur : le dernier objet du catalogue qui ne se
+	// partageait pas, ce qui poussait chaque personne d'une equipe a declarer
+	// le sien, memes identifiants recopies a la main.
+	mux.HandleFunc("GET /api/v1/datasources/{datasourceID}/access", h.ListDatasourceAccess)
+	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}", h.SetDatasourceAccess)
+	mux.HandleFunc("DELETE /api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}", h.DeleteDatasourceAccess)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}", h.UpdateExtractMetadata)
 	mux.HandleFunc("PUT /api/v1/extracts/{extractID}/ownership", h.UpdateExtractOwner)
 	// Les lectures accordees sur un extrait, a cote de sa propriete : donner

@@ -195,6 +195,16 @@ ENVELOPES = {
         "updatedAt": "date-time",
     },
     "ExtractAccessListResponse": {"items": "[$ExtractAccess]", "canManage": "boolean"},
+    "DatasourceAccess": {
+        "datasourceId": "string",
+        "subjectType": "string",
+        "subjectId": "string",
+        "subjectName": "string",
+        "role": "string",
+        "createdAt": "date-time",
+        "updatedAt": "date-time",
+    },
+    "DatasourceAccessListResponse": {"items": "[$DatasourceAccess]", "canManage": "boolean"},
     "ProjectOrganizationRole": {"organizationId": "string", "organizationName": "string", "role": "string"},
     "ProjectOrganizationRoleListResponse": {"items": "[$ProjectOrganizationRole]"},
     "DatasetDownloadURLResponse": {"url": "string", "filename": "string", "expiresAt": "date-time"},
@@ -292,6 +302,9 @@ RESPONSES = {
     # Preter un extrait en lecture : la meme question qu'un dataset, un cran
     # plus loin - donner une selection sans donner l'etude ni s'en dessaisir.
     ("GET", "/api/v1/extracts/{extractID}/access"): "ExtractAccessListResponse",
+    # Le dernier objet du catalogue a recevoir des droits.
+    ("GET", "/api/v1/datasources/{datasourceID}/access"): "DatasourceAccessListResponse",
+    ("PUT", "/api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}"): "DatasourceAccess",
     ("PUT", "/api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}"): "ExtractAccess",
     ("PUT", "/api/v1/extracts/{extractID}/access/{userID}"): "ExtractAccess",
     ("PUT", "/api/v1/datasets/{datasetID}"): "Dataset",
@@ -317,6 +330,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
+    ("DELETE", "/api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),

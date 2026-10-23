@@ -22,28 +22,62 @@ import (
 // organization is real power over regulated data, and a screen that shows it
 // without saying so invites people to forget they are using it.
 
-func (h Handlers) datasetsVisibleTo(identity auth.Identity) ([]datasetdomain.Dataset, error) {
-	// Ce qu'on lit, et ce qu'on administre.
-	//
-	// Depuis que posseder n'est plus lire, une organisation proprietaire ne
-	// tire plus l'objet dans la liste de ses membres par le droit de lecture
-	// - et sans cette seconde requete, l'objet disparaissait de l'ecran de
-	// ceux-la memes qui doivent decider a qui le donner.
+// datasetsInCatalogueFor is what this caller reads, plus what they administer.
+//
+// Depuis que posseder n'est plus lire, une organisation proprietaire ne tire
+// plus l'objet dans la liste de ses membres par le droit de lecture - et sans
+// cette seconde requete, l'objet disparaissait de l'ecran de ceux-la memes
+// qui doivent decider a qui le donner. Partage avec la palette de recherche,
+// qui repondait autrement que le catalogue sur la meme question.
+func (h Handlers) datasetsInCatalogueFor(identity auth.Identity) ([]datasetdomain.Dataset, error) {
 	own, err := h.datasetStore.ListBySubjects(h.datasetSubjects(identity))
 	if err != nil {
 		return nil, err
 	}
-	if administres, err := h.datasetStore.ListBySubjects(h.datasetAdminSubjects(identity)); err == nil {
-		vus := map[string]bool{}
-		for _, item := range own {
+	administres, err := h.datasetStore.ListBySubjects(h.datasetAdminSubjects(identity))
+	if err != nil {
+		return own, nil
+	}
+	vus := map[string]bool{}
+	for _, item := range own {
+		vus[item.ID] = true
+	}
+	for _, item := range administres {
+		if !vus[item.ID] {
 			vus[item.ID] = true
+			own = append(own, item)
 		}
-		for _, item := range administres {
-			if !vus[item.ID] {
-				vus[item.ID] = true
-				own = append(own, item)
-			}
+	}
+	return own, nil
+}
+
+// ontologiesInCatalogueFor is the same union for ontologies.
+func (h Handlers) ontologiesInCatalogueFor(identity auth.Identity) ([]ontologydomain.Ontology, error) {
+	own, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity))
+	if err != nil {
+		return nil, err
+	}
+	administrees, err := h.ontologyStore.ListBySubjects(h.ontologyAdminSubjects(identity))
+	if err != nil {
+		return own, nil
+	}
+	vus := map[string]bool{}
+	for _, item := range own {
+		vus[item.ID] = true
+	}
+	for _, item := range administrees {
+		if !vus[item.ID] {
+			vus[item.ID] = true
+			own = append(own, item)
 		}
+	}
+	return own, nil
+}
+
+func (h Handlers) datasetsVisibleTo(identity auth.Identity) ([]datasetdomain.Dataset, error) {
+	own, err := h.datasetsInCatalogueFor(identity)
+	if err != nil {
+		return nil, err
 	}
 	if !h.isGlobalAdmin(identity) {
 		return own, nil
@@ -65,23 +99,9 @@ func (h Handlers) datasetsVisibleTo(identity auth.Identity) ([]datasetdomain.Dat
 }
 
 func (h Handlers) ontologiesVisibleTo(identity auth.Identity) ([]ontologydomain.Ontology, error) {
-	// Meme raison que pour les datasets : ce qu'on administre reste visible,
-	// sinon on ne peut plus decider a qui le donner.
-	own, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity))
+	own, err := h.ontologiesInCatalogueFor(identity)
 	if err != nil {
 		return nil, err
-	}
-	if administrees, err := h.ontologyStore.ListBySubjects(h.ontologyAdminSubjects(identity)); err == nil {
-		vus := map[string]bool{}
-		for _, item := range own {
-			vus[item.ID] = true
-		}
-		for _, item := range administrees {
-			if !vus[item.ID] {
-				vus[item.ID] = true
-				own = append(own, item)
-			}
-		}
 	}
 	if !h.isGlobalAdmin(identity) {
 		return own, nil

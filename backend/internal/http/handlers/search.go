@@ -71,13 +71,13 @@ func (h Handlers) Search(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if datasets, err := h.datasetStore.ListBySubjects(h.datasetSubjects(identity)); err == nil {
+	if datasets, err := h.datasetsInCatalogueFor(identity); err == nil {
 		for _, item := range h.filterDatasetsForEdition(datasets) {
 			add("dataset", item.ID, item.Name, item.Description, "", item.Description, item.Bucket)
 		}
 	}
 
-	if ontologies, err := h.ontologyStore.ListBySubjects(h.ontologySubjects(identity)); err == nil {
+	if ontologies, err := h.ontologiesInCatalogueFor(identity); err == nil {
 		for _, item := range ontologies {
 			add("ontology", item.ID, item.Name, item.Description, "", item.Description, item.SourceName)
 			// Et ses extraits, qui manquaient a la palette alors qu'ils sont

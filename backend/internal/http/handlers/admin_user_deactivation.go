@@ -43,10 +43,19 @@ type transferReport struct {
 	Apps         []string `json:"apps,omitempty"`
 	Datasources  []string `json:"datasources,omitempty"`
 	Repositories []string `json:"repositories,omitempty"`
+	// Extracts, qui manquaient a cet inventaire.
+	//
+	// Un extrait naît avec OwnerType "user", donc le repli "l'auteur garde
+	// la main" ne s'y applique pas : a la desactivation d'un compte, ses
+	// extraits n'etaient plus administrables que par un administrateur
+	// global, et l'ecran qui annonce ce qui va etre transfere n'en disait
+	// rien.
+	Extracts []string `json:"extracts,omitempty"`
 }
 
 func (t transferReport) count() int {
-	return len(t.Projects) + len(t.Datasets) + len(t.Ontologies) + len(t.Apps) + len(t.Datasources) + len(t.Repositories)
+	return len(t.Projects) + len(t.Datasets) + len(t.Ontologies) + len(t.Apps) + len(t.Datasources) +
+		len(t.Repositories) + len(t.Extracts)
 }
 
 func (h Handlers) DeactivateUserAccount(w http.ResponseWriter, r *http.Request) {
@@ -219,8 +228,19 @@ func (h Handlers) ownedBy(userID string) (transferReport, error) {
 			return report, err
 		}
 		for _, item := range datasources {
-			if strings.EqualFold(strings.TrimSpace(item.OwnerUserID), userID) {
+			if isPersonallyOwnedBy(item.OwnerType, firstNonEmpty(item.OwnerID, item.OwnerUserID), userID) {
 				report.Datasources = append(report.Datasources, item.Name)
+			}
+		}
+	}
+	if h.extractStore != nil {
+		extracts, err := h.extractStore.ListAll()
+		if err != nil {
+			return report, err
+		}
+		for _, item := range extracts {
+			if isPersonallyOwnedBy(item.OwnerType, firstNonEmpty(item.OwnerID, item.OwnerUserID), userID) {
+				report.Extracts = append(report.Extracts, item.Name)
 			}
 		}
 	}
@@ -320,14 +340,37 @@ func (h Handlers) transferOwnership(from, to string) (transferReport, error) {
 			return moved, err
 		}
 		for _, item := range datasources {
-			if !strings.EqualFold(strings.TrimSpace(item.OwnerUserID), from) {
+			if !isPersonallyOwnedBy(item.OwnerType, firstNonEmpty(item.OwnerID, item.OwnerUserID), from) {
 				continue
 			}
+			// Les trois champs, comme pour un dataset ou une app.
+			//
+			// Seul OwnerUserID etait reecrit : le connecteur restait possede
+			// par le compte desactive, donc le successeur ne pouvait ni le
+			// transferer ni le supprimer.
 			item.OwnerUserID = to
+			item.OwnerType = "user"
+			item.OwnerID = to
 			if err := h.datasourceStore.Upsert(item); err != nil {
 				return moved, err
 			}
 			moved.Datasources = append(moved.Datasources, item.Name)
+		}
+	}
+
+	if h.extractStore != nil {
+		extracts, err := h.extractStore.ListAll()
+		if err != nil {
+			return moved, err
+		}
+		for _, item := range extracts {
+			if !isPersonallyOwnedBy(item.OwnerType, firstNonEmpty(item.OwnerID, item.OwnerUserID), from) {
+				continue
+			}
+			if err := h.extractStore.SetOwner(item.ID, "user", to); err != nil {
+				return moved, err
+			}
+			moved.Extracts = append(moved.Extracts, item.Name)
 		}
 	}
 

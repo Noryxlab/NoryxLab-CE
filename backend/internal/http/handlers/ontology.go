@@ -410,7 +410,9 @@ func (h Handlers) ListOntologyAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, found, err := h.ontologyStore.GetByID(strings.TrimSpace(r.PathValue("ontologyID")))
-	if err != nil || !found || (h.ontologyRole(item, identity) == "" && !h.isGlobalAdmin(identity)) {
+	// Voir n'est pas lire : l'administrateur de l'objet entre ici, et
+	// n'ouvre pas pour autant un seul fichier.
+	if err != nil || !found || !h.canSeeOntology(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
@@ -498,8 +500,16 @@ func (h Handlers) DeleteOntologyAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "ontology owner or global admin required"})
 		return
 	}
-	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
-	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
+	// Le meme sujet que l'octroi, resolu de la meme facon.
+	//
+	// Cette ligne lisait le chemin brut : revoquer un octroi accorde a
+	// "essilor" - l'alias, qui est ce que l'ecran affiche - ne supprimait
+	// rien et repondait 204. On croyait avoir retire un acces.
+	subjectType, subjectID, status, probleme := h.grantSubject(r)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
+		return
+	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner permission cannot be removed"})
 		return
@@ -608,7 +618,8 @@ func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read ontology"})
 		return
 	}
-	if !found || (h.ontologyRole(item, identity) == "" && !h.isGlobalAdmin(identity)) {
+	// Lire ou administrer, comme pour un dataset.
+	if !found || !h.canSeeOntology(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
@@ -1063,17 +1074,38 @@ func (h Handlers) canAdministerOntology(item ontologydomain.Ontology, identity a
 }
 
 func (h Handlers) ontologyRole(item ontologydomain.Ontology, identity auth.Identity) string {
-	best := ""
 	for _, subject := range h.ontologySubjects(identity) {
 		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
 			return "owner"
 		}
+	}
+	// Un magasin absent veut dire "aucun droit nominatif", comme sur un
+	// dataset, et non une panique.
+	if h.ontologyStore == nil {
+		return ""
+	}
+	// Les octrois explicites comptent les organisations, la propriete non.
+	//
+	// Un octroi est un acte : quelqu'un a decide que telle organisation lit
+	// cette donnee, et l'ecran le propose. Il ne se lisait plus - la liste
+	// des sujets avait perdu les organisations pour fermer l'heritage de
+	// propriete - donc la plateforme acceptait un droit, l'affichait dans la
+	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
+	// propriete ; ce qui est donne nommement s'applique.
+	best := ""
+	for _, subject := range h.ontologyAdminSubjects(identity) {
 		access, found, err := h.ontologyStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role
 		}
 	}
 	return best
+}
+
+// canSeeOntology is the same distinction a dataset makes: this object exists,
+// here is who owns it and who was granted it. It opens nothing by itself.
+func (h Handlers) canSeeOntology(item ontologydomain.Ontology, identity auth.Identity) bool {
+	return h.ontologyRole(item, identity) != "" || h.canAdministerOntology(item, identity)
 }
 
 func (h Handlers) canReadOntologyObjectID(ontologyID string, identity auth.Identity) bool {

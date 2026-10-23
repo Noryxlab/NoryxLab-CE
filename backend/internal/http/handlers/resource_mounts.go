@@ -98,7 +98,9 @@ func (h Handlers) ListOntologyProjects(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
-	if !h.isGlobalAdmin(identity) && h.ontologyRole(item, identity) == "" {
+	// Voir n'est pas lire : l'administrateur de l'objet entre ici, et
+	// n'ouvre pas pour autant un seul fichier.
+	if !h.canSeeOntology(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}

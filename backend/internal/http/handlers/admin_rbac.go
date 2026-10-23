@@ -276,7 +276,8 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 func defaultRBACPolicyRows() []rbacPolicyRow {
 	return []rbacPolicyRow{
 		{Role: "Administrateur", Key: "admin", Locked: true, Description: "Administration plateforme: configuration, gouvernance, audit et exploitation.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "RW", Workload: "RW", Governance: "Admin"},
-		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire direct ou organisation propriétaire de la ressource.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
+		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire nominatif ou équipe propriétaire: la donnée est à elle.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
+		{Role: "Owner (organisation)", Key: "owner-organization", Locked: true, Description: "Organisation propriétaire: transférer, accorder, supprimer. Posséder n’est pas lire: le droit sur la donnée se donne à une personne, à une équipe ou à l’organisation, explicitement.", Project: "Admin", Dataset: "Admin", Ontology: "Admin", Datasource: "Admin", Environment: "-", Workload: "RW", Governance: "-"},
 		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "Admin", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
 		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
 		{Role: "Writer", Key: "writer", Locked: true, Description: "Droit d’écriture sur une ressource data donnée.", Project: "-", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "-", Governance: "-"},
@@ -343,13 +344,14 @@ func rbacRowBase(row rbacPolicyRow) (access.Role, error) {
 // any project role is read - but they answer as an administrator wherever a
 // project rule asks, which is what the platform already does.
 var rbacShippedRowBases = map[string]access.Role{
-	"admin":         access.RoleAdmin,
-	"owner":         access.RoleAdmin,
-	"project-admin": access.RoleAdmin,
-	"editor":        access.RoleEditor,
-	"writer":        access.RoleEditor,
-	"reader":        access.RoleViewer,
-	"viewer":        access.RoleViewer,
+	"admin":              access.RoleAdmin,
+	"owner":              access.RoleAdmin,
+	"owner-organization": access.RoleAdmin,
+	"project-admin":      access.RoleAdmin,
+	"editor":             access.RoleEditor,
+	"writer":             access.RoleEditor,
+	"reader":             access.RoleViewer,
+	"viewer":             access.RoleViewer,
 }
 
 // refuseGovernanceOnACustomRow keeps the platform's own administration out of
@@ -535,6 +537,24 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		key := strings.Join([]string{subject.Type, subject.ID, resourceType, resourceID, role, source, boolCSV(inherited)}, "|")
 		cells[key] = rbacCell{SubjectType: subject.Type, SubjectID: subject.ID, SubjectName: subject.Name, ResourceType: resourceType, ResourceID: resourceID, ResourceName: firstNonEmpty(resource.Name, resourceID), Role: role, Source: source, Inherited: inherited}
 	}
+	// addCatalogueOwner records who owns a dataset, an ontology or an extract -
+	// and does not turn the members of an owning organization into readers of
+	// it.
+	//
+	// The expansion below wrote one "owner" row per member, so the screen an
+	// auditor reads asserted that each of the eighteen people in Essilor held
+	// read and write on eight HDS buckets. That was true of the platform until
+	// 2026-10-23 and is no longer: an organization owns, which means it
+	// transfers, grants and deletes, and the data right is given explicitly.
+	// A compliance document that overstates access is worse than none.
+	addCatalogueOwner := func(subjectType, subjectID, resourceType, resourceID string) {
+		subjectType = normalizedSubjectType(subjectType)
+		source := "owner"
+		if subjectType == "organization" {
+			source = "owner-organization"
+		}
+		addCell(subjectType, strings.TrimSpace(subjectID), resourceType, resourceID, "owner", source, false)
+	}
 	addSubjectWithOrganizationExpansion := func(subjectType, subjectID, resourceType, resourceID, role, source string) {
 		subjectType = normalizedSubjectType(subjectType)
 		subjectID = strings.TrimSpace(subjectID)
@@ -620,7 +640,7 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		ownerType := firstNonEmpty(item.OwnerType, "user")
 		ownerID := firstNonEmpty(item.OwnerID, item.OwnerUserID)
 		addResource(rbacResource{Type: "dataset", ID: item.ID, Name: item.Name, OwnerType: ownerType, OwnerID: ownerID, Classification: item.Classification, Source: item.Provider})
-		addSubjectWithOrganizationExpansion(ownerType, ownerID, "dataset", item.ID, "owner", "owner")
+		addCatalogueOwner(ownerType, ownerID, "dataset", item.ID)
 		accessItems, err := h.datasetStore.ListAccess(item.ID)
 		if err != nil {
 			return rbacMatrixReport{}, err
@@ -634,7 +654,7 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		ownerType := firstNonEmpty(item.OwnerType, "user")
 		ownerID := firstNonEmpty(item.OwnerID, item.OwnerUserID)
 		addResource(rbacResource{Type: "ontology", ID: item.ID, Name: item.Name, OwnerType: ownerType, OwnerID: ownerID, Classification: item.SourceType, Source: item.InferenceProfile})
-		addSubjectWithOrganizationExpansion(ownerType, ownerID, "ontology", item.ID, "owner", "owner")
+		addCatalogueOwner(ownerType, ownerID, "ontology", item.ID)
 		accessItems, err := h.ontologyStore.ListAccess(item.ID)
 		if err != nil {
 			return rbacMatrixReport{}, err
@@ -648,7 +668,7 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		ownerType := firstNonEmpty(item.OwnerType, "user")
 		ownerID := firstNonEmpty(item.OwnerID, item.OwnerUserID)
 		addResource(rbacResource{Type: "extract", ID: item.ID, Name: item.Name, OwnerType: ownerType, OwnerID: ownerID, Source: item.OntologyID})
-		addSubjectWithOrganizationExpansion(ownerType, ownerID, "extract", item.ID, "owner", "owner")
+		addCatalogueOwner(ownerType, ownerID, "extract", item.ID)
 		accessItems, err := h.extractStore.ListAccess(item.ID)
 		if err != nil {
 			return rbacMatrixReport{}, err

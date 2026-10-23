@@ -462,7 +462,17 @@ func (h Handlers) requireProjectRole(
 		return true
 	}
 	if item, found, err := h.projectByID(projectID); err == nil && found && h.projectOwnedBy(item, userID) {
-		return action.permits(access.RoleAdmin)
+		// La reponse est ecrite dans les deux cas.
+		//
+		// Un "return false" sec laissait la reponse vide : le handler
+		// s'arretait, et le client recevait 200 sans corps. Inoffensif
+		// aujourd'hui, parce que les quatre actions acceptent l'administrateur
+		// - c'est exactement le piege que le proxy d'application a deja paye.
+		if action.permits(access.RoleAdmin) {
+			return true
+		}
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role for " + label})
+		return false
 	}
 	role, ok := h.effectiveProjectRole(projectID, userID)
 	fallback := ok && action.permits(h.baseRole(role))
@@ -517,6 +527,18 @@ func (h Handlers) projectOwnedBy(item project.Project, userID string) bool {
 	}
 	if ownerType == "user" {
 		return ownerID != "" && strings.EqualFold(ownerID, strings.TrimSpace(userID))
+	}
+	// Les equipes, que le transfert acceptait deja et que cette fonction ne
+	// connaissait pas : un projet confie a une equipe devenait orphelin sur
+	// le champ - plus aucun proprietaire, et le magasin avait accepte
+	// l'ecriture sans broncher.
+	if ownerType == "team" {
+		for _, teamID := range h.teamIDsForUser(strings.TrimSpace(userID)) {
+			if strings.EqualFold(teamID, ownerID) {
+				return true
+			}
+		}
+		return false
 	}
 	return ownerType == "organization" && h.userBelongsToOrganization(userID, ownerID)
 }

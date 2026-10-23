@@ -30,6 +30,7 @@ import type {
   CronJob,
   Dataset,
   DatasetAccess,
+  DatasourceAccess,
   DatasetUsage,
   Datasource,
   DatasourceDefinition,
@@ -496,6 +497,21 @@ export const datasourcesApi = {
    *  system the organization runs, so it outlives whoever declared it. */
   setOwner: (datasourceId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<Datasource>(`${V1}/datasources/${datasourceId}/ownership`, input),
+  /** Qui peut utiliser ce connecteur, et les deux gestes pour le dire.
+   *
+   *  Pretter plutot que ceder : une equipe qui travaille sur la meme base en
+   *  declarait un chacun, meme hote et memes identifiants recopies a la main. */
+  access: (datasourceId: string) =>
+    api.list<DatasourceAccess>(`${V1}/datasources/${datasourceId}/access`),
+  grant: (datasourceId: string, subjectType: string, subjectId: string, role: string) =>
+    api.put<DatasourceAccess>(
+      `${V1}/datasources/${datasourceId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+      { role },
+    ),
+  revoke: (datasourceId: string, subjectType: string, subjectId: string) =>
+    api.delete<void>(
+      `${V1}/datasources/${datasourceId}/access/${subjectType}/${encodeURIComponent(subjectId)}`,
+    ),
   validate: (datasourceId: string) =>
     api.post<{ reachable: boolean; error?: string }>(`${V1}/datasources/${datasourceId}/validate`),
   restart: (datasourceId: string) => api.post<Datasource>(`${V1}/datasources/${datasourceId}/restart`),

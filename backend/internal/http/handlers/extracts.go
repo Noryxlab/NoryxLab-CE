@@ -200,7 +200,9 @@ func (h Handlers) ListOntologyExtracts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
-	if !h.isGlobalAdmin(identity) && h.ontologyRole(item, identity) == "" {
+	// Voir n'est pas lire : l'administrateur de l'objet entre ici, et
+	// n'ouvre pas pour autant un seul fichier.
+	if !h.canSeeOntology(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "ontology not found"})
 		return
 	}
@@ -220,7 +222,7 @@ func (h Handlers) ListOntologyExtracts(w http.ResponseWriter, r *http.Request) {
 // GetExtractMembers is the frozen list itself: what a mount reads, and what a
 // reviewer asks for when they want to know which files an n was computed over.
 func (h Handlers) GetExtractMembers(w http.ResponseWriter, r *http.Request) {
-	identity, item, ok := h.requireExtract(w, r)
+	identity, item, ok := h.requireExtractContent(w, r)
 	if !ok {
 		return
 	}
@@ -279,7 +281,22 @@ func (h Handlers) DeleteExtract(w http.ResponseWriter, r *http.Request) {
 // The second half is what makes an extract a disclosure rather than a
 // bookmark: handing a selection to a partner used to mean handing them the
 // whole study, or transferring the extract and losing it.
-func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identity auth.Identity, item extractdomain.Extract, ok bool) {
+func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (auth.Identity, extractdomain.Extract, bool) {
+	return h.resolveExtract(w, r, false)
+}
+
+// requireExtractContent is the same lookup for the handlers that hand back the
+// frozen list itself - the file paths, which name patients.
+//
+// Separate from requireExtract because administering an extract is not reading
+// it: the organization that owns one decides who it goes to, and that decision
+// does not open the list. Both still answer 404, because whether an extract
+// exists is itself information about regulated data.
+func (h Handlers) requireExtractContent(w http.ResponseWriter, r *http.Request) (auth.Identity, extractdomain.Extract, bool) {
+	return h.resolveExtract(w, r, true)
+}
+
+func (h Handlers) resolveExtract(w http.ResponseWriter, r *http.Request, contenu bool) (identity auth.Identity, item extractdomain.Extract, ok bool) {
 	resolved, authorised := h.requireIdentity(w, r)
 	if !authorised {
 		return identity, item, false
@@ -302,14 +319,24 @@ func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identi
 	}
 	// Un lecteur de l'extrait entre ici sans rien devoir a l'ontologie : c'est
 	// tout l'objet d'une divulgation plus petite que l'etude.
-	if h.extractRole(item, resolved) != "" {
-		return resolved, item, true
+	admis := h.canReadExtract(item, ontology, resolved)
+	if !contenu {
+		admis = admis || h.canManageExtract(item, resolved)
 	}
-	if !h.isGlobalAdmin(resolved) && h.ontologyRole(ontology, resolved) == "" {
+	if !admis {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return identity, item, false
 	}
 	return resolved, item, true
+}
+
+// canReadExtract is the right to open the selection: the extract was lent to
+// this caller, or they may read the study it was cut from.
+func (h Handlers) canReadExtract(item extractdomain.Extract, ontology ontologydomain.Ontology, identity auth.Identity) bool {
+	if h.extractRole(item, identity) != "" {
+		return true
+	}
+	return h.isGlobalAdmin(identity) || h.ontologyRole(ontology, identity) != ""
 }
 
 // extractRole answers what this person may do with the extract itself.
@@ -320,13 +347,35 @@ func (h Handlers) requireExtract(w http.ResponseWriter, r *http.Request) (identi
 // read a selection must not require being allowed to read what it was cut
 // from.
 func (h Handlers) extractRole(item extractdomain.Extract, identity auth.Identity) string {
-	if h.canManageExtract(item, identity) {
-		return "owner"
+	// Les sujets "donnee" seulement - la personne et ses equipes.
+	//
+	// Cette fonction appelait canManageExtract, qui compte les organisations
+	// depuis que celles-ci administrent ce qu'elles possedent. Un seul "if"
+	// transformait donc "j'administre" en "je lis", et chaque membre de
+	// l'organisation proprietaire ouvrait la liste des fichiers de l'extrait
+	// - la porte qu'on venait de fermer un etage plus haut, laissee ouverte
+	// un etage plus bas.
+	ownerType, ownerID := item.OwnerType, item.OwnerID
+	if strings.TrimSpace(ownerType) == "" {
+		ownerType, ownerID = "user", item.OwnerUserID
+	}
+	for _, subject := range h.ontologySubjects(identity) {
+		if strings.EqualFold(ownerType, subject.Type) && strings.EqualFold(ownerID, subject.ID) {
+			return "owner"
+		}
 	}
 	if h.extractStore == nil {
 		return ""
 	}
-	for _, subject := range h.ontologySubjects(identity) {
+	// Les octrois explicites comptent les organisations, la propriete non.
+	//
+	// Un octroi est un acte : quelqu'un a decide que telle organisation lit
+	// cette donnee, et l'ecran le propose. Il ne se lisait plus - la liste
+	// des sujets avait perdu les organisations pour fermer l'heritage de
+	// propriete - donc la plateforme acceptait un droit, l'affichait dans la
+	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
+	// propriete ; ce qui est donne nommement s'applique.
+	for _, subject := range h.ontologyAdminSubjects(identity) {
 		access, found, err := h.extractStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && strings.TrimSpace(access.Role) != "" {
 			return "reader"
@@ -471,7 +520,13 @@ func (h Handlers) AttachProjectExtract(w http.ResponseWriter, r *http.Request) {
 	}
 	// Not found rather than forbidden when it is not yours: naming an
 	// identifier should not confirm that it exists.
-	if !found || (!h.canManageExtract(item, identity) && !h.canReadOntologyObjectID(item.OntologyID, identity)) {
+	// Le lecteur de l'extrait compte, lui aussi : c'est ce que le pret
+	// promet. Une equipe a qui on confie une selection doit pouvoir la
+	// monter dans son propre projet, sans quoi on lui a donne un droit
+	// qu'elle ne peut exercer nulle part.
+	if !found || (h.extractRole(item, identity) == "" &&
+		!h.canManageExtract(item, identity) &&
+		!h.canReadOntologyObjectID(item.OntologyID, identity)) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "extract not found"})
 		return
 	}
@@ -553,6 +608,22 @@ func (h Handlers) ListProjectExtracts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read extracts"})
 		return
 	}
+	// Ce que cette personne peut lire ou administrer, comme partout ailleurs.
+	//
+	// Le seul role de projet gardait cette liste : elle nommait les extraits
+	// attaches, leur n et leur etude, a tout membre du projet - y compris a
+	// qui n'a aucun droit sur l'etude dont ils sont tires.
+	visibles := make([]extractdomain.Extract, 0, len(items))
+	for _, item := range items {
+		ontology, found, err := h.ontologyStore.GetByID(item.OntologyID)
+		if err != nil || !found {
+			continue
+		}
+		if h.canReadExtract(item, ontology, identity) || h.canManageExtract(item, identity) {
+			visibles = append(visibles, item)
+		}
+	}
+	items = visibles
 	h.nameExtractOwners(items)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

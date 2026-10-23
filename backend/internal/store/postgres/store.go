@@ -479,6 +479,19 @@ func migrationStatements() []string {
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
 		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'external'`,
+		// Les droits accordes sur un connecteur : le dernier objet du
+		// catalogue qu'on ne pouvait pas partager, si bien qu'une equipe
+		// travaillant sur la meme base en declarait un chacun, meme hote,
+		// memes identifiants, recopies a la main.
+		`CREATE TABLE IF NOT EXISTS datasource_access (
+			datasource_id TEXT NOT NULL REFERENCES datasources(id) ON DELETE CASCADE,
+			subject_type TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			role TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (datasource_id, subject_type, subject_id)
+		)`,
 		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS service_definition_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS image TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE datasources ADD COLUMN IF NOT EXISTS dockerfile TEXT NOT NULL DEFAULT ''`,
@@ -3849,3 +3862,68 @@ func splitStoredScopes(raw string) []string {
 }
 
 func joinStoredScopes(scopes []string) string { return strings.Join(scopes, ",") }
+
+// ListDatasourceAccess reads the grants on one connector.
+func (s *Store) ListDatasourceAccess(datasourceID string) ([]datasource.Access, error) {
+	rows, err := s.db.Query(`SELECT datasource_id, subject_type, subject_id, role, created_at, updated_at FROM datasource_access WHERE datasource_id=$1 ORDER BY created_at`, strings.TrimSpace(datasourceID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []datasource.Access{}
+	for rows.Next() {
+		var item datasource.Access
+		if err := rows.Scan(&item.DatasourceID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetDatasourceAccess(datasourceID, subjectType, subjectID string) (datasource.Access, bool, error) {
+	var item datasource.Access
+	err := s.db.QueryRow(`SELECT datasource_id, subject_type, subject_id, role, created_at, updated_at FROM datasource_access WHERE datasource_id=$1 AND subject_type=$2 AND subject_id=$3`,
+		strings.TrimSpace(datasourceID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID)).
+		Scan(&item.DatasourceID, &item.SubjectType, &item.SubjectID, &item.Role, &item.CreatedAt, &item.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return datasource.Access{}, false, nil
+	}
+	if err != nil {
+		return datasource.Access{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *Store) SetDatasourceAccess(item datasource.Access) error {
+	_, err := s.db.Exec(`INSERT INTO datasource_access (datasource_id, subject_type, subject_id, role, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6)
+		ON CONFLICT (datasource_id, subject_type, subject_id) DO UPDATE SET role=EXCLUDED.role, updated_at=EXCLUDED.updated_at`,
+		strings.TrimSpace(item.DatasourceID), strings.TrimSpace(item.SubjectType), strings.TrimSpace(item.SubjectID), strings.TrimSpace(item.Role), item.CreatedAt, item.UpdatedAt)
+	return err
+}
+
+func (s *Store) DeleteDatasourceAccess(datasourceID, subjectType, subjectID string) error {
+	_, err := s.db.Exec(`DELETE FROM datasource_access WHERE datasource_id=$1 AND subject_type=$2 AND subject_id=$3`,
+		strings.TrimSpace(datasourceID), strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
+	return err
+}
+
+// ListDatasourcesGrantedTo is what a subject may reach without owning it.
+func (s *Store) ListDatasourcesGrantedTo(subjectType, subjectID string) ([]datasource.Datasource, error) {
+	rows, err := s.db.Query(`SELECT d.id, d.owner_user_id, d.owner_type, d.owner_id, d.name, d.type, d.source, d.host, d.port, d.database_name, d.username, d.password_secret, d.ssl_mode, d.service_definition_id, d.image, d.dockerfile, d.system, d.status, d.pod_name, d.service_name, d.pvc_name, d.storage_size, d.hardware_tier, d.created_at, d.updated_at FROM datasources d JOIN datasource_access a ON a.datasource_id = d.id
+		WHERE a.subject_type=$1 AND a.subject_id=$2 ORDER BY d.updated_at DESC`,
+		strings.TrimSpace(subjectType), strings.TrimSpace(subjectID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []datasource.Datasource{}
+	for rows.Next() {
+		var item datasource.Datasource
+		if err := rows.Scan(&item.ID, &item.OwnerUserID, &item.OwnerType, &item.OwnerID, &item.Name, &item.Type, &item.Source, &item.Host, &item.Port, &item.Database, &item.Username, &item.PasswordSecret, &item.SSLMode, &item.ServiceDefinitionID, &item.Image, &item.Dockerfile, &item.System, &item.Status, &item.PodName, &item.ServiceName, &item.PVCName, &item.StorageSize, &item.HardwareTier, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}

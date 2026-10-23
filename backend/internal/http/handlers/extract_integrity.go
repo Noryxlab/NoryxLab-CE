@@ -39,7 +39,8 @@ type extractIntegrityMissing struct {
 // GetExtractIntegrity reports how much of a sample of the frozen list is still
 // in the bucket.
 func (h Handlers) GetExtractIntegrity(w http.ResponseWriter, r *http.Request) {
-	_, item, ok := h.requireExtract(w, r)
+	// Le rapport nomme les chemins manquants : c'est du contenu.
+	_, item, ok := h.requireExtractContent(w, r)
 	if !ok {
 		return
 	}

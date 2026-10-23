@@ -8,6 +8,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// Access is a grant on one connector.
+//
+// The last catalogue object with no way to share: a connector was reachable
+// by the person who declared it and by nobody else, so a team working on the
+// same database each declared their own - the same host, the same credentials,
+// copied by hand, and no way to answer who could reach what.
+//
+// Same shape as a dataset's, and the same two roles: a reader may use the
+// connector in a workspace, a writer may also edit its definition. Deciding
+// who gets it stays with the owner.
+type Access struct {
+	DatasourceID string    `json:"datasourceId"`
+	SubjectType  string    `json:"subjectType"`
+	SubjectID    string    `json:"subjectId"`
+	SubjectName  string    `json:"subjectName,omitempty"`
+	Role         string    `json:"role"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
 type Datasource struct {
 	ID          string `json:"id"`
 	OwnerUserID string `json:"ownerUserId"`

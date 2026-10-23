@@ -484,6 +484,7 @@ export interface OwnedResources {
   apps?: string[];
   datasources?: string[];
   repositories?: string[];
+  extracts?: string[];
 }
 
 export interface SmtpSettings {
@@ -1334,6 +1335,16 @@ export type ExtractLevel = 'subject' | 'visit' | 'modality';
  *  dessaisir : un extrait est gele, donc le seul role est la lecture. */
 export interface ExtractAccess {
   extractId: string;
+  subjectType: string;
+  subjectId: string;
+  subjectName?: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatasourceAccess {
+  datasourceId: string;
   subjectType: string;
   subjectId: string;
   subjectName?: string;

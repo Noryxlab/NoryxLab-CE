@@ -66,6 +66,7 @@ export function DeactivateUserSheet({
       { label: t('admin.ownedApps'), values: owns.apps ?? [] },
       { label: t('admin.ownedDatasources'), values: owns.datasources ?? [] },
       { label: t('admin.ownedRepositories'), values: owns.repositories ?? [] },
+      { label: t('admin.ownedExtracts'), values: owns.extracts ?? [] },
     ].filter((group) => group.values.length > 0);
   }, [owned.data, t]);
 

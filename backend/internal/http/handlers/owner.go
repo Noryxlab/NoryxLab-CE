@@ -81,13 +81,29 @@ func (h Handlers) normaliseOwner(ownerType, ownerID string, identity auth.Identi
 }
 
 // callerInOrganization reports membership of the destination organization.
+//
+// It asks the directory, through the one function that already answered this
+// question for projects. It used to walk the ontology subjects instead, and
+// those stopped carrying organizations the day owning stopped meaning
+// reading: the loop could no longer match anything, so every transfer to an
+// organization was refused for everybody except a global administrator - and
+// a regulated dataset *must* belong to an organization. Two implementations of
+// one question, one of them silently dead; there is now one.
 func (h Handlers) callerInOrganization(identity auth.Identity, organizationID string) bool {
-	for _, subject := range h.ontologySubjects(identity) {
-		if subject.Type == ownerOrganization && subject.ID == organizationID {
-			return true
-		}
+	return h.userBelongsToOrganization(directoryIdentifier(identity), organizationID)
+}
+
+// directoryIdentifier is the id the directory knows this caller by.
+//
+// Keycloak answers on its own subject id; the username is the fallback for a
+// header-authenticated caller, which is how the tests and the single-user
+// installations sign in.
+func directoryIdentifier(identity auth.Identity) string {
+	identifier := strings.TrimSpace(identity.Subject)
+	if identifier == "" {
+		identifier = identity.UserID()
 	}
-	return false
+	return identifier
 }
 
 // allOrganizationIDs lists what the directory knows, for resolving a team name.

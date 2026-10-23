@@ -10,8 +10,9 @@ import (
 )
 
 type DatasourceStore struct {
-	mu    sync.RWMutex
-	items []datasource.Datasource
+	mu     sync.RWMutex
+	items  []datasource.Datasource
+	access []datasource.Access
 }
 
 func NewDatasourceStore() *DatasourceStore {
@@ -103,4 +104,72 @@ func (s *DatasourceStore) SetOwner(id, ownerType, ownerID string) error {
 		return nil
 	}
 	return sql.ErrNoRows
+}
+
+func (s *DatasourceStore) ListAccess(datasourceID string) ([]datasource.Access, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []datasource.Access{}
+	for _, item := range s.access {
+		if item.DatasourceID == strings.TrimSpace(datasourceID) {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (s *DatasourceStore) GetAccess(datasourceID, subjectType, subjectID string) (datasource.Access, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, item := range s.access {
+		if item.DatasourceID == datasourceID && strings.EqualFold(item.SubjectType, subjectType) && item.SubjectID == subjectID {
+			return item, true, nil
+		}
+	}
+	return datasource.Access{}, false, nil
+}
+
+func (s *DatasourceStore) SetAccess(item datasource.Access) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.access {
+		if s.access[i].DatasourceID == item.DatasourceID && strings.EqualFold(s.access[i].SubjectType, item.SubjectType) && s.access[i].SubjectID == item.SubjectID {
+			s.access[i] = item
+			return nil
+		}
+	}
+	s.access = append(s.access, item)
+	return nil
+}
+
+func (s *DatasourceStore) DeleteAccess(datasourceID, subjectType, subjectID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	gardes := s.access[:0]
+	for _, item := range s.access {
+		if item.DatasourceID == datasourceID && strings.EqualFold(item.SubjectType, subjectType) && item.SubjectID == subjectID {
+			continue
+		}
+		gardes = append(gardes, item)
+	}
+	s.access = gardes
+	return nil
+}
+
+func (s *DatasourceStore) ListGrantedTo(subjectType, subjectID string) ([]datasource.Datasource, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	pretes := map[string]bool{}
+	for _, grant := range s.access {
+		if strings.EqualFold(grant.SubjectType, subjectType) && grant.SubjectID == subjectID {
+			pretes[grant.DatasourceID] = true
+		}
+	}
+	out := []datasource.Datasource{}
+	for _, item := range s.items {
+		if pretes[item.ID] {
+			out = append(out, item)
+		}
+	}
+	return out, nil
 }

@@ -54,7 +54,8 @@ extracts alike:
   members of the owning organization.
 - **The right over the data** - read, write, mount, fill an extract - comes
   from being the owning user, belonging to the owning team, or holding an
-  explicit grant. An organization grants nothing here.
+  explicit grant. Ownership by an organization grants nothing here; an
+  explicit grant *to* an organization does, because somebody decided it.
 
 So a person who runs an organization may hand its bucket to a team without
 being able to open one file in it, and a researcher granted that bucket may
@@ -68,6 +69,33 @@ the data right; membership of an organization says where a person works.
 Project roles are untouched: an organization grant on a project still reaches
 its members. What changed is the right over the data, which is the thing this
 document separates from ownership.
+
+Four objects answer this way - datasets, ontologies, extracts and data source
+connectors - and the four screens are the same screen. Each carries an owner
+(mandatory, transferable to a person, a team or an organization) and a list of
+grants, reader or writer, shown by name rather than by alias or id.
+
+What follows from the split, stated once because each of these was a separate
+bug before 2026-10-23:
+
+| Act | Which right it needs |
+|---|---|
+| Transfer, rename, delete, grant | Administering the object |
+| Open a file, write one, query a database | The data right |
+| Attach to a project | Either, plus administering the project |
+| Detach from a project | Administering the project alone |
+| See the object in the catalogue, read its permissions | Either |
+| Read an extract's frozen file list | The data right on the extract or its study |
+
+Detaching needs nothing on the object on purpose. The same authorisation as
+attaching used to guard it, which manufactured a stuck state: revoke the read
+on a dataset and nobody could remove it from the project any more, while the
+filler kept mounting it. Removing data from a project discloses nothing.
+
+A connector's password is the one credential that travels with the grant. A
+secret belongs to one person, so lending a connector would otherwise hand over
+a host, a port and no password - a right exercisable nowhere. The borrower's
+own secret of that name is tried first, the owner's second.
 
 ### Ontology and extract permissions
 
@@ -88,6 +116,24 @@ to the bucket, so a partner reads 30 tabulated files without being handed the
 Every one of these grants appears in the access matrix under Administration,
 with its resource type - `dataset`, `ontology`, `extract`, `datasource`,
 `project` - so "who can read what" answers for all of them in one place.
+
+The matrix no longer expands an owning organization into one `owner` row per
+member for catalogue objects: it did, and the screen an auditor reads asserted
+that each of the eighteen people in Essilor held read and write on eight HDS
+buckets. The organization keeps its own row, sourced `owner-organization`, and
+the shipped role document carries that row too - administration on the data
+columns, not RW. A compliance document that overstates access is worse than
+none.
+
+### What is still open
+
+`ProxyWorkspace` admits anybody holding the project's launch role, while the
+datasets inside that workspace were resolved for the identity that started it.
+So a colleague can enter a running workspace and read what was mounted for
+somebody else. Closing it needs a launcher recorded on the workspace, which
+the table does not have yet; `extract_isolation_policy_test.go` currently
+fixes the opposite behaviour deliberately, so the decision is explicit rather
+than forgotten.
 
 ### Project membership roles
 

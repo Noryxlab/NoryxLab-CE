@@ -42,6 +42,7 @@ export const fr = {
     open: "Ouvrir",
     owner: "Propriétaire",
     reader: "Lecteur",
+    writer: "Rédacteur",
     save: "Enregistrer",
     search: "Rechercher",
     settings: "Paramètres",
@@ -853,6 +854,11 @@ export const fr = {
     createTitle: "Ajouter une source de données",
     createHint:
       "Connectez une base existante, ou déployez un service géré par la plateforme.",
+    permissions: "Qui peut utiliser ce connecteur",
+    permissionsHint:
+      "Prêter la connexion sans s'en dessaisir. Le lecteur l'ouvre depuis un workspace, une app ou un job ; le rédacteur peut aussi en modifier la définition.",
+    grant: "Prêter",
+    revoke: "Retirer l'accès",
     typeLabel: "Type de source",
     databaseLabel: "Base de données",
     usernameLabel: "Utilisateur",
@@ -1426,6 +1432,7 @@ export const fr = {
     ownedApps: "Applications :",
     ownedDatasources: "Sources de données :",
     ownedRepositories: "Dépôts :",
+    ownedExtracts: "Extraits :",
     successorLabel: "Repreneur",
     successorHint:
       "Recevra la propriété de tout ce qui précède, dans la même opération.",

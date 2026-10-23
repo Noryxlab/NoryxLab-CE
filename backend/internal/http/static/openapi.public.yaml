@@ -44,6 +44,23 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasourceAccess:
+      type: object
+      properties:
+        datasourceId: { type: string }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        subjectName: { type: string }
+        role: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DatasourceAccessListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DatasourceAccess' }
+        canManage: { type: boolean }
     ExtractAccess:
       type: object
       properties:
@@ -9146,3 +9163,100 @@ paths:
           description: The workspace is not running, so there is no specification to restart from; launch it again instead.
         '501':
           description: This runtime cannot restart a pod.
+  /api/v1/datasources/{datasourceID}/access:
+    get:
+      tags: [Datasets]
+      summary: Who may use this connector
+      description: >-
+        The owner first, then everybody it was granted to. Readable by anybody
+        who can see the connector; only its owner changes it.
+      operationId: listDatasourceAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceAccessListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}:
+    delete:
+      tags: [Datasets]
+      summary: Take that use back
+      operationId: deleteDatasourceAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Permission removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Datasets]
+      summary: Grant the use of this connector
+      description: >-
+        A reader may open the connection from a workspace, an app or a job; a
+        writer may also edit the definition. Without this, a team working on
+        one database declared one connector each, same host and same
+        credentials, copied by hand.
+      operationId: setDatasourceAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasourceAccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

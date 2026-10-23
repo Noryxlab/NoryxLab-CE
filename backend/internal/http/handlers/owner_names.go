@@ -171,6 +171,18 @@ func (h Handlers) nameAccessSubjects(items []datasetdomain.Access) {
 	}
 }
 
+// nameDatasourceAccessSubjects, same as the three others.
+func (h Handlers) nameDatasourceAccessSubjects(items []datasourcedomain.Access) {
+	passerelle := make([]datasetdomain.Access, len(items))
+	for index, item := range items {
+		passerelle[index] = datasetdomain.Access{SubjectType: item.SubjectType, SubjectID: item.SubjectID}
+	}
+	h.nameAccessSubjects(passerelle)
+	for index := range items {
+		items[index].SubjectName = passerelle[index].SubjectName
+	}
+}
+
 // nameOntologyAccessSubjects does for an ontology what the dataset version
 // does: turn identifiers into names somebody can check.
 func (h Handlers) nameOntologyAccessSubjects(items []ontologydomain.Access) {

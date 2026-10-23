@@ -158,7 +158,7 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	// The effective owner, which is no longer necessarily the person who
 	// launched it: an app transferred to an organization or to a service
 	// account is reached by whoever that owner covers.
-	if appIdentityMatches(identity, firstNonEmpty(record.OwnerID, record.OwnerUserID)) {
+	if h.appOwnerCovers(record, identity) {
 		return identity, true
 	}
 	switch mode {
@@ -184,6 +184,31 @@ func (h Handlers) requireAppAccess(w http.ResponseWriter, r *http.Request, recor
 	}
 	writeJSON(w, http.StatusForbidden, map[string]string{"error": "app access denied"})
 	return auth.Identity{}, false
+}
+
+// appOwnerCovers reports whether this caller is somebody the app's owner
+// covers.
+//
+// It used to compare the owner identifier against the caller's names and
+// ignore OwnerType altogether. For an app handed to an organization that
+// identifier is an organization id, which matches no person, so the line that
+// promises "reached by whoever that owner covers" admitted nobody - and a
+// caller whose username happened to equal an organization id would have been
+// let in.
+func (h Handlers) appOwnerCovers(record app.App, identity auth.Identity) bool {
+	switch strings.ToLower(strings.TrimSpace(record.OwnerType)) {
+	case "organization":
+		return h.userBelongsToOrganization(identity.Subject, record.OwnerID) ||
+			h.userBelongsToOrganization(identity.UserID(), record.OwnerID)
+	case "team":
+		for _, teamID := range h.callerTeamIDs(identity) {
+			if strings.EqualFold(teamID, strings.TrimSpace(record.OwnerID)) {
+				return true
+			}
+		}
+		return false
+	}
+	return appIdentityMatches(identity, firstNonEmpty(record.OwnerID, record.OwnerUserID))
 }
 
 func appIdentityMatches(identity auth.Identity, expected string) bool {

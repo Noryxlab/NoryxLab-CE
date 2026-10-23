@@ -10,5 +10,11 @@ type DatasourceStore interface {
 	Upsert(item datasource.Datasource) error
 	// SetOwner hands the connector to somebody else, and touches nothing else.
 	SetOwner(id, ownerType, ownerID string) error
+	// Les droits accordes sur un connecteur, comme sur un dataset.
+	ListAccess(datasourceID string) ([]datasource.Access, error)
+	GetAccess(datasourceID, subjectType, subjectID string) (datasource.Access, bool, error)
+	SetAccess(item datasource.Access) error
+	DeleteAccess(datasourceID, subjectType, subjectID string) error
+	ListGrantedTo(subjectType, subjectID string) ([]datasource.Datasource, error)
 	Delete(id string) error
 }

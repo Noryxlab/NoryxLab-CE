@@ -39,6 +39,7 @@ export const en: Translations = {
     open: "Open",
     owner: "Owner",
     reader: "Reader",
+    writer: "Writer",
     save: "Save",
     search: "Search",
     settings: "Settings",
@@ -831,6 +832,11 @@ export const en: Translations = {
     createTitle: "Add a data source",
     createHint:
       "Connect an existing database, or deploy a service managed by the platform.",
+    permissions: "Who may use this connector",
+    permissionsHint:
+      "Lend the connection without parting with it. A reader opens it from a workspace, an app or a job; a writer may also edit its definition.",
+    grant: "Lend",
+    revoke: "Revoke",
     typeLabel: "Source type",
     databaseLabel: "Database",
     usernameLabel: "User",
@@ -1399,6 +1405,7 @@ export const en: Translations = {
     ownedApps: "Apps:",
     ownedDatasources: "Data sources:",
     ownedRepositories: "Repositories:",
+    ownedExtracts: "Extracts:",
     successorLabel: "Successor",
     successorHint:
       "Receives ownership of everything above, in the same operation.",

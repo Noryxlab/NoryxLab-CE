@@ -102,6 +102,7 @@ export const qk = {
   datasets: ["datasets"] as const,
   ontologyAccess: (ontologyId: string) => ["ontology-access", ontologyId] as const,
   extractAccess: (extractId: string) => ["extract-access", extractId] as const,
+  datasourceAccess: (datasourceId: string) => ["datasource-access", datasourceId] as const,
   datasetAccess: (datasetId: string) =>
     ["datasets", datasetId, "access"] as const,
   datasetUsage: (datasetId: string) =>
@@ -537,6 +538,13 @@ export const useExtractAccess = (extractId: string | undefined) =>
     queryKey: qk.extractAccess(extractId ?? ""),
     queryFn: () => ontologiesApi.extractAccess(extractId as string),
     enabled: Boolean(extractId),
+  });
+
+export const useDatasourceAccess = (datasourceId: string | undefined) =>
+  useQuery({
+    queryKey: qk.datasourceAccess(datasourceId ?? ""),
+    queryFn: () => datasourcesApi.access(datasourceId as string),
+    enabled: Boolean(datasourceId),
   });
 
 export const useDatasetAccess = (datasetId: string | undefined) =>

@@ -305,6 +305,26 @@ func (s *DatasourceStore) SetOwner(id, ownerType, ownerID string) error {
 
 func (s *DatasourceStore) Delete(id string) error { return s.Store.DeleteDatasource(id) }
 
+func (s *DatasourceStore) ListAccess(datasourceID string) ([]datasource.Access, error) {
+	return s.Store.ListDatasourceAccess(datasourceID)
+}
+
+func (s *DatasourceStore) GetAccess(datasourceID, subjectType, subjectID string) (datasource.Access, bool, error) {
+	return s.Store.GetDatasourceAccess(datasourceID, subjectType, subjectID)
+}
+
+func (s *DatasourceStore) SetAccess(item datasource.Access) error {
+	return s.Store.SetDatasourceAccess(item)
+}
+
+func (s *DatasourceStore) DeleteAccess(datasourceID, subjectType, subjectID string) error {
+	return s.Store.DeleteDatasourceAccess(datasourceID, subjectType, subjectID)
+}
+
+func (s *DatasourceStore) ListGrantedTo(subjectType, subjectID string) ([]datasource.Datasource, error) {
+	return s.Store.ListDatasourcesGrantedTo(subjectType, subjectID)
+}
+
 type StorageEndpointStore struct{ *Store }
 
 func (s *StorageEndpointStore) List() ([]storageendpoint.Endpoint, error) {

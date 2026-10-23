@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"net"
 	"net/http"
 	"strings"
@@ -40,14 +41,42 @@ type createDataServiceRequest struct {
 }
 
 func (h Handlers) ListDatasources(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	items, err := h.datasourceStore.ListByUser(userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list datasources"})
 		return
+	}
+	// Ce qu'on nous a prete et ce qu'on administre, a cote de ce qu'on a
+	// declare soi-meme : la liste ne connaissait que l'auteur, donc un
+	// connecteur transfere disparaissait de chez son nouveau proprietaire.
+	vus := map[string]bool{}
+	for _, item := range items {
+		vus[item.ID] = true
+	}
+	for _, subject := range h.ontologyAdminSubjects(identity) {
+		pretes, err := h.datasourceStore.ListGrantedTo(subject.Type, subject.ID)
+		if err != nil {
+			continue
+		}
+		for _, item := range pretes {
+			if !vus[item.ID] {
+				vus[item.ID] = true
+				items = append(items, item)
+			}
+		}
+	}
+	if tous, err := h.datasourceStore.ListAll(); err == nil {
+		for _, item := range tous {
+			if !vus[item.ID] && h.canSeeDatasource(item, identity) {
+				vus[item.ID] = true
+				items = append(items, item)
+			}
+		}
 	}
 	for i := range items {
 		items[i] = h.enrichDatasourceStatus(items[i])
@@ -216,10 +245,11 @@ func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) DeleteDatasource(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	datasourceID := strings.TrimSpace(r.PathValue("datasourceID"))
 	if datasourceID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "datasourceID is required"})
@@ -230,7 +260,13 @@ func (h Handlers) DeleteDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	// Le proprietaire, pas l'auteur.
+	//
+	// Cette ligne comparait la personne qui avait declare le connecteur. Une
+	// fois le connecteur transferable, les deux se separent : son auteur
+	// gardait le droit de le supprimer, et l'equipe a qui on l'avait confie
+	// ne l'avait pas.
+	if !found || !h.canManageDatasource(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
@@ -333,16 +369,17 @@ func (h Handlers) RestartDataService(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) requireOwnedInternalDatasource(w http.ResponseWriter, r *http.Request) (datasource.Datasource, string, bool) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return datasource.Datasource{}, "", false
 	}
+	userID := identity.UserID()
 	item, found, err := h.datasourceStore.GetByID(strings.TrimSpace(r.PathValue("datasourceID")))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
 		return datasource.Datasource{}, "", false
 	}
-	if !found || item.OwnerUserID != userID || item.Source != "internal" {
+	if !found || !h.canManageDatasource(item, identity) || item.Source != "internal" {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "internal datasource not found"})
 		return datasource.Datasource{}, "", false
 	}
@@ -423,21 +460,23 @@ func dataServicePodSpec(name, pvcName, secretName, database, username string, de
 }
 
 func (h Handlers) ValidateDatasource(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	datasourceID := strings.TrimSpace(r.PathValue("datasourceID"))
 	item, found, err := h.datasourceStore.GetByID(datasourceID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	// Tester la connexion releve de l'usage, pas de la propriete.
+	if !found || !h.canUseDatasource(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
-	password, err := h.resolveRepositorySecretValueForWorkspace(userID, item.PasswordSecret)
+	password, err := h.datasourcePassword(item, userID)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read datasource secret: " + err.Error()})
 		return
@@ -491,10 +530,11 @@ func defaultDatasourcePort(kind string) int {
 }
 
 func (h Handlers) ListProjectDatasources(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	projectID := strings.TrimSpace(r.PathValue("projectID"))
 	if projectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
@@ -515,7 +555,14 @@ func (h Handlers) ListProjectDatasources(w http.ResponseWriter, r *http.Request)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project datasource"})
 			return
 		}
-		if found {
+		// Ce que cette personne peut utiliser ou administrer.
+		//
+		// La liste rendait l'hote, le port, la base et le compte de chaque
+		// connecteur a tout membre du projet, alors que l'injection dans la
+		// charge demande, elle, un droit sur le connecteur : on affichait
+		// donc une connexion que le workspace ne monterait jamais, avec ses
+		// coordonnees.
+		if found && h.canSeeDatasource(item, identity) {
 			items = append(items, h.enrichDatasourceStatus(item))
 		}
 	}
@@ -523,10 +570,11 @@ func (h Handlers) ListProjectDatasources(w http.ResponseWriter, r *http.Request)
 }
 
 func (h Handlers) AttachProjectDatasource(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	projectID := strings.TrimSpace(r.PathValue("projectID"))
 	datasourceID := strings.TrimSpace(r.PathValue("datasourceID"))
 	if projectID == "" || datasourceID == "" {
@@ -541,7 +589,8 @@ func (h Handlers) AttachProjectDatasource(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read datasource"})
 		return
 	}
-	if !found || item.OwnerUserID != userID {
+	// Utiliser ou administrer, comme pour un dataset ou une ontologie.
+	if !found || !h.canSeeDatasource(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
 		return
 	}
@@ -604,10 +653,16 @@ func (h Handlers) resolveProjectDatasourceEnv(projectID, userID string) ([]noryx
 	out := []noryxruntime.EnvVar{}
 	for _, id := range ids {
 		item, found, err := h.datasourceStore.GetByID(id)
-		if err != nil || !found || item.OwnerUserID != userID {
+		// Le droit d'usage, pas la paternite.
+		//
+		// La comparaison portait sur l'auteur : un connecteur transfere a une
+		// equipe cessait de fonctionner pour cette equipe tout en continuant
+		// de fonctionner pour la personne qui l'avait declare, et un collegue
+		// a qui on l'avait donne n'obtenait rien.
+		if err != nil || !found || !h.canUseDatasource(item, auth.Identity{Username: userID, Subject: userID}) {
 			continue
 		}
-		password, err := h.resolveRepositorySecretValueForWorkspace(userID, item.PasswordSecret)
+		password, err := h.datasourcePassword(item, userID)
 		if err != nil {
 			continue
 		}
@@ -623,4 +678,29 @@ func (h Handlers) resolveProjectDatasourceEnv(projectID, userID string) ([]noryx
 		)
 	}
 	return out, nil
+}
+
+// datasourcePassword resolves the connector's password for whoever is about to
+// use it.
+//
+// A secret belongs to one person: the store is keyed by user and name. So the
+// credential of a connector lives with whoever declared it, and lending the
+// connector to a team would otherwise hand them a host, a port and no
+// password - a grant they could not exercise anywhere, which is a worse
+// answer than refusing it. The author's secret is therefore the fallback,
+// because lending a connector is lending the credential it carries; that is
+// what the grant means, and the permissions screen says so in those words.
+//
+// The caller's own secret comes first, so somebody who holds the real account
+// keeps using it rather than the one the connector was declared with.
+func (h Handlers) datasourcePassword(item datasource.Datasource, userID string) (string, error) {
+	value, err := h.resolveRepositorySecretValueForWorkspace(userID, item.PasswordSecret)
+	if err == nil {
+		return value, nil
+	}
+	author := strings.TrimSpace(item.OwnerUserID)
+	if author == "" || strings.EqualFold(author, strings.TrimSpace(userID)) {
+		return "", err
+	}
+	return h.resolveRepositorySecretValueForWorkspace(author, item.PasswordSecret)
 }

@@ -102,17 +102,27 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 		item.OwnerType = "user"
 		item.OwnerID = item.OwnerUserID
 	}
-	best := ""
 	for _, subject := range h.datasetSubjects(identity) {
 		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
 			return "owner"
 		}
-		// Un magasin absent veut dire "aucun droit nominatif", pas un
-		// plantage : le proprietaire se lit sans lui, et une installation qui
-		// n'a pas encore sa base ne doit pas tomber sur cette ligne.
-		if h.datasetStore == nil {
-			continue
-		}
+	}
+	// Un magasin absent veut dire "aucun droit nominatif", pas un plantage :
+	// le proprietaire se lit sans lui, et une installation qui n'a pas encore
+	// sa base ne doit pas tomber sur cette ligne.
+	if h.datasetStore == nil {
+		return ""
+	}
+	// Les octrois explicites comptent les organisations, la propriete non.
+	//
+	// Un octroi est un acte : quelqu'un a decide que telle organisation lit
+	// cette donnee, et l'ecran le propose. Il ne se lisait plus - la liste
+	// des sujets avait perdu les organisations pour fermer l'heritage de
+	// propriete - donc la plateforme acceptait un droit, l'affichait dans la
+	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
+	// propriete ; ce qui est donne nommement s'applique.
+	best := ""
+	for _, subject := range h.datasetAdminSubjects(identity) {
 		access, found, err := h.datasetStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role
@@ -1286,11 +1296,15 @@ func (h Handlers) DeleteDatasetAccess(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "dataset owner or global admin required"})
 		return
 	}
-	subjectType := strings.TrimSpace(r.PathValue("subjectType"))
-	subjectID := strings.TrimSpace(r.PathValue("subjectID"))
-	if subjectType == "" {
-		subjectType = "user"
-		subjectID = strings.TrimSpace(r.PathValue("userID"))
+	// Le meme sujet que l'octroi, resolu de la meme facon.
+	//
+	// Cette ligne lisait le chemin brut : revoquer un octroi accorde a
+	// "essilor" - l'alias, qui est ce que l'ecran affiche - ne supprimait
+	// rien et repondait 204. On croyait avoir retire un acces.
+	subjectType, subjectID, status, probleme := h.grantSubject(r)
+	if status != 0 {
+		writeJSON(w, status, map[string]string{"error": probleme})
+		return
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {
 		writeJSON(w, 400, map[string]string{"error": "owner permission cannot be removed"})
@@ -1407,6 +1421,16 @@ func (h Handlers) organizationExists(organizationID string) bool {
 // administrator had in front of them, and a directory that answers
 // "Malinet.C" to a store holding "malinetc" produces an access list where
 // half the grants silently do not apply.
+// teamIDsForUser is the same answer for the places that only carry a user
+// identifier - project authorisation, which predates the catalogue's subjects.
+func (h Handlers) teamIDsForUser(userID string) []string {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil
+	}
+	return h.callerTeamIDs(auth.Identity{Username: userID, Subject: userID})
+}
+
 func (h Handlers) callerTeamIDs(identity auth.Identity) []string {
 	if h.teamStore == nil {
 		return nil
@@ -1522,7 +1546,11 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || !h.datasetAvailableInEdition(item) || (!h.isGlobalAdmin(identity) && h.datasetRole(item, identity) != "owner") {
+	// Supprimer releve de l'administration, comme renommer et transferer.
+	// Cette ligne lisait le role "donnee", si bien qu'un dataset possede par
+	// une organisation n'etait plus supprimable par personne - alors que
+	// l'ecran de ses administrateurs leur propose toujours le bouton.
+	if !found || !h.canAdministerDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
@@ -1647,10 +1675,11 @@ func (h Handlers) deleteDatasetReadings(datasetID string) (int, error) {
 }
 
 func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	projectID := strings.TrimSpace(r.PathValue("projectID"))
 	if projectID == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectID is required"})
@@ -1671,10 +1700,15 @@ func (h Handlers) ListProjectDatasets(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load project dataset"})
 			return
 		}
-		if found {
-			if h.datasetAvailableInEdition(item) {
-				items = append(items, item)
-			}
+		// Ce que cette personne peut lire ou administrer.
+		//
+		// La liste rendait le bucket, le prefixe, l'endpoint et la
+		// classification de chaque dataset attache a tout membre du projet,
+		// alors que le montage dans le workspace demande, lui, le droit de
+		// lecture : on nommait une donnee que la personne n'ouvrirait
+		// jamais, avec ou se la procurer.
+		if found && h.canSeeDataset(item, identity) {
+			items = append(items, item)
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -1732,19 +1766,18 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 	if !h.requireProjectRole(w, projectID, identity.UserID(), actionAttachDataset, "dataset detach") {
 		return
 	}
-	item, found, err := h.datasetStore.GetByID(datasetID)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
-		return
-	}
-	if !found {
+	if _, found, err := h.datasetStore.GetByID(datasetID); err != nil || !found {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if !h.canAssignDataset(identity, item, projectID) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
-		return
-	}
+	// Detacher ne demande qu'a administrer le projet.
+	//
+	// La meme autorisation que pour attacher gardait cette ligne, et elle
+	// fabriquait un etat bloque : on revoque la lecture d'un dataset, plus
+	// personne ne peut le retirer du projet, et le filler continue de le
+	// monter dans les workspaces. Retirer une donnee d'un projet ne divulgue
+	// rien ; c'est l'inverse. Les extraits et les connecteurs se detachent
+	// deja comme cela.
 	if err := h.projectResourceStore.DetachDataset(projectID, datasetID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach dataset"})
 		return
@@ -1762,7 +1795,14 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset,
 	if item.Classification == "hds" {
 		return h.canAttachRegulatedDataset(identity, item, projectID)
 	}
-	return h.datasetRole(item, identity) == "owner"
+	// Lire ou administrer : les deux donnent le droit d'attacher.
+	//
+	// Seul le proprietaire pouvait attacher, donc une equipe a qui on avait
+	// accorde la lecture devait demander a quelqu'un d'autre de monter la
+	// donnee dans son propre projet. C'est la meme queue que la regle HDS
+	// au-dessus a defaite, pour la meme raison : le garde-fou est le role de
+	// projet, verifie par le handler avant d'arriver ici.
+	return h.canSeeDataset(item, identity)
 }
 
 // canAttachRegulatedDataset delegates the mount of regulated data to the people
@@ -1782,7 +1822,12 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset,
 // is what makes them answerable for who sees it afterwards. Either half alone
 // is not enough, and a global administrator keeps the right they always had.
 func (h Handlers) canAttachRegulatedDataset(identity auth.Identity, item dataset.Dataset, projectID string) bool {
-	if !entitledToRegulatedDataset(h.datasetSubjects(identity), item) {
+	// Les sujets d'administration : l'entitlement est une question
+	// d'appartenance a l'organisation proprietaire, pas de droit de lecture.
+	// Avec les sujets "donnee" cette ligne ne pouvait plus repondre vrai, et
+	// le goulet d'etranglement que la regle avait ouvert s'etait referme sans
+	// que le message d'erreur le dise.
+	if !entitledToRegulatedDataset(h.datasetAdminSubjects(identity), item) {
 		return false
 	}
 	return h.administersProject(projectID, identity.UserID())
