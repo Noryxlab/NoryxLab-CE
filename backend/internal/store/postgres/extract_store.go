@@ -265,3 +265,20 @@ func (s *ExtractStore) ListGrantedTo(subjectType, subjectID string) ([]extract.E
 	}
 	return out, rows.Err()
 }
+
+func (s *ExtractStore) ListAll() ([]extract.Extract, error) {
+	rows, err := s.db.Query(`SELECT id, ontology_id, project_id, owner_user_id, owner_type, owner_id, name, description, subjects_json, modalities_json, visits_json, formats_json, tables_json, data_types_json, layout_json, object_count, total_bytes, created_at, updated_at FROM extracts ORDER BY created_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []extract.Extract{}
+	for rows.Next() {
+		item, err := scanExtract(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}

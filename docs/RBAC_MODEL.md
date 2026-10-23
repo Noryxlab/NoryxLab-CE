@@ -37,6 +37,26 @@ Dataset ACLs are managed by the dataset owner or a global admin. Attaching a
 dataset to a project remains a separate operation because it exposes the dataset
 to project workloads. Regulated HDS policies are an Enterprise Edition concern.
 
+### Ontology and extract permissions
+
+The same three roles, on the two objects a dataset produces. An ontology is a
+reading of a dataset and an extract a selection over an ontology, so each is
+owned by the owner of what it describes and each can be lent without parting
+with it:
+
+- `owner`: paternity, delete, project assignment and ACL management
+- `reader`: read only - which for an extract is everything there is, since a
+  frozen selection cannot be written to
+
+Lending an extract grants nothing on the study it was cut from. That is the
+point of the object: the filler fetches its files for a workload with no right
+to the bucket, so a partner reads 30 tabulated files without being handed the
+4,467 images around them.
+
+Every one of these grants appears in the access matrix under Administration,
+with its resource type - `dataset`, `ontology`, `extract`, `datasource`,
+`project` - so "who can read what" answers for all of them in one place.
+
 ### Project membership roles
 
 These are the roles an administrator assigns on the project members screen, and

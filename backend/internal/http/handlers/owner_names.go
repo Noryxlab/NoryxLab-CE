@@ -100,23 +100,67 @@ func (h Handlers) nameOntologyOwners(items []ontologydomain.Ontology) {
 // Same resolution as an owner's name, on the other side of the same screen:
 // the owner row was readable and every permission row below it was a UUID.
 func (h Handlers) nameAccessSubjects(items []datasetdomain.Access) {
+	// Organizations are listed once, and indexed by both of the things a
+	// permission row can hold.
+	//
+	// A grant records the identifier the resolver returned, but an owner may
+	// carry the alias somebody typed - the two paths disagreed, so an
+	// organization showed as "compta" on one row and "Compta" on the next.
+	// Indexing by id and by alias answers for both without asking which wrote
+	// the row.
 	organizations := map[string]string{}
+	teams := map[string]string{}
+	besoinOrganisations, besoinEquipes := false, false
 	for _, item := range items {
-		if strings.EqualFold(item.SubjectType, "organization") {
-			if h.keycloak != nil {
-				if listed, err := h.keycloak.ListOrganizations(); err == nil {
-					for _, organization := range listed {
-						organizations[organization.ID] = organization.Name
-					}
+		switch strings.ToLower(strings.TrimSpace(item.SubjectType)) {
+		case "organization":
+			besoinOrganisations = true
+		case "team":
+			besoinEquipes = true
+		}
+	}
+	if besoinOrganisations && h.keycloak != nil {
+		if listed, err := h.keycloak.ListOrganizations(); err == nil {
+			for _, organization := range listed {
+				if strings.TrimSpace(organization.Name) == "" {
+					continue
+				}
+				organizations[organization.ID] = organization.Name
+				if alias := strings.TrimSpace(organization.Alias); alias != "" {
+					organizations[alias] = organization.Name
 				}
 			}
-			break
+		}
+	}
+	if besoinEquipes && h.teamStore != nil {
+		// Une equipe etait toujours un UUID a l'ecran, alors que c'est le
+		// sujet qu'on accorde le plus souvent. Chacune est demandee par son
+		// identifiant plutot que listee par organisation : la resolution
+		// repond alors meme quand l'annuaire est injoignable, et ne coute que
+		// les lignes affichees.
+		for _, item := range items {
+			if !strings.EqualFold(item.SubjectType, "team") {
+				continue
+			}
+			id := strings.TrimSpace(item.SubjectID)
+			if id == "" || teams[id] != "" {
+				continue
+			}
+			if found, exists, err := h.teamStore.GetByID(id); err == nil && exists && strings.TrimSpace(found.Name) != "" {
+				teams[id] = found.Name
+			}
 		}
 	}
 	for index := range items {
 		subject := strings.TrimSpace(items[index].SubjectID)
-		if strings.EqualFold(items[index].SubjectType, "organization") {
-			if name, ok := organizations[subject]; ok && strings.TrimSpace(name) != "" {
+		switch strings.ToLower(strings.TrimSpace(items[index].SubjectType)) {
+		case "organization":
+			if name, ok := organizations[subject]; ok {
+				items[index].SubjectName = name
+				continue
+			}
+		case "team":
+			if name, ok := teams[subject]; ok {
 				items[index].SubjectName = name
 				continue
 			}

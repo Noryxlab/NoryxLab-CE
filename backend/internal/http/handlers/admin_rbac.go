@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	"net/http"
 	"sort"
 	"strconv"
@@ -446,6 +447,15 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 	if err != nil {
 		return rbacMatrixReport{}, err
 	}
+	// Les extraits, qui manquaient : un objet qu'on peut preter et que la
+	// matrice ne sait pas enumerer est un acces que personne ne peut auditer.
+	extracts := []extractdomain.Extract{}
+	if h.extractStore != nil {
+		extracts, err = h.extractStore.ListAll()
+		if err != nil {
+			return rbacMatrixReport{}, err
+		}
+	}
 	datasources, err := h.datasourceStore.ListAll()
 	if err != nil {
 		return rbacMatrixReport{}, err
@@ -634,6 +644,20 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		}
 	}
 
+	for _, item := range extracts {
+		ownerType := firstNonEmpty(item.OwnerType, "user")
+		ownerID := firstNonEmpty(item.OwnerID, item.OwnerUserID)
+		addResource(rbacResource{Type: "extract", ID: item.ID, Name: item.Name, OwnerType: ownerType, OwnerID: ownerID, Source: item.OntologyID})
+		addSubjectWithOrganizationExpansion(ownerType, ownerID, "extract", item.ID, "owner", "owner")
+		accessItems, err := h.extractStore.ListAccess(item.ID)
+		if err != nil {
+			return rbacMatrixReport{}, err
+		}
+		for _, accessItem := range accessItems {
+			addSubjectWithOrganizationExpansion(accessItem.SubjectType, accessItem.SubjectID, "extract", item.ID, accessItem.Role, "direct")
+		}
+	}
+
 	for _, item := range datasources {
 		addResource(rbacResource{Type: "datasource", ID: item.ID, Name: item.Name, OwnerType: "user", OwnerID: item.OwnerUserID, Classification: item.Type, Source: item.Source})
 		addCell("user", item.OwnerUserID, "datasource", item.ID, "owner", "owner", false)
@@ -659,6 +683,9 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		}
 		if ids, err := h.projectResourceStore.ListProjectDatasourceIDs(p.ID); err == nil {
 			attachProjectCells("datasource", ids)
+		}
+		if ids, err := h.projectResourceStore.ListProjectExtractIDs(p.ID); err == nil {
+			attachProjectCells("extract", ids)
 		}
 	}
 

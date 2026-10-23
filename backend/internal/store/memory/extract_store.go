@@ -188,3 +188,9 @@ func (s *ExtractStore) ListGrantedTo(subjectType, subjectID string) ([]extract.E
 	}
 	return out, nil
 }
+
+func (s *ExtractStore) ListAll() ([]extract.Extract, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return append([]extract.Extract(nil), s.items...), nil
+}

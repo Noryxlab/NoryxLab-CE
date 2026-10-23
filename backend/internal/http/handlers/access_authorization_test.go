@@ -38,6 +38,29 @@ func fakeKeycloak(t *testing.T, memberships map[string][]keycloak.Organization) 
 				users = append(users, map[string]any{"id": name, "username": name, "enabled": true})
 			}
 			writeTestJSON(t, w, users)
+		case strings.HasSuffix(strings.TrimSuffix(r.URL.Path, "/"), "/organizations") &&
+			!strings.Contains(r.URL.Path, "/members/"):
+			// L'annuaire sait lister les organisations qu'il connait, et c'est
+			// par la que les ecrans resolvent un identifiant en nom. Le faux
+			// repondait une liste vide, donc tout ce qui en dependait etait
+			// intestable - y compris l'affichage d'une permission.
+			//
+			// La condition exclut "/members/" : les organisations d'UNE
+			// personne se demandent a `organizations/members/<id>/organizations`,
+			// qui finit par le meme mot. Sans cette exclusion, le faux
+			// repondait l'annuaire entier a cette question-la, et tout le
+			// monde appartenait a tout.
+			vues := map[string]keycloak.Organization{}
+			for _, organizations := range memberships {
+				for _, organization := range organizations {
+					vues[organization.ID] = organization
+				}
+			}
+			listed := []keycloak.Organization{}
+			for _, organization := range vues {
+				listed = append(listed, organization)
+			}
+			writeTestJSON(t, w, listed)
 		case strings.Contains(r.URL.Path, "/organizations/members/"):
 			segments := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 			user := segments[len(segments)-2]

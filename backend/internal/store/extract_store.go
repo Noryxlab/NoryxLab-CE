@@ -5,6 +5,9 @@ import "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 // ExtractStore persists a named selection of files and the list it froze.
 type ExtractStore interface {
 	ListByProject(projectID string) ([]extract.Extract, error)
+	// ListAll sert la matrice des acces : "qui peut lire quoi" ne peut pas
+	// repondre pour un type d'objet qu'elle ne sait pas enumerer.
+	ListAll() ([]extract.Extract, error)
 	ListByOntology(ontologyID string) ([]extract.Extract, error)
 	GetByID(id string) (extract.Extract, bool, error)
 	Create(item extract.Extract, members []extract.Member) error
