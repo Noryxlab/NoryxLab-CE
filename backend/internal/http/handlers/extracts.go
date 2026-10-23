@@ -151,6 +151,10 @@ func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	object := extractdomain.New(identity.UserID(), ontologyID, projectID, req.Name, req.Description, req.Subjects, req.Modalities, req.Visits, req.Formats, req.Tables, req.DataTypes)
+	// La paternite suit l'ontologie decoupee, comme celle de l'ontologie suit
+	// le dataset lu : declarer une vue sur l'etude de quelqu'un n'en fait pas
+	// la sienne.
+	object.InheritOwner(item.OwnerType, item.OwnerID)
 	object.Layout = layout
 	frozen := make([]extractdomain.Member, 0, len(members))
 	for _, member := range members {

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
@@ -296,5 +297,68 @@ func TestLesDossiersNeResserrentQueLesModalitesQuIlsNomment(t *testing.T) {
 	}))
 	if dossier.ObjectCount != 1 {
 		t.Fatalf("ANTERION/TabulatedData = %d objets", dossier.ObjectCount)
+	}
+}
+
+// La paternite suit la source : lire la donnee de quelqu'un n'en fait pas la
+// sienne, et decouper son etude non plus.
+//
+// Une ontologie appartenait a qui avait presse "scanner", et un extrait a qui
+// l'avait declare - si bien que l'equipe proprietaire du bucket devait
+// demander l'acces a la description de sa propre etude.
+func TestLaPaterniteSuitLaSource(t *testing.T) {
+	datasets := memory.NewDatasetStore()
+	source := datasetdomain.New("createur", "HDS-For-selena", "", "hds-for-selena", "", "minio", "hds", "", "")
+	source.OwnerType, source.OwnerID = "team", "equipe-ophtalmo"
+	if err := datasets.Create(source); err != nil {
+		t.Fatal(err)
+	}
+	ontologies := memory.NewOntologyObjectStore()
+	lue := ontologydomain.New("quelqu-un-dautre", "SELENA", "", "dataset", source.ID, source.Name, "", []byte(`{}`))
+	lue.InheritOwner(source.OwnerType, source.OwnerID)
+	if lue.OwnerType != "team" || lue.OwnerID != "equipe-ophtalmo" {
+		t.Fatalf("ontologie = %s/%s, celle du dataset etait attendue", lue.OwnerType, lue.OwnerID)
+	}
+	if lue.OwnerUserID != "quelqu-un-dautre" {
+		t.Fatalf("l'auteur de la lecture doit rester nomme : %q", lue.OwnerUserID)
+	}
+	if err := ontologies.Create(lue); err != nil {
+		t.Fatal(err)
+	}
+	if err := ontologies.ReplaceObjects(lue.ID, []ontologydomain.Object{
+		{Path: "SELENA/S1/v1/ANTERION/TabulatedData/b.csv", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", DataType: "TabulatedData", SizeBytes: 10},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// L'extrait est declare par un administrateur, parce que l'ontologie
+	// appartient desormais a l'equipe et plus a qui l'a lue : c'est la
+	// consequence voulue, et la seule facon d'en declarer un depuis l'exterieur
+	// de l'equipe.
+	h := Handlers{
+		authMode: "header", ontologyStore: ontologies, extractStore: memory.NewExtractStore(),
+		datasetStore: datasets, bootstrapAdminUser: "user-1",
+	}
+	recorder := postExtract(t, h, lue.ID, map[string]any{"name": "pour-inria", "modalities": []string{"ANTERION"}})
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var extrait extractdomain.Extract
+	if err := json.Unmarshal(recorder.Body.Bytes(), &extrait); err != nil {
+		t.Fatal(err)
+	}
+	if extrait.OwnerType != "team" || extrait.OwnerID != "equipe-ophtalmo" {
+		t.Fatalf("extrait = %s/%s, celui de l'ontologie etait attendu", extrait.OwnerType, extrait.OwnerID)
+	}
+	if extrait.OwnerUserID != "user-1" {
+		t.Fatalf("l'auteur de l'extrait doit rester nomme : %q", extrait.OwnerUserID)
+	}
+
+	// Une source sans proprietaire ne deplace rien.
+	orpheline := ontologydomain.New("auteur", "AUTRE", "", "dataset", "inconnu", "", "", []byte(`{}`))
+	avant := orpheline.OwnerID
+	orpheline.InheritOwner("", "")
+	if orpheline.OwnerID != avant || orpheline.OwnerType != "user" {
+		t.Fatal("une source sans proprietaire doit laisser l'objet ou il est")
 	}
 }

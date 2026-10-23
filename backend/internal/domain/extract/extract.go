@@ -91,6 +91,20 @@ type Member struct {
 	SizeBytes int64  `json:"sizeBytes"`
 }
 
+// InheritOwner files this extract under the owner of the ontology it cuts.
+//
+// Same reason as the ontology: an extract is a view of somebody else's study,
+// and the person who declared it is its author, not its owner. The pair
+// OwnerType/OwnerID is what every access check reads; OwnerUserID stays the
+// author.
+func (e *Extract) InheritOwner(ownerType, ownerID string) {
+	ownerType, ownerID = strings.TrimSpace(ownerType), strings.TrimSpace(ownerID)
+	if ownerType == "" || ownerID == "" {
+		return
+	}
+	e.OwnerType, e.OwnerID = ownerType, ownerID
+}
+
 func New(ownerUserID, ontologyID, projectID, name, description string, subjects, modalities, visits, formats, tables, dataTypes []string) Extract {
 	now := time.Now().UTC()
 	return Extract{

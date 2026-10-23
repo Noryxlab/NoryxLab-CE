@@ -626,3 +626,26 @@ The mount is unchanged. The tree still has three directory levels, and the
 data type appears where it already appeared - inside the leaf, which keeps
 everything below the modality segment. An extract of SELENA's overlays mounts
 as `/extracts/<name>/<subject>/<visit>/ANTERION/SegmentOverlays/<file>`.
+
+
+## Who owns a reading
+
+An ontology belongs to the owner of the dataset it reads, and an extract to
+the owner of the ontology it cuts. The person who pressed scan, or declared
+the selection, is its **author** - kept and shown as such - but never its
+owner by the mere fact of having pressed a button.
+
+Before this, scanning a team's dataset produced an ontology owned by whoever
+ran the scan, and the team that owns the bucket had to ask that person for
+access to the description of its own study. The same held one level down, so
+an extract of a team's data belonged to the colleague who cut it.
+
+Two consequences worth stating. Scanning a dataset owned by a team you do not
+belong to produces an ontology you cannot then see; the platform refuses to
+create a second ontology over the same source, so the next scan says who to
+ask rather than quietly making a twin. And a source that carries no owner -
+an older dataset, a store not configured - leaves the object where it was
+created, because a bookkeeping lookup must never fail a scan that worked.
+
+A global administrator transfers either object afterwards, through the
+ownership endpoints that already existed.

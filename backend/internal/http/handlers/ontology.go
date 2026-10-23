@@ -844,6 +844,10 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 		// internal word in front of somebody who had just scanned a bucket
 		// they could name themselves.
 		object = ontologydomain.New(identity.UserID(), objectName, "Brouillon genere automatiquement depuis "+sourceLabel(manifest), manifest.SourceType, manifest.SourceID, manifest.SourceName, manifest.InferenceProfile, raw)
+		// La paternite suit la source : lire la donnee de quelqu'un n'en fait
+		// pas la sienne.
+		ownerType, ownerID := h.ownerOfSource(manifest.SourceType, manifest.SourceID)
+		object.InheritOwner(ownerType, ownerID)
 		if err := h.ontologyStore.Create(object); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create ontology object"})
 			return
@@ -1782,6 +1786,39 @@ func lireLeChemin(layout *dataset.PathLayout, relPath string) (subjectID, visitD
 	// personne n'a choisi.
 	subjectID, visitDate, modality = inferOntologyPath(relPath)
 	return subjectID, visitDate, modality, ""
+}
+
+// ownerOfSource answers who owns what an ontology describes.
+//
+// Empty when the source cannot be read - it has been deleted, or the store is
+// not configured - and the caller then keeps the ownership New gave it. A
+// scan that worked must not fail over a bookkeeping lookup.
+func (h Handlers) ownerOfSource(sourceType, sourceID string) (string, string) {
+	sourceID = strings.TrimSpace(sourceID)
+	if sourceID == "" {
+		return "", ""
+	}
+	switch strings.ToLower(strings.TrimSpace(sourceType)) {
+	case "dataset":
+		if h.datasetStore == nil {
+			return "", ""
+		}
+		item, found, err := h.datasetStore.GetByID(sourceID)
+		if err != nil || !found {
+			return "", ""
+		}
+		return item.OwnerType, item.OwnerID
+	case "datasource":
+		if h.datasourceStore == nil {
+			return "", ""
+		}
+		item, found, err := h.datasourceStore.GetByID(sourceID)
+		if err != nil || !found {
+			return "", ""
+		}
+		return item.OwnerType, item.OwnerID
+	}
+	return "", ""
 }
 
 // ontologyRefreshDiff says what a rescan changed, and why.

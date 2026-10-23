@@ -57,6 +57,26 @@ type Subject struct {
 	ID   string
 }
 
+// InheritOwner files this ontology under the owner of the source it describes.
+//
+// An ontology is a reading of somebody's data, not a thing of its own: the
+// person who pressed scan is the author of the reading, never the owner of
+// what it reads. Before this, scanning a team's dataset produced an ontology
+// owned by whoever ran the scan, and the team that owns the bucket had to ask
+// for access to the description of its own study.
+//
+// The author is kept in OwnerUserID, which is who made it; OwnerType and
+// OwnerID are who it belongs to, and they are the pair every access check
+// reads. An empty owner changes nothing, so a source that carries none leaves
+// the ontology where New put it.
+func (o *Ontology) InheritOwner(ownerType, ownerID string) {
+	ownerType, ownerID = strings.TrimSpace(ownerType), strings.TrimSpace(ownerID)
+	if ownerType == "" || ownerID == "" {
+		return
+	}
+	o.OwnerType, o.OwnerID = ownerType, ownerID
+}
+
 func New(ownerUserID, name, description, sourceType, sourceID, sourceName, inferenceProfile string, manifest json.RawMessage) Ontology {
 	now := time.Now().UTC()
 	return Ontology{
