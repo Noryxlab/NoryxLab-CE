@@ -107,6 +107,12 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 		if strings.EqualFold(item.OwnerType, subject.Type) && strings.EqualFold(item.OwnerID, subject.ID) {
 			return "owner"
 		}
+		// Un magasin absent veut dire "aucun droit nominatif", pas un
+		// plantage : le proprietaire se lit sans lui, et une installation qui
+		// n'a pas encore sa base ne doit pas tomber sur cette ligne.
+		if h.datasetStore == nil {
+			continue
+		}
 		access, found, err := h.datasetStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role
@@ -117,7 +123,14 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 
 func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	subjects := []dataset.Subject{{Type: "user", ID: identity.UserID()}}
+	teamIDs := h.callerTeamIDs(identity)
+	for _, teamID := range teamIDs {
+		subjects = append(subjects, dataset.Subject{Type: "team", ID: teamID})
+	}
 	if h.keycloak == nil {
+		return subjects
+	}
+	if !h.organizationSubjectsApply(identity, teamIDs) {
 		return subjects
 	}
 	identifier := strings.TrimSpace(identity.Subject)
@@ -131,10 +144,46 @@ func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	for _, organization := range organizations {
 		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organization.ID})
 	}
-	for _, teamID := range h.callerTeamIDs(identity) {
-		subjects = append(subjects, dataset.Subject{Type: "team", ID: teamID})
-	}
 	return subjects
+}
+
+// organizationSubjectsApply says whether this caller inherits what their
+// organizations own.
+//
+// Belonging to an organization used to be enough, and it granted the OWNER
+// role - read, write, delete and the right to hand out access - on every
+// object that organization owns. On EMSE that was eight HDS buckets, so an
+// account created and dropped into Essilor held, on its first day, the power
+// to delete a health dataset it had never been introduced to. An account made
+// for a test on 2026-10-23 is what showed it.
+//
+// Essilor's rule, and it is theirs to set over their own data: an
+// organization without a team confers nothing. A team is the unit somebody is
+// deliberately added to, so it is the unit that carries the data right;
+// membership of the organization says where a person works, not what they may
+// read.
+//
+// The question has to be answerable before it is enforced. A team store that
+// is absent or cannot reply would otherwise make every caller teamless and cut
+// the whole platform in one request - so an unanswerable question degrades to
+// the previous behaviour rather than to a refusal, and says so in the log.
+func (h Handlers) organizationSubjectsApply(identity auth.Identity, teamIDs []string) bool {
+	if len(teamIDs) > 0 {
+		return true
+	}
+	if h.teamStore == nil {
+		return true
+	}
+	for _, identifier := range []string{identity.Username, identity.Email, identity.Subject} {
+		if strings.TrimSpace(identifier) == "" {
+			continue
+		}
+		if _, err := h.teamStore.ListByUser(strings.TrimSpace(identifier)); err != nil {
+			log.Printf("access: teams unavailable for %s, organization inheritance kept: %v", identifier, err)
+			return true
+		}
+	}
+	return false
 }
 
 func (h Handlers) datasetAvailableInEdition(item dataset.Dataset) bool {

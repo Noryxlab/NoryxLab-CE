@@ -1012,7 +1012,21 @@ func (h Handlers) ontologyItem(ontologyID, projectName string) (ontologyListItem
 
 func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subject {
 	subjects := []ontologydomain.Subject{{Type: "user", ID: identity.UserID()}}
+	// Les equipes, que les datasets connaissaient deja et pas les ontologies :
+	// une ontologie ne pouvait donc meme pas etre partagee avec une equipe.
+	teamIDs := h.callerTeamIDs(identity)
+	for _, teamID := range teamIDs {
+		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
+	}
 	if h.keycloak == nil {
+		return subjects
+	}
+	// Meme regle que sur un dataset, et pour la meme raison : une ontologie
+	// est une lecture de la donnee de quelqu'un, et un extrait une vue de
+	// cette lecture. Les trois objets decrivent la meme donnee ; les laisser
+	// repondre differemment a "qui peut voir" serait une porte derriere la
+	// porte qu'on vient de fermer.
+	if !h.organizationSubjectsApply(identity, teamIDs) {
 		return subjects
 	}
 	identifier := strings.TrimSpace(identity.Subject)
@@ -1025,11 +1039,6 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 	}
 	for _, organization := range organizations {
 		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
-	}
-	// Les equipes, que les datasets connaissaient deja et pas les ontologies :
-	// une ontologie ne pouvait donc meme pas etre partagee avec une equipe.
-	for _, teamID := range h.callerTeamIDs(identity) {
-		subjects = append(subjects, ontologydomain.Subject{Type: "team", ID: teamID})
 	}
 	return subjects
 }
