@@ -3009,7 +3009,6 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 		{"visit", filter.Visits},
 		{"format", filter.Formats},
 		{"measurement_table", filter.Tables},
-		{"data_type", filter.DataTypes},
 	} {
 		if len(axis.values) == 0 {
 			continue
@@ -3020,6 +3019,23 @@ func (s *Store) ListOntologyObjects(ontologyID string, filter ontology.ObjectFil
 			placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
 		}
 		query += fmt.Sprintf(" AND %s IN (%s)", axis.column, strings.Join(placeholders, ","))
+	}
+	// Le dossier a part : il ne resserre que les modalites qu'il nomme.
+	//
+	// Un IN simple viderait celles qui ne rangent aucun dossier, alors que
+	// leur auteur les a cochees. La sous-requete dit quelles modalites
+	// portent un des dossiers demandes ; les autres passent entieres, comme
+	// une modalite dont on n'a coche aucun dossier.
+	if len(filter.DataTypes) > 0 {
+		placeholders := make([]string, 0, len(filter.DataTypes))
+		for _, value := range filter.DataTypes {
+			args = append(args, value)
+			placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
+		}
+		liste := strings.Join(placeholders, ",")
+		query += fmt.Sprintf(
+			" AND (data_type IN (%s) OR modality NOT IN (SELECT modality FROM ontology_objects WHERE ontology_id=$1 AND data_type IN (%s)))",
+			liste, liste)
 	}
 	query += ` ORDER BY subject_id, visit, modality, path`
 	if filter.Limit > 0 {

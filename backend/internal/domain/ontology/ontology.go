@@ -131,8 +131,20 @@ type ObjectFilter struct {
 	// Tables narrows to measurement tables. Same rule: empty is no
 	// constraint.
 	Tables []string
-	// DataTypes narrows to the folders below the modality. Same rule: empty
-	// is no constraint, never nothing.
+	// DataTypes narrows to the folders below the modality, and narrows ONLY
+	// the modalities that hold one of them.
+	//
+	// The other axes intersect, because they describe every object: every
+	// file has a subject, a visit and a kind. A folder does not - the level
+	// is optional - so intersecting it empties the modalities that file none.
+	// An extract declared on 2026-10-23 had OPTOS ticked among its modalities
+	// and carried no OPTOS file, because OPTOS lays its images loose under
+	// the modality and the filter asked for folders.
+	//
+	// So the rule is the one a person reads off the form: ticking nothing for
+	// a modality takes all of it, exactly as ticking no subject takes every
+	// subject. A modality none of whose folders are ticked is untouched by
+	// this axis; a modality that holds a ticked folder is narrowed to it.
 	DataTypes []string
 	Limit     int
 }

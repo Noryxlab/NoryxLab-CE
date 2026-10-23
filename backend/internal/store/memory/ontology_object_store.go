@@ -265,14 +265,25 @@ func (s *OntologyObjectStore) ReplaceObjects(ontologyID string, objects []ontolo
 func (s *OntologyObjectStore) ListObjects(ontologyID string, filter ontology.ObjectFilter) ([]ontology.Object, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	objets := s.objects[strings.TrimSpace(ontologyID)]
+	// Les modalites que le filtre de dossiers nomme, c'est-a-dire celles qui
+	// portent au moins un des dossiers demandes.
+	nommees := map[string]bool{}
+	if len(filter.DataTypes) > 0 {
+		for _, object := range objets {
+			if matchesAxis(filter.DataTypes, object.DataType) {
+				nommees[object.Modality] = true
+			}
+		}
+	}
 	out := []ontology.Object{}
-	for _, object := range s.objects[strings.TrimSpace(ontologyID)] {
+	for _, object := range objets {
 		if !matchesAxis(filter.Subjects, object.SubjectID) ||
 			!matchesAxis(filter.Modalities, object.Modality) ||
 			!matchesAxis(filter.Visits, object.Visit) ||
 			!matchesAxis(filter.Formats, object.Format) ||
 			!matchesAxis(filter.Tables, object.Table) ||
-			!matchesAxis(filter.DataTypes, object.DataType) {
+			!matchesDataType(filter, object, nommees) {
 			continue
 		}
 		out = append(out, object)
@@ -287,6 +298,18 @@ func (s *OntologyObjectStore) CountObjects(ontologyID string) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.objects[strings.TrimSpace(ontologyID)]), nil
+}
+
+// Le dossier ne resserre que les modalites qu'il nomme : celles qui n'en
+// portent aucun des dossiers demandes passent entieres.
+func matchesDataType(filter ontology.ObjectFilter, object ontology.Object, nommees map[string]bool) bool {
+	if len(filter.DataTypes) == 0 {
+		return true
+	}
+	if !nommees[object.Modality] {
+		return true
+	}
+	return matchesAxis(filter.DataTypes, object.DataType)
 }
 
 // An empty axis is "no constraint", never "nothing".

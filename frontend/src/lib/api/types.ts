@@ -1120,6 +1120,10 @@ export interface OntologyModalityCoverage {
   subjects: number;
   objects: number;
   missingSubjects: string[];
+  /** Les dossiers que cette modalite range sous elle. Vide quand elle n'en
+   *  range aucun - OPTOS pose ses images directement sous la modalite, et un
+   *  filtre par dossier n'a donc rien a lui dire. */
+  dataTypes?: string[];
 }
 
 /** Ce que chaque genre de fichier pese dans l'etude.

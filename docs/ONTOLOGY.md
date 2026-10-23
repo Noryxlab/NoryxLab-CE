@@ -611,6 +611,17 @@ the subject. A layout built in code that names three levels stays a
 three-level layout instead of quietly acquiring a fourth at the root, and a
 layout stored before this level existed decodes as not naming it.
 
+**A folder filter narrows only the modalities it names.** The other axes
+intersect, because they describe every object: every file has a subject, a
+visit and a kind. A folder does not, so intersecting it empties the
+modalities that file none - an extract declared on 2026-10-23 had OPTOS
+ticked among its modalities and carried no OPTOS file, because OPTOS lays
+its images loose under the modality. The rule is the one a person reads off
+the form: ticking nothing for a modality takes all of it, exactly as ticking
+no subject takes every subject. The form offers the folders of the ticked
+modalities, and unticking a modality drops its folders from the selection,
+so a filter that is no longer on screen is no longer in force.
+
 The mount is unchanged. The tree still has three directory levels, and the
 data type appears where it already appeared - inside the leaf, which keeps
 everything below the modality segment. An extract of SELENA's overlays mounts

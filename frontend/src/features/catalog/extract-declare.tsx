@@ -88,7 +88,23 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
   const available = coverage.data?.modalities ?? [];
   const genres = coverage.data?.formats ?? [];
   const mesures = coverage.data?.tables ?? [];
-  const typesDeDonnees = coverage.data?.dataTypes ?? [];
+  /* Les dossiers proposes suivent les modalites cochees.
+   *
+   *  La liste etait celle de l'etude entiere : avec ANTERION seule cochee,
+   *  l'ecran offrait encore les neuf series d'IRM, qui n'ont rien a faire la
+   *  et qui repoussaient TabulatedData en bas d'un pave de vingt pastilles.
+   *  Rien de coche : tout, comme partout ailleurs sur ce formulaire. */
+  const tousLesDossiers = coverage.data?.dataTypes ?? [];
+  const dossiersDesModalites = React.useMemo(() => {
+    if (chosen.length === 0) return tousLesDossiers;
+    const gardes = new Set<string>();
+    for (const modalite of available) {
+      if (!chosen.includes(modalite.name)) continue;
+      for (const nom of modalite.dataTypes ?? []) gardes.add(nom);
+    }
+    return tousLesDossiers.filter((type) => gardes.has(type.name));
+  }, [tousLesDossiers, available, chosen]);
+  const typesDeDonnees = dossiersDesModalites;
 
   // Repartir de zero quand on change d'ontologie, sinon le formulaire propose
   // de decouper la nouvelle avec les categories de l'ancienne.
@@ -107,6 +123,16 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
   const toggleKind = (nom: string) => setKinds((current) => bascule(current, nom));
   const toggleTable = (nom: string) => setTables((current) => bascule(current, nom));
   const toggleDossier = (nom: string) => setDossiers((current) => bascule(current, nom));
+  /* Decocher une modalite retire ses dossiers de la selection : un filtre
+   *  invisible a l'ecran mais toujours actif est un n que personne ne peut
+   *  expliquer. */
+  React.useEffect(() => {
+    setDossiers((current) => {
+      const offerts = new Set(dossiersDesModalites.map((type) => type.name));
+      const gardes = current.filter((nom) => offerts.has(nom));
+      return gardes.length === current.length ? current : gardes;
+    });
+  }, [dossiersDesModalites]);
 
   const asList = (raw: string) =>
     raw
@@ -195,12 +221,25 @@ export function ExtractDeclareForm({ ontology }: { ontology: Ontology }) {
     tables.length === 0
       ? null
       : mesures.filter((m) => tables.includes(m.name)).reduce((t, m) => t + m.objects, 0);
-  const prisParDossier =
-    dossiers.length === 0
-      ? null
-      : typesDeDonnees
-          .filter((type) => dossiers.includes(type.name))
-          .reduce((total, type) => total + type.objects, 0);
+  /* Ce que les dossiers coches pesent, plus les modalites qu'ils ne nomment
+   *  pas : celles-la viennent entieres, et les compter a part evite
+   *  d'annoncer un nombre plus petit que l'extrait livre. */
+  const prisParDossier = React.useMemo(() => {
+    if (dossiers.length === 0) return null;
+    const choisis = typesDeDonnees
+      .filter((type) => dossiers.includes(type.name))
+      .reduce((total, type) => total + type.objects, 0);
+    const concernees = new Set(
+      available
+        .filter((modalite) => (modalite.dataTypes ?? []).some((nom) => dossiers.includes(nom)))
+        .map((modalite) => modalite.name),
+    );
+    const entieres = available
+      .filter((modalite) => !concernees.has(modalite.name))
+      .filter((modalite) => chosen.length === 0 || chosen.includes(modalite.name))
+      .reduce((total, modalite) => total + modalite.objects, 0);
+    return choisis + entieres;
+  }, [dossiers, typesDeDonnees, available, chosen]);
   const borneHaute =
     filtreEntites || prisParGenre !== null || prisParTable !== null || prisParDossier !== null;
   const annonce = [prisParCategorie, prisParGenre, prisParTable, prisParDossier]

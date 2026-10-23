@@ -23,6 +23,15 @@ type modalityCoverage struct {
 	Subjects        int      `json:"subjects"`
 	Objects         int      `json:"objects"`
 	MissingSubjects []string `json:"missingSubjects"`
+	// DataTypes is the folders this modality files below itself, empty when
+	// it files none - OPTOS lays its images loose under the modality.
+	//
+	// Per modality rather than only study-wide, because that is the question
+	// the extract form has to answer before somebody presses create: a folder
+	// filter says nothing about a modality that holds no folder, and an
+	// extract that silently dropped one was declared on 2026-10-23 with OPTOS
+	// ticked and no OPTOS file in it.
+	DataTypes []string `json:"dataTypes,omitempty"`
 }
 
 // formatCoverage is how much of the study each kind of file accounts for.
@@ -83,6 +92,7 @@ func (h Handlers) GetOntologyCompleteness(w http.ResponseWriter, r *http.Request
 func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness {
 	subjectsWith := map[string]map[string]bool{}
 	objectsPer := map[string]int{}
+	foldersPer := map[string]map[string]bool{}
 	for _, subject := range manifest.Subjects {
 		for _, visit := range subject.Visits {
 			for _, modality := range visit.Modalities {
@@ -95,6 +105,12 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 				}
 				subjectsWith[name][subject.ID] = true
 				objectsPer[name] += modality.ObjectCount
+				if foldersPer[name] == nil {
+					foldersPer[name] = map[string]bool{}
+				}
+				for folder := range modality.DataTypeCounts {
+					foldersPer[name][folder] = true
+				}
 			}
 		}
 	}
@@ -112,6 +128,7 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 			Subjects:        len(holders),
 			Objects:         objectsPer[name],
 			MissingSubjects: []string{},
+			DataTypes:       sortedNames(foldersPer[name]),
 		}
 		for _, subject := range manifest.Subjects {
 			if !holders[subject.ID] {
@@ -148,6 +165,15 @@ func computeOntologyCompleteness(manifest ontologyManifest) ontologyCompleteness
 // tablesIn totals each measurement table across the whole photograph.
 func tablesIn(manifest ontologyManifest) []formatCoverage {
 	return tallyAcross(manifest, func(m ontologyModality) map[string]ontologyFormatTally { return m.TableCounts })
+}
+
+func sortedNames(valeurs map[string]bool) []string {
+	out := make([]string, 0, len(valeurs))
+	for nom := range valeurs {
+		out = append(out, nom)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // dataTypesIn totals each folder below a modality across the whole photograph.

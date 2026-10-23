@@ -238,3 +238,63 @@ func TestUnExtraitSeSelectionneSousLaModalite(t *testing.T) {
 		t.Fatalf("deux dossiers = %d objets", paire.ObjectCount)
 	}
 }
+
+// Une modalite sans dossier n'est pas perdue par un filtre de dossiers.
+//
+// L'extrait test-inria a ete declare avec OPTOS parmi ses modalites et aucun
+// fichier OPTOS dedans : OPTOS pose ses images directement sous la modalite,
+// le filtre demandait des dossiers, et l'intersection l'a videe en silence.
+// La regle est celle qu'on lit sur le formulaire : ne rien cocher pour une
+// modalite, c'est la prendre entiere - exactement comme ne cocher aucun
+// patient les prend tous.
+func TestLesDossiersNeResserrentQueLesModalitesQuIlsNomment(t *testing.T) {
+	ontologies := memory.NewOntologyObjectStore()
+	objet := ontologydomain.New("user-1", "SELENA", "", "dataset", "dataset-1", "HDS-For-selena", "health-file-path-v1", []byte(`{}`))
+	if err := ontologies.Create(objet); err != nil {
+		t.Fatal(err)
+	}
+	if err := ontologies.ReplaceObjects(objet.ID, []ontologydomain.Object{
+		{Path: "SELENA/S1/v1/ANTERION/TabulatedData/basics.csv", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", Format: "CSV", DataType: "TabulatedData", SizeBytes: 10},
+		{Path: "SELENA/S1/v1/ANTERION/DICOM/DICOM/im.dcm", SubjectID: "S1", Visit: "v1", Modality: "ANTERION", Format: "DICOM", DataType: "DICOM", SizeBytes: 20},
+		{Path: "SELENA/S1/v1/OPTOS/1.2.826.dcm", SubjectID: "S1", Visit: "v1", Modality: "OPTOS", Format: "DICOM", SizeBytes: 30},
+		{Path: "SELENA/S1/v1/OPTOS/1.2.827.dcm", SubjectID: "S1", Visit: "v1", Modality: "OPTOS", Format: "DICOM", SizeBytes: 40},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{authMode: "header", ontologyStore: ontologies, extractStore: memory.NewExtractStore()}
+
+	lire := func(recorder *httptest.ResponseRecorder) extractdomain.Extract {
+		t.Helper()
+		var item extractdomain.Extract
+		if err := json.Unmarshal(recorder.Body.Bytes(), &item); err != nil {
+			t.Fatalf("decode: %v - %s", err, recorder.Body.String())
+		}
+		return item
+	}
+
+	// Le cas de test-inria : ANTERION resserree sur son dossier, OPTOS entiere.
+	melange := lire(postExtract(t, h, objet.ID, map[string]any{
+		"name": "test-inria", "modalities": []string{"ANTERION", "OPTOS"},
+		"dataTypes": []string{"TabulatedData"},
+	}))
+	if melange.ObjectCount != 3 {
+		t.Fatalf("= %d objets, le fichier tabule et les deux OPTOS etaient attendus", melange.ObjectCount)
+	}
+
+	// Une modalite seule, sans dossier coche : elle vient entiere.
+	entiere := lire(postExtract(t, h, objet.ID, map[string]any{
+		"name": "anterion-entiere", "modalities": []string{"ANTERION"},
+	}))
+	if entiere.ObjectCount != 2 {
+		t.Fatalf("ANTERION entiere = %d objets", entiere.ObjectCount)
+	}
+
+	// Et un dossier seul reste un dossier seul pour la modalite qui le porte.
+	dossier := lire(postExtract(t, h, objet.ID, map[string]any{
+		"name": "tabule-seul", "modalities": []string{"ANTERION"},
+		"dataTypes": []string{"TabulatedData"},
+	}))
+	if dossier.ObjectCount != 1 {
+		t.Fatalf("ANTERION/TabulatedData = %d objets", dossier.ObjectCount)
+	}
+}
