@@ -2732,6 +2732,18 @@ func (s *Store) DeleteDataset(id string) error {
 	if _, err := tx.Exec(`DELETE FROM dataset_access WHERE dataset_id=$1`, strings.TrimSpace(id)); err != nil {
 		return err
 	}
+	// And the measurement, which outlived its dataset.
+	//
+	// The nightly sampler writes one row per dataset and this deletion left
+	// them: the DC carried four, from the day eight regulated buckets were
+	// withdrawn, and the platform's own orphan check failed every night for a
+	// week over rows nothing could ever offer to remove. The grants above are
+	// deleted here for the same reason; the dependent tables added since -
+	// extract and datasource permissions, extract members - carry ON DELETE
+	// CASCADE and need no line.
+	if _, err := tx.Exec(`DELETE FROM dataset_sizes WHERE dataset_id=$1`, strings.TrimSpace(id)); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(`DELETE FROM datasets WHERE id=$1`, strings.TrimSpace(id)); err != nil {
 		return err
 	}
