@@ -239,7 +239,7 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 	}
 	seen := map[string]map[string]bool{}
 	for _, cell := range report.Cells {
-		key := rbacRoleKey(cell.Role)
+		key := rbacPolicyRowFor(cell)
 		if key == "" {
 			continue
 		}
@@ -248,11 +248,53 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 		}
 		seen[key][cell.SubjectType+":"+cell.SubjectID] = true
 	}
+	// Les administrateurs de la plateforme ne sont pas dans la matrice : elle
+	// parle de ressources, et ce role-la n'en vise aucune. Il se compte dans
+	// l'annuaire, qui en est la source.
+	if h.keycloak != nil {
+		if members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole); err == nil {
+			porteurs := map[string]bool{}
+			for _, member := range members {
+				porteurs["user:"+strings.ToLower(strings.TrimSpace(member.Username))] = true
+			}
+			seen["admin"] = porteurs
+		}
+	}
 	out := map[string]int{}
 	for key, subjects := range seen {
 		out[key] = len(subjects)
 	}
 	return out, nil
+}
+
+// rbacPolicyRowFor says which published row a grant belongs to.
+//
+// It used to be the role string alone, which put every project administrator
+// on the row that describes *platform* administration: an installation with
+// twelve project admins and six platform ones read "Administrateur - platform
+// configuration, governance, audit - held by 12". The row meant for them,
+// "Project admin", read zero. A governance screen that miscounts the strongest
+// role on the platform is worse than one that shows nothing.
+//
+// The resource decides, not the word: the same "admin" means a project on a
+// project and nothing else anywhere.
+func rbacPolicyRowFor(cell rbacCell) string {
+	role := rbacRoleKey(cell.Role)
+	switch role {
+	case "admin":
+		if strings.EqualFold(strings.TrimSpace(cell.ResourceType), "project") {
+			return "project-admin"
+		}
+		return ""
+	case "owner":
+		// Posseder par une organisation n'est pas posseder nominativement :
+		// l'une administre sans lire, l'autre lit. Deux lignes, deux comptes.
+		if strings.EqualFold(strings.TrimSpace(cell.Source), "owner-organization") {
+			return "owner-organization"
+		}
+		return "owner"
+	}
+	return role
 }
 
 // defaultRBACPolicyRows describes what the platform already does, which is what

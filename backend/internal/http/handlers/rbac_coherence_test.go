@@ -494,3 +494,31 @@ func TestLeJournalNePorteJamaisUnJetonDeSession(t *testing.T) {
 		}
 	}
 }
+
+// Chaque role se compte sur sa propre ligne.
+//
+// Le compte se faisait sur le seul mot du role, ce qui posait tous les
+// administrateurs de projet sur la ligne qui decrit l'administration de la
+// plateforme : douze administrateurs de projet et six de plateforme se
+// lisaient « Administrateur - configuration, gouvernance, audit - porte par
+// 12 », et la ligne « Project admin » affichait zero. Un ecran de gouvernance
+// qui se trompe sur le role le plus fort est pire qu'un ecran vide.
+func TestChaqueRoleSeCompteSurSaLigne(t *testing.T) {
+	cas := []struct {
+		cellule rbacCell
+		attendu string
+	}{
+		{rbacCell{Role: "admin", ResourceType: "project"}, "project-admin"},
+		{rbacCell{Role: "admin", ResourceType: "dataset"}, ""},
+		{rbacCell{Role: "owner", ResourceType: "dataset", Source: "owner"}, "owner"},
+		{rbacCell{Role: "owner", ResourceType: "dataset", Source: "owner-organization"}, "owner-organization"},
+		{rbacCell{Role: "reader", ResourceType: "dataset"}, "reader"},
+		{rbacCell{Role: "editor", ResourceType: "project"}, "editor"},
+	}
+	for _, essai := range cas {
+		if obtenu := rbacPolicyRowFor(essai.cellule); obtenu != essai.attendu {
+			t.Fatalf("%s sur %s (source %q) -> %q, attendu %q",
+				essai.cellule.Role, essai.cellule.ResourceType, essai.cellule.Source, obtenu, essai.attendu)
+		}
+	}
+}
