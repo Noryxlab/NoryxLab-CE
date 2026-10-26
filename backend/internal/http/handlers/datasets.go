@@ -1767,6 +1767,16 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
 	}
+	// Et l'inverse : une application deja servie publiquement interdit
+	// d'attacher de la donnee reglementee a ce projet.
+	if strings.EqualFold(strings.TrimSpace(item.Classification), "hds") {
+		if nom := h.projectServesPubliclyNamed(projectID); nom != "" {
+			writeJSON(w, http.StatusConflict, map[string]string{
+				"error": "this project publishes an application to the public (" + nom + "): regulated data cannot be attached to it",
+			})
+			return
+		}
+	}
 	if exists, err := h.projectExists(projectID); err != nil || !exists {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
 		return

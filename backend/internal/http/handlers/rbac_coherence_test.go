@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	appdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
@@ -520,5 +521,52 @@ func TestChaqueRoleSeCompteSurSaLigne(t *testing.T) {
 			t.Fatalf("%s sur %s (source %q) -> %q, attendu %q",
 				essai.cellule.Role, essai.cellule.ResourceType, essai.cellule.Source, obtenu, essai.attendu)
 		}
+	}
+}
+
+// Donnee reglementee et application publique ne partagent pas un projet.
+//
+// Une application sert ce que son code veut rendre, a qui son mode d'acces
+// admet - et « public » admet l'internet, sans session. Le pod monte les
+// datasets du projet, resolus pour la personne qui l'a lancee : une
+// application publiee par quelqu'un qui lit un bucket reglemente a ce bucket
+// monte derriere une URL qui ne demande rien a personne. Et une vue anonyme
+// ne porte aucun acteur, donc le journal ne dirait meme pas qui a regarde.
+func TestUneAppPubliqueEtDeLaDonneeReglementeeNeSePartagentPasUnProjet(t *testing.T) {
+	datasets := memory.NewDatasetStore()
+	hds := datasetdomain.Dataset{ID: "d1", Name: "HDS-For-selena", Classification: "hds", OwnerType: "organization", OwnerID: "org-for"}
+	ordinaire := datasetdomain.Dataset{ID: "d2", Name: "meteo", OwnerType: "user", OwnerID: "stef"}
+	for _, item := range []datasetdomain.Dataset{hds, ordinaire} {
+		if err := datasets.Create(item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ressources := memory.NewProjectResourceStore()
+	if err := ressources.AttachDataset("p-hds", "d1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ressources.AttachDataset("p-ordinaire", "d2"); err != nil {
+		t.Fatal(err)
+	}
+	apps := memory.NewAppStore()
+	if err := apps.Upsert(appdomain.App{ID: "a1", ProjectID: "p-public", Name: "meteo-couilly", AccessMode: "public"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := apps.Upsert(appdomain.App{ID: "a2", ProjectID: "p-prive", Name: "interne", AccessMode: "private"}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{datasetStore: datasets, projectResourceStore: ressources, appStore: apps}
+
+	if nom := h.projectHoldsRegulatedDataNamed("p-hds"); nom != "HDS-For-selena" {
+		t.Fatalf("la donnee reglementee du projet n'est pas vue : %q", nom)
+	}
+	if nom := h.projectHoldsRegulatedDataNamed("p-ordinaire"); nom != "" {
+		t.Fatalf("un dataset ordinaire est pris pour reglemente : %q", nom)
+	}
+	if nom := h.projectServesPubliclyNamed("p-public"); nom != "meteo-couilly" {
+		t.Fatalf("l'application publique n'est pas vue : %q", nom)
+	}
+	if nom := h.projectServesPubliclyNamed("p-prive"); nom != "" {
+		t.Fatalf("une application privee est prise pour publique : %q", nom)
 	}
 }

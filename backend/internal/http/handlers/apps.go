@@ -542,6 +542,15 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "accessMode must be public, organization, users, or private"})
 		return
 	}
+	// Une donnee reglementee dans le projet interdit la publication publique.
+	if req.AccessMode == publicAppAccessMode {
+		if nom := h.projectHoldsRegulatedDataNamed(req.ProjectID); nom != "" {
+			writeJSON(w, http.StatusConflict, map[string]string{
+				"error": "this project attaches regulated data (" + nom + "): an application here cannot be served publicly",
+			})
+			return
+		}
+	}
 	if req.AccessMode == "organization" && len(req.AllowedOrganizations) == 0 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedOrganizations is required for organization access"})
 		return

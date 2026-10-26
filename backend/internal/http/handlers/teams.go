@@ -44,7 +44,12 @@ func (h Handlers) teamStoreReady(w http.ResponseWriter) bool {
 }
 
 func (h Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
-	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
+	// Resolu pour la meme raison : l'ecran qui affiche l'alias doit retrouver
+	// les equipes enregistrees sous l'identifiant.
+	organizationID, ok := h.resolveOrganizationID(w, r)
+	if !ok {
+		return
+	}
 	if _, ok := h.requireOrganizationScope(w, r, organizationID); !ok {
 		return
 	}
@@ -60,7 +65,19 @@ func (h Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) CreateTeam(w http.ResponseWriter, r *http.Request) {
-	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
+	// L'identifiant, jamais l'alias tel qu'il arrive.
+	//
+	// La valeur du chemin etait ecrite telle quelle dans l'equipe. Appelee
+	// avec "essilor" au lieu de l'identifiant de l'organisation, elle
+	// fabriquait une equipe dont l'organisation ne correspond a rien : hors
+	// de portee de tout controle d'organisation, absente de l'ecran qui la
+	// listerait, et pourtant porteuse d'octrois sur la donnee, puisqu'un
+	// octroi d'equipe ne regarde que l'appartenance. Un objet invisible qui
+	// donne acces est la pire forme d'objet.
+	organizationID, ok := h.resolveOrganizationID(w, r)
+	if !ok {
+		return
+	}
 	identity, ok := h.requireOrganizationScope(w, r, organizationID)
 	if !ok {
 		return
