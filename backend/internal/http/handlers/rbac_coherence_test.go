@@ -689,3 +689,24 @@ func TestUnJetonDeComposantNeLitPasToutEnBlanc(t *testing.T) {
 		t.Fatal("un jeton personnel a perdu sa lecture")
 	}
 }
+
+// RStudio sait qui est son utilisateur unique avant de demarrer.
+//
+// En mode auth-none, RStudio Server lit l'utilisateur pour lequel il lance les
+// sessions dans la variable USER, pas dans --server-user. Un pod demarre sans
+// environnement de connexion, donc USER etait vide : chaque requete sur /
+// repondait « pas d'identifiant, connectez-vous », la page de connexion posait
+// un cookie de session au nom vide, et / le rejetait a nouveau. Safari
+// comptait les tours et abandonnait.
+func TestRStudioConnaitSonUtilisateurAvantDeDemarrer(t *testing.T) {
+	script := workspaceBootstrapScript("rstudio", "ws-1", "jeton", "", "", false,
+		"/home/noryx/.noryx-profile", "/mnt", nil, 0, "", false, 0, nil)
+	exportation := strings.Index(script, "export USER=noryx LOGNAME=noryx HOME=/home/noryx")
+	serveur := strings.Index(script, "/usr/lib/rstudio-server/bin/rserver")
+	if exportation < 0 {
+		t.Fatal("le script de lancement RStudio n'exporte plus USER : la premiere requete bouclera sur la page de connexion")
+	}
+	if serveur < 0 || exportation > serveur {
+		t.Fatal("USER doit etre exporte avant que rserver demarre, pas apres")
+	}
+}

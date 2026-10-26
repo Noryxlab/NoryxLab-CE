@@ -1707,6 +1707,20 @@ func workspaceBootstrapScript(
 			"mkdir -p /var/lib/rstudio-server /home/noryx/.config/rstudio",
 			"rm -f /var/lib/rstudio-server/rstudio-os.sqlite /var/lib/rstudio-server/rstudio-os.sqlite-shm /var/lib/rstudio-server/rstudio-os.sqlite-wal || true",
 			"for key_file in secure-cookie-key session-rpc-key; do head -c 32 /dev/urandom > /var/lib/rstudio-server/${key_file}; chown noryx:noryx /var/lib/rstudio-server/${key_file}; chmod 600 /var/lib/rstudio-server/${key_file}; done",
+			// Who the single user is, said out loud.
+			//
+			// In auth-none mode RStudio Server resolves the one user it will
+			// run sessions for from the USER environment variable, not from
+			// --server-user. A pod starts with no login environment, so USER
+			// was unset: every request to / answered "no user identifier,
+			// sign in", the sign-in page stamped a session cookie whose user
+			// name was empty, and / rejected it again. Safari counted the
+			// laps and reported "too many redirects". Rocker's own init
+			// exports USER before launching rserver, which is why the
+			// documented image works and the same binary launched by hand did
+			// not. Reproduced and closed behind a real prefix-stripping proxy
+			// on 2026-10-27, on RStudio 2026.01.1 and 2026.04.0 alike.
+			"export USER=noryx LOGNAME=noryx HOME=/home/noryx",
 			ideCommandPrefix+"/usr/lib/rstudio-server/bin/rserver \\",
 			"  --server-daemonize=0 \\",
 			"  --www-address=0.0.0.0 \\",
