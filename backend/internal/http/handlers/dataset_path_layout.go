@@ -193,8 +193,21 @@ const (
 // bucket, and it never goes near a model: on these datasets a key is a patient
 // identifier, which is why the assistant is shown shapes instead (ADR-040).
 func (h Handlers) TryDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
+	identity, authorise := h.requireIdentity(w, r)
+	if !authorise {
+		return
+	}
 	item, ok := h.requireDatasetForLayout(w, r)
 	if !ok {
+		return
+	}
+	// Essayer une regle rend douze chemins reels du bucket - des cles qui
+	// nomment des patients, leurs visites et leurs examens. Voir l'objet ne
+	// suffit donc pas : il faut le droit sur la donnee, comme pour en lister
+	// le contenu. Qui administre sans lire ecrit la regle sans l'essayer, ou
+	// se fait accorder la lecture.
+	if !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
 	var req pathLayoutRequest

@@ -318,6 +318,9 @@ func (h Handlers) ListOntologies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.nameOntologyOwners(items)
+	// Une ligne de catalogue dit qu'un objet existe, elle ne porte pas son
+	// contenu : le manifeste nomme chaque sujet de l'etude.
+	h.redactOntologiesForReader(items, identity)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 

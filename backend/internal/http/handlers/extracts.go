@@ -216,6 +216,8 @@ func (h Handlers) ListOntologyExtracts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.nameExtractOwners(items)
+	// La liste des sujets figes est du contenu, pas une etiquette.
+	h.redactExtractsForReader(items, identity)
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -632,6 +634,7 @@ func (h Handlers) ListProjectExtracts(w http.ResponseWriter, r *http.Request) {
 	}
 	items = visibles
 	h.nameExtractOwners(items)
+	h.redactExtractsForReader(items, identity)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
@@ -686,6 +689,7 @@ func (h Handlers) ListExtracts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.nameExtractOwners(items)
+	h.redactExtractsForReader(items, identity)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 

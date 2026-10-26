@@ -18,13 +18,34 @@ type launchPodRequest struct {
 	Env       map[string]string `json:"env"`
 }
 
-func (h Handlers) ListPods(w http.ResponseWriter, _ *http.Request) {
+// ListPods answers with the launches of the projects this caller belongs to.
+//
+// It asked nobody anything. The request was discarded in the signature, and
+// neither middleware authenticates - one audits mutations, the other narrows a
+// token that is already there. So an unauthenticated GET returned every pod
+// launch on the installation: project identifiers, images, commands, and the
+// environment each was given, which is where somebody puts a credential when
+// they are in a hurry. Verified open on the production cluster on 2026-10-26,
+// with an empty table, which is the only reason this is a near miss rather
+// than an incident.
+func (h Handlers) ListPods(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
 	items, err := h.podStore.List()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list pod launches"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	userID := identity.UserID()
+	visibles := make([]pod.Launch, 0, len(items))
+	for _, item := range items {
+		if h.isGlobalAdmin(identity) || h.hasProjectMembership(userID, item.ProjectID) {
+			visibles = append(visibles, item)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": visibles})
 }
 
 func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {

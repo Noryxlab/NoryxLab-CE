@@ -1,6 +1,11 @@
 package handlers
 
-import "strings"
+import (
+	"strings"
+
+	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
+	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
+)
 
 // Regulated data and a publicly served application cannot share a project.
 //
@@ -43,24 +48,66 @@ func (h Handlers) projectServesPubliclyNamed(projectID string) string {
 	return ""
 }
 
-// projectHoldsRegulatedDataNamed returns the name of a regulated dataset
-// attached to this project, empty when there is none.
+// projectHoldsRegulatedDataNamed returns the name of regulated data reachable
+// from this project, empty when there is none.
+//
+// Two doors, not one. A dataset is attached directly; an extract is attached
+// on its own and the filler fetches its files from the source bucket without
+// that dataset ever being attached - which is the whole point of an extract,
+// and which would have walked straight around a guard that only looked at
+// datasets.
 func (h Handlers) projectHoldsRegulatedDataNamed(projectID string) string {
-	if h.projectResourceStore == nil || h.datasetStore == nil {
+	projectID = strings.TrimSpace(projectID)
+	if h.projectResourceStore == nil {
 		return ""
 	}
-	ids, err := h.projectResourceStore.ListProjectDatasetIDs(strings.TrimSpace(projectID))
-	if err != nil {
+	if h.datasetStore != nil {
+		if ids, err := h.projectResourceStore.ListProjectDatasetIDs(projectID); err == nil {
+			for _, id := range ids {
+				item, found, err := h.datasetStore.GetByID(id)
+				if err != nil || !found {
+					continue
+				}
+				if strings.EqualFold(strings.TrimSpace(item.Classification), "hds") {
+					return item.Name
+				}
+			}
+		}
+	}
+	if h.extractStore == nil || h.ontologyStore == nil {
 		return ""
 	}
-	for _, id := range ids {
-		item, found, err := h.datasetStore.GetByID(id)
+	for _, extract := range h.projectExtractsQuiet(projectID) {
+		ontology, found, err := h.ontologyStore.GetByID(extract.OntologyID)
 		if err != nil || !found {
 			continue
 		}
-		if strings.EqualFold(strings.TrimSpace(item.Classification), "hds") {
-			return item.Name
+		if h.ontologyReadsRegulatedData(ontology) {
+			return extract.Name
 		}
 	}
 	return ""
+}
+
+// projectExtractsQuiet lists what the project attached, without the error
+// path: a guard that fails open on a listing error would be no guard.
+func (h Handlers) projectExtractsQuiet(projectID string) []extractdomain.Extract {
+	items, err := h.projectExtracts(projectID)
+	if err != nil {
+		return nil
+	}
+	return items
+}
+
+// ontologyReadsRegulatedData reports whether this ontology was built over a
+// regulated dataset.
+func (h Handlers) ontologyReadsRegulatedData(ontology ontologydomain.Ontology) bool {
+	if h.datasetStore == nil || !strings.EqualFold(strings.TrimSpace(ontology.SourceType), "dataset") {
+		return false
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(ontology.SourceID))
+	if err != nil || !found {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(item.Classification), "hds")
 }

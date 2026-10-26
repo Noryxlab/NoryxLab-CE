@@ -176,17 +176,33 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 	// l'organisation, qui est ce que la ligne porte, et il est applique apres
 	// l'assemblage pour que les colonnes restent les memes pour tout le monde.
 	if portee := h.organizationsInScope(identity); portee != nil {
+		// Le nom ET l'alias, parce que la ligne porte l'un ou l'autre.
+		//
+		// Le filtre ne retenait que le nom, alors que la colonne retombe sur
+		// l'alias quand le libelle est vide - et un libelle n'est ni unique
+		// ni stable chez Keycloak, la ou l'alias l'est. Une seconde
+		// organisation portant le meme libelle aurait donc livre ses comptes
+		// a l'administrateur de la premiere, ce que ce filtre existe
+		// precisement pour empecher. Et un libelle vide ne doit jamais
+		// devenir la cle qui laisse tout passer.
 		noms := map[string]bool{}
 		for _, id := range portee {
-			if organization, found := h.resolveOrganization(id); found {
-				noms[strings.ToLower(strings.TrimSpace(organization.Name))] = true
+			organization, found := h.resolveOrganization(id)
+			if !found {
+				continue
+			}
+			for _, etiquette := range []string{organization.Name, organization.Alias} {
+				if etiquette = strings.ToLower(strings.TrimSpace(etiquette)); etiquette != "" {
+					noms[etiquette] = true
+				}
 			}
 		}
 		retenues := rows[:0]
 		for _, row := range rows {
 			garde := false
 			for _, nom := range append([]string{row.Organization}, row.Organizations...) {
-				if noms[strings.ToLower(strings.TrimSpace(nom))] {
+				nom = strings.ToLower(strings.TrimSpace(nom))
+				if nom != "" && noms[nom] {
 					garde = true
 					break
 				}

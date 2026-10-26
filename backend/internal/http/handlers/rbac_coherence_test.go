@@ -570,3 +570,61 @@ func TestUneAppPubliqueEtDeLaDonneeReglementeeNeSePartagentPasUnProjet(t *testin
 		t.Fatalf("une application privee est prise pour publique : %q", nom)
 	}
 }
+
+// Une ligne de catalogue ne porte pas le contenu de l'objet.
+//
+// Administrer met l'objet a l'ecran : il faut bien trouver une chose pour la
+// transferer ou decider qui la lit. Ce qui n'etait pas voulu, c'est que la
+// ligne porte l'etude elle-meme - une ontologie serialise son manifeste, qui
+// nomme chaque sujet avec ses visites et ses modalites, et un extrait
+// serialise la liste de sujets qu'il a figee. Les handlers de contenu etaient
+// gardes un par un, correctement ; les listes passaient autour.
+func TestUneListeNePorteLeContenuQuAQuiPeutLeLire(t *testing.T) {
+	ontologies := memory.NewOntologyObjectStore()
+	onto := ontologydomain.Ontology{
+		ID: "o1", Name: "SELENA", OwnerType: "organization", OwnerID: "org-for",
+		Manifest: []byte(`{"subjects":[{"id":"SELENA-0001"}]}`),
+	}
+	if err := ontologies.Create(onto); err != nil {
+		t.Fatal(err)
+	}
+	organisations := memory.NewOrganizationStore()
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-for", SubjectType: "user", SubjectID: "alice",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{
+		ontologyStore:     ontologies,
+		organizationStore: organisations,
+		keycloak: fakeKeycloak(t, map[string][]keycloak.Organization{
+			"alice": {{ID: "org-for", Name: "For", Alias: "for", Enabled: true}},
+		}),
+	}
+	alice := auth.Identity{Username: "alice", Subject: "alice"}
+
+	// Elle administre, donc elle voit la ligne.
+	if !h.canAdministerOntology(onto, alice) {
+		t.Fatal("l'administratrice nommee doit administrer l'ontologie")
+	}
+	if h.ontologyRole(onto, alice) != "" {
+		t.Fatal("elle ne doit avoir aucun droit sur la donnee")
+	}
+
+	// Mais la ligne ne porte plus l'etude.
+	items := []ontologydomain.Ontology{onto}
+	h.redactOntologiesForReader(items, alice)
+	if len(items[0].Manifest) != 0 {
+		t.Fatalf("le manifeste est rendu a qui ne lit pas : %s", string(items[0].Manifest))
+	}
+
+	// Et il reste entier pour qui en detient la lecture.
+	sienne := []ontologydomain.Ontology{{
+		ID: "o2", OwnerType: "user", OwnerID: "alice",
+		Manifest: []byte(`{"subjects":[{"id":"X"}]}`),
+	}}
+	h.redactOntologiesForReader(sienne, alice)
+	if len(sienne[0].Manifest) == 0 {
+		t.Fatal("le manifeste a ete retire a sa proprietaire")
+	}
+}
