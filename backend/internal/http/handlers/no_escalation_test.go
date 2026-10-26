@@ -18,18 +18,23 @@ import (
 //
 // What each of them requires, read from the handlers:
 //
-//	accounts, organizations, teams   the global administrator role
+//	accounts, organizations          the global administrator role
+//	teams and their members          the global administrator, or somebody
+//	                                 that organization named (ADR-048)
 //	component tokens                 the global administrator role
 //	project roles                    RoleAdmin on that project
 //	dataset and ontology grants      ownership of that asset, or global admin
 //	personal tokens                  nothing: a token is its own owner, and
 //	                                 the scope can only narrow it
 //
-// The corollary is worth stating too, because it is the reason the rule is
-// free today: there is no delegated administration. An "organization
-// administrator" who equips their own organization does not exist yet. Rule 7
-// becomes load-bearing the day one does - or the day a service account can be
-// created by somebody who is not a global administrator.
+// Delegated administration now exists, so the rule stopped being free on
+// 2026-10-26. What keeps it true is that a delegate creates nothing more
+// powerful than themselves: a team confers nothing by itself, its members
+// receive only what that team was already granted, and the perimeter is read
+// from the team's own record rather than from the request - so naming an
+// organization one administers cannot reach somebody else's team. Creating
+// accounts and naming further administrators stay with the platform
+// administrator until ADR-048's open questions are answered.
 
 // Only a project administrator hands out project roles, so granting the
 // administrator role is never a promotion of the grantor.
@@ -54,9 +59,20 @@ func TestAdministrativeCreationIsGlobalAdminOnly(t *testing.T) {
 		"user accounts":    readHandler(t, "admin_user_accounts.go"),
 		"component tokens": readHandler(t, "component_tokens.go"),
 	}
+	// Une portee compte comme une autorite : elle est plus etroite que le
+	// role global, jamais plus large, et elle se lit sur l'objet et non sur
+	// la requete.
+	gardes := []string{"requireAdminModule", "isGlobalAdmin", "requireOrganizationScope", "requireTeamScope"}
 	for what, body := range sources {
-		if !strings.Contains(body, "requireAdminModule") && !strings.Contains(body, "isGlobalAdmin") {
-			t.Fatalf("%s no longer gates creation on the global administrator; rule 7 now needs an explicit check", what)
+		garde := false
+		for _, nom := range gardes {
+			if strings.Contains(body, nom) {
+				garde = true
+				break
+			}
+		}
+		if !garde {
+			t.Fatalf("%s no longer gates creation on any authority; rule 7 now needs an explicit check", what)
 		}
 	}
 }

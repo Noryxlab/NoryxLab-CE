@@ -40,6 +40,18 @@ components:
       name: X-Noryx-User
 
   schemas:
+    AdministeredOrganization:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        alias: { type: string }
+    AdministeredOrganizationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdministeredOrganization' }
     OrganizationAdmin:
       type: object
       properties:
@@ -9919,6 +9931,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/administered-organizations:
+    get:
+      tags: [Account]
+      summary: Where this caller administers
+      description: >-
+        The organizations that named this caller an administrator. Empty for
+        almost everybody. The interface asks it because the token says who you
+        are and not what an organization decided about you.
+      operationId: listMyAdministeredOrganizations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministeredOrganizationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

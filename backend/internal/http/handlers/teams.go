@@ -44,13 +44,13 @@ func (h Handlers) teamStoreReady(w http.ResponseWriter) bool {
 }
 
 func (h Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireAdminModule(w, r, "organizations"); !ok {
+	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
+	if _, ok := h.requireOrganizationScope(w, r, organizationID); !ok {
 		return
 	}
 	if !h.teamStoreReady(w) {
 		return
 	}
-	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
 	items, err := h.teamStore.ListByOrganization(organizationID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read teams"})
@@ -60,14 +60,14 @@ func (h Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) CreateTeam(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireAdminModule(w, r, "organizations")
+	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
+	identity, ok := h.requireOrganizationScope(w, r, organizationID)
 	if !ok {
 		return
 	}
 	if !h.teamStoreReady(w) {
 		return
 	}
-	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
 
 	var req teamRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&req); err != nil {
@@ -94,7 +94,7 @@ func (h Handlers) CreateTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) UpdateTeam(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireAdminModule(w, r, "organizations")
+	identity, ok := h.requireTeamScope(w, r, strings.TrimSpace(r.PathValue("teamID")))
 	if !ok {
 		return
 	}
@@ -139,7 +139,7 @@ func (h Handlers) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 // because "team deleted" is not an answer to the question somebody will ask
 // afterwards, which is who lost what.
 func (h Handlers) DeleteTeam(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireAdminModule(w, r, "organizations")
+	identity, ok := h.requireTeamScope(w, r, strings.TrimSpace(r.PathValue("teamID")))
 	if !ok {
 		return
 	}
@@ -162,7 +162,7 @@ func (h Handlers) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) ListTeamMembers(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireAdminModule(w, r, "organizations"); !ok {
+	if _, ok := h.requireTeamScope(w, r, strings.TrimSpace(r.PathValue("teamID"))); !ok {
 		return
 	}
 	if !h.teamStoreReady(w) {
@@ -181,7 +181,7 @@ func (h Handlers) ListTeamMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) AddTeamMember(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireAdminModule(w, r, "organizations")
+	identity, ok := h.requireTeamScope(w, r, strings.TrimSpace(r.PathValue("teamID")))
 	if !ok {
 		return
 	}
@@ -213,7 +213,7 @@ func (h Handlers) AddTeamMember(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) RemoveTeamMember(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireAdminModule(w, r, "organizations")
+	identity, ok := h.requireTeamScope(w, r, strings.TrimSpace(r.PathValue("teamID")))
 	if !ok {
 		return
 	}

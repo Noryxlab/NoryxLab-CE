@@ -39,7 +39,8 @@ func (h Handlers) writeKeycloakError(w http.ResponseWriter, action string, err e
 }
 
 func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireAdminModule(w, r, "organizations"); !ok {
+	identity, ok := h.requireAdminModule(w, r, "organizations")
+	if !ok {
 		return
 	}
 	if h.keycloak == nil {
@@ -50,6 +51,23 @@ func (h Handlers) ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.writeKeycloakError(w, "fetch organizations", err)
 		return
+	}
+	// Ce que cette personne administre, et rien d'autre.
+	//
+	// La page listait toutes les organisations de l'installation : un
+	// administrateur nomme par Essilor y aurait lu la liste des clients. Un
+	// administrateur de plateforme recoit tout, comme avant.
+	if portee := h.organizationsInScope(identity); portee != nil {
+		retenues := items[:0]
+		for _, item := range items {
+			for _, id := range portee {
+				if strings.EqualFold(item.ID, id) {
+					retenues = append(retenues, item)
+					break
+				}
+			}
+		}
+		items = retenues
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

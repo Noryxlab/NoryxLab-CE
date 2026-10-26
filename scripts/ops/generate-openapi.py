@@ -213,6 +213,8 @@ ENVELOPES = {
         "createdAt": "date-time",
     },
     "OrganizationAdminListResponse": {"items": "[$OrganizationAdmin]"},
+    "AdministeredOrganization": {"id": "string", "name": "string", "alias": "string"},
+    "AdministeredOrganizationListResponse": {"items": "[$AdministeredOrganization]"},
     "ProjectOrganizationRole": {"organizationId": "string", "organizationName": "string", "role": "string"},
     "ProjectOrganizationRoleListResponse": {"items": "[$ProjectOrganizationRole]"},
     "DatasetDownloadURLResponse": {"url": "string", "filename": "string", "expiresAt": "date-time"},
@@ -314,6 +316,7 @@ RESPONSES = {
     ("GET", "/api/v1/datasources/{datasourceID}/access"): "DatasourceAccessListResponse",
     # Qui administre ce qu'une organisation possede : un droit nomme.
     ("GET", "/api/v1/admin/organizations/{organizationID}/administrators"): "OrganizationAdminListResponse",
+    ("GET", "/api/v1/user/administered-organizations"): "AdministeredOrganizationListResponse",
     ("PUT", "/api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}"): "OrganizationAdmin",
     ("PUT", "/api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}"): "DatasourceAccess",
     ("PUT", "/api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}"): "ExtractAccess",

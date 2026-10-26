@@ -83,6 +83,26 @@ its members: the list above says where people work, the one below says what
 they may do. `organization_admins` holds it, a person or a team, and
 `GET/PUT/DELETE /api/v1/admin/organizations/{id}/administrators` is its API.
 
+**What a named administrator may do today** (ADR-048, first slice): administer
+what the organization owns, and run its teams - create one, rename it, add and
+remove members - plus manage who belongs to the organization. Nothing else.
+The accounts, audit, storage and settings screens stay with the platform
+administrator until each has learned its perimeter, because they list the
+whole installation and a screen that forgets its scope shows one customer to
+another.
+
+Two listings already know their perimeter: the organizations screen returns
+only what the caller administers, and the accounts screen only the people in
+those organizations. A platform administrator still sees everything. And the
+scope of a team route is read from the team's own record, never from the
+request, so naming an organization one administers cannot reach somebody
+else's team.
+
+The interface asks `GET /api/v1/user/administered-organizations` to decide
+whether to draw the Administration entry at all: the token says who somebody
+is, not what an organization decided about them, so a named administrator
+would otherwise hold the rights and find no door.
+
 Project roles are untouched: an organization grant on a project still reaches
 its members. What changed is the right over the data, which is the thing this
 document separates from ownership.

@@ -38,6 +38,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("PUT /api/v1/admin/hardware-tiers/{tierID}", h.SaveHardwareTier)
 	mux.HandleFunc("DELETE /api/v1/admin/hardware-tiers/{tierID}", h.DeleteHardwareTier)
 	mux.HandleFunc("GET /api/v1/user/organizations", h.ListMyOrganizations)
+	// Ou cette personne administre, ce que le jeton ne dit pas.
+	mux.HandleFunc("GET /api/v1/user/administered-organizations", h.ListMyAdministeredOrganizations)
 	mux.HandleFunc("GET /api/v1/user/teams", h.ListMyTeams)
 	mux.HandleFunc("GET /api/v1/user/preferences", h.GetUserPreferences)
 	mux.HandleFunc("GET /api/v1/organizations", h.ListAvailableOrganizations)

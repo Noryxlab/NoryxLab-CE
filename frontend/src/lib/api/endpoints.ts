@@ -154,6 +154,10 @@ export const platformApi = {
    *  from the token: a realm that does not put the claim in the token, or a
    *  membership granted since sign-in, would otherwise show as none. */
   myOrganizations: () => api.list<Organization>(`${V1}/user/organizations`),
+  /** Ou cette personne administre. Le jeton dit qui elle est, pas ce qu'une
+   *  organisation a decide a son sujet, donc la porte se demande au serveur. */
+  administeredOrganizations: () =>
+    api.list<{ id: string; name: string; alias?: string }>(`${V1}/user/administered-organizations`),
 };
 
 export const searchApi = {

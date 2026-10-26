@@ -160,6 +160,7 @@ export const qk = {
   adminExecutions: ["admin", "executions"] as const,
   adminPods: ["admin", "pods"] as const,
   adminOrganizations: ["admin", "organizations"] as const,
+  administeredOrganizations: ["administered-organizations"] as const,
   adminOrganizationAdmins: (organizationId: string) =>
     ["admin-organization-admins", organizationId] as const,
   adminOrganizationMembers: (organizationId: string) =>
@@ -761,6 +762,16 @@ export const useOrganizationMembers = (organizationId: string | undefined) =>
     queryKey: qk.adminOrganizationMembers(organizationId ?? ""),
     queryFn: () => adminApi.organizationMembers(organizationId as string),
     enabled: Boolean(organizationId),
+  });
+
+/** Les organisations que cette personne administre, vide pour presque tout le
+ *  monde. Ouvre l'entree Administration a qui n'est pas administrateur de la
+ *  plateforme mais a ete nomme par une organisation. */
+export const useAdministeredOrganizations = () =>
+  useQuery({
+    queryKey: qk.administeredOrganizations,
+    queryFn: platformApi.administeredOrganizations,
+    staleTime: 60_000,
   });
 
 export const useOrganizationAdmins = (organizationId: string | undefined) =>

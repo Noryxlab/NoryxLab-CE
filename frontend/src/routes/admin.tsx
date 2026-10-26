@@ -15,6 +15,7 @@ import {
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import {
   useAdminOverview,
+  useAdministeredOrganizations,
   useProjects,
 } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
@@ -124,6 +125,9 @@ export function AdminPage() {
   const navigate = useNavigate();
   const { section } = useParams<{ section?: string }>();
   const { isAdmin } = useAuth();
+  // Et la page elle-meme, pour la meme raison.
+  const administered = useAdministeredOrganizations();
+  const administers = isAdmin || (administered.data ?? []).length > 0;
 
   // Enterprise modules add their own admin sections through the declared
   // extension point rather than by patching this file's markup.
@@ -132,7 +136,7 @@ export function AdminPage() {
   const known = new Set<string>([...SECTIONS, ...extensions.map((module) => module.id)]);
   const active: string = known.has(section ?? '') ? (section as string) : 'overview';
 
-  if (!isAdmin) {
+  if (!administers) {
     return (
       <Card className="mx-auto max-w-lg">
         <EmptyState

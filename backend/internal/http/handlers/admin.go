@@ -30,7 +30,7 @@ type adminExecution struct {
 }
 
 func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
-	_, ok := h.requireAdminModule(w, r, "users")
+	identity, ok := h.requireAdminModule(w, r, "users")
 	if !ok {
 		return
 	}
@@ -165,6 +165,37 @@ func (h Handlers) ListUsers(w http.ResponseWriter, r *http.Request) {
 			row.FirstSeenAt = &first
 		}
 		rows = append(rows, row)
+	}
+
+	// Les comptes des organisations que cette personne administre, et rien
+	// d'autre.
+	//
+	// La liste rendait toute la plateforme : un administrateur nomme par
+	// Essilor y aurait lu les noms, les adresses et les dernieres connexions
+	// des equipes d'un autre client. Le filtre porte sur le nom de
+	// l'organisation, qui est ce que la ligne porte, et il est applique apres
+	// l'assemblage pour que les colonnes restent les memes pour tout le monde.
+	if portee := h.organizationsInScope(identity); portee != nil {
+		noms := map[string]bool{}
+		for _, id := range portee {
+			if organization, found := h.resolveOrganization(id); found {
+				noms[strings.ToLower(strings.TrimSpace(organization.Name))] = true
+			}
+		}
+		retenues := rows[:0]
+		for _, row := range rows {
+			garde := false
+			for _, nom := range append([]string{row.Organization}, row.Organizations...) {
+				if noms[strings.ToLower(strings.TrimSpace(nom))] {
+					garde = true
+					break
+				}
+			}
+			if garde {
+				retenues = append(retenues, row)
+			}
+		}
+		rows = retenues
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": rows})

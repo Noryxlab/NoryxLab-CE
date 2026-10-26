@@ -29,7 +29,7 @@ import {
 import { useExtensions } from '@/lib/extensions';
 import { useI18n, useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
-import { useAIServices, useProject } from '@/lib/api/queries';
+import { useAIServices, useAdministeredOrganizations, useProject } from '@/lib/api/queries';
 import { config, isEnterprise } from '@/lib/config';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -185,6 +185,11 @@ export function Sidebar({
   const t = useT();
   const { locale } = useI18n();
   const { isAdmin } = useAuth();
+  // Nomme par une organisation : les droits existent, la porte doit exister
+  // aussi. Sans ca, un administrateur d'Essilor detient le perimetre et ne
+  // trouve aucun lien pour l'exercer.
+  const administered = useAdministeredOrganizations();
+  const administers = isAdmin || (administered.data ?? []).length > 0;
   const adminModules = useExtensions('admin.section');
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
@@ -196,7 +201,7 @@ export function Sidebar({
   // un lien vers une section absente mene a un refus, pas a une decouverte.
   const aiServices = useAIServices();
   const globalItems = GLOBAL_ITEMS.filter((item) => {
-    if (item.adminOnly && !isAdmin) return false;
+    if (item.adminOnly && !administers) return false;
     if (item.enterpriseOnly && !isEnterprise()) return false;
     // Les agents demandent en plus que la plateforme ait de quoi les faire
     // tourner. L'edition dit ce qui est vendu, pas ce qui est installe.

@@ -369,3 +369,57 @@ func TestUnOctroiALOrganisationAtteintSesMembresSansLesFaireAdministrer(t *testi
 		t.Fatal("un octroi de lecture a confere l'administration")
 	}
 }
+
+// Un administrateur nomme agit dans son organisation, et nulle part ailleurs.
+//
+// C'est la premiere tranche d'ADR-048 : jusqu'ici chaque ecran
+// d'administration posait une seule question - « administrateur de la
+// plateforme ? » - et repondait toute la plateforme ou rien. Une portee est
+// une autorite plus etroite, jamais plus large.
+func TestUnAdministrateurNommeNeSortPasDeSonOrganisation(t *testing.T) {
+	equipes := memory.NewTeamStore()
+	if err := equipes.Create(team.Team{ID: "equipe-essilor", OrganizationID: "org-essilor", Name: "MRI"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := equipes.Create(team.Team{ID: "equipe-for", OrganizationID: "org-for", Name: "Etudes"}); err != nil {
+		t.Fatal(err)
+	}
+	organisations := memory.NewOrganizationStore()
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "cyril",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{
+		authMode: "header", teamStore: equipes, organizationStore: organisations,
+		keycloak: annuaireEssilor(t, "cyril"),
+	}
+	cyril := auth.Identity{Username: "cyril", Subject: "cyril"}
+
+	if !h.administersOrganization(cyril, "org-essilor") {
+		t.Fatal("l'administrateur nomme n'administre pas son organisation")
+	}
+	if h.administersOrganization(cyril, "org-for") {
+		t.Fatal("il administre une organisation pour laquelle il n'a pas ete nomme")
+	}
+
+	// Et la portee se lit sur l'equipe, jamais sur la requete : nommer une
+	// organisation qu'on administre ne doit pas ouvrir l'equipe d'une autre.
+	requete := httptest.NewRequest(http.MethodGet, "/api/v1/admin/teams/equipe-for/members", nil)
+	requete.Header.Set(userHeader, "cyril")
+	requete.SetPathValue("teamID", "equipe-for")
+	vue := httptest.NewRecorder()
+	h.ListTeamMembers(vue, requete)
+	if vue.Code != http.StatusForbidden {
+		t.Fatalf("l'equipe d'une autre organisation a ete rendue (%d)", vue.Code)
+	}
+
+	sienne := httptest.NewRequest(http.MethodGet, "/api/v1/admin/teams/equipe-essilor/members", nil)
+	sienne.Header.Set(userHeader, "cyril")
+	sienne.SetPathValue("teamID", "equipe-essilor")
+	lu := httptest.NewRecorder()
+	h.ListTeamMembers(lu, sienne)
+	if lu.Code != http.StatusOK {
+		t.Fatalf("sa propre equipe lui est refusee (%d) : %s", lu.Code, lu.Body.String())
+	}
+}

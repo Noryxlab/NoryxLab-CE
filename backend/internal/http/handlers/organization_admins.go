@@ -147,3 +147,27 @@ func (h Handlers) resolveOrganizationID(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusNotFound, map[string]string{"error": "no organization named " + raw})
 	return "", false
 }
+
+// ListMyAdministeredOrganizations answers what this caller may administer.
+//
+// The interface derives "is an administrator" from the realm roles in the
+// token, which is right for the platform administrator and blind to anybody
+// named by an organization: they would hold the rights and find no door, since
+// the administration entry is drawn from the token alone. So the door is asked
+// of the platform instead, which is where the naming lives.
+func (h Handlers) ListMyAdministeredOrganizations(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	items := []map[string]string{}
+	for _, id := range h.administeredOrganizationIDs(identity) {
+		entry := map[string]string{"id": id, "name": id}
+		if organization, found := h.resolveOrganization(id); found {
+			entry["name"] = organization.Name
+			entry["alias"] = organization.Alias
+		}
+		items = append(items, entry)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
