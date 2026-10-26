@@ -919,6 +919,22 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ce que cette session a recu, nomme a l'ouverture.
+	//
+	// Une lecture faite dans un workspace ne passe pas par cette API : le
+	// bucket est monte par le pilote CSI et geesefs parle a l'objet
+	// directement. Le journal ne peut donc pas dire ce qui a ete lu dedans,
+	// mais il doit au moins dire ce qui y etait - sinon, six mois plus tard,
+	// personne ne peut repondre a « cette personne avait-elle acces a cette
+	// etude ce jour-la », alors que les droits ont change depuis.
+	montes := make([]string, 0, len(attachedDatasets))
+	reglementes := 0
+	for _, item := range attachedDatasets {
+		montes = append(montes, item.Name)
+		if strings.EqualFold(item.Classification, "hds") {
+			reglementes++
+		}
+	}
 	h.emitAudit(r, userID, "workspace.launch", "workspace", record.ID, record.ProjectID, "success", "", map[string]any{
 		"name":         record.Name,
 		"ide":          record.Kind,
@@ -926,6 +942,9 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"serviceName":  record.ServiceName,
 		"image":        record.Image,
 		"hardwareTier": tier.ID,
+		"datasets":     montes,
+		"regulated":    reglementes,
+		"withheld":     h.attachmentsWithheldFrom(req.ProjectID, identity),
 	})
 	// Dit au lancement, le seul moment ou quelqu'un regarde.
 	record.Withheld = h.attachmentsWithheldFrom(req.ProjectID, identity)

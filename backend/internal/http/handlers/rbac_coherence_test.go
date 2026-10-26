@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
@@ -421,5 +423,42 @@ func TestUnAdministrateurNommeNeSortPasDeSonOrganisation(t *testing.T) {
 	h.ListTeamMembers(lu, sienne)
 	if lu.Code != http.StatusOK {
 		t.Fatalf("sa propre equipe lui est refusee (%d) : %s", lu.Code, lu.Body.String())
+	}
+}
+
+// Le lancement nomme ce que la session a recu.
+//
+// Ce qui est lu a l'interieur d'un workspace ne passe jamais par cette API :
+// le bucket est monte par le pilote CSI et geesefs parle a l'objet
+// directement. Le journal ne peut donc pas dire ce qui a ete lu, mais il doit
+// dire ce qui etait montable ce jour-la - sinon, six mois plus tard, plus
+// personne ne peut repondre a « cette personne avait-elle acces a cette etude
+// a ce moment-la », alors que les droits ont change depuis.
+func TestLeLancementNommeCeQueLaSessionARecu(t *testing.T) {
+	montage := []workspaceAttachedDataset{
+		{ID: "d1", Name: "HDS-For-selena", Classification: "hds"},
+		{ID: "d2", Name: "dataset-local-stef"},
+	}
+	noms := make([]string, 0, len(montage))
+	reglementes := 0
+	for _, item := range montage {
+		noms = append(noms, item.Name)
+		if strings.EqualFold(item.Classification, "hds") {
+			reglementes++
+		}
+	}
+	if len(noms) != 2 || reglementes != 1 {
+		t.Fatalf("le resume du montage est faux : %v, %d reglemente(s)", noms, reglementes)
+	}
+	// Et le handler doit bien le poser : la trace serait muette si quelqu'un
+	// retirait ces champs du journal de lancement.
+	source, err := os.ReadFile("./workspaces.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, champ := range []string{`"datasets":     montes`, `"regulated":    reglementes`, `"withheld":`} {
+		if !strings.Contains(string(source), champ) {
+			t.Fatalf("le lancement d'un workspace ne journalise plus %s", champ)
+		}
 	}
 }

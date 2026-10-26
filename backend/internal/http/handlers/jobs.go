@@ -242,11 +242,23 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save job"})
 		return
 	}
+	// Ce que cette charge a recu, pour la meme raison qu'un workspace : ce
+	// qu'elle lit ensuite ne passe pas par cette API.
+	montes := make([]string, 0, len(attachedDatasets))
+	reglementes := 0
+	for _, item := range attachedDatasets {
+		montes = append(montes, item.Name)
+		if strings.EqualFold(item.Classification, "hds") {
+			reglementes++
+		}
+	}
 	h.emitAudit(r, userID, "job.launch", "job", record.ID, record.ProjectID, "success", "", map[string]any{
 		"name":         record.Name,
 		"jobName":      record.JobName,
 		"image":        record.Image,
 		"hardwareTier": tier.ID,
+		"datasets":     montes,
+		"regulated":    reglementes,
 	})
 	writeJSON(w, http.StatusCreated, record)
 }
