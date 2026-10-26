@@ -1768,6 +1768,7 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 		&item.Result,
 		&item.CompletedAt,
 		&item.CreatedAt,
+		&item.OwnerUserID,
 	)
 	if err == sql.ErrNoRows {
 		return job.Job{}, false, nil
