@@ -1808,6 +1808,7 @@ func (s *Store) CreateJob(item job.Job) error {
 		item.Result,
 		item.CompletedAt,
 		item.CreatedAt,
+		item.OwnerUserID,
 	)
 	return err
 }
@@ -1863,6 +1864,7 @@ func (s *Store) UpsertJob(item job.Job) error {
 		item.Result,
 		item.CompletedAt,
 		item.CreatedAt,
+		item.OwnerUserID,
 	)
 	return err
 }
