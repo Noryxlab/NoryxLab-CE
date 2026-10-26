@@ -186,7 +186,11 @@ func legacyExtractTreeLines(projectMountPath string) []string {
 	legacy := mount + "/extracts"
 	aside := mount + "/extracts.deplace-vers-slash-extracts"
 	return []string{
-		fmt.Sprintf("if [ -d %s ] && [ ! -e %s ]; then", shellQuote(legacy), shellQuote(aside)),
+		// `-d` dit vrai d'un lien qui pointe vers un repertoire, et les
+		// bureaux posent desormais /mnt/extracts en lien vers /extracts pour
+		// que leur boite de dialogue le voie. Sans `! -L`, ce bloc deplacait
+		// ce lien a chaque premier lancement d'un projet.
+		fmt.Sprintf("if [ -d %s ] && [ ! -L %s ] && [ ! -e %s ]; then", shellQuote(legacy), shellQuote(legacy), shellQuote(aside)),
 		// -not -type d -not -type l : anything that is neither a directory nor
 		// a symlink is somebody's own file, and this stops there.
 		fmt.Sprintf("  if [ -z \"$(find %s -not -type d -not -type l -print -quit 2>/dev/null)\" ]; then", shellQuote(legacy)),
