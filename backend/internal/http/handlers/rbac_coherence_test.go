@@ -462,3 +462,35 @@ func TestLeLancementNommeCeQueLaSessionARecu(t *testing.T) {
 		}
 	}
 }
+
+// Le journal nomme une session sans porter sa cle.
+//
+// Les evenements de connexion enregistraient le jeton de session comme
+// identifiant de ressource, et la table des sessions resout un jeton
+// directement : le journal d'audit detenait donc des identifiants utilisables.
+// Qui pouvait le lire, l'exporter en CSV ou en restaurer une sauvegarde
+// pouvait rejouer une session non expiree. Le DC en portait 178 ; toutes
+// avaient expire quand on l'a trouve, ce qui tient de la chance.
+func TestLeJournalNePorteJamaisUnJetonDeSession(t *testing.T) {
+	jeton := "0f2927d6-708c-4ccf-b7a9-783091eb604c"
+	empreinte := sessionFingerprint(jeton)
+	if empreinte == "" || strings.Contains(jeton, empreinte) || len(empreinte) != 12 {
+		t.Fatalf("empreinte inutilisable : %q", empreinte)
+	}
+	if sessionFingerprint(jeton) != empreinte {
+		t.Fatal("la meme session doit donner la meme empreinte, sinon on ne paire plus une deconnexion a sa connexion")
+	}
+	if sessionFingerprint("autre-jeton") == empreinte {
+		t.Fatal("deux sessions differentes partagent une empreinte")
+	}
+	// Et le handler ne doit pas revenir au jeton brut.
+	source, err := os.ReadFile("./sessions.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, interdit := range []string{`"auth.login", "session", token,`, `"auth.logout", "session", sessionToken,`} {
+		if strings.Contains(string(source), interdit) {
+			t.Fatalf("le journal porte de nouveau le jeton : %s", interdit)
+		}
+	}
+}

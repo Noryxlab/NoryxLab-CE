@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"html/template"
 	"net/http"
 	"strings"
@@ -120,7 +122,7 @@ func (h Handlers) CreateWebSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"expiresAt": expiresAt,
 	})
-	h.emitAudit(r, userID, "auth.login", "session", token, "", "success", "", map[string]any{
+	h.emitAudit(r, userID, "auth.login", "session", sessionFingerprint(token), "", "success", "", map[string]any{
 		"expiresAt": expiresAt,
 	})
 }
@@ -153,7 +155,7 @@ func (h Handlers) DeleteWebSession(w http.ResponseWriter, r *http.Request) {
 	if actorUserID == "" {
 		actorUserID = sessionIdentity
 	}
-	h.emitAudit(r, actorUserID, "auth.logout", "session", sessionToken, "", "success", "", nil)
+	h.emitAudit(r, actorUserID, "auth.logout", "session", sessionFingerprint(sessionToken), "", "success", "", nil)
 }
 
 func safeLocalReturnTo(raw string) string {
@@ -165,4 +167,26 @@ func safeLocalReturnTo(raw string) string {
 		return ""
 	}
 	return raw
+}
+
+// sessionFingerprint names a session in the journal without putting its key
+// in it.
+//
+// The login and logout events recorded the session token itself as the
+// resource identifier, and the session table looks a token up directly - so
+// the audit journal held usable credentials. Anybody who could read the
+// journal, export it to CSV or restore a backup of it could have replayed a
+// session that had not yet expired. On the DC 178 of them were in there; all
+// had expired by the time this was found, which is luck and not a design.
+//
+// A short digest keeps what the journal actually needs - pairing a logout
+// with its login, counting sessions per person - and cannot be presented to
+// anything.
+func sessionFingerprint(token string) string {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])[:12]
 }
