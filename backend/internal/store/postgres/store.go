@@ -351,6 +351,7 @@ func migrationStatements() []string {
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS owner_user_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS owner_user_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS result TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL`,
@@ -1721,7 +1722,7 @@ func (s *Store) DeleteBuild(id string) error {
 }
 
 func (s *Store) ListJobs() ([]job.Job, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at FROM jobs ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1730,7 +1731,7 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 	for rows.Next() {
 		var item job.Job
 		var commandJSON, argsJSON, datasetsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt, &item.OwnerUserID); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -1752,7 +1753,7 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	var item job.Job
 	var commandJSON, argsJSON, datasetsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.Name,
@@ -1792,7 +1793,7 @@ func (s *Store) CreateJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
-	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		item.ID,
 		item.ProjectID,
 		item.Name,
@@ -1826,8 +1827,8 @@ func (s *Store) UpsertJob(item job.Job) error {
 	argsJSON, _ := json.Marshal(item.Args)
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
 	_, err := s.db.Exec(`
-		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
@@ -1843,7 +1844,10 @@ func (s *Store) UpsertJob(item job.Job) error {
 			job_name=EXCLUDED.job_name,
 			status=EXCLUDED.status,
 			result=EXCLUDED.result,
-			completed_at=EXCLUDED.completed_at
+			completed_at=EXCLUDED.completed_at,
+			-- Le lanceur ne se reecrit pas a vide : le veilleur qui met le
+			-- statut a jour ne sait pas qui a lance.
+			owner_user_id=CASE WHEN EXCLUDED.owner_user_id = '' THEN jobs.owner_user_id ELSE EXCLUDED.owner_user_id END
 	`,
 		item.ID,
 		item.ProjectID,

@@ -33,7 +33,15 @@ func (h Handlers) EnforceTokenScopes(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if apitoken.Permits(identity.Scopes, r.Method, r.URL.Path) {
+		// Un composant n'herite pas de la lecture en blanc : son proprietaire
+		// est la plateforme, et son identite porte le role d'administrateur
+		// global. La meme ligne donnait a un jeton de sauvegarde ayant fuite
+		// les objets de chaque dataset et la liste figee de chaque extrait.
+		autorise := apitoken.Permits
+		if strings.TrimSpace(identity.DeclaredBy) != "" {
+			autorise = apitoken.PermitsComponent
+		}
+		if autorise(identity.Scopes, r.Method, r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -107,8 +107,17 @@ func (h Handlers) ListMyOrganizations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+// ListAvailableOrganizations answers with the organizations this caller may
+// hand something to - which is the ones they belong to, and no others.
+//
+// It listed the whole installation to anybody who could sign in: on a shared
+// platform that is the customer list, handed out by the door next to the one
+// the administration screen was just taught to guard. And it is not even what
+// the screen needs: giving an object to an organization requires belonging to
+// it, so the picker only ever had one honest set of options.
 func (h Handlers) ListAvailableOrganizations(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireIdentity(w, r); !ok {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
 		return
 	}
 	if h.keycloak == nil {
@@ -119,6 +128,19 @@ func (h Handlers) ListAvailableOrganizations(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		h.writeKeycloakError(w, "fetch organizations", err)
 		return
+	}
+	if !h.isGlobalAdmin(identity) {
+		siennes := h.callerOrganizationIDs(identity)
+		retenues := items[:0]
+		for _, item := range items {
+			for _, id := range siennes {
+				if strings.EqualFold(item.ID, id) {
+					retenues = append(retenues, item)
+					break
+				}
+			}
+		}
+		items = retenues
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }

@@ -107,6 +107,26 @@ func NormalizeScopes(requested []string) []string {
 // Reading is allowed by every scope: a credential that may launch a job it
 // cannot then read the result of would be useless, and would push people back
 // to an unrestricted token - which is the outcome this is trying to avoid.
+// PermitsComponent is Permits without the blanket read.
+//
+// The blanket read was justified for a *personal* token: refusing somebody the
+// right to read the result of what they just started would only push them back
+// to an unrestricted credential, and what they read is what they could read
+// anyway. A component's owner is the platform itself, and its identity carries
+// the global admin role - so the same line handed a leaked backup-runner token
+// every dataset's objects, every extract's frozen file list and every
+// administrative export. A component reads what its scopes name, and nothing
+// else.
+func PermitsComponent(scopes []string, method, path string) bool {
+	if len(scopes) == 0 {
+		return true
+	}
+	if onlyInvoke(scopes) {
+		return underAny(path, "/apps", "/dashboards")
+	}
+	return permitsByScope(scopes, method, path)
+}
+
 func Permits(scopes []string, method, path string) bool {
 	if len(scopes) == 0 {
 		return true
@@ -133,8 +153,16 @@ func Permits(scopes []string, method, path string) bool {
 		return true
 	}
 
+	return permitsByScope(scopes, method, path)
+}
+
+// permitsByScope is the part that reads the scopes themselves, shared by the
+// personal rule and the component one.
+func permitsByScope(scopes []string, _ string, path string) bool {
 	for _, scope := range scopes {
 		switch Scope(scope) {
+		case ScopeFull:
+			return true
 		case ScopeDatasets:
 			if underAny(path, "/api/v1/datasets") {
 				return true

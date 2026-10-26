@@ -97,6 +97,9 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// lost with its pod.
 	record.HardwareTier = tier.ID
 	record.ImageDigest = imageDigest
+	// Qui lance, parce que ce sont ses droits qui remplissent la charge : les
+	// datasets resolus trois lignes plus haut le sont pour cette identite.
+	record.OwnerUserID = userID
 
 	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {
@@ -303,10 +306,11 @@ func (h Handlers) DeleteJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) GetJobLogs(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, ok := h.requireIdentity(w, r)
 	if !ok {
 		return
 	}
+	userID := identity.UserID()
 	jobID := strings.TrimSpace(r.PathValue("jobID"))
 	record, found, err := h.jobStore.GetByID(jobID)
 	if err != nil {
@@ -318,6 +322,21 @@ func (h Handlers) GetJobLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.requireProjectRole(w, record.ProjectID, userID, actionLaunch, "job logs access") {
+		return
+	}
+	// Et la personne, comme pour un workspace.
+	//
+	// Un job est rempli pour une seule identite : les datasets dedans sont
+	// ceux que son lanceur peut lire. Ses journaux impriment couramment
+	// quelques lignes du jeu pour verifier un script, et le seul role de
+	// projet les ouvrait a des collegues sans aucun droit sur cette donnee.
+	// Une ligne anterieure a ce champ ne porte pas de lanceur et retombe sur
+	// le role de projet, pour ne rien casser d'existant.
+	if lanceur := strings.TrimSpace(record.OwnerUserID); lanceur != "" &&
+		!h.isGlobalAdmin(identity) && !strings.EqualFold(lanceur, userID) {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "a job's logs are read by the person who launched it; it carries their rights over the data",
+		})
 		return
 	}
 	logReader, ok := h.runtime.(noryxruntime.JobLogReader)

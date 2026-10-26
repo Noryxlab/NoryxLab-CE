@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/apitoken"
 	appdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
@@ -626,5 +627,65 @@ func TestUneListeNePorteLeContenuQuAQuiPeutLeLire(t *testing.T) {
 	h.redactOntologiesForReader(sienne, alice)
 	if len(sienne[0].Manifest) == 0 {
 		t.Fatal("le manifeste a ete retire a sa proprietaire")
+	}
+}
+
+// Ajouter quelqu'un a une equipe ne contourne pas les deux reserves.
+//
+// Une equipe nommee administratrice d'une organisation : y ajouter un membre,
+// c'est nommer un administrateur. Une equipe qui possede de la donnee
+// reglementee : y ajouter quelqu'un lui ouvre cette donnee, alors que
+// l'octroi direct sur un dataset HDS est reserve a l'administrateur de
+// plateforme. Sans ces deux refus, administrer se convertit en lire par un
+// chemin detourne.
+func TestAjouterAUneEquipeNeContournePasLesReserves(t *testing.T) {
+	datasets := memory.NewDatasetStore()
+	if err := datasets.Create(datasetdomain.Dataset{
+		ID: "d1", Name: "HDS-Essilor", Classification: "hds",
+		OwnerType: "team", OwnerID: "equipe-hds",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	organisations := memory.NewOrganizationStore()
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "team", SubjectID: "equipe-admin",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{datasetStore: datasets, organizationStore: organisations}
+
+	if raison := h.teamAdditionIsAnEscalation("equipe-admin"); raison == "" {
+		t.Fatal("ajouter a l'equipe administratrice doit etre refuse")
+	}
+	if raison := h.teamAdditionIsAnEscalation("equipe-hds"); raison == "" {
+		t.Fatal("ajouter a l'equipe proprietaire de donnee reglementee doit etre refuse")
+	}
+	if raison := h.teamAdditionIsAnEscalation("equipe-ordinaire"); raison != "" {
+		t.Fatalf("une equipe ordinaire est refusee a tort : %s", raison)
+	}
+}
+
+// Un jeton de composant n'herite pas de la lecture en blanc.
+//
+// Elle se justifiait pour un jeton personnel : lire le resultat de ce qu'on
+// vient de lancer, c'est lire ce qu'on pouvait deja lire. Le proprietaire d'un
+// composant est la plateforme, et son identite porte le role d'administrateur
+// global : la meme ligne donnait a un jeton de sauvegarde ayant fuite les
+// objets de chaque dataset et la liste figee de chaque extrait.
+func TestUnJetonDeComposantNeLitPasToutEnBlanc(t *testing.T) {
+	portees := []string{"operate"}
+	if apitoken.PermitsComponent(portees, http.MethodGet, "/api/v1/datasets") {
+		t.Fatal("un composant de sauvegarde lit le catalogue des datasets")
+	}
+	if apitoken.PermitsComponent(portees, http.MethodGet, "/api/v1/extracts/e1/members") {
+		t.Fatal("un composant de sauvegarde lit la liste figee d'un extrait")
+	}
+	if !apitoken.PermitsComponent(portees, http.MethodGet, "/api/v1/admin/backups") {
+		t.Fatal("le composant doit garder ce que sa portee nomme")
+	}
+	// Et un jeton personnel garde sa lecture, qui ne depasse pas son
+	// proprietaire.
+	if !apitoken.Permits(portees, http.MethodGet, "/api/v1/datasets") {
+		t.Fatal("un jeton personnel a perdu sa lecture")
 	}
 }

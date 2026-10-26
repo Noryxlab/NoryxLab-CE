@@ -99,3 +99,47 @@ func (h Handlers) organizationsInScope(identity auth.Identity) []string {
 	}
 	return h.administeredOrganizationIDs(identity)
 }
+
+// teamAdditionIsAnEscalation says why adding somebody to this team would hand
+// out more than team membership, empty when it would not.
+//
+// Two paths turn "manage your organization's teams" into something larger. A
+// team named an administrator of an organization: adding a member to it names
+// an administrator, which ADR-048 keeps with the platform administrator. And a
+// team that owns or was granted regulated data: adding a member opens that
+// data, while granting a read on a regulated dataset directly is reserved to
+// the platform administrator. Both would convert administering into reading
+// by a side door.
+func (h Handlers) teamAdditionIsAnEscalation(teamID string) string {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return ""
+	}
+	if h.organizationStore != nil {
+		if ids, err := h.organizationStore.AdministeredBy(nil, []string{teamID}); err == nil && len(ids) > 0 {
+			return "this team administers an organization; naming an administrator is a platform administrator's act"
+		}
+	}
+	if h.datasetStore == nil {
+		return ""
+	}
+	items, err := h.datasetStore.ListAll()
+	if err != nil {
+		// Refuser plutot que deviner : une liste illisible ne doit pas
+		// autoriser l'ajout qu'elle servait a juger.
+		return "the datasets this team holds cannot be read right now; try again"
+	}
+	for _, item := range items {
+		if !strings.EqualFold(strings.TrimSpace(item.Classification), "hds") {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.OwnerType), "team") &&
+			strings.EqualFold(strings.TrimSpace(item.OwnerID), teamID) {
+			return "this team owns regulated data (" + item.Name + "); adding a member would open it, which is a platform administrator's act"
+		}
+		if access, found, err := h.datasetStore.GetAccess(item.ID, "team", teamID); err == nil && found && strings.TrimSpace(access.Role) != "" {
+			return "this team holds a grant on regulated data (" + item.Name + "); adding a member would open it, which is a platform administrator's act"
+		}
+	}
+	return ""
+}

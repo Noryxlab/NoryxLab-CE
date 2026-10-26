@@ -202,6 +202,20 @@ func (h Handlers) AddTeamMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Ajouter quelqu'un a une equipe peut etre un acte bien plus lourd que
+	// son nom.
+	//
+	// Deux cas. Une equipe nommee administratrice d'une organisation : y
+	// ajouter un membre, c'est nommer un administrateur, ce que l'ADR-048
+	// reserve a l'administrateur de plateforme. Et une equipe qui possede ou
+	// detient un octroi sur de la donnee reglementee : y ajouter quelqu'un
+	// lui ouvre la donnee, alors que l'octroi direct sur un dataset HDS est
+	// lui aussi reserve. Dans les deux cas, administrer se convertirait en
+	// lire par un chemin detourne.
+	if raison := h.teamAdditionIsAnEscalation(strings.TrimSpace(r.PathValue("teamID"))); raison != "" && !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": raison})
+		return
+	}
 	if !h.teamStoreReady(w) {
 		return
 	}

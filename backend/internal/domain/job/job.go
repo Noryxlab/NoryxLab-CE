@@ -17,7 +17,18 @@ type Job struct {
 	Command     []string `json:"command"`
 	Args        []string `json:"args"`
 	JobName     string   `json:"jobName"`
-	Status      string   `json:"status"`
+	// OwnerUserID is who launched it, and therefore whose rights filled it.
+	//
+	// A job is mounted like a workspace: the datasets inside are the ones its
+	// launcher may read, resolved when it starts. Nothing recorded who that
+	// was, so its logs - which routinely print a few rows to check a script -
+	// were readable by anybody holding the project's launch role, including
+	// people with no right at all over that data.
+	//
+	// Empty on a row written before this field existed: that falls back to
+	// the project role, which is what the platform did for all of them.
+	OwnerUserID string `json:"ownerUserId,omitempty"`
+	Status      string `json:"status"`
 	// HardwareTier is the machine size this job was launched with. Kept on the
 	// record so a project's usage can be measured without asking Kubernetes,
 	// and so what it consumed is still known after the pod is gone.
