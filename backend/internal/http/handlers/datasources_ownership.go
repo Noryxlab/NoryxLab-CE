@@ -101,7 +101,7 @@ func (h Handlers) datasourceRole(item datasourcedomain.Datasource, identity auth
 	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
 	// propriete ; ce qui est donne nommement s'applique.
 	best := ""
-	for _, subject := range h.ontologyAdminSubjects(identity) {
+	for _, subject := range h.ontologyGrantSubjects(identity) {
 		access, found, err := h.datasourceStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role

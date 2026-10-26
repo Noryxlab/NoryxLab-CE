@@ -7,6 +7,7 @@ import (
 	datasourcedomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
+	organizationdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/organization"
 )
 
 // What a screen shows for an owner, in one notation everywhere.
@@ -235,4 +236,25 @@ func (h Handlers) nameDatasourceOwners(items []datasourcedomain.Datasource) {
 		owners = append(owners, datasourceOwner{item: &items[index]})
 	}
 	h.nameOwners(owners)
+}
+
+// nameOrganizationAdmins turns identifiers into the names the screen shows.
+//
+// This is the screen that says who may give away health data; a list of
+// opaque identifiers is a list nobody can audit, and the person who most
+// needs to read it cannot list teams to find out what they mean.
+func (h Handlers) nameOrganizationAdmins(items []organizationdomain.Admin) {
+	for index := range items {
+		switch strings.ToLower(strings.TrimSpace(items[index].SubjectType)) {
+		case "team":
+			if h.teamStore == nil {
+				continue
+			}
+			if team, found, err := h.teamStore.GetByID(items[index].SubjectID); err == nil && found {
+				items[index].SubjectName = team.Name
+			}
+		default:
+			items[index].SubjectName = items[index].SubjectID
+		}
+	}
 }

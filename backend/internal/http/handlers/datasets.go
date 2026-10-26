@@ -122,7 +122,7 @@ func (h Handlers) datasetRole(item dataset.Dataset, identity auth.Identity) stri
 	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
 	// propriete ; ce qui est donne nommement s'applique.
 	best := ""
-	for _, subject := range h.datasetAdminSubjects(identity) {
+	for _, subject := range h.datasetGrantSubjects(identity) {
 		access, found, err := h.datasetStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role
@@ -148,30 +148,40 @@ func (h Handlers) datasetSubjects(identity auth.Identity) []dataset.Subject {
 	return subjects
 }
 
-// datasetAdminSubjects is who this caller administers for, which is the data
-// subjects plus their organizations.
+// datasetGrantSubjects is who an explicit grant can reach this caller
+// through: themselves, their teams, and the organizations they belong to.
 //
-// An organization owns objects and somebody has to be able to transfer them,
-// grant access to them and delete them - but administering an object is not
-// reading it. The split is the whole point: a person who runs the Essilor
-// organization may hand its HDS bucket to a team without being able to open a
-// single file in it, and a researcher granted that bucket may read every file
-// without being able to give it away.
+// Belonging appears here and nowhere else, because a grant to an organization
+// is an act: somebody decided that everyone at Essilor may read this, and the
+// screen says so. What belonging must never do is confer a right nobody
+// granted - which is why it is absent from the two lists either side of this
+// one.
+func (h Handlers) datasetGrantSubjects(identity auth.Identity) []dataset.Subject {
+	subjects := h.datasetSubjects(identity)
+	for _, organizationID := range h.callerOrganizationIDs(identity) {
+		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organizationID})
+	}
+	return subjects
+}
+
+// datasetAdminSubjects is who this caller administers for: themselves, their
+// teams, and the organizations that named them an administrator.
+//
+// Administering is transferring, renaming, deleting and deciding who reads.
+// It used to follow from belonging to the owning organization, which confused
+// a fact with a right: on this platform nine datasets out of twelve are owned
+// by an organization, so every member of one administered health data from
+// the day their account was created. An organization now names its
+// administrators, and until it names somebody only a platform administrator
+// acts for it.
+//
+// The other half of the split still holds: administering is not reading. The
+// person who runs Essilor's data may hand a bucket to a team without opening
+// a single file in it.
 func (h Handlers) datasetAdminSubjects(identity auth.Identity) []dataset.Subject {
 	subjects := h.datasetSubjects(identity)
-	if h.keycloak == nil {
-		return subjects
-	}
-	identifier := strings.TrimSpace(identity.Subject)
-	if identifier == "" {
-		identifier = identity.UserID()
-	}
-	organizations, err := h.keycloak.ListUserOrganizations(identifier)
-	if err != nil {
-		return subjects
-	}
-	for _, organization := range organizations {
-		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organization.ID})
+	for _, organizationID := range h.administeredOrganizationIDs(identity) {
+		subjects = append(subjects, dataset.Subject{Type: "organization", ID: organizationID})
 	}
 	return subjects
 }
@@ -851,6 +861,22 @@ func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
 			IsPrefix:     strings.HasSuffix(obj.Key, "/"),
 		})
 	}
+	// La lecture laisse une trace, comme l'ecriture.
+	//
+	// Quatre-vingt-cinq types d'evenements etaient traces, dont quatorze sur
+	// les datasets, et aucun pour le parcours : on pouvait affirmer qu'aucun
+	// fichier n'avait ete telecharge, jamais que personne n'avait regarde. Sur
+	// de la donnee de sante, les noms de fichiers sont deja de l'information -
+	// un dossier patient nomme une personne et ses examens - et c'est la
+	// question qu'un promoteur d'etude pose en premier.
+	//
+	// Le chemin demande et le nombre d'entrees rendues, pas la liste : un
+	// journal qui recopie ce qu'il observe devient lui-meme la fuite.
+	h.emitAudit(r, identity.UserID(), "dataset.objects.listed", "dataset", item.ID, "",
+		"success", "", map[string]any{
+			"dataset": item.Name, "classification": item.Classification,
+			"prefix": requested, "objects": len(objects), "truncated": truncated,
+		})
 	writeJSON(w, http.StatusOK, map[string]any{"items": objects, "prefix": requested, "truncated": truncated})
 }
 
@@ -1942,4 +1968,62 @@ func datasetS3Error(err error) string {
 		return err.Error()
 	}
 	return "object storage service profile is not configured"
+}
+
+// callerOrganizationIDs is where this person works, as the directory says.
+//
+// A fact, not a permission. It is read by exactly one thing - whether an
+// explicit grant made to an organization reaches them - and by nothing else.
+func (h Handlers) callerOrganizationIDs(identity auth.Identity) []string {
+	if h.keycloak == nil {
+		return nil
+	}
+	organizations, err := h.keycloak.ListUserOrganizations(directoryIdentifier(identity))
+	if err != nil {
+		// Degraded rather than denied, as everywhere else on this path: a
+		// directory that cannot answer must not turn every grant into a
+		// refusal.
+		log.Printf("access: organizations unavailable for %s: %v", identity.UserID(), err)
+		return nil
+	}
+	ids := make([]string, 0, len(organizations))
+	for _, organization := range organizations {
+		if organization.Enabled {
+			ids = append(ids, organization.ID)
+		}
+	}
+	return ids
+}
+
+// administeredOrganizationIDs is which organizations named this person, or one
+// of their teams, an administrator.
+//
+// Fails closed in both directions that matter. No store means nobody
+// administers by organization, which is how an installation behaves before it
+// names anybody; a store that cannot answer returns nothing rather than
+// guessing, because the guess that was being made - "a member administers" -
+// is the one that gave a newcomer the power to delete health data.
+func (h Handlers) administeredOrganizationIDs(identity auth.Identity) []string {
+	if h.organizationStore == nil {
+		return nil
+	}
+	ids, err := h.organizationStore.AdministeredBy(
+		identityIdentifiers(identity), h.callerTeamIDs(identity))
+	if err != nil {
+		log.Printf("access: organization administrators unavailable for %s: %v", identity.UserID(), err)
+		return nil
+	}
+	return ids
+}
+
+// identityIdentifiers is every name this person answers to, because an
+// administrator naming them typed one of three: the username, the e-mail, or
+// the directory's subject id.
+func identityIdentifiers(identity auth.Identity) []string {
+	return []string{
+		strings.TrimSpace(identity.Username),
+		strings.TrimSpace(identity.Email),
+		strings.TrimSpace(identity.Subject),
+		strings.TrimSpace(identity.UserID()),
+	}
 }

@@ -1349,6 +1349,14 @@ export interface ExtractAccess {
   updatedAt: string;
 }
 
+export interface OrganizationAdmin {
+  organizationId: string;
+  subjectType: string;
+  subjectId: string;
+  subjectName?: string;
+  createdAt: string;
+}
+
 export interface DatasourceAccess {
   datasourceId: string;
   subjectType: string;

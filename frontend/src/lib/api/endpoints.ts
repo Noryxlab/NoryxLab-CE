@@ -55,6 +55,7 @@ import type {
   OntologyManifestSummary,
   OntologyQueryItem,
   Organization,
+  OrganizationAdmin,
   OrganizationMember,
   OwnedResources,
   PlatformOverview,
@@ -931,6 +932,22 @@ export const adminApi = {
     api.delete<void>(`${V1}/admin/organizations/${organizationId}`),
   organizationMembers: (organizationId: string) =>
     api.list<OrganizationMember>(`${V1}/admin/organizations/${organizationId}/members`),
+  /** Qui administre ce que l'organisation possede.
+   *
+   *  Un droit nomme, pas une appartenance : l'annuaire dit ou quelqu'un
+   *  travaille, il ne dit pas ce qu'il peut faire. Tant que personne n'est
+   *  nomme, seuls les administrateurs de la plateforme agissent pour elle. */
+  organizationAdmins: (organizationId: string) =>
+    api.list<OrganizationAdmin>(`${V1}/admin/organizations/${organizationId}/administrators`),
+  addOrganizationAdmin: (organizationId: string, subjectType: string, subjectId: string) =>
+    api.put<OrganizationAdmin>(
+      `${V1}/admin/organizations/${organizationId}/administrators/${subjectType}/${encodeURIComponent(subjectId)}`,
+      {},
+    ),
+  removeOrganizationAdmin: (organizationId: string, subjectType: string, subjectId: string) =>
+    api.delete<void>(
+      `${V1}/admin/organizations/${organizationId}/administrators/${subjectType}/${encodeURIComponent(subjectId)}`,
+    ),
   addOrganizationMember: (organizationId: string, userId: string) =>
     api.put<void>(`${V1}/admin/organizations/${organizationId}/members/${encodeURIComponent(userId)}`),
   removeOrganizationMember: (organizationId: string, userId: string) =>

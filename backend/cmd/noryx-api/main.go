@@ -43,6 +43,7 @@ func main() {
 	var egressRuleStore store.EgressRuleStore = memory.NewEgressRuleStore()
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var teamStore store.TeamStore = memory.NewTeamStore()
+	var organizationStore store.OrganizationStore = memory.NewOrganizationStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var projectVariableStore store.ProjectVariableStore = memory.NewProjectVariableStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
@@ -106,6 +107,7 @@ func main() {
 			egressRuleStore = &postgres.EgressRuleStore{Store: pg}
 			accessStore = &postgres.AccessStore{Store: pg}
 			teamStore = &postgres.TeamStore{Store: pg}
+			organizationStore = &postgres.OrganizationStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			projectVariableStore = &postgres.ProjectVariableStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
@@ -217,6 +219,7 @@ func main() {
 		handlers.Options{
 			AgentStore:                       agentStore,
 			AgentTeamStore:                   agentTeamStore,
+			OrganizationStore:                organizationStore,
 			WorkflowStore:                    workflowStore,
 			RegistryPullSecret:               cfg.RegistryPullSecret,
 			RegistryPushSecret:               cfg.RegistryPushSecret,

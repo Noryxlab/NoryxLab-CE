@@ -36,10 +36,11 @@ import {
   useAdminTeams,
   useAdminUsers,
   useInvalidate,
+  useOrganizationAdmins,
   useSmtp,
 } from '@/lib/api/queries';
 import { useT } from '@/lib/i18n';
-import type { Organization, PlatformUser, Team } from '@/lib/api/types';
+import type { Organization, OrganizationAdmin, PlatformUser, Team } from '@/lib/api/types';
 import { DeactivateUserSheet } from './deactivate-user';
 import { TeamUsageSection } from './team-usage';
 
@@ -510,6 +511,119 @@ function RootPanel() {
   );
 }
 
+
+/** Qui administre ce que cette organisation possede.
+ *
+ *  Pose juste sous les appartenances, et separe d'elles a dessein : la liste
+ *  du dessus dit ou les gens travaillent, celle-ci dit ce qu'ils peuvent
+ *  faire. Les confondre a donne, pendant des mois, le pouvoir d'effacer un
+ *  bucket de sante a tout compte cree dans l'organisation. Tant que personne
+ *  n'est nomme ici, seuls les administrateurs de la plateforme agissent pour
+ *  elle. */
+function OrganizationAdministrators({
+  organization,
+  people,
+}: {
+  organization: Organization;
+  people: PlatformUser[];
+}) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const admins = useOrganizationAdmins(organization.id);
+  const teams = useAdminTeams(organization.id);
+
+  const [subjectType, setSubjectType] = React.useState<'user' | 'team'>('user');
+  const [subjectId, setSubjectId] = React.useState('');
+
+  const refresh = () => invalidate(qk.adminOrganizationAdmins(organization.id));
+  const name = (entry: OrganizationAdmin) => entry.subjectName || entry.subjectId;
+
+  const add = useMutation({
+    mutationFn: () => adminApi.addOrganizationAdmin(organization.id, subjectType, subjectId),
+    onSuccess: () => {
+      refresh();
+      setSubjectId('');
+    },
+    onError: (error) => toast.error(error, t('people.administrators')),
+  });
+  const remove = useMutation({
+    mutationFn: (entry: OrganizationAdmin) =>
+      adminApi.removeOrganizationAdmin(organization.id, entry.subjectType, entry.subjectId),
+    onSuccess: refresh,
+    onError: (error) => toast.error(error, t('people.administrators')),
+  });
+
+  const options =
+    subjectType === 'team'
+      ? (teams.data ?? []).map((team) => ({ value: team.id, label: team.name }))
+      : people.map((person) => ({
+          value: person.username,
+          label: displayName(person),
+          hint: person.username,
+        }));
+
+  const items = admins.data ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-sm font-medium">{t('people.administrators')}</h3>
+        <p className="text-xs text-muted-foreground">{t('people.administratorsHint')}</p>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label={t('common.type')} className="min-w-40">
+          <Select
+            value={subjectType}
+            onValueChange={(value) => {
+              setSubjectType(value === 'team' ? 'team' : 'user');
+              setSubjectId('');
+            }}
+            options={[
+              { value: 'user', label: t('common.user') },
+              { value: 'team', label: t('common.team') },
+            ]}
+          />
+        </Field>
+        <Field label={t('rbac.subject')} className="min-w-64">
+          <Select
+            value={subjectId}
+            onValueChange={setSubjectId}
+            options={options}
+            placeholder={t('admin.teamMemberPlaceholder')}
+          />
+        </Field>
+        <Button variant="secondary" disabled={!subjectId} loading={add.isPending} onClick={() => add.mutate()}>
+          <ShieldCheck aria-hidden />
+          {t('common.add')}
+        </Button>
+      </div>
+      {items.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+          {t('people.administratorsEmpty')}
+        </p>
+      ) : (
+        <ul className="divide-y divide-border/60 rounded-md border border-border/60">
+          {items.map((entry) => (
+            <li key={`${entry.subjectType}:${entry.subjectId}`} className="flex items-center justify-between gap-3 px-3 py-2">
+              <span className="flex items-center gap-2 text-sm">
+                <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
+                {name(entry)}
+                <Badge tone="outline">
+                  {entry.subjectType === 'team' ? t('common.team') : t('common.user')}
+                </Badge>
+              </span>
+              <Button variant="ghost" size="sm" aria-label={t('common.delete')} onClick={() => remove.mutate(entry)}>
+                <Trash2 aria-hidden />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function OrganizationPanel({
   organization,
   people,
@@ -600,6 +714,9 @@ function OrganizationPanel({
             </div>
             <MemberList people={people} onOpen={(user) => onSelect({ kind: 'person', user })} onRemove={(user) => removeMember.mutate(user.username)} removing={removeMember.isPending} />
           </div>
+
+          {/* Et le droit, en bas, separe de l'appartenance. */}
+          <OrganizationAdministrators organization={organization} people={people} />
         </CardContent>
       </Card>
 

@@ -1286,6 +1286,11 @@ export const en: Translations = {
     alias: "Alias",
     organizationSummary: "{people} person(s), {teams} team(s)",
     newTeam: "New team",
+    administrators: "Organization administrators",
+    administratorsHint:
+      "Who may transfer, rename and delete what the organization owns, and decide who reads it. A right, not a membership: administering opens no file.",
+    administratorsEmpty:
+      "Nobody is named: what this organization owns is administered only by platform administrators.",
     addToOrganization: "Add to organisation",
     removeFromOrganization: "Remove from organisation",
     teamSummary: "{count} member(s)",

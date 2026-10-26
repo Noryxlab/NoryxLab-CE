@@ -50,12 +50,23 @@ The two questions are now answered separately, for datasets, ontologies and
 extracts alike:
 
 - **Owning** is administering: transfer, rename, delete, and decide who gets
-  access. It reaches the owning user, the members of the owning team, and the
-  members of the owning organization.
+  access. It reaches the owning user, the members of the owning team, and -
+  for an organization - the people and teams that organization **named** as
+  its administrators. Belonging to it confers nothing: the directory says
+  where somebody works, which is a fact and not a permission. An organization
+  that has named nobody is administered only by platform administrators,
+  which is the direction that fails closed.
 - **The right over the data** - read, write, mount, fill an extract - comes
   from being the owning user, belonging to the owning team, or holding an
   explicit grant. Ownership by an organization grants nothing here; an
   explicit grant *to* an organization does, because somebody decided it.
+
+Which gives three deliberate levels and one inheritance that no longer
+exists. Grant to an organization and everybody who works there reads it,
+teams included - that is a choice, made on a screen, revocable in one click.
+Grant to a team and belonging to its organization is not enough to see it.
+Own something, and you decide those two questions without being able to open
+a file.
 
 So a person who runs an organization may hand its bucket to a team without
 being able to open one file in it, and a researcher granted that bucket may
@@ -65,6 +76,12 @@ it exists - and the catalogue shows what each may do with it.
 
 A team is the unit somebody is deliberately added to, which is why it carries
 the data right; membership of an organization says where a person works.
+
+**Naming an organization's administrators** is done under Administration,
+People, on the organization itself, and it is deliberately the section below
+its members: the list above says where people work, the one below says what
+they may do. `organization_admins` holds it, a person or a team, and
+`GET/PUT/DELETE /api/v1/admin/organizations/{id}/administrators` is its API.
 
 Project roles are untouched: an organization grant on a project still reaches
 its members. What changed is the right over the data, which is the thing this
@@ -86,6 +103,13 @@ bug before 2026-10-23:
 | Detach from a project | Administering the project alone |
 | See the object in the catalogue, read its permissions | Either |
 | Read an extract's frozen file list | The data right on the extract or its study |
+
+Reading is recorded, not only writing. Listing a bucket's contents, opening
+an extract's frozen file list and querying a study each write an audit line
+with what was asked and how much came back - never the names themselves, so
+the journal does not become the leak. Without them the platform could say no
+file had been downloaded and nothing at all about who had looked, which is
+the first question a study sponsor asks about health data.
 
 Detaching needs nothing on the object on purpose. The same authorisation as
 attaching used to guard it, which manufactured a stuck state: revoke the read

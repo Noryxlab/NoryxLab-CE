@@ -44,6 +44,20 @@ components:
       name: X-Noryx-User
 
   schemas:
+    OrganizationAdmin:
+      type: object
+      properties:
+        organizationId: { type: string }
+        subjectType: { type: string }
+        subjectId: { type: string }
+        subjectName: { type: string }
+        createdAt: { type: string, format: date-time }
+    OrganizationAdminListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/OrganizationAdmin' }
     DatasourceAccess:
       type: object
       properties:
@@ -9267,6 +9281,104 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasourceAccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}/administrators:
+    get:
+      tags: [Admin]
+      summary: Who may act for this organization
+      description: >-
+        Belonging to an organization says where somebody works; administering
+        what it owns is a right, and this is the list that confers it. An
+        organization that has named nobody is administered only by platform
+        administrators.
+      operationId: listOrganizationAdmins
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationAdminListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}:
+    delete:
+      tags: [Admin]
+      summary: Take that right back
+      operationId: removeOrganizationAdmin
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Administrator removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Name an administrator
+      description: >-
+        A person or a team. They may then transfer, rename and delete what the
+        organization owns, and decide who reads it - without being able to
+        read it themselves.
+      operationId: addOrganizationAdmin
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: subjectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationAdmin'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

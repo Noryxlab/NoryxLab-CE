@@ -1314,6 +1314,11 @@ export const fr = {
     alias: "Alias",
     organizationSummary: "{people} personne(s), {teams} equipe(s)",
     newTeam: "Nouvelle equipe",
+    administrators: "Administrateurs de l'organisation",
+    administratorsHint:
+      "Qui peut transférer, renommer, supprimer ce que l'organisation possède, et décider qui le lit. C'est un droit, pas une appartenance : administrer n'ouvre aucun fichier.",
+    administratorsEmpty:
+      "Personne n'est nommé : ce que cette organisation possède n'est administré que par les administrateurs de la plateforme.",
     addToOrganization: "Ajouter a l'organisation",
     removeFromOrganization: "Retirer de l'organisation",
     teamSummary: "{count} membre(s)",

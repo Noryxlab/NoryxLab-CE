@@ -160,6 +160,8 @@ export const qk = {
   adminExecutions: ["admin", "executions"] as const,
   adminPods: ["admin", "pods"] as const,
   adminOrganizations: ["admin", "organizations"] as const,
+  adminOrganizationAdmins: (organizationId: string) =>
+    ["admin-organization-admins", organizationId] as const,
   adminOrganizationMembers: (organizationId: string) =>
     ["admin", "organizations", organizationId, "members"] as const,
   adminAudit: ["admin", "audit"] as const,
@@ -758,6 +760,13 @@ export const useOrganizationMembers = (organizationId: string | undefined) =>
   useQuery({
     queryKey: qk.adminOrganizationMembers(organizationId ?? ""),
     queryFn: () => adminApi.organizationMembers(organizationId as string),
+    enabled: Boolean(organizationId),
+  });
+
+export const useOrganizationAdmins = (organizationId: string | undefined) =>
+  useQuery({
+    queryKey: qk.adminOrganizationAdmins(organizationId ?? ""),
+    queryFn: () => adminApi.organizationAdmins(organizationId as string),
     enabled: Boolean(organizationId),
   });
 

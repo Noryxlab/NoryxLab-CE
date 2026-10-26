@@ -247,6 +247,13 @@ func (h Handlers) GetExtractMembers(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(names)
 	_ = identity
+	// Lire la liste figee laisse une trace : ce sont des chemins qui nomment
+	// des patients, leurs visites et leurs examens.
+	h.emitAudit(r, identity.UserID(), "extract.members.listed", "extract", item.ID, item.ProjectID,
+		"success", "", map[string]any{
+			"extract": item.Name, "ontologyId": item.OntologyID,
+			"members": len(members), "subjects": len(names),
+		})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"extract":  item,
 		"members":  members,
@@ -375,7 +382,7 @@ func (h Handlers) extractRole(item extractdomain.Extract, identity auth.Identity
 	// propriete - donc la plateforme acceptait un droit, l'affichait dans la
 	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
 	// propriete ; ce qui est donne nommement s'applique.
-	for _, subject := range h.ontologyAdminSubjects(identity) {
+	for _, subject := range h.ontologyGrantSubjects(identity) {
 		access, found, err := h.extractStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && strings.TrimSpace(access.Role) != "" {
 			return "reader"

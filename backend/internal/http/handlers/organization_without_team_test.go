@@ -5,6 +5,7 @@ import (
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	organizationdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/organization"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/store/memory"
@@ -31,9 +32,19 @@ func TestUneOrganisationPossedeMaisNeLitPas(t *testing.T) {
 		t.Fatal(err)
 	}
 	datasets := memory.NewDatasetStore()
+	organisations := memory.NewOrganizationStore()
+	// L'organisation nomme qui agit pour elle. « chercheuse » l'est, le
+	// nouveau venu ne l'est pas : c'est toute la difference entre un fait
+	// d'annuaire et un droit.
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "chercheuse",
+	}); err != nil {
+		t.Fatal(err)
+	}
 	h := Handlers{
-		teamStore:    equipes,
-		datasetStore: datasets,
+		teamStore:         equipes,
+		datasetStore:      datasets,
+		organizationStore: organisations,
 		keycloak: fakeKeycloak(t, map[string][]keycloak.Organization{
 			"chercheuse": {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
 			"nouveau":    {{ID: "org-essilor", Name: "Essilor", Alias: "essilor", Enabled: true}},
@@ -60,18 +71,25 @@ func TestUneOrganisationPossedeMaisNeLitPas(t *testing.T) {
 		}
 	}
 
-	// Mais les deux administrent ce que leur organisation possede : le
-	// catalogue le montre, et les droits se donnent depuis la.
-	for nom, qui := range map[string]auth.Identity{"avec equipe": chercheuse, "sans equipe": nouveau} {
-		if !h.canAdministerDataset(hds, qui) {
-			t.Fatalf("%s : un membre de l'organisation proprietaire doit pouvoir administrer", nom)
-		}
-		if !h.canSeeDataset(hds, qui) {
-			t.Fatalf("%s : l'objet administre doit rester visible au catalogue", nom)
-		}
-		if h.canWriteDataset(hds, qui) {
-			t.Fatalf("%s : administrer n'est pas ecrire", nom)
-		}
+	// Et l'appartenance seule n'administre pas davantage : le nouveau venu
+	// ne voit meme pas l'objet au catalogue.
+	if h.canAdministerDataset(hds, nouveau) {
+		t.Fatal("l'appartenance a l'organisation a suffi pour administrer")
+	}
+	if h.canSeeDataset(hds, nouveau) {
+		t.Fatal("un membre sans droit voit l'objet de son organisation")
+	}
+
+	// Celle que l'organisation a nommee, elle, administre - et ne lit pas
+	// pour autant.
+	if !h.canAdministerDataset(hds, chercheuse) {
+		t.Fatal("l'administratrice nommee par l'organisation n'administre pas")
+	}
+	if !h.canSeeDataset(hds, chercheuse) {
+		t.Fatal("l'objet administre doit rester visible au catalogue")
+	}
+	if h.canWriteDataset(hds, chercheuse) {
+		t.Fatal("administrer n'est pas ecrire")
 	}
 
 	// Un droit nominatif ouvre la donnee, et rien d'autre.

@@ -9,6 +9,7 @@ import (
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
+	organizationdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/organization"
 	projectdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
 	workspacedomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
@@ -67,7 +68,13 @@ func TestOnConfieUnObjetASonOrganisation(t *testing.T) {
 // redevenue "administrateur global seulement", sans que le message d'erreur le
 // dise.
 func TestLOrganisationProprietaireMonteSaDonneeReglementee(t *testing.T) {
-	h := Handlers{keycloak: annuaireEssilor(t, "chercheuse")}
+	organisations := memory.NewOrganizationStore()
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "chercheuse",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{keycloak: annuaireEssilor(t, "chercheuse"), organizationStore: organisations}
 	chercheuse := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
 	hds := datasetdomain.Dataset{ID: "d1", Classification: "hds", OwnerType: "organization", OwnerID: "org-essilor"}
 
@@ -77,6 +84,12 @@ func TestLOrganisationProprietaireMonteSaDonneeReglementee(t *testing.T) {
 	etranger := auth.Identity{Username: "etranger", Subject: "etranger"}
 	if entitledToRegulatedDataset(h.datasetAdminSubjects(etranger), hds) {
 		t.Fatal("un etranger a l'organisation est habilite")
+	}
+	// Et un simple membre non plus : monter de la donnee reglementee dans un
+	// projet, c'est la distribuer.
+	membre := auth.Identity{Username: "membre", Subject: "membre"}
+	if entitledToRegulatedDataset(h.datasetAdminSubjects(membre), hds) {
+		t.Fatal("la seule appartenance a habilite a monter de la donnee reglementee")
 	}
 }
 
@@ -128,9 +141,15 @@ func TestUnExtraitNeSeLitPasParLOrganisationProprietaire(t *testing.T) {
 	if err := extraits.Create(item, nil); err != nil {
 		t.Fatal(err)
 	}
+	organisations := memory.NewOrganizationStore()
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "nouveau",
+	}); err != nil {
+		t.Fatal(err)
+	}
 	h := Handlers{
 		authMode: "header", extractStore: extraits, ontologyStore: ontologies,
-		keycloak: annuaireEssilor(t, "nouveau"),
+		keycloak: annuaireEssilor(t, "nouveau"), organizationStore: organisations,
 	}
 	nouveau := auth.Identity{Username: "nouveau", Subject: "nouveau"}
 
@@ -274,5 +293,79 @@ func TestLeLancementDitCeQuIlNAPasMonte(t *testing.T) {
 	retenus := h.attachmentsWithheldFrom("p1", auth.Identity{Username: "chercheuse", Subject: "chercheuse"})
 	if len(retenus) != 1 || retenus[0] != "essilor-data" {
 		t.Fatalf("ce qui n'est pas monte = %v", retenus)
+	}
+}
+
+// Administrer une organisation est un droit nomme, pas une appartenance.
+//
+// C'est la demande d'Essilor, et elle corrige une confusion : l'annuaire dit
+// ou quelqu'un travaille, il ne dit pas ce qu'il peut faire. Tant que
+// l'organisation n'a nomme personne, ce qu'elle possede n'est administre que
+// par un administrateur de la plateforme - la direction qui echoue fermee.
+func TestLAdministrationDUneOrganisationSeDonne(t *testing.T) {
+	organisations := memory.NewOrganizationStore()
+	h := Handlers{
+		keycloak:          annuaireEssilor(t, "nouveau", "cyril"),
+		organizationStore: organisations,
+	}
+	hds := datasetdomain.Dataset{ID: "d1", OwnerType: "organization", OwnerID: "org-essilor"}
+	nouveau := auth.Identity{Username: "nouveau", Subject: "nouveau"}
+	cyril := auth.Identity{Username: "cyril", Subject: "cyril"}
+
+	// Personne n'a ete nomme : les deux membres n'administrent rien.
+	for nom, qui := range map[string]auth.Identity{"nouveau": nouveau, "cyril": cyril} {
+		if h.canAdministerDataset(hds, qui) {
+			t.Fatalf("%s administre sans avoir ete nomme", nom)
+		}
+		if h.canSeeDataset(hds, qui) {
+			t.Fatalf("%s voit au catalogue un objet qu'il n'administre pas", nom)
+		}
+	}
+
+	// L'organisation nomme Cyril.
+	if err := organisations.AddAdmin(organizationdomain.Admin{
+		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "cyril",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !h.canAdministerDataset(hds, cyril) {
+		t.Fatal("l'administrateur nomme n'administre pas")
+	}
+	if h.canReadDataset(hds, cyril) {
+		t.Fatal("etre nomme administrateur a ouvert la donnee")
+	}
+	if h.canAdministerDataset(hds, nouveau) {
+		t.Fatal("nommer quelqu'un a donne le droit a tout le monde")
+	}
+}
+
+// Et un octroi explicite a l'organisation continue de s'appliquer.
+//
+// Les deux moities du modele tiennent ensemble : l'appartenance ne confere
+// rien d'elle-meme, mais elle reste le chemin par lequel un octroi delibere
+// atteint les gens. Sans cela, accorder la lecture a une organisation entiere
+// - ce que l'ecran propose - ne ferait rien du tout.
+func TestUnOctroiALOrganisationAtteintSesMembresSansLesFaireAdministrer(t *testing.T) {
+	datasets := memory.NewDatasetStore()
+	item := datasetdomain.Dataset{ID: "d1", OwnerType: "user", OwnerID: "stef"}
+	if err := datasets.Create(item); err != nil {
+		t.Fatal(err)
+	}
+	if err := datasets.SetAccess(datasetdomain.Access{
+		DatasetID: "d1", SubjectType: "organization", SubjectID: "org-essilor", Role: "reader",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{
+		datasetStore:      datasets,
+		keycloak:          annuaireEssilor(t, "nouveau"),
+		organizationStore: memory.NewOrganizationStore(),
+	}
+	nouveau := auth.Identity{Username: "nouveau", Subject: "nouveau"}
+	if role := h.datasetRole(item, nouveau); role != "reader" {
+		t.Fatalf("l'octroi a l'organisation ne s'applique plus : role = %q", role)
+	}
+	if h.canAdministerDataset(item, nouveau) {
+		t.Fatal("un octroi de lecture a confere l'administration")
 	}
 }

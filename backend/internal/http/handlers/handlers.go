@@ -28,7 +28,11 @@ type Handlers struct {
 	// teamStore is optional: an installation without it behaves exactly
 	// as the platform did before teams existed, which is what makes this
 	// safe to deploy before the interface that drives it.
-	teamStore            store.TeamStore
+	teamStore store.TeamStore
+	// organizationStore names who administers what an organization owns.
+	// Optional like teamStore: without it nobody administers by organization,
+	// which is the safe direction.
+	organizationStore    store.OrganizationStore
 	secretStore          store.SecretStore
 	projectVariableStore store.ProjectVariableStore
 	datasetStore         store.DatasetStore
@@ -132,6 +136,9 @@ type Options struct {
 	// AgentTeamStore holds the groups those agents work in. Separate from
 	// AgentStore because a team outlives its members and is edited on its own.
 	AgentTeamStore store.AgentTeamStore
+	// OrganizationStore names who administers what an organization owns -
+	// a right, granted, as opposed to belonging to it.
+	OrganizationStore store.OrganizationStore
 	// WorkflowStore holds what runs when an agent works (ADR-046): ordered
 	// steps and the durable runs that walk them.
 	WorkflowStore        store.WorkflowStore
@@ -352,6 +359,7 @@ func New(
 		agentStore:                       options.AgentStore,
 		workflowStore:                    options.WorkflowStore,
 		agentTeamStore:                   options.AgentTeamStore,
+		organizationStore:                options.OrganizationStore,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

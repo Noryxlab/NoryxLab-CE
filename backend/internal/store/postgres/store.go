@@ -971,6 +971,20 @@ func migrationStatements() []string {
 		// The organization is stored as the directory gave it. No foreign key
 		// can be written against a table that does not exist here, and the
 		// platform must not pretend to own an identifier it cannot enforce.
+		// Qui administre ce qu'une organisation possede.
+		//
+		// Vide a l'installation, et c'est voulu : tant qu'une organisation
+		// n'a nomme personne, ce qu'elle possede n'est administre que par un
+		// administrateur de la plateforme. L'inverse - deduire le droit de
+		// l'appartenance - est exactement ce qui donnait a tout nouveau venu
+		// le pouvoir d'effacer un bucket de sante le jour de son arrivee.
+		`CREATE TABLE IF NOT EXISTS organization_admins (
+			organization_id TEXT NOT NULL,
+			subject_type TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			PRIMARY KEY (organization_id, subject_type, subject_id)
+		)`,
 		`CREATE TABLE IF NOT EXISTS teams (
 			id TEXT PRIMARY KEY,
 			organization_id TEXT NOT NULL,

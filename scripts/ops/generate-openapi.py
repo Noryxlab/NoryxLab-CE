@@ -205,6 +205,14 @@ ENVELOPES = {
         "updatedAt": "date-time",
     },
     "DatasourceAccessListResponse": {"items": "[$DatasourceAccess]", "canManage": "boolean"},
+    "OrganizationAdmin": {
+        "organizationId": "string",
+        "subjectType": "string",
+        "subjectId": "string",
+        "subjectName": "string",
+        "createdAt": "date-time",
+    },
+    "OrganizationAdminListResponse": {"items": "[$OrganizationAdmin]"},
     "ProjectOrganizationRole": {"organizationId": "string", "organizationName": "string", "role": "string"},
     "ProjectOrganizationRoleListResponse": {"items": "[$ProjectOrganizationRole]"},
     "DatasetDownloadURLResponse": {"url": "string", "filename": "string", "expiresAt": "date-time"},
@@ -304,6 +312,9 @@ RESPONSES = {
     ("GET", "/api/v1/extracts/{extractID}/access"): "ExtractAccessListResponse",
     # Le dernier objet du catalogue a recevoir des droits.
     ("GET", "/api/v1/datasources/{datasourceID}/access"): "DatasourceAccessListResponse",
+    # Qui administre ce qu'une organisation possede : un droit nomme.
+    ("GET", "/api/v1/admin/organizations/{organizationID}/administrators"): "OrganizationAdminListResponse",
+    ("PUT", "/api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}"): "OrganizationAdmin",
     ("PUT", "/api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}"): "DatasourceAccess",
     ("PUT", "/api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}"): "ExtractAccess",
     ("PUT", "/api/v1/extracts/{extractID}/access/{userID}"): "ExtractAccess",
@@ -331,6 +342,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),
+    ("DELETE", "/api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}"): ("204", "Administrator removed", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),

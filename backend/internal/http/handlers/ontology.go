@@ -344,6 +344,11 @@ func (h Handlers) QueryOntology(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	results, total := queryOntologyManifest(manifest, req)
+	// Interroger une etude laisse une trace : la reponse nomme des sujets.
+	h.emitAudit(r, identity.UserID(), "ontology.queried", "ontology", item.ID, "",
+		"success", "", map[string]any{
+			"ontology": item.Name, "results": len(results), "total": total,
+		})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":   results,
 		"count":   total,
@@ -1039,19 +1044,18 @@ func (h Handlers) ontologySubjects(identity auth.Identity) []ontologydomain.Subj
 // who may transfer, grant and delete, which is not who may read.
 func (h Handlers) ontologyAdminSubjects(identity auth.Identity) []ontologydomain.Subject {
 	subjects := h.ontologySubjects(identity)
-	if h.keycloak == nil {
-		return subjects
+	for _, organizationID := range h.administeredOrganizationIDs(identity) {
+		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organizationID})
 	}
-	identifier := strings.TrimSpace(identity.Subject)
-	if identifier == "" {
-		identifier = identity.UserID()
-	}
-	organizations, err := h.keycloak.ListUserOrganizations(identifier)
-	if err != nil {
-		return subjects
-	}
-	for _, organization := range organizations {
-		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organization.ID})
+	return subjects
+}
+
+// ontologyGrantSubjects is who an explicit grant reaches, organizations
+// included: a grant is an act, and belonging is how it reaches people.
+func (h Handlers) ontologyGrantSubjects(identity auth.Identity) []ontologydomain.Subject {
+	subjects := h.ontologySubjects(identity)
+	for _, organizationID := range h.callerOrganizationIDs(identity) {
+		subjects = append(subjects, ontologydomain.Subject{Type: "organization", ID: organizationID})
 	}
 	return subjects
 }
@@ -1093,7 +1097,7 @@ func (h Handlers) ontologyRole(item ontologydomain.Ontology, identity auth.Ident
 	// matrice, et ne l'appliquait pas. L'heritage ferme est celui de la
 	// propriete ; ce qui est donne nommement s'applique.
 	best := ""
-	for _, subject := range h.ontologyAdminSubjects(identity) {
+	for _, subject := range h.ontologyGrantSubjects(identity) {
 		access, found, err := h.ontologyStore.GetAccess(item.ID, subject.Type, subject.ID)
 		if err == nil && found && (access.Role == "writer" || best == "") {
 			best = access.Role
