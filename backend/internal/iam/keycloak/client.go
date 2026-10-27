@@ -435,9 +435,23 @@ func (c *Client) EnsureRealmRole(name, description string) error {
 
 // AddRealmRole grants a realm role to an account.
 func (c *Client) AddRealmRole(identifier, role string) error {
+	return c.mapRealmRole(http.MethodPost, identifier, role)
+}
+
+// RemoveRealmRole withdraws a realm role from an account. Keycloak answers
+// 204 whether or not the account held it, so a caller that needs to know
+// asks ListRealmRoleMembers first.
+func (c *Client) RemoveRealmRole(identifier, role string) error {
+	return c.mapRealmRole(http.MethodDelete, identifier, role)
+}
+
+func (c *Client) mapRealmRole(method, identifier, role string) error {
 	userID, err := c.resolveUserID(identifier)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("account " + identifier + " does not exist")
 	}
 	var found struct {
 		ID   string `json:"id"`
@@ -449,7 +463,7 @@ func (c *Client) AddRealmRole(identifier, role string) error {
 	if strings.TrimSpace(found.ID) == "" {
 		return errors.New("role " + role + " does not exist")
 	}
-	return c.adminJSON(http.MethodPost, "users/"+url.PathEscape(userID)+"/role-mappings/realm",
+	return c.adminJSON(method, "users/"+url.PathEscape(userID)+"/role-mappings/realm",
 		[]map[string]any{{"id": found.ID, "name": found.Name}}, nil)
 }
 

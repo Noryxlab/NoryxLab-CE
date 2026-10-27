@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Bot, Building2, ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -874,14 +875,22 @@ function PersonPlatformRole({ user }: { user: PlatformUser }) {
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
+  const { isAdmin } = useAuth();
   const current = useUserPlatformRole(user.id);
   const roles = usePlatformRoles();
   const [choice, setChoice] = React.useState('');
-  const assignable = (roles.data?.roles ?? []).filter((r) => r.assignable);
+  // The administrator row is the directory's: only a platform administrator
+  // is offered it, and the server refuses it to anybody else anyway.
+  const offered = (roles.data?.roles ?? []).filter((r) => r.assignable || (isAdmin && r.key === 'administrator'));
   const refresh = () => invalidate(qk.adminUserPlatformRole(user.id), qk.adminPlatformRoles, qk.adminUsers);
   const assign = useMutation({
     mutationFn: () => adminApi.setUserPlatformRole(user.id, choice),
-    onSuccess: () => { refresh(); setChoice(''); toast.success(t('platformRoles.assigned'), displayName(user)); },
+    onSuccess: () => {
+      const named = choice === 'administrator';
+      refresh();
+      setChoice('');
+      toast.success(t('platformRoles.assigned'), named ? t('platformRoles.signInAgain') : displayName(user));
+    },
     onError: (error) => toast.error(error, t('platformRoles.role')),
   });
   const reset = useMutation({
@@ -902,19 +911,21 @@ function PersonPlatformRole({ user }: { user: PlatformUser }) {
         <Select
           value={choice}
           onValueChange={setChoice}
-          options={assignable.map((r) => ({ value: r.key, label: r.name }))}
+          options={offered.filter((r) => r.key !== held?.key).map((r) => ({ value: r.key, label: r.name }))}
           placeholder={t('platformRoles.assign')}
         />
         <Button variant="secondary" size="sm" disabled={!choice} loading={assign.isPending} onClick={() => assign.mutate()}>
           {t('platformRoles.assign')}
         </Button>
-        {current.data?.assigned ? (
+        {current.data?.assigned && (held?.key !== 'administrator' || isAdmin) ? (
           <Button variant="ghost" size="sm" loading={reset.isPending} onClick={() => reset.mutate()}>
-            {t('platformRoles.reset')}
+            {held?.key === 'administrator' ? t('platformRoles.withdrawAdmin') : t('platformRoles.reset')}
           </Button>
         ) : null}
       </dd>
-      <p className="text-xs text-muted-foreground">{t('platformRoles.roleHint')}</p>
+      <p className="text-xs text-muted-foreground">
+        {held?.key === 'administrator' ? t('platformRoles.adminHint') : t('platformRoles.roleHint')}
+      </p>
     </div>
   );
 }
@@ -1144,7 +1155,8 @@ function CreateUserSheet({ organization, open, onOpenChange }: { organization: O
   const blank = { username: '', email: '', firstName: '', lastName: '', organizationId: organization.id, roleKey: 'user' };
   const [form, setForm] = React.useState(blank);
   const roles = usePlatformRoles();
-  const assignable = (roles.data?.roles ?? []).filter((r) => r.assignable);
+  const { isAdmin } = useAuth();
+  const assignable = (roles.data?.roles ?? []).filter((r) => r.assignable || (isAdmin && r.key === 'administrator'));
   const [issued, setIssued] = React.useState<{ who: string; password: string } | null>(null);
   // Remise a zero a l'ouverture, et rattachee a l'organisation du panneau
   // courant : les deux seules choses dont la fiche depend vraiment.

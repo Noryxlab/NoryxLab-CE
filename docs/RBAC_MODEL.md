@@ -211,7 +211,10 @@ scan an ontology, create an extract, declare a data source, declare a
 repository, register a regulated dataset, administer an organization.
 
 Three rows ship locked. **Administrator** acts on what is not theirs; it is
-the directory's realm role, counted but never assigned here. **User** acts on
+the directory's realm role: naming an administrator from a person's page
+writes that role to the directory, never to the assignments table, and only
+a platform administrator does it. Withdrawing it has three refusals - not
+oneself, not the bootstrap account, not the last one standing. **User** acts on
 their own: everything above except registering regulated data and
 administering an organization. **Consultant** is the user row with every box
 unchecked - an auditor, a study sponsor, a student - which is the test the

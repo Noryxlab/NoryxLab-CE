@@ -65,6 +65,13 @@ func (h Handlers) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a username is required"})
 		return
 	}
+	startingRole := strings.ToLower(strings.TrimSpace(req.RoleKey))
+	if startingRole == platformrole.KeyAdministrator && !h.isGlobalAdmin(identity) {
+		// Refused before the account exists: a peer is named by a platform
+		// administrator, not by whoever may create accounts.
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only a platform administrator names another"})
+		return
+	}
 	if h.organizationRequired && strings.TrimSpace(req.OrganizationID) == "" {
 		// Refused rather than created half-formed: this installation requires
 		// organization membership, so an account without one is an account that
@@ -113,11 +120,21 @@ func (h Handlers) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Le role de depart, demande sur le meme formulaire que l'organisation.
-	if key := strings.ToLower(strings.TrimSpace(req.RoleKey)); key != "" && key != platformrole.KeyUser && h.platformRoleStore != nil {
-		if shipped, ok := platformrole.ShippedByKey(key); (ok && shipped.Assignable) || !ok {
-			_ = h.platformRoleStore.SetAssignment(platformrole.Assignment{UserID: username, RoleKey: key, AssignedBy: identity.UserID()})
+	// The starting role, asked on the same form as the organization. The
+	// administrator row is the directory's and goes there; a stored row is
+	// for everything else.
+	switch {
+	case startingRole == platformrole.KeyAdministrator:
+		if err := h.keycloak.AddRealmRole(userID, globalAdminRole); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":  "the account was created but the directory refused the administrator role; name it from the person's page",
+				"userId": userID,
+			})
+			return
 		}
+		forgetAdministrators()
+	case startingRole != "" && startingRole != platformrole.KeyUser && h.platformRoleStore != nil:
+		_ = h.platformRoleStore.SetAssignment(platformrole.Assignment{UserID: username, RoleKey: startingRole, AssignedBy: identity.UserID()})
 	}
 	h.emitAudit(r, identity.UserID(), "user.created", "user", username, "", "success", "",
 		map[string]any{"organizationId": strings.TrimSpace(req.OrganizationID)})

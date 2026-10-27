@@ -105,13 +105,64 @@ func TestLesLignesFourniesSontVerrouillees(t *testing.T) {
 			t.Fatalf("la ligne fournie %s a ete modifiee (%d)", key, vue.Code)
 		}
 	}
+}
+
+// Nommer un administrateur ecrit dans l'annuaire, jamais dans la table des
+// attributions : sans annuaire, c'est refuse et non range quelque part. Et
+// le retirer connait trois refus, dont les deux qu'on peut jouer sans
+// annuaire : soi-meme, et le compte d'amorcage.
+func TestLAdministrateurSeNommeDansLAnnuaire(t *testing.T) {
+	roles := memory.NewPlatformRoleStore()
+	h := Handlers{authMode: "header", platformRoleStore: roles, bootstrapAdminUser: "admin"}
+
 	requete := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/alice/platform-role", strings.NewReader(`{"roleKey":"administrator"}`))
 	requete.Header.Set(userHeader, "admin")
 	requete.SetPathValue("userID", "alice")
 	vue := httptest.NewRecorder()
 	h.SetUserPlatformRole(vue, requete)
+	if vue.Code != http.StatusNotImplemented {
+		t.Fatalf("sans annuaire, nommer un administrateur doit etre refuse, pas %d", vue.Code)
+	}
+	if _, found, _ := roles.GetAssignment("alice"); found {
+		t.Fatal("le role administrateur ne doit jamais etre range dans les attributions")
+	}
+
+	// L'administrateur d'amorcage ne se retire pas lui-meme, ni par personne.
+	requete = httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/admin/platform-role", nil)
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("userID", "admin")
+	vue = httptest.NewRecorder()
+	h.ClearUserPlatformRole(vue, requete)
 	if vue.Code != http.StatusConflict {
-		t.Fatalf("le role administrateur a ete attribue ici (%d)", vue.Code)
+		t.Fatalf("retirer son propre role administrateur doit etre refuse, pas %d", vue.Code)
+	}
+	requete = httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/admin/platform-role", strings.NewReader(`{"roleKey":"consultant"}`))
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("userID", "admin")
+	vue = httptest.NewRecorder()
+	h.SetUserPlatformRole(vue, requete)
+	if vue.Code != http.StatusConflict {
+		t.Fatalf("retrograder le compte d'amorcage doit etre refuse, pas %d", vue.Code)
+	}
+	if _, found, _ := roles.GetAssignment("admin"); found {
+		t.Fatal("un refus ne doit rien ecrire")
+	}
+
+	// Une fiche d'administrateur se lit comme telle, sans ligne stockee.
+	requete = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/admin/platform-role", nil)
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("userID", "admin")
+	vue = httptest.NewRecorder()
+	h.GetUserPlatformRole(vue, requete)
+	var reponse struct {
+		Role     platformrole.Role `json:"role"`
+		Assigned bool              `json:"assigned"`
+	}
+	if err := json.NewDecoder(vue.Body).Decode(&reponse); err != nil {
+		t.Fatal(err)
+	}
+	if reponse.Role.Key != platformrole.KeyAdministrator || !reponse.Assigned {
+		t.Fatalf("la fiche doit dire administrateur, nomme : %+v", reponse)
 	}
 }
 

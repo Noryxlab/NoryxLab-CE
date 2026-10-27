@@ -86,7 +86,8 @@ type Role struct {
 	// shown and never edited. Custom rows are the installation's.
 	Locked bool `json:"locked"`
 	// Assignable is false for the administrator row only: that right is the
-	// directory's realm role, derived and never handed out here.
+	// directory's realm role, never stored as an assignment. Naming one from
+	// the interface writes to the directory instead.
 	Assignable bool      `json:"assignable"`
 	CreatedAt  time.Time `json:"createdAt,omitempty"`
 	UpdatedAt  time.Time `json:"updatedAt,omitempty"`

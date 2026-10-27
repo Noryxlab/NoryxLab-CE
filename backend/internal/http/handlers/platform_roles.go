@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 )
 
 // What a role may create (ADR-049).
@@ -18,9 +20,10 @@ import (
 // hard-coded on the realm role, project creation open to anybody who could
 // sign in, and nothing on any screen saying either.
 //
-// Who holds which row: the realm role makes an administrator and is never
-// assigned here; an assignment names a shipped or custom row; nobody assigned
-// means the user row, which is what every account could already do.
+// Who holds which row: the realm role makes an administrator, and naming one
+// from here writes that role to the directory; an assignment names a shipped
+// or custom row; nobody assigned means the user row, which is what every
+// account could already do.
 
 // platformRoleOf resolves the row this caller holds.
 func (h Handlers) platformRoleOf(identity auth.Identity) platformrole.Role {
@@ -247,6 +250,11 @@ func (h Handlers) GetUserPlatformRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := strings.TrimSpace(r.PathValue("userID"))
+	if _, named, err := h.administratorAccount(userID); err == nil && named {
+		role, _ := platformrole.ShippedByKey(platformrole.KeyAdministrator)
+		writeJSON(w, http.StatusOK, map[string]any{"userId": userID, "role": role, "assigned": true})
+		return
+	}
 	role := h.platformRoleOf(auth.Identity{Username: userID, Subject: userID})
 	assigned := false
 	if h.platformRoleStore != nil {
@@ -277,13 +285,19 @@ func (h Handlers) SetUserPlatformRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := strings.ToLower(strings.TrimSpace(req.RoleKey))
-	if shipped, ok := platformrole.ShippedByKey(key); ok {
-		if !shipped.Assignable {
-			writeJSON(w, http.StatusConflict, map[string]string{"error": "the administrator role is the directory's realm role and is not assigned here"})
+	if key == platformrole.KeyAdministrator {
+		h.nameAdministrator(w, r, identity, userID)
+		return
+	}
+	if _, ok := platformrole.ShippedByKey(key); !ok {
+		if _, ok, err := h.platformRoleStore.GetCustom(key); err != nil || !ok {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no role named " + key})
 			return
 		}
-	} else if _, ok, err := h.platformRoleStore.GetCustom(key); err != nil || !ok {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no role named " + key})
+	}
+	// An administrator given another row stops being one: the directory is
+	// written before the assignment, so a refused withdrawal changes nothing.
+	if !h.withdrawAdministratorIfNamed(w, r, identity, userID) {
 		return
 	}
 	item := platformrole.Assignment{UserID: userID, RoleKey: key, AssignedBy: identity.UserID(), AssignedAt: time.Now().UTC()}
@@ -303,6 +317,9 @@ func (h Handlers) ClearUserPlatformRole(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	userID := strings.TrimSpace(r.PathValue("userID"))
+	if !h.withdrawAdministratorIfNamed(w, r, identity, userID) {
+		return
+	}
 	if h.platformRoleStore != nil {
 		if err := h.platformRoleStore.ClearAssignment(userID); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to clear the role"})
@@ -311,4 +328,117 @@ func (h Handlers) ClearUserPlatformRole(w http.ResponseWriter, r *http.Request) 
 	}
 	h.emitAdvancedAudit(r, identity.UserID(), "platform_role.cleared", "user", userID, "", "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Naming an administrator (ADR-049 §3, ADR-048).
+//
+// The administrator row is the directory's realm role, so naming one from
+// the interface writes to the directory and never to the assignments table.
+// Only a platform administrator does it - the row has no ceiling, and the
+// module right that lets an organization's administrator manage accounts is
+// not the right to make a peer. Withdrawing it has three refusals: not
+// yourself, which is how an installation loses its last administrator by a
+// slip; not the bootstrap account, which configuration names and the
+// directory cannot unname; and not the last one standing.
+
+// administratorAccount says whether one account is a platform administrator,
+// by the directory's realm role or by the bootstrap configuration, and
+// returns the account when the directory knows it.
+func (h Handlers) administratorAccount(userID string) (keycloak.User, bool, error) {
+	if h.isGlobalAdminUserID(userID) {
+		return keycloak.User{Username: userID}, true, nil
+	}
+	if h.keycloak == nil {
+		return keycloak.User{}, false, nil
+	}
+	user, found, err := h.keycloak.GetUser(userID)
+	if err != nil || !found {
+		return keycloak.User{}, false, err
+	}
+	named := h.globalAdministrators()
+	return user, named[strings.ToLower(user.Username)] || named[strings.ToLower(user.Email)], nil
+}
+
+func (h Handlers) nameAdministrator(w http.ResponseWriter, r *http.Request, identity auth.Identity, userID string) {
+	if !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only a platform administrator names another"})
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "naming an administrator requires the directory"})
+		return
+	}
+	if err := h.keycloak.AddRealmRole(userID, globalAdminRole); err != nil {
+		log.Printf("platform roles: naming %s administrator: %v", userID, err)
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the directory refused to grant the administrator role"})
+		return
+	}
+	// A stored row under an administrator would be a lie on the screen: the
+	// realm role wins, and the row would resurface the day it is withdrawn.
+	if h.platformRoleStore != nil {
+		_ = h.platformRoleStore.ClearAssignment(userID)
+	}
+	forgetAdministrators()
+	h.emitAdvancedAudit(r, identity.UserID(), "platform_role.assigned", "user", userID, "", "success", "",
+		map[string]any{"roleKey": platformrole.KeyAdministrator, "directory": true})
+	writeJSON(w, http.StatusOK, platformrole.Assignment{UserID: userID, RoleKey: platformrole.KeyAdministrator, AssignedBy: identity.UserID(), AssignedAt: time.Now().UTC()})
+}
+
+// withdrawAdministratorIfNamed takes the realm role back when the target
+// holds it, and answers whether the caller may go on. An account that is not
+// an administrator passes through untouched.
+func (h Handlers) withdrawAdministratorIfNamed(w http.ResponseWriter, r *http.Request, identity auth.Identity, userID string) bool {
+	user, named, err := h.administratorAccount(userID)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the directory did not answer"})
+		return false
+	}
+	if !named {
+		return true
+	}
+	if !h.isGlobalAdmin(identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "only a platform administrator withdraws another"})
+		return false
+	}
+	for _, mine := range identityIdentifiers(identity) {
+		if mine == "" {
+			continue
+		}
+		if strings.EqualFold(mine, userID) || strings.EqualFold(mine, user.Username) || (user.Email != "" && strings.EqualFold(mine, user.Email)) {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "you cannot withdraw your own administrator role; ask another administrator"})
+			return false
+		}
+	}
+	if h.isGlobalAdminUserID(userID) || h.isGlobalAdminUserID(user.Username) || h.isGlobalAdminUserID(user.Email) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "the bootstrap administrator is named by configuration and cannot be withdrawn here"})
+		return false
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "withdrawing an administrator requires the directory"})
+		return false
+	}
+	members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the directory did not answer"})
+		return false
+	}
+	standing := 0
+	for _, member := range members {
+		if member.Enabled {
+			standing++
+		}
+	}
+	if standing <= 1 {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "the last administrator cannot be withdrawn; name another first"})
+		return false
+	}
+	if err := h.keycloak.RemoveRealmRole(userID, globalAdminRole); err != nil {
+		log.Printf("platform roles: withdrawing %s administrator: %v", userID, err)
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the directory refused to withdraw the administrator role"})
+		return false
+	}
+	forgetAdministrators()
+	h.emitAdvancedAudit(r, identity.UserID(), "platform_role.cleared", "user", userID, "", "success", "",
+		map[string]any{"roleKey": platformrole.KeyAdministrator, "directory": true})
+	return true
 }

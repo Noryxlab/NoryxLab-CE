@@ -772,6 +772,15 @@ const administratorCacheFor = time.Minute
 
 var administrators administratorNames
 
+// forgetAdministrators drops the cached list, for the moment somebody is
+// named or withdrawn from the interface: a minute of stale answers is fine
+// for a token check and wrong for the screen that just made the change.
+func forgetAdministrators() {
+	administrators.mu.Lock()
+	administrators.names = nil
+	administrators.mu.Unlock()
+}
+
 func (h Handlers) holdsGlobalAdminRole(identifier string) bool {
 	identifier = strings.ToLower(strings.TrimSpace(identifier))
 	if identifier == "" || h.keycloak == nil {
