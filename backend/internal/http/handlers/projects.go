@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"strings"
@@ -88,12 +87,12 @@ func defaultProjectName(userID string) string {
 }
 
 func (h Handlers) CreateProject(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, userID, ok := h.requireUserIdentity(w, r)
 	if !ok {
 		return
 	}
 	// La matrice decide (ADR-049).
-	if !h.requireCapability(w, auth.Identity{Username: userID, Subject: userID}, platformrole.CreateProject) {
+	if !h.requireCapability(w, identity, platformrole.CreateProject) {
 		return
 	}
 

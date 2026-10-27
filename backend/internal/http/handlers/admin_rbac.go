@@ -226,7 +226,7 @@ func (h Handlers) loadRBACPolicyRows() ([]rbacPolicyRow, error) {
 			if err := json.Unmarshal(raw, &rows); err != nil {
 				return nil, err
 			}
-			return validateRBACPolicyRows(rows)
+			return validateRBACPolicyRows(withoutRetiredRows(rows))
 		}
 	}
 	return defaultRBACPolicyRows(), nil
@@ -247,18 +247,6 @@ func (h Handlers) rbacRoleAssignmentCounts() (map[string]int, error) {
 			seen[key] = map[string]bool{}
 		}
 		seen[key][cell.SubjectType+":"+cell.SubjectID] = true
-	}
-	// Les administrateurs de la plateforme ne sont pas dans la matrice : elle
-	// parle de ressources, et ce role-la n'en vise aucune. Il se compte dans
-	// l'annuaire, qui en est la source.
-	if h.keycloak != nil {
-		if members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole); err == nil {
-			porteurs := map[string]bool{}
-			for _, member := range members {
-				porteurs["user:"+strings.ToLower(strings.TrimSpace(member.Username))] = true
-			}
-			seen["admin"] = porteurs
-		}
 	}
 	out := map[string]int{}
 	for key, subjects := range seen {
@@ -297,10 +285,17 @@ func rbacPolicyRowFor(cell rbacCell) string {
 	return role
 }
 
-// defaultRBACPolicyRows describes what the platform already does, which is what
+// defaultRBACPolicyRows describes what a project role may do, which is what
 // makes the matrix safe to start enforcing: the shipped rows have to reproduce
 // the Community rule exactly, or turning the matrix on would change who may do
 // what on a live installation.
+//
+// Three rows, all project roles. The five that used to sit beside them -
+// Administrateur, Owner, Owner (organisation), Writer, Reader - were a
+// glossary presented as a form: none was a role anybody could be given here,
+// none was ever read by the engine, and the platform administrator now has a
+// matrix of his own (ADR-049). They are retired, and a document that still
+// carries them loses them on load.
 //
 // "Project admin" carries Admin on the project column rather than RW, because
 // RW could not tell it from Editor - both may change the project, only one may
@@ -317,15 +312,30 @@ func rbacPolicyRowFor(cell rbacCell) string {
 // one has always been a contributor's right.
 func defaultRBACPolicyRows() []rbacPolicyRow {
 	return []rbacPolicyRow{
-		{Role: "Administrateur", Key: "admin", Locked: true, Description: "Administration plateforme: configuration, gouvernance, audit et exploitation.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "RW", Workload: "RW", Governance: "Admin"},
-		{Role: "Owner", Key: "owner", Locked: true, Description: "Propriétaire nominatif ou équipe propriétaire: la donnée est à elle.", Project: "RW", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "RW", Governance: "-"},
-		{Role: "Owner (organisation)", Key: "owner-organization", Locked: true, Description: "Organisation propriétaire: transférer, accorder, supprimer. Posséder n’est pas lire: le droit sur la donnée se donne à une personne, à une équipe ou à l’organisation, explicitement.", Project: "Admin", Dataset: "Admin", Ontology: "Admin", Datasource: "Admin", Environment: "-", Workload: "RW", Governance: "-"},
 		{Role: "Project admin", Key: "project-admin", Locked: true, Description: "Admin d’un projet: membres, ressources attachées et workloads du projet.", Project: "Admin", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
 		{Role: "Editor", Key: "editor", Locked: true, Description: "Contributeur projet: modification du contenu projet et usages de calcul.", Project: "RW", Dataset: "RW attaché", Ontology: "RW attaché", Datasource: "RW attaché", Environment: "RW", Workload: "RW", Governance: "-"},
-		{Role: "Writer", Key: "writer", Locked: true, Description: "Droit d’écriture sur une ressource data donnée.", Project: "-", Dataset: "RW", Ontology: "RW", Datasource: "RW", Environment: "-", Workload: "-", Governance: "-"},
-		{Role: "Reader", Key: "reader", Locked: true, Description: "Consultation seule sur une ressource data donnée.", Project: "-", Dataset: "R", Ontology: "R", Datasource: "R", Environment: "-", Workload: "-", Governance: "-"},
 		{Role: "Viewer", Key: "viewer", Locked: true, Description: "Lecture projet et suivi des sorties publiées.", Project: "R", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "R", Governance: "-"},
 	}
+}
+
+// rbacRetiredRowKeys are the rows the matrix no longer carries. Owner, Writer
+// and Reader are grants, listed on each object's permissions screen; the
+// platform administrator is the directory's role and the creation matrix
+// counts him. A stored document written before the retirement still holds
+// them, and they are dropped rather than obeyed or shown as custom rows.
+var rbacRetiredRowKeys = map[string]bool{
+	"admin": true, "owner": true, "owner-organization": true, "writer": true, "reader": true,
+}
+
+func withoutRetiredRows(rows []rbacPolicyRow) []rbacPolicyRow {
+	out := make([]rbacPolicyRow, 0, len(rows))
+	for _, row := range rows {
+		if rbacRetiredRowKeys[rbacRoleKey(firstNonEmpty(row.Key, row.Role))] {
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 // refuseLockedRowChanges keeps the platform's own description out of reach.
@@ -381,19 +391,10 @@ func rbacRowBase(row rbacPolicyRow) (access.Role, error) {
 }
 
 // rbacShippedRowBases names which built-in each shipped row describes.
-//
-// "admin" and "owner" are not project roles at all - they are resolved before
-// any project role is read - but they answer as an administrator wherever a
-// project rule asks, which is what the platform already does.
 var rbacShippedRowBases = map[string]access.Role{
-	"admin":              access.RoleAdmin,
-	"owner":              access.RoleAdmin,
-	"owner-organization": access.RoleAdmin,
-	"project-admin":      access.RoleAdmin,
-	"editor":             access.RoleEditor,
-	"writer":             access.RoleEditor,
-	"reader":             access.RoleViewer,
-	"viewer":             access.RoleViewer,
+	"project-admin": access.RoleAdmin,
+	"editor":        access.RoleEditor,
+	"viewer":        access.RoleViewer,
 }
 
 // refuseGovernanceOnACustomRow keeps the platform's own administration out of
@@ -431,6 +432,9 @@ func validateRBACPolicyRows(rows []rbacPolicyRow) ([]rbacPolicyRow, error) {
 		}
 		if seen[row.Key] {
 			return nil, errors.New("duplicate role key: " + row.Key)
+		}
+		if rbacRetiredRowKeys[row.Key] {
+			return nil, errors.New("role " + row.Role + " is not a project role: owners, writers and readers are grants on the object, and the platform administrator is named in the directory")
 		}
 		seen[row.Key] = true
 		base, err := rbacRowBase(row)

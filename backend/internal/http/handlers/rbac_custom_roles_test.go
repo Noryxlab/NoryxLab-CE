@@ -134,3 +134,32 @@ func TestTheShippedRowsDescribeWhatAContributorCanActuallyDo(t *testing.T) {
 		t.Errorf("viewer was widened: dataset %q, environment %q", viewer.Dataset, viewer.Environment)
 	}
 }
+
+// Les cinq lignes informatives sont retirees (ADR-049) : un document qui les
+// porte encore les perd au chargement, et on ne peut pas les recreer en
+// ligne maison - owner, writer et reader sont des octrois, admin est a
+// l'annuaire.
+func TestLesLignesRetireesNeReviennentPas(t *testing.T) {
+	for _, row := range defaultRBACPolicyRows() {
+		if rbacRetiredRowKeys[row.Key] {
+			t.Fatalf("la ligne retiree %q est encore livree", row.Key)
+		}
+	}
+	if got := len(defaultRBACPolicyRows()); got != 3 {
+		t.Fatalf("la matrice des roles de projet livre 3 lignes, pas %d", got)
+	}
+	ancien := []rbacPolicyRow{
+		{Role: "Administrateur", Key: "admin", Locked: true, Governance: "Admin"},
+		{Role: "Owner", Key: "owner", Locked: true, Dataset: "RW"},
+		{Role: "Reader", Key: "reader", Locked: true, Dataset: "R"},
+		{Role: "Viewer", Key: "viewer", Locked: true, Project: "R", Dataset: "R attaché", Ontology: "R attaché", Datasource: "R attaché", Environment: "R", Workload: "R"},
+		{Role: "Steward", Key: "steward", BasedOn: "editor", Dataset: "RW"},
+	}
+	restant := withoutRetiredRows(ancien)
+	if len(restant) != 2 || restant[0].Key != "viewer" || restant[1].Key != "steward" {
+		t.Fatalf("le chargement doit garder viewer et steward, pas %+v", restant)
+	}
+	if _, err := validateRBACPolicyRows([]rbacPolicyRow{{Role: "Owner", Key: "owner", BasedOn: "admin"}}); err == nil {
+		t.Fatal("une ligne retiree ne doit pas pouvoir etre recreee en ligne maison")
+	}
+}

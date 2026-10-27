@@ -38,7 +38,6 @@ import { datasetsApi, deletionCostApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { presentRole } from '@/lib/presenters';
-import { useAuth } from '@/lib/auth';
 import { DatasetExplorer } from './dataset-explorer';
 import type { Dataset, DatasetAccess } from '@/lib/api/types';
 
@@ -52,7 +51,7 @@ function CreateDatasetSheet({
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
-  const { isAdmin } = useAuth();
+  const can = useCan();
 
   const [mode, setMode] = React.useState<'local' | 'external'>('local');
   const [classification, setClassification] = React.useState('non-hds');
@@ -167,9 +166,11 @@ function CreateDatasetSheet({
               />
             </Field>
 
-            {/* HDS creation is administrator-only (ADR-013), so the control is
-                hidden rather than shown and then rejected by the API. */}
-            {isAdmin ? (
+            {/* Registering regulated data is a box in the creation matrix
+                (ADR-049), so the control follows the capability the platform
+                answered - a data steward sees it, a user does not - rather
+                than the administrator role read off the token. */}
+            {can('register-regulated-dataset') ? (
               <Field
                 label={t('datasets.classificationLabel')}
                 description={t('datasets.classificationHint')}

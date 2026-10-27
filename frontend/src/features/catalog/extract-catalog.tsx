@@ -7,7 +7,7 @@ import { useConfirm } from '@/components/common/confirm-dialog';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
 import { ontologiesApi } from '@/lib/api/endpoints';
-import { qk, useExtracts, useInvalidate, useOntologies } from '@/lib/api/queries';
+import { qk, useCan, useExtracts, useInvalidate, useOntologies } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import type { Extract } from '@/lib/api/types';
@@ -229,10 +229,15 @@ export function ExtractCatalog() {
  *  choisit un dataset avant de le scanner. */
 function DeclareExtract() {
   const t = useT();
+  const can = useCan();
   const ontologies = useOntologies();
   const [ontologyId, setOntologyId] = React.useState('');
   const choisie = ontologies.data?.find((item) => item.id === ontologyId);
 
+  // Sans le droit de creer un extrait, pas de formulaire : le serveur
+  // refuserait de toute facon, et une carte qui promet ce qu'elle ne tiendra
+  // pas est pire qu'aucune (ADR-049).
+  if (!can('create-extract')) return null;
   return (
     <Card>
       <CardHeader>

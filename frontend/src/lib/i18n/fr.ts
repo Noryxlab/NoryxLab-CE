@@ -167,9 +167,9 @@ export const fr = {
     "administer-organization": "Administrer une organisation",
   },
   roleMatrix: {
-    title: "Rôles de l’installation",
+    title: "Rôles de projet",
     intro:
-      "Les rôles que la plateforme applique, et ceux que vous écrivez. Une ligne livrée décrit ce que la plateforme fait déjà et ne se modifie pas : c’est sur vos propres rôles que vous décidez.",
+      "Ce qu’un rôle donné dans un projet permet sur le projet et sur ce qui lui est attaché. Trois rôles sont fournis et verrouillés : administrateur du projet, contributeur, lecteur. Vos propres rôles de projet s’écrivent ici et se donnent sur l’écran des membres. Ce qu’un rôle peut créer est la matrice du dessus ; qui peut lire un objet est un octroi sur l’objet.",
     addRole: "Ajouter un rôle",
     basedOn: "Hérite de",
     namePlaceholder: "Data steward",
@@ -182,12 +182,10 @@ export const fr = {
     columnDatasource: "Source de données",
     columnEnvironment: "Environnement",
     columnWorkload: "Charge de calcul",
-    columnGovernance: "Gouvernance",
     baseViewer: "Lecteur",
     baseEditor: "Contributeur",
     baseAdmin: "Administrateur",
     heldBy: "porté par {count}",
-    governanceLocked: "Décidée par l’annuaire",
     saved: "Rôles enregistrés",
     ceilingHint:
       "Un rôle maison hérite toujours d’un rôle de la plateforme : c’est ce que la personne obtient partout où la matrice n’a rien à dire, et c’est aussi son plafond tant que la matrice n’applique pas la ligne.",

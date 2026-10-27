@@ -172,6 +172,23 @@ func (h Handlers) requireUserID(w http.ResponseWriter, r *http.Request) (string,
 	return userID, true
 }
 
+// requireUserIdentity is requireUserID for a handler that also asks the
+// matrix: the matrix reads the roles the token carries, so it needs the
+// identity itself and not one rebuilt from the user id, which would make an
+// administrator answer as a user.
+func (h Handlers) requireUserIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, string, bool) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return auth.Identity{}, "", false
+	}
+	userID := identity.UserID()
+	if userID == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid authenticated identity"})
+		return auth.Identity{}, "", false
+	}
+	return identity, userID, true
+}
+
 func (h Handlers) requireUserIDFromSessionOrBearer(w http.ResponseWriter, r *http.Request) (string, bool) {
 	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
 	if !ok {

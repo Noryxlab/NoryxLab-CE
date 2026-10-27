@@ -164,9 +164,9 @@ export const en: Translations = {
     "administer-organization": "Administer an organization",
   },
   roleMatrix: {
-    title: "Roles of this installation",
+    title: "Project roles",
     intro:
-      "The roles the platform enforces, and the ones you write. A shipped row describes what the platform already does and cannot be changed: your own roles are where you decide.",
+      "What a role given in a project allows on the project and on what is attached to it. Three ship locked: project admin, editor, viewer. Your own project roles are written here and given on the members screen. What a role may create is the matrix above; who may read an object is a grant on the object.",
     addRole: "Add a role",
     basedOn: "Based on",
     namePlaceholder: "Data steward",
@@ -178,13 +178,11 @@ export const en: Translations = {
     columnDatasource: "Data source",
     columnEnvironment: "Environment",
     columnWorkload: "Workload",
-    columnGovernance: "Governance",
     baseViewer: "Viewer",
     baseEditor: "Editor",
     baseAdmin: "Administrator",
     shippedBase: "Platform role",
     heldBy: "held by {count}",
-    governanceLocked: "Decided by the directory",
     saved: "Roles saved",
     ceilingHint:
       "A role of your own always inherits from a platform role: that is what the person gets wherever the matrix has nothing to say, and it is also their ceiling until the matrix enforces the row.",

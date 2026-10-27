@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"net/mail"
@@ -39,12 +38,12 @@ func (h Handlers) ListRepositories(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, userID, ok := h.requireUserIdentity(w, r)
 	if !ok {
 		return
 	}
 	// La matrice decide (ADR-049).
-	if !h.requireCapability(w, auth.Identity{Username: userID, Subject: userID}, platformrole.DeclareRepository) {
+	if !h.requireCapability(w, identity, platformrole.DeclareRepository) {
 		return
 	}
 	var req createRepositoryRequest

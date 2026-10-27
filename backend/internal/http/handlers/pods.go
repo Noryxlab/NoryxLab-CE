@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/pod"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
@@ -49,8 +50,12 @@ func (h Handlers) ListPods(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireUserID(w, r)
+	identity, userID, ok := h.requireUserIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049) : un pod est une charge de calcul.
+	if !h.requireCapability(w, identity, platformrole.LaunchJob) {
 		return
 	}
 

@@ -272,6 +272,15 @@ names the resource.
 
 A global administrator, and the owner of the project, pass every check.
 
+The Enterprise matrix that refines these answers carries **project roles
+only**: the three above, locked, and the installation's own rows based on one
+of them. It used to show five more - Administrateur, Owner, Owner
+(organisation), Writer, Reader - none of which the engine ever read and none
+of which could be given from that screen. They are retired (ADR-049): owners,
+writers and readers are grants on the object, and the platform administrator
+is named in the directory and counted by the creation matrix. A document saved
+with those rows loses them on load, and a custom row may not reuse their keys.
+
 ### Roles granted to an organization
 
 A role may be granted to a Keycloak organization instead of to a person. Every

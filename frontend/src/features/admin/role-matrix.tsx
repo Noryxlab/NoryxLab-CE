@@ -15,12 +15,17 @@ import { useT } from '@/lib/i18n';
 import type { RbacPolicyRow } from '@/lib/api/types';
 
 /**
- * La ou une installation ecrit ses propres roles.
+ * La ou une installation ecrit ses propres roles de projet.
  *
  * Le document existait depuis des mois, le moteur le lit depuis peu, et
  * personne n'avait d'ecran pour l'ecrire : les lignes ne pouvaient etre
  * changees qu'en appelant l'API a la main. Un client qui decrit son
  * organisation - "data steward", "responsable qualite" - le fait ici.
+ *
+ * Il ne parle que des roles qu'un projet donne a ses membres. Ce qu'un role
+ * peut creer est la matrice du dessus ; qui peut lire un objet est un octroi
+ * sur l'objet ; l'administrateur de la plateforme est nomme dans l'annuaire
+ * (ADR-049). Les lignes qui decrivaient ces trois choses-la ont ete retirees.
  *
  * Deux choses ne se negocient pas sur cet ecran.
  *
@@ -37,6 +42,8 @@ import type { RbacPolicyRow } from '@/lib/api/types';
 const PERMISSIONS = ['-', 'R', 'RW', 'Admin', 'R attaché', 'RW attaché'] as const;
 const BASES = ['viewer', 'editor', 'admin'] as const;
 
+// Pas de colonne Gouvernance : un role se porte dans un projet, et les ecrans
+// d'administration ne sont dans aucun projet. Le serveur la normalise a "-".
 const COLUMNS = [
   'project',
   'dataset',
@@ -44,7 +51,6 @@ const COLUMNS = [
   'datasource',
   'environment',
   'workload',
-  'governance',
 ] as const;
 
 type ColumnKey = (typeof COLUMNS)[number];
@@ -126,7 +132,7 @@ export function RoleMatrixEditor() {
       />
 
       <Card className="overflow-x-auto p-0">
-        <table className="w-full min-w-[56rem] border-collapse text-sm">
+        <table className="w-full min-w-[48rem] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left">
               <th className="px-4 py-2 font-medium">{t('common.role')}</th>
@@ -196,13 +202,6 @@ export function RoleMatrixEditor() {
                     <td key={column} className="px-2 py-3">
                       {row.locked ? (
                         <Badge tone={row[column] === '-' ? 'outline' : 'neutral'}>{row[column]}</Badge>
-                      ) : column === 'governance' ? (
-                        // Un role se porte dans un projet ; les ecrans
-                        // d'administration ne sont dans aucun projet, donc
-                        // aucun role de projet ne peut y donner acces. Le
-                        // serveur refuse la ligne : autant le dire ici plutot
-                        // que de laisser choisir une valeur qui sera rejetee.
-                        <span className="text-xs text-muted-foreground">{t('roleMatrix.governanceLocked')}</span>
                       ) : (
                         <Select
                           value={row[column as ColumnKey]}
