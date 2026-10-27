@@ -237,9 +237,24 @@ func (c *Client) UpdateUserProfile(identifier string, firstName, lastName, email
 
 // SetUserEnabled turns an account on or off. Disabling is preferred to
 // deletion: it stops access immediately and keeps the audit trail attributable.
-func (c *Client) SetUserEnabled(userID string, enabled bool) error {
+// SetUserEnabled takes an id, a username or an email, like the other
+// account calls.
+//
+// It took an id only, and the service-account screen passed a username: so
+// disabling a service account answered 404 from the directory, every time,
+// and the account stayed enabled with its tokens revoked - which the screen
+// reported as a failure and the operator read as an outage. The validator's
+// probe found it the first night it tried to put its own account away.
+func (c *Client) SetUserEnabled(identifier string, enabled bool) error {
+	userID, err := c.resolveUserID(identifier)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("account " + identifier + " does not exist")
+	}
 	return c.adminJSON(http.MethodPut,
-		"users/"+url.PathEscape(strings.TrimSpace(userID)),
+		"users/"+url.PathEscape(userID),
 		map[string]any{"enabled": enabled}, nil)
 }
 

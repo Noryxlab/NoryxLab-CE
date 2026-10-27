@@ -98,3 +98,27 @@ func TestUpdatingAProfileCanClearAField(t *testing.T) {
 		t.Fatalf("an emptied field was not sent: lastName = %v (present=%v)", value, present)
 	}
 }
+
+// Disabling an account by its username reaches the id the directory knows.
+//
+// The service-account screen passes a username, and the call took an id only:
+// every disable answered 404 and the account stayed enabled. Found by the
+// validator's nightly probe the first time it put its own account away.
+func TestDisablingByUsernameReachesTheAccountId(t *testing.T) {
+	var method, path string
+	var body []byte
+	client := profileStub(t, func(m, p string, b []byte) { method, path, body = m, p, b })
+
+	if err := client.SetUserEnabled("andrew", false); err != nil {
+		t.Fatalf("disable failed: %v", err)
+	}
+	if method != http.MethodPut || !strings.HasSuffix(path, "/users/5f2a1c3d-0000-4000-8000-000000000001") {
+		t.Fatalf("expected PUT on the account id, got %s %s", method, path)
+	}
+	if !strings.Contains(string(body), `"enabled":false`) {
+		t.Fatalf("payload must disable the account: %s", body)
+	}
+	if err := client.SetUserEnabled("nobody", false); err == nil {
+		t.Fatal("an unknown account must be refused, not addressed as users/nobody")
+	}
+}
