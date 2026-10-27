@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -100,4 +101,32 @@ func nonEmptyLower(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func (s *OrganizationStore) GetPolicy(organizationID string) (organization.Policy, bool, error) {
+	var item organization.Policy
+	err := s.Store.db.QueryRow(
+		`SELECT organization_id, membership_grant, updated_at, updated_by
+		   FROM organization_policies WHERE organization_id=$1`,
+		strings.TrimSpace(organizationID)).Scan(&item.OrganizationID, &item.MembershipGrant, &item.UpdatedAt, &item.UpdatedBy)
+	if err == sql.ErrNoRows {
+		return organization.Policy{}, false, nil
+	}
+	if err != nil {
+		return organization.Policy{}, false, err
+	}
+	return item, true, nil
+}
+
+func (s *OrganizationStore) SetPolicy(item organization.Policy) error {
+	item.Normalise()
+	_, err := s.Store.db.Exec(
+		`INSERT INTO organization_policies (organization_id, membership_grant, updated_at, updated_by)
+		 VALUES ($1,$2,$3,$4)
+		 ON CONFLICT (organization_id) DO UPDATE SET
+			membership_grant=EXCLUDED.membership_grant,
+			updated_at=EXCLUDED.updated_at,
+			updated_by=EXCLUDED.updated_by`,
+		item.OrganizationID, item.MembershipGrant, item.UpdatedAt, item.UpdatedBy)
+	return err
 }

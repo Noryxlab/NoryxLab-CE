@@ -409,6 +409,10 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create dataset"})
 		return
 	}
+	// Created for an organization: its members get what its policy says.
+	if item.OwnerType == "organization" {
+		h.applyMembershipGrant(item.OwnerID, "writer", h.datasetGrantWriter(item.ID))
+	}
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.create", "dataset", item.ID, "", "success", "", map[string]any{
 		"name": item.Name, "provider": item.Provider, "classification": item.Classification, "bucket": item.Bucket,
 	})
@@ -1404,6 +1408,8 @@ func (h Handlers) UpdateDatasetOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update dataset owner"})
 		return
 	}
+	previousType, previousID := firstNonEmpty(item.OwnerType, "user"), firstNonEmpty(item.OwnerID, item.OwnerUserID)
+	h.settleOwnership(previousType, previousID, req.OwnerType, req.OwnerID, "writer", h.datasetGrantWriter(item.ID))
 	h.emitAdvancedAudit(r, identity.UserID(), "dataset.owner.transfer", "dataset", item.ID, "", "success", "", map[string]any{"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID, "ownerType": req.OwnerType, "ownerId": req.OwnerID})
 	updated, _, _ := h.datasetStore.GetByID(item.ID)
 	writeJSON(w, http.StatusOK, updated)
@@ -2043,5 +2049,13 @@ func identityIdentifiers(identity auth.Identity) []string {
 		strings.TrimSpace(identity.Email),
 		strings.TrimSpace(identity.Subject),
 		strings.TrimSpace(identity.UserID()),
+	}
+}
+
+// datasetGrantWriter is the dataset's access list as the settlement needs it.
+func (h Handlers) datasetGrantWriter(datasetID string) grantWriter {
+	return func(subjectType, subjectID, role string) error {
+		now := time.Now().UTC()
+		return h.datasetStore.SetAccess(dataset.Access{DatasetID: datasetID, SubjectType: subjectType, SubjectID: subjectID, Role: role, CreatedAt: now, UpdatedAt: now})
 	}
 }

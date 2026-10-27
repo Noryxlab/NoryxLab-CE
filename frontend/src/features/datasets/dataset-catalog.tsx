@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AccessPanel, type AccessEntry } from '@/components/common/access-panel';
 import { useMutation } from '@tanstack/react-query';
 import { Database, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
@@ -29,17 +30,14 @@ import {
   useDatasetAccess,
   useDatasets,
   useDatasetUsage,
-  useAllTeams,
   useOrganizations,
-  useAdminUsers,
   qk,
   useInvalidate, useCan } from '@/lib/api/queries';
 import { datasetsApi, deletionCostApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
-import { presentRole } from '@/lib/presenters';
 import { DatasetExplorer } from './dataset-explorer';
-import type { Dataset, DatasetAccess } from '@/lib/api/types';
+import type { Dataset } from '@/lib/api/types';
 
 function CreateDatasetSheet({
   open,
@@ -506,167 +504,34 @@ function DatasetOwnership({ dataset }: { dataset: Dataset }) {
 
 function DatasetPermissions({ dataset }: { dataset: Dataset }) {
   const t = useT();
-  const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
   const access = useDatasetAccess(dataset.id);
-  const users = useAdminUsers();
-  const organizations = useOrganizations();
-  const teams = useAllTeams();
-
-  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
-  const [subjectId, setSubjectId] = React.useState('');
-  const [role, setRole] = React.useState('reader');
-
   const grant = useMutation({
-    mutationFn: () => datasetsApi.grant(dataset.id, subjectType, subjectId, role),
-    onSuccess: () => {
-      invalidate(qk.datasetAccess(dataset.id));
-      setSubjectId('');
-    },
-    onError: (error) => toast.error(error, t('datasets.grant')),
-  });
-
-  const revoke = useMutation({
-    mutationFn: (entry: DatasetAccess) =>
-      datasetsApi.revoke(dataset.id, entry.subjectType, entry.subjectId),
+    mutationFn: (input: { subjectType: string; subjectId: string; role: string }) => datasetsApi.grant(dataset.id, input.subjectType, input.subjectId, input.role),
     onSuccess: () => invalidate(qk.datasetAccess(dataset.id)),
-    onError: (error) => toast.error(error, t('datasets.revoke')),
+    onError: (error) => toast.error(error, t('access.grant')),
   });
-
-  const columns: Column<DatasetAccess>[] = [
-    {
-      id: 'subject',
-      header: t('rbac.subject'),
-      cell: (entry) => {
-        const name = entry.subjectName?.trim();
-        const identifier = entry.subjectId || entry.userId || '';
-        return (
-          <div className="min-w-0">
-            <span className="font-medium">{name || identifier}</span>
-            {/* L'identifiant reste visible sous le nom : c'est lui qu'on
-                recopie dans une commande ou dans un ticket. */}
-            {name && name !== identifier ? (
-              <div className="truncate font-mono text-xs text-muted-foreground">{identifier}</div>
-            ) : null}
-          </div>
-        );
-      },
-    },
-    {
-      id: 'type',
-      header: t('common.type'),
-      cell: (entry) => (
-        <Badge tone="outline">
-          {entry.subjectType === 'organization'
-            ? t('common.organization')
-            : entry.subjectType === 'team'
-              ? t('common.team')
-              : t('common.user')}
-        </Badge>
-      ),
-    },
-    {
-      id: 'role',
-      header: t('common.role'),
-      cell: (entry) => <Badge tone="brand">{presentRole(entry.role, locale)}</Badge>,
-    },
-  ];
-
-  const subjectOptions =
-    subjectType === 'organization'
-      ? (organizations.data ?? []).map((organization) => ({
-          value: organization.alias ?? organization.id,
-          label: organization.name,
-        }))
-      : subjectType === 'team'
-      ? // Granted by identifier, never by name: two organizations may each
-        // have a team called the same thing, so the name is only the label.
-        teams.data.map((team) => ({
-          value: team.id,
-          label: team.name,
-          hint: team.organizationName || undefined,
-        }))
-      : (users.data ?? []).map((user) => ({
-          value: user.username ?? user.id,
-          label: user.username ?? user.id,
-          hint: user.email ?? undefined,
-        }));
-
+  const revoke = useMutation({
+    mutationFn: (entry: AccessEntry) => datasetsApi.revoke(dataset.id, entry.subjectType, entry.subjectId),
+    onSuccess: () => invalidate(qk.datasetAccess(dataset.id)),
+    onError: (error) => toast.error(error, t('access.revoke')),
+  });
   return (
-    <Card>
-      <CardHeader>
-        <CardHeaderText>
-          <CardTitle>{t('datasets.permissions')}</CardTitle>
-          <CardDescription>{t('datasets.permissionsHint')}</CardDescription>
-        </CardHeaderText>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
-          <Field label={t('common.type')}>
-            <Select
-              value={subjectType}
-              onValueChange={(value) => {
-                setSubjectType(
-                  value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
-                );
-                setSubjectId('');
-              }}
-              options={[
-                { value: 'user', label: t('common.user') },
-                { value: 'team', label: t('common.team') },
-                { value: 'organization', label: t('common.organization') },
-              ]}
-            />
-          </Field>
-          <Field label={t('rbac.subject')}>
-            <Select
-              value={subjectId}
-              onValueChange={setSubjectId}
-              options={subjectOptions}
-              placeholder={t('common.search')}
-            />
-          </Field>
-          <Field label={t('common.role')}>
-            <Select
-              value={role}
-              onValueChange={setRole}
-              options={[
-                { value: 'reader', label: presentRole('reader', locale) },
-                { value: 'writer', label: presentRole('writer', locale) },
-              ]}
-            />
-          </Field>
-          <Button
-            variant="primary"
-            disabled={!subjectId}
-            loading={grant.isPending}
-            onClick={() => grant.mutate()}
-          >
-            {t('datasets.grant')}
-          </Button>
-        </div>
-
-        <DataTable
-          data={access.data}
-          columns={columns}
-          rowKey={(entry) => `${entry.subjectType}:${entry.subjectId || entry.userId}`}
-          isLoading={access.isLoading}
-          isError={access.isError}
-          error={access.error}
-          onRetry={() => void access.refetch()}
-          emptyState={
-            <EmptyState compact title={t('datasets.permissions')} description={t('datasets.permissionsHint')} />
-          }
-          rowActions={(entry) => (
-            <DropdownMenuItem destructive onSelect={() => revoke.mutate(entry)}>
-              <Trash2 aria-hidden />
-              {t('datasets.revoke')}
-            </DropdownMenuItem>
-          )}
-        />
-      </CardContent>
-    </Card>
+    <AccessPanel
+      title={t('access.title')}
+      hint={t('datasets.permissionsHint')}
+      owner={{ type: dataset.ownerType, id: dataset.ownerId || dataset.ownerUserId, name: dataset.ownerName }}
+      entries={access.data}
+      isLoading={access.isLoading}
+      isError={access.isError}
+      error={access.error}
+      onRetry={() => void access.refetch()}
+      
+      onGrant={(subjectType, subjectId, role) => grant.mutate({ subjectType, subjectId, role })}
+      granting={grant.isPending}
+      onRevoke={(entry) => revoke.mutate(entry)}
+    />
   );
 }
 

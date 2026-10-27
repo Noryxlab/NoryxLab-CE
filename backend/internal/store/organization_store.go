@@ -18,4 +18,8 @@ type OrganizationStore interface {
 	// Asked as one query rather than by listing each organization's admins,
 	// because it runs on the authorization path of every catalogue screen.
 	AdministeredBy(userIDs []string, teamIDs []string) ([]string, error)
+	// GetPolicy answers what belonging gives on what the organization owns;
+	// absent means nothing.
+	GetPolicy(organizationID string) (organization.Policy, bool, error)
+	SetPolicy(item organization.Policy) error
 }

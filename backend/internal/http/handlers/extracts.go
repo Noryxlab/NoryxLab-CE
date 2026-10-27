@@ -456,6 +456,13 @@ func (h Handlers) UpdateExtractOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to transfer the extract"})
 		return
 	}
+	// A frozen selection: the former owner keeps reading, and an owning
+	// organization's members read at most.
+	h.settleOwnership(firstNonEmpty(item.OwnerType, "user"), firstNonEmpty(item.OwnerID, item.OwnerUserID), req.OwnerType, req.OwnerID, "reader",
+		func(subjectType, subjectID, role string) error {
+			now := time.Now().UTC()
+			return h.extractStore.SetAccess(extractdomain.Access{ExtractID: item.ID, SubjectType: subjectType, SubjectID: subjectID, Role: "reader", CreatedAt: now, UpdatedAt: now})
+		})
 	h.emitAudit(r, identity.UserID(), "extract.owner.changed", "extract", item.ID, item.ProjectID,
 		"success", "", map[string]any{"ownerType": req.OwnerType, "ownerId": req.OwnerID,
 			"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID})
@@ -560,10 +567,10 @@ func (h Handlers) AttachProjectExtract(w http.ResponseWriter, r *http.Request) {
 	if classification, err := h.extractSourceClassification(item.OntologyID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read what this extract is drawn from"})
 		return
-	} else if classification == "hds" && !h.isGlobalAdmin(identity) {
-		writeJSON(w, http.StatusForbidden, map[string]string{
-			"error": "this extract is drawn from regulated data; a platform administrator attaches it to a project",
-		})
+	} else if classification == "hds" && !h.requireCapability(w, identity, platformrole.AttachRegulatedData) {
+		// Drawn from regulated data: the matrix says who attaches it (ADR-051).
+		// The administrator row carries the box; an installation ticks it on
+		// a row of its own for the people who answer for the data.
 		return
 	}
 	if err := h.projectResourceStore.AttachExtract(projectID, extractID); err != nil {

@@ -39,7 +39,20 @@ import type { RbacPolicyRow } from '@/lib/api/types';
  * donc le champ est a cote du nom, pas cache dans un repli.
  */
 
-const PERMISSIONS = ['-', 'R', 'RW', 'Admin', 'R attaché', 'RW attaché'] as const;
+// The project column keeps its three levels. Every other column decides one
+// thing - attach, launch, manage - and is a box: stored as the level the
+// engine reads ("RW attaché", "RW") or "-", shown as yes or no, because
+// "R attaché" on a data column decided nothing anywhere and read as a right
+// to read the data, which no project role gives (ADR-051).
+const PROJECT_LEVELS = ['-', 'R', 'RW', 'Admin'] as const;
+const BOX_ON: Record<string, string> = {
+  dataset: 'RW attaché',
+  ontology: 'RW attaché',
+  datasource: 'RW attaché',
+  environment: 'RW',
+  workload: 'RW',
+};
+const isOn = (value: string | undefined) => Boolean(value && value !== '-' && !value.startsWith('R ') && value !== 'R');
 const BASES = ['viewer', 'editor', 'admin'] as const;
 
 // Pas de colonne Gouvernance : un role se porte dans un projet, et les ecrans
@@ -102,7 +115,7 @@ export function RoleMatrixEditor() {
 
   const removeRole = (index: number) => setDraft(rows.filter((_, position) => position !== index));
 
-  const permissionOptions = PERMISSIONS.map((value) => ({ value, label: value }));
+  const permissionOptions = PROJECT_LEVELS.map((value) => ({ value, label: value }));
   const baseOptions = BASES.map((value) => ({
     value,
     label: t(`roleMatrix.base${capitalise(value)}` as never),
@@ -200,15 +213,32 @@ export function RoleMatrixEditor() {
                   </td>
                   {COLUMNS.map((column) => (
                     <td key={column} className="px-2 py-3">
-                      {row.locked ? (
-                        <Badge tone={row[column] === '-' ? 'outline' : 'neutral'}>{row[column]}</Badge>
+                      {column === 'project' ? (
+                        row.locked ? (
+                          <Badge tone={row.project === '-' ? 'outline' : 'neutral'}>{row.project}</Badge>
+                        ) : (
+                          <Select
+                            value={row.project}
+                            onValueChange={(value) => update(index, { project: value })}
+                            options={permissionOptions}
+                            className="w-28"
+                          />
+                        )
+                      ) : row.locked ? (
+                        <Badge tone={isOn(row[column as ColumnKey]) ? 'neutral' : 'outline'}>
+                          {isOn(row[column as ColumnKey]) ? t('roleMatrix.yes') : t('roleMatrix.no')}
+                        </Badge>
                       ) : (
-                        <Select
-                          value={row[column as ColumnKey]}
-                          onValueChange={(value) => update(index, { [column]: value } as Partial<RbacPolicyRow>)}
-                          options={permissionOptions}
-                          className="w-28"
-                        />
+                        <label className="inline-flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={isOn(row[column as ColumnKey])}
+                            onChange={(event) =>
+                              update(index, { [column]: event.target.checked ? BOX_ON[column] : '-' } as Partial<RbacPolicyRow>)
+                            }
+                          />
+                          {isOn(row[column as ColumnKey]) ? t('roleMatrix.yes') : t('roleMatrix.no')}
+                        </label>
                       )}
                     </td>
                   ))}

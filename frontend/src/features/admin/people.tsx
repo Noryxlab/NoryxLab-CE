@@ -38,6 +38,7 @@ import {
   useAdminUsers,
   useInvalidate,
   useOrganizationAdmins,
+  useOrganizationPolicy,
   usePlatformRoles,
   useSmtp,
   useUserPlatformRole,
@@ -523,6 +524,37 @@ function RootPanel() {
  *  bucket de sante a tout compte cree dans l'organisation. Tant que personne
  *  n'est nomme ici, seuls les administrateurs de la plateforme agissent pour
  *  elle. */
+/** What belonging to this organization gives on what it owns (ADR-051):
+ *  nothing, reading, or reading and writing - written as a grant to the
+ *  organization when an object is created for it or transferred to it. */
+function OrganizationMembershipPolicy({ organization }: { organization: Organization }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const policy = useOrganizationPolicy(organization.id);
+  const save = useMutation({
+    mutationFn: (membershipGrant: string) => adminApi.setOrganizationPolicy(organization.id, membershipGrant),
+    onSuccess: () => {
+      invalidate(qk.adminOrganizationPolicy(organization.id));
+      toast.success(t('people.membershipGrantSaved'), organization.name);
+    },
+    onError: (error) => toast.error(error, t('people.membershipGrantLabel')),
+  });
+  return (
+    <Field label={t('people.membershipGrantLabel')} description={t('people.membershipGrantHint')} className="max-w-xl">
+      <Select
+        value={policy.data?.membershipGrant ?? 'none'}
+        onValueChange={(value) => save.mutate(value)}
+        options={[
+          { value: 'none', label: t('people.membershipGrantNone') },
+          { value: 'reader', label: t('people.membershipGrantReader') },
+          { value: 'writer', label: t('people.membershipGrantWriter') },
+        ]}
+      />
+    </Field>
+  );
+}
+
 function OrganizationAdministrators({
   organization,
   people,
@@ -569,7 +601,8 @@ function OrganizationAdministrators({
   const items = admins.data ?? [];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      <OrganizationMembershipPolicy organization={organization} />
       <div>
         <h3 className="text-sm font-medium">{t('people.administrators')}</h3>
         <p className="text-xs text-muted-foreground">{t('people.administratorsHint')}</p>

@@ -560,6 +560,11 @@ func (h Handlers) UpdateOntologyOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update ontology owner"})
 		return
 	}
+	h.settleOwnership(firstNonEmpty(item.OwnerType, "user"), firstNonEmpty(item.OwnerID, item.OwnerUserID), req.OwnerType, req.OwnerID, "writer",
+		func(subjectType, subjectID, role string) error {
+			now := time.Now().UTC()
+			return h.ontologyStore.SetAccess(ontologydomain.Access{OntologyID: item.ID, SubjectType: subjectType, SubjectID: subjectID, Role: role, CreatedAt: now, UpdatedAt: now})
+		})
 	h.emitAdvancedAudit(r, identity.UserID(), "ontology.owner.transfer", "ontology", item.ID, "", "success", "", map[string]any{"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID, "ownerType": req.OwnerType, "ownerId": req.OwnerID})
 	updated, _, _ := h.ontologyStore.GetByID(item.ID)
 	writeJSON(w, http.StatusOK, updated)

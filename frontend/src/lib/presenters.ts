@@ -299,13 +299,16 @@ export const CRON_PRESETS = [
 
 export function presentRole(role: string | null | undefined, locale: Locale = 'fr'): string {
   const value = String(role ?? '').toLowerCase();
+  // Two vocabularies, on purpose (ADR-051). On the data: Owner has write and
+  // shares, Write, Read - a grant on the object. On a project: viewer,
+  // contributor, administrator - a role, which gives no right on the data.
   const labels: Record<string, { fr: string; en: string }> = {
-    reader: { fr: 'Lecteur', en: 'Reader' },
+    reader: { fr: 'Lecture', en: 'Read' },
+    writer: { fr: 'Écriture', en: 'Write' },
+    owner: { fr: 'Propriétaire', en: 'Owner' },
     viewer: { fr: 'Lecteur', en: 'Viewer' },
-    writer: { fr: 'Contributeur', en: 'Writer' },
     editor: { fr: 'Contributeur', en: 'Editor' },
     admin: { fr: 'Administrateur', en: 'Admin' },
-    owner: { fr: 'Propriétaire', en: 'Owner' },
   };
   return labels[value]?.[locale] ?? role ?? '—';
 }

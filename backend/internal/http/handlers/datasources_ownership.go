@@ -65,6 +65,11 @@ func (h Handlers) UpdateDatasourceOwner(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to transfer the datasource"})
 		return
 	}
+	h.settleOwnership(firstNonEmpty(item.OwnerType, "user"), firstNonEmpty(item.OwnerID, item.OwnerUserID), ownerType, ownerID, "writer",
+		func(subjectType, subjectID, role string) error {
+			now := time.Now().UTC()
+			return h.datasourceStore.SetAccess(datasourcedomain.Access{DatasourceID: item.ID, SubjectType: subjectType, SubjectID: subjectID, Role: role, CreatedAt: now, UpdatedAt: now})
+		})
 	h.emitAudit(r, identity.UserID(), "datasource.owner.changed", "datasource", item.ID, item.Name,
 		"success", "", map[string]any{"ownerType": ownerType, "ownerId": ownerID,
 			"previousOwnerType": item.OwnerType, "previousOwnerId": item.OwnerID})

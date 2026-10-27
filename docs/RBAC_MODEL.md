@@ -208,7 +208,8 @@ Functions in rows, roles in columns, yes or no in the cells. Twelve functions,
 drawn from what the handlers consult: create a project, launch a workspace,
 launch a job, deploy an application, build an environment, create a dataset,
 scan an ontology, create an extract, declare a data source, declare a
-repository, register a regulated dataset, administer an organization.
+repository, register a regulated dataset, attach regulated data to a project,
+administer an organization.
 
 Three rows ship locked. **Administrator** acts on what is not theirs; it is
 the directory's realm role: naming an administrator from a person's page
@@ -508,3 +509,27 @@ refuses at creation.
   reflects capabilities — every screen that hides a control asks the backend
   first rather than re-implementing the rule, because a second implementation
   eventually disagrees with the first and the user is the one who finds out.
+
+## Owner, Write, Read (ADR-051)
+
+Three words on the data, the same on a dataset, an ontology, an extract and a
+data source. **Owner** has write and shares: transfers, grants, deletes.
+**Write** and **Read** are grants on the object, to a person, a team or an
+organization; only the owner and an administrator share. An extract is
+frozen: Owner and Read only.
+
+When the owner is an organization, "owner" names its administrators (ADR-048):
+they have write and share, and the members hold what is granted to them.
+What belonging gives on what the organization owns is a **policy per
+organization** - nothing, reading, or reading and writing, default nothing -
+written as a grant to the organization when an object is created for it or
+transferred to it, never retroactively, and audited.
+
+A transfer leaves Write behind: the former owner, a person or a team, keeps a
+Write grant (Read on an extract, contributor on a project) written in the
+list; an organization that cedes ownership leaves nothing.
+
+Attaching regulated data to a project is a function of the creation matrix,
+held by the administrator row and by any row an installation ticks it on.
+The project-role matrix decides attaching, launching and managing, never
+reading or writing the data.

@@ -1,6 +1,6 @@
 import * as React from 'react';
+import { AccessPanel, type AccessEntry } from '@/components/common/access-panel';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react';
 import { ontologiesApi } from '@/lib/api/endpoints';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,13 +22,11 @@ import {
   TableWrapper,
 } from '@/components/ui/table';
 import { OwnerTransfer } from '@/components/common/owner';
-import { Field } from '@/components/ui/field';
-import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
-import { qk, useAdminUsers, useAllTeams, useExtractAccess, useInvalidate, useOrganizations } from '@/lib/api/queries';
+import { qk, useExtractAccess, useInvalidate } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber } from '@/lib/format';
-import type { Extract, ExtractAccess } from '@/lib/api/types';
+import type { Extract } from '@/lib/api/types';
 
 /**
  * Ce qu'un extrait contient, et si c'est encore la.
@@ -210,149 +208,31 @@ export function ExtractPermissions({ extract }: { extract: Extract }) {
   const toast = useToast();
   const invalidate = useInvalidate();
   const access = useExtractAccess(extract.id);
-  const users = useAdminUsers();
-  const organizations = useOrganizations();
-  const teams = useAllTeams();
-
-  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
-  const [subjectId, setSubjectId] = React.useState('');
-
   const grant = useMutation({
-    mutationFn: () => ontologiesApi.grantExtract(extract.id, subjectType, subjectId),
-    onSuccess: () => {
-      invalidate(qk.extractAccess(extract.id));
-      setSubjectId('');
-    },
-    onError: (error) => toast.error(error, t('ontologies.extractGrant')),
-  });
-
-  const revoke = useMutation({
-    mutationFn: (entry: ExtractAccess) =>
-      ontologiesApi.revokeExtract(extract.id, entry.subjectType, entry.subjectId),
+    mutationFn: (input: { subjectType: string; subjectId: string }) => ontologiesApi.grantExtract(extract.id, input.subjectType, input.subjectId),
     onSuccess: () => invalidate(qk.extractAccess(extract.id)),
-    onError: (error) => toast.error(error, t('ontologies.extractRevoke')),
+    onError: (error) => toast.error(error, t('access.grant')),
   });
-
-  const subjectOptions =
-    subjectType === 'organization'
-      ? (organizations.data ?? []).map((organization) => ({
-          value: organization.alias ?? organization.id,
-          label: organization.name,
-        }))
-      : subjectType === 'team'
-        ? teams.data.map((team) => ({
-            value: team.id,
-            label: team.name,
-            hint: team.organizationName || undefined,
-          }))
-        : (users.data ?? []).map((user) => ({
-            value: user.username ?? user.id,
-            label: user.username ?? user.id,
-            hint: user.email ?? undefined,
-          }));
-
-  const entries = access.data ?? [];
-
+  const revoke = useMutation({
+    mutationFn: (entry: AccessEntry) => ontologiesApi.revokeExtract(extract.id, entry.subjectType, entry.subjectId),
+    onSuccess: () => invalidate(qk.extractAccess(extract.id)),
+    onError: (error) => toast.error(error, t('access.revoke')),
+  });
   return (
-    <Card>
-      <CardHeader>
-        <CardHeaderText>
-          <CardTitle>{t('ontologies.extractPermissions')}</CardTitle>
-          <CardDescription>{t('ontologies.extractPermissionsHint')}</CardDescription>
-        </CardHeaderText>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <Field label={t('common.type')}>
-            <Select
-              value={subjectType}
-              onValueChange={(value) => {
-                setSubjectType(
-                  value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
-                );
-                setSubjectId('');
-              }}
-              options={[
-                { value: 'user', label: t('common.user') },
-                { value: 'team', label: t('common.team') },
-                { value: 'organization', label: t('common.organization') },
-              ]}
-            />
-          </Field>
-          <Field label={t('rbac.subject')}>
-            <Select
-              value={subjectId}
-              onValueChange={setSubjectId}
-              options={subjectOptions}
-              placeholder={t('common.search')}
-            />
-          </Field>
-          <Button
-            variant="primary"
-            disabled={!subjectId}
-            loading={grant.isPending}
-            onClick={() => grant.mutate()}
-          >
-            {t('ontologies.extractGrant')}
-          </Button>
-        </div>
-
-        <TableWrapper>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('rbac.subject')}</TableHead>
-                <TableHead>{t('common.type')}</TableHead>
-                <TableHead>{t('common.role')}</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry) => (
-                <TableRow key={`${entry.subjectType}:${entry.subjectId}`}>
-                  <TableCell>
-                    <span className="font-medium">{entry.subjectName || entry.subjectId}</span>
-                    {entry.subjectName && entry.subjectName !== entry.subjectId ? (
-                      <div className="truncate font-mono text-xs text-muted-foreground">
-                        {entry.subjectId}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <Badge tone="outline">
-                      {entry.subjectType === 'organization'
-                        ? t('common.organization')
-                        : entry.subjectType === 'team'
-                          ? t('common.team')
-                          : t('common.user')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge tone={entry.role === 'owner' ? 'brand' : 'outline'}>
-                      {entry.role === 'owner' ? t('common.owner') : t('common.reader')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {/* Le proprietaire ne se retire pas : il se transfere, et
-                        c'est un autre geste. */}
-                    {entry.role === 'owner' ? null : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t('ontologies.extractRevoke')}
-                        onClick={() => revoke.mutate(entry)}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableWrapper>
-      </CardContent>
-    </Card>
+    <AccessPanel
+      title={t('access.title')}
+      hint={t('ontologies.extractPermissionsHint')}
+      owner={{ type: extract.ownerType, id: extract.ownerId || extract.ownerUserId, name: extract.ownerName }}
+      entries={access.data}
+      isLoading={access.isLoading}
+      isError={access.isError}
+      error={access.error}
+      onRetry={() => void access.refetch()}
+      roles="readOnly"
+      onGrant={(subjectType, subjectId) => grant.mutate({ subjectType, subjectId })}
+      granting={grant.isPending}
+      onRevoke={(entry) => revoke.mutate(entry)}
+    />
   );
 }
 

@@ -1000,6 +1000,12 @@ func migrationStatements() []string {
 			assigned_by TEXT NOT NULL DEFAULT '',
 			assigned_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS organization_policies (
+			organization_id TEXT PRIMARY KEY,
+			membership_grant TEXT NOT NULL DEFAULT 'none',
+			updated_at TIMESTAMPTZ NOT NULL,
+			updated_by TEXT NOT NULL DEFAULT ''
+		)`,
 		`CREATE TABLE IF NOT EXISTS organization_admins (
 			organization_id TEXT NOT NULL,
 			subject_type TEXT NOT NULL,

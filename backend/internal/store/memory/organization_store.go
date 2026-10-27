@@ -10,8 +10,9 @@ import (
 // OrganizationStore keeps the administrators in memory, for the tests and for
 // an installation running without a database.
 type OrganizationStore struct {
-	mu     sync.RWMutex
-	admins []organization.Admin
+	mu       sync.RWMutex
+	admins   []organization.Admin
+	policies map[string]organization.Policy
 }
 
 func NewOrganizationStore() *OrganizationStore { return &OrganizationStore{} }
@@ -80,4 +81,22 @@ func (s *OrganizationStore) AdministeredBy(userIDs []string, teamIDs []string) (
 		}
 	}
 	return out, nil
+}
+
+func (s *OrganizationStore) GetPolicy(organizationID string) (organization.Policy, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	item, ok := s.policies[strings.TrimSpace(organizationID)]
+	return item, ok, nil
+}
+
+func (s *OrganizationStore) SetPolicy(item organization.Policy) error {
+	item.Normalise()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.policies == nil {
+		s.policies = map[string]organization.Policy{}
+	}
+	s.policies[item.OrganizationID] = item
+	return nil
 }

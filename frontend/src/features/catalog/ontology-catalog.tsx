@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AccessPanel, type AccessEntry } from '@/components/common/access-panel';
 import { Link } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -43,15 +44,14 @@ import {
 } from '@/components/ui/table';
 import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { qk, useAdminUsers, useAllTeams, useDatasets, useInvalidate, useOntologies, useOntologyAccess, useOntologyCompleteness, useOntologyExtracts, useOntologyFreshness, useOntologyScans, useOrganizations, useCan } from '@/lib/api/queries';
+import { qk, useDatasets, useInvalidate, useOntologies, useOntologyAccess, useOntologyCompleteness, useOntologyExtracts, useOntologyFreshness, useOntologyScans, useCan } from '@/lib/api/queries';
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
 import { capitaliser, dateDeVisite, motsDuMetier, pluriel } from './ontology-words';
 import { lireProposition, type ReadingProposal } from './reading-proposal';
 import { formatNumber, formatRelative } from '@/lib/format';
-import { presentRole } from '@/lib/presenters';
-import type { DatasetPathLayout, DatasetPathLayoutTrial, Extract, Ontology, OntologyAccess, OntologyScan } from '@/lib/api/types';
+import type { DatasetPathLayout, DatasetPathLayoutTrial, Extract, Ontology, OntologyScan } from '@/lib/api/types';
 
 /* Ce que le manifeste porte et que cet ecran lit.
  *
@@ -1790,161 +1790,33 @@ export function OntologyCatalog() {
  */
 function OntologyPermissions({ ontology }: { ontology: Ontology }) {
   const t = useT();
-  const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
   const access = useOntologyAccess(ontology.id);
-  const users = useAdminUsers();
-  const organizations = useOrganizations();
-  const teams = useAllTeams();
-
-  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
-  const [subjectId, setSubjectId] = React.useState('');
-  const [role, setRole] = React.useState('reader');
-
   const grant = useMutation({
-    mutationFn: () => ontologiesApi.grantOntology(ontology.id, subjectType, subjectId, role),
-    onSuccess: () => {
-      invalidate(qk.ontologyAccess(ontology.id));
-      setSubjectId('');
-    },
-    onError: (error) => toast.error(error, t('ontologies.grant')),
-  });
-
-  const revoke = useMutation({
-    mutationFn: (entry: OntologyAccess) =>
-      ontologiesApi.revokeOntology(ontology.id, entry.subjectType, entry.subjectId),
+    mutationFn: (input: { subjectType: string; subjectId: string; role: string }) => ontologiesApi.grantOntology(ontology.id, input.subjectType, input.subjectId, input.role),
     onSuccess: () => invalidate(qk.ontologyAccess(ontology.id)),
-    onError: (error) => toast.error(error, t('ontologies.revoke')),
+    onError: (error) => toast.error(error, t('access.grant')),
   });
-
-  const subjectOptions =
-    subjectType === 'organization'
-      ? (organizations.data ?? []).map((organization) => ({
-          value: organization.alias ?? organization.id,
-          label: organization.name,
-        }))
-      : subjectType === 'team'
-        ? teams.data.map((team) => ({
-            value: team.id,
-            label: team.name,
-            hint: team.organizationName || undefined,
-          }))
-        : (users.data ?? []).map((user) => ({
-            value: user.username ?? user.id,
-            label: user.username ?? user.id,
-            hint: user.email ?? undefined,
-          }));
-
-  const entries = access.data ?? [];
-
+  const revoke = useMutation({
+    mutationFn: (entry: AccessEntry) => ontologiesApi.revokeOntology(ontology.id, entry.subjectType, entry.subjectId),
+    onSuccess: () => invalidate(qk.ontologyAccess(ontology.id)),
+    onError: (error) => toast.error(error, t('access.revoke')),
+  });
   return (
-    <Card>
-      <CardHeader>
-        <CardHeaderText>
-          <CardTitle>{t('ontologies.permissions')}</CardTitle>
-          <CardDescription>{t('ontologies.permissionsHint')}</CardDescription>
-        </CardHeaderText>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
-          <Field label={t('common.type')}>
-            <Select
-              value={subjectType}
-              onValueChange={(value) => {
-                setSubjectType(
-                  value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
-                );
-                setSubjectId('');
-              }}
-              options={[
-                { value: 'user', label: t('common.user') },
-                { value: 'team', label: t('common.team') },
-                { value: 'organization', label: t('common.organization') },
-              ]}
-            />
-          </Field>
-          <Field label={t('rbac.subject')}>
-            <Select
-              value={subjectId}
-              onValueChange={setSubjectId}
-              options={subjectOptions}
-              placeholder={t('common.search')}
-            />
-          </Field>
-          <Field label={t('common.role')}>
-            <Select
-              value={role}
-              onValueChange={setRole}
-              options={[
-                { value: 'reader', label: presentRole('reader', locale) },
-                { value: 'writer', label: presentRole('writer', locale) },
-              ]}
-            />
-          </Field>
-          <Button
-            variant="primary"
-            disabled={!subjectId}
-            loading={grant.isPending}
-            onClick={() => grant.mutate()}
-          >
-            {t('ontologies.grant')}
-          </Button>
-        </div>
-
-        <TableWrapper>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('rbac.subject')}</TableHead>
-                <TableHead>{t('common.type')}</TableHead>
-                <TableHead>{t('common.role')}</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry) => (
-                <TableRow key={`${entry.subjectType}:${entry.subjectId}`}>
-                  <TableCell>
-                    <span className="font-medium">{entry.subjectName || entry.subjectId}</span>
-                    {entry.subjectName && entry.subjectName !== entry.subjectId ? (
-                      <div className="truncate font-mono text-xs text-muted-foreground">
-                        {entry.subjectId}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <Badge tone="outline">
-                      {entry.subjectType === 'organization'
-                        ? t('common.organization')
-                        : entry.subjectType === 'team'
-                          ? t('common.team')
-                          : t('common.user')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge tone={entry.role === 'owner' ? 'brand' : 'outline'}>
-                      {presentRole(entry.role, locale)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {entry.role === 'owner' ? null : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label={t('ontologies.revoke')}
-                        onClick={() => revoke.mutate(entry)}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableWrapper>
-      </CardContent>
-    </Card>
+    <AccessPanel
+      title={t('access.title')}
+      hint={t('ontologies.permissionsHint')}
+      owner={{ type: ontology.ownerType, id: ontology.ownerId || ontology.ownerUserId, name: ontology.ownerName }}
+      entries={access.data}
+      isLoading={access.isLoading}
+      isError={access.isError}
+      error={access.error}
+      onRetry={() => void access.refetch()}
+      
+      onGrant={(subjectType, subjectId, role) => grant.mutate({ subjectType, subjectId, role })}
+      granting={grant.isPending}
+      onRevoke={(entry) => revoke.mutate(entry)}
+    />
   );
 }

@@ -9636,3 +9636,54 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/admin/organizations/{organizationID}/policy:
+    get:
+      tags: [Admin]
+      summary: Get Organization Policy
+      operationId: getOrganizationPolicy
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Update Organization Policy
+      operationId: updateOrganizationPolicy
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

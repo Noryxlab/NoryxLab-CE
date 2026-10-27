@@ -1379,6 +1379,16 @@ export interface MyCapabilities {
   capabilities: Record<string, boolean>;
 }
 
+export interface OrganizationPolicy {
+  organizationId: string;
+  /** What belonging gives on what the organization owns: nothing, reading,
+   *  or reading and writing. Written as a grant to the organization when an
+   *  object is created for it or transferred to it; never retroactive. */
+  membershipGrant: 'none' | 'reader' | 'writer';
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface OrganizationAdmin {
   organizationId: string;
   subjectType: string;

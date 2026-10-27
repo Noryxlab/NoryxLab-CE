@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { AccessPanel, type AccessEntry } from '@/components/common/access-panel';
 import { useMutation } from '@tanstack/react-query';
 import { Plug, Plus, RotateCw, ShieldCheck, Trash2, UserRoundCog } from 'lucide-react';
 import { OwnerTransfer } from '@/components/common/owner';
@@ -26,19 +27,16 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { useQuery } from '@tanstack/react-query';
 import {
-  useAdminUsers,
-  useAllTeams,
   useDatasourceAccess,
   useDatasourceDefinitions,
   useDatasources,
-  useOrganizations,
   useSecrets,
   qk,
   useInvalidate, useCan } from '@/lib/api/queries';
 import { datasourcesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
-import type { Datasource, DatasourceAccess } from '@/lib/api/types';
+import type { Datasource } from '@/lib/api/types';
 
 const SSL_MODES = ['disable', 'require', 'verify-ca', 'verify-full'];
 
@@ -58,142 +56,31 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
   const toast = useToast();
   const invalidate = useInvalidate();
   const access = useDatasourceAccess(datasource.id);
-  const users = useAdminUsers();
-  const organizations = useOrganizations();
-  const teams = useAllTeams();
-
-  const [subjectType, setSubjectType] = React.useState<'user' | 'organization' | 'team'>('user');
-  const [subjectId, setSubjectId] = React.useState('');
-  const [role, setRole] = React.useState('reader');
-
   const grant = useMutation({
-    mutationFn: () => datasourcesApi.grant(datasource.id, subjectType, subjectId, role),
-    onSuccess: () => {
-      invalidate(qk.datasourceAccess(datasource.id));
-      setSubjectId('');
-    },
-    onError: (error) => toast.error(error, t('datasources.grant')),
-  });
-
-  const revoke = useMutation({
-    mutationFn: (entry: DatasourceAccess) =>
-      datasourcesApi.revoke(datasource.id, entry.subjectType, entry.subjectId),
+    mutationFn: (input: { subjectType: string; subjectId: string; role: string }) => datasourcesApi.grant(datasource.id, input.subjectType, input.subjectId, input.role),
     onSuccess: () => invalidate(qk.datasourceAccess(datasource.id)),
-    onError: (error) => toast.error(error, t('datasources.revoke')),
+    onError: (error) => toast.error(error, t('access.grant')),
   });
-
-  const subjectOptions =
-    subjectType === 'organization'
-      ? (organizations.data ?? []).map((organization) => ({
-          value: organization.alias ?? organization.id,
-          label: organization.name,
-        }))
-      : subjectType === 'team'
-        ? teams.data.map((team) => ({
-            value: team.id,
-            label: team.name,
-            hint: team.organizationName || undefined,
-          }))
-        : (users.data ?? []).map((user) => ({
-            value: user.username ?? user.id,
-            label: user.username ?? user.id,
-            hint: user.email ?? undefined,
-          }));
-
-  const entries = access.data ?? [];
-
+  const revoke = useMutation({
+    mutationFn: (entry: AccessEntry) => datasourcesApi.revoke(datasource.id, entry.subjectType, entry.subjectId),
+    onSuccess: () => invalidate(qk.datasourceAccess(datasource.id)),
+    onError: (error) => toast.error(error, t('access.revoke')),
+  });
   return (
-    <div className="space-y-4">
-      <SectionHeader
-        title={t('datasources.permissions')}
-        description={t('datasources.permissionsHint')}
-      />
-      <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
-        <Field label={t('common.type')}>
-          <Select
-            value={subjectType}
-            onValueChange={(value) => {
-              setSubjectType(
-                value === 'organization' ? 'organization' : value === 'team' ? 'team' : 'user',
-              );
-              setSubjectId('');
-            }}
-            options={[
-              { value: 'user', label: t('common.user') },
-              { value: 'team', label: t('common.team') },
-              { value: 'organization', label: t('common.organization') },
-            ]}
-          />
-        </Field>
-        <Field label={t('common.role')}>
-          <Select
-            value={role}
-            onValueChange={setRole}
-            options={[
-              { value: 'reader', label: t('common.reader') },
-              { value: 'writer', label: t('common.writer') },
-            ]}
-          />
-        </Field>
-        <Field label={t('rbac.subject')}>
-          <Select
-            value={subjectId}
-            onValueChange={setSubjectId}
-            options={subjectOptions}
-            placeholder={t('common.search')}
-          />
-        </Field>
-        <Button
-          variant="primary"
-          disabled={!subjectId}
-          loading={grant.isPending}
-          onClick={() => grant.mutate()}
-        >
-          {t('datasources.grant')}
-        </Button>
-      </div>
-
-      <ul className="divide-y divide-border/60 rounded-md border border-border/60">
-        {entries.map((entry) => (
-          <li
-            key={`${entry.subjectType}:${entry.subjectId}`}
-            className="flex items-center justify-between gap-3 px-3 py-2"
-          >
-            <div className="min-w-0">
-              <div className="truncate font-medium">{entry.subjectName || entry.subjectId}</div>
-              <div className="text-xs text-muted-foreground">
-                {entry.subjectType === 'organization'
-                  ? t('common.organization')
-                  : entry.subjectType === 'team'
-                    ? t('common.team')
-                    : t('common.user')}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge tone={entry.role === 'owner' ? 'brand' : 'outline'}>
-                {entry.role === 'owner'
-                  ? t('common.owner')
-                  : entry.role === 'writer'
-                    ? t('common.writer')
-                    : t('common.reader')}
-              </Badge>
-              {/* Le proprietaire ne se retire pas : il se transfere, et c'est
-                  un autre geste. */}
-              {entry.role === 'owner' ? null : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={t('datasources.revoke')}
-                  onClick={() => revoke.mutate(entry)}
-                >
-                  <Trash2 aria-hidden />
-                </Button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <AccessPanel
+      title={t('access.title')}
+      hint={t('datasources.permissionsHint')}
+      owner={{ type: datasource.ownerType, id: datasource.ownerId || datasource.ownerUserId, name: datasource.ownerName }}
+      entries={access.data}
+      isLoading={access.isLoading}
+      isError={access.isError}
+      error={access.error}
+      onRetry={() => void access.refetch()}
+      
+      onGrant={(subjectType, subjectId, role) => grant.mutate({ subjectType, subjectId, role })}
+      granting={grant.isPending}
+      onRevoke={(entry) => revoke.mutate(entry)}
+    />
   );
 }
 

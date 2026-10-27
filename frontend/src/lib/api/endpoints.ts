@@ -56,6 +56,7 @@ import type {
   OntologyQueryItem,
   Organization,
   OrganizationAdmin,
+  OrganizationPolicy,
   PlatformRole,
   PlatformRoleAssignment,
   MyCapabilities,
@@ -963,6 +964,10 @@ export const adminApi = {
     api.put<PlatformRoleAssignment>(`${V1}/admin/users/${encodeURIComponent(userId)}/platform-role`, { roleKey }),
   clearUserPlatformRole: (userId: string) =>
     api.delete<void>(`${V1}/admin/users/${encodeURIComponent(userId)}/platform-role`),
+  organizationPolicy: (organizationId: string) =>
+    api.get<OrganizationPolicy>(`${V1}/admin/organizations/${organizationId}/policy`),
+  setOrganizationPolicy: (organizationId: string, membershipGrant: string) =>
+    api.put<OrganizationPolicy>(`${V1}/admin/organizations/${organizationId}/policy`, { membershipGrant }),
   organizationAdmins: (organizationId: string) =>
     api.list<OrganizationAdmin>(`${V1}/admin/organizations/${organizationId}/administrators`),
   addOrganizationAdmin: (organizationId: string, subjectType: string, subjectId: string) =>

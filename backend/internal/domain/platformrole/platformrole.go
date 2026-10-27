@@ -28,15 +28,21 @@ const (
 	CreateProject            Capability = "create-project"
 	CreateDataset            Capability = "create-dataset"
 	RegisterRegulatedDataset Capability = "register-regulated-dataset"
-	ScanOntology             Capability = "scan-ontology"
-	CreateExtract            Capability = "create-extract"
-	LaunchWorkspace          Capability = "launch-workspace"
-	LaunchJob                Capability = "launch-job"
-	DeployApp                Capability = "deploy-app"
-	BuildEnvironment         Capability = "build-environment"
-	DeclareDatasource        Capability = "declare-datasource"
-	DeclareRepository        Capability = "declare-repository"
-	AdministerOrganization   Capability = "administer-organization"
+	// AttachRegulatedData is attaching to a project a selection drawn from
+	// regulated data - the act that delivers its bytes to a workload. It was
+	// hard-coded to the platform administrator; as a box, an installation
+	// hands it to the people who answer for the data without handing them
+	// the platform.
+	AttachRegulatedData    Capability = "attach-regulated-data"
+	ScanOntology           Capability = "scan-ontology"
+	CreateExtract          Capability = "create-extract"
+	LaunchWorkspace        Capability = "launch-workspace"
+	LaunchJob              Capability = "launch-job"
+	DeployApp              Capability = "deploy-app"
+	BuildEnvironment       Capability = "build-environment"
+	DeclareDatasource      Capability = "declare-datasource"
+	DeclareRepository      Capability = "declare-repository"
+	AdministerOrganization Capability = "administer-organization"
 )
 
 // All is every capability, in the order the screen shows them: the things a
@@ -53,6 +59,7 @@ var All = []Capability{
 	DeclareDatasource,
 	DeclareRepository,
 	RegisterRegulatedDataset,
+	AttachRegulatedData,
 	AdministerOrganization,
 }
 

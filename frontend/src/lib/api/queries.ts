@@ -164,6 +164,7 @@ export const qk = {
   myCapabilities: ["my-capabilities"] as const,
   adminPlatformRoles: ["admin-platform-roles"] as const,
   adminUserPlatformRole: (userId: string) => ["admin-user-platform-role", userId] as const,
+  adminOrganizationPolicy: (organizationId: string) => ["admin-organization-policy", organizationId] as const,
   adminOrganizationAdmins: (organizationId: string) =>
     ["admin-organization-admins", organizationId] as const,
   adminOrganizationMembers: (organizationId: string) =>
@@ -801,6 +802,13 @@ export const useAdministeredOrganizations = () =>
     queryKey: qk.administeredOrganizations,
     queryFn: platformApi.administeredOrganizations,
     staleTime: 60_000,
+  });
+
+export const useOrganizationPolicy = (organizationId: string | undefined) =>
+  useQuery({
+    queryKey: qk.adminOrganizationPolicy(organizationId ?? ""),
+    queryFn: () => adminApi.organizationPolicy(organizationId as string),
+    enabled: Boolean(organizationId),
   });
 
 export const useOrganizationAdmins = (organizationId: string | undefined) =>

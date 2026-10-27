@@ -296,6 +296,30 @@ func (h Handlers) UpdateProjectOwner(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update project owner"})
 		return
 	}
+	// A project is not data, and the same rule holds: the former owner, a
+	// person or a team, keeps a role to work with - contributor, written in
+	// the members list - and an owning organization's members get what its
+	// policy says, as a project role granted to the organization.
+	h.settleOwnership(firstNonEmpty(item.OwnerType, "user"), item.OwnerID, req.OwnerType, req.OwnerID, "writer",
+		func(subjectType, subjectID, role string) error {
+			granted := access.RoleEditor
+			if role == "reader" {
+				granted = access.RoleViewer
+			}
+			switch subjectType {
+			case "user":
+				h.accessStore.SetRole(item.ID, subjectID, granted)
+				return nil
+			case "team":
+				if h.teamStore == nil {
+					return nil
+				}
+				return h.teamStore.SetProjectRole(item.ID, subjectID, granted)
+			case "organization":
+				return h.accessStore.SetOrganizationRole(item.ID, subjectID, granted)
+			}
+			return nil
+		})
 	h.emitAdvancedAudit(r, identity.UserID(), "project.owner.transfer", "project", item.ID, item.ID, "success", "", map[string]any{
 		"previousOwnerType": item.OwnerType,
 		"previousOwnerId":   item.OwnerID,

@@ -359,6 +359,8 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}", h.DeleteOrganization)
 	// Qui administre ce que l'organisation possede : un droit nomme, pas une
 	// appartenance.
+	mux.HandleFunc("GET /api/v1/admin/organizations/{organizationID}/policy", h.GetOrganizationPolicy)
+	mux.HandleFunc("PUT /api/v1/admin/organizations/{organizationID}/policy", h.UpdateOrganizationPolicy)
 	mux.HandleFunc("GET /api/v1/admin/organizations/{organizationID}/administrators", h.ListOrganizationAdmins)
 	mux.HandleFunc("PUT /api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}", h.AddOrganizationAdmin)
 	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}/administrators/{subjectType}/{subjectID}", h.RemoveOrganizationAdmin)
