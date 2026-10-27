@@ -31,8 +31,7 @@ import {
   useJobLogs,
   useJobs,
   qk,
-  useInvalidate,
-} from '@/lib/api/queries';
+  useInvalidate, useCan } from '@/lib/api/queries';
 import { cronJobsApi, jobsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatDuration, formatRelative } from '@/lib/format';
@@ -242,6 +241,7 @@ function CreateJobSheet({
 
 export function JobsPage() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
@@ -358,12 +358,10 @@ export function JobsPage() {
       <PageHeader
         title={t('jobs.title')}
         description={t('jobs.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+        actions={can('launch-job') ? (<Button variant="primary" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             {t('jobs.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       <Card>
@@ -389,12 +387,10 @@ export function JobsPage() {
               icon={Play}
               title={t('jobs.empty')}
               description={t('jobs.emptyHint')}
-              action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
+              action={can('launch-job') ? (<Button variant="primary" onClick={() => setCreating(true)}>
                   <Plus aria-hidden />
                   {t('jobs.create')}
-                </Button>
-              }
+                </Button>) : null}
             />
           }
           rowActions={(job) => (

@@ -161,6 +161,9 @@ export const qk = {
   adminPods: ["admin", "pods"] as const,
   adminOrganizations: ["admin", "organizations"] as const,
   administeredOrganizations: ["administered-organizations"] as const,
+  myCapabilities: ["my-capabilities"] as const,
+  adminPlatformRoles: ["admin-platform-roles"] as const,
+  adminUserPlatformRole: (userId: string) => ["admin-user-platform-role", userId] as const,
   adminOrganizationAdmins: (organizationId: string) =>
     ["admin-organization-admins", organizationId] as const,
   adminOrganizationMembers: (organizationId: string) =>
@@ -767,6 +770,32 @@ export const useOrganizationMembers = (organizationId: string | undefined) =>
 /** Les organisations que cette personne administre, vide pour presque tout le
  *  monde. Ouvre l'entree Administration a qui n'est pas administrateur de la
  *  plateforme mais a ete nomme par une organisation. */
+/** Ce que ce role peut creer. Tant que la reponse n'est pas la, rien n'est
+ *  cache : le serveur refuse de toute facon, et un bouton qui clignote a
+ *  chaque chargement est pire qu'un refus explique. */
+export const useMyCapabilities = () =>
+  useQuery({
+    queryKey: qk.myCapabilities,
+    queryFn: platformApi.myCapabilities,
+    staleTime: 60_000,
+  });
+
+/** can('create-project') : vrai sauf refus explicite du serveur. */
+export const useCan = () => {
+  const capabilities = useMyCapabilities();
+  return (capability: string) => capabilities.data?.capabilities?.[capability] !== false;
+};
+
+export const usePlatformRoles = () =>
+  useQuery({ queryKey: qk.adminPlatformRoles, queryFn: adminApi.platformRoles });
+
+export const useUserPlatformRole = (userId: string | undefined) =>
+  useQuery({
+    queryKey: qk.adminUserPlatformRole(userId ?? ""),
+    queryFn: () => adminApi.userPlatformRole(userId as string),
+    enabled: Boolean(userId),
+  });
+
 export const useAdministeredOrganizations = () =>
   useQuery({
     queryKey: qk.administeredOrganizations,

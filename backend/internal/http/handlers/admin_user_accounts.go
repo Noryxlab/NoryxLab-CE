@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/json"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"math/big"
 	"net/http"
 	"strings"
@@ -39,6 +40,9 @@ type createUserRequest struct {
 	// shape that once left backups refused for three nights. The interface
 	// therefore asks for it up front rather than leaving it to be discovered.
 	OrganizationID string `json:"organizationId"`
+	// RoleKey is the platform role the account starts with (ADR-049). Empty
+	// means user, which is also what the row would resolve to unassigned.
+	RoleKey string `json:"roleKey"`
 }
 
 func (h Handlers) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +113,12 @@ func (h Handlers) CreateUserAccount(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Le role de depart, demande sur le meme formulaire que l'organisation.
+	if key := strings.ToLower(strings.TrimSpace(req.RoleKey)); key != "" && key != platformrole.KeyUser && h.platformRoleStore != nil {
+		if shipped, ok := platformrole.ShippedByKey(key); (ok && shipped.Assignable) || !ok {
+			_ = h.platformRoleStore.SetAssignment(platformrole.Assignment{UserID: username, RoleKey: key, AssignedBy: identity.UserID()})
+		}
+	}
 	h.emitAudit(r, identity.UserID(), "user.created", "user", username, "", "success", "",
 		map[string]any{"organizationId": strings.TrimSpace(req.OrganizationID)})
 

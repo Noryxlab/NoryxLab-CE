@@ -44,6 +44,7 @@ func main() {
 	var accessStore store.AccessStore = memory.NewAccessStore()
 	var teamStore store.TeamStore = memory.NewTeamStore()
 	var organizationStore store.OrganizationStore = memory.NewOrganizationStore()
+	var platformRoleStore store.PlatformRoleStore = memory.NewPlatformRoleStore()
 	var secretStore store.SecretStore = memory.NewSecretStore()
 	var projectVariableStore store.ProjectVariableStore = memory.NewProjectVariableStore()
 	var datasetStore store.DatasetStore = memory.NewDatasetStore()
@@ -108,6 +109,7 @@ func main() {
 			accessStore = &postgres.AccessStore{Store: pg}
 			teamStore = &postgres.TeamStore{Store: pg}
 			organizationStore = &postgres.OrganizationStore{Store: pg}
+			platformRoleStore = &postgres.PlatformRoleStore{Store: pg}
 			secretStore = &postgres.SecretStore{Store: pg}
 			projectVariableStore = &postgres.ProjectVariableStore{Store: pg}
 			datasetStore = &postgres.DatasetStore{Store: pg}
@@ -220,6 +222,7 @@ func main() {
 			AgentStore:                       agentStore,
 			AgentTeamStore:                   agentTeamStore,
 			OrganizationStore:                organizationStore,
+			PlatformRoleStore:                platformRoleStore,
 			WorkflowStore:                    workflowStore,
 			RegistryPullSecret:               cfg.RegistryPullSecret,
 			RegistryPushSecret:               cfg.RegistryPushSecret,

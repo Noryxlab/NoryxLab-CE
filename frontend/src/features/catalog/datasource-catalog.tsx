@@ -34,8 +34,7 @@ import {
   useOrganizations,
   useSecrets,
   qk,
-  useInvalidate,
-} from '@/lib/api/queries';
+  useInvalidate, useCan } from '@/lib/api/queries';
 import { datasourcesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -245,6 +244,7 @@ function DatasourceOwnershipSheet({
 
 export function DatasourceCatalog() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -408,12 +408,10 @@ export function DatasourceCatalog() {
       <SectionHeader
         title={t('datasources.title')}
         description={t('datasources.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+        actions={can('declare-datasource') ? (<Button variant="primary" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             {t('datasources.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       <Card>
@@ -431,12 +429,10 @@ export function DatasourceCatalog() {
               icon={Plug}
               title={t('datasources.empty')}
               description={t('datasources.emptyHint')}
-              action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
+              action={can('declare-datasource') ? (<Button variant="primary" onClick={() => setCreating(true)}>
                   <Plus aria-hidden />
                   {t('datasources.create')}
-                </Button>
-              }
+                </Button>) : null}
             />
           }
           rowActions={(datasource) => (

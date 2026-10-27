@@ -31,6 +31,7 @@ import {
   type AccessFilters,
 } from '@/features/admin/access-graph';
 import { RoleMatrixEditor } from '@/features/admin/role-matrix';
+import { PlatformRolesMatrix } from '@/features/admin/platform-roles';
 import type {
   RbacCell,
 } from '@/lib/api/types';
@@ -175,6 +176,8 @@ export function RbacSection() {
           acces, et on ecrit ensuite la regle. Reserve a l'edition qui sait
           faire respecter une ligne - ailleurs ce serait un ecran qui promet ce
           que la plateforme ne tiendrait pas. */}
+      {/* Ce qu'un role peut creer, avant les roles de projet. */}
+      <PlatformRolesMatrix />
       {isEnterprise() ? <RoleMatrixEditor /> : null}
 
       <Card>

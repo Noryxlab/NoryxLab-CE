@@ -44,6 +44,47 @@ components:
       name: X-Noryx-User
 
   schemas:
+    PlatformRole:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
+        locked: { type: boolean }
+        assignable: { type: boolean }
+        heldBy: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PlatformRoleListResponse:
+      type: object
+      properties:
+        capabilities:
+          type: array
+          items: { type: string }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/PlatformRole' }
+    PlatformRoleAssignment:
+      type: object
+      properties:
+        userId: { type: string }
+        roleKey: { type: string }
+        assignedBy: { type: string }
+        assignedAt: { type: string, format: date-time }
+    UserPlatformRoleResponse:
+      type: object
+      properties:
+        userId: { type: string }
+        role: { $ref: '#/components/schemas/PlatformRole' }
+        assigned: { type: boolean }
+    MyCapabilitiesResponse:
+      type: object
+      properties:
+        role: { type: object }
+        capabilities: { type: object }
     AdministeredOrganization:
       type: object
       properties:
@@ -9416,6 +9457,179 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdministeredOrganizationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/platform-roles:
+    get:
+      tags: [Admin]
+      summary: The capability matrix
+      description: >-
+        Functions in rows, roles in columns. Three rows ship locked - administrator, user, consultant - and the installation adds its own, each with the boxes it chose.
+      operationId: listPlatformRoles
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformRoleListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/platform-roles/{roleKey}:
+    delete:
+      tags: [Admin]
+      summary: Remove a role of your own
+      description: >-
+        Refused while somebody still holds it: a role that vanishes under its holders is a lockout nobody decided.
+      operationId: deletePlatformRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: roleKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Role removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Write a role of your own
+      description: >-
+        A shipped row is refused: it describes what the platform does and is not a setting. A capability the handlers do not consult is refused too - a box nothing reads is documentation in the costume of a setting.
+      operationId: upsertPlatformRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: roleKey
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformRole'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/users/{userID}/platform-role:
+    delete:
+      tags: [Admin]
+      summary: Put a person back on the user row
+      operationId: clearUserPlatformRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Back on the user row
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Admin]
+      summary: Which row this person holds
+      description: >-
+        And whether it was assigned or is the default - nobody assigned means the user row.
+      operationId: getUserPlatformRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPlatformRoleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Admin]
+      summary: Assign a row to a person
+      description: >-
+        At onboarding, or later without recreating the account. The administrator row is the directory's realm role and is not assigned here.
+      operationId: setUserPlatformRole
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformRoleAssignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/capabilities:
+    get:
+      tags: [Account]
+      summary: What this caller may create
+      description: >-
+        The row the caller holds and, for each function the matrix governs, yes or no. An interface hides what is refused by asking here, never by re-implementing the rule.
+      operationId: getMyCapabilities
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyCapabilitiesResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"log"
 	"net/http"
 	"path"
@@ -692,6 +693,10 @@ func (h Handlers) ScanProjectOntology(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID string) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049) ; les deux routes de scan passent ici.
+	if !h.requireCapability(w, identity, platformrole.ScanOntology) {
 		return
 	}
 	var req ontologyScanRequest

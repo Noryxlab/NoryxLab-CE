@@ -56,6 +56,9 @@ import type {
   OntologyQueryItem,
   Organization,
   OrganizationAdmin,
+  PlatformRole,
+  PlatformRoleAssignment,
+  MyCapabilities,
   OrganizationMember,
   OwnedResources,
   PlatformOverview,
@@ -156,6 +159,9 @@ export const platformApi = {
   myOrganizations: () => api.list<Organization>(`${V1}/user/organizations`),
   /** Ou cette personne administre. Le jeton dit qui elle est, pas ce qu'une
    *  organisation a decide a son sujet, donc la porte se demande au serveur. */
+  /** Ce que ce role peut creer. L'interface cache ce qui est refuse en
+   *  demandant ici, jamais en reimplementant la regle. */
+  myCapabilities: () => api.get<MyCapabilities>(`${V1}/user/capabilities`),
   administeredOrganizations: () =>
     api.list<{ id: string; name: string; alias?: string }>(`${V1}/user/administered-organizations`),
 };
@@ -907,6 +913,7 @@ export const adminApi = {
     api.put<{ items: EffectiveSetting[] }>(`${V1}/admin/settings/${encodeURIComponent(key)}`, { value }),
   users: () => api.list<PlatformUser>(`${V1}/admin/users`),
   createUser: (input: {
+    roleKey?: string;
     username: string;
     email?: string;
     firstName?: string;
@@ -941,6 +948,21 @@ export const adminApi = {
    *  Un droit nomme, pas une appartenance : l'annuaire dit ou quelqu'un
    *  travaille, il ne dit pas ce qu'il peut faire. Tant que personne n'est
    *  nomme, seuls les administrateurs de la plateforme agissent pour elle. */
+  /** La matrice de creation : fonctions en ligne, roles en colonne. */
+  platformRoles: () =>
+    api.get<{ capabilities: string[]; roles: PlatformRole[] }>(`${V1}/admin/platform-roles`),
+  upsertPlatformRole: (key: string, input: { name: string; description: string; capabilities: string[] }) =>
+    api.put<PlatformRole>(`${V1}/admin/platform-roles/${encodeURIComponent(key)}`, input),
+  deletePlatformRole: (key: string) =>
+    api.delete<void>(`${V1}/admin/platform-roles/${encodeURIComponent(key)}`),
+  userPlatformRole: (userId: string) =>
+    api.get<{ userId: string; role: PlatformRole; assigned: boolean }>(
+      `${V1}/admin/users/${encodeURIComponent(userId)}/platform-role`,
+    ),
+  setUserPlatformRole: (userId: string, roleKey: string) =>
+    api.put<PlatformRoleAssignment>(`${V1}/admin/users/${encodeURIComponent(userId)}/platform-role`, { roleKey }),
+  clearUserPlatformRole: (userId: string) =>
+    api.delete<void>(`${V1}/admin/users/${encodeURIComponent(userId)}/platform-role`),
   organizationAdmins: (organizationId: string) =>
     api.list<OrganizationAdmin>(`${V1}/admin/organizations/${organizationId}/administrators`),
   addOrganizationAdmin: (organizationId: string, subjectType: string, subjectId: string) =>

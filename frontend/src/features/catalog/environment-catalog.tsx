@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/sheet';
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/toast';
-import { useBuildLogs, useDockerfile, useEnvironments, useProjects, qk, useInvalidate } from '@/lib/api/queries';
+import { useBuildLogs, useDockerfile, useEnvironments, useProjects, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { environmentsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -519,6 +519,7 @@ function EnvironmentDetail({
  */
 export function EnvironmentCatalog() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -652,12 +653,10 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
       <PageHeader
         title={t('environments.title')}
         description={t('environments.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+        actions={can('build-environment') ? (<Button variant="primary" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             {t('environments.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       {environments.data && environments.data.length > 0 ? (
@@ -688,12 +687,10 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
               icon={Box}
               title={t('environments.empty')}
               description={t('environments.emptyHint')}
-              action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
+              action={can('build-environment') ? (<Button variant="primary" onClick={() => setCreating(true)}>
                   <Plus aria-hidden />
                   {t('environments.create')}
-                </Button>
-              }
+                </Button>) : null}
             />
           }
           rowActions={(environment) => (

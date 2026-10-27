@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"path"
 	"strings"
@@ -57,6 +59,10 @@ func (h Handlers) ListBuilds(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, auth.Identity{Username: userID, Subject: userID}, platformrole.BuildEnvironment) {
 		return
 	}
 

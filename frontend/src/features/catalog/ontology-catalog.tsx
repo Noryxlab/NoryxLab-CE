@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/table';
 import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { qk, useAdminUsers, useAllTeams, useDatasets, useInvalidate, useOntologies, useOntologyAccess, useOntologyCompleteness, useOntologyExtracts, useOntologyFreshness, useOntologyScans, useOrganizations } from '@/lib/api/queries';
+import { qk, useAdminUsers, useAllTeams, useDatasets, useInvalidate, useOntologies, useOntologyAccess, useOntologyCompleteness, useOntologyExtracts, useOntologyFreshness, useOntologyScans, useOrganizations, useCan } from '@/lib/api/queries';
 import { deletionCostApi, ontologiesApi, pathLayoutApi } from '@/lib/api/endpoints';
 import { OntologyCardPanel } from './ontology-card';
 import { useI18n, useT, type TranslationKey } from '@/lib/i18n';
@@ -1013,6 +1013,7 @@ export function ExtractRenameSheet({
  */
 function OntologyScan() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -1073,7 +1074,8 @@ function OntologyScan() {
     hint: item.bucket,
   }));
 
-  return (
+  // Scanner est une fonction de la matrice : la carte n'apparait pas a qui ne l'a pas.
+  return can('scan-ontology') ? (
     <Card>
       <CardHeader>
         <CardHeaderText>
@@ -1122,7 +1124,7 @@ function OntologyScan() {
         {datasetId ? <ScanRule datasetId={datasetId} /> : null}
       </CardContent>
     </Card>
-  );
+  ) : null;
 }
 
 /** Handing an ontology over, in the same form and the same words as a dataset

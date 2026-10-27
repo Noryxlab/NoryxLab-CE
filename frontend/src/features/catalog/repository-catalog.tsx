@@ -23,7 +23,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
-import { useRepositories, useSecrets, qk, useInvalidate } from '@/lib/api/queries';
+import { useRepositories, useSecrets, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { repositoriesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -91,6 +91,7 @@ const DESTRUCTIVE_SCOPES = new Set([
 
 export function RepositoryCatalog() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -229,12 +230,10 @@ export function RepositoryCatalog() {
       <SectionHeader
         title={t('repositories.title')}
         description={t('repositories.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+        actions={can('declare-repository') ? (<Button variant="primary" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             {t('repositories.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       <Card>
@@ -252,12 +251,10 @@ export function RepositoryCatalog() {
               icon={FolderGit2}
               title={t('repositories.empty')}
               description={t('repositories.emptyHint')}
-              action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
+              action={can('declare-repository') ? (<Button variant="primary" onClick={() => setCreating(true)}>
                   <Plus aria-hidden />
                   {t('repositories.create')}
-                </Button>
-              }
+                </Button>) : null}
             />
           }
           rowActions={(repository) => (

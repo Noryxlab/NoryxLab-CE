@@ -979,6 +979,26 @@ func migrationStatements() []string {
 		// administrateur de la plateforme. L'inverse - deduire le droit de
 		// l'appartenance - est exactement ce qui donnait a tout nouveau venu
 		// le pouvoir d'effacer un bucket de sante le jour de son arrivee.
+		// Ce qu'un role peut creer (ADR-049). Les trois lignes fournies ne
+		// sont pas ici : elles viennent du code, et c'est ce qui les rend
+		// non modifiables. Seules les lignes de l'installation sont stockees.
+		`CREATE TABLE IF NOT EXISTS platform_roles (
+			key TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			capabilities_json JSONB NOT NULL DEFAULT '[]',
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
+		// La ligne que chaque personne porte. Absente veut dire
+		// « utilisateur », ce qui est la lecture sure et ce que tout compte
+		// faisait deja.
+		`CREATE TABLE IF NOT EXISTS user_platform_roles (
+			user_id TEXT PRIMARY KEY,
+			role_key TEXT NOT NULL,
+			assigned_by TEXT NOT NULL DEFAULT '',
+			assigned_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS organization_admins (
 			organization_id TEXT NOT NULL,
 			subject_type TEXT NOT NULL,

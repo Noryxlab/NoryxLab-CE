@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"regexp"
 	"strings"
@@ -514,6 +515,10 @@ func (h Handlers) CreateAPI(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind string) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, identity, platformrole.DeployApp) {
 		return
 	}
 	userID := identity.UserID()

@@ -1349,6 +1349,33 @@ export interface ExtractAccess {
   updatedAt: string;
 }
 
+/** Une ligne de la matrice de creation (ADR-049) : ce qu'un role peut
+ *  faire naitre. Les trois lignes fournies sont verrouillees ; les autres
+ *  sont a l'installation. */
+export interface PlatformRole {
+  key: string;
+  name: string;
+  description: string;
+  capabilities: string[];
+  locked: boolean;
+  assignable: boolean;
+  heldBy?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlatformRoleAssignment {
+  userId: string;
+  roleKey: string;
+  assignedBy?: string;
+  assignedAt: string;
+}
+
+export interface MyCapabilities {
+  role: { key: string; name: string };
+  capabilities: Record<string, boolean>;
+}
+
 export interface OrganizationAdmin {
   organizationId: string;
   subjectType: string;

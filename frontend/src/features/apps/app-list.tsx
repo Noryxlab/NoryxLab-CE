@@ -47,7 +47,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
 import { appsApi, dashboardsApi } from '@/lib/api/endpoints';
-import { useAppLogs, useAppRevisions, useAppUsage, qk, useInvalidate } from '@/lib/api/queries';
+import { useAppLogs, useAppRevisions, useAppUsage, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { presentAccessMode } from '@/lib/presenters';
@@ -76,6 +76,7 @@ export function AppList({
   onCreate,
 }: AppListProps) {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -166,12 +167,10 @@ export function AppList({
           icon={AppWindow}
           title={variant === 'dashboard' ? t('dashboards.empty') : t('apps.empty')}
           description={variant === 'dashboard' ? t('dashboards.emptyHint') : t('apps.emptyHint')}
-          action={
-            <Button variant="primary" onClick={onCreate}>
+          action={can('deploy-app') ? (<Button variant="primary" onClick={onCreate}>
               <Plus aria-hidden />
               {variant === 'dashboard' ? t('dashboards.create') : t('apps.create')}
-            </Button>
-          }
+            </Button>) : null}
         />
       </Card>
     );

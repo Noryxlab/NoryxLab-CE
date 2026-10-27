@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"log"
 	"net"
 	"net/http"
@@ -382,6 +383,10 @@ func (h Handlers) ensureProjectInStore(projectID string) {
 func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, identity, platformrole.LaunchWorkspace) {
 		return
 	}
 	userID := identity.UserID()

@@ -32,7 +32,10 @@ type Handlers struct {
 	// organizationStore names who administers what an organization owns.
 	// Optional like teamStore: without it nobody administers by organization,
 	// which is the safe direction.
-	organizationStore    store.OrganizationStore
+	organizationStore store.OrganizationStore
+	// platformRoleStore holds what a role may create (ADR-049). Optional:
+	// without it everybody is a user and the administrator is the realm role.
+	platformRoleStore    store.PlatformRoleStore
 	secretStore          store.SecretStore
 	projectVariableStore store.ProjectVariableStore
 	datasetStore         store.DatasetStore
@@ -139,6 +142,9 @@ type Options struct {
 	// OrganizationStore names who administers what an organization owns -
 	// a right, granted, as opposed to belonging to it.
 	OrganizationStore store.OrganizationStore
+	// PlatformRoleStore holds the capability matrix's custom rows and who
+	// holds which row.
+	PlatformRoleStore store.PlatformRoleStore
 	// WorkflowStore holds what runs when an agent works (ADR-046): ordered
 	// steps and the durable runs that walk them.
 	WorkflowStore        store.WorkflowStore
@@ -360,6 +366,7 @@ func New(
 		workflowStore:                    options.WorkflowStore,
 		agentTeamStore:                   options.AgentTeamStore,
 		organizationStore:                options.OrganizationStore,
+		platformRoleStore:                options.PlatformRoleStore,
 		storageEndpointStore:             storageEndpointStore,
 		runtime:                          runtime,
 		authVerifier:                     authVerifier,

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"log"
 	"net/http"
 	"sort"
@@ -67,6 +68,10 @@ type extractRequest struct {
 func (h Handlers) CreateExtract(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, identity, platformrole.CreateExtract) {
 		return
 	}
 	if h.extractStore == nil {

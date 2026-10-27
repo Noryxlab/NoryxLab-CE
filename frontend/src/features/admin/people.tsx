@@ -37,7 +37,9 @@ import {
   useAdminUsers,
   useInvalidate,
   useOrganizationAdmins,
+  usePlatformRoles,
   useSmtp,
+  useUserPlatformRole,
 } from '@/lib/api/queries';
 import { useT } from '@/lib/i18n';
 import type { Organization, OrganizationAdmin, PlatformUser, Team } from '@/lib/api/types';
@@ -865,6 +867,58 @@ function TeamPanel({ team, organization, onDeleted }: { team: Team; organization
   );
 }
 
+/** Le role de plateforme d'une personne : ce qu'elle peut creer.
+ *  Attribue a l'embauche ou ici, sans recreer le compte. Sans attribution,
+ *  c'est le role utilisateur. */
+function PersonPlatformRole({ user }: { user: PlatformUser }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const current = useUserPlatformRole(user.id);
+  const roles = usePlatformRoles();
+  const [choice, setChoice] = React.useState('');
+  const assignable = (roles.data?.roles ?? []).filter((r) => r.assignable);
+  const refresh = () => invalidate(qk.adminUserPlatformRole(user.id), qk.adminPlatformRoles, qk.adminUsers);
+  const assign = useMutation({
+    mutationFn: () => adminApi.setUserPlatformRole(user.id, choice),
+    onSuccess: () => { refresh(); setChoice(''); toast.success(t('platformRoles.assigned'), displayName(user)); },
+    onError: (error) => toast.error(error, t('platformRoles.role')),
+  });
+  const reset = useMutation({
+    mutationFn: () => adminApi.clearUserPlatformRole(user.id),
+    onSuccess: refresh,
+    onError: (error) => toast.error(error, t('platformRoles.role')),
+  });
+  const held = current.data?.role;
+  return (
+    <div className="space-y-2">
+      <dt className="text-xs text-muted-foreground">{t('platformRoles.role')}</dt>
+      <dd className="flex flex-wrap items-center gap-2">
+        {held ? (
+          <Badge tone={held.locked ? 'neutral' : 'brand'}>
+            {held.name}{current.data?.assigned ? '' : ` (${t('platformRoles.defaultRole')})`}
+          </Badge>
+        ) : null}
+        <Select
+          value={choice}
+          onValueChange={setChoice}
+          options={assignable.map((r) => ({ value: r.key, label: r.name }))}
+          placeholder={t('platformRoles.assign')}
+        />
+        <Button variant="secondary" size="sm" disabled={!choice} loading={assign.isPending} onClick={() => assign.mutate()}>
+          {t('platformRoles.assign')}
+        </Button>
+        {current.data?.assigned ? (
+          <Button variant="ghost" size="sm" loading={reset.isPending} onClick={() => reset.mutate()}>
+            {t('platformRoles.reset')}
+          </Button>
+        ) : null}
+      </dd>
+      <p className="text-xs text-muted-foreground">{t('platformRoles.roleHint')}</p>
+    </div>
+  );
+}
+
 function PersonPanel({ user }: { user: PlatformUser }) {
   const t = useT();
   const toast = useToast();
@@ -926,6 +980,8 @@ function PersonPanel({ user }: { user: PlatformUser }) {
               {user.teams?.length ? user.teams.map((n) => <Badge key={n} tone="outline">{n}</Badge>) : '—'}
             </dd>
           </div>
+          {/* Et le droit, sous le fait : ce que cette personne peut creer. */}
+          <PersonPlatformRole user={user} />
           <div>
             <dt className="text-xs text-muted-foreground">{t('people.firstSeen')}</dt>
             <dd>{user.firstSeenAt ? formatDateTime(user.firstSeenAt) : '—'}</dd>
@@ -1085,14 +1141,16 @@ function CreateUserSheet({ organization, open, onOpenChange }: { organization: O
   const t = useT();
   const toast = useToast();
   const invalidate = useInvalidate();
-  const blank = { username: '', email: '', firstName: '', lastName: '', organizationId: organization.id };
+  const blank = { username: '', email: '', firstName: '', lastName: '', organizationId: organization.id, roleKey: 'user' };
   const [form, setForm] = React.useState(blank);
+  const roles = usePlatformRoles();
+  const assignable = (roles.data?.roles ?? []).filter((r) => r.assignable);
   const [issued, setIssued] = React.useState<{ who: string; password: string } | null>(null);
   // Remise a zero a l'ouverture, et rattachee a l'organisation du panneau
   // courant : les deux seules choses dont la fiche depend vraiment.
   React.useEffect(() => {
     if (!open) return;
-    setForm({ username: '', email: '', firstName: '', lastName: '', organizationId: organization.id });
+    setForm({ username: '', email: '', firstName: '', lastName: '', organizationId: organization.id, roleKey: 'user' });
     setIssued(null);
   }, [open, organization.id]);
 
@@ -1127,6 +1185,11 @@ function CreateUserSheet({ organization, open, onOpenChange }: { organization: O
           </Card>
         ) : (
           <div className="mt-4 space-y-3">
+            {/* Le role, utilisateur par defaut, a cote de l'organisation obligatoire :
+                la portee d'un utilisateur est lui-meme, donc elle ne se demande pas. */}
+            <Field label={t('platformRoles.role')}>
+              <Select value={form.roleKey} onValueChange={(v) => setForm((f) => ({ ...f, roleKey: v }))} options={assignable.map((r) => ({ value: r.key, label: r.name }))} />
+            </Field>
             <Field label={t('identity.username')} required><Input value={form.username} onChange={set('username')} autoFocus /></Field>
             <Field label="Email" required><Input type="email" value={form.email} onChange={set('email')} /></Field>
             <div className="flex gap-2">

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net"
 	"net/http"
 	"strings"
@@ -95,6 +96,10 @@ func (h Handlers) ListDatasourceDefinitions(w http.ResponseWriter, r *http.Reque
 func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, auth.Identity{Username: userID, Subject: userID}, platformrole.DeclareDatasource) {
 		return
 	}
 	if h.runtime == nil {
@@ -208,6 +213,10 @@ func (h Handlers) CreateDataService(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, auth.Identity{Username: userID, Subject: userID}, platformrole.DeclareDatasource) {
 		return
 	}
 	var req createDatasourceRequest

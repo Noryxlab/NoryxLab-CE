@@ -195,6 +195,44 @@ and said nothing; you saw an empty folder with no way to tell whether the data
 was missing or you were. The launch returns what it withheld, by name, and the
 screen shows it.
 
+### What a role may create
+
+Capabilities and grants are different questions, and the matrix governs only
+the first (ADR-049). "May this role create a dataset" names no object and is
+a checkbox. "May this person read dataset D" names one and is a grant on the
+object's own permissions screen - it must never become a checkbox, because
+expressing "sees what their team shared" as a capability rebuilds the
+inheritance the previous sections removed.
+
+Functions in rows, roles in columns, yes or no in the cells. Twelve functions,
+drawn from what the handlers consult: create a project, launch a workspace,
+launch a job, deploy an application, build an environment, create a dataset,
+scan an ontology, create an extract, declare a data source, declare a
+repository, register a regulated dataset, administer an organization.
+
+Three rows ship locked. **Administrator** acts on what is not theirs; it is
+the directory's realm role, counted but never assigned here. **User** acts on
+their own: everything above except registering regulated data and
+administering an organization. **Consultant** is the user row with every box
+unchecked - an auditor, a study sponsor, a student - which is the test the
+design had to pass: read-only needs no mechanism of its own. An installation
+adds its own rows beside those and sets their boxes itself, with no inherited
+ceiling: a "data steward" may register regulated datasets while the user row
+may not. Only a platform administrator edits the matrix, and a capability the
+handlers do not consult is refused rather than stored.
+
+A person holds one row. It is asked for at onboarding, on the same form that
+already demands an organization, with user preselected; and it is changed on
+the person's screen without recreating the account. Nobody assigned means the
+user row. A custom row deleted under its holders falls back to user, never to
+nothing. The interface asks `GET /api/v1/user/capabilities` once per session
+and hides what is refused - and never re-implements the rule, because two
+implementations of one rule diverge and the user is the one who finds out.
+
+`platform_roles` holds the custom rows, `user_platform_roles` who holds which;
+`/api/v1/admin/platform-roles` and `/api/v1/admin/users/{id}/platform-role`
+are the API.
+
 ### Project membership roles
 
 These are the roles an administrator assigns on the project members screen, and

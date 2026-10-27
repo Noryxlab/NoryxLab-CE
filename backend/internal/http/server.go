@@ -40,6 +40,14 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/user/organizations", h.ListMyOrganizations)
 	// Ou cette personne administre, ce que le jeton ne dit pas.
 	mux.HandleFunc("GET /api/v1/user/administered-organizations", h.ListMyAdministeredOrganizations)
+	// Ce que ce role peut creer (ADR-049) : l'interface demande, elle ne devine pas.
+	mux.HandleFunc("GET /api/v1/user/capabilities", h.GetMyCapabilities)
+	mux.HandleFunc("GET /api/v1/admin/platform-roles", h.ListPlatformRoles)
+	mux.HandleFunc("PUT /api/v1/admin/platform-roles/{roleKey}", h.UpsertPlatformRole)
+	mux.HandleFunc("DELETE /api/v1/admin/platform-roles/{roleKey}", h.DeletePlatformRole)
+	mux.HandleFunc("GET /api/v1/admin/users/{userID}/platform-role", h.GetUserPlatformRole)
+	mux.HandleFunc("PUT /api/v1/admin/users/{userID}/platform-role", h.SetUserPlatformRole)
+	mux.HandleFunc("DELETE /api/v1/admin/users/{userID}/platform-role", h.ClearUserPlatformRole)
 	mux.HandleFunc("GET /api/v1/user/teams", h.ListMyTeams)
 	mux.HandleFunc("GET /api/v1/user/preferences", h.GetUserPreferences)
 	mux.HandleFunc("GET /api/v1/organizations", h.ListAvailableOrganizations)

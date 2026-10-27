@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"io"
 	"log"
 	"net/http"
@@ -274,6 +275,10 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, identity, platformrole.CreateDataset) {
+		return
+	}
 	userID := identity.UserID()
 	var req createDatasetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -304,8 +309,11 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "HDS dataset management requires NoryxLab Enterprise Edition"})
 		return
 	}
-	if req.Classification == "hds" && !h.isGlobalAdmin(identity) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "global admin role required to register an HDS dataset"})
+	// Enregistrer de la donnee reglementee est une fonction de la matrice,
+	// plus un droit fige sur le role d'annuaire : une installation la confie
+	// a un data steward nomme par une ligne a elle, sans lui donner la
+	// plateforme. L'administrateur la detient toujours.
+	if req.Classification == "hds" && !h.requireCapability(w, identity, platformrole.RegisterRegulatedDataset) {
 		return
 	}
 	if req.Classification == "hds" && strings.TrimSpace(req.OwnerID) == "" {

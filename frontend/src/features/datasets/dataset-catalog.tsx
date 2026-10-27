@@ -33,8 +33,7 @@ import {
   useOrganizations,
   useAdminUsers,
   qk,
-  useInvalidate,
-} from '@/lib/api/queries';
+  useInvalidate, useCan } from '@/lib/api/queries';
 import { datasetsApi, deletionCostApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
@@ -678,6 +677,7 @@ export function DatasetCatalog({
   onSelect: (datasetId: string | null) => void;
 }) {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const toast = useToast();
   const invalidate = useInvalidate();
@@ -809,10 +809,10 @@ export function DatasetCatalog({
               label={t('common.search')}
               className="w-56"
             />
-            <Button variant="primary" onClick={() => setCreating(true)}>
+            {can('create-dataset') ? (<Button variant="primary" onClick={() => setCreating(true)}>
               <Plus aria-hidden />
               {t('datasets.create')}
-            </Button>
+            </Button>) : null}
           </div>
         }
       />
@@ -836,12 +836,10 @@ export function DatasetCatalog({
               icon={Database}
               title={t('datasets.empty')}
               description={t('datasets.emptyHint')}
-              action={
-                <Button variant="primary" onClick={() => setCreating(true)}>
+              action={can('create-dataset') ? (<Button variant="primary" onClick={() => setCreating(true)}>
                   <Plus aria-hidden />
                   {t('datasets.create')}
-                </Button>
-              }
+                </Button>) : null}
             />
           }
           rowActions={(dataset) => (

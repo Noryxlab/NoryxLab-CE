@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SkeletonCards } from '@/components/ui/skeleton';
 import { BareSelect } from '@/components/ui/select';
-import { useProjects } from '@/lib/api/queries';
+import { useProjects, useCan } from '@/lib/api/queries';
 import { ProjectOwner } from '@/features/projects/project-owner';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -76,6 +76,7 @@ function ProjectCard({ project }: { project: Project }) {
 
 export function ProjectsPage() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const { data, isLoading, isError, error, refetch } = useProjects();
 
@@ -162,12 +163,10 @@ export function ProjectsPage() {
       icon={Boxes}
       title={t('projects.empty')}
       description={t('projects.emptyHint')}
-      action={
-        <Button variant="primary" onClick={() => setCreating(true)}>
+      action={can('create-project') ? (<Button variant="primary" onClick={() => setCreating(true)}>
           <Plus aria-hidden />
           {t('projects.create')}
-        </Button>
-      }
+        </Button>) : null}
     />
   );
 
@@ -176,12 +175,10 @@ export function ProjectsPage() {
       <PageHeader
         title={t('projects.title')}
         description={t('projects.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+        actions={can('create-project') ? (<Button variant="primary" onClick={() => setCreating(true)}>
             <Plus aria-hidden />
             {t('projects.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       {isError ? (

@@ -20,7 +20,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { StatusBadge, describeStatus } from '@/components/ui/badge';
 import { SkeletonCards } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
-import { useEnvironments, useWorkspaces, qk, useInvalidate } from '@/lib/api/queries';
+import { useEnvironments, useWorkspaces, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { workspacesApi } from '@/lib/api/endpoints';
 import { useAuth } from '@/lib/auth';
 import { useI18n, useT } from '@/lib/i18n';
@@ -172,6 +172,7 @@ function WorkspaceCard({
 
 export function WorkspacesPage() {
   const t = useT();
+  const can = useCan();
   const { locale } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const toast = useToast();
@@ -227,12 +228,10 @@ export function WorkspacesPage() {
       <PageHeader
         title={t('workspaces.title')}
         description={t('workspaces.subtitle')}
-        actions={
-          <Button variant="primary" onClick={() => setLaunching(true)}>
+        actions={can('launch-workspace') ? (<Button variant="primary" onClick={() => setLaunching(true)}>
             <Plus aria-hidden />
             {t('workspaces.create')}
-          </Button>
-        }
+          </Button>) : null}
       />
 
       {isError ? (
@@ -245,12 +244,10 @@ export function WorkspacesPage() {
             icon={Terminal}
             title={t('workspaces.empty')}
             description={t('workspaces.emptyHint')}
-            action={
-              <Button variant="primary" onClick={() => setLaunching(true)}>
+            action={can('launch-workspace') ? (<Button variant="primary" onClick={() => setLaunching(true)}>
                 <Plus aria-hidden />
                 {t('workspaces.create')}
-              </Button>
-            }
+              </Button>) : null}
           />
         </Card>
       ) : (

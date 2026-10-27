@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,10 @@ func (h Handlers) ListJobs(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
+		return
+	}
+	// La matrice decide (ADR-049).
+	if !h.requireCapability(w, identity, platformrole.LaunchJob) {
 		return
 	}
 	userID := identity.UserID()
