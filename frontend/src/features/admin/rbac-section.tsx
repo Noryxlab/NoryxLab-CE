@@ -22,7 +22,7 @@ import {
 import { adminApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatNumber } from '@/lib/format';
-import { presentRole } from '@/lib/presenters';
+import { presentRole, presentAccessSource } from '@/lib/presenters';
 import { isEnterprise } from '@/lib/config';
 import {
   AccessGraph,
@@ -88,7 +88,7 @@ export function RbacSection() {
       sortValue: (cell) => cell.source,
       cell: (cell) => (
         <span className="flex items-center gap-1.5">
-          <Badge tone="outline">{cell.source}</Badge>
+          <Badge tone="outline">{presentAccessSource(cell.source, locale)}</Badge>
           {cell.inherited ? <Badge tone="neutral">{locale === 'fr' ? 'hérité' : 'inherited'}</Badge> : null}
         </span>
       ),

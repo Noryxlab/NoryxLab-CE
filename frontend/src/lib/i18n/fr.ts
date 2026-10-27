@@ -1300,7 +1300,7 @@ export const fr = {
   rbac: {
     matrix: "Matrice des droits",
     matrixHint:
-      "Vue consolidée des droits effectifs par sujet et par ressource.",
+      "Qui peut faire quoi, objet par objet. Posséder administre (transférer, accorder, supprimer) et ne donne pas la lecture ; lire ou écrire est un octroi sur l’objet, à une personne, une équipe ou une organisation ; une ligne « hérité » vient d’un tel octroi fait à un groupe. Ce qu’un projet attache n’apparaît pas ici : l’attacher ne donne aucun droit sur la donnée.",
     subject: "Sujet",
     resource: "Ressource",
     empty: "Aucun droit enregistré",

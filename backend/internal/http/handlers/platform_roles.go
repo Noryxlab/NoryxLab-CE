@@ -95,10 +95,36 @@ func (h Handlers) allRoles() ([]platformrole.Role, map[string]int, error) {
 			counts[assignment.RoleKey]++
 		}
 	}
-	// The administrator row is held by whoever the directory says.
+	// The administrator row is held by whoever the directory says, and the
+	// user row by every enabled account named nowhere else: it is the
+	// default, so "held by 0" under it was the one number on the screen
+	// that could not be true.
 	if h.keycloak != nil {
+		administrators := 0
 		if members, err := h.keycloak.ListRealmRoleMembers(globalAdminRole); err == nil {
-			counts[platformrole.KeyAdministrator] = len(members)
+			for _, member := range members {
+				if member.Enabled {
+					administrators++
+				}
+			}
+			counts[platformrole.KeyAdministrator] = administrators
+		}
+		if accounts, err := h.keycloak.ListUsers(); err == nil {
+			enabled := 0
+			for _, account := range accounts {
+				if account.Enabled {
+					enabled++
+				}
+			}
+			elsewhere := 0
+			for key, held := range counts {
+				if key != platformrole.KeyUser && key != platformrole.KeyAdministrator {
+					elsewhere += held
+				}
+			}
+			if users := enabled - administrators - elsewhere; users > 0 {
+				counts[platformrole.KeyUser] = users
+			}
 		}
 	}
 	return roles, counts, nil

@@ -310,6 +310,28 @@ export function presentRole(role: string | null | undefined, locale: Locale = 'f
   return labels[value]?.[locale] ?? role ?? '—';
 }
 
+// Where a right in the access report comes from, in words. The report says
+// "owner-organization" or "organization:Essilor"; the person reading it is
+// deciding what to revoke, and should not have to learn the vocabulary first.
+export function presentAccessSource(source: string | null | undefined, locale: Locale = 'fr'): string {
+  const value = String(source ?? '').trim();
+  const fixed: Record<string, { fr: string; en: string }> = {
+    owner: { fr: 'Propriétaire nominatif', en: 'Named owner' },
+    'owner-organization': { fr: 'Organisation propriétaire', en: 'Owning organization' },
+    direct: { fr: 'Octroi sur l’objet', en: 'Grant on the object' },
+    'project-role': { fr: 'Rôle donné sur le projet', en: 'Role given on the project' },
+    'organization-role': { fr: 'Rôle de projet donné à l’organisation', en: 'Project role given to the organization' },
+    'team-role': { fr: 'Rôle de projet donné à l’équipe', en: 'Project role given to the team' },
+  };
+  if (fixed[value]) return fixed[value][locale];
+  const [kind, ...rest] = value.split(':');
+  const name = rest.join(':');
+  if (kind === 'organization' && name) return locale === 'fr' ? `Par l’organisation ${name}` : `Through organization ${name}`;
+  if (kind === 'team' && name) return locale === 'fr' ? `Par l’équipe ${name}` : `Through team ${name}`;
+  if (kind === 'project' && name) return locale === 'fr' ? `Par le projet ${name}` : `Through project ${name}`;
+  return value || '—';
+}
+
 export function presentAccessMode(mode: string | null | undefined, locale: Locale = 'fr'): string {
   const value = String(mode ?? '').toLowerCase();
   const labels: Record<string, { fr: string; en: string }> = {

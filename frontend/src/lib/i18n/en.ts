@@ -1272,7 +1272,7 @@ export const en: Translations = {
   rbac: {
     matrix: "Permission matrix",
     matrixHint:
-      "Consolidated view of effective permissions by subject and resource.",
+      "Who may do what, object by object. Owning administers (transfer, grant, delete) and does not grant reading; reading or writing is a grant on the object, to a person, a team or an organization; an “inherited” row comes from such a grant made to a group. What a project attaches is not listed here: attaching confers no right on the data.",
     subject: "Subject",
     resource: "Resource",
     empty: "No permissions recorded",

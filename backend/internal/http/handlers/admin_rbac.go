@@ -550,6 +550,13 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 			organization := organizations[subjectID]
 			item.Name = firstNonEmpty(organization.Name, organization.Alias, subjectID)
 		} else if subjectType == "team" {
+			if teamNames[subjectID] == "" && h.teamStore != nil {
+				// A team granted on a dataset was shown by its identifier:
+				// only project grants carried the name along.
+				if found, ok, err := h.teamStore.GetByID(subjectID); err == nil && ok {
+					teamNames[subjectID] = found.Name
+				}
+			}
 			item.Name = firstNonEmpty(teamNames[subjectID], subjectID)
 		} else {
 			item.Name = firstNonEmpty(user.Username, user.Email, subjectID)
@@ -601,15 +608,44 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		}
 		addCell(subjectType, strings.TrimSpace(subjectID), resourceType, resourceID, "owner", source, false)
 	}
+	// enabledAccount says whether a person can still act. A disabled account
+	// reached through an organization or a team is not a reader of anything:
+	// listing it as one overstated access by exactly the accounts an
+	// administrator had already put away. A direct grant to a disabled
+	// account stays listed - it is a thing to revoke.
+	enabledAccount := func(userID string) bool {
+		user, known := users[userID]
+		return !known || user.Enabled
+	}
 	addSubjectWithOrganizationExpansion := func(subjectType, subjectID, resourceType, resourceID, role, source string) {
 		subjectType = normalizedSubjectType(subjectType)
 		subjectID = strings.TrimSpace(subjectID)
 		addCell(subjectType, subjectID, resourceType, resourceID, role, source, false)
-		if subjectType != "organization" {
-			return
-		}
-		for _, member := range orgMembers[subjectID] {
-			addCell("user", member.ID, resourceType, resourceID, role, "organization:"+firstNonEmpty(organizations[subjectID].Name, organizations[subjectID].Alias, subjectID), true)
+		switch subjectType {
+		case "organization":
+			for _, member := range orgMembers[subjectID] {
+				if !member.Enabled {
+					continue
+				}
+				addCell("user", member.ID, resourceType, resourceID, role, "organization:"+firstNonEmpty(organizations[subjectID].Name, organizations[subjectID].Alias, subjectID), true)
+			}
+		case "team":
+			// A team reaches its members like an organization does, and the
+			// grant stays listed on the team: that is the thing to revoke.
+			if h.teamStore == nil {
+				return
+			}
+			members, err := h.teamStore.ListMembers(subjectID)
+			if err != nil {
+				return
+			}
+			teamName := addSubject("team", subjectID).Name
+			for _, member := range members {
+				if !enabledAccount(member.UserID) {
+					continue
+				}
+				addCell("user", member.UserID, resourceType, resourceID, role, "team:"+teamName, true)
+			}
 		}
 	}
 
@@ -636,7 +672,7 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 	}
 
 	for _, user := range users {
-		if user.ID != "" {
+		if user.ID != "" && user.Enabled {
 			addSubject("user", user.ID)
 		}
 	}
@@ -729,31 +765,13 @@ func (h Handlers) buildRBACMatrixReport() (rbacMatrixReport, error) {
 		addCell("user", item.OwnerUserID, "datasource", item.ID, "owner", "owner", false)
 	}
 
-	for _, p := range projects {
-		projectSubjects := effectiveProjectSubjects(p, rolesByProject[p.ID], orgMembers)
-		attachProjectCells := func(resourceType string, ids []string) {
-			for _, resourceID := range ids {
-				if _, ok := resources[resourceType+":"+resourceID]; !ok {
-					continue
-				}
-				for _, subject := range projectSubjects {
-					addCell(subject.Type, subject.ID, resourceType, resourceID, "project-"+subject.Role, "project:"+firstNonEmpty(p.Name, p.ID), subject.Inherited)
-				}
-			}
-		}
-		if ids, err := h.projectResourceStore.ListProjectDatasetIDs(p.ID); err == nil {
-			attachProjectCells("dataset", ids)
-		}
-		if ids, err := h.projectResourceStore.ListProjectOntologyIDs(p.ID); err == nil {
-			attachProjectCells("ontology", ids)
-		}
-		if ids, err := h.projectResourceStore.ListProjectDatasourceIDs(p.ID); err == nil {
-			attachProjectCells("datasource", ids)
-		}
-		if ids, err := h.projectResourceStore.ListProjectExtractIDs(p.ID); err == nil {
-			attachProjectCells("extract", ids)
-		}
-	}
+	// What a project attaches is not what its members may read. The report
+	// used to write one "project-editor" row per member per attached dataset,
+	// which asserted a data right the platform does not grant: reading is an
+	// explicit grant on the object (ADR-048), and a workspace mounts only what
+	// its launcher holds. Those rows were paths, shown as rights, and an
+	// auditor cannot tell the two apart on a screen. They are gone; the
+	// attachment is read on the project itself.
 
 	subjectList := make([]rbacSubject, 0, len(subjects))
 	for _, subject := range subjects {
@@ -805,32 +823,6 @@ type projectSubjectGrant struct {
 	Inherited bool
 }
 
-func effectiveProjectSubjects(item project.Project, roles []store.ProjectRole, orgMembers map[string][]keycloak.User) []projectSubjectGrant {
-	out := []projectSubjectGrant{}
-	ownerType := normalizedSubjectType(firstNonEmpty(item.OwnerType, "user"))
-	ownerID := strings.TrimSpace(item.OwnerID)
-	if ownerID != "" {
-		out = append(out, projectSubjectGrant{Type: ownerType, ID: ownerID, Role: "owner"})
-		if ownerType == "organization" {
-			for _, member := range orgMembers[ownerID] {
-				out = append(out, projectSubjectGrant{Type: "user", ID: member.ID, Role: "owner", Inherited: true})
-			}
-		}
-	}
-	for _, role := range roles {
-		out = append(out, projectSubjectGrant{Type: "user", ID: role.UserID, Role: string(role.Role)})
-	}
-	return out
-}
-
-// normalizedSubjectType maps what callers write onto the three kinds of
-// subject a grant can name.
-//
-// Everything unrecognised becomes a user, which is the safe default for an
-// owner field filled in by hand - and the reason a new kind has to be added
-// here explicitly. A team passed through the old version came out as a user,
-// and the matrix would have shown a group in the column where people go,
-// silently, with no error anywhere.
 func normalizedSubjectType(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "organization", "org":
