@@ -310,7 +310,13 @@ func (h Handlers) AddOrganizationMember(w http.ResponseWriter, r *http.Request) 
 	if existing, err := h.keycloak.ListUserOrganizations(userID); err == nil {
 		for _, organization := range existing {
 			if strings.EqualFold(strings.TrimSpace(organization.ID), organizationID) {
-				continue
+				// Already here: a PUT says "make it so", and it is so. Sent
+				// on to the directory, this answered 409 and the screen read
+				// a failure for a state it had asked for - the validator's
+				// probe found it the second night it kept its account where
+				// it was.
+				w.WriteHeader(http.StatusNoContent)
+				return
 			}
 			h.emitAdvancedAudit(r, identity.UserID(), "organization.member.add", "organization",
 				organizationID, "", "failure", "already_member_elsewhere",
