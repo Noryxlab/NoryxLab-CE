@@ -28,6 +28,12 @@ func fakeKeycloak(t *testing.T, memberships map[string][]keycloak.Organization) 
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/protocol/openid-connect/token"):
 			writeTestJSON(t, w, map[string]any{"access_token": "test-token", "expires_in": 60})
+		case strings.Contains(r.URL.Path, "/roles/"):
+			// Nobody holds a realm role in this stub: the administrator
+			// question is answered by the directory now, and a stub that
+			// returned every account for any path ending in /users made
+			// everybody an administrator.
+			writeTestJSON(t, w, []map[string]any{})
 		case strings.Contains(r.URL.Path, "/users"):
 			// The client resolves a name to an id by listing every user, not by
 			// querying one - so the fake has to answer with the whole
@@ -169,6 +175,7 @@ func TestDirectoryOutageNeitherGrantsNorRemovesAccess(t *testing.T) {
 // The owner of a project reaches it without any explicit grant, whether the
 // owner is a person or an organization they belong to.
 func TestOwnershipGrantsAccessWithoutAGrant(t *testing.T) {
+	forgetAdministrators()
 	projects := memory.NewProjectStore()
 	personal := project.NewOwned("stef", "Personal project", "")
 	if err := projects.Create(personal); err != nil {

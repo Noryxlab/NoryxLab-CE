@@ -576,16 +576,32 @@ func (h Handlers) userBelongsToOrganization(userID, organizationID string) bool 
 	return false
 }
 
+// isGlobalAdminUserID says whether an account administers the platform,
+// from its identifier alone.
+//
+// It answered for the bootstrap account only. Every project check keyed by
+// user id - launching, attaching, deleting, seeing the project at all - went
+// through it, so an administrator named in the directory was refused on any
+// project they were not a member of, while the same person passed every
+// identity-keyed check. Found by the validator's data probe on 2026-10-27:
+// the platform could not delete a project its probe had handed over. The
+// directory is asked, with the one-minute cache the token path already uses.
 func (h Handlers) isGlobalAdminUserID(userID string) bool {
+	if h.isBootstrapAdminUserID(userID) {
+		return true
+	}
+	return h.holdsGlobalAdminRole(userID)
+}
+
+// isBootstrapAdminUserID is the account configuration names, which the
+// directory cannot unname: the one an installation falls back on.
+func (h Handlers) isBootstrapAdminUserID(userID string) bool {
 	uid := strings.TrimSpace(userID)
 	if uid == "" {
 		return false
 	}
 	adminUser := strings.TrimSpace(h.bootstrapAdminUser)
-	if adminUser != "" && strings.EqualFold(uid, adminUser) {
-		return true
-	}
-	return false
+	return adminUser != "" && strings.EqualFold(uid, adminUser)
 }
 
 // effectiveProjectRole is the strongest role a user holds on a project,

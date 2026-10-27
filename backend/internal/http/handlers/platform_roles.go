@@ -371,7 +371,7 @@ func (h Handlers) ClearUserPlatformRole(w http.ResponseWriter, r *http.Request) 
 // by the directory's realm role or by the bootstrap configuration, and
 // returns the account when the directory knows it.
 func (h Handlers) administratorAccount(userID string) (keycloak.User, bool, error) {
-	if h.isGlobalAdminUserID(userID) {
+	if h.isBootstrapAdminUserID(userID) {
 		return keycloak.User{Username: userID}, true, nil
 	}
 	if h.keycloak == nil {
@@ -435,7 +435,7 @@ func (h Handlers) withdrawAdministratorIfNamed(w http.ResponseWriter, r *http.Re
 			return false
 		}
 	}
-	if h.isGlobalAdminUserID(userID) || h.isGlobalAdminUserID(user.Username) || h.isGlobalAdminUserID(user.Email) {
+	if h.isBootstrapAdminUserID(userID) || h.isBootstrapAdminUserID(user.Username) || h.isBootstrapAdminUserID(user.Email) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "the bootstrap administrator is named by configuration and cannot be withdrawn here"})
 		return false
 	}
