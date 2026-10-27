@@ -22,6 +22,7 @@ type environmentRevision struct {
 	BuildID          string `json:"buildId"`
 	JobName          string `json:"jobName"`
 	Status           string `json:"status"`
+	FailureReason    string `json:"failureReason,omitempty"`
 	GitRepository    string `json:"gitRepository"`
 	GitRef           string `json:"gitRef"`
 	DockerfilePath   string `json:"dockerfilePath"`
@@ -126,6 +127,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 			BuildID:          b.ID,
 			JobName:          b.JobName,
 			Status:           b.Status,
+			FailureReason:    b.FailureReason,
 			GitRepository:    b.GitRepository,
 			GitRef:           b.GitRef,
 			DockerfilePath:   b.DockerfilePath,

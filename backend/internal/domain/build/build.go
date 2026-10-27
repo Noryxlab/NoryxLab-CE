@@ -21,6 +21,10 @@ type Build struct {
 	// show "1cf6b279-114-test-stef:1788808618" to somebody who typed
 	// "test-stef".
 	Name string `json:"name,omitempty"`
+	// FailureReason is the last thing the build said before it failed, kept
+	// here because the pod that said it is gone within the hour. "failed" on
+	// its own sent people to a log nobody could reach any more.
+	FailureReason string `json:"failureReason,omitempty"`
 	// CommitSHA and ImageDigest are what makes a build an account of itself
 	// rather than a line in a list.
 	//

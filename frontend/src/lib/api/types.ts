@@ -354,6 +354,9 @@ export interface EnvironmentRevision {
   buildId: string;
   jobName: string;
   status: string;
+  /** The last thing the build said before it failed, kept by the platform
+   *  because the pod that said it is gone within the hour. */
+  failureReason?: string;
   gitRepository: string;
   gitRef: string;
   dockerfilePath: string;

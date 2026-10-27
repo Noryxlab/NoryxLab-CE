@@ -43,9 +43,13 @@ import type { Environment, EnvironmentRevision, Project } from '@/lib/api/types'
 // English, like the Dockerfile it seeds: this is file content the user edits
 // and ships, not interface copy, so it does not belong in the translation
 // catalogue and must not be French there either.
-const BLANK_DOCKERFILE = `# Noryx environment
+// The base is the image this installation runs for Jupyter, by its full
+// reference when the catalogue has answered; "noryx-jupyter" otherwise, which
+// the platform resolves to the same thing. A bare "noryx-python:latest" used
+// to be seeded here, and kaniko looked for it on Docker Hub.
+const blankDockerfile = (base: string) => `# Noryx environment
 # Add your libraries below, then build a revision.
-FROM noryx-python:latest
+FROM ${base}
 
 RUN pip install --no-cache-dir \\
     pandas \\
@@ -104,7 +108,9 @@ function CreateEnvironmentSheet({
 
   const [name, setName] = React.useState('');
   const [baseId, setBaseId] = React.useState('');
-  const [dockerfile, setDockerfile] = React.useState(BLANK_DOCKERFILE);
+  const systemJupyter = environments.find((environment) => environment.latestBuildId === 'system-jupyter' || environment.id === 'system-jupyter');
+  const blank = blankDockerfile(systemJupyter?.destinationImage || 'noryx-jupyter');
+  const [dockerfile, setDockerfile] = React.useState(blank);
   const [touched, setTouched] = React.useState(false);
 
   const base = environments.find((environment) => environment.id === baseId);
@@ -121,8 +127,8 @@ function CreateEnvironmentSheet({
       setDockerfile(`FROM ${base.destinationImage}\n\n# ${t('environments.forkHint')}\n`);
       return;
     }
-    if (!baseId) setDockerfile(BLANK_DOCKERFILE);
-  }, [baseId, base?.destinationImage, base?.name]);
+    if (!baseId) setDockerfile(blank);
+  }, [baseId, base?.destinationImage, base?.name, blank]);
 
   React.useEffect(() => {
     if (!open) {
@@ -327,7 +333,19 @@ function EnvironmentDetail({
     {
       id: 'status',
       header: t('common.status'),
-      cell: (revision) => <StatusBadge status={revision.status} locale={locale} />,
+      cell: (revision) => (
+        <div className="min-w-0 space-y-1">
+          <StatusBadge status={revision.status} locale={locale} />
+          {/* The reason beside the verdict, kept by the platform: the pod that
+              said it is gone within the hour, and "failed" alone is not a
+              message anybody can act on. */}
+          {revision.status === 'failed' && revision.failureReason ? (
+            <p className="max-w-md break-words font-mono text-xs text-muted-foreground" title={revision.failureReason}>
+              {revision.failureReason}
+            </p>
+          ) : null}
+        </div>
+      ),
     },
     {
       // What this revision was made from and what it produced. A ref and a tag

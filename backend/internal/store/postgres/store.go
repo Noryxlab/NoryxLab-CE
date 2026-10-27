@@ -253,6 +253,7 @@ func migrationStatements() []string {
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS commit_sha TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS image_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE builds ADD COLUMN IF NOT EXISTS failure_reason TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			project_id TEXT NOT NULL,
@@ -1359,7 +1360,7 @@ func (s *Store) ListProjectRoles() ([]storepkg.ProjectRole, error) {
 }
 
 func (s *Store) ListBuilds() ([]build.Build, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest FROM builds ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest, failure_reason FROM builds ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1367,7 +1368,7 @@ func (s *Store) ListBuilds() ([]build.Build, error) {
 	out := []build.Build{}
 	for rows.Next() {
 		var b build.Build
-		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.DockerfileContent, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt, &b.Name, &b.CommitSHA, &b.ImageDigest); err != nil {
+		if err := rows.Scan(&b.ID, &b.ProjectID, &b.GitRepository, &b.GitRef, &b.DockerfilePath, &b.DockerfileContent, &b.ContextPath, &b.DestinationImage, &b.JobName, &b.Status, &b.CreatedAt, &b.Name, &b.CommitSHA, &b.ImageDigest, &b.FailureReason); err != nil {
 			return nil, err
 		}
 		out = append(out, b)
@@ -1649,7 +1650,7 @@ func (s *Store) ActivateAppRevision(appID, revisionID string) error {
 
 func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 	var b build.Build
-	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	err := s.db.QueryRow(`SELECT id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest, failure_reason FROM builds WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&b.ID,
 		&b.ProjectID,
 		&b.GitRepository,
@@ -1664,6 +1665,7 @@ func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 		&b.Name,
 		&b.CommitSHA,
 		&b.ImageDigest,
+		&b.FailureReason,
 	)
 	if err == sql.ErrNoRows {
 		return build.Build{}, false, nil
@@ -1675,7 +1677,7 @@ func (s *Store) GetBuildByID(id string) (build.Build, bool, error) {
 }
 
 func (s *Store) CreateBuild(b build.Build) error {
-	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+	_, err := s.db.Exec(`INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest, failure_reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		b.ID,
 		b.ProjectID,
 		b.GitRepository,
@@ -1690,14 +1692,15 @@ func (s *Store) CreateBuild(b build.Build) error {
 		b.Name,
 		b.CommitSHA,
 		b.ImageDigest,
+		b.FailureReason,
 	)
 	return err
 }
 
 func (s *Store) UpsertBuild(b build.Build) error {
 	_, err := s.db.Exec(`
-		INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		INSERT INTO builds (id, project_id, git_repository, git_ref, dockerfile_path, dockerfile_content, context_path, destination_image, job_name, status, created_at, name, commit_sha, image_digest, failure_reason)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			git_repository=EXCLUDED.git_repository,
@@ -1716,7 +1719,8 @@ func (s *Store) UpsertBuild(b build.Build) error {
 			-- would blank all three on the next sweep.
 			name=COALESCE(NULLIF(EXCLUDED.name, ''), builds.name),
 			commit_sha=COALESCE(NULLIF(EXCLUDED.commit_sha, ''), builds.commit_sha),
-			image_digest=COALESCE(NULLIF(EXCLUDED.image_digest, ''), builds.image_digest)
+			image_digest=COALESCE(NULLIF(EXCLUDED.image_digest, ''), builds.image_digest),
+			failure_reason=COALESCE(NULLIF(EXCLUDED.failure_reason, ''), builds.failure_reason)
 	`,
 		b.ID,
 		b.ProjectID,
@@ -1732,6 +1736,7 @@ func (s *Store) UpsertBuild(b build.Build) error {
 		b.Name,
 		b.CommitSHA,
 		b.ImageDigest,
+		b.FailureReason,
 	)
 	return err
 }

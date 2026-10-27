@@ -74,7 +74,7 @@ func (h Handlers) CreateBuild(w http.ResponseWriter, r *http.Request) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.GitRepository = strings.TrimSpace(req.GitRepository)
 	req.DestinationImage = strings.TrimSpace(req.DestinationImage)
-	req.DockerfileContent = strings.TrimSpace(req.DockerfileContent)
+	req.DockerfileContent = h.qualifyDockerfileBase(strings.TrimSpace(req.DockerfileContent))
 	req.Name = strings.TrimSpace(req.Name)
 
 	// A build has to come from somewhere and go somewhere. There are two ways
@@ -293,6 +293,10 @@ func (h Handlers) syncBuildsFromRuntime() {
 		// registry calls every time it runs.
 		if record.ImageDigest == "" && strings.EqualFold(strings.TrimSpace(record.Status), "succeeded") {
 			record.ImageDigest = h.resolveImageDigest(record.DestinationImage)
+		}
+		// The reason is copied out once, while the pod still exists.
+		if record.FailureReason == "" && strings.EqualFold(strings.TrimSpace(record.Status), "failed") {
+			record.FailureReason = h.buildFailureReason(record.JobName)
 		}
 
 		_ = h.buildStore.Upsert(record)
