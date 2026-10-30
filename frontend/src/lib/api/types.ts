@@ -125,6 +125,10 @@ export interface App {
   id: string;
   projectId: string;
   ownerUserId: string;
+  /** Who answers for it, which is not the same question as who launched it:
+   *  an app outlives the person who started it. */
+  ownerType?: string;
+  ownerId?: string;
   kind: string;
   name: string;
   slug: string;

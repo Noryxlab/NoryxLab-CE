@@ -184,3 +184,54 @@ func TestEcrireSurUnConnecteur(t *testing.T) {
 		t.Fatalf("son nom, si : %d (%s)", vue.Code, vue.Body.String())
 	}
 }
+
+// Supprimer une API etait impossible : la route des APIs lisait « appID »
+// puis « dashboardID » et jamais « apiID », donc elle resolvait un
+// identifiant vide ; et l'interface retombait sur la route des apps, qui
+// refuse un enregistrement d'un autre genre.
+func TestSupprimerChaqueGenreDeService(t *testing.T) {
+	apps := memory.NewAppStore()
+	for id, kind := range map[string]string{"a1": "app", "d1": "dashboard", "i1": "api"} {
+		if err := apps.Create(appdomain.App{ID: id, Name: id, ProjectID: "p1", Kind: kind}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	projets := memory.NewProjectStore()
+	if err := projets.Create(project.Project{ID: "p1", Name: "Etude", OwnerType: "user", OwnerID: "alice"}); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{authMode: "header", appStore: apps, projectStore: projets, accessStore: memory.NewAccessStore(),
+		projectResourceStore: memory.NewProjectResourceStore()}
+
+	supprimer := func(handler func(http.ResponseWriter, *http.Request), param, id string) int {
+		requete := httptest.NewRequest(http.MethodDelete, "/api/v1/x/"+id, nil)
+		requete.Header.Set(userHeader, "alice")
+		requete.SetPathValue(param, id)
+		vue := httptest.NewRecorder()
+		handler(vue, requete)
+		return vue.Code
+	}
+
+	for _, cas := range []struct {
+		nom     string
+		handler func(http.ResponseWriter, *http.Request)
+		param   string
+		id      string
+	}{
+		{"app", h.DeleteApp, "appID", "a1"},
+		{"tableau de bord", h.DeleteDashboard, "dashboardID", "d1"},
+		{"api", h.DeleteAPI, "apiID", "i1"},
+	} {
+		if code := supprimer(cas.handler, cas.param, cas.id); code != http.StatusOK && code != http.StatusNoContent && code != http.StatusAccepted {
+			t.Errorf("%s : sa propre route doit le supprimer, et repond %d", cas.nom, code)
+		}
+	}
+
+	// Et chaque route refuse un enregistrement d'un autre genre.
+	if err := apps.Create(appdomain.App{ID: "i2", Name: "i2", ProjectID: "p1", Kind: "api"}); err != nil {
+		t.Fatal(err)
+	}
+	if code := supprimer(h.DeleteApp, "appID", "i2"); code == http.StatusOK || code == http.StatusNoContent {
+		t.Error("la route des apps ne doit pas supprimer une API")
+	}
+}

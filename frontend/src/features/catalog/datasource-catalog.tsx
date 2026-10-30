@@ -27,12 +27,15 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { useQuery } from '@tanstack/react-query';
 import {
+  qk,
+  useCan,
   useDatasourceAccess,
   useDatasourceDefinitions,
   useDatasources,
+  useHardwareTiers,
+  useInvalidate,
   useSecrets,
-  qk,
-  useInvalidate, useCan } from '@/lib/api/queries';
+} from '@/lib/api/queries';
 import { datasourcesApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
@@ -234,6 +237,15 @@ export function DatasourceCatalog() {
   const [logsFor, setLogsFor] = React.useState<Datasource | null>(null);
   const [transferred, setTransferred] = React.useState<Datasource | null>(null);
 
+  // Two acts, not one. The screen promised both - "connect an existing
+  // database, or deploy a service the platform manages" - and only ever
+  // called the connector route, with the engine catalogue as a mere type
+  // menu: somebody picking PostgreSQL 17 believed they were creating a
+  // database and was then asked for a host.
+  const [act, setAct] = React.useState<'connect' | 'create'>('connect');
+  const [storageSize, setStorageSize] = React.useState('10Gi');
+  const [hardwareTier, setHardwareTier] = React.useState('');
+  const tiers = useHardwareTiers();
   const [definitionId, setDefinitionId] = React.useState('');
   const [name, setName] = React.useState('');
   const [host, setHost] = React.useState('');
@@ -269,17 +281,26 @@ export function DatasourceCatalog() {
 
   const create = useMutation({
     mutationFn: () =>
-      datasourcesApi.create({
-        name: name.trim(),
-        serviceDefinitionId: definitionId || undefined,
-        type: definition?.type ?? 'postgresql',
-        host: host.trim(),
-        port: Number(port) || 5432,
-        database: database.trim(),
-        username: username.trim(),
-        passwordSecret,
-        sslMode,
-      }),
+      act === 'create'
+        ? datasourcesApi.createService({
+            name: name.trim(),
+            definitionId,
+            database: database.trim(),
+            username: username.trim(),
+            storageSize: storageSize.trim(),
+            hardwareTier,
+          })
+        : datasourcesApi.create({
+            name: name.trim(),
+            serviceDefinitionId: definitionId || undefined,
+            type: definition?.type ?? 'postgresql',
+            host: host.trim(),
+            port: Number(port) || 5432,
+            database: database.trim(),
+            username: username.trim(),
+            passwordSecret,
+            sslMode,
+          }),
     onSuccess: () => {
       invalidate(qk.datasources);
       setCreating(false);
@@ -377,7 +398,10 @@ export function DatasourceCatalog() {
     },
   ];
 
-  const valid = Boolean(name.trim() && host.trim());
+  // A connector says where the database is; a creation says which engine and
+  // how much disk, and the platform generates the credentials.
+  const valid =
+    act === 'create' ? Boolean(name.trim() && definitionId) : Boolean(name.trim() && host.trim());
 
   return (
     <div className="space-y-4">
@@ -498,7 +522,17 @@ export function DatasourceCatalog() {
               <SheetDescription>{t('datasources.createHint')}</SheetDescription>
             </SheetHeader>
             <SheetBody>
-              <Field label={t('datasources.typeLabel')}>
+              <Field label={t('datasources.actLabel')} description={t('datasources.actHint')}>
+                <Select
+                  value={act}
+                  onValueChange={(value) => setAct(value === 'create' ? 'create' : 'connect')}
+                  options={[
+                    { value: 'connect', label: t('datasources.actConnect'), hint: t('datasources.actConnectHint') },
+                    { value: 'create', label: t('datasources.actCreate'), hint: t('datasources.actCreateHint') },
+                  ]}
+                />
+              </Field>
+              <Field label={act === 'create' ? t('datasources.engineLabel') : t('datasources.typeLabel')}>
                 <Select
                   value={definitionId}
                   onValueChange={setDefinitionId}
@@ -523,6 +557,7 @@ export function DatasourceCatalog() {
                   maxLength={80}
                 />
               </Field>
+              {act === 'create' ? null : (
               <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
                 <Field
                   label={t('common.host')}
@@ -545,6 +580,7 @@ export function DatasourceCatalog() {
                   />
                 </Field>
               </div>
+              )}
               <Field label={t('datasources.databaseLabel')}>
                 <Input value={database} onChange={(event) => setDatabase(event.target.value)} />
               </Field>
@@ -555,6 +591,22 @@ export function DatasourceCatalog() {
                   autoComplete="off"
                 />
               </Field>
+              {act === 'create' ? (
+                <>
+                  <Field label={t('datasources.storageLabel')} description={t('datasources.storageHint')}>
+                    <Input value={storageSize} onChange={(event) => setStorageSize(event.target.value)} />
+                  </Field>
+                  <Field label={t('datasources.tierLabel')} description={t('datasources.tierHint')}>
+                    <Select
+                      value={hardwareTier}
+                      onValueChange={setHardwareTier}
+                      placeholder={t('datasources.tierLabel')}
+                      options={(tiers.data ?? []).map((tier) => ({ value: tier.id, label: tier.name }))}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
               <Field
                 label={t('datasources.passwordSecretLabel')}
                 description={t('datasources.passwordSecretHint')}
@@ -576,6 +628,8 @@ export function DatasourceCatalog() {
                   options={SSL_MODES.map((mode) => ({ value: mode, label: mode }))}
                 />
               </Field>
+                </>
+              )}
             </SheetBody>
             <SheetFooter>
               <Button type="button" variant="secondary" onClick={() => setCreating(false)}>

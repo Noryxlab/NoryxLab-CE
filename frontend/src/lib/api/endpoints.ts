@@ -350,6 +350,11 @@ export const appsApi = {
     api.list<App>(`${V1}/apps`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateAppInput) => api.post<App>(`${V1}/apps`, input),
   remove: (appId: string) => api.delete<void>(`${V1}/apps/${appId}`),
+  /** Hands an application to a person, a team or an organization. An app is
+   *  a service and outlives whoever launched it, so somebody has to be able
+   *  to answer for it after they leave. */
+  setOwner: (appId: string, input: { ownerType: string; ownerId: string }) =>
+    api.put<App>(`${V1}/apps/${appId}/owner`, input),
   restart: (appId: string) => api.post<App>(`${V1}/apps/${appId}/restart`),
   stop: (appId: string) => api.post<App>(`${V1}/apps/${appId}/stop`),
   publish: (appId: string, input?: { accessMode?: string; allowedUsers?: string[]; allowedOrganizations?: string[] }) =>

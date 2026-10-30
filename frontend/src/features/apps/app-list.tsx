@@ -46,12 +46,14 @@ import {
   TableWrapper,
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
-import { appsApi, dashboardsApi } from '@/lib/api/endpoints';
+import { apisApi, appsApi, dashboardsApi } from '@/lib/api/endpoints';
 import { useAppLogs, useAppRevisions, useAppUsage, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { presentAccessMode } from '@/lib/presenters';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, UserCog } from 'lucide-react';
+import { OwnerTransfer } from '@/components/common/owner';
+import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import type { App, AppRevision } from '@/lib/api/types';
 
 interface AppListProps {
@@ -63,6 +65,52 @@ interface AppListProps {
   error: unknown;
   onRetry: () => void;
   onCreate: () => void;
+}
+
+/** Handing an application on. An app is a service and is never reaped, so it
+ *  outlives whoever launched it: the route existed and no screen offered it,
+ *  which left an app owned by somebody who had left with no way to be handed
+ *  over. */
+function AppOwnershipSheet({
+  app,
+  open,
+  onOpenChange,
+  onDone,
+}: {
+  app: App | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const transfer = useMutation({
+    mutationFn: (input: { ownerType: string; ownerId: string }) => appsApi.setOwner(app?.id ?? '', input),
+    onSuccess: () => {
+      onDone();
+      toast.success(t('projects.transferOwnership'), app?.name ?? '');
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('projects.transferOwnership')),
+  });
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent title={app?.name ?? t('projects.transferOwnership')}>
+        <SheetBody>
+          {app ? (
+            <OwnerTransfer
+              // An app with no owner recorded belongs to whoever launched it,
+              // which is what the platform falls back on.
+              owner={{ ownerType: app.ownerType || 'user', ownerId: app.ownerId || app.ownerUserId }}
+              pending={transfer.isPending}
+              onTransfer={(input) => transfer.mutate(input)}
+              label={t('projects.transferOwnership')}
+            />
+          ) : null}
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
 }
 
 export function AppList({
@@ -85,6 +133,7 @@ export function AppList({
   const [logsFor, setLogsFor] = React.useState<App | null>(null);
   const [revisionsFor, setRevisionsFor] = React.useState<App | null>(null);
   const [usageFor, setUsageFor] = React.useState<App | null>(null);
+  const [transferred, setTransferred] = React.useState<App | null>(null);
 
   const logs = useAppLogs(logsFor?.id);
   const revisions = useAppRevisions(revisionsFor?.id);
@@ -123,7 +172,14 @@ export function AppList({
 
   const remove = useMutation({
     mutationFn: (appId: string) =>
-      variant === 'dashboard' ? dashboardsApi.remove(appId) : appsApi.remove(appId),
+      // The route that matches what this screen is showing. Each refuses a
+      // record of another kind, and the api variant used to be deleted
+      // through the apps route, which refused it.
+      variant === 'dashboard'
+        ? dashboardsApi.remove(appId)
+        : variant === 'api'
+          ? apisApi.remove(appId)
+          : appsApi.remove(appId),
     onSuccess: refresh,
     onError: (mutationError) => toast.error(mutationError, t('apps.deleteTitle')),
   });
@@ -252,6 +308,10 @@ export function AppList({
                     <DropdownMenuItem onSelect={() => setRevisionsFor(app)}>
                       <History aria-hidden />
                       {t('apps.revisions')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setTransferred(app)}>
+                      <UserCog aria-hidden />
+                      {t('projects.transferOwnership')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => restart.mutate(app.id)}>
                       <RotateCw aria-hidden />
@@ -448,6 +508,13 @@ export function AppList({
           />
         </Card>
       ) : null}
+
+      <AppOwnershipSheet
+        app={transferred}
+        open={Boolean(transferred)}
+        onOpenChange={(next) => { if (!next) setTransferred(null); }}
+        onDone={() => { refresh(); setTransferred(null); }}
+      />
 
       {dialog}
     </div>

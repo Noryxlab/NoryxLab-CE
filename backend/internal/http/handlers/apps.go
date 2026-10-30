@@ -460,19 +460,22 @@ func kindFromRoute(r *http.Request) string {
 // workload under three names and each has its own path segment. It used to read
 // only "appID", which is why a dashboard or an API route could never have found
 // its own record even once its handler existed.
+// appOperationID is the identifier, whichever of the three routes carried it.
+func appOperationID(r *http.Request) string {
+	for _, name := range []string{"appID", "dashboardID", "apiID"} {
+		if value := strings.TrimSpace(r.PathValue(name)); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func (h Handlers) requireAppOperation(w http.ResponseWriter, r *http.Request, operation string) (app.App, string, bool) {
 	userID, ok := h.requireUserID(w, r)
 	if !ok {
 		return app.App{}, "", false
 	}
-	id := ""
-	for _, name := range []string{"appID", "dashboardID", "apiID"} {
-		if value := strings.TrimSpace(r.PathValue(name)); value != "" {
-			id = value
-			break
-		}
-	}
-	record, found, err := h.appStore.GetByID(id)
+	record, found, err := h.appStore.GetByID(appOperationID(r))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read app"})
 		return app.App{}, "", false
@@ -855,11 +858,13 @@ func (h Handlers) deleteAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	if !ok {
 		return
 	}
-	appID := strings.TrimSpace(r.PathValue("appID"))
-	if appID == "" {
-		appID = strings.TrimSpace(r.PathValue("dashboardID"))
-	}
-	record, found, err := h.appStore.GetByID(appID)
+	// Three routes reach this, and each names its path parameter after its
+	// own kind. This read "appID" then "dashboardID" and never "apiID", so
+	// DELETE /api/v1/apis/{apiID} resolved an empty identifier and answered
+	// not found - deleting an API was impossible through its own route. The
+	// interface then fell back to the apps route, which refuses a record of
+	// another kind, so it was impossible there too. Found on 2026-10-30.
+	record, found, err := h.appStore.GetByID(appOperationID(r))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read app"})
 		return

@@ -192,3 +192,18 @@ client, so an app can trust them: a value a caller puts on its own request is
 replaced. On a public app reached without a session they are empty. Use them
 to tailor what the app shows to the person in front of it; the decision to let
 that person reach the app at all is the platform's, through the access mode.
+
+## Handing an application on
+
+An app is a service and is never reaped, so it outlives whoever launched it:
+`PUT /api/v1/apps/{appID}/owner` hands it to a person, a team or an
+organization, and the row menu offers it beside restart and stop. Its owner,
+or anybody who may manage the project's members, may transfer it. Without
+that, an app owned by somebody who had left could not be handed over from the
+interface at all - the route existed and no screen offered it.
+
+Each kind answers on its own route, and each refuses a record of another kind:
+`/apps/{appID}`, `/dashboards/{dashboardID}`, `/apis/{apiID}`. Deleting an API
+was impossible until 2026-10-30 because the shared handler read the first two
+path parameters and never the third, and the interface fell back to the apps
+route, which refused it.

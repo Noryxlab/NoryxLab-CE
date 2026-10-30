@@ -25,8 +25,14 @@ Scope:
 
 Both produce a data source, attachable to a project, told apart by `source`
 (`internal` for one the platform runs) and by the pod, service and volume an
-internal one carries. The interface currently offers only the first; creating
-a database is reachable through the API alone.
+internal one carries. The screen asks which of the two you want before asking
+anything else, and then asks only what that act needs: a connector says where
+the database is and how to reach it, a creation says which engine, how much
+disk and which hardware tier.
+
+It offered one act until 2026-10-30, with the engine catalogue as a type menu -
+so somebody picking "PostgreSQL 17" believed they were creating a database and
+was then asked for a host.
 - `GET /api/v1/datasources/{datasourceID}`
 - `PUT /api/v1/datasources/{datasourceID}`
 - `DELETE /api/v1/datasources/{datasourceID}`
