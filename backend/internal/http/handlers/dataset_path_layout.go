@@ -235,6 +235,14 @@ func (h Handlers) TryDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 		}
 		trials = append(trials, pathLayoutTrial{Path: path, Subject: subject, Visit: visit, Modality: modality, DataType: dataType})
 	}
+	// A trial answers with real keys and the subject identifiers read out of
+	// them, so it is a read of regulated data and recorded as one. The paths
+	// themselves never reach the trail - they are what had to be protected.
+	h.emitAudit(r, identity.UserID(), "dataset.path_layout.trial", "dataset", item.ID, "", "success", "", map[string]any{
+		"classification": item.Classification,
+		"sampled":        len(trials),
+		"recognised":     recognised,
+	})
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":       trials,
 		"recognised":  recognised,

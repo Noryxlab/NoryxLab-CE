@@ -23,6 +23,48 @@ import type {
   AuditEvent,
 } from '@/lib/api/types';
 
+// Un acteur n'est pas toujours une personne.
+//
+// Trois formes passent dans cette colonne : un nom de compte, « system » pour
+// ce que la plateforme fait d'elle-meme, et un composant sous le prefixe
+// « service: » - le prefixe existe pour qu'un composant appele comme un
+// compte ne puisse jamais etre lu comme cette personne. Les afficher tels
+// quels laissait l'auditeur deviner lequel il regardait.
+const COMPONENT_PREFIX = 'service:';
+
+function presentActor(actorUserId: string): { label: string; kind: 'person' | 'component' | 'platform' } {
+  const actor = actorUserId.trim();
+  if (!actor) return { label: '—', kind: 'person' };
+  if (actor.startsWith(COMPONENT_PREFIX)) {
+    return { label: actor.slice(COMPONENT_PREFIX.length), kind: 'component' };
+  }
+  if (actor === 'system') return { label: actor, kind: 'platform' };
+  // Le secret partage : un composant, mais aucun ne dit lequel.
+  if (actor === 'platform-service') return { label: actor, kind: 'component' };
+  return { label: actor, kind: 'person' };
+}
+
+// Ce que l'evenement dit en plus, en une ligne.
+//
+// Les details portent le fait utile - le nom de ce qui a ete supprime, si ses
+// fichiers sont partis avec, quel justificatif a agi - et l'ecran n'en
+// montrait aucun : il restait un type d'objet et un UUID tronque.
+const DETAILS_SHOWN_ELSEWHERE = new Set(['name', 'component', 'declaredByVerified']);
+
+function summariseDetails(details: Record<string, unknown> | undefined): string {
+  if (!details) return '';
+  return Object.entries(details)
+    .filter(([key, value]) => !DETAILS_SHOWN_ELSEWHERE.has(key) && value !== null && value !== '')
+    .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
+    .join(' · ');
+}
+
+function resourceName(event: AuditEvent): string {
+  const named = event.details?.name;
+  if (typeof named === 'string' && named.trim() !== '') return named;
+  return event.resourceId ? event.resourceId.slice(0, 12) : '';
+}
+
 export function AuditSection() {
   const t = useT();
   const { locale } = useI18n();
@@ -45,8 +87,26 @@ export function AuditSection() {
       id: 'actor',
       header: t('admin.actor'),
       sortValue: (event) => event.actorUserId,
-      searchValue: (event) => `${event.actorUserId} ${event.action} ${event.resourceType}`,
-      cell: (event) => <span className="truncate font-medium">{event.actorUserId || '—'}</span>,
+      searchValue: (event) =>
+        `${event.actorUserId} ${event.action} ${event.resourceType} ${resourceName(event)}`,
+      cell: (event) => {
+        const actor = presentActor(event.actorUserId);
+        return (
+          <span className="flex items-center gap-1.5">
+            <span className="truncate font-medium">{actor.label}</span>
+            {actor.kind === 'component' ? (
+              <Badge tone="outline" className="shrink-0">
+                {t('admin.auditComponent')}
+              </Badge>
+            ) : null}
+            {actor.kind === 'platform' ? (
+              <Badge tone="outline" className="shrink-0">
+                {t('admin.auditPlatform')}
+              </Badge>
+            ) : null}
+          </span>
+        );
+      },
     },
     {
       id: 'action',
@@ -58,9 +118,9 @@ export function AuditSection() {
       id: 'resource',
       header: t('rbac.resource'),
       cell: (event) => (
-        <span className="truncate text-xs text-muted-foreground">
+        <span className="truncate text-xs text-muted-foreground" title={event.resourceId}>
           {event.resourceType}
-          {event.resourceId ? ` · ${event.resourceId.slice(0, 12)}` : ''}
+          {resourceName(event) ? ` · ${resourceName(event)}` : ''}
         </span>
       ),
     },
@@ -73,6 +133,20 @@ export function AuditSection() {
           {event.outcome || '—'}
         </Badge>
       ),
+    },
+    {
+      id: 'details',
+      header: t('admin.auditDetails'),
+      searchValue: (event) => summariseDetails(event.details),
+      cell: (event) => {
+        const summary = summariseDetails(event.details);
+        if (!summary) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <span className="block max-w-[28rem] truncate text-xs text-muted-foreground" title={summary}>
+            {summary}
+          </span>
+        );
+      },
     },
   ];
 

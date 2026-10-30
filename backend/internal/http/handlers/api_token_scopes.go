@@ -38,7 +38,7 @@ func (h Handlers) EnforceTokenScopes(next http.Handler) http.Handler {
 		// global. La meme ligne donnait a un jeton de sauvegarde ayant fuite
 		// les objets de chaque dataset et la liste figee de chaque extrait.
 		autorise := apitoken.Permits
-		if strings.TrimSpace(identity.DeclaredBy) != "" {
+		if identity.IsComponent() {
 			autorise = apitoken.PermitsComponent
 		}
 		if autorise(identity.Scopes, r.Method, r.URL.Path) {

@@ -387,6 +387,10 @@ func (h Handlers) UpdateOntologyMetadata(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update ontology"})
 		return
 	}
+	h.emitAudit(r, identity.UserID(), "ontology.update", "ontology", item.ID, "", "success", "", map[string]any{
+		"name":         strings.TrimSpace(req.Name),
+		"previousName": item.Name,
+	})
 	updated, _, _ := h.ontologyStore.GetByID(item.ID)
 	writeJSON(w, http.StatusOK, updated)
 }
@@ -641,6 +645,9 @@ func (h Handlers) AttachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach ontology"})
 		return
 	}
+	h.emitAudit(r, userID, "ontology.attached", "ontology", item.ID, projectID, "success", "", map[string]any{
+		"name": item.Name,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -662,6 +669,7 @@ func (h Handlers) DetachProjectOntology(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach ontology"})
 		return
 	}
+	h.emitAudit(r, userID, "ontology.detached", "ontology", ontologyID, projectID, "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -921,6 +929,16 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 	if refreshed {
 		status = http.StatusOK
 	}
+	// Scanning reads a dataset's structure, and it is the act that puts a
+	// description of regulated data into a row of this platform. It had no
+	// name in the trail at all.
+	h.emitAudit(r, identity.UserID(), "ontology.scanned", "ontology", object.ID, projectID, "success", "", map[string]any{
+		"name":       object.Name,
+		"sourceType": object.SourceType,
+		"sourceId":   object.SourceID,
+		"refreshed":  refreshed,
+		"changed":    difference != nil,
+	})
 	payload := map[string]any{"manifest": manifest, "item": object, "refreshed": refreshed}
 	if difference != nil {
 		payload["changed"] = difference

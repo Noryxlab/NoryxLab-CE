@@ -7,6 +7,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net/http"
 	"net/mail"
+	"slices"
 	"strings"
 	"time"
 
@@ -103,6 +104,16 @@ func (h Handlers) CreateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create repository"})
 		return
 	}
+	// The repository family had no named action at all: a declared source of
+	// code, its address edited, and its removal were three generic API lines.
+	// The address is the fact worth keeping - a repository is the code a
+	// workspace runs, and changing where it is cloned from changes that code.
+	h.emitAudit(r, userID, "repository.create", "repository", item.ID, "", "success", "", map[string]any{
+		"name":      item.Name,
+		"url":       item.URL,
+		"authType":  item.AuthType,
+		"reachable": item.Reachable,
+	})
 	writeJSON(w, http.StatusCreated, item)
 }
 
@@ -155,6 +166,24 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 	// Same rule as creation: an edit that cannot be saved because a probe
 	// disagrees is an edit somebody has to make somewhere else.
 	updatedScopes, probeErr := checkRepository(req.URL, secretValue)
+	changed := make([]string, 0, 7)
+	for _, field := range []struct {
+		name     string
+		previous string
+		next     string
+	}{
+		{"name", item.Name, req.Name},
+		{"url", item.URL, req.URL},
+		{"defaultRef", item.DefaultRef, req.DefaultRef},
+		{"authSecretName", item.AuthSecretName, req.AuthSecretName},
+		{"authType", item.AuthType, authType},
+		{"gitAuthorName", item.GitAuthorName, req.GitAuthorName},
+		{"gitAuthorEmail", item.GitAuthorEmail, req.GitAuthorEmail},
+	} {
+		if field.previous != field.next {
+			changed = append(changed, field.name)
+		}
+	}
 	item.Name = req.Name
 	item.URL = req.URL
 	item.DefaultRef = req.DefaultRef
@@ -169,6 +198,11 @@ func (h Handlers) UpdateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update repository"})
 		return
 	}
+	h.emitAudit(r, userID, "repository.update", "repository", item.ID, "", "success", "", map[string]any{
+		"fields":     changed,
+		"urlChanged": slices.Contains(changed, "url"),
+		"name":       item.Name,
+	})
 	writeJSON(w, http.StatusOK, item)
 }
 
@@ -256,6 +290,11 @@ func (h Handlers) ValidateRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to persist repository validation"})
 		return
 	}
+	h.emitAudit(r, userID, "repository.validate", "repository", item.ID, "", "success", "", map[string]any{
+		"name":      item.Name,
+		"url":       item.URL,
+		"reachable": validationErr == nil,
+	})
 	if validationErr != nil {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"repositoryId": item.ID,
@@ -295,6 +334,10 @@ func (h Handlers) DeleteRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete repository"})
 		return
 	}
+	h.emitAudit(r, userID, "repository.delete", "repository", item.ID, "", "success", "", map[string]any{
+		"name": item.Name,
+		"url":  item.URL,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -410,6 +453,10 @@ func (h Handlers) AttachProjectRepository(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach repository"})
 		return
 	}
+	h.emitAudit(r, userID, "repository.attached", "repository", item.ID, projectID, "success", "", map[string]any{
+		"name": item.Name,
+		"url":  item.URL,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -431,6 +478,7 @@ func (h Handlers) DetachProjectRepository(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach repository"})
 		return
 	}
+	h.emitAudit(r, userID, "repository.detached", "repository", repositoryID, projectID, "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

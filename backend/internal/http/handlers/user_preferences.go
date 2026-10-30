@@ -133,5 +133,10 @@ func (h Handlers) UpdateUserPreferences(w http.ResponseWriter, r *http.Request) 
 		}
 		out["theme"] = theme
 	}
+	// Named like everything else that writes, even though what it writes is a
+	// language and a theme. The point is the rule: an exception is a line
+	// somebody has to remember, and the next mutation added beside it inherits
+	// the exemption without anyone deciding so.
+	h.emitAudit(r, userID, "user.preferences.update", "user", userID, "", "success", "", out)
 	writeJSON(w, http.StatusOK, out)
 }

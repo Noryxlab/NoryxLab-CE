@@ -406,7 +406,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// Scope enforcement sits inside the audit middleware so a refusal is
 	// recorded like any other outcome: "this token tried and was stopped"
 	// is exactly what an audit is for.
-	handler := h.AuditMutations(h.EnforceTokenScopes(mux))
+	// The credential is resolved outside the audit middleware, because that
+	// one emits its event after the handler has returned and reads the request
+	// it was handed: a context value added further in would be out of reach.
+	handler := h.RecordActingCredential(h.AuditMutations(h.EnforceTokenScopes(mux)))
 
 	// The platform is also its own client: an agent calling the API as its
 	// owner goes through this same chain, audit included, and reads the same

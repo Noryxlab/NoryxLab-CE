@@ -629,6 +629,13 @@ func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder creation failed: " + err.Error()})
 		return
 	}
+	// Removing objects was named and adding a folder was not, which is the
+	// asymmetry that makes a trail unreadable: the same tree, one half of its
+	// changes recorded.
+	h.emitAudit(r, identity.UserID(), "dataset.folder.created", "dataset", item.ID, "", "success", "", map[string]any{
+		"path":           rel + "/",
+		"classification": item.Classification,
+	})
 	writeJSON(w, http.StatusCreated, map[string]string{"path": rel + "/"})
 }
 
@@ -1630,7 +1637,11 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		log.Printf("dataset %s (%s) deregistered; its bucket %q was kept: an HDS dataset's objects are never removed with its registration",
 			item.ID, item.Name, item.Bucket)
 	}
-	if datasetObjectsFollowTheRegistration(item) && h.minioClient != nil {
+	// Named here rather than tested inline, because the audit below has to
+	// say whether the files went with the registration: those are two
+	// different events for whoever reads the trail afterwards.
+	objectsDestroyed := datasetObjectsFollowTheRegistration(item) && h.minioClient != nil
+	if objectsDestroyed {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
 		objects := h.minioClient.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Recursive: true})
@@ -1658,11 +1669,13 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 	// Removed before the dataset rather than after: if this fails, derived
 	// views of a dataset that still exists are missing, and a rescan rebuilds
 	// them. The other order leaves exactly the orphans this repairs.
-	if removed, err := h.deleteDatasetReadings(datasetID); err != nil {
+	removedReadings, err := h.deleteDatasetReadings(datasetID)
+	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete what was read from this dataset: " + err.Error()})
 		return
-	} else if removed > 0 {
-		log.Printf("dataset %s (%s): %d ontology/extract row(s) read from it were removed with it", item.ID, item.Name, removed)
+	}
+	if removedReadings > 0 {
+		log.Printf("dataset %s (%s): %d ontology/extract row(s) read from it were removed with it", item.ID, item.Name, removedReadings)
 	}
 	if err := h.datasetStore.Delete(datasetID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete dataset"})
@@ -1675,6 +1688,19 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = h.secretStore.Delete(credentialUserID, item.CredentialName)
 	}
+	// Withdrawing a dataset is the most consequential act available on this
+	// screen, and it was the one the trail could not name: the generic
+	// "api.mutation.delete" line said a DELETE had returned 204 on a path,
+	// while removing a single one of that dataset's files was recorded as
+	// "dataset.objects.deleted". The two facts an auditor needs afterwards
+	// are what was withdrawn and whether its contents went with it.
+	h.emitAudit(r, identity.UserID(), "dataset.delete", "dataset", item.ID, "", "success", "", map[string]any{
+		"name":             item.Name,
+		"classification":   item.Classification,
+		"provider":         item.Provider,
+		"objectsDestroyed": objectsDestroyed,
+		"readingsRemoved":  removedReadings,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1799,6 +1825,14 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach dataset"})
 		return
 	}
+	// Attaching data to a project is what makes it readable inside a
+	// workspace, and attaching regulated data is the act the capability
+	// matrix has a line of its own for. The classification is recorded with
+	// it so the trail can be read for that question alone.
+	h.emitAudit(r, identity.UserID(), "dataset.attached", "dataset", item.ID, projectID, "success", "", map[string]any{
+		"name":           item.Name,
+		"classification": item.Classification,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1832,6 +1866,7 @@ func (h Handlers) DetachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach dataset"})
 		return
 	}
+	h.emitAudit(r, identity.UserID(), "dataset.detached", "dataset", datasetID, projectID, "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

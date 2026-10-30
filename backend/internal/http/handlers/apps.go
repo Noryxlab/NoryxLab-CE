@@ -808,10 +808,10 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save app"})
 		return
 	}
-	action := "app.launch"
-	if record.Kind == "dashboard" {
-		action = "dashboard.launch"
-	}
+	// The kind names the action, as it does for restart and for stop. It used
+	// to be "app.launch" for everything that was not a dashboard, so a
+	// deployed endpoint was recorded under the name of a different object.
+	action := record.Kind + ".launch"
 	h.emitAudit(r, userID, action, record.Kind, record.ID, record.ProjectID, "success", "", map[string]any{
 		"name":         record.Name,
 		"slug":         record.Slug,

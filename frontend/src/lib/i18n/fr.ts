@@ -1637,6 +1637,9 @@ export const fr = {
     audit: "Audit",
     auditHint: "Journal des actions réalisées sur la plateforme.",
     auditEmpty: "Aucun événement",
+    auditComponent: "composant",
+    auditPlatform: "plateforme",
+    auditDetails: "Détail",
     auditEmptyHint:
       "Les actions réalisées sur la plateforme seront enregistrées ici.",
     actor: "Auteur",

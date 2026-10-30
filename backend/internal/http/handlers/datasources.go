@@ -251,6 +251,15 @@ func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create datasource"})
 		return
 	}
+	// Declaring a connector was unnamed while deleting one was named, so the
+	// trail could show a connector disappearing with no record of it ever
+	// having been declared. The host is kept and the credential never is.
+	h.emitAudit(r, userID, "datasource.create", "datasource", item.ID, "", "success", "", map[string]any{
+		"name":     item.Name,
+		"type":     item.Type,
+		"host":     item.Host,
+		"database": item.Database,
+	})
 	writeJSON(w, http.StatusCreated, item)
 }
 
@@ -616,6 +625,15 @@ func (h Handlers) ValidateDatasource(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	err = db.PingContext(ctx)
+	// Emitted once for both answers, because the event an auditor wants is
+	// that this credential was used to reach that host - not whether the
+	// other end happened to be up.
+	h.emitAudit(r, userID, "datasource.validate", "datasource", item.ID, "", "success", "", map[string]any{
+		"name":      item.Name,
+		"host":      item.Host,
+		"database":  item.Database,
+		"reachable": err == nil,
+	})
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"reachable": false, "error": err.Error()})
 		return
@@ -712,6 +730,10 @@ func (h Handlers) AttachProjectDatasource(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to attach datasource"})
 		return
 	}
+	h.emitAudit(r, userID, "datasource.attached", "datasource", item.ID, projectID, "success", "", map[string]any{
+		"name": item.Name,
+		"type": item.Type,
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -733,6 +755,7 @@ func (h Handlers) DetachProjectDatasource(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detach datasource"})
 		return
 	}
+	h.emitAudit(r, userID, "datasource.detached", "datasource", datasourceID, projectID, "success", "", nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -209,10 +209,12 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 		// which is not a narrower credential but a useless one - and a useless
 		// credential is replaced by the shared secret it was meant to retire.
 		return auth.Identity{
-			Username:   auth.ServiceUsername,
-			DeclaredBy: component,
-			Roles:      map[string]struct{}{globalAdminRole: {}},
-			Scopes:     token.Scopes,
+			Username:     auth.ServiceUsername,
+			DeclaredBy:   component,
+			Component:    component,
+			CredentialID: token.ID,
+			Roles:        map[string]struct{}{globalAdminRole: {}},
+			Scopes:       token.Scopes,
 		}, true
 	}
 	// A personal token acts as its owner, rights included.
@@ -230,7 +232,7 @@ func (h Handlers) identityFromAPIToken(presented string) (auth.Identity, bool) {
 	if h.holdsGlobalAdminRole(token.UserID) {
 		roles[globalAdminRole] = struct{}{}
 	}
-	return auth.Identity{Username: token.UserID, Roles: roles, Scopes: token.Scopes, TokenProjectID: token.ProjectID}, true
+	return auth.Identity{Username: token.UserID, Roles: roles, Scopes: token.Scopes, TokenProjectID: token.ProjectID, CredentialID: token.ID}, true
 }
 
 // touchAPIToken records use at most once a minute. Without the interval a busy

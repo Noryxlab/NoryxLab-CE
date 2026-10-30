@@ -122,5 +122,9 @@ func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.emitAudit(r, userID, "pod.launch", "pod", record.ID, record.ProjectID, "success", "", map[string]any{
+		"podName": record.PodName,
+		"image":   record.Image,
+	})
 	writeJSON(w, http.StatusCreated, record)
 }

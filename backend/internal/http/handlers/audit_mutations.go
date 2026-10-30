@@ -3,6 +3,8 @@ package handlers
 import (
 	"net/http"
 	"strings"
+
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 )
 
 type mutationAuditWriter struct {
@@ -83,6 +85,12 @@ func mutationAuditAction(method string) string {
 }
 
 func (h Handlers) auditActorUserID(r *http.Request) string {
+	// The credential resolved at the edge, which is the only thing that can
+	// tell two components apart: both authenticate as the same service user,
+	// and the identity below would hand back that shared name.
+	if credential, ok := auth.CredentialFrom(r.Context()); ok && credential.Component != "" {
+		return credential.Actor
+	}
 	if userID, ok := h.userIDFromSessionOrBearerNoWrite(r); ok {
 		return userID
 	}
