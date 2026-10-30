@@ -257,8 +257,18 @@ func extractTreeLines(root string, hasManifest bool, refusedCount int) []string 
 		//  `/extracts` appartient a l'utilisateur, donc son contenu s'efface.
 		fmt.Sprintf("  find %s -mindepth 1 -delete 2>/dev/null || true", shellQuote(root)),
 		fmt.Sprintf("  mkdir -p %s 2>/dev/null || true", shellQuote(root)),
-		// Links, never copies: the data stays in the dataset mount, which is
-		// mounted read-only, and the extract is a second way of looking at it.
+		// Links, never copies: the data stays in the dataset mount and the
+		// extract is a second way of looking at it.
+		//
+		// Which means the extract grants no write and takes none away either.
+		// A link is as writable as what it points at: somebody holding Write
+		// on the attached dataset writes through either path, and somebody
+		// holding Read writes through neither. This comment used to say the
+		// source was mounted read-only, which is true only when the dataset
+		// is not attached - the mount's flag is derived from the person's
+		// right (see resolveProjectWorkspaceResources), and a comment that
+		// states the opposite is how the next reader concludes the platform
+		// has a hole.
 		"  base64 -d /var/run/noryx/bootstrap/extracts.b64 2>/dev/null | gunzip 2>/dev/null | while " + extractManifestReadLine() + "; do",
 		fmt.Sprintf("    target=/datasets/\"$dataset\"/\"$path\"; cible=%s/\"$extract\"/\"$dir\"", shellQuote(root)),
 		"    mkdir -p \"$cible\"/\"$(dirname \"$feuille\")\" 2>/dev/null || continue",

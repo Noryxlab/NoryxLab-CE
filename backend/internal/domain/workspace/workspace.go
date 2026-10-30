@@ -51,6 +51,14 @@ type Workspace struct {
 	// with no way to learn whether the data is missing or they are. Saying it
 	// at launch is the only moment anybody is looking.
 	Withheld []string `json:"withheld,omitempty"`
+	// EgressProfile says how much of the internet this workspace reaches.
+	//
+	// Not stored either, and for the same reason: the person is looking at
+	// the moment they launch, and a closed workspace is a workspace where
+	// pip, apt and a clone from a public forge fail. Learning that from a
+	// failed command, with no mention of a decision anybody took, is how a
+	// deliberate control reads as a broken platform.
+	EgressProfile string `json:"egressProfile,omitempty"`
 }
 
 func NewJupyter(projectID, name, image, podName, serviceName, cpu, memory, accessURL, accessToken string) Workspace {

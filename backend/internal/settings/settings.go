@@ -77,6 +77,20 @@ const (
 	// because a site that analyses patient data wants nothing landing on a
 	// laptop while a research site legitimately takes a CSV home.
 	KeyDatasetLocalDownload = "datasets.local_download"
+	// KeyEgressEnforcement decides whether a workload's network profile is
+	// applied or merely recorded.
+	//
+	// ADR-023 settled the model and called the open policy "explicitly
+	// transitional"; until now nothing applied it, so a workspace mounting a
+	// regulated bucket could reach every public address on the internet. The
+	// buttons that download a file were never the exfiltration path: a shell,
+	// curl and open egress are.
+	//
+	// It is a setting rather than a constant because the strict answer breaks
+	// a workflow that was legitimate the day before - pip, apt, a clone from
+	// GitHub - and the site that analyses patient data and the site that
+	// publishes a figure do not want the same default.
+	KeyEgressEnforcement = "egress.enforcement"
 
 	// Facts, exposed for visibility and refused for writing.
 	KeyBackendVersion = "platform.backend_version"
@@ -88,6 +102,18 @@ const (
 const (
 	DatasetDownloadAllowed = "allowed"
 	DatasetDownloadBlocked = "blocked"
+)
+
+// The three answers KeyEgressEnforcement accepts.
+const (
+	// EgressEnforcementOff keeps every workload on public egress: the
+	// behaviour of every release before this setting existed.
+	EgressEnforcementOff = "off"
+	// EgressEnforcementRegulated closes public egress for a workload whose
+	// project holds regulated data, and changes nothing for the others.
+	EgressEnforcementRegulated = "regulated"
+	// EgressEnforcementStrict closes public egress for every user workload.
+	EgressEnforcementStrict = "strict"
 )
 
 // Definitions is the complete registry.
@@ -111,6 +137,19 @@ func Definitions() []Definition {
 				"dataset, leaving previews in place: files can be read in the interface and not " +
 				"taken out of it. HDS datasets refuse regardless of this setting.",
 			Fallback: DatasetDownloadAllowed,
+		},
+		{
+			Key:    KeyEgressEnforcement,
+			EnvVar: "NORYX_EGRESS_ENFORCEMENT",
+			Kind:   KindEnum,
+			Values: []string{EgressEnforcementOff, EgressEnforcementRegulated, EgressEnforcementStrict},
+			Label:  "Outbound network access from workloads",
+			Description: "\"regulated\" closes direct internet access for workspaces, jobs and applications " +
+				"of a project holding regulated data, and leaves the others as they are. \"strict\" closes it " +
+				"for every workload. \"off\" records the profile and applies nothing. A closed workload still " +
+				"reaches the platform, its data services and DNS; it cannot clone from a public forge or " +
+				"install a package from a public index, which is what an internal mirror is for.",
+			Fallback: EgressEnforcementRegulated,
 		},
 		{
 			Key:         KeyAlertWebhookURL,

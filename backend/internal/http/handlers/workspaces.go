@@ -646,6 +646,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolved before the pod, because the answer is reported to the person
+	// as well as applied to the network.
+	egressProfile := h.workloadEgressProfile(req.ProjectID)
+
 	if h.runtime != nil {
 		if h.workspacePVCEnabled {
 			workspaceAccessMode := strings.TrimSpace(h.workspacePVCAccessMode)
@@ -752,8 +756,12 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			log.Printf("workspace %s: assistant enabled with regulated data mounted; model endpoint is outside the site", record.ID)
 		}
 
-		// An extract mounts as a tree of links over the dataset that is already
-		// mounted: nothing is copied, and the source stays read-only.
+		// An extract mounts as a tree of links over the dataset that is
+		// already mounted: nothing is copied, and the links are exactly as
+		// writable as the dataset mount they point at - which is read-only
+		// unless this person holds Write on it. An extract adds no right and
+		// removes none; when the dataset is not attached at all, the tree is
+		// a filled cache and read-only for everybody.
 		extractEntries, extractSkipped, extractToFill := h.extractMountEntries(req.ProjectID, attachedDatasets)
 		extractManifest, extractFits := encodeExtractManifest(extractEntries)
 		extractRefused := 0
@@ -887,14 +895,14 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 				MountPath:  "/var/run/noryx/bootstrap",
 				ReadOnly:   true,
 			}},
-			Labels: map[string]string{
+			Labels: withEgressProfile(map[string]string{
 				"app.kubernetes.io/name":  "noryx-workspace",
 				"noryx.io/project-id":     req.ProjectID,
 				"noryx.io/workspace-id":   record.ID,
 				"noryx.io/workspace-pod":  podName,
 				"noryx.io/workspace-kind": req.IDE,
 				"noryx.io/hardware-tier":  tier.ID,
-			},
+			}, egressProfile),
 		})
 		if err != nil {
 			_ = h.runtime.DeleteSecret(bootstrapSecretName)
@@ -950,9 +958,11 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"datasets":     montes,
 		"regulated":    reglementes,
 		"withheld":     h.attachmentsWithheldFrom(req.ProjectID, identity),
+		"egress":       egressProfile,
 	})
 	// Dit au lancement, le seul moment ou quelqu'un regarde.
 	record.Withheld = h.attachmentsWithheldFrom(req.ProjectID, identity)
+	record.EgressProfile = egressProfile
 	writeJSON(w, http.StatusCreated, record)
 }
 

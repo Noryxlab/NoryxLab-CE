@@ -18,6 +18,7 @@ import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { ProjectMountsSheet } from '@/components/common/project-mounts';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SectionHeader } from '@/components/common/page-header';
+import { ApiError } from '@/lib/api/client';
 import { assistantAvailable, requestAssistant } from '@/lib/assistant-bridge';
 import { Button } from '@/components/ui/button';
 import {
@@ -1065,7 +1066,28 @@ function OntologyScan() {
       }
       invalidate(qk.ontologies);
     },
-    onError: (error) => toast.error(error, t('ontologies.scanTitle')),
+    /* Un refus de disposition n'est pas une panne, c'est une regle a declarer.
+     *
+     * Le serveur repond 422 avec le code `layout_not_recognised` et les formes
+     * de chemins qu'il a rencontrees : seule une arborescence d'un dossier par
+     * sujet est reconnue d'office. Essilor, le 30/10/2026, a lu ce refus comme
+     * une limite du produit alors que la regle de lecture s'ecrit dans cet
+     * ecran - sans le dire, on laisse quelqu'un conclure que son bucket est
+     * inanalysable. */
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === 'layout_not_recognised') {
+        const details = (error.details ?? {}) as { layoutSamples?: string[] };
+        const formes = (details.layoutSamples ?? []).slice(0, 3).join(' · ');
+        toast.info(
+          formes
+            ? `${t('ontologies.scanDeclareRule')} ${formes}`
+            : t('ontologies.scanDeclareRule'),
+          t('ontologies.patternRule'),
+        );
+        return;
+      }
+      toast.error(error, t('ontologies.scanTitle'));
+    },
   });
 
   const datasetOptions = (datasets.data ?? []).map((item) => ({

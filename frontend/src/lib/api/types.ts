@@ -90,6 +90,11 @@ export interface Workspace {
   /** Ce que le projet attache et que cette personne n'a pas eu. Rendu par le
    *  lancement seulement, le seul moment ou quelqu'un regarde. */
   withheld?: string[];
+  /** Jusqu'ou ce workspace atteint le reseau. Rendu par le lancement
+   *  seulement : un workspace ferme est un workspace ou pip, apt et un clone
+   *  depuis une forge publique echouent, et l'apprendre d'une commande en
+   *  echec fait lire un controle voulu comme une plateforme cassee. */
+  egressProfile?: string;
   createdAt: string;
 }
 
@@ -1306,7 +1311,7 @@ export interface OntologyCard {
 }
 
 export interface DatasetPathLayoutTrial {
-  items: { path: string; subject: string; visit: string; modality: string }[];
+  items: { path: string; subject: string; visit: string; modality: string; dataType?: string }[];
   recognised: number;
   sampled: number;
   description: string;

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T09:24:08+00:00",
+  "generatedAt": "2026-10-30T16:39:04+00:00",
   "note": "Dependencies are read from the resolved graph; infrastructure licences are declared from their upstream project. Anything unreadable is reported as unknown rather than guessed.",
   "counts": {
     "total": 77,
@@ -527,16 +527,6 @@
       "licenceFile": ""
     },
     {
-      "name": "code-server",
-      "version": "",
-      "licence": "MIT",
-      "component": "infrastructure",
-      "origin": "declared",
-      "licenceFile": "",
-      "role": "VS Code workspace image",
-      "upstream": "https://github.com/coder/code-server"
-    },
-    {
       "name": "HAProxy",
       "version": "",
       "licence": "GPL-2.0-or-later",
@@ -605,6 +595,16 @@
       "licenceFile": "",
       "role": "frontend web server",
       "upstream": "https://nginx.org/LICENSE"
+    },
+    {
+      "name": "openvscode-server",
+      "version": "",
+      "licence": "MIT",
+      "component": "infrastructure",
+      "origin": "declared",
+      "licenceFile": "",
+      "role": "VS Code workspace image",
+      "upstream": "https://github.com/gitpod-io/openvscode-server"
     },
     {
       "name": "PostgreSQL",

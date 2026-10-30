@@ -70,14 +70,32 @@ func normalizeSubjectType(value string) string {
 	return "user"
 }
 
+// The profile identifiers, named rather than retyped: the network policies in
+// deploy/k8s/base select on these exact strings, so a typo in one of them is
+// an open door rather than a compile error.
+//
+// Closed and open is the distinction that matters at the network layer.
+// Isolated, internal-only and HDS-regulated deny direct internet access and
+// are applied by a NetworkPolicy. Package-access and approved-egress name
+// domains, which a NetworkPolicy cannot select on, so they remain recorded
+// rather than applied - see ADR-023 and the gateway it calls for.
+const (
+	ProfileIsolated       = "isolated"
+	ProfileInternalOnly   = "internal-only"
+	ProfilePackageAccess  = "package-access"
+	ProfileApprovedEgress = "approved-egress"
+	ProfileHDSRegulated   = "hds-regulated"
+	ProfileUnrestricted   = "unrestricted"
+)
+
 func Profiles() []Profile {
 	return []Profile{
-		{ID: "isolated", Name: "Isolé", Description: "Aucun accès Internet direct. Profil par défaut pour les workloads sensibles.", Default: true, HDSAllowed: true},
-		{ID: "internal-only", Name: "Interne uniquement", Description: "Accès aux services internes autorisés de la plateforme uniquement.", HDSAllowed: true},
-		{ID: "package-access", Name: "Paquets et Git", Description: "Accès à des miroirs Git/package approuvés.", HDSAllowed: false},
-		{ID: "approved-egress", Name: "Destination approuvée", Description: "Destination externe explicite, limitée, auditable et expirante.", HDSAllowed: false},
-		{ID: "hds-regulated", Name: "HDS régulé", Description: "Connecteurs régulés sans Internet direct pour données HDS.", HDSAllowed: true, AdminOnly: true},
-		{ID: "unrestricted", Name: "Exception temporaire", Description: "Accès exceptionnel administrateur, strictement borné dans le temps.", HDSAllowed: false, AdminOnly: true},
+		{ID: ProfileIsolated, Name: "Isolé", Description: "Aucun accès Internet direct. Profil par défaut pour les workloads sensibles.", Default: true, HDSAllowed: true},
+		{ID: ProfileInternalOnly, Name: "Interne uniquement", Description: "Accès aux services internes autorisés de la plateforme uniquement.", HDSAllowed: true},
+		{ID: ProfilePackageAccess, Name: "Paquets et Git", Description: "Accès à des miroirs Git/package approuvés.", HDSAllowed: false},
+		{ID: ProfileApprovedEgress, Name: "Destination approuvée", Description: "Destination externe explicite, limitée, auditable et expirante.", HDSAllowed: false},
+		{ID: ProfileHDSRegulated, Name: "HDS régulé", Description: "Connecteurs régulés sans Internet direct pour données HDS.", HDSAllowed: true, AdminOnly: true},
+		{ID: ProfileUnrestricted, Name: "Exception temporaire", Description: "Accès exceptionnel administrateur, strictement borné dans le temps.", HDSAllowed: false, AdminOnly: true},
 	}
 }
 
@@ -94,7 +112,7 @@ func ValidProfile(value string) bool {
 func normalizeProfile(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
-		return "isolated"
+		return ProfileIsolated
 	}
 	return value
 }

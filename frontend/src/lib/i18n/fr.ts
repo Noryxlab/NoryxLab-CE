@@ -604,6 +604,7 @@ export const fr = {
     launchedBy: "Lancé par",
     foreignHint:
       "Cette session a été lancée par quelqu'un d'autre : elle monte ses droits sur les données, pas les vôtres. Lancez la vôtre.",
+    egressClosed: "Sans accès direct à Internet : la donnée réglementée de ce projet ferme la sortie réseau. Les paquets et les dépôts passent par les miroirs internes.",
     withheld: "Non monté, faute de droit sur la donnée :",
     restartTitle: "Redémarrer le workspace",
     restartWarning: "Le logiciel redémarre ; vos fichiers et vos données montées ne bougent pas. Utile quand une extension ne se charge qu'au démarrage. Comptez une minute avant de pouvoir rouvrir.",
@@ -1057,6 +1058,7 @@ export const fr = {
     layoutUnnamed: "nom-de-l-extrait",
     extractLayout: "Disposition",
     pattern: "Lecture de la source",
+    scanDeclareRule: "Aucun sujet reconnu : déclarez la règle de lecture de ce dataset, dans Paramètres puis Règle de lecture. Formes rencontrées :",
     patternRule: "Règle de lecture",
     scanChangedTitle: "Ce qui a changé",
     scanChangedReading:
@@ -1322,7 +1324,7 @@ export const fr = {
     title: "Accès",
     rule: "Posséder administre, a l’écriture et partage ; Écriture et Lecture sont des octrois sur l’objet, à une personne, une équipe ou une organisation. Appartenir à une organisation ne donne rien par soi-même.",
     connectorHint: "Lecture : l’utiliser dans un workspace et voir qui d’autre la détient. Écriture : changer aussi ce vers quoi elle pointe, ce qui redirige tous ceux qui la montent.",
-    frozenHint: "Un extrait est gelé : il se lit, il ne s’écrit pas. Le propriétaire le partage et le supprime.",
+    frozenHint: "Un extrait est gelé : il se lit, il ne s’écrit pas, même avec le droit d’écriture sur la donnée. Modifier un fichier demande le dataset source, attaché au projet. Le propriétaire partage et supprime l’extrait.",
     owner: "Propriétaire",
     ownerMeans: "administre, écrit, partage",
     ownerOrganizationMeans: "ses administrateurs nommés administrent, écrivent et partagent ; ses membres n’ont que ce qui leur est octroyé",

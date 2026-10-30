@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/egress"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
 )
 
@@ -119,6 +120,9 @@ func (h Handlers) ensureProjectFileService(projectID string) (string, error) {
 		"noryx.io/project-id":     projectID,
 		"noryx.io/project-files":  name,
 		"noryx.io/workload-class": "technical",
+		// The file browser serves what is already on a volume and has no
+		// business on the internet, whatever the project holds.
+		"noryx.io/egress-profile": egress.ProfileIsolated,
 	}
 	if err := h.runtime.CreatePod(noryxruntime.PodSpec{
 		PodName:       name,

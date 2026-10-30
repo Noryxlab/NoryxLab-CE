@@ -20,7 +20,8 @@ then allow:
 
 - ingress from the Noryx backend reverse proxy;
 - UDP and TCP DNS queries to CoreDNS;
-- egress to public IP addresses.
+- egress to the backend's API port and to the project's data services;
+- egress to public IP addresses, **for the profiles that admit it**.
 
 The public-egress policy blocks:
 
@@ -32,6 +33,57 @@ The public-egress policy blocks:
 This blocks direct access from user workloads to the Kubernetes API, Noryx
 backend, Keycloak, PostgreSQL, MinIO, Harbor, other workloads, and private LAN
 services.
+
+## The egress profile decides the internet
+
+Every workload also carries the profile it runs under:
+
+```text
+noryx.io/egress-profile=<isolated|internal-only|package-access|approved-egress|hds-regulated|unrestricted>
+```
+
+The public-egress policy selects the three open profiles - `unrestricted`,
+`package-access`, `approved-egress`. A pod labelled `isolated`,
+`internal-only` or `hds-regulated` matches it and nothing else, so the
+default-deny above governs its egress: DNS, the platform API and its data
+services stay reachable, and the internet does not.
+
+**What decides the label** is `egress.enforcement`, a platform setting:
+
+| Value | A project holding regulated data | Every other project |
+| --- | --- | --- |
+| `off` | public egress | public egress |
+| `regulated` (default) | closed | public egress |
+| `strict` | closed | closed |
+
+Regulated means what it means everywhere else on this platform: an attached
+dataset classified `hds`, or an attached extract read from one. Both doors are
+checked, because an extract is attached without its dataset.
+
+**Two profiles are recorded and not applied.** `package-access` and
+`approved-egress` name domains, and a NetworkPolicy selects addresses and
+ports. Narrowing them needs the egress gateway of ADR-023; until it exists
+they are listed as open rather than claimed as narrow.
+
+**What a closed workload cannot do**, and this is the part to say before
+somebody meets it: `pip install` from PyPI, `apt-get` from a public mirror,
+`git clone` from GitHub or Azure DevOps, and any call to a model endpoint
+outside the site. The workspace still reaches the platform's own API, so the
+Enterprise assistant keeps working. Packages and repositories are what an
+internal mirror is for - see ADR-023's rollout.
+
+**Already-running workloads keep what they had.** A policy is evaluated
+against live pods, so a second rule admits pods carrying no profile label at
+all: a workspace started before the upgrade is not cut off mid-session, and
+gets its profile the next time it starts.
+
+## Desktop sessions and the clipboard
+
+Slicer and ParaView are desktops served over VNC, and neither web client
+carries a file transfer, so the clipboard is the only channel that moves bytes
+to the viewer's machine. It is closed in that direction and open in the other:
+`-SendCutText 0` on KasmVNC, `-noclipboard -noprimary` on x11vnc. Pasting a
+path or an expression into the application still works.
 
 ## ServiceAccount protection
 

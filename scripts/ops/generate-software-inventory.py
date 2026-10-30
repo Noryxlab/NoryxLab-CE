@@ -56,7 +56,10 @@ PLATFORM_IMAGES = [
     ("k3s", "kubernetes distribution", "Apache-2.0", "https://github.com/k3s-io/k3s"),
     ("HAProxy", "edge load balancer", "GPL-2.0-or-later", "https://www.haproxy.org/"),
     ("nginx", "frontend web server", "BSD-2-Clause", "https://nginx.org/LICENSE"),
-    ("code-server", "VS Code workspace image", "MIT", "https://github.com/coder/code-server"),
+    # Gitpod's server, not Coder's. The two are different products with the
+    # same purpose, and naming the wrong one in an inventory is how a security
+    # review asks about a flag the installed binary does not have.
+    ("openvscode-server", "VS Code workspace image", "MIT", "https://github.com/gitpod-io/openvscode-server"),
     ("JupyterLab", "notebook workspace image", "BSD-3-Clause", "https://github.com/jupyterlab/jupyterlab"),
 ]
 

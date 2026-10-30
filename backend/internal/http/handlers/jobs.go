@@ -233,12 +233,12 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			Secrets:                 secretMounts,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
-			Labels: map[string]string{
+			Labels: withEgressProfile(map[string]string{
 				"app.kubernetes.io/name": "noryx-job",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/job-id":        record.ID,
 				"noryx.io/hardware-tier": tier.ID,
-			},
+			}, h.workloadEgressProfile(req.ProjectID)),
 		})
 		if err != nil {
 			_ = h.runtime.DeleteSecret(userSecretName)

@@ -105,11 +105,11 @@ func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {
 			Args:       req.Args,
 			Env:        env,
 			PullSecret: h.registryPullSecret,
-			Labels: map[string]string{
+			Labels: withEgressProfile(map[string]string{
 				"app.kubernetes.io/name": "noryx-pod",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/pod-id":        record.ID,
-			},
+			}, h.workloadEgressProfile(req.ProjectID)),
 		})
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes pod launch failed: " + err.Error()})

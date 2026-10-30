@@ -230,12 +230,12 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
-			Labels: map[string]string{
+			Labels: withEgressProfile(map[string]string{
 				"app.kubernetes.io/name": "noryx-cronjob",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/cronjob-id":    cronJobID,
 				"noryx.io/hardware-tier": tier.ID,
-			},
+			}, h.workloadEgressProfile(req.ProjectID)),
 		},
 	})
 	if err != nil {

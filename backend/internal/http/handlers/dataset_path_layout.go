@@ -100,10 +100,16 @@ func (h Handlers) GetDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 			"subjectLevel":  item.PathLayout.SubjectLevel,
 			"visitLevel":    item.PathLayout.VisitLevel,
 			"modalityLevel": item.PathLayout.ModalityLevel,
+			// The fourth level, which this answer used to omit while the
+			// editor read it to fill its form: a declared data-type level
+			// came back empty, the field reset to absent, and the next save
+			// cleared a rule the person had not touched.
+			"dataTypeLevel": item.PathLayout.DataTypeLevel,
 			"description":   item.PathLayout.Describe(),
 			"subjectName":   item.PathLayout.Subject(),
 			"visitName":     item.PathLayout.Visit(),
 			"modalityName":  item.PathLayout.Modality(),
+			"dataTypeName":  item.PathLayout.DataType(),
 		}
 	}
 	writeJSON(w, http.StatusOK, payload)
@@ -158,10 +164,12 @@ func (h Handlers) SetDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 		"subjectLevel":  layout.SubjectLevel,
 		"visitLevel":    layout.VisitLevel,
 		"modalityLevel": layout.ModalityLevel,
+		"dataTypeLevel": layout.DataTypeLevel,
 		"description":   layout.Describe(),
 		"subjectName":   layout.Subject(),
 		"visitName":     layout.Visit(),
 		"modalityName":  layout.Modality(),
+		"dataTypeName":  layout.DataType(),
 	})
 }
 

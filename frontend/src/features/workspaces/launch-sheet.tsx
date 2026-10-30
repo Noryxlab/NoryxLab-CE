@@ -41,6 +41,12 @@ import { presentIde, presentTier } from '@/lib/presenters';
  *  - the IDE is shown as a read-only property of the environment instead of a
  *    `<select disabled>`, which advertised a choice the user did not have.
  */
+// Les profils qui refusent l'acces direct a Internet, nommes par le backend
+// (ADR-023). Les deux autres - paquets approuves, destination approuvee -
+// nomment des domaines, qu'une NetworkPolicy ne sait pas filtrer : ils restent
+// ouverts au niveau reseau tant que la passerelle n'existe pas.
+const CLOSED_EGRESS_PROFILES = new Set(['isolated', 'internal-only', 'hds-regulated']);
+
 export function LaunchWorkspaceSheet({
   projectId,
   open,
@@ -131,6 +137,16 @@ export function LaunchWorkspaceSheet({
           `${t('workspaces.withheld')} ${withheld.join(', ')}`,
           t('workspaces.title'),
         );
+      }
+      // Et jusqu'ou il atteint le reseau.
+      //
+      // Un workspace sur de la donnee reglementee n'a pas d'acces direct a
+      // Internet : c'est le controle demande par Essilor le 30/10/2026, et la
+      // consequence est que pip, apt et un clone depuis GitHub echouent
+      // dedans. Dit ici, sinon la premiere nouvelle en est une commande qui
+      // ne passe pas.
+      if (created?.egressProfile && CLOSED_EGRESS_PROFILES.has(created.egressProfile)) {
+        toast.info(t('workspaces.egressClosed'), t('workspaces.title'));
       }
       toast.success(t('workspaces.launched'), t('workspaces.title'));
     },

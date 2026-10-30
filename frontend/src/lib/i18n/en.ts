@@ -590,6 +590,7 @@ export const en: Translations = {
     launchedBy: "Launched by",
     foreignHint:
       "Somebody else launched this session: it mounts their rights over the data, not yours. Launch your own.",
+    egressClosed: "No direct internet access: this project's regulated data closes outbound traffic. Packages and repositories go through the internal mirrors.",
     withheld: "Not mounted, for want of a right over the data:",
     restartTitle: "Restart workspace",
     restartWarning: "The software restarts; your files and mounted data are untouched. Useful when an extension only loads at start-up. Allow a minute before reopening.",
@@ -1035,6 +1036,7 @@ export const en: Translations = {
     layoutUnnamed: "extract-name",
     extractLayout: "Layout",
     pattern: "How the source is read",
+    scanDeclareRule: "No subject recognised: declare this dataset's reading rule, under Settings then Reading rule. Shapes found:",
     patternRule: "Reading rule",
     scanChangedTitle: "What changed",
     scanChangedReading:
@@ -1294,7 +1296,7 @@ export const en: Translations = {
     title: "Access",
     rule: "Owning administers, writes and shares; Write and Read are grants on the object, to a person, a team or an organization. Belonging to an organization gives nothing by itself.",
     connectorHint: "Read: run it in a workspace and see who else holds it. Write: also change what it points at, which redirects everybody who mounts it.",
-    frozenHint: "An extract is frozen: it is read, never written. The owner shares and deletes it.",
+    frozenHint: "An extract is frozen: it is read, never written, even by someone holding Write on the data. Changing a file goes through the source dataset, attached to the project. The owner shares and deletes the extract.",
     owner: "Owner",
     ownerMeans: "administers, writes, shares",
     ownerOrganizationMeans: "its named administrators administer, write and share; its members hold only what is granted to them",

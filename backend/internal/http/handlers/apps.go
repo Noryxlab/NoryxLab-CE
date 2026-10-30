@@ -383,7 +383,7 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 		EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 		PullSecret:              h.registryPullSecret,
 		Volumes:                 volumes,
-		Labels: map[string]string{
+		Labels: withEgressProfile(map[string]string{
 			"app.kubernetes.io/name": "noryx-app",
 			"noryx.io/project-id":    record.ProjectID,
 			"noryx.io/app-id":        record.ID,
@@ -391,7 +391,7 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 			"noryx.io/app-slug":      record.Slug,
 			"noryx.io/app-pod":       record.PodName,
 			"noryx.io/hardware-tier": tier.ID,
-		},
+		}, h.workloadEgressProfile(record.ProjectID)),
 	}); err != nil {
 		return fmt.Errorf("pod: %w", err)
 	}
@@ -775,7 +775,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			EphemeralStorageLimit:   tier.EphemeralStorageLimit,
 			PullSecret:              h.registryPullSecret,
 			Volumes:                 volumes,
-			Labels: map[string]string{
+			Labels: withEgressProfile(map[string]string{
 				"app.kubernetes.io/name": "noryx-app",
 				"noryx.io/project-id":    req.ProjectID,
 				"noryx.io/app-id":        record.ID,
@@ -783,7 +783,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 				"noryx.io/app-slug":      req.Slug,
 				"noryx.io/app-pod":       podName,
 				"noryx.io/hardware-tier": tier.ID,
-			},
+			}, h.workloadEgressProfile(req.ProjectID)),
 		})
 		if err != nil {
 			_ = h.runtime.DeleteSecret(userSecretName)

@@ -1277,12 +1277,32 @@ func kubernetesEnvVars(items []noryxruntime.EnvVar) []map[string]any {
 	return out
 }
 
+// The two labels every user workload carries: the one that makes the
+// isolation policies select it, and the one that says how much of the
+// internet it may reach.
+const (
+	workloadIsolationLabel = "noryx.io/network-isolation"
+	workloadEgressLabel    = "noryx.io/egress-profile"
+)
+
 func isolatedWorkloadLabels(labels map[string]string) map[string]string {
-	isolated := make(map[string]string, len(labels)+1)
+	isolated := make(map[string]string, len(labels)+2)
 	for key, value := range labels {
 		isolated[key] = value
 	}
-	isolated["noryx.io/network-isolation"] = "user-workload"
+	isolated[workloadIsolationLabel] = "user-workload"
+	// A workload whose caller named no profile keeps the access every
+	// workload had before profiles existed, and says so in a label rather
+	// than by matching nothing.
+	//
+	// Defaulting to closed here would be the safer-looking choice and the
+	// wrong one: it would silently cut the image builder from the registries
+	// it pulls base images from, and every workload kind this platform grows
+	// next, for a decision nobody took. An unnamed profile is a gap to find -
+	// the label makes it visible on the pod - not a door to shut blind.
+	if strings.TrimSpace(isolated[workloadEgressLabel]) == "" {
+		isolated[workloadEgressLabel] = "unrestricted"
+	}
 	return isolated
 }
 

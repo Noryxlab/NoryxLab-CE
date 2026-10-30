@@ -147,6 +147,26 @@ spec:
         - protocol: TCP
           port: 27017
 ---
+# Public egress, and who still gets it.
+#
+# This rule used to select every user workload, which is what made ADR-023
+# call the policy "explicitly transitional": a workspace mounting a regulated
+# bucket could reach every public address on the internet, and the pod carries
+# a shell, curl and sudo. Disabling the download button in an editor against
+# that is a sign on an open door.
+#
+# It now selects by profile. A pod labelled isolated, internal-only or
+# hds-regulated matches neither of the two rules below, so the default-deny at
+# the top of this file applies to its egress - while DNS, the platform API and
+# the project's data services stay open, because those rules select on the
+# isolation label alone.
+#
+# The two profiles that name destinations - package-access, approved-egress -
+# are listed here as open, deliberately. A NetworkPolicy selects addresses and
+# ports; it cannot select a domain name, so narrowing those two needs the
+# egress gateway ADR-023 describes. Listing them as open is honest; listing
+# them as closed would break a workload while claiming a control that does not
+# exist.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -156,6 +176,49 @@ spec:
   podSelector:
     matchLabels:
       noryx.io/network-isolation: user-workload
+    matchExpressions:
+      - key: noryx.io/egress-profile
+        operator: In
+        values:
+          - unrestricted
+          - package-access
+          - approved-egress
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+---
+# The workloads that were already running when the profile label appeared.
+#
+# A policy is evaluated against live pods, so narrowing the rule above would
+# have cut the internet from every workspace running at the moment of the
+# upgrade - including the ones whose project holds nothing regulated. They
+# carry no profile label, they keep what they had, and they get a profile the
+# next time they start.
+#
+# This rule is therefore temporary by construction and empty once the oldest
+# running workload has been restarted. Keeping it is how the upgrade is not an
+# incident; removing it later is a one-line change.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-workloads-allow-public-egress-unlabelled
+  namespace: noryx-loads
+spec:
+  podSelector:
+    matchLabels:
+      noryx.io/network-isolation: user-workload
+    matchExpressions:
+      - key: noryx.io/egress-profile
+        operator: DoesNotExist
   policyTypes:
     - Egress
   egress:
