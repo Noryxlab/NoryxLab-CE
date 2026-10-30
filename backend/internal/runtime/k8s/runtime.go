@@ -793,7 +793,7 @@ func (r *Runtime) GetPodLogs(name string, tailLines int) (string, error) {
 		tailLines = 5000
 	}
 	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/log?tailLines=%d", r.workloadNamespace, name, tailLines))
-	return string(body), err
+	return noryxruntime.ReadableLogs(string(body)), err
 }
 
 func (r *Runtime) RestartPod(name string) error {
@@ -1852,7 +1852,7 @@ func (r *Runtime) GetJobLogs(jobName string, tailLines int) (noryxruntime.JobLog
 	}
 	return noryxruntime.JobLogs{
 		PodName: selected,
-		Logs:    string(logBody),
+		Logs:    noryxruntime.ReadableLogs(string(logBody)),
 	}, nil
 }
 

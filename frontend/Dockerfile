@@ -34,6 +34,17 @@ RUN npm init -y >/dev/null \
 # January fails in September having done nothing wrong.
 FROM nginx:1.29-alpine
 
+# Every security fix the distribution has published, at build time.
+#
+# The base image is rebuilt on its own schedule, which is not ours: on
+# 2026-10-30 it carried brotli-libs 1.2.0-r0 and CVE-2026-111497 - an
+# out-of-bounds write in the Brotli decoder, fixed in 1.2.1-r0 and published
+# - so the gate that refuses a critical vulnerability refused an image whose
+# Dockerfile had not changed. Upgrading here means the same Dockerfile can
+# produce different packages on different days, which is the point: this
+# image serves static files, nothing in it is pinned for a reason.
+RUN apk upgrade --no-cache
+
 # `auto` forks one worker per host CPU. On high-density Kubernetes workers this
 # can exceed the deliberately small frontend memory limit for a static site.
 RUN sed -i -E 's/worker_processes[[:space:]]+auto;/worker_processes 1;/' /etc/nginx/nginx.conf

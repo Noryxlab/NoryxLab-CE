@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-10-09T06:57:52+00:00",
+  "generatedAt": "2026-10-30T09:24:08+00:00",
   "note": "Dependencies are read from the resolved graph; infrastructure licences are declared from their upstream project. Anything unreadable is reported as unknown rather than guessed.",
   "counts": {
-    "total": 76,
+    "total": 77,
     "unknown": 1
   },
   "items": [
@@ -449,6 +449,14 @@
     {
       "name": "@tanstack/react-query",
       "version": "5.102.8",
+      "licence": "MIT",
+      "component": "frontend",
+      "origin": "declared",
+      "licenceFile": ""
+    },
+    {
+      "name": "@xyflow/react",
+      "version": "12.12.0",
       "licence": "MIT",
       "component": "frontend",
       "origin": "declared",

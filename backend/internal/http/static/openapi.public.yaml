@@ -105,6 +105,13 @@ components:
         subjectId: { type: string }
         subjectName: { type: string }
         createdAt: { type: string, format: date-time }
+    OrganizationPolicy:
+      type: object
+      properties:
+        organizationId: { type: string }
+        membershipGrant: { type: string, enum: [none, reader, writer] }
+        updatedAt: { type: string, format: date-time }
+        updatedBy: { type: string }
     OrganizationAdminListResponse:
       type: object
       properties:
@@ -9639,7 +9646,14 @@ paths:
   /api/v1/admin/organizations/{organizationID}/policy:
     get:
       tags: [Admin]
-      summary: Get Organization Policy
+      summary: What belonging to this organization gives on what it owns
+      description: >-
+        Belonging confers nothing by itself; what an organization gives its
+        members is a grant, and this is where it is decided once rather than
+        object by object. "none", "reader" or "writer": when an object is
+        created for the organization or transferred to it, the platform writes
+        that grant to the organization as a subject, visible and revocable like
+        any other. Objects already held are never touched. Absent means "none".
       operationId: getOrganizationPolicy
       security:
         - bearerAuth: []
@@ -9655,7 +9669,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganizationListResponse'
+                $ref: '#/components/schemas/OrganizationPolicy'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -9664,8 +9678,24 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       tags: [Admin]
-      summary: Update Organization Policy
+      summary: Decide what belonging to this organization gives
+      description: >-
+        Sets membershipGrant to "none", "reader" or "writer". A platform
+        administrator or a named administrator of the organization. Audited,
+        and acting on the objects to come only: lowering it withdraws nothing
+        that people already hold.
       operationId: updateOrganizationPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [membershipGrant]
+              properties:
+                membershipGrant:
+                  type: string
+                  enum: [none, reader, writer]
       security:
         - bearerAuth: []
         - xNoryxUser: []
@@ -9680,7 +9710,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganizationListResponse'
+                $ref: '#/components/schemas/OrganizationPolicy'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

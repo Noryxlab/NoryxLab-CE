@@ -85,8 +85,6 @@ func (h Handlers) qualifyDockerfileBase(content string) string {
 	return strings.Join(lines, "\n")
 }
 
-var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
 // buildFailureReason reads what the build said last. The pod is deleted
 // with its job within the hour, and a reason that is not copied out of it
 // then is a reason nobody will ever read.
@@ -102,11 +100,11 @@ func (h Handlers) buildFailureReason(jobName string) string {
 	return failureReasonFrom(logs.Logs)
 }
 
-// failureReasonFrom picks the last line that names an error, stripped of
-// the colour codes a build tool writes for a terminal, and bounded so a
-// stack trace does not become a column.
+// failureReasonFrom picks the last line that names an error, read as a
+// terminal would show it, and bounded so a stack trace does not become a
+// column.
 func failureReasonFrom(logs string) string {
-	lines := strings.Split(ansiEscape.ReplaceAllString(logs, ""), "\n")
+	lines := strings.Split(noryxruntime.ReadableLogs(logs), "\n")
 	reason := ""
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := strings.TrimSpace(lines[i])
