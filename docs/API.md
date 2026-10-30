@@ -48,18 +48,24 @@ the ones added tomorrow.
 CI runs `generate-openapi.py --check`, which fails when a route is
 undocumented **and** when either document is out of date with the source.
 
-## The API is list-shaped
+## Reading one object
 
-There is no "read one object" endpoint for a dataset, an ontology, an extract,
-a data source, a repository, a project, an app, a job, a workspace, a build or
-an environment. Only a secret has one. Every screen that shows one object
-lists them and picks, which is why nothing in the interface misses it.
+`GET /api/v1/<collection>/{id}` answers with one dataset, ontology, extract,
+data source, repository, project, app, job, workspace, build or secret.
 
-An integration should expect the same: ask for the collection, filter on the
-`id`. It also means the collection is the access decision - an object you hold
-no right on is absent from your listing rather than refused by name, which is
-the same answer `GET` on a named object gives elsewhere: not found, never
-forbidden, because naming an identifier should not confirm that it exists.
+Each answers the same question its collection answers, with the same rule, so
+the two cannot disagree: an object absent from your listing is absent here.
+The refusal is **not found, never forbidden** — naming an identifier must not
+confirm that it exists, so an object somebody else owns and an identifier that
+never existed are indistinguishable.
 
-Measured on 2026-10-30 by a sweep that generated two accounts and used nothing
-but this API.
+These were missing until 2026-10-30. The API was list-shaped: every screen
+that shows one object asks for the collection and picks, which is why nothing
+in the interface noticed, while an integration had to fetch every dataset to
+look at one — and a `GET` on a named object answered 404 from the router,
+which reads exactly like a refusal.
+
+An **environment** has none, and that is not an omission: it is not a stored
+object but a view computed over builds, keyed by the image its revisions push
+to. Reading one means filtering `GET /api/v1/environments`, which is what the
+screen does.

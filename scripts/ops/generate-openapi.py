@@ -287,6 +287,18 @@ ENVELOPES = {
 # What each operation answers with. A code other than 200 replaces the
 # generated `200 Success`, which was wrong: four of these never return one.
 RESPONSES = {
+    # Reading one object, added 2026-10-30: each answers the same question its
+    # collection answers, and the refusal is not found rather than forbidden.
+    ("GET", "/api/v1/datasets/{datasetID}"): "Dataset",
+    ("GET", "/api/v1/ontologies/{ontologyID}"): "Ontology",
+    ("GET", "/api/v1/extracts/{extractID}"): "Extract",
+    ("GET", "/api/v1/datasources/{datasourceID}"): "Datasource",
+    ("GET", "/api/v1/repositories/{repositoryID}"): "Repository",
+    ("GET", "/api/v1/projects/{projectID}"): "Project",
+    ("GET", "/api/v1/apps/{appID}"): "App",
+    ("GET", "/api/v1/jobs/{jobID}"): "Job",
+    ("GET", "/api/v1/workspaces/{workspaceID}"): "Workspace",
+    ("GET", "/api/v1/builds/{buildID}"): "Build",
     ("GET", "/healthz"): "HealthResponse",
     ("GET", "/api/v1/admin/service-accounts"): "ServiceAccountList",
     ("POST", "/api/v1/ontologies/scans"): "OntologyScanResult",

@@ -2058,6 +2058,33 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectID}:
+    get:
+      tags: [Projects]
+      summary: One project by its identifier
+      description: >-
+        Carries your own role on it and whether you may transfer it - the two fields the listing adds.
+      operationId: getProject
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags: [Projects]
       summary: Update project name and description
@@ -2481,6 +2508,33 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /api/v1/workspaces/{workspaceID}:
+    get:
+      tags: [Workloads]
+      summary: One workspace by its identifier
+      description: >-
+        Answers with the workspace, its runtime status reconciled first.
+      operationId: getWorkspace
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: workspaceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Workloads]
       summary: Stop and delete workspace
@@ -2745,6 +2799,33 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /api/v1/datasets/{datasetID}:
+    get:
+      tags: [Datasets]
+      summary: One dataset by its identifier
+      description: >-
+        Answers with the dataset as your catalogue sees it. Not found when you hold no right on it, because naming an identifier must not confirm that it exists.
+      operationId: getDataset
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags: [Datasets]
       summary: Update Dataset Metadata
@@ -3306,6 +3387,33 @@ paths:
           $ref: '#/components/responses/InternalError'
 
   /api/v1/repositories/{repositoryID}:
+    get:
+      tags: [Repositories]
+      summary: One repository by its identifier
+      description: >-
+        Repositories are not shared, so its owner and a platform administrator see one.
+      operationId: getRepository
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: repositoryID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags: [Repositories]
       summary: Update one git repository and validate connectivity
@@ -4849,6 +4957,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/apps/{appID}:
+    get:
+      tags: [Workloads]
+      summary: One application by its identifier
+      description: >-
+        Also serves an API and a dashboard, with the runtime status resolved as the listing resolves it.
+      operationId: getApp
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Workloads]
       summary: Delete App
@@ -5160,6 +5295,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/builds/{buildID}:
+    get:
+      tags: [Workloads]
+      summary: One build by its identifier
+      description: >-
+        Answers with the build, its failure reason included when it has one.
+      operationId: getBuild
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: buildID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Build'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Workloads]
       summary: Delete Build
@@ -5421,6 +5583,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/datasources/{datasourceID}:
+    get:
+      tags: [Datasets]
+      summary: One data source by its identifier
+      description: >-
+        Answers with the connector, without its password: the secret is reached by its own route, under its own decision.
+      operationId: getDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Datasets]
       summary: Delete Datasource
@@ -5630,6 +5819,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/jobs/{jobID}:
+    get:
+      tags: [Workloads]
+      summary: One job by its identifier
+      description: >-
+        Answers with the job, its runtime status reconciled first.
+      operationId: getJob
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: jobID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Workloads]
       summary: Delete Job
@@ -5703,6 +5919,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/ontologies/{ontologyID}:
+    get:
+      tags: [Datasets]
+      summary: One ontology by its identifier
+      description: >-
+        Answers with the ontology, or not found when you hold no right on it.
+      operationId: getOntology
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: ontologyID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ontology'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Datasets]
       summary: Delete Ontology
@@ -7621,6 +7864,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/extracts/{extractID}:
+    get:
+      tags: [Datasets]
+      summary: One extract by its identifier
+      description: >-
+        Answers with the frozen selection. A reader of the ontology it is drawn from sees it too, which is what the listing does.
+      operationId: getExtract
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: extractID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     put:
       tags: [Datasets]
       summary: Rename Extract
