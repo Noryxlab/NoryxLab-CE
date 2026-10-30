@@ -167,7 +167,7 @@ spec:
             - name: NORYX_WORKSPACE_JUPYTER_IMAGE
               value: "harbor.example.local/noryx-environments/noryx-jupyter:0.1.1"
             - name: NORYX_WORKSPACE_VSCODE_IMAGE
-              value: "harbor.example.local/noryx-environments/noryx-vscode:0.1.4"
+              value: "harbor.example.local/noryx-environments/noryx-vscode:0.1.5"
             - name: NORYX_WORKSPACE_RSTUDIO_IMAGE
               value: "harbor.example.local/noryx-environments/noryx-rstudio:0.1.1"
             - name: NORYX_WORKSPACE_CPU
