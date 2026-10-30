@@ -72,6 +72,19 @@ outside the site. The workspace still reaches the platform's own API, so the
 Enterprise assistant keeps working. Packages and repositories are what an
 internal mirror is for - see ADR-023's rollout.
 
+**A workload is unrestricted for its first seconds.** Measured on
+2026-10-30: a pod labelled `hds-regulated` reached `pypi.org` at t+0s and was
+refused at t+10s and t+30s. The policy controller programs a pod's firewall
+chain after the pod has an address, so there is a window between the two.
+
+It does not matter for a workspace, where the person's shell starts later. It
+matters for a job, which runs its command immediately: a job written to
+exfiltrate in its first second would succeed. Closing that window means
+holding user code until the policy is active - a start-up delay on every
+closed workload, and a decision about what to do when the probe never closes -
+and it is not done yet. Say it plainly to anyone who asks what the control
+covers.
+
 **Already-running workloads keep what they had.** A policy is evaluated
 against live pods, so a second rule admits pods carrying no profile label at
 all: a workspace started before the upgrade is not cut off mid-session, and
