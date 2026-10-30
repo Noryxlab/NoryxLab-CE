@@ -108,3 +108,40 @@ func (s *PlatformRoleStore) ListAssignments() ([]platformrole.Assignment, error)
 	}
 	return out, rows.Err()
 }
+
+func (s *PlatformRoleStore) ListOverrides() ([]platformrole.Override, error) {
+	rows, err := s.Store.db.Query(`SELECT role_key, added_json, removed_json, updated_at, updated_by FROM platform_role_overrides`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []platformrole.Override{}
+	for rows.Next() {
+		var item platformrole.Override
+		var added, removed []byte
+		if err := rows.Scan(&item.RoleKey, &added, &removed, &item.UpdatedAt, &item.UpdatedBy); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal(added, &item.Added)
+		_ = json.Unmarshal(removed, &item.Removed)
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (s *PlatformRoleStore) SetOverride(item platformrole.Override) error {
+	added, _ := json.Marshal(item.Added)
+	removed, _ := json.Marshal(item.Removed)
+	now := time.Now().UTC()
+	// Nothing changed means nothing stored: an installation back on the
+	// platform's own answer should not carry a row saying so.
+	if len(item.Added) == 0 && len(item.Removed) == 0 {
+		_, err := s.Store.db.Exec(`DELETE FROM platform_role_overrides WHERE role_key=$1`, strings.ToLower(strings.TrimSpace(item.RoleKey)))
+		return err
+	}
+	_, err := s.Store.db.Exec(`INSERT INTO platform_role_overrides (role_key, added_json, removed_json, updated_at, updated_by)
+		VALUES ($1,$2,$3,$4,$5)
+		ON CONFLICT (role_key) DO UPDATE SET added_json=EXCLUDED.added_json, removed_json=EXCLUDED.removed_json, updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by`,
+		strings.ToLower(strings.TrimSpace(item.RoleKey)), added, removed, now, item.UpdatedBy)
+	return err
+}

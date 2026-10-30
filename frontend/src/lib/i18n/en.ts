@@ -128,9 +128,10 @@ export const en: Translations = {
   platformRoles: {
     title: "What a role may create",
     intro:
-      "Functions in rows, roles in columns. Three rows ship locked: the administrator acts on what is not theirs, the user on their own, the consultant reads. Your own roles tick what they want. What anybody may read stays a grant, on the object itself.",
+      "Functions in rows, roles in columns. Three roles ship: the administrator acts on what is not theirs, the user on their own, the consultant reads. Their names are the platform's, their boxes are yours - except the administrator's, the row this installation falls back on. Add your own roles beside them. What anybody may read stays a grant, on the object itself.",
     function: "Function",
     heldBy: "held by {count}",
+    changed: "Changed here",
     shipped: "Shipped",
     notAssignable: "Directory role",
     addRole: "Add a role",

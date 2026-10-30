@@ -2,14 +2,21 @@ package store
 
 import "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 
-// PlatformRoleStore persists the rows an installation adds and the row each
-// person holds. The shipped rows are not stored: they come from the code, and
-// that is what keeps them from being edited.
+// PlatformRoleStore persists the rows an installation adds, what it changed
+// on the shipped ones, and the row each person holds. A shipped row itself is
+// never stored: it comes from the code, and only the difference an
+// installation chose is kept beside it.
 type PlatformRoleStore interface {
 	ListCustom() ([]platformrole.Role, error)
 	GetCustom(key string) (platformrole.Role, bool, error)
 	UpsertCustom(role platformrole.Role) error
 	DeleteCustom(key string) error
+
+	// ListOverrides is what this installation changed on the shipped rows,
+	// kept as a difference so a shipped row that gains a function still
+	// gains it here.
+	ListOverrides() ([]platformrole.Override, error)
+	SetOverride(item platformrole.Override) error
 
 	GetAssignment(userID string) (platformrole.Assignment, bool, error)
 	SetAssignment(item platformrole.Assignment) error

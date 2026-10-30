@@ -991,6 +991,13 @@ func migrationStatements() []string {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS platform_role_overrides (
+			role_key TEXT PRIMARY KEY,
+			added_json JSONB NOT NULL DEFAULT '[]',
+			removed_json JSONB NOT NULL DEFAULT '[]',
+			updated_at TIMESTAMPTZ NOT NULL,
+			updated_by TEXT NOT NULL DEFAULT ''
+		)`,
 		// La ligne que chaque personne porte. Absente veut dire
 		// « utilisateur », ce qui est la lecture sure et ce que tout compte
 		// faisait deja.

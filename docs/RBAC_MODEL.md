@@ -211,7 +211,7 @@ scan an ontology, create an extract, declare a data source, declare a
 repository, register a regulated dataset, attach regulated data to a project,
 administer an organization.
 
-Three rows ship locked. **Administrator** acts on what is not theirs; it is
+Three rows ship. **Administrator** acts on what is not theirs; it is
 the directory's realm role: naming an administrator from a person's page
 writes that role to the directory, never to the assignments table, and only
 a platform administrator does it. Withdrawing it has three refusals - not
@@ -219,9 +219,14 @@ oneself, not the bootstrap account, not the last one standing. **User** acts on
 their own: everything above except registering regulated data and
 administering an organization. **Consultant** is the user row with every box
 unchecked - an auditor, a study sponsor, a student - which is the test the
-design had to pass: read-only needs no mechanism of its own. An installation
-adds its own rows beside those and sets their boxes itself, with no inherited
-ceiling: a "data steward" may register regulated datasets while the user row
+design had to pass: read-only needs no mechanism of its own. Their names and descriptions are the
+platform describing itself and stay fixed; which boxes they carry is the
+installation's, stored as a difference from what the platform ships so a row
+that gains a function in a later release still gains it. The administrator row
+is the exception and does not change: it is what an installation falls back on,
+and a box unticked there is how a platform loses its own administration. An
+installation also adds its own rows beside those and sets their boxes itself,
+with no inherited ceiling: a "data steward" may register regulated datasets while the user row
 may not. Only a platform administrator edits the matrix, and a capability the
 handlers do not consult is refused rather than stored.
 

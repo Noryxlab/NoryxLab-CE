@@ -105,6 +105,7 @@ export function PlatformRolesMatrix() {
                     <div className="flex items-center gap-1.5">
                       {role.name || t('platformRoles.role')}
                       {role.locked ? <Badge tone="neutral">{t('platformRoles.shipped')}</Badge> : null}
+                      {role.changed ? <Badge tone="brand">{t('platformRoles.changed')}</Badge> : null}
                       {!role.assignable ? <ShieldCheck className="size-3.5 text-muted-foreground" aria-hidden /> : null}
                     </div>
                     {role.heldBy !== undefined ? (
@@ -127,7 +128,12 @@ export function PlatformRolesMatrix() {
                   <td className="px-3 py-2">{label(capability)}</td>
                   {columns.map((role) => {
                     const checked = role.capabilities.includes(capability);
-                    const editable = !role.locked;
+                    // A shipped row's boxes belong to the installation: the
+                    // user row is the default every account holds, and
+                    // deciding what it may do is a setting. Its name is not.
+                    // The administrator row is what the platform falls back
+                    // on and stays as it ships.
+                    const editable = role.assignable || !role.locked;
                     return (
                       <td key={(role.key || 'draft') + capability} className="px-3 py-2">
                         <input

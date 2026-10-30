@@ -12,11 +12,12 @@ import (
 type PlatformRoleStore struct {
 	mu          sync.RWMutex
 	custom      map[string]platformrole.Role
+	overrides   map[string]platformrole.Override
 	assignments map[string]platformrole.Assignment
 }
 
 func NewPlatformRoleStore() *PlatformRoleStore {
-	return &PlatformRoleStore{custom: map[string]platformrole.Role{}, assignments: map[string]platformrole.Assignment{}}
+	return &PlatformRoleStore{custom: map[string]platformrole.Role{}, overrides: map[string]platformrole.Override{}, assignments: map[string]platformrole.Assignment{}}
 }
 
 func (s *PlatformRoleStore) ListCustom() ([]platformrole.Role, error) {
@@ -91,4 +92,28 @@ func (s *PlatformRoleStore) ListAssignments() ([]platformrole.Assignment, error)
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+func (s *PlatformRoleStore) ListOverrides() ([]platformrole.Override, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]platformrole.Override, 0, len(s.overrides))
+	for _, item := range s.overrides {
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (s *PlatformRoleStore) SetOverride(item platformrole.Override) error {
+	key := strings.ToLower(strings.TrimSpace(item.RoleKey))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(item.Added) == 0 && len(item.Removed) == 0 {
+		delete(s.overrides, key)
+		return nil
+	}
+	item.RoleKey = key
+	item.UpdatedAt = time.Now().UTC()
+	s.overrides[key] = item
+	return nil
 }

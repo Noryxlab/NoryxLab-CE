@@ -131,9 +131,10 @@ export const fr = {
   platformRoles: {
     title: "Ce qu'un rôle peut créer",
     intro:
-      "Les fonctions en ligne, les rôles en colonne. Trois lignes sont fournies et verrouillées : l'administrateur agit sur ce qui n'est pas à lui, l'utilisateur sur le sien, le consultant consulte. Vos propres rôles cochent ce qu'ils veulent. Ce que chacun peut lire reste un octroi, sur l'objet lui-même.",
+      "Les fonctions en ligne, les rôles en colonne. Trois rôles sont fournis : l'administrateur agit sur ce qui n'est pas à lui, l'utilisateur sur le sien, le consultant consulte. Leur nom reste celui de la plateforme, leurs cases sont à vous — sauf celles de l'administrateur, la ligne sur laquelle l'installation retombe. Ajoutez vos propres rôles à côté. Ce que chacun peut lire reste un octroi, sur l'objet lui-même.",
     function: "Fonction",
     heldBy: "porté par {count}",
+    changed: "Modifié ici",
     shipped: "Fourni",
     notAssignable: "Rôle de l'annuaire",
     addRole: "Ajouter un rôle",

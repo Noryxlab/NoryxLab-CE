@@ -1361,6 +1361,9 @@ export interface PlatformRole {
   description: string;
   capabilities: string[];
   locked: boolean;
+  /** This installation ticked or unticked a box on a shipped row, so it no
+   *  longer reads as the platform's default. */
+  changed?: boolean;
   assignable: boolean;
   heldBy?: number;
   createdAt?: string;

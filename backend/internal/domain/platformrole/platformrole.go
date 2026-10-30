@@ -82,6 +82,84 @@ const (
 	KeyConsultant    = "consultant"
 )
 
+// Override is what one installation changed on a shipped row.
+//
+// Stored as a difference and never as a copy of the row. A copy ages: the
+// shipped rows gained a function on 2026-10-27, and an installation holding
+// a frozen list would have kept the older platform without anybody seeing
+// it - which is the defect the project-role matrix already paid for, and the
+// reason these rows were locked in the first place. A difference survives
+// the platform learning a new function: what was ticked stays ticked, and
+// what the platform adds arrives.
+//
+// The administrator row is not overridable. It is the row an installation
+// falls back on, it is never assigned, and a box unticked there is how a
+// platform locks itself out of its own administration.
+type Override struct {
+	RoleKey   string       `json:"roleKey"`
+	Added     []Capability `json:"added"`
+	Removed   []Capability `json:"removed"`
+	UpdatedAt time.Time    `json:"updatedAt,omitempty"`
+	UpdatedBy string       `json:"updatedBy,omitempty"`
+}
+
+// Overridable reports whether a shipped row accepts a change.
+func Overridable(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case KeyUser, KeyConsultant:
+		return true
+	}
+	return false
+}
+
+// DifferenceFrom reads an installation's wish as a difference against what
+// the platform ships.
+func DifferenceFrom(shipped Role, wanted []Capability) Override {
+	item := Override{RoleKey: shipped.Key}
+	want := map[Capability]bool{}
+	for _, capability := range wanted {
+		capability = Capability(strings.TrimSpace(string(capability)))
+		if Known(string(capability)) {
+			want[capability] = true
+		}
+	}
+	for _, capability := range All {
+		switch {
+		case want[capability] && !shipped.Has(capability):
+			item.Added = append(item.Added, capability)
+		case !want[capability] && shipped.Has(capability):
+			item.Removed = append(item.Removed, capability)
+		}
+	}
+	return item
+}
+
+// Apply returns the row as this installation decided it.
+func (o Override) Apply(role Role) Role {
+	if len(o.Added) == 0 && len(o.Removed) == 0 {
+		return role
+	}
+	removed := map[Capability]bool{}
+	for _, capability := range o.Removed {
+		removed[capability] = true
+	}
+	kept := make([]Capability, 0, len(role.Capabilities)+len(o.Added))
+	for _, capability := range role.Capabilities {
+		if !removed[capability] {
+			kept = append(kept, capability)
+		}
+	}
+	for _, capability := range o.Added {
+		if !removed[capability] {
+			kept = append(kept, capability)
+		}
+	}
+	role.Capabilities = kept
+	role.Changed = true
+	role.Normalise()
+	return role
+}
+
 // Role is one row of the matrix.
 type Role struct {
 	Key         string `json:"key"`
@@ -89,9 +167,14 @@ type Role struct {
 	Description string `json:"description"`
 	// Capabilities is what the row may do. Absent means no.
 	Capabilities []Capability `json:"capabilities"`
-	// Locked rows ship with the platform and describe what it does; they are
-	// shown and never edited. Custom rows are the installation's.
+	// Locked rows ship with the platform and describe what it does. Their
+	// name and description are not editable; which boxes they carry is,
+	// except on the administrator row - see Override.
 	Locked bool `json:"locked"`
+	// Changed says this installation ticked or unticked a box on a shipped
+	// row, so a screen can say the row no longer reads as the platform's
+	// default rather than leaving a reader to wonder.
+	Changed bool `json:"changed,omitempty"`
 	// Assignable is false for the administrator row only: that right is the
 	// directory's realm role, never stored as an assignment. Naming one from
 	// the interface writes to the directory instead.

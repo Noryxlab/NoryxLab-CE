@@ -90,21 +90,41 @@ func TestUnRefusDeLaMatriceDitQuoiDemander(t *testing.T) {
 	}
 }
 
-// Les lignes fournies ne se modifient pas, et l'administrateur ne s'attribue
-// pas : c'est le role de l'annuaire.
-func TestLesLignesFourniesSontVerrouillees(t *testing.T) {
+// Le nom d'une ligne fournie reste celui de la plateforme : les cases sont a
+// l'installation, le libelle non. Et l'administrateur ne s'attribue pas :
+// c'est le role de l'annuaire.
+func TestLeLibelleDUneLigneFournieResteCeluiDeLaPlateforme(t *testing.T) {
 	roles := memory.NewPlatformRoleStore()
 	h := Handlers{authMode: "header", platformRoleStore: roles, bootstrapAdminUser: "admin"}
-	for _, key := range []string{platformrole.KeyUser, platformrole.KeyAdministrator} {
-		requete := httptest.NewRequest(http.MethodPut, "/api/v1/admin/platform-roles/"+key, strings.NewReader(`{"name":"x","capabilities":[]}`))
-		requete.Header.Set(userHeader, "admin")
-		requete.SetPathValue("roleKey", key)
-		vue := httptest.NewRecorder()
-		h.UpsertPlatformRole(vue, requete)
-		if vue.Code != http.StatusConflict {
-			t.Fatalf("la ligne fournie %s a ete modifiee (%d)", key, vue.Code)
-		}
+	requete := httptest.NewRequest(http.MethodPut, "/api/v1/admin/platform-roles/user", strings.NewReader(`{"name":"Chercheur","description":"autre chose","capabilities":[]}`))
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("roleKey", platformrole.KeyUser)
+	vue := httptest.NewRecorder()
+	h.UpsertPlatformRole(vue, requete)
+	if vue.Code != http.StatusOK {
+		t.Fatalf("les cases d'une ligne fournie sont modifiables (%d)", vue.Code)
 	}
+	vues, _, err := h.allRoles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range vues {
+		if role.Key != platformrole.KeyUser {
+			continue
+		}
+		fournie, _ := platformrole.ShippedByKey(platformrole.KeyUser)
+		if role.Name != fournie.Name || role.Description != fournie.Description {
+			t.Fatalf("le libelle a ete reecrit : %q / %q", role.Name, role.Description)
+		}
+		if len(role.Capabilities) != 0 {
+			t.Fatalf("toutes les cases decochees, la ligne ne porte rien : %+v", role.Capabilities)
+		}
+		if !role.Changed {
+			t.Fatal("une ligne qui ne lit plus le defaut de la plateforme doit le dire")
+		}
+		return
+	}
+	t.Fatal("la ligne utilisateur a disparu de la matrice")
 }
 
 // Nommer un administrateur ecrit dans l'annuaire, jamais dans la table des
@@ -176,5 +196,83 @@ func TestUneCaseInconnueEstRefusee(t *testing.T) {
 	h.UpsertPlatformRole(vue, requete)
 	if vue.Code != http.StatusBadRequest {
 		t.Fatalf("une capacite inconnue a ete acceptee (%d)", vue.Code)
+	}
+}
+
+// Une ligne fournie se coche sur son installation (ADR-049, revu le
+// 30/10/2026) : le nom et la description restent ceux de la plateforme, les
+// cases sont a l'installation. Essilor veut que ses utilisateurs rattachent
+// de la donnee reglementee sans nommer un role pour tout le monde.
+func TestUneLigneFournieSeCocheSurSonInstallation(t *testing.T) {
+	roles := memory.NewPlatformRoleStore()
+	h := Handlers{authMode: "header", platformRoleStore: roles, bootstrapAdminUser: "admin"}
+	personne := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
+
+	if h.can(personne, platformrole.AttachRegulatedData) {
+		t.Fatal("par defaut, la ligne utilisateur ne rattache pas de donnee reglementee")
+	}
+
+	// L'administrateur coche la case sur la ligne utilisateur.
+	voulu := append([]platformrole.Capability(nil), platformrole.AttachRegulatedData)
+	shipped, _ := platformrole.ShippedByKey(platformrole.KeyUser)
+	voulu = append(voulu, shipped.Capabilities...)
+	corps, _ := json.Marshal(map[string]any{"name": "Utilisateur", "capabilities": voulu})
+	requete := httptest.NewRequest(http.MethodPut, "/api/v1/admin/platform-roles/user", strings.NewReader(string(corps)))
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("roleKey", platformrole.KeyUser)
+	vue := httptest.NewRecorder()
+	h.UpsertPlatformRole(vue, requete)
+	if vue.Code != http.StatusOK {
+		t.Fatalf("la ligne utilisateur doit accepter la case (%d) : %s", vue.Code, vue.Body.String())
+	}
+	if !h.can(personne, platformrole.AttachRegulatedData) {
+		t.Fatal("la case cochee doit valoir pour tout compte sans attribution")
+	}
+	if h.can(personne, platformrole.AdministerOrganization) {
+		t.Fatal("cocher une case n'en coche pas d'autres")
+	}
+
+	// C'est une difference, pas une copie : une fonction que la plateforme
+	// ajoutera plus tard arrive quand meme - ce que le verrou protegeait.
+	stockees, err := roles.ListOverrides()
+	if err != nil || len(stockees) != 1 {
+		t.Fatalf("une seule difference doit etre stockee : %+v %v", stockees, err)
+	}
+	if len(stockees[0].Added) != 1 || stockees[0].Added[0] != platformrole.AttachRegulatedData || len(stockees[0].Removed) != 0 {
+		t.Fatalf("la difference doit etre « +attach-regulated-data » : %+v", stockees[0])
+	}
+	augmentee := platformrole.Role{Key: platformrole.KeyUser, Capabilities: []platformrole.Capability{platformrole.CreateProject, platformrole.DeclareRepository}}
+	if applied := stockees[0].Apply(augmentee); !applied.Has(platformrole.DeclareRepository) || !applied.Has(platformrole.AttachRegulatedData) {
+		t.Fatalf("une ligne fournie qui gagne une fonction doit la garder : %+v", applied.Capabilities)
+	}
+
+	// Decochee, l'installation revient a la reponse de la plateforme et rien
+	// ne reste stocke.
+	corps, _ = json.Marshal(map[string]any{"name": "Utilisateur", "capabilities": shipped.Capabilities})
+	requete = httptest.NewRequest(http.MethodPut, "/api/v1/admin/platform-roles/user", strings.NewReader(string(corps)))
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("roleKey", platformrole.KeyUser)
+	vue = httptest.NewRecorder()
+	h.UpsertPlatformRole(vue, requete)
+	if vue.Code != http.StatusOK {
+		t.Fatalf("decocher doit marcher (%d)", vue.Code)
+	}
+	if h.can(personne, platformrole.AttachRegulatedData) {
+		t.Fatal("decochee, la case ne vaut plus")
+	}
+	if stockees, _ := roles.ListOverrides(); len(stockees) != 0 {
+		t.Fatalf("revenue au defaut, l'installation ne garde aucune difference : %+v", stockees)
+	}
+
+	// La ligne administrateur ne se touche pas : c'est celle sur laquelle on
+	// retombe, et une case decochee la perdrait.
+	corps, _ = json.Marshal(map[string]any{"name": "Administrateur", "capabilities": []string{}})
+	requete = httptest.NewRequest(http.MethodPut, "/api/v1/admin/platform-roles/administrator", strings.NewReader(string(corps)))
+	requete.Header.Set(userHeader, "admin")
+	requete.SetPathValue("roleKey", platformrole.KeyAdministrator)
+	vue = httptest.NewRecorder()
+	h.UpsertPlatformRole(vue, requete)
+	if vue.Code != http.StatusConflict {
+		t.Fatalf("la ligne administrateur doit etre refusee (%d)", vue.Code)
 	}
 }

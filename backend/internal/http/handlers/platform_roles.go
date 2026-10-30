@@ -25,13 +25,35 @@ import (
 // or custom row; nobody assigned means the user row, which is what every
 // account could already do.
 
+// shippedRole is a shipped row as this installation decided it: the
+// platform's own definition, with the difference an administrator chose
+// applied on top.
+func (h Handlers) shippedRole(key string) platformrole.Role {
+	role, _ := platformrole.ShippedByKey(key)
+	if h.platformRoleStore == nil || !platformrole.Overridable(key) {
+		return role
+	}
+	overrides, err := h.platformRoleStore.ListOverrides()
+	if err != nil {
+		// The platform's own answer rather than a refusal: a storage hiccup
+		// must not change what anybody may do.
+		return role
+	}
+	for _, override := range overrides {
+		if strings.EqualFold(override.RoleKey, key) {
+			return override.Apply(role)
+		}
+	}
+	return role
+}
+
 // platformRoleOf resolves the row this caller holds.
 func (h Handlers) platformRoleOf(identity auth.Identity) platformrole.Role {
 	if h.isGlobalAdmin(identity) {
 		role, _ := platformrole.ShippedByKey(platformrole.KeyAdministrator)
 		return role
 	}
-	user, _ := platformrole.ShippedByKey(platformrole.KeyUser)
+	user := h.shippedRole(platformrole.KeyUser)
 	if h.platformRoleStore == nil {
 		return user
 	}
@@ -44,7 +66,7 @@ func (h Handlers) platformRoleOf(identity auth.Identity) platformrole.Role {
 			continue
 		}
 		if shipped, ok := platformrole.ShippedByKey(assignment.RoleKey); ok && shipped.Assignable {
-			return shipped
+			return h.shippedRole(shipped.Key)
 		}
 		if custom, ok, err := h.platformRoleStore.GetCustom(assignment.RoleKey); err == nil && ok {
 			return custom
@@ -82,6 +104,19 @@ func (h Handlers) allRoles() ([]platformrole.Role, map[string]int, error) {
 	roles := platformrole.Shipped()
 	counts := map[string]int{}
 	if h.platformRoleStore != nil {
+		// Each shipped row as this installation decided it.
+		if overrides, err := h.platformRoleStore.ListOverrides(); err == nil {
+			for index, role := range roles {
+				if !platformrole.Overridable(role.Key) {
+					continue
+				}
+				for _, override := range overrides {
+					if strings.EqualFold(override.RoleKey, role.Key) {
+						roles[index] = override.Apply(role)
+					}
+				}
+			}
+		}
 		custom, err := h.platformRoleStore.ListCustom()
 		if err != nil {
 			return nil, nil, err
@@ -179,8 +214,21 @@ type platformRoleRequest struct {
 	Capabilities []string `json:"capabilities"`
 }
 
-// UpsertPlatformRole writes a custom row. A shipped key is refused: a locked
-// row describes what the platform does and is not a setting.
+// UpsertPlatformRole writes a row: a custom one whole, a shipped one as the
+// difference from what the platform ships.
+//
+// The shipped rows were refused outright, which was right about one thing and
+// wrong about another. Their name and description are the platform describing
+// itself and stay fixed. Which boxes they carry is the installation's: the
+// user row is the default every account holds, and an installation that wants
+// its people to attach regulated data - Essilor asked on 2026-10-30 - should
+// say so in the matrix rather than naming a role for everybody. Stored as a
+// difference, never as a copy, so a shipped row that gains a function in a
+// later release still gains it here.
+//
+// The administrator row stays fixed: it is what an installation falls back
+// on, and a box unticked there is how a platform loses its own
+// administration.
 func (h Handlers) UpsertPlatformRole(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireAdminModule(w, r, "rbac policy")
 	if !ok {
@@ -191,8 +239,8 @@ func (h Handlers) UpsertPlatformRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := strings.ToLower(strings.TrimSpace(r.PathValue("roleKey")))
-	if _, shipped := platformrole.ShippedByKey(key); shipped {
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "role " + key + " ships with the platform and cannot be changed; add a role of your own instead"})
+	if shipped, isShipped := platformrole.ShippedByKey(key); isShipped {
+		h.overrideShippedRole(w, r, identity, shipped)
 		return
 	}
 	if key == "" || strings.ContainsAny(key, " /\\") {
@@ -467,4 +515,36 @@ func (h Handlers) withdrawAdministratorIfNamed(w http.ResponseWriter, r *http.Re
 	h.emitAdvancedAudit(r, identity.UserID(), "platform_role.cleared", "user", userID, "", "success", "",
 		map[string]any{"roleKey": platformrole.KeyAdministrator, "directory": true})
 	return true
+}
+
+// overrideShippedRole stores what this installation ticked on a shipped row.
+func (h Handlers) overrideShippedRole(w http.ResponseWriter, r *http.Request, identity auth.Identity, shipped platformrole.Role) {
+	if !platformrole.Overridable(shipped.Key) {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "the administrator row is what the platform falls back on and does not change; it already carries every function",
+		})
+		return
+	}
+	var req platformRoleRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+	wanted := make([]platformrole.Capability, 0, len(req.Capabilities))
+	for _, capability := range req.Capabilities {
+		if !platformrole.Known(capability) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown capability " + capability})
+			return
+		}
+		wanted = append(wanted, platformrole.Capability(capability))
+	}
+	override := platformrole.DifferenceFrom(shipped, wanted)
+	override.UpdatedBy = identity.UserID()
+	if err := h.platformRoleStore.SetOverride(override); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save the role"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "platform_role.overridden", "platform_role", shipped.Key, "", "success", "",
+		map[string]any{"added": override.Added, "removed": override.Removed})
+	writeJSON(w, http.StatusOK, override.Apply(shipped))
 }
