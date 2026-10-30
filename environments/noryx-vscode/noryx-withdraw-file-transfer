@@ -1,0 +1,61 @@
+"""Withdraw the editor's Download and Upload entries from the explorer menu.
+
+Essilor, 2026-10-30: a right click on a file in the workspace takes it to the
+person's own machine. That path is not the network - it rides the session the
+browser already has, so the egress profile of a regulated project does not
+touch it - and this editor has no option to turn it off. The option exists in
+a competing product, and the request upstream (microsoft/vscode#296374, opened
+19 February 2026) has no comment, no milestone and no owner.
+
+So it is withdrawn here, at build time, in the one minified file the browser
+loads. Two calls register the two menu items, and each is prefixed with a
+falsy guard: `0&&f(...)` is valid JavaScript inside the comma chain they live
+in, it never calls, and nothing else about the bundle moves. Deleting the
+calls instead would mean balancing parentheses inside minified code, which is
+how a patch stops being reviewable.
+
+The anchors are the names that come from the source rather than from the
+minifier - `appendMenuItem`, `ExplorerContext`, the group `5b_importexport` -
+so they survive a version bump that renames every local variable. And the
+count is asserted: exactly two matches, or this exits non-zero and no image is
+produced. A patch against code we do not own has to fail loudly, because the
+alternative is an image that quietly serves the button again.
+
+What this does not do, and it has to be said next to what it does: the person
+still has a terminal in that container, so somebody determined keeps what they
+can already read. This removes the gesture, which is the volume. And it does
+not stop a drag and drop into the explorer - that is a different handler, not
+this menu item.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+BUNDLE = Path("/opt/openvscode-server/out/vs/code/browser/workbench/workbench.js")
+
+# <local>.appendMenuItem(<local>.ExplorerContext,{group:"5b_importexport",order:10,
+ANCHOR = re.compile(
+    r'([A-Za-z_$][\w$]*)\.appendMenuItem\('
+    r'([A-Za-z_$][\w$]*)\.ExplorerContext,\{group:"5b_importexport",order:(?:10|20),'
+)
+
+source = BUNDLE.read_text(encoding="utf-8")
+found = ANCHOR.findall(source)
+if len(found) != 2:
+    print(
+        f"noryx: expected 2 file-transfer menu registrations in {BUNDLE}, found {len(found)}.\n"
+        "The editor's bundle changed shape. Read the new registrations before shipping an\n"
+        "image: the Download and Upload entries of the explorer context menu must not come\n"
+        "back silently.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+patched = ANCHOR.sub(lambda m: "0&&" + m.group(0), source)
+if patched == source:
+    print("noryx: the guard was not inserted", file=sys.stderr)
+    raise SystemExit(1)
+
+BUNDLE.write_text(patched, encoding="utf-8")
+print("noryx: withdrew the explorer's Download and Upload entries (2 registrations)")

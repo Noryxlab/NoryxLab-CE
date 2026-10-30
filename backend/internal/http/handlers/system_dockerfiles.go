@@ -190,6 +190,17 @@ RUN mkdir -p /opt/openvscode-server \
 COPY environments/noryx-vscode/noryx-configure-extension-gallery /tmp/noryx-configure-extension-gallery
 RUN python3 /tmp/noryx-configure-extension-gallery && rm -f /tmp/noryx-configure-extension-gallery
 
+# Le telechargement et le televersement par le menu de l'explorateur.
+#
+# Demande d'Essilor du 30/10/2026 : un clic droit sur un fichier le fait
+# descendre sur le poste de la personne. Ce chemin n'est pas le reseau - il
+# emprunte la session que le navigateur a deja, donc le profil de sortie d'un
+# projet reglemente ne le touche pas - et cet editeur n'a aucune option pour
+# le retirer. Le script le retire du paquet servi au navigateur, et il echoue
+# bruyamment si le paquet a change de forme.
+COPY environments/noryx-vscode/noryx-withdraw-file-transfer /tmp/noryx-withdraw-file-transfer
+RUN python3 /tmp/noryx-withdraw-file-transfer && rm -f /tmp/noryx-withdraw-file-transfer
+
 RUN useradd -m -s /bin/bash noryx \
  && usermod -aG sudo noryx \
  && echo 'noryx ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-noryx \
