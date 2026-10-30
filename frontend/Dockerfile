@@ -54,6 +54,16 @@ LABEL org.opencontainers.image.description="Noryx CE frontend"
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+
+# The version the image serves, written by the build that knows it.
+#
+# It used to be a ConfigMap key mounted over this path, which a deployment by
+# `kubectl set image` does not touch - so on 2026-10-30 the DC served this
+# image at 0.76.0-ee.135 while /version.json answered ee.106, thirty releases
+# behind and wrong since. The version of a served frontend is a property of
+# the image; "dev" is what a build that did not say produces.
+ARG NORYX_VERSION=dev
+RUN printf '{"version": "%s"}\n' "$NORYX_VERSION" > /usr/share/nginx/html/version.json
 COPY --from=fonts \
      /fonts/node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2 \
      /usr/share/nginx/html/fonts/plus-jakarta-sans.woff2

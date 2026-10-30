@@ -42,8 +42,12 @@ data:
         requireOrganization: false
       }
     };
+  # Not mounted: the image writes its own /version.json, because a deployment
+  # that changes the image does not change this ConfigMap and the two drifted
+  # for thirty releases. Kept because the Enterprise overlay splices its
+  # extension keys against this line.
   version.json: |
-    {"version":"ce-web-0.7.0"}
+    {"version":"unused-the-image-says"}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -76,9 +80,6 @@ spec:
             - name: front-config
               mountPath: /usr/share/nginx/html/config.js
               subPath: config.js
-            - name: front-config
-              mountPath: /usr/share/nginx/html/version.json
-              subPath: version.json
           readinessProbe:
             httpGet:
               path: /index.html
