@@ -1,6 +1,9 @@
 # source_image target_image
-postgres:16 harbor.example.local/noryx-ce/postgres:16
+postgres:16.15 harbor.example.local/noryx-ce/postgres:16.15
 quay.io/keycloak/keycloak:26.6.2 harbor.example.local/noryx-ce/keycloak:26.6.2
 # Upstream stopped serving this release anonymously. NoryxLab mirrors the
 # unchanged upstream image at a pinned digest; see docs/IMAGE_MIRRORS.md.
+# MinIO is built, not mirrored: upstream no longer distributes community
+# images. See docs/IMAGE_MIRRORS.md and scripts/ops/build-minio-image.sh.
+# The line below bootstraps an installation that cannot build yet.
 ghcr.io/noryxlab/noryx-ce-minio@sha256:5c1e0c9ca1c34b1f2a0f66345f5e2acd2efe98b3aa91089b5cf8ff08b593cda7 harbor.example.local/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z

@@ -55,7 +55,8 @@ spec:
             limits:
               cpu: "2"
               memory: "2Gi"
-          image: harbor.example.local/noryx-ce/minio:RELEASE.2025-02-18T16-25-55Z
+          # Built from source, not mirrored: see docs/IMAGE_MIRRORS.md.
+          image: harbor.example.local/noryx-ce/minio:RELEASE.2025-10-15T17-29-55Z-noryx3
           args: ["server", "/data", "--console-address", ":9001"]
           ports:
             - containerPort: 9000

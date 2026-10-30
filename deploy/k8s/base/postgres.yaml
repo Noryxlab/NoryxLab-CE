@@ -59,7 +59,7 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi"
-          image: harbor.example.local/noryx-ce/postgres:16
+          image: harbor.example.local/noryx-ce/postgres:16.15
           ports:
             - containerPort: 5432
           env:
