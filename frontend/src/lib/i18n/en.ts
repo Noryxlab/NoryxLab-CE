@@ -1277,6 +1277,7 @@ export const en: Translations = {
   access: {
     title: "Access",
     rule: "Owning administers, writes and shares; Write and Read are grants on the object, to a person, a team or an organization. Belonging to an organization gives nothing by itself.",
+    connectorHint: "A connector is shared for use: run it in a workspace and see who else holds it. Changing what it points at stays with the owner, because it redirects everybody who mounts it.",
     frozenHint: "An extract is frozen: it is read, never written. The owner shares and deletes it.",
     owner: "Owner",
     ownerMeans: "administers, writes, shares",

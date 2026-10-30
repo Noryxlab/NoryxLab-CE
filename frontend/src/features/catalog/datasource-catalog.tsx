@@ -57,7 +57,7 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
   const invalidate = useInvalidate();
   const access = useDatasourceAccess(datasource.id);
   const grant = useMutation({
-    mutationFn: (input: { subjectType: string; subjectId: string; role: string }) => datasourcesApi.grant(datasource.id, input.subjectType, input.subjectId, input.role),
+    mutationFn: (input: { subjectType: string; subjectId: string }) => datasourcesApi.grant(datasource.id, input.subjectType, input.subjectId, 'reader'),
     onSuccess: () => invalidate(qk.datasourceAccess(datasource.id)),
     onError: (error) => toast.error(error, t('access.grant')),
   });
@@ -70,6 +70,8 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
     <AccessPanel
       title={t('access.title')}
       hint={t('datasources.permissionsHint')}
+      roles="readOnly"
+      readOnlyHint="connectorHint"
       owner={{ type: datasource.ownerType, id: datasource.ownerId || datasource.ownerUserId, name: datasource.ownerName }}
       entries={access.data}
       isLoading={access.isLoading}
@@ -77,7 +79,7 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
       error={access.error}
       onRetry={() => void access.refetch()}
       
-      onGrant={(subjectType, subjectId, role) => grant.mutate({ subjectType, subjectId, role })}
+      onGrant={(subjectType, subjectId) => grant.mutate({ subjectType, subjectId })}
       granting={grant.isPending}
       onRevoke={(entry) => revoke.mutate(entry)}
     />

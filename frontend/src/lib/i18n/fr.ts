@@ -1305,6 +1305,7 @@ export const fr = {
   access: {
     title: "Accès",
     rule: "Posséder administre, a l’écriture et partage ; Écriture et Lecture sont des octrois sur l’objet, à une personne, une équipe ou une organisation. Appartenir à une organisation ne donne rien par soi-même.",
+    connectorHint: "Une source se prête en lecture : l’utiliser dans un workspace et voir qui d’autre la détient. Changer ce vers quoi elle pointe reste au propriétaire, parce que cela redirige tous ceux qui la montent.",
     frozenHint: "Un extrait est gelé : il se lit, il ne s’écrit pas. Le propriétaire le partage et le supprime.",
     owner: "Propriétaire",
     ownerMeans: "administre, écrit, partage",

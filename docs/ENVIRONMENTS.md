@@ -49,6 +49,36 @@ In the `Environments` tab:
 - edit Dockerfile inline
 - submit a new build revision directly from edited Dockerfile content
 
+## The base image
+
+A Dockerfile written in the environment screen may name a platform
+environment without its registry — `FROM noryx-jupyter`, and `noryx-python`,
+the name the Jupyter image used to carry. The platform rewrites those to the
+image this installation is configured to run, keeping a tag chosen on purpose
+and the `FROM`'s own options, and stores the resolved reference. A reference
+that already names a registry, or an image the platform does not own such as
+`python:3.12-slim`, is left exactly as written.
+
+Without that, a bare name goes to Docker Hub: every environment started from
+the blank template failed with "authentication required" against a registry
+nobody had asked for.
+
+## Building a revision
+
+A revision is a record, not a state: an environment whose only revision
+failed keeps showing that failure until a new revision is built. Nothing
+replays a build.
+
+From the environment list, the row menu offers *build a revision*, which opens
+the panel on the environment's definition with its build project already
+filled in — the project that built the previous revision. Creating an
+environment still asks for the project explicitly and never defaults it,
+because a build spends that project's quota and is attributed to it.
+
+A failed revision keeps its reason. The build pod is deleted with its job
+within the day, so the last error line is copied into the record when the
+status is read, and shown beside the verdict in the revision list.
+
 ## Notes and limits
 
 - Dockerfile fetch currently supports public repositories on:

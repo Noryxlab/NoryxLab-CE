@@ -521,7 +521,9 @@ Three words on the data, the same on a dataset, an ontology, an extract and a
 data source. **Owner** has write and shares: transfers, grants, deletes.
 **Write** and **Read** are grants on the object, to a person, a team or an
 organization; only the owner and an administrator share. An extract is
-frozen: Owner and Read only.
+frozen: Owner and Read only. A data source carries Owner and Read too, for a
+different reason: changing what a connector points at redirects everybody who
+mounts it, so it stays with the owner.
 
 When the owner is an organization, "owner" names its administrators (ADR-048):
 they have write and share, and the members hold what is granted to them.

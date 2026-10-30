@@ -16,9 +16,21 @@ Scope:
 
 - `GET /api/v1/datasources`
 - `GET /api/v1/datasource-definitions`
-- `POST /api/v1/datasources`
-- `POST /api/v1/dataservices`
+- `POST /api/v1/datasources` — declare a connector to a database that already
+  exists: host, port, database, user, and the name of a secret holding the
+  password
+- `POST /api/v1/dataservices` — create a database the platform runs: an engine
+  from `GET /api/v1/datasource-definitions`, a volume, a hardware tier, and
+  credentials the platform generates
+
+Both produce a data source, attachable to a project, told apart by `source`
+(`internal` for one the platform runs) and by the pod, service and volume an
+internal one carries. The interface currently offers only the first; creating
+a database is reachable through the API alone.
 - `DELETE /api/v1/datasources/{datasourceID}`
+- `GET /api/v1/datasources/{datasourceID}/access`
+- `PUT|DELETE /api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}`
+- `PUT /api/v1/datasources/{datasourceID}/ownership`
 - `POST /api/v1/datasources/{datasourceID}/validate`
 - `GET /api/v1/datasources/{datasourceID}/logs`
 - `POST /api/v1/datasources/{datasourceID}/restart`
@@ -113,3 +125,21 @@ For each attached datasource:
 - `NORYX_DS_<NAME>_USERNAME`
 - `NORYX_DS_<NAME>_PASSWORD`
 - `NORYX_DS_<NAME>_SSLMODE`
+
+## Who may do what
+
+**Owner** — a person, a team or an organization — grants, transfers and
+deletes. **Read** is the only right granted on a connector: use it in a
+workspace, and see who else holds it.
+
+There is no Write. The role existed, was stored, and was read by nothing:
+a connector has no edit route, so both values granted exactly the same thing
+and the screen offered a choice that decided nothing. A grant asking for
+`writer` is recorded as `reader`, which is what the platform honours, and the
+screen offers one right.
+
+Changing what a connector points at therefore stays with its owner. That is
+defensible — a host changed under a shared connector silently redirects every
+workspace that mounts it — and it is also a decision rather than a law: giving
+a connector an edit route, restricted to a named role, is the other way to
+make a second right mean something.

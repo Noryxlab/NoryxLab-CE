@@ -5,8 +5,13 @@ Two documents describe it, generated from the router by
 
 | Document | Served at | What it holds |
 | --- | --- | --- |
-| `openapi.public.yaml` | `/swagger/openapi.public.yaml` | the supported API: 168 operations an integration may build on |
-| `openapi.yaml` | `/swagger/openapi.yaml` | everything the platform serves, 187 operations, internal ones included |
+| `openapi.public.yaml` | `/swagger/openapi.public.yaml` | the supported API: what an integration may build on |
+| `openapi.yaml` | `/swagger/openapi.yaml` | everything the platform serves, internal operations included |
+
+Neither count is quoted here. They were, and they rotted: the prose said 168
+and 187 while the documents held 236 and 257, because CI checks the documents
+against the router and nothing checks a sentence against the documents. The
+documents are the count.
 
 Swagger UI is at `/swagger`, which loads the supported document; `/swagger?spec=full`
 loads the other, and each page links to the other. It is
@@ -42,3 +47,19 @@ the ones added tomorrow.
 
 CI runs `generate-openapi.py --check`, which fails when a route is
 undocumented **and** when either document is out of date with the source.
+
+## The API is list-shaped
+
+There is no "read one object" endpoint for a dataset, an ontology, an extract,
+a data source, a repository, a project, an app, a job, a workspace, a build or
+an environment. Only a secret has one. Every screen that shows one object
+lists them and picks, which is why nothing in the interface misses it.
+
+An integration should expect the same: ask for the collection, filter on the
+`id`. It also means the collection is the access decision - an object you hold
+no right on is absent from your listing rather than refused by name, which is
+the same answer `GET` on a named object gives elsewhere: not found, never
+forbidden, because naming an identifier should not confirm that it exists.
+
+Measured on 2026-10-30 by a sweep that generated two accounts and used nothing
+but this API.

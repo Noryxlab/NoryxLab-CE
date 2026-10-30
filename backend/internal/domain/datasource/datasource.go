@@ -15,9 +15,17 @@ import (
 // same database each declared their own - the same host, the same credentials,
 // copied by hand, and no way to answer who could reach what.
 //
-// Same shape as a dataset's, and the same two roles: a reader may use the
-// connector in a workspace, a writer may also edit its definition. Deciding
-// who gets it stays with the owner.
+// Same shape as a dataset's, and one role: a reader may use the connector in
+// a workspace and see who else holds it. Deciding who gets it, and changing
+// what the connector points at, stays with the owner.
+//
+// It said a writer "may also edit its definition", and nothing read that
+// value: there is no route that edits a connector, so Write and Read were the
+// same right under two names - a screen offering a choice that decided
+// nothing. Corrected on 2026-10-30 by a sweep that measured both. Giving a
+// connector an edit route is the other way to make the sentence true, and it
+// is a decision rather than a correction: changing a host silently redirects
+// every workspace that mounts it.
 type Access struct {
 	DatasourceID string    `json:"datasourceId"`
 	SubjectType  string    `json:"subjectType"`
