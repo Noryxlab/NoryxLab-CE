@@ -3,7 +3,9 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/access"
 	appdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
@@ -118,5 +120,67 @@ func TestLireUnObjetParSonIdentifiant(t *testing.T) {
 		if vue := appel(porte, "alice", "inexistant"); vue.Code != http.StatusNotFound {
 			t.Errorf("%s : un identifiant inconnu doit etre introuvable, et donne %d", porte.nom, vue.Code)
 		}
+	}
+}
+
+// Ecriture sur un connecteur veut dire quelque chose : changer ce vers quoi
+// il pointe. Lecture non, et la plateforme garde les details d'une base
+// qu'elle fait tourner elle-meme.
+func TestEcrireSurUnConnecteur(t *testing.T) {
+	sources := memory.NewDatasourceStore()
+	externe := datasourcedomain.Datasource{ID: "s1", Name: "Base", Type: "postgres", Host: "ancien.invalid", Port: 5432,
+		Database: "x", Username: "x", PasswordSecret: "mdp", SSLMode: "disable",
+		OwnerType: "user", OwnerID: "alice", OwnerUserID: "alice"}
+	if err := sources.Create(externe); err != nil {
+		t.Fatal(err)
+	}
+	interne := externe
+	interne.ID, interne.Name, interne.Source = "s2", "Base geree", "internal"
+	if err := sources.Create(interne); err != nil {
+		t.Fatal(err)
+	}
+	h := Handlers{authMode: "header", datasourceStore: sources, projectResourceStore: memory.NewProjectResourceStore()}
+
+	modifier := func(qui, id, corps string) *httptest.ResponseRecorder {
+		requete := httptest.NewRequest(http.MethodPut, "/api/v1/datasources/"+id, strings.NewReader(corps))
+		requete.Header.Set(userHeader, qui)
+		requete.SetPathValue("datasourceID", id)
+		vue := httptest.NewRecorder()
+		h.UpdateDatasource(vue, requete)
+		return vue
+	}
+
+	// Un etranger : introuvable, pas interdit.
+	if vue := modifier("bob", "s1", `{"name":"vole"}`); vue.Code != http.StatusNotFound {
+		t.Fatalf("un etranger doit recevoir introuvable, pas %d", vue.Code)
+	}
+
+	// Lecture octroyee : il la voit, il ne la change pas.
+	now := time.Now().UTC()
+	if err := sources.SetAccess(datasourcedomain.Access{DatasourceID: "s1", SubjectType: "user", SubjectID: "bob", Role: "reader", CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if vue := modifier("bob", "s1", `{"name":"vole"}`); vue.Code != http.StatusForbidden {
+		t.Fatalf("Lecture ne change pas un connecteur : %d", vue.Code)
+	}
+
+	// Ecriture octroyee : il change l'hote.
+	if err := sources.SetAccess(datasourcedomain.Access{DatasourceID: "s1", SubjectType: "user", SubjectID: "bob", Role: "writer", CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if vue := modifier("bob", "s1", `{"name":"Base","host":"nouveau.invalid"}`); vue.Code != http.StatusOK {
+		t.Fatalf("Ecriture change un connecteur : %d (%s)", vue.Code, vue.Body.String())
+	}
+	apres, _, _ := sources.GetByID("s1")
+	if apres.Host != "nouveau.invalid" || apres.Database != "x" {
+		t.Fatalf("seul ce qui est demande change : %+v", apres)
+	}
+
+	// Une base que la plateforme fait tourner garde ses details.
+	if vue := modifier("alice", "s2", `{"name":"Base geree","host":"ailleurs.invalid"}`); vue.Code != http.StatusConflict {
+		t.Fatalf("les details d'une base geree ne se changent pas : %d", vue.Code)
+	}
+	if vue := modifier("alice", "s2", `{"name":"Base rebaptisee"}`); vue.Code != http.StatusOK {
+		t.Fatalf("son nom, si : %d (%s)", vue.Code, vue.Body.String())
 	}
 }

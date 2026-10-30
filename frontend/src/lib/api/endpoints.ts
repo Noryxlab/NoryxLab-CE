@@ -504,6 +504,11 @@ export const datasourcesApi = {
   list: () => api.list<Datasource>(`${V1}/datasources`),
   definitions: () => api.list<DatasourceDefinition>(`${V1}/datasource-definitions`),
   create: (input: Record<string, unknown>) => api.post<Datasource>(`${V1}/datasources`, input),
+  get: (datasourceId: string) => api.get<Datasource>(`${V1}/datasources/${datasourceId}`),
+  /** Changes what a connector points at. Write on it, or its ownership: a
+   *  host changed here redirects every workspace that mounts it. */
+  update: (datasourceId: string, input: Record<string, unknown>) =>
+    api.put<Datasource>(`${V1}/datasources/${datasourceId}`, input),
   remove: (datasourceId: string) => api.delete<void>(`${V1}/datasources/${datasourceId}`),
   /** Hands a connector to a person, a team or an organization. It points at a
    *  system the organization runs, so it outlives whoever declared it. */

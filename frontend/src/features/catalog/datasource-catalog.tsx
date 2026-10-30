@@ -57,7 +57,7 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
   const invalidate = useInvalidate();
   const access = useDatasourceAccess(datasource.id);
   const grant = useMutation({
-    mutationFn: (input: { subjectType: string; subjectId: string }) => datasourcesApi.grant(datasource.id, input.subjectType, input.subjectId, 'reader'),
+    mutationFn: (input: { subjectType: string; subjectId: string; role: string }) => datasourcesApi.grant(datasource.id, input.subjectType, input.subjectId, input.role),
     onSuccess: () => invalidate(qk.datasourceAccess(datasource.id)),
     onError: (error) => toast.error(error, t('access.grant')),
   });
@@ -70,8 +70,7 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
     <AccessPanel
       title={t('access.title')}
       hint={t('datasources.permissionsHint')}
-      roles="readOnly"
-      readOnlyHint="connectorHint"
+      rule="access.connectorHint"
       owner={{ type: datasource.ownerType, id: datasource.ownerId || datasource.ownerUserId, name: datasource.ownerName }}
       entries={access.data}
       isLoading={access.isLoading}
@@ -79,10 +78,97 @@ function DatasourcePermissions({ datasource }: { datasource: Datasource }) {
       error={access.error}
       onRetry={() => void access.refetch()}
       
-      onGrant={(subjectType, subjectId) => grant.mutate({ subjectType, subjectId })}
+      onGrant={(subjectType, subjectId, role) => grant.mutate({ subjectType, subjectId, role })}
       granting={grant.isPending}
       onRevoke={(entry) => revoke.mutate(entry)}
     />
+  );
+}
+
+/** Changing what a connector points at: Write on it, or its ownership. A
+ *  database the platform runs keeps its own connection details, so only its
+ *  name is offered there. */
+function DatasourceDefinitionForm({ datasource }: { datasource: Datasource }) {
+  const t = useT();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const secrets = useSecrets();
+  const managed = datasource.source === 'internal';
+  const [draft, setDraft] = React.useState({
+    name: datasource.name,
+    host: datasource.host ?? '',
+    port: String(datasource.port ?? ''),
+    database: datasource.database ?? '',
+    username: datasource.username ?? '',
+    passwordSecret: datasource.passwordSecret ?? '',
+    sslMode: datasource.sslMode ?? 'disable',
+  });
+  const save = useMutation({
+    mutationFn: () =>
+      datasourcesApi.update(
+        datasource.id,
+        managed
+          ? { name: draft.name.trim() }
+          : {
+              name: draft.name.trim(),
+              host: draft.host.trim(),
+              port: Number(draft.port) || 0,
+              database: draft.database.trim(),
+              username: draft.username.trim(),
+              passwordSecret: draft.passwordSecret,
+              sslMode: draft.sslMode,
+            },
+      ),
+    onSuccess: () => {
+      invalidate(qk.datasources);
+      toast.success(draft.name.trim(), t('datasources.definitionSaved'));
+    },
+    onError: (error) => toast.error(error, t('datasources.definition')),
+  });
+  const set = (key: keyof typeof draft) => (event: React.ChangeEvent<HTMLInputElement>) =>
+    setDraft((previous) => ({ ...previous, [key]: event.target.value }));
+
+  return (
+    <div className="space-y-3">
+      <SectionHeader
+        title={t('datasources.definition')}
+        description={managed ? t('datasources.definitionManagedHint') : t('datasources.definitionHint')}
+      />
+      <Field label={t('common.name')} required>
+        <Input value={draft.name} onChange={set('name')} />
+      </Field>
+      {managed ? null : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+            <Field label={t('common.host')} required>
+              <Input value={draft.host} onChange={set('host')} />
+            </Field>
+            <Field label={t('common.port')}>
+              <Input value={draft.port} onChange={set('port')} />
+            </Field>
+          </div>
+          <Field label={t('datasources.databaseLabel')}>
+            <Input value={draft.database} onChange={set('database')} />
+          </Field>
+          <Field label={t('datasources.usernameLabel')}>
+            <Input value={draft.username} onChange={set('username')} />
+          </Field>
+          <Field label={t('datasources.passwordSecretLabel')} description={t('datasources.passwordSecretHint')}>
+            <Select
+              value={draft.passwordSecret}
+              onValueChange={(value) => setDraft((previous) => ({ ...previous, passwordSecret: value }))}
+              options={(secrets.data ?? []).map((secret) => ({ value: secret.name, label: secret.name }))}
+              placeholder={t('datasources.passwordSecretLabel')}
+            />
+          </Field>
+        </>
+      )}
+      <div className="flex justify-end">
+        <Button variant="primary" loading={save.isPending} disabled={!draft.name.trim()} onClick={() => save.mutate()}>
+          {t('common.save')}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -112,10 +198,11 @@ function DatasourceOwnershipSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent title={datasource?.name ?? t('projects.transferOwnership')}>
+      <SheetContent title={datasource?.name ?? t('datasources.manage')}>
         <SheetBody>
           {datasource ? (
             <div className="space-y-6">
+              <DatasourceDefinitionForm datasource={datasource} />
               <OwnerTransfer
                 owner={datasource}
                 pending={transfer.isPending}

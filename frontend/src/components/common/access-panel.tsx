@@ -49,6 +49,7 @@ export function AccessPanel({
   onRetry,
   roles = 'readWrite',
   readOnlyHint = 'frozenHint',
+  rule,
   onGrant,
   granting,
   onRevoke,
@@ -68,6 +69,9 @@ export function AccessPanel({
   /** Which sentence explains a single-right object: an extract is frozen, a
    *  connector's definition belongs to its owner. */
   readOnlyHint?: 'frozenHint' | 'connectorHint';
+  /** What the two rights mean on this object, when the general sentence is
+   *  not precise enough - a connector's Write redirects its readers. */
+  rule?: 'access.rule' | 'access.connectorHint';
   onGrant: (subjectType: AccessSubjectType, subjectId: string, role: string) => void;
   granting?: boolean;
   onRevoke: (entry: AccessEntry) => void;
@@ -139,7 +143,7 @@ export function AccessPanel({
         <CardHeaderText>
           <CardTitle>{title}</CardTitle>
           <CardDescription>
-            {hint} {roles === 'readOnly' ? t(`access.${readOnlyHint}` as never) : t('access.rule')}
+            {hint} {roles === 'readOnly' ? t(`access.${readOnlyHint}` as never) : t(rule ?? 'access.rule')}
           </CardDescription>
         </CardHeaderText>
       </CardHeader>

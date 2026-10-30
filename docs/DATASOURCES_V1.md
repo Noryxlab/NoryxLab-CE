@@ -27,6 +27,8 @@ Both produce a data source, attachable to a project, told apart by `source`
 (`internal` for one the platform runs) and by the pod, service and volume an
 internal one carries. The interface currently offers only the first; creating
 a database is reachable through the API alone.
+- `GET /api/v1/datasources/{datasourceID}`
+- `PUT /api/v1/datasources/{datasourceID}`
 - `DELETE /api/v1/datasources/{datasourceID}`
 - `GET /api/v1/datasources/{datasourceID}/access`
 - `PUT|DELETE /api/v1/datasources/{datasourceID}/access/{subjectType}/{subjectID}`
@@ -129,17 +131,18 @@ For each attached datasource:
 ## Who may do what
 
 **Owner** — a person, a team or an organization — grants, transfers and
-deletes. **Read** is the only right granted on a connector: use it in a
-workspace, and see who else holds it.
+deletes. **Read** uses the connector in a workspace and sees who else holds
+it. **Write** also changes what it points at, through
+`PUT /api/v1/datasources/{datasourceID}`.
 
-There is no Write. The role existed, was stored, and was read by nothing:
-a connector has no edit route, so both values granted exactly the same thing
-and the screen offered a choice that decided nothing. A grant asking for
-`writer` is recorded as `reader`, which is what the platform honours, and the
-screen offers one right.
+That second right was a promise with nothing behind it until 2026-10-30: there
+was no route that edited a connector, so Write and Read granted exactly the
+same thing under two names, and a rights sweep measuring both found it. The
+route exists now, and the consequence it carries is why its audit entry names
+the fields that moved and says whether the host was one of them: **a host
+changed here redirects every workspace that mounts this connector.**
 
-Changing what a connector points at therefore stays with its owner. That is
-defensible — a host changed under a shared connector silently redirects every
-workspace that mounts it — and it is also a decision rather than a law: giving
-a connector an edit route, restricted to a named role, is the other way to
-make a second right mean something.
+A database the platform runs keeps its own connection details — host, port,
+database, user and password were generated when it created the pod, the
+service and the volume, not chosen by anybody — so only its name changes, and
+anything else is refused with that sentence.

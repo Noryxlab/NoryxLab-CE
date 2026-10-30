@@ -193,6 +193,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/datasource-definitions", h.ListDatasourceDefinitions)
 	mux.HandleFunc("POST /api/v1/dataservices", h.CreateDataService)
 	mux.HandleFunc("POST /api/v1/datasources", h.CreateDatasource)
+	mux.HandleFunc("PUT /api/v1/datasources/{datasourceID}", h.UpdateDatasource)
 	mux.HandleFunc("DELETE /api/v1/datasources/{datasourceID}", h.DeleteDatasource)
 	mux.HandleFunc("POST /api/v1/datasources/{datasourceID}/validate", h.ValidateDatasource)
 	mux.HandleFunc("GET /api/v1/datasources/{datasourceID}/logs", h.GetDataServiceLogs)

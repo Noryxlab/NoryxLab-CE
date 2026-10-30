@@ -181,19 +181,17 @@ func (h Handlers) SetDatasourceAccess(w http.ResponseWriter, r *http.Request) {
 		Role string `json:"role"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
-	// One role, and it is the one enforced.
-	//
-	// "writer" was accepted and stored and read by nothing: a connector has no
-	// edit route, so both values granted exactly the same thing. Rather than
-	// refuse a value integrations already send, it is recorded as what the
-	// platform will honour - the same choice an extract makes, for the same
-	// reason.
+	// Two roles, and both are enforced since the connector gained an edit
+	// route: a reader uses it in a workspace, a writer may also change what
+	// it points at. For one afternoon on 2026-10-30 "writer" was recorded as
+	// "reader", because nothing read it; a grant stored then is a reader, and
+	// that is the safe direction for the one grant that was ever ambiguous.
 	role := strings.ToLower(strings.TrimSpace(req.Role))
-	if role == "" || role == "writer" {
+	if role == "" {
 		role = "reader"
 	}
-	if role != "reader" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be reader: changing what a connector points at stays with its owner"})
+	if role != "reader" && role != "writer" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "role must be reader or writer"})
 		return
 	}
 	if strings.EqualFold(subjectType, item.OwnerType) && strings.EqualFold(subjectID, item.OwnerID) {

@@ -10,6 +10,7 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -251,6 +252,110 @@ func (h Handlers) CreateDatasource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, item)
+}
+
+type updateDatasourceRequest struct {
+	Name           string `json:"name"`
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	Database       string `json:"database"`
+	Username       string `json:"username"`
+	PasswordSecret string `json:"passwordSecret"`
+	SSLMode        string `json:"sslMode"`
+}
+
+// UpdateDatasource changes what a connector points at.
+//
+// This is what makes Write mean something on a connector. Before it, the
+// grant existed, was stored, and was read by nothing: a reader and a writer
+// held exactly the same right, and the screen offered a choice that decided
+// nothing - found on 2026-10-30 by a sweep that measured both.
+//
+// A writer or the owner. The consequence is deliberate and worth stating:
+// a host changed here redirects every workspace that mounts this connector,
+// which is why the audit entry names the fields that moved and says whether
+// the host was one of them.
+//
+// A service the platform runs keeps its connection details. They are not a
+// choice somebody made - the platform generated them when it created the pod,
+// the service and the volume - so only its name can change here, and the
+// refusal says which.
+func (h Handlers) UpdateDatasource(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasourceStore.GetByID(strings.TrimSpace(r.PathValue("datasourceID")))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read the datasource"})
+		return
+	}
+	// Not found rather than forbidden when it is not yours.
+	if !found || !h.canSeeDatasource(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "datasource not found"})
+		return
+	}
+	if !h.canManageDatasource(item, identity) && h.datasourceRole(item, identity) != "writer" {
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "changing what a connector points at needs write on it, or its ownership",
+		})
+		return
+	}
+	var req updateDatasourceRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name is required"})
+		return
+	}
+	internal := strings.EqualFold(strings.TrimSpace(item.Source), "internal")
+	changed := []string{}
+	if name != item.Name {
+		changed = append(changed, "name")
+		item.Name = name
+	}
+	if !internal {
+		for _, field := range []struct {
+			name    string
+			current *string
+			wanted  string
+		}{
+			{"host", &item.Host, strings.TrimSpace(req.Host)},
+			{"database", &item.Database, strings.TrimSpace(req.Database)},
+			{"username", &item.Username, strings.TrimSpace(req.Username)},
+			{"passwordSecret", &item.PasswordSecret, strings.TrimSpace(req.PasswordSecret)},
+			{"sslMode", &item.SSLMode, strings.TrimSpace(req.SSLMode)},
+		} {
+			if field.wanted == "" || field.wanted == *field.current {
+				continue
+			}
+			changed = append(changed, field.name)
+			*field.current = field.wanted
+		}
+		if req.Port > 0 && req.Port != item.Port {
+			changed = append(changed, "port")
+			item.Port = req.Port
+		}
+	} else if req.Host != "" || req.Port > 0 || req.Database != "" || req.Username != "" || req.PasswordSecret != "" {
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"error": "this database is run by the platform: its host, port, database, user and password are its own, and only its name changes here",
+		})
+		return
+	}
+	if len(changed) == 0 {
+		writeJSON(w, http.StatusOK, item)
+		return
+	}
+	if err := h.datasourceStore.Upsert(item); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to update the datasource"})
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "datasource.updated", "datasource", item.ID, "", "success", "",
+		map[string]any{"fields": changed, "hostChanged": slices.Contains(changed, "host"), "name": item.Name})
+	writeJSON(w, http.StatusOK, item)
 }
 
 func (h Handlers) DeleteDatasource(w http.ResponseWriter, r *http.Request) {

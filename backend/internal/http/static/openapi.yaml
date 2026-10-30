@@ -5583,6 +5583,37 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/datasources/{datasourceID}:
+    put:
+      tags: [Datasources]
+      summary: Change what a connector points at
+      description: >-
+        Write on the connector, or its ownership. The audit entry names the
+        fields that moved and says whether the host was one of them, because a
+        host changed here redirects every workspace that mounts this
+        connector. A database the platform runs keeps its own connection
+        details: only its name changes, and anything else is refused.
+      operationId: updateDatasource
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasourceID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Datasource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     get:
       tags: [Datasets]
       summary: One data source by its identifier
