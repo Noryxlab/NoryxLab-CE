@@ -83,6 +83,13 @@ Create payload:
 
 ## Image used
 
+**The VS Code image is patched when it is built.** The explorer's "Download..."
+and "Upload..." entries are withdrawn, because the editor has no option for it
+and a right click was taking files to people's own machines. The script, what
+it covers, and the four other ways data can leave a workspace are in
+`HOW_DATA_LEAVES_A_WORKSPACE.md`. Read that before answering a question about
+what the platform prevents.
+
 Default workspace base images:
 
 - `harbor.example.local/noryx-environments/noryx-jupyter:0.1.0`

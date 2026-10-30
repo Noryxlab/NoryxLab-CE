@@ -49,6 +49,20 @@ In the `Environments` tab:
 - edit Dockerfile inline
 - submit a new build revision directly from edited Dockerfile content
 
+## The shipped images carry a patch
+
+The VS Code base image withdraws the editor's Download and Upload entries at
+build time, by a script in its own build context
+(`environments/noryx-vscode/noryx-withdraw-file-transfer`). It asserts what it
+matched and fails the build rather than producing an image that silently
+offers them again, so a version bump of the editor is a red build and not a
+quiet regression. See `HOW_DATA_LEAVES_A_WORKSPACE.md`.
+
+An environment built *from* that image inherits the patch, since it inherits
+the filesystem. An environment that starts from an upstream image instead -
+`FROM python:3.12-slim` and an editor installed by hand - does not, and the
+platform does not patch what it did not build.
+
 ## The base image
 
 A Dockerfile written in the environment screen may name a platform

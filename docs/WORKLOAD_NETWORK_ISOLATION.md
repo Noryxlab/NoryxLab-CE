@@ -90,6 +90,13 @@ against live pods, so a second rule admits pods carrying no profile label at
 all: a workspace started before the upgrade is not cut off mid-session, and
 gets its profile the next time it starts.
 
+## The network is one of five ways out
+
+Closing egress closes the route that needs nobody at the keyboard. It does
+not close the person's own browser session, and it is not the whole picture:
+`HOW_DATA_LEAVES_A_WORKSPACE.md` lists the five routes, what each one costs to
+close, and the one that stays open.
+
 ## Desktop sessions and the clipboard
 
 Slicer and ParaView are desktops served over VNC, and neither web client
