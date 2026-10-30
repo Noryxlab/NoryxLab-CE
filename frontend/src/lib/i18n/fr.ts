@@ -734,6 +734,7 @@ export const fr = {
   },
 
   environments: {
+    buildNeedsProject: "Choisissez le projet de construction au-dessus : une construction consomme son quota et lui est attribuée.",
     buildProject: "Projet de construction",
     buildProjectHint:
       "L’image est construite dans ce projet et consomme son quota. L’environnement, lui, reste utilisable par tous les projets auxquels vous avez accès.",

@@ -713,6 +713,7 @@ export const en: Translations = {
   },
 
   environments: {
+    buildNeedsProject: "Choose the build project above: a build spends that project's quota and is attributed to it.",
     buildProject: "Build project",
     buildProjectHint:
       "The image is built in this project and uses its quota. The environment itself stays available to every project you can access.",

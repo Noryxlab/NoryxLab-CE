@@ -437,6 +437,10 @@ function EnvironmentDetail({
             </div>
             {isSystemEnvironment ? (
               <p className="text-xs text-muted-foreground">{t('environments.systemRebuildHint')}</p>
+            ) : !projectId ? (
+              // A primary button greyed out for a reason nobody states is a
+              // screen that looks like it offers nothing.
+              <p className="text-xs text-muted-foreground">{t('environments.buildNeedsProject')}</p>
             ) : null}
 
             {/* What the build is doing, here, while it does it. A rebuild used
@@ -549,10 +553,29 @@ export function EnvironmentCatalog() {
   // Which project a build runs in. Remembered across sheets so a user who
   // builds several environments in a row does not re-answer every time.
   const [buildProjectId, setBuildProjectId] = React.useState('');
+  // Where the panel is, so opening one brings it into view. It renders below
+  // the table, so clicking a row in a list of a dozen environments put the
+  // only place a revision can be built off the bottom of the screen - which
+  // reads exactly like the interface offering nothing.
+  const panelRef = React.useRef<HTMLDivElement>(null);
 
   const projects = useProjects();
   const environments = useEnvironments();
   const selected = environments.data?.find((environment) => environment.id === selectedId) ?? null;
+
+  // Rebuilding an existing environment builds in the project that built it.
+  // Creating one still asks, and is never defaulted - a build spends that
+  // project's quota - but for a revision the project is not a guess: it is
+  // where the previous one was built.
+  React.useEffect(() => {
+    if (selected?.projectId) setBuildProjectId(selected.projectId);
+  }, [selected?.id, selected?.projectId]);
+
+  React.useEffect(() => {
+    if (selectedId && panelRef.current) {
+      panelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedId]);
 
   const remove = useMutation({
     mutationFn: (environmentId: string) => environmentsApi.remove(environmentId),
@@ -713,6 +736,12 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
           }
           rowActions={(environment) => (
             <>
+              {environment.category === 'system' ? null : (
+                <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
+                  <Hammer aria-hidden />
+                  {t('environments.build')}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
                 {t('common.open')}
               </DropdownMenuItem>
@@ -739,6 +768,7 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
         />
       </Card>
 
+      <div ref={panelRef} />
       {selected ? (
         <EnvironmentDetail
           environment={selected}
