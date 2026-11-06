@@ -16,6 +16,7 @@ import { getAuthHeaders } from '@/lib/api/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { encodeObjectPath, request } from '@/lib/api/client';
 import { openBackendSession } from '@/lib/auth';
+import { DicomView } from './dicom-view';
 import { formatBytes, formatNumber } from '@/lib/format';
 import { useI18n, useT } from '@/lib/i18n';
 import type { Dataset } from '@/lib/api/types';
@@ -47,7 +48,16 @@ const PREVIEW_ROWS = 200;
  *  rendu scanne pese dix mega-octets et reste un document qu'on regarde. */
 const DOCUMENT_LIMIT_BYTES = 25 * 1024 * 1024;
 
-type PreviewKind = 'table' | 'sheet' | 'sheet-foreign' | 'pdf' | 'text' | 'image' | 'video' | 'video-foreign';
+type PreviewKind =
+  | 'table'
+  | 'sheet'
+  | 'sheet-foreign'
+  | 'pdf'
+  | 'text'
+  | 'image'
+  | 'video'
+  | 'video-foreign'
+  | 'dicom';
 
 const TABLE_SUFFIXES = ['.csv', '.tsv'];
 /* Un classeur se lit dans le navigateur, pas sur le serveur : un fichier
@@ -59,6 +69,7 @@ const SHEET_SUFFIXES = ['.xlsx', '.xlsm'];
    d'Excel et celui d'OpenDocument. Les nommer permet de dire quoi faire. */
 const FOREIGN_SHEET_SUFFIXES = ['.xls', '.ods'];
 const PDF_SUFFIXES = ['.pdf'];
+const DICOM_SUFFIXES = ['.dcm', '.dicom'];
 const TEXT_SUFFIXES = ['.txt', '.json', '.md', '.log', '.yaml', '.yml', '.xml'];
 const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
 /* Ce qu'un navigateur sait lire sans rien installer. Le lecteur de la page
@@ -78,6 +89,7 @@ export function previewKindOf(path: string): PreviewKind | null {
   if (SHEET_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'sheet';
   if (FOREIGN_SHEET_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'sheet-foreign';
   if (PDF_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'pdf';
+  if (DICOM_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'dicom';
   if (TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'text';
   if (IMAGE_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'image';
   if (VIDEO_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'video';
@@ -229,13 +241,17 @@ export function ObjectPreview({
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState('');
   const [saving, setSaving] = React.useState(false);
-  const reads = kind === 'sheet' || kind === 'pdf' ? DOCUMENT_LIMIT_BYTES : PREVIEW_LIMIT_BYTES;
+  const reads =
+    kind === 'sheet' || kind === 'pdf' || kind === 'dicom'
+      ? DOCUMENT_LIMIT_BYTES
+      : PREVIEW_LIMIT_BYTES;
   const tooBig = !streams && size > reads;
   const regulated = dataset.classification === 'hds';
 
   const [text, setText] = React.useState<string | null>(null);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
   const [documentUrl, setDocumentUrl] = React.useState<string | null>(null);
+  const [dicomBytes, setDicomBytes] = React.useState<ArrayBuffer | null>(null);
   const [sheet, setSheet] = React.useState<{
     rows: string[][];
     total: number;
@@ -261,6 +277,8 @@ export function ObjectPreview({
              recevrait un 401. Un seul chemin, qui marche dans les deux. */
           objectUrl = URL.createObjectURL(blob);
           setImageUrl(objectUrl);
+        } else if (kind === 'dicom') {
+          setDicomBytes(await blob.arrayBuffer());
         } else if (kind === 'pdf') {
           objectUrl = URL.createObjectURL(blob);
           setDocumentUrl(objectUrl);
@@ -354,6 +372,8 @@ export function ObjectPreview({
             </div>
           ) : error ? (
             <ErrorState error={error} />
+          ) : kind === 'dicom' && dicomBytes ? (
+            <DicomView bytes={dicomBytes} />
           ) : kind === 'sheet-foreign' ? (
             <p className="text-sm text-muted-foreground">{t('datasets.previewSheetForeign')}</p>
           ) : kind === 'pdf' && documentUrl ? (

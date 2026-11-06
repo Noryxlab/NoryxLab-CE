@@ -6,9 +6,8 @@ describe('previewKindOf', () => {
     expect(previewKindOf('cohorte/mesures.CSV')).toBe('table');
     expect(previewKindOf('notes.txt')).toBe('text');
     expect(previewKindOf('coupe.PNG')).toBe('image');
-    // Une serie DICOM n'a pas d'apercu : la refuser ici evite d'ouvrir une
-    // fenetre vide sur chaque ligne d'un dossier qui n'en contient que.
-    expect(previewKindOf('IM-0001-0001.dcm')).toBeNull();
+    // Une coupe DICOM s'ouvre depuis le 06/11/2026 ; le NRRD, non.
+    expect(previewKindOf('IM-0001-0001.dcm')).toBe('dicom');
     expect(previewKindOf('mesures.nrrd')).toBeNull();
   });
 
