@@ -920,7 +920,24 @@ func sanitizeDatasetPrefix(raw string) string {
 }
 
 func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
-	identity, ok := h.requireIdentity(w, r)
+	// The session cookie counts on this route, and only here among the
+	// dataset routes.
+	//
+	// This is the one route a browser fetches without JavaScript in front of
+	// it: a <video> or an <img> element goes and gets the bytes itself, and
+	// it cannot be given an Authorization header. Asking for one meant the
+	// player received 401 and went black - measured on 2026-11-06, on a
+	// 375 kB MP4 the server was serving correctly with its content type and
+	// its range support.
+	//
+	// It opens nothing. The cookie is HttpOnly, Secure and SameSite=Lax, so a
+	// page on another site embedding this URL sends no cookie at all - Lax
+	// withholds it on subresources and keeps it for top-level navigation.
+	// What follows is unchanged: the dataset must be readable by this person,
+	// a regulated dataset still refuses anything but a previewable root
+	// document, the download setting still applies, and the fetch is still
+	// audited.
+	identity, ok := h.requireIdentityFromSessionOrBearer(w, r)
 	if !ok {
 		return
 	}
