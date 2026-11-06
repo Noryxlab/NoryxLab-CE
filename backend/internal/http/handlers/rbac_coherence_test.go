@@ -14,6 +14,7 @@ import (
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
 	organizationdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/organization"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	projectdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/team"
 	workspacedomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
@@ -64,36 +65,45 @@ func TestOnConfieUnObjetASonOrganisation(t *testing.T) {
 	}
 }
 
-// L'organisation proprietaire peut monter sa donnee reglementee.
+// La matrice decide qui monte de la donnee reglementee.
 //
-// La regle demande deux moities : appartenir a l'organisation proprietaire, et
-// administrer le projet ou la donnee est montee. La premiere etait evaluee sur
-// les sujets de la donnee, qui ne portent plus d'organisation : la regle etait
-// redevenue "administrateur global seulement", sans que le message d'erreur le
-// dise.
-func TestLOrganisationProprietaireMonteSaDonneeReglementee(t *testing.T) {
-	organisations := memory.NewOrganizationStore()
-	if err := organisations.AddAdmin(organizationdomain.Admin{
-		OrganizationID: "org-essilor", SubjectType: "user", SubjectID: "chercheuse",
+// La regle etait ecrite en dur : administrer l'organisation proprietaire, et
+// administrer le projet. Une equipe a qui le dataset etait partage ne pouvait
+// donc rien monter, et la case « Rattacher une donnee reglementee » ne
+// gouvernait que les extraits - deux regles pour le meme acte, dont une seule
+// visible a l'ecran. Depuis le 06/11/2026 c'est la case, des deux cotes.
+func TestLaMatriceDecideQuiMonteDeLaDonneeReglementee(t *testing.T) {
+	roles := memory.NewPlatformRoleStore()
+	h := Handlers{platformRoleStore: roles}
+
+	// La ligne utilisateur ne porte pas la case par defaut.
+	chercheuse := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
+	if h.can(chercheuse, platformrole.AttachRegulatedData) {
+		t.Fatal("la ligne utilisateur porte la case par defaut")
+	}
+
+	// L'administrateur, oui, comme avant. La ligne ne s'attribue pas ici :
+	// elle est portee par le role d'administrateur de l'annuaire.
+	administratrice := auth.Identity{
+		Username: "admin", Subject: "admin",
+		Roles: map[string]struct{}{"noryx-admin": {}},
+	}
+	if !h.can(administratrice, platformrole.AttachRegulatedData) {
+		t.Fatal("un administrateur ne peut plus rattacher de donnee reglementee")
+	}
+
+	// Et une installation qui coche la case sur la ligne utilisateur la donne
+	// a ses utilisateurs, sans leur donner la plateforme : c'est tout l'objet
+	// de la matrice.
+	if err := roles.SetOverride(platformrole.Override{
+		RoleKey: platformrole.KeyUser,
+		Added:   []platformrole.Capability{platformrole.AttachRegulatedData},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	h := Handlers{keycloak: annuaireEssilor(t, "chercheuse"), organizationStore: organisations}
-	chercheuse := auth.Identity{Username: "chercheuse", Subject: "chercheuse"}
-	hds := datasetdomain.Dataset{ID: "d1", Classification: "hds", OwnerType: "organization", OwnerID: "org-essilor"}
-
-	if !entitledToRegulatedDataset(h.datasetAdminSubjects(chercheuse), hds) {
-		t.Fatal("un membre de l'organisation proprietaire n'est plus habilite")
-	}
-	etranger := auth.Identity{Username: "etranger", Subject: "etranger"}
-	if entitledToRegulatedDataset(h.datasetAdminSubjects(etranger), hds) {
-		t.Fatal("un etranger a l'organisation est habilite")
-	}
-	// Et un simple membre non plus : monter de la donnee reglementee dans un
-	// projet, c'est la distribuer.
-	membre := auth.Identity{Username: "membre", Subject: "membre"}
-	if entitledToRegulatedDataset(h.datasetAdminSubjects(membre), hds) {
-		t.Fatal("la seule appartenance a habilite a monter de la donnee reglementee")
+	simple := auth.Identity{Username: "membre", Subject: "membre"}
+	if !h.can(simple, platformrole.AttachRegulatedData) {
+		t.Fatal("la case cochee sur la ligne utilisateur reste sans effet")
 	}
 }
 

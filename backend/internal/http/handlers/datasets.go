@@ -1876,6 +1876,21 @@ func (h Handlers) AttachProjectDataset(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
+	// La matrice decide, comme pour un extrait tire de la meme donnee.
+	//
+	// Cette ligne appliquait une regle ecrite en dur : administrer
+	// l'organisation proprietaire, et administrer le projet. Une equipe a qui
+	// le dataset etait partage ne pouvait donc rien monter, et la case
+	// « Rattacher une donnee reglementee a un projet », cochee sur une ligne
+	// de role, ne changeait rien - elle ne gouvernait que les extraits. Deux
+	// regles pour le meme acte, livrer des octets reglementes a une charge de
+	// travail, dont une seule etait visible a l'ecran.
+	//
+	// Stephane, 2026-11-06 : « il faut remettre le droit dans la matrice et
+	// arreter de coder des trucs en dur. »
+	if item.Classification == "hds" && !h.requireCapability(w, identity, platformrole.AttachRegulatedData) {
+		return
+	}
 	if !h.canAssignDataset(identity, item, projectID) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": h.datasetAssignmentError(item)})
 		return
@@ -1950,9 +1965,10 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset,
 	if h.isGlobalAdmin(identity) {
 		return true
 	}
-	if item.Classification == "hds" {
-		return h.canAttachRegulatedDataset(identity, item, projectID)
-	}
+	// La donnee reglementee n'a plus de branche ici : la fonction de la
+	// matrice est verifiee par le handler, qui sait dire laquelle manque.
+	// Ce qui reste est commun aux deux classifications.
+	//
 	// Lire ou administrer : les deux donnent le droit d'attacher.
 	//
 	// Seul le proprietaire pouvait attacher, donc une equipe a qui on avait
@@ -1961,57 +1977,6 @@ func (h Handlers) canAssignDataset(identity auth.Identity, item dataset.Dataset,
 	// au-dessus a defaite, pour la meme raison : le garde-fou est le role de
 	// projet, verifie par le handler avant d'arriver ici.
 	return h.canSeeDataset(item, identity)
-}
-
-// canAttachRegulatedDataset delegates the mount of regulated data to the people
-// who already answer for both sides of it.
-//
-// Attaching an HDS dataset was a global administrator's decision and nobody
-// else's. That is defensible on paper and a bottleneck in practice: a team
-// whose organisation owns the data, working in a project they administer, had
-// to wait on one person for a mount that involved nobody outside their own
-// organisation. The wait is not a safeguard; it is a queue, and the safeguard
-// it stands in for is entitlement.
-//
-// So the two halves are asked directly. The dataset must be owned by an
-// organisation - a person cannot own regulated data, which registration
-// already refuses - and the caller must belong to it: that is the entitlement.
-// And the caller must administer the project it is being mounted into, which
-// is what makes them answerable for who sees it afterwards. Either half alone
-// is not enough, and a global administrator keeps the right they always had.
-func (h Handlers) canAttachRegulatedDataset(identity auth.Identity, item dataset.Dataset, projectID string) bool {
-	// Les sujets d'administration : l'entitlement est une question
-	// d'appartenance a l'organisation proprietaire, pas de droit de lecture.
-	// Avec les sujets "donnee" cette ligne ne pouvait plus repondre vrai, et
-	// le goulet d'etranglement que la regle avait ouvert s'etait referme sans
-	// que le message d'erreur le dise.
-	if !entitledToRegulatedDataset(h.datasetAdminSubjects(identity), item) {
-		return false
-	}
-	return h.administersProject(projectID, identity.UserID())
-}
-
-// entitledToRegulatedDataset is the entitlement half, on its own.
-//
-// Separated from the rest because it is the half that can be got wrong
-// quietly: it compares an owner recorded by one screen against organisations
-// reported by the directory, and both arrive with whatever case and spacing
-// their source used. A rule about regulated data must not depend on that.
-func entitledToRegulatedDataset(subjects []dataset.Subject, item dataset.Dataset) bool {
-	if !strings.EqualFold(strings.TrimSpace(item.OwnerType), "organization") {
-		return false
-	}
-	owner := strings.TrimSpace(item.OwnerID)
-	if owner == "" {
-		return false
-	}
-	for _, subject := range subjects {
-		if strings.EqualFold(strings.TrimSpace(subject.Type), "organization") &&
-			strings.EqualFold(strings.TrimSpace(subject.ID), owner) {
-			return true
-		}
-	}
-	return false
 }
 
 // administersProject is project administration as the platform decides it:
@@ -2040,9 +2005,6 @@ func (h Handlers) administersProject(projectID, userID string) bool {
 func (h Handlers) datasetAssignmentError(item dataset.Dataset) string {
 	if !h.datasetAvailableInEdition(item) {
 		return "HDS dataset management requires NoryxLab Enterprise Edition"
-	}
-	if item.Classification == "hds" {
-		return "attaching regulated data requires a global admin, or an administrator of this project who belongs to the organisation that owns the dataset"
 	}
 	return "dataset owner or global admin role required to assign this dataset"
 }
