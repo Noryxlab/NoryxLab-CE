@@ -36,7 +36,7 @@ const PREVIEW_LIMIT_BYTES = 2 * 1024 * 1024;
  *  savoir ce qu'il contient, pas pour le lire en entier. */
 const PREVIEW_ROWS = 200;
 
-type PreviewKind = 'table' | 'text' | 'image' | 'video';
+type PreviewKind = 'table' | 'text' | 'image' | 'video' | 'video-foreign';
 
 const TABLE_SUFFIXES = ['.csv', '.tsv'];
 const TEXT_SUFFIXES = ['.txt', '.json', '.md', '.log', '.yaml', '.yml', '.xml'];
@@ -47,6 +47,10 @@ const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
    habille celui qui est deja la. Un MKV ou un AVI ne se liront pas ici ; ils
    demandent soit un transcodage, soit un bureau distant ou VLC existe. */
 const VIDEO_SUFFIXES = ['.mp4', '.m4v', '.webm', '.ogv', '.mov'];
+/* Les conteneurs video qu'on reconnait sans savoir les lire. Ils existent
+   pour qu'un clic reponde quelque chose : sans eux, cliquer un MKV ne faisait
+   rien du tout, ce qui se lit comme une panne et pas comme une limite. */
+const FOREIGN_VIDEO_SUFFIXES = ['.mkv', '.avi', '.wmv', '.flv', '.mpg', '.mpeg', '.m2ts', '.ts', '.3gp'];
 
 export function previewKindOf(path: string): PreviewKind | null {
   const lower = path.toLowerCase();
@@ -54,6 +58,7 @@ export function previewKindOf(path: string): PreviewKind | null {
   if (TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'text';
   if (IMAGE_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'image';
   if (VIDEO_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'video';
+  if (FOREIGN_VIDEO_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'video-foreign';
   return null;
 }
 
@@ -143,11 +148,16 @@ export function ObjectPreview({
   dataset,
   path,
   size,
+  downloadWithdrawn = false,
   onClose,
 }: {
   dataset: Dataset;
   path: string;
   size: number;
+  /** Quand l'installation retire les telechargements, la route objet ne sert
+   *  plus que les types previsualisables - et la video n'en fait pas partie.
+   *  Le dire avant d'essayer vaut mieux qu'un lecteur noir. */
+  downloadWithdrawn?: boolean;
   onClose: () => void;
 }) {
   const t = useT();
@@ -157,6 +167,7 @@ export function ObjectPreview({
      objet, qui repond desormais aux requetes partielles. La limite de taille
      ne vaut donc que pour ce qu'on lit en entier. */
   const streams = kind === 'video';
+  const [playbackFailed, setPlaybackFailed] = React.useState(false);
   const tooBig = !streams && size > PREVIEW_LIMIT_BYTES;
   const regulated = dataset.classification === 'hds';
 
@@ -225,9 +236,15 @@ export function ObjectPreview({
             </div>
           ) : error ? (
             <ErrorState error={error} />
+          ) : kind === 'video-foreign' ? (
+            <p className="text-sm text-muted-foreground">{t('datasets.previewVideoForeign')}</p>
           ) : kind === 'video' ? (
             regulated ? (
               <p className="text-sm text-muted-foreground">{t('datasets.previewVideoRegulated')}</p>
+            ) : downloadWithdrawn ? (
+              <p className="text-sm text-muted-foreground">{t('datasets.previewVideoWithdrawn')}</p>
+            ) : playbackFailed ? (
+              <p className="text-sm text-muted-foreground">{t('datasets.previewVideoFailed')}</p>
             ) : (
               /* L'adresse directe, pas un blob : le navigateur demande des
                  morceaux et on ne charge pas un film en memoire. Il porte le
@@ -238,6 +255,11 @@ export function ObjectPreview({
                 preload="metadata"
                 className="mx-auto max-h-[60vh] w-full rounded-md bg-black"
                 src={`/api/v1/datasets/${dataset.id}/objects/${encodeObjectPath(path)}`}
+                /* Un element video qui echoue ne dit rien : il reste noir.
+                   Un refus du serveur, un codec que ce navigateur n'a pas, un
+                   fichier tronque, et la personne conclut que la plateforme
+                   est cassee. */
+                onError={() => setPlaybackFailed(true)}
               >
                 {t('datasets.previewUnsupported')}
               </video>

@@ -37,7 +37,7 @@ import { moveTarget } from './move-target';
 import { getAuthHeaders } from '@/lib/api/client';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatDateTime, formatNumber } from '@/lib/format';
-import { ObjectPreview, previewKindOf } from './object-preview';
+import { ObjectPreview } from './object-preview';
 import { cn } from '@/lib/utils';
 import type { Dataset, StorageObject } from '@/lib/api/types';
 
@@ -687,12 +687,15 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
               setPrefix(`${prefix}${entry.name}/`);
               return;
             }
-            /* Seulement ce qu'on sait afficher. Ouvrir une fenetre pour dire
-               « pas d'apercu » sur chaque DICOM d'une serie serait une gene,
-               pas une fonction. */
-            if (previewKindOf(entry.object.key)) {
-              setPreview({ path: entry.object.key, size: entry.object.size });
-            }
+            /* Tout fichier ouvre le panneau, meme ce qu'on ne sait pas
+               afficher.
+               La premiere version n'ouvrait que les types connus, pour ne pas
+               faire clignoter une fenetre sur chaque DICOM d'une serie. Mais
+               un clic qui ne produit rien ne se lit pas comme « pas
+               d'apercu », il se lit comme une panne - et c'est precisement ce
+               qu'on nous a signale. Le panneau dit ce qu'il ne sait pas
+               faire, et pourquoi. */
+            setPreview({ path: entry.object.key, size: entry.object.size });
           }}
           rowProps={(entry) => {
             const key = entry.object.key;
@@ -768,6 +771,7 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
           dataset={dataset}
           path={preview.path}
           size={preview.size}
+          downloadWithdrawn={downloadWithdrawn}
           onClose={() => setPreview(null)}
         />
       ) : null}

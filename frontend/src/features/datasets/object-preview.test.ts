@@ -11,6 +11,15 @@ describe('previewKindOf', () => {
     expect(previewKindOf('IM-0001-0001.dcm')).toBeNull();
     expect(previewKindOf('mesures.nrrd')).toBeNull();
   });
+
+  it('reconnait les videos qu\'un navigateur ne lit pas, pour pouvoir le dire', () => {
+    // Sans ca, cliquer un MKV n'ouvrait rien : la personne lit une panne la
+    // ou il y a une limite connue.
+    expect(previewKindOf('bloc-operatoire.mkv')).toBe('video-foreign');
+    expect(previewKindOf('ancien.AVI')).toBe('video-foreign');
+    expect(previewKindOf('capture.mp4')).toBe('video');
+    expect(previewKindOf('capture.webm')).toBe('video');
+  });
 });
 
 describe('parseDelimited', () => {
