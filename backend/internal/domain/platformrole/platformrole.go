@@ -28,11 +28,18 @@ const (
 	CreateProject            Capability = "create-project"
 	CreateDataset            Capability = "create-dataset"
 	RegisterRegulatedDataset Capability = "register-regulated-dataset"
-	// AttachRegulatedData is attaching to a project a selection drawn from
-	// regulated data - the act that delivers its bytes to a workload. It was
-	// hard-coded to the platform administrator; as a box, an installation
-	// hands it to the people who answer for the data without handing them
-	// the platform.
+	// AttachRegulatedData is attaching regulated data to a project - the act
+	// that delivers its bytes to a workload. One box for both shapes it
+	// takes, a dataset and an extract drawn from one, because it is one act
+	// and an installation should not have to discover that it ticked half of
+	// it.
+	//
+	// Each half was governed separately and only one of them visibly: the
+	// extract asked this box, the dataset asked a rule written in the code -
+	// administer the owning organisation, administer the project - which no
+	// screen showed. A team holding a shared regulated dataset could mount
+	// nothing while the box on their row said they could. Both ask the box
+	// since 2026-11-06.
 	AttachRegulatedData    Capability = "attach-regulated-data"
 	ScanOntology           Capability = "scan-ontology"
 	CreateExtract          Capability = "create-extract"

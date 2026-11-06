@@ -211,6 +211,14 @@ scan an ontology, create an extract, declare a data source, declare a
 repository, register a regulated dataset, attach regulated data to a project,
 administer an organization.
 
+**Attaching regulated data is one box for both shapes it takes**, a dataset
+and an extract drawn from one. It was governed twice until 2026-11-06, and
+only one of the two visibly: the extract asked the box, the dataset asked a
+rule written in the code - administer the organisation that owns it, and
+administer the target project. A team holding a shared regulated dataset could
+therefore mount nothing while the box ticked on their row said otherwise. One
+act, one box, and the refusal names it (ADR-049).
+
 Three rows ship. **Administrator** acts on what is not theirs; it is
 the directory's realm role: naming an administrator from a person's page
 writes that role to the directory, never to the assignments table, and only

@@ -162,7 +162,7 @@ export const en: Translations = {
     "declare-datasource": "Declare a data source",
     "declare-repository": "Declare a repository",
     "register-regulated-dataset": "Register a regulated dataset",
-    "attach-regulated-data": "Attach regulated data to a project",
+    "attach-regulated-data": "Attach regulated data to a project: dataset or extract",
     "administer-organization": "Administer an organization",
   },
   roleMatrix: {

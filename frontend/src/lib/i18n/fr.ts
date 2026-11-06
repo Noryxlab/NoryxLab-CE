@@ -165,7 +165,7 @@ export const fr = {
     "declare-datasource": "Déclarer une source de données",
     "declare-repository": "Déclarer un dépôt",
     "register-regulated-dataset": "Enregistrer un dataset réglementé",
-    "attach-regulated-data": "Rattacher une donnée réglementée à un projet",
+    "attach-regulated-data": "Rattacher une donnée réglementée à un projet : dataset ou extrait",
     "administer-organization": "Administrer une organisation",
   },
   roleMatrix: {
