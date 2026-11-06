@@ -29,7 +29,12 @@ export interface Identity {
  * is where the refusal will be visible.
  */
 
-async function openBackendSession(): Promise<void> {
+/** Exportee parce que le cookie dure huit heures et le reste de l'interface
+ *  bien plus : un onglet ouvert depuis la veille garde ses jetons et a perdu
+ *  sa session, donc ce que le navigateur va chercher tout seul - une video -
+ *  se fait refuser alors que tout le reste marche. Le lecteur la rouvre avant
+ *  de declarer forfait. */
+export async function openBackendSession(): Promise<void> {
   try {
     await api.post('/api/v1/auth/session', undefined);
   } catch (cause) {

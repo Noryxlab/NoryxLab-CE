@@ -10,6 +10,7 @@ import {
 import { ErrorState } from '@/components/common/states';
 import { Skeleton } from '@/components/ui/skeleton';
 import { encodeObjectPath, request } from '@/lib/api/client';
+import { openBackendSession } from '@/lib/auth';
 import { formatBytes, formatNumber } from '@/lib/format';
 import { useI18n, useT } from '@/lib/i18n';
 import type { Dataset } from '@/lib/api/types';
@@ -168,6 +169,11 @@ export function ObjectPreview({
      ne vaut donc que pour ce qu'on lit en entier. */
   const streams = kind === 'video';
   const [playbackFailed, setPlaybackFailed] = React.useState(false);
+  /* Un seul nouvel essai, apres avoir rouvert la session.
+     Le cookie vit huit heures et l'onglet bien plus, donc l'echec le plus
+     probable n'est pas le codec : c'est un 401 sur une session finie pendant
+     que les jetons du reste de l'interface, eux, sont toujours valides. */
+  const [attempt, setAttempt] = React.useState(0);
   const tooBig = !streams && size > PREVIEW_LIMIT_BYTES;
   const regulated = dataset.classification === 'hds';
 
@@ -254,12 +260,21 @@ export function ObjectPreview({
                 controls
                 preload="metadata"
                 className="mx-auto max-h-[60vh] w-full rounded-md bg-black"
-                src={`/api/v1/datasets/${dataset.id}/objects/${encodeObjectPath(path)}`}
+                /* Le parametre ne sert qu'a forcer le navigateur a refaire
+                   la requete apres la reouverture de session : sans lui il
+                   rejoue l'echec qu'il a en cache. Le serveur l'ignore. */
+                src={`/api/v1/datasets/${dataset.id}/objects/${encodeObjectPath(path)}${attempt > 0 ? `?retry=${attempt}` : ''}`}
                 /* Un element video qui echoue ne dit rien : il reste noir.
                    Un refus du serveur, un codec que ce navigateur n'a pas, un
                    fichier tronque, et la personne conclut que la plateforme
                    est cassee. */
-                onError={() => setPlaybackFailed(true)}
+                onError={() => {
+                  if (attempt > 0) {
+                    setPlaybackFailed(true);
+                    return;
+                  }
+                  void openBackendSession().then(() => setAttempt(1));
+                }}
               >
                 {t('datasets.previewUnsupported')}
               </video>
