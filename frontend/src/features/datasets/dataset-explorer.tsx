@@ -503,6 +503,16 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
             <FolderPlus aria-hidden />
             {t('datasets.newFolder')}
           </Button>
+          {/* L'invitation, visible sans rien faire.
+              Le depot fonctionnait depuis le 09/10/2026 et la zone en
+              pointilles n'apparait qu'une fois qu'on traine deja un fichier :
+              personne ne traine un fichier sur une page qui ne dit pas
+              l'accepter. Stephane, le 06/11/2026 : « pas de glisser/deplacer
+              de fichier pour que je puisse upload un fichier ». La fonction
+              etait la, l'invitation non. */}
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            {t('datasets.dropInvitation')}
+          </span>
           <Button variant="primary" size="sm" onClick={() => setUploading(true)}>
             <Upload aria-hidden />
             {t('datasets.upload')}

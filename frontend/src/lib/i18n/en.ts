@@ -836,6 +836,7 @@ export const en: Translations = {
     previewVideoFailed: "Playback failed: either this browser lacks the file's codec, or the server refused the stream. The file itself is intact.",
     previewVideoRegulated: "Video playback is not open on a regulated dataset: the stream would leave like a download. Watch it in a remote desktop.",
     previewRows: "{shown} rows shown out of {total}.",
+    dropInvitation: "or drag your files in",
     dropHere: "Drop into {path}",
     dropProgress: "Uploading {done}/{total} — {name}",
     dropDone: "{count} file(s) uploaded.",

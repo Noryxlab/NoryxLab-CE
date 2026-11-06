@@ -858,6 +858,7 @@ export const fr = {
     previewVideoFailed: "La lecture a échoué : soit ce navigateur n'a pas le codec du fichier, soit le serveur a refusé le flux. Le fichier, lui, est intact.",
     previewVideoRegulated: "La lecture vidéo n'est pas ouverte sur un jeu de données réglementé : le flux sortirait comme un téléchargement. À regarder dans un bureau distant.",
     previewRows: "{shown} lignes affichées sur {total}.",
+    dropInvitation: "ou glissez vos fichiers ici",
     dropHere: "Déposer dans {path}",
     dropProgress: "Dépôt {done}/{total} — {name}",
     dropDone: "{count} fichier(s) déposé(s).",
