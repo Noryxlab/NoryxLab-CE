@@ -37,6 +37,7 @@ import { moveTarget } from './move-target';
 import { getAuthHeaders } from '@/lib/api/client';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatBytes, formatDateTime, formatNumber } from '@/lib/format';
+import { ObjectPreview, previewKindOf } from './object-preview';
 import { cn } from '@/lib/utils';
 import type { Dataset, StorageObject } from '@/lib/api/types';
 
@@ -196,6 +197,9 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
      dragleave, et un booleen fait clignoter la zone pendant qu'on traverse
      le tableau. */
   const [dragDepth, setDragDepth] = React.useState(0);
+  /* Le fichier qu'on regarde. Le clic sur une ligne ne faisait rien pour un
+     fichier : on naviguait dans un dossier et on restait devant un nom. */
+  const [preview, setPreview] = React.useState<{ path: string; size: number } | null>(null);
   const [dropping, setDropping] = React.useState<{ done: number; total: number; name: string } | null>(
     null,
   );
@@ -679,7 +683,16 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
           onRetry={() => void objects.refetch()}
           defaultSort={{ columnId: 'name', direction: 'asc' }}
           onRowClick={(entry) => {
-            if (entry.isFolder) setPrefix(`${prefix}${entry.name}/`);
+            if (entry.isFolder) {
+              setPrefix(`${prefix}${entry.name}/`);
+              return;
+            }
+            /* Seulement ce qu'on sait afficher. Ouvrir une fenetre pour dire
+               « pas d'apercu » sur chaque DICOM d'une serie serait une gene,
+               pas une fonction. */
+            if (previewKindOf(entry.object.key)) {
+              setPreview({ path: entry.object.key, size: entry.object.size });
+            }
           }}
           rowProps={(entry) => {
             const key = entry.object.key;
@@ -749,6 +762,15 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
       </CardContent>
 
       <UploadDialog dataset={dataset} prefix={prefix} open={uploading} onOpenChange={setUploading} />
+
+      {preview ? (
+        <ObjectPreview
+          dataset={dataset}
+          path={preview.path}
+          size={preview.size}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
 
       {/* Le renommage.
           Seul le dernier segment est modifiable : deplacer un fichier ailleurs

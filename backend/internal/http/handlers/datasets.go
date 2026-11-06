@@ -992,13 +992,63 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 			contentType = "image/gif"
 		} else if strings.HasSuffix(lower, ".webp") {
 			contentType = "image/webp"
+		} else if strings.HasSuffix(lower, ".mp4") || strings.HasSuffix(lower, ".m4v") {
+			contentType = "video/mp4"
+		} else if strings.HasSuffix(lower, ".webm") {
+			contentType = "video/webm"
+		} else if strings.HasSuffix(lower, ".ogv") {
+			contentType = "video/ogg"
+		} else if strings.HasSuffix(lower, ".mov") {
+			contentType = "video/quicktime"
 		} else {
 			contentType = "application/octet-stream"
 		}
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	w.Header().Set("Content-Disposition", `inline; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
+
+	// Partial content, which is what makes a video seekable.
+	//
+	// This route copied the whole object whatever the request asked for, so a
+	// browser could start a film and never jump in it: the <video> element
+	// asks for a byte range and, receiving the entire file with a 200, loses
+	// the ability to seek and re-downloads from zero. Essilor asked to watch
+	// a video from the interface on 2026-11-03; without this the answer would
+	// have been a player that plays once, forwards only.
+	//
+	// Only the first range of a request is served. A multipart range is legal
+	// and no browser sends one for media; answering the first is what every
+	// static file server does and what the specification allows.
+	if start, end, ok := requestedRange(r.Header.Get("Range"), info.Size); ok {
+		if err := obj.Close(); err != nil && !isNotFoundError(err) {
+			log.Printf("dataset %s: closing the full object before serving a range: %v", item.ID, err)
+		}
+		options := minio.GetObjectOptions{}
+		if err := options.SetRange(start, end); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid range"})
+			return
+		}
+		partial, err := client.GetObject(ctx, item.Bucket, key, options)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset download failed"})
+			return
+		}
+		defer partial.Close()
+		w.Header().Set("Accept-Ranges", "bytes")
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, info.Size))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", end-start+1))
+		w.WriteHeader(http.StatusPartialContent)
+		served, copyErr := io.Copy(w, partial)
+		if copyErr != nil {
+			h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "failure", "stream_interrupted", datasetTransferAuditDetails(item, rel, served))
+			return
+		}
+		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, served))
+		return
+	}
+
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
 	written, copyErr := io.Copy(w, obj)
 	if copyErr != nil {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "failure", "stream_interrupted", datasetTransferAuditDetails(item, rel, written))
