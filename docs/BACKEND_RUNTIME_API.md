@@ -116,8 +116,12 @@ Workspace reverse proxy auth (`/workspaces/{workspaceID}/...`):
 - dataset ACL roles are `owner`, `writer`, and `reader`
 - dataset owners and ACL subjects may be `user` or `organization`
 - owner manages dataset ACLs
-- external datasets use temporary S3 download URLs for large single files; datasets also support multi-file ZIP download, preview, and text/CSV editing
-- XLSX and ODS use the same browser spreadsheet viewer/editor; editing is limited to simple cell values and may alter advanced workbook features
+- external datasets use temporary S3 download URLs for large single files; datasets also support multi-file ZIP download, preview, and text/CSV editing in place
+- XLSX is read in the browser and shown as a table; it is not written back,
+  because rebuilding a workbook loses what the parser did not understand.
+  `.xls` and `.ods` are recognised and refused with the reason
+- the object route answers byte ranges, which is what makes a video seekable,
+  and accepts the session cookie, which is what a `<video>` element needs
 - regulated HDS dataset management is an Enterprise Edition extension and is rejected by CE
 
 ## Workspace baseline (current)

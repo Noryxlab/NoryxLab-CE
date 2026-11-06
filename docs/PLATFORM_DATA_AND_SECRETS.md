@@ -88,11 +88,19 @@ Storage:
 - dataset owners and ACL subjects can be users or Keycloak organizations
 - organization members receive the dataset permissions granted to their organization
 - ownership can be transferred between a user and an organization; technical S3 credentials remain attached to their original encrypted secret
-- browser preview supports PDF, images, CSV, and text formats
+- browser preview supports PDF, images, CSV and TSV, text formats, XLSX
+  workbooks, and MP4, WebM and Ogg video
 - browser editing supports CSV and text formats for owners and writers
 - the dataset explorer exposes S3 prefixes as familiar folders; owners and writers can create folders and delete files or folders recursively
 - attached S3 datasets are mounted directly into workloads; see `docs/S3_DATASET_MOUNTS.md`
-- XLSX/ODS files share one SheetJS-based browser viewer/editor for simple tabular values; saving can alter complex formulas, styles, macros, charts, and layouts
+- a workbook is read, not written. XLSX is parsed in the browser and shown as
+  a table, first sheet, with the other sheet names given; `.xls` and `.ods`
+  are recognised and refused with the reason. Writing one back would mean
+  rebuilding the file, and what the parser did not understand - formulas,
+  styles, macros, charts - would not survive the round trip
+- text, CSV and TSV are editable in place, because those rewrite byte for byte
+  except where somebody typed. A save needs Write on the dataset, and a reader
+  is told that rather than told the dataset does not exist
 
 External dataset creation:
 

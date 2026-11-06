@@ -782,6 +782,7 @@ export function DatasetExplorer({ dataset }: { dataset: Dataset }) {
           path={preview.path}
           size={preview.size}
           downloadWithdrawn={downloadWithdrawn}
+          onSaved={() => invalidate(qk.datasetObjects(dataset.id, prefix))}
           onClose={() => setPreview(null)}
         />
       ) : null}

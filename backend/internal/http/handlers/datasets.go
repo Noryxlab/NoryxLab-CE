@@ -546,8 +546,21 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read dataset"})
 		return
 	}
-	if !found || !h.canWriteDataset(item, identity) {
+	if !found || !h.canSeeDataset(item, identity) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	// A reader is told they may not write, rather than told the dataset does
+	// not exist.
+	//
+	// Both answers were 404, which is right when the point is to hide that
+	// something exists - and pointless here, since the person is looking at
+	// the file in the explorer when they press save. "Dataset not found" on a
+	// dataset visibly open on screen reads as a platform fault, and the one
+	// thing it does not say is the true thing: this is somebody else's data
+	// and you hold Read on it.
+	if !h.canWriteDataset(item, identity) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "write access on this dataset is required"})
 		return
 	}
 	client, _, err := h.datasetS3Client(item)

@@ -7,7 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { DialogFooter } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/common/states';
+import { useToast } from '@/components/ui/toast';
+import { datasetsApi } from '@/lib/api/endpoints';
+import { getAuthHeaders } from '@/lib/api/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { encodeObjectPath, request } from '@/lib/api/client';
 import { openBackendSession } from '@/lib/auth';
@@ -186,6 +191,7 @@ export function ObjectPreview({
   path,
   size,
   downloadWithdrawn = false,
+  onSaved,
   onClose,
 }: {
   dataset: Dataset;
@@ -195,9 +201,13 @@ export function ObjectPreview({
    *  plus que les types previsualisables - et la video n'en fait pas partie.
    *  Le dire avant d'essayer vaut mieux qu'un lecteur noir. */
   downloadWithdrawn?: boolean;
+  /** Pour que le listage reprenne la taille et la date apres un
+   *  enregistrement : la fenetre ne connait pas la requete qui l'a remplie. */
+  onSaved?: () => void;
   onClose: () => void;
 }) {
   const t = useT();
+  const toast = useToast();
   const { locale } = useI18n();
   const kind = previewKindOf(path);
   /* La video ne passe pas par la memoire : elle est diffusee par la route
@@ -210,6 +220,15 @@ export function ObjectPreview({
      probable n'est pas le codec : c'est un 401 sur une session finie pendant
      que les jetons du reste de l'interface, eux, sont toujours valides. */
   const [attempt, setAttempt] = React.useState(0);
+  /* L'edition, pour ce qui se reecrit sans rien perdre.
+     Un fichier texte et un CSV se reenregistrent a l'identique, octet pour
+     octet, sauf ce que la personne a change. Un classeur, non : le reecrire
+     demande de le reconstruire, et ce que la bibliotheque n'a pas compris -
+     formules, styles, macros, graphiques - ne revient pas. L'edition s'arrete
+     donc la ou la fidelite s'arrete. */
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
   const reads = kind === 'sheet' || kind === 'pdf' ? DOCUMENT_LIMIT_BYTES : PREVIEW_LIMIT_BYTES;
   const tooBig = !streams && size > reads;
   const regulated = dataset.classification === 'hds';
@@ -284,6 +303,33 @@ export function ObjectPreview({
     if (kind === 'sheet') return sheet;
     return null;
   }, [kind, text, sheet]);
+
+  const editable = (kind === 'text' || kind === 'table') && text !== null && !tooBig;
+
+  async function save() {
+    setSaving(true);
+    try {
+      const headers = await getAuthHeaders();
+      const name = path.split('/').pop() ?? path;
+      /* Le type part avec le fichier : sans lui l'objet est reenregistre en
+         binaire et cesse d'etre previsualisable, ce qui transformerait une
+         correction d'une ligne en fichier qu'on ne peut plus ouvrir. */
+      const type = name.toLowerCase().endsWith('.csv')
+        ? 'text/csv; charset=utf-8'
+        : name.toLowerCase().endsWith('.json')
+          ? 'application/json; charset=utf-8'
+          : 'text/plain; charset=utf-8';
+      await datasetsApi.upload(dataset.id, path, new File([draft], name, { type }), { headers });
+      setText(draft);
+      setEditing(false);
+      onSaved?.();
+      toast.success(t('datasets.previewSaved'), name);
+    } catch (reason: unknown) {
+      toast.error(reason, t('datasets.previewSave'));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -392,12 +438,43 @@ export function ObjectPreview({
                   : null}
               </p>
             </div>
+          ) : editing ? (
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              spellCheck={false}
+              className="h-[60vh] w-full rounded-md border border-border bg-surface p-3 font-mono text-xs"
+            />
           ) : text !== null ? (
             <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-surface-muted p-3 text-xs">
               {text.slice(0, 200_000)}
             </pre>
           ) : null}
         </DialogBody>
+        {editable ? (
+          <DialogFooter>
+            {editing ? (
+              <>
+                <Button variant="secondary" onClick={() => setEditing(false)} disabled={saving}>
+                  {t('common.cancel')}
+                </Button>
+                <Button variant="primary" onClick={() => void save()} disabled={saving}>
+                  {t('datasets.previewSave')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDraft(text ?? '');
+                  setEditing(true);
+                }}
+              >
+                {t('datasets.previewEdit')}
+              </Button>
+            )}
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

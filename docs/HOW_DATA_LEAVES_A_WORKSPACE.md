@@ -90,7 +90,19 @@ binaries. Pasting a path or an expression into the application still works.
 For regulated data this makes the desktop flavours the strongest of the three:
 no file channel at all, and no browser file API.
 
-## 4. The platform's own routes
+## 4. Reading a file without taking it out
+
+Since `0.76.0-ee.142` the dataset explorer opens what it can: CSV and TSV as a
+table, text and JSON, images, PDFs, XLSX workbooks, and MP4, WebM and Ogg
+video. Text, CSV and TSV can also be edited in place and saved back, which
+needs Write on the dataset.
+
+That is a route *into* the platform as much as out of it: the reason to build
+it was that finding out what a file contained meant downloading it first. It
+changes no permission - the same object route, the same rights, the same HDS
+refusal, the same audit line - and it removes a reason to take a copy.
+
+## 5. The platform's own routes
 
 `datasets.local_download` set to `blocked` withdraws the download and
 archive-export routes for every dataset and leaves previews in place. HDS
@@ -98,7 +110,7 @@ datasets refuse regardless of the setting (ADR-013). It is `allowed` by
 default, and it covers the platform's routes only - not the project file
 browser's, and not a workspace's own traffic.
 
-## 5. The person's browser session, which is open
+## 6. The person's browser session, which is open
 
 A person who may read a file can get it onto their own machine through the
 editor, because the bytes travel on the session they already have: the same
