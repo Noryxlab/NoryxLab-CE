@@ -64,8 +64,14 @@ func TestWithdrawingDownloadsKeepsThePreviewAndStopsTheRest(t *testing.T) {
 			t.Errorf("%q must stay readable in the interface", path)
 		}
 	}
+	// Une coupe DICOM est passee de refusee a affichable le 06/11/2026, quand
+	// l'explorateur a su la decoder : ce qui change, c'est que l'interface
+	// sait la montrer, pas le droit qui y donne acces.
+	if !previewableType("IRM/coupe.dcm") {
+		t.Error("une coupe DICOM s'affiche dans l'interface depuis qu'un lecteur existe")
+	}
 	for _, path := range []string{
-		"IRM/coupe.dcm", "archive.zip", "serie.e2e", "modele.nii.gz",
+		"archive.zip", "serie.e2e", "modele.nii.gz",
 		"donnees.parquet", "script.sh", "sansextension",
 	} {
 		if previewableType(path) {
@@ -74,17 +80,17 @@ func TestWithdrawingDownloadsKeepsThePreviewAndStopsTheRest(t *testing.T) {
 	}
 }
 
-// Previewing is not limited to the dataset's root, unlike HDS.
+// Reading is not limited to the dataset's root, and no longer for a
+// regulated dataset either.
 //
-// HDS allows a root document only, deliberately. Applying that rule to an
-// ordinary dataset would make a platform whose files cannot be read in any
-// folder, which is not what withdrawing downloads means.
-func TestOrdinaryPreviewsAreNotLimitedToTheRoot(t *testing.T) {
+// Until 2026-11-06 a regulated dataset served a document at its root and
+// nothing else, so somebody holding Read on patient images could list them
+// and open none. The right decides now; what the classification still
+// forbids is the ZIP export and the presigned URL, each refused on its own
+// route.
+func TestReadingIsNotLimitedToTheRoot(t *testing.T) {
 	nested := "PREMYOM1000/sujet-001/20260218/mesures.csv"
 	if !previewableType(nested) {
-		t.Error("an ordinary dataset must be readable in its folders")
-	}
-	if hdsRootDocumentPreviewAllowed(nested) {
-		t.Error("HDS keeps its stricter root-only rule")
+		t.Error("a dataset must be readable in its folders")
 	}
 }

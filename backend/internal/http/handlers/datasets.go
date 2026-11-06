@@ -964,10 +964,22 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
 		return
 	}
-	if item.Classification == "hds" && !hdsRootDocumentPreviewAllowed(rel) {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "direct HDS dataset download is disabled"})
-		return
-	}
+	// Reading one object of a regulated dataset follows the right, not the
+	// classification.
+	//
+	// Stephane, 2026-11-06: "si on a acces au dataset, alors on peut en lire
+	// le contenu." Until then a regulated dataset served only a document at
+	// its root - a protocol, a README - so somebody holding Read on patient
+	// images could list them and open none, and the way to look at a file was
+	// to mount it in a workspace, which is a larger grant than the one being
+	// avoided.
+	//
+	// What the classification still forbids is bulk and out-of-band: the ZIP
+	// export and the presigned URL remain refused outright for a regulated
+	// dataset, a few lines further down each of their routes. One object at a
+	// time, to somebody the platform already lets read the dataset, named in
+	// the audit line that every fetch writes. That is the difference between
+	// reading data and taking a copy of it.
 	// This route serves previews as well as saving a file, and the request
 	// does not say which. So when downloads are withdrawn it narrows to what
 	// the interface can display rather than closing: closing it would take
@@ -1105,8 +1117,8 @@ func (h Handlers) localDownloadBlocked() bool {
 //
 // The same list HDS root documents are limited to, without the root-only
 // rule. When downloads are withdrawn this is what still comes through the
-// object route, because that route serves previews as well: a CSV opens in
-// the viewer, a DICOM or an archive does not come out at all.
+// object route, because that route serves previews as well: a CSV or a DICOM
+// opens in the viewer, an archive does not come out at all.
 //
 // It bounds casual export, and it is worth being exact about what it does
 // not do: a file the interface can display is a file a browser can save.
@@ -1118,36 +1130,17 @@ func previewableType(relPath string) bool {
 	for _, suffix := range []string{
 		".pdf", ".xlsx", ".ods", ".csv", ".txt", ".json", ".md", ".log",
 		".yaml", ".yml", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",
+		// A DICOM is displayed in the interface since the explorer learned to
+		// decode one, so it belongs on the list of what an installation that
+		// withdraws downloads still shows. The bulk routes do not change: a
+		// series still cannot be exported as an archive.
+		".dcm",
 	} {
 		if strings.HasSuffix(lower, suffix) {
 			return true
 		}
 	}
 	return false
-}
-
-func hdsRootDocumentPreviewAllowed(relPath string) bool {
-	rel := strings.Trim(strings.TrimSpace(relPath), "/")
-	if rel == "" || strings.Contains(rel, "/") {
-		return false
-	}
-	lower := strings.ToLower(rel)
-	return strings.HasSuffix(lower, ".pdf") ||
-		strings.HasSuffix(lower, ".xlsx") ||
-		strings.HasSuffix(lower, ".ods") ||
-		strings.HasSuffix(lower, ".csv") ||
-		strings.HasSuffix(lower, ".txt") ||
-		strings.HasSuffix(lower, ".json") ||
-		strings.HasSuffix(lower, ".md") ||
-		strings.HasSuffix(lower, ".log") ||
-		strings.HasSuffix(lower, ".yaml") ||
-		strings.HasSuffix(lower, ".yml") ||
-		strings.HasSuffix(lower, ".png") ||
-		strings.HasSuffix(lower, ".jpg") ||
-		strings.HasSuffix(lower, ".jpeg") ||
-		strings.HasSuffix(lower, ".gif") ||
-		strings.HasSuffix(lower, ".webp") ||
-		strings.HasSuffix(lower, ".svg")
 }
 
 func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request) {

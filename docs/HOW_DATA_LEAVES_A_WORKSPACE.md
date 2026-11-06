@@ -105,10 +105,14 @@ refusal, the same audit line - and it removes a reason to take a copy.
 ## 5. The platform's own routes
 
 `datasets.local_download` set to `blocked` withdraws the download and
-archive-export routes for every dataset and leaves previews in place. HDS
-datasets refuse regardless of the setting (ADR-013). It is `allowed` by
-default, and it covers the platform's routes only - not the project file
-browser's, and not a workspace's own traffic.
+archive-export routes for every dataset and leaves previews in place. It is
+`allowed` by default, and it covers the platform's routes only - not the
+project file browser's, and not a workspace's own traffic.
+
+A regulated dataset refuses the ZIP export and the presigned URL whatever the
+setting says, because those are bulk and out-of-band. Reading one of its
+objects follows the right since 2026-11-06 (ADR-053): somebody who may read
+the dataset may open its files, and every fetch is named in the trail.
 
 ## 6. The person's browser session, which is open
 
