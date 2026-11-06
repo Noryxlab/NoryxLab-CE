@@ -835,6 +835,8 @@ export const en: Translations = {
     previewVideoWithdrawn: "Video playback is closed on this installation, which withdraws downloads: a video stream is one. Watch it in a remote desktop.",
     previewVideoFailed: "Playback failed: either this browser lacks the file's codec, or the server refused the stream. The file itself is intact.",
     previewVideoRegulated: "Video playback is not open on a regulated dataset: the stream would leave like a download. Watch it in a remote desktop.",
+    previewSheetForeign: "This workbook format is not read here: save it as .xlsx, or download it.",
+    previewSheetOf: "Sheet \"{name}\"; this workbook has others: {others}.",
     previewRows: "{shown} rows shown out of {total}.",
     dropInvitation: "or drag your files in",
     dropHere: "Drop into {path}",

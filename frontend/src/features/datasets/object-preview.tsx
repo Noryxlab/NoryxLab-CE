@@ -37,9 +37,23 @@ const PREVIEW_LIMIT_BYTES = 2 * 1024 * 1024;
  *  savoir ce qu'il contient, pas pour le lire en entier. */
 const PREVIEW_ROWS = 200;
 
-type PreviewKind = 'table' | 'text' | 'image' | 'video' | 'video-foreign';
+/** Un classeur et un PDF sont lus en entier eux aussi, mais ils sont souvent
+ *  plus lourds qu'un CSV sans etre pour autant hors de propos : un compte
+ *  rendu scanne pese dix mega-octets et reste un document qu'on regarde. */
+const DOCUMENT_LIMIT_BYTES = 25 * 1024 * 1024;
+
+type PreviewKind = 'table' | 'sheet' | 'sheet-foreign' | 'pdf' | 'text' | 'image' | 'video' | 'video-foreign';
 
 const TABLE_SUFFIXES = ['.csv', '.tsv'];
+/* Un classeur se lit dans le navigateur, pas sur le serveur : un fichier
+   depose par un tiers y est analyse dans l'onglet de la personne et non dans
+   le processus qui sert la plateforme. La bibliotheque est chargee a la
+   demande, donc elle ne pese rien pour qui n'ouvre jamais de tableur. */
+const SHEET_SUFFIXES = ['.xlsx', '.xlsm'];
+/* Les classeurs qu'on reconnait sans savoir les lire : l'ancien format binaire
+   d'Excel et celui d'OpenDocument. Les nommer permet de dire quoi faire. */
+const FOREIGN_SHEET_SUFFIXES = ['.xls', '.ods'];
+const PDF_SUFFIXES = ['.pdf'];
 const TEXT_SUFFIXES = ['.txt', '.json', '.md', '.log', '.yaml', '.yml', '.xml'];
 const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
 /* Ce qu'un navigateur sait lire sans rien installer. Le lecteur de la page
@@ -56,6 +70,9 @@ const FOREIGN_VIDEO_SUFFIXES = ['.mkv', '.avi', '.wmv', '.flv', '.mpg', '.mpeg',
 export function previewKindOf(path: string): PreviewKind | null {
   const lower = path.toLowerCase();
   if (TABLE_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'table';
+  if (SHEET_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'sheet';
+  if (FOREIGN_SHEET_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'sheet-foreign';
+  if (PDF_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'pdf';
   if (TEXT_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'text';
   if (IMAGE_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'image';
   if (VIDEO_SUFFIXES.some((suffix) => lower.endsWith(suffix))) return 'video';
@@ -137,6 +154,25 @@ export function parseDelimited(raw: string, limit = PREVIEW_ROWS): { rows: strin
   return { rows, total };
 }
 
+/** La valeur d'une cellule, rendue comme la personne l'a saisie.
+ *
+ *  Un classeur ne contient pas du texte : une date y est un nombre de jours
+ *  depuis 1900 et un pourcentage un reel. La bibliotheque rend des objets
+ *  Date et des nombres ; les afficher bruts donnerait « 45678 » a la place du
+ *  15 janvier 2026, ce qui est exactement le genre de detail qui fait douter
+ *  d'un apercu. */
+export function cellText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
+    const iso = value.toISOString();
+    // Une date sans heure est une date : afficher « T00:00:00Z » n'apprend
+    // rien et casse l'alignement de la colonne.
+    return iso.endsWith('T00:00:00.000Z') ? iso.slice(0, 10) : iso.replace('.000Z', 'Z');
+  }
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  return String(value);
+}
+
 async function fetchObject(datasetId: string, path: string): Promise<Blob> {
   const response = await request<Response>(
     `/api/v1/datasets/${datasetId}/objects/${encodeObjectPath(path)}`,
@@ -174,11 +210,19 @@ export function ObjectPreview({
      probable n'est pas le codec : c'est un 401 sur une session finie pendant
      que les jetons du reste de l'interface, eux, sont toujours valides. */
   const [attempt, setAttempt] = React.useState(0);
-  const tooBig = !streams && size > PREVIEW_LIMIT_BYTES;
+  const reads = kind === 'sheet' || kind === 'pdf' ? DOCUMENT_LIMIT_BYTES : PREVIEW_LIMIT_BYTES;
+  const tooBig = !streams && size > reads;
   const regulated = dataset.classification === 'hds';
 
   const [text, setText] = React.useState<string | null>(null);
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+  const [documentUrl, setDocumentUrl] = React.useState<string | null>(null);
+  const [sheet, setSheet] = React.useState<{
+    rows: string[][];
+    total: number;
+    name: string;
+    sheets: string[];
+  } | null>(null);
   const [error, setError] = React.useState<unknown>(null);
   const [loading, setLoading] = React.useState(false);
 
@@ -198,6 +242,27 @@ export function ObjectPreview({
              recevrait un 401. Un seul chemin, qui marche dans les deux. */
           objectUrl = URL.createObjectURL(blob);
           setImageUrl(objectUrl);
+        } else if (kind === 'pdf') {
+          objectUrl = URL.createObjectURL(blob);
+          setDocumentUrl(objectUrl);
+        } else if (kind === 'sheet') {
+          /* Chargee ici et nulle part ailleurs : qui n'ouvre jamais de
+             classeur ne telecharge jamais ce morceau. */
+          /* L'entree « browser » explicitement : le paquet n'expose pas de
+             racine, et c'est celle qui lit un Blob. */
+          const { default: readXlsxFile } = await import('read-excel-file/browser');
+          const sheets = await readXlsxFile(blob);
+          if (cancelled) return;
+          /* La premiere feuille, et on dit qu'il y en a d'autres : un classeur
+             de laboratoire en porte souvent cinq, et n'en montrer qu'une sans
+             le dire fait conclure que le reste a disparu. */
+          const first = sheets[0];
+          setSheet({
+            rows: (first?.data ?? []).slice(0, PREVIEW_ROWS).map((row) => row.map(cellText)),
+            total: first?.data.length ?? 0,
+            name: first?.sheet ?? '',
+            sheets: sheets.map((item) => item.sheet),
+          });
         } else {
           setText(await blob.text());
         }
@@ -214,10 +279,11 @@ export function ObjectPreview({
     };
   }, [dataset.id, path, kind, tooBig, streams]);
 
-  const table = React.useMemo(
-    () => (kind === 'table' && text !== null ? parseDelimited(text) : null),
-    [kind, text],
-  );
+  const table = React.useMemo(() => {
+    if (kind === 'table' && text !== null) return parseDelimited(text);
+    if (kind === 'sheet') return sheet;
+    return null;
+  }, [kind, text, sheet]);
 
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -233,7 +299,7 @@ export function ObjectPreview({
             <p className="text-sm text-muted-foreground">{t('datasets.previewUnsupported')}</p>
           ) : tooBig ? (
             <p className="text-sm text-muted-foreground">
-              {t('datasets.previewTooBig', { limit: formatBytes(PREVIEW_LIMIT_BYTES, locale) })}
+              {t('datasets.previewTooBig', { limit: formatBytes(reads, locale) })}
             </p>
           ) : loading ? (
             <div className="space-y-2">
@@ -242,6 +308,18 @@ export function ObjectPreview({
             </div>
           ) : error ? (
             <ErrorState error={error} />
+          ) : kind === 'sheet-foreign' ? (
+            <p className="text-sm text-muted-foreground">{t('datasets.previewSheetForeign')}</p>
+          ) : kind === 'pdf' && documentUrl ? (
+            /* Le lecteur du navigateur, depuis un blob deja authentifie :
+               un iframe qui irait chercher l'adresse lui-meme ne saurait pas
+               dire pourquoi il echoue, alors qu'ici le refus du serveur
+               remonte comme une erreur lisible. */
+            <iframe
+              title={path}
+              src={documentUrl}
+              className="h-[65vh] w-full rounded-md border border-border"
+            />
           ) : kind === 'video-foreign' ? (
             <p className="text-sm text-muted-foreground">{t('datasets.previewVideoForeign')}</p>
           ) : kind === 'video' ? (
@@ -306,6 +384,12 @@ export function ObjectPreview({
                   shown: formatNumber(table.rows.length, locale),
                   total: formatNumber(table.total, locale),
                 })}
+                {sheet && sheet.sheets.length > 1
+                  ? ` ${t('datasets.previewSheetOf', {
+                      name: sheet.name,
+                      others: sheet.sheets.filter((other) => other !== sheet.name).join(', '),
+                    })}`
+                  : null}
               </p>
             </div>
           ) : text !== null ? (

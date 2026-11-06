@@ -857,6 +857,8 @@ export const fr = {
     previewVideoWithdrawn: "La lecture vidéo est fermée sur cette installation, qui retire les téléchargements : un flux vidéo en est un. À regarder dans un bureau distant.",
     previewVideoFailed: "La lecture a échoué : soit ce navigateur n'a pas le codec du fichier, soit le serveur a refusé le flux. Le fichier, lui, est intact.",
     previewVideoRegulated: "La lecture vidéo n'est pas ouverte sur un jeu de données réglementé : le flux sortirait comme un téléchargement. À regarder dans un bureau distant.",
+    previewSheetForeign: "Ce format de classeur n'est pas lu ici : enregistrez-le en .xlsx, ou téléchargez-le.",
+    previewSheetOf: "Feuille « {name} » ; ce classeur en contient d'autres : {others}.",
     previewRows: "{shown} lignes affichées sur {total}.",
     dropInvitation: "ou glissez vos fichiers ici",
     dropHere: "Déposer dans {path}",

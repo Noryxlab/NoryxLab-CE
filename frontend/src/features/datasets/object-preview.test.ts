@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDelimited, previewKindOf } from './object-preview';
+import { cellText, parseDelimited, previewKindOf } from './object-preview';
 
 describe('previewKindOf', () => {
   it('reconnait les trois familles et refuse le reste', () => {
@@ -19,6 +19,13 @@ describe('previewKindOf', () => {
     expect(previewKindOf('ancien.AVI')).toBe('video-foreign');
     expect(previewKindOf('capture.mp4')).toBe('video');
     expect(previewKindOf('capture.webm')).toBe('video');
+  });
+
+  it('separe les classeurs lisibles de ceux qui ne le sont pas', () => {
+    expect(previewKindOf('mesures.xlsx')).toBe('sheet');
+    expect(previewKindOf('ancien.XLS')).toBe('sheet-foreign');
+    expect(previewKindOf('tableur.ods')).toBe('sheet-foreign');
+    expect(previewKindOf('compte-rendu.pdf')).toBe('pdf');
   });
 });
 
@@ -54,5 +61,22 @@ describe('parseDelimited', () => {
     const { rows, total } = parseDelimited('a,b\r\n1,2');
     expect(total).toBe(2);
     expect(rows[1]).toEqual(['1', '2']);
+  });
+});
+
+describe('cellText', () => {
+  it('rend une date comme une date, pas comme un numero de serie', () => {
+    // Une cellule de date revient en objet Date ; l'afficher brut donnerait
+    // un horodatage complet la ou la personne a saisi un jour.
+    expect(cellText(new Date('2026-01-15T00:00:00.000Z'))).toBe('2026-01-15');
+    expect(cellText(new Date('2026-01-15T09:30:00.000Z'))).toBe('2026-01-15T09:30:00Z');
+  });
+
+  it('rend le vide pour une cellule vide, et le reste tel quel', () => {
+    expect(cellText(null)).toBe('');
+    expect(cellText(undefined)).toBe('');
+    expect(cellText(0)).toBe('0');
+    expect(cellText(false)).toBe('false');
+    expect(cellText('SELENA-01-001')).toBe('SELENA-01-001');
   });
 });
