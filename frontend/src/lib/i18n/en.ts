@@ -848,7 +848,7 @@ export const en: Translations = {
     objectRenamed: "Object renamed",
     folderNameLabel: "Folder name",
     emptyFolder: "This folder is empty",
-    emptyFolderHint: "Upload a first file to get started.",
+    emptyFolderHint: "Upload a first file, or drag one in from your desktop: a whole folder works too.",
     downloadSelection: "Download selection",
     downloadDisabled:
       "This platform does not allow dataset files to be taken to a local machine. Files can be opened here.",

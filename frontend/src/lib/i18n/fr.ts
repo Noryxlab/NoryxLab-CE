@@ -870,7 +870,7 @@ export const fr = {
     objectRenamed: "Objet renomme",
     folderNameLabel: "Nom du dossier",
     emptyFolder: "Ce dossier est vide",
-    emptyFolderHint: "Téléversez un premier fichier pour commencer.",
+    emptyFolderHint: "Téléversez un premier fichier, ou glissez-en depuis votre bureau : un dossier entier marche aussi.",
     downloadSelection: "Télécharger la sélection",
     downloadDisabled:
       "Cette plateforme n’autorise pas la sortie des fichiers vers un poste local. Les fichiers restent consultables ici.",
