@@ -1702,6 +1702,7 @@ export const en: Translations = {
       "Fixes a name or an email typed wrong. The username cannot change: it is how Noryx identifies this person on every project, team and audit entry.",
     usernameFixed: "Username (cannot be changed)",
     userUpdated: "Account updated",
+    usernameRule: "Letters, digits, dot, dash or underscore. No spaces: the directory refuses them.",
     username: "Username",
     firstName: "First name",
     lastName: "Last name",

@@ -1735,6 +1735,7 @@ export const fr = {
       "Corrige un nom ou un courriel mal saisi. L'identifiant ne change pas : c'est par lui que Noryx reconnaît cette personne sur chaque projet, chaque équipe et chaque entrée du journal.",
     usernameFixed: "Identifiant (non modifiable)",
     userUpdated: "Compte mis à jour",
+    usernameRule: "Lettres, chiffres, point, tiret ou souligné. Pas d'espace : l'annuaire le refuse.",
     username: "Identifiant",
     firstName: "Prénom",
     lastName: "Nom",

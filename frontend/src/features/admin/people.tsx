@@ -1235,7 +1235,18 @@ function CreateUserSheet({ organization, open, onOpenChange }: { organization: O
             <Field label={t('platformRoles.role')}>
               <Select value={form.roleKey} onValueChange={(v) => setForm((f) => ({ ...f, roleKey: v }))} options={assignable.map((r) => ({ value: r.key, label: r.name }))} />
             </Field>
-            <Field label={t('identity.username')} required><Input value={form.username} onChange={set('username')} autoFocus /></Field>
+            {/* La regle de l'annuaire, dite avant d'etre opposee.
+                Keycloak refuse un identifiant qui contient un espace, et la
+                reponse partait dans le journal : « Chuck Noryx » a ete refuse
+                deux fois le 11/11/2026 sans que l'ecran dise pourquoi. Le
+                serveur le dit maintenant ; le dire ici evite l'aller-retour. */}
+            <Field
+              label={t('identity.username')}
+              description={t('identity.usernameRule')}
+              required
+            >
+              <Input value={form.username} onChange={set('username')} autoFocus />
+            </Field>
             <Field label="Email" required><Input type="email" value={form.email} onChange={set('email')} /></Field>
             <div className="flex gap-2">
               <Field label={t('identity.firstName')} className="flex-1"><Input value={form.firstName} onChange={set('firstName')} /></Field>

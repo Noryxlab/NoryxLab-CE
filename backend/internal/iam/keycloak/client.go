@@ -586,6 +586,45 @@ var ErrNoSuchUser = errors.New("no such user")
 // IsNoSuchUser reports whether the identifier named nobody.
 func IsNoSuchUser(err error) bool { return errors.Is(err, ErrNoSuchUser) }
 
+// FieldRefusal is a validation refusal, read back from Keycloak's answer.
+//
+// Keycloak's user profile checks the fields and says which one it refused and
+// why: `{"field":"username","errorMessage":"error-username-invalid-character"}`.
+// That is not "another system's internals" - it is the one part of its answer
+// the person in front of the form can act on, and it was going to the log
+// while the screen said "failed to create the account".
+//
+// Measured on 2026-11-11: an account named "Chuck Noryx" was refused twice
+// for the space in the username, and nothing on the screen said so.
+type FieldRefusal struct {
+	Field string
+	Code  string
+}
+
+// Refusal reads a field refusal out of an error, when there is one.
+func Refusal(err error) (FieldRefusal, bool) {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+		return FieldRefusal{}, false
+	}
+	var body struct {
+		Field        string `json:"field"`
+		ErrorMessage string `json:"errorMessage"`
+		Error        string `json:"error"`
+	}
+	if json.Unmarshal([]byte(apiErr.Body), &body) != nil {
+		return FieldRefusal{}, false
+	}
+	code := strings.TrimSpace(body.ErrorMessage)
+	if code == "" {
+		code = strings.TrimSpace(body.Error)
+	}
+	if code == "" {
+		return FieldRefusal{}, false
+	}
+	return FieldRefusal{Field: strings.TrimSpace(body.Field), Code: code}, true
+}
+
 // IsNotFound reports whether Keycloak answered 404.
 func IsNotFound(err error) bool {
 	var apiErr *APIError

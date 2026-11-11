@@ -3,11 +3,12 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/json"
-	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
+	"log"
 	"math/big"
 	"net/http"
 	"strings"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/iam/keycloak"
 )
 
@@ -250,6 +251,46 @@ func (h Handlers) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// refusalMessage says what to change, in the words of the form rather than of
+// the identity provider. An unknown code still names the field, because
+// "username" plus a code beats a sentence that names nothing.
+func refusalMessage(refusal keycloak.FieldRefusal) string {
+	switch refusal.Code {
+	case "error-username-invalid-character":
+		return "the username cannot contain spaces or punctuation: use letters, digits, and . _ -"
+	case "error-invalid-email":
+		return "this email address is not valid"
+	case "error-invalid-blank", "error-user-attribute-required":
+		return "this field is required: " + fieldName(refusal.Field)
+	case "error-invalid-length", "error-invalid-length-too-short":
+		return "this value is too short or too long: " + fieldName(refusal.Field)
+	case "error-person-name-invalid-character":
+		return "a name cannot contain punctuation or control characters"
+	case "error-email-exists", "error-username-exists":
+		return "a user with that name or email already exists"
+	}
+	if refusal.Field != "" {
+		return "the directory refused " + fieldName(refusal.Field) + " (" + refusal.Code + ")"
+	}
+	return "the directory refused this account (" + refusal.Code + ")"
+}
+
+func fieldName(field string) string {
+	switch field {
+	case "username":
+		return "the username"
+	case "email":
+		return "the email address"
+	case "firstName":
+		return "the first name"
+	case "lastName":
+		return "the last name"
+	case "":
+		return "one of the fields"
+	}
+	return field
+}
+
 func (h Handlers) writeKeycloakUserError(w http.ResponseWriter, action string, err error) {
 	if keycloak.IsNotFound(err) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such user"})
@@ -259,8 +300,20 @@ func (h Handlers) writeKeycloakUserError(w http.ResponseWriter, action string, e
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "a user with that name or email already exists"})
 		return
 	}
-	// Keycloak's own response body stays in the log: it is another system's
-	// internals and the caller cannot act on it.
+	// A refused field is the one part of Keycloak's answer the person can act
+	// on, so it crosses the boundary while the rest of the body stays in the
+	// log. "Failed to create the account" sent somebody looking for a
+	// permission problem when the fault was a space in a username.
+	if refusal, ok := keycloak.Refusal(err); ok {
+		log.Printf("keycloak: %s refused on %q: %s", action, refusal.Field, refusal.Code)
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": refusalMessage(refusal),
+			"field": refusal.Field,
+		})
+		return
+	}
+	// The rest of Keycloak's response body stays in the log: it is another
+	// system's internals and the caller cannot act on it.
 	h.writeKeycloakError(w, action, err)
 }
 
