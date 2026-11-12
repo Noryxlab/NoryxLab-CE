@@ -68,7 +68,7 @@ tar xzf minio.tar.gz
 cd minio-*
 
 cat > Dockerfile.noryx <<'DOCKER'
-FROM golang:1.26.10 AS builder
+FROM golang:1.26.11 AS builder
 WORKDIR /src
 COPY . .
 ARG MINIO_VERSION=DEVELOPMENT
