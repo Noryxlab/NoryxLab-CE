@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { appsApi, jobsApi, datasourcesApi } from '../api/endpoints';
+import { configureAuth } from '../api/client';
+
+// The client refuses to send an OIDC request without a bearer, so a test that
+// exercises an endpoint has to hold a session like a browser does.
+configureAuth({ getToken: () => 'test-token' });
 
 /**
  * Every log endpoint answers with an envelope - `{appId, podName, logs}` - and

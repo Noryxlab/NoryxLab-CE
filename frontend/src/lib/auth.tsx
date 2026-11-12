@@ -53,26 +53,31 @@ export async function openBackendSession(): Promise<void> {
  */
 async function refreshSurvives(keycloak: Keycloak): Promise<boolean> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
-  if (checking) return true;
-  // Re-entrancy guard: the retry below fails the same way as the first
-  // attempt, and keycloak-js reports that failure through onAuthRefreshError -
-  // which lands back here. Without this the two would take turns retrying.
-  checking = true;
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  // A second caller used to be told "true" and sent on its way, which handed
+  // it whatever keycloak.token held at that instant - often nothing. A
+  // dashboard fires several requests at once, so one tile rendered while its
+  // neighbour showed the API refusing a request that carried no token. The
+  // guard now shares the attempt instead of waving past it: whoever arrives
+  // second waits for the same answer, and gets the same token.
+  if (checking) return checking;
+  checking = (async () => {
     try {
-      await keycloak.updateToken(30);
-      return true;
-    } catch {
-      return false;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        await keycloak.updateToken(30);
+        return true;
+      } catch {
+        return false;
+      }
+    } finally {
+      checking = null;
     }
-  } finally {
-    checking = false;
-  }
+  })();
+  return checking;
 }
 
-/** True while a second chance is already in flight. */
-let checking = false;
+/** The second chance in flight, shared by every caller that arrives during it. */
+let checking: Promise<boolean> | null = null;
 
 async function closeBackendSession(): Promise<void> {
   try {

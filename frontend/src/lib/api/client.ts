@@ -73,10 +73,29 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   return authHeaders();
 }
 
+/** Thrown instead of sending a request the platform is certain to refuse. */
+export class NoSessionError extends ApiError {
+  constructor() {
+    super(
+      "Votre session a expiré. Reconnectez-vous pour continuer.",
+      401,
+      'session_expired',
+    );
+  }
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   if (config.authMode === 'oidc') {
     const token = await tokenProvider();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    // No token means no session, and sending the request anyway is how the
+    // API's own words reach a screen: a tile that said "missing bearer token"
+    // to somebody whose only mistake was leaving the page open while the
+    // identity provider restarted. The provider has three paths that can
+    // return null - mounting, a browser reporting itself offline, a refresh
+    // already in flight - and each one used to produce that line. Refusing
+    // here covers all three, and says the one thing the person can act on.
+    if (!token) throw new NoSessionError();
+    return { Authorization: `Bearer ${token}` };
   }
   return { 'X-Noryx-User': devUser };
 }

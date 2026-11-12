@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { environmentsApi } from './endpoints';
+import { configureAuth } from './client';
+
+// The client refuses to send an OIDC request without a bearer, so a test that
+// exercises an endpoint has to hold a session like a browser does.
+configureAuth({ getToken: () => 'test-token' });
 
 // The API answers with the file and where it came from. The screen shows the
 // file, and typing this call as a string put the whole envelope in the editor:
