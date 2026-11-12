@@ -953,23 +953,8 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 	lines := []string{
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
-		fmt.Sprintf("if [ -f %s ]; then", workspaceRequirementsFile),
-		fmt.Sprintf("  echo '[bootstrap] requirements detected at %s'", workspaceRequirementsFile),
-		"  echo '[bootstrap] installing requirements into project venv and user site packages'",
-		fmt.Sprintf("  python3 -m venv %s || true", workspaceProjectVenvPath),
-		fmt.Sprintf("  if [ -x %s/bin/pip ]; then", workspaceProjectVenvPath),
-		fmt.Sprintf("    %s/bin/pip install --disable-pip-version-check -r %s > /tmp/noryx-requirements.log 2>&1 || true", workspaceProjectVenvPath, workspaceRequirementsFile),
-		"  fi",
-		fmt.Sprintf("  python3 -m pip install --disable-pip-version-check --user -r %s >> /tmp/noryx-requirements.log 2>&1 || true", workspaceRequirementsFile),
-		fmt.Sprintf("  if [ -x %s/bin/python ]; then", workspaceProjectVenvPath),
-		fmt.Sprintf("    %s/bin/python -m pip list --format=freeze > /tmp/noryx-requirements-installed.txt 2>/dev/null || true", workspaceProjectVenvPath),
-		"  fi",
-		"  python3 -m pip list --format=freeze > /tmp/noryx-requirements-user-installed.txt 2>/dev/null || true",
-		"  echo '[bootstrap] requirements installation completed'",
-		"else",
-		fmt.Sprintf("  echo '[bootstrap] no requirements file found at %s'", workspaceRequirementsFile),
-		"fi",
 	}
+	lines = append(lines, requirementsBootstrapLines()...)
 	// L'arbre des extraits, avant que l'application demarre : elle lit dedans.
 	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "" && !montage.TreeMounted, montage.Refused, montage.Skipped)...)
 	for _, repo := range attachedRepos {

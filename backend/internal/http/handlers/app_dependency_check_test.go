@@ -52,7 +52,11 @@ func TestSansFichierPythonAucuneVerification(t *testing.T) {
 // l'avertissement arrive apres la trace qu'il explique.
 func TestLaVerificationEstEntreLInstallationEtLeLancement(t *testing.T) {
 	script := appBootstrapScript(8501, []string{"streamlit", "run", "app.py"}, nil, extractMount{})
-	install := strings.Index(script, "requirements installation completed")
+	// L'ancre etait "requirements installation completed", une phrase que le
+	// script imprimait quoi qu'il arrive - et qui a disparu le jour ou elle a
+	// couvert une installation ratee. On s'ancre donc sur la derniere ligne
+	// reelle du bloc plutot que sur son communique.
+	install := strings.Index(script, "noryx-requirements-user-installed.txt")
 	// Les chemins passent par shellQuote, donc entre apostrophes.
 	check := strings.Index(script, "noryx-check-deps.py '/mnt/app.py'")
 	// Chaque mot du lancement est quote lui aussi.
