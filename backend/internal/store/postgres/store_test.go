@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/apitoken"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/hardware"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/project"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/workspace"
@@ -307,5 +308,52 @@ func TestTokenQueriesCarryTheComponent(t *testing.T) {
 	}
 	if !strings.Contains(text, "token.Component)") {
 		t.Fatal("the component is never written: it is empty from the moment it is stored")
+	}
+}
+
+// A project token belongs to the project, not to the person who made it -
+// that is the whole reason it exists. So it has to go when the project does.
+// It did not: the deletion emptied nine tables and left api_tokens alone, and
+// the nightly integrity check found the row months later, pointing at an
+// identifier nothing resolves. A revoked one is litter; a live one is a
+// credential that still authenticates and appears on no screen, because every
+// screen lists project tokens through the project.
+func TestDeletingAProjectTakesItsTokensWithIt(t *testing.T) {
+	store := testStore(t)
+	tokens := &APITokenStore{Store: store}
+
+	item := project.NewOwned("test-owner", "Project with a token", "written by a test")
+	if err := store.Create(item); err != nil {
+		t.Fatalf("creating the project: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteProject(item.ID) })
+
+	scoped := apitoken.Token{
+		ID: "test-scoped-" + item.ID, UserID: "test-owner", Name: "scoped",
+		SecretHash: []byte("hash"), CreatedAt: time.Now().UTC(), ProjectID: item.ID,
+	}
+	personal := apitoken.Token{
+		ID: "test-personal-" + item.ID, UserID: "test-owner", Name: "personal",
+		SecretHash: []byte("hash"), CreatedAt: time.Now().UTC(),
+	}
+	for _, token := range []apitoken.Token{scoped, personal} {
+		if err := tokens.Put(token); err != nil {
+			t.Fatalf("storing the %s token: %v", token.Name, err)
+		}
+		t.Cleanup(func() { _, _ = store.db.Exec(`DELETE FROM api_tokens WHERE id=$1`, token.ID) })
+	}
+
+	if err := store.DeleteProject(item.ID); err != nil {
+		t.Fatalf("deleting the project: %v", err)
+	}
+
+	if _, found, err := tokens.Get(scoped.ID); err != nil || found {
+		t.Fatalf("the project's token survived it: found=%v err=%v", found, err)
+	}
+	// And nothing else went with it: a personal token carries an empty
+	// project, which a careless `WHERE project_id=$1` would also match if the
+	// identifier were ever empty.
+	if _, found, err := tokens.Get(personal.ID); err != nil || !found {
+		t.Fatalf("a personal token was taken down with the project: found=%v err=%v", found, err)
 	}
 }

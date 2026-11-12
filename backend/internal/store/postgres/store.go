@@ -1319,6 +1319,12 @@ func (s *Store) DeleteProject(projectID string) error {
 		`DELETE FROM apps WHERE project_id=$1`,
 		`DELETE FROM jobs WHERE project_id=$1`,
 		`DELETE FROM pods WHERE project_id=$1`,
+		// A token scoped to the project goes with it. Without this line it
+		// survives, and the nightly check finds a credential pointing at an
+		// identifier nothing resolves - which is how it was found. A revoked
+		// one is only litter; a live one is a credential nobody can see on
+		// any screen, because every screen lists tokens through the project.
+		`DELETE FROM api_tokens WHERE project_id=$1`,
 		`DELETE FROM projects WHERE id=$1`,
 	}
 	for _, stmt := range statements {
