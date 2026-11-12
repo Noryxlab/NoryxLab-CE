@@ -216,14 +216,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clientId: config.oidc.clientId,
     });
     keycloakRef.current = keycloak;
+
+    // A screen starts asking for data the moment React mounts it, and
+    // keycloak.init() has not finished. getToken used to answer null for that
+    // window, the request went out with no Authorization header, and the API
+    // answered "missing bearer token" - which React Query then kept, because
+    // a 401 is a 4xx and 4xx are not retried. One tile on the home page stayed
+    // broken until a reload happened to win the race, and signing out and in
+    // again changed nothing: each load runs the same race.
+    //
+    // So the token is not decided before the flow has settled. Everything
+    // below waits on this, and nothing is refused for being early.
+    let initialised: () => void;
+    const ready = new Promise<void>((resolve) => {
+      initialised = resolve;
+    });
     // Do not let keycloak-js reuse a deep or stateful current URL as the
     // callback URL. Some browsers can grow it past Keycloak's URI limit.
     const redirectUri = `${window.location.origin}/`;
     configureAuth({
       getToken: async () => {
-        // A request can happen while React is still mounting providers. Never
-        // ask keycloak-js to refresh a token before the initial OIDC callback
-        // has been processed: it can restart the authorization flow forever.
+        // Never ask keycloak-js to refresh a token before the initial OIDC
+        // callback has been processed: it can restart the authorization flow
+        // forever. Waiting is right where returning null was wrong - the
+        // session is not absent, it is not decided yet.
+        await ready;
         if (!keycloak.authenticated || !keycloak.token) return null;
         try {
           // Refresh when the token has under 30s left, so a long-running page
@@ -273,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectUri,
       })
       .then((authenticated) => {
+        initialised();
         // keycloak-js reports its own refresh failures here, including the
         // background ones no request asked for. It fires on the first failure,
         // so pointing it straight at endSession undid the second chance given
@@ -295,6 +313,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((cause: unknown) => {
+        // Released on failure too: a caller waiting for the flow to settle
+        // must learn that it did, badly. Leaving the promise pending would
+        // hang every request behind an identity provider that never answered,
+        // which reads as a frozen screen rather than an error.
+        initialised();
         setError(cause);
         setStatus('failed');
       });
