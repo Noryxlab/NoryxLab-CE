@@ -5,7 +5,7 @@
 <h1 align="center">NoryxLab Community Edition</h1>
 
 <p align="center">
-  A Kubernetes-native platform for collaborative data work.
+  The open source data science platform that stays on your infrastructure.
 </p>
 
 <p align="center">
@@ -15,14 +15,38 @@
   <a href="https://www.noryxlab.ai/docs/"><img src="https://img.shields.io/badge/documentation-NoryxLab-16a5a2.svg" alt="NoryxLab documentation"></a>
 </p>
 
-NoryxLab gives Python and R teams one project-oriented place to manage data,
-repositories, environments, interactive workspaces, jobs and applications.
-The Community Edition is the public, self-hosted foundation: run it on your
-own Kubernetes infrastructure, use your own S3-compatible storage and connect
-it to your Keycloak identity provider.
+<p align="center">
+  <a href="https://www.noryxlab.ai/">noryxlab.ai</a> ·
+  <a href="https://www.noryxlab.ai/platform.html">How the platform works</a> ·
+  <a href="docs/INSTALL_CE.md">Install</a> ·
+  <a href="docs/API.md">API</a> ·
+  <a href="docs/EDITIONS.md">Editions</a>
+</p>
 
-> **Project status:** actively developed. Test upgrades on a representative
-> non-production cluster before production use.
+NoryxLab is a Kubernetes-native data science and AI platform. It gives Python
+and R teams self-service workspaces (JupyterLab, VS Code, RStudio), batch and
+scheduled jobs, deployed applications and S3 datasets, organised by project,
+on a cluster you operate. Your data stays in your object storage, your users
+in your identity provider, your images in your registry; the platform's own
+database holds metadata and nothing that could not be rebuilt from your
+systems and a backup.
+
+The Community Edition is the whole core workflow, under MPL-2.0. The
+Enterprise Edition adds what an institution asks for around the same platform:
+an RBAC matrix, audit, controlled egress, regulated datasets read in place and
+never downloaded, backups with rehearsed restores, continuous validation and a
+governed AI assistant. Nothing in this repository is a disabled Enterprise
+feature waiting for a key.
+
+<p align="center">
+  <img src="docs/screenshots/console-home.webp" width="880" alt="The NoryxLab console: platform activity, recent projects and the catalogue entry point, captured on a running installation.">
+</p>
+
+<p align="center"><sub>Captured on a running installation. More screens: the <a href="docs/screenshots/project-overview.webp">project overview with measured consumption</a>, a <a href="docs/screenshots/workspace-assistant.webp">VS Code workspace with the integrated assistant</a>, and the <a href="docs/screenshots/access-matrix.webp">access matrix</a>.</sub></p>
+
+> **Project status:** actively developed and in production at several
+> installations. Test upgrades on a representative non-production cluster
+> before production use.
 
 ## Start Here
 
@@ -74,15 +98,32 @@ build service are external components in the reference topology.
 
 ## Community And Enterprise
 
-Community Edition contains the reusable platform core: projects, data,
-repositories, environments, workloads, applications, S3 integration and
-baseline access control.
+Both editions run the same control plane, the same object model and the same
+API. Moving from one to the other replaces an image; it does not migrate data
+or re-teach a workflow.
 
-NoryxLab Enterprise Edition is distributed separately. It adds organisation
-governance, advanced RBAC, audit, quotas, the agent and workflow runtime,
-platform validation, controlled egress, backup operations and regulated-data
-workflows. The CE repository does not contain Enterprise source code or a
-runtime switch that unlocks it.
+| Capability | Community | Enterprise |
+| --- | --- | --- |
+| Projects, organisations, roles | Included | Included |
+| Workspaces, jobs, scheduled jobs, applications | Included | Included |
+| Environments and in-cluster builds | Included | Included |
+| S3 datasets, data services, repositories, secrets | Included | Included |
+| Quotas and usage accounting | Included | Included |
+| Full API and Swagger UI | Included | Included |
+| Audit trail | Platform events | Advanced audit, CSV export |
+| Access model | Fixed roles: viewer, editor, admin | Custom RBAC matrix |
+| Outbound network access | Cluster policy | Controlled egress, requested and decided |
+| Regulated (HDS) datasets | — | Restricted download, audited reads |
+| Agent runtime, tools, workflow scheduler | — | Included, with governance and export |
+| Backups, restore, API tokens | — | Scheduled, off-site, rehearsed |
+| Continuous platform validation | — | Scheduled suites and alerting |
+| In-platform assistant | — | Included, OpenAI-compatible API |
+| Support | Issues on GitHub | Commercial agreement |
+
+The Enterprise Edition is an overlay compiled into its own binary: an
+enterprise capability is absent from the Community binary rather than present
+and disabled. Enterprise licensing and commercial enquiries:
+[admin@noryxlab.ai](mailto:admin@noryxlab.ai).
 
 - [Edition model](docs/EDITIONS.md)
 - [CE/EE extension boundary](docs/EE_EXTENSION_POINTS.md)
@@ -224,7 +265,7 @@ exploit details in a public issue. Contact the maintainers privately first.
 ## License
 
 NoryxLab Community Edition is licensed under the
-+[Mozilla Public License 2.0](LICENSE) (`MPL-2.0`). The MPL applies at file
-+level: modifications to MPL-covered files remain under MPL-2.0 when
+[Mozilla Public License 2.0](LICENSE) (`MPL-2.0`). The MPL applies at file
+level: modifications to MPL-covered files remain under MPL-2.0 when
 distributed, while separate files can be combined with the Community Edition as
 part of a larger work under different terms.
