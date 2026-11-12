@@ -38,6 +38,31 @@ const (
 	projectActionManageEnvironment = "environment.manage"
 )
 
+// logMissingBearer says which request arrived with no Authorization header.
+//
+// A refused token is logged with its reason; a request that carries none was
+// not logged at all, so "missing bearer token" on a screen could not be traced
+// to a caller. On 2026-11-12 that cost an evening: two fixes were shipped
+// against two plausible races in the console before anyone could say which
+// request was failing, or whether it came from the console at all.
+//
+// Nothing here is a credential. The path says which endpoint, the referer and
+// the agent say which page and which client, and whether a session cookie was
+// presented separates "the browser has no session" from "this caller never
+// sends one" - an extension, a script, a probe.
+func (h Handlers) logMissingBearer(r *http.Request) {
+	cookie := "none"
+	if _, err := r.Cookie(sessionCookie); err == nil {
+		cookie = "present"
+	}
+	agent := r.UserAgent()
+	if len(agent) > 60 {
+		agent = agent[:60]
+	}
+	log.Printf("no bearer token on %s %s: session cookie %s, referer %q, agent %q",
+		r.Method, r.URL.Path, cookie, r.Header.Get("Referer"), agent)
+}
+
 func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.Identity, bool) {
 	// A request built inside this process already knows who it is for: an
 	// agent calling the API as its owner. Nothing that came over the wire can
@@ -107,12 +132,14 @@ func (h Handlers) requireIdentity(w http.ResponseWriter, r *http.Request) (auth.
 	// session. The bearer check above was added in front of it and this was
 	// never closed behind.
 	if !strings.EqualFold(strings.TrimSpace(h.authMode), "header") {
+		h.logMissingBearer(r)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
 		return auth.Identity{}, false
 	}
 
 	userID := strings.TrimSpace(r.Header.Get(userHeader))
 	if userID == "" {
+		h.logMissingBearer(r)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
 		return auth.Identity{}, false
 	}
