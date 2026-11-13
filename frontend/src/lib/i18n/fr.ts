@@ -1296,6 +1296,8 @@ export const fr = {
   },
 
   members: {
+    remove: 'Retirer',
+    removed: 'Accès retiré',
     orgTitle: "Accès par organisation",
     orgHint:
       "Chaque membre de l’organisation obtient ce rôle sur le projet. Les accès s’additionnent : c’est le plus fort qui s’applique, entre le rôle personnel et celui hérité d’une organisation.",

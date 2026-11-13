@@ -1346,6 +1346,14 @@ func (s *Store) SetRole(projectID, userID string, role access.Role) {
 	}
 }
 
+func (s *Store) RemoveRole(projectID, userID string) {
+	_, err := s.db.Exec(`DELETE FROM access_roles WHERE project_id=$1 AND user_id=$2`,
+		strings.TrimSpace(projectID), strings.TrimSpace(userID))
+	if err != nil {
+		log.Printf("warning: failed to remove access role: %v", err)
+	}
+}
+
 func (s *Store) GetRole(projectID, userID string) (access.Role, bool) {
 	var role string
 	err := s.db.QueryRow(`SELECT role FROM access_roles WHERE project_id=$1 AND user_id=$2`, strings.TrimSpace(projectID), strings.TrimSpace(userID)).Scan(&role)

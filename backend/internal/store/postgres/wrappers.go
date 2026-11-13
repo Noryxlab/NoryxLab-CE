@@ -72,6 +72,9 @@ func (s *ProjectStore) DeleteProject(id string) error { return s.Store.DeletePro
 func (s *AccessStore) SetRole(projectID, userID string, role access.Role) {
 	s.Store.SetRole(projectID, userID, role)
 }
+func (s *AccessStore) RemoveRole(projectID, userID string) {
+	s.Store.RemoveRole(projectID, userID)
+}
 func (s *AccessStore) GetRole(projectID, userID string) (access.Role, bool) {
 	return s.Store.GetRole(projectID, userID)
 }

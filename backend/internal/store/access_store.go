@@ -24,6 +24,12 @@ type AccessStore interface {
 	SetRole(projectID, userID string, role access.Role)
 	GetRole(projectID, userID string) (access.Role, bool)
 	ListProjectRoles() ([]ProjectRole, error)
+	// RemoveRole takes a personal grant back, row and all.
+	//
+	// Revoking used to mean writing an empty role, which left the row in
+	// place: the person reached nothing and still looked like a member to
+	// anything reading the table.
+	RemoveRole(projectID, userID string)
 
 	// SetOrganizationRole grants a role to an organization; an empty role
 	// revokes it.

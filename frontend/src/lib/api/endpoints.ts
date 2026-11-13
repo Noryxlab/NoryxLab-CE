@@ -194,8 +194,20 @@ export const projectsApi = {
     ),
   quota: (projectId: string) =>
     api.get<ProjectQuotaState>(`${V1}/projects/${encodeURIComponent(projectId)}/quota`),
+  /** Who actually holds a role, owner included.
+   *
+   *  The screen used to build its table from the project's owner alone,
+   *  because nothing could be asked: a grant could be given and never listed.
+   *  Grants reaching somebody through a team or an organization keep their own
+   *  screens, so the list says where an access comes from. */
+  members: (projectId: string) =>
+    api.list<ProjectMember>(`${V1}/projects/${encodeURIComponent(projectId)}/members`),
   setMemberRole: (projectId: string, userId: string, role: string) =>
     api.put<void>(`${V1}/projects/${projectId}/members/${userId}/role`, { role }),
+  removeMember: (projectId: string, userId: string) =>
+    api.delete<void>(
+      `${V1}/projects/${encodeURIComponent(projectId)}/members/${encodeURIComponent(userId)}`,
+    ),
   invite: (projectId: string, input: { userId: string; role: string }) =>
     api.post<ProjectMember>(`${V1}/projects/${projectId}/invitations`, input),
 

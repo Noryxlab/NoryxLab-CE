@@ -1272,6 +1272,8 @@ export const en: Translations = {
   },
 
   members: {
+    remove: 'Remove',
+    removed: 'Access removed',
     orgTitle: "Organization access",
     orgHint:
       "Every member of the organization holds this role on the project. Access adds up: the stronger of a personal role and one inherited from an organization applies.",

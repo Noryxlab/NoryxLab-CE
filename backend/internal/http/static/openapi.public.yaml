@@ -112,6 +112,16 @@ components:
         membershipGrant: { type: string, enum: [none, reader, writer] }
         updatedAt: { type: string, format: date-time }
         updatedBy: { type: string }
+    ProjectMember:
+      type: object
+      properties:
+        userId: { type: string }
+        role: { type: string, enum: [viewer, editor, admin] }
+        owner:
+          type: boolean
+          description: >-
+            True for the project's owner, whose access comes from ownership
+            rather than from a grant and cannot be revoked here.
     OrganizationAdminListResponse:
       type: object
       properties:
@@ -10012,6 +10022,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrganizationPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/members:
+    get:
+      tags: [Projects]
+      summary: Who holds a role on this project
+      description: >-
+        The people holding a direct, personal grant, with the owner marked.
+        Grants that reach somebody through a team or an organization are read
+        from their own endpoints, so a list never hides where an access comes
+        from. Readable by anybody who may read the project.
+      operationId: listProjectMembers
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The grants on this project
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProjectMember' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/members/{userID}:
+    delete:
+      tags: [Projects]
+      summary: Take a project role back
+      description: >-
+        Removes the personal grant entirely. Setting an empty role left the row
+        in place, so somebody who reached nothing still read as a member. The
+        owner is refused with 409: ownership is transferred through its own
+        route, not revoked here.
+      operationId: deleteProjectMember
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: userID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: The personal grant is gone
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
-import { useMutation } from '@tanstack/react-query';
-import { Trash2, UserPlus, Users } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Trash2, UserMinus, UserPlus, Users } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
@@ -117,12 +117,28 @@ export function ProjectMembersPage() {
     onError: (error) => toast.error(error, t('common.role')),
   });
 
-  // The owner is always a member; the API exposes members through the project
-  // itself rather than a dedicated collection endpoint.
-  const members: ProjectMember[] = React.useMemo(() => {
-    if (!project.data) return [];
-    return [{ userId: project.data.ownerId, role: 'admin' as const }].filter((member) => member.userId);
-  }, [project.data]);
+  // Everybody who holds a grant, asked of the API.
+  //
+  // This table was built from one value - the project's owner - with a comment
+  // explaining that members came "through the project itself". They did not:
+  // nothing carried them, and no endpoint could be asked. Three people held a
+  // grant on the project that prompted this, and two never appeared, including
+  // the account nobody could account for.
+  const members = useQuery({
+    queryKey: [...qk.project(projectId ?? ''), 'members'],
+    queryFn: () => projectsApi.members(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
+  const remove = useMutation({
+    mutationFn: (member: ProjectMember) => projectsApi.removeMember(projectId as string, member.userId),
+    onSuccess: () => {
+      invalidate(qk.project(projectId ?? ''), qk.projects);
+      void members.refetch();
+      toast.success(t('members.removed'), t('members.title'));
+    },
+    onError: (error) => toast.error(error, t('members.title')),
+  });
 
   const columns: Column<ProjectMember>[] = [
     {
@@ -141,7 +157,7 @@ export function ProjectMembersPage() {
       id: 'role',
       header: t('common.role'),
       cell: (member) =>
-        member.userId === project.data?.ownerId ? (
+        member.owner ? (
           <Badge tone="brand">{t('common.owner')}</Badge>
         ) : (
           <Select
@@ -150,7 +166,27 @@ export function ProjectMembersPage() {
             options={roleOptions}
             className="max-w-48"
             aria-label={t('common.role')}
+            disabled={!canManage}
           />
+        ),
+    },
+    {
+      id: 'remove',
+      header: '',
+      // Seeing a grant is half of it. The platform could create one and never
+      // take it back: the only writing route set a role, and setting an empty
+      // one left the row behind.
+      cell: (member) =>
+        member.owner || !canManage ? null : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => remove.mutate(member)}
+            aria-label={`${t('members.remove')} ${member.displayName ?? member.userId}`}
+          >
+            <UserMinus aria-hidden />
+            {t('members.remove')}
+          </Button>
         ),
     },
   ];
@@ -170,13 +206,13 @@ export function ProjectMembersPage() {
 
       <Card>
         <DataTable
-          data={members}
+          data={members.data ?? []}
           columns={columns}
           rowKey={(member) => member.userId}
-          isLoading={project.isLoading}
-          isError={project.isError}
-          error={project.error}
-          onRetry={() => void project.refetch()}
+          isLoading={members.isLoading}
+          isError={members.isError}
+          error={members.error}
+          onRetry={() => void members.refetch()}
           emptyState={
             <EmptyState
               icon={Users}

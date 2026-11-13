@@ -64,6 +64,9 @@ export interface Project {
 export interface ProjectMember {
   userId: string;
   role: ProjectRole;
+  /** The owner's access comes from ownership, not from a grant: it is
+   *  transferred, never revoked, so a screen must not offer to remove it. */
+  owner?: boolean;
   email?: string;
   displayName?: string;
 }

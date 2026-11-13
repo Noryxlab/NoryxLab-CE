@@ -377,6 +377,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/admin/users/{userID}/platform-role"): ("204", "Back on the user row", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}/access/{userID}"): ("204", "Permission removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
+    ("DELETE", "/api/v1/projects/{projectID}/members/{userID}"): ("204", "The personal grant is gone", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}"): ("204", "Extract removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),

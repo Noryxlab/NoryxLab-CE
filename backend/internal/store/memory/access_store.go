@@ -56,6 +56,15 @@ func (s *AccessStore) SetRole(projectID, userID string, role access.Role) {
 	s.project[projectID][userID] = role
 }
 
+func (s *AccessStore) RemoveRole(projectID, userID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if grants, ok := s.project[projectID]; ok {
+		delete(grants, userID)
+	}
+}
+
 func (s *AccessStore) GetRole(projectID, userID string) (access.Role, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
