@@ -231,3 +231,43 @@ spec:
               - 169.254.0.0/16
               - 172.16.0.0/12
               - 192.168.0.0/16
+---
+# The declared package endpoint, and nothing else in its namespace.
+#
+# Configuring an index is useless for the workloads that need it unless they
+# can reach it. A closed workload falls to the default deny above, which admits
+# DNS, the platform API and the project's data services - so `pip` would be
+# pointed at an address it cannot open, and would hang rather than refuse. That
+# failure shape is the one ADR-054 fixes the order of work to avoid, and this
+# rule is the half of it that lives in the network.
+#
+# A namespaceSelector rather than an ipBlock because the endpoint is in the
+# cluster: it has no stable address to write down, and the selector survives a
+# reschedule. A client's own Artifactory is the other case ADR-054 describes,
+# and that one is an address, which the same mechanism expresses just as well.
+#
+# This policy is unconditional on purpose. An installation that declares no
+# python index has no `pulp` namespace, so the rule selects nothing and admits
+# nothing; one that declares a client's repository instead gets its own address
+# rule and never applies this file. Making the opening depend on the setting
+# would mean the network and the configuration can disagree, and the symptom
+# of that disagreement is a hang.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: user-workloads-allow-package-endpoint
+  namespace: noryx-loads
+spec:
+  podSelector:
+    matchLabels:
+      noryx.io/network-isolation: user-workload
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: pulp
+      ports:
+        - protocol: TCP
+          port: 80
