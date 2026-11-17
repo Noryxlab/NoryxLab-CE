@@ -92,6 +92,23 @@ const (
 	// publishes a figure do not want the same default.
 	KeyEgressEnforcement = "egress.enforcement"
 
+	// Where a closed workload gets its packages.
+	//
+	// ADR-023 takes the public internet away from a regulated workload and
+	// ADR-054 says what replaces it: a declared endpoint, which is an address
+	// the network layer can actually allow, rather than a domain allowlist it
+	// cannot. This is the first of those endpoints and the one on the critical
+	// path, because without it closing a project means taking `pip` away from
+	// its researchers with nothing in its place.
+	//
+	// Declared per ecosystem rather than as one list of endpoints. ADR-054
+	// described a list so that a new ecosystem would be configuration instead
+	// of a release; this package deliberately refuses free-form configuration,
+	// for the better reason that an arbitrary key/value store becomes
+	// configuration nobody can audit. A new ecosystem is therefore one more
+	// declared key here - still small, and auditable.
+	KeyArtifactsPythonIndex = "artifacts.python_index"
+
 	// Facts, exposed for visibility and refused for writing.
 	KeyBackendVersion = "platform.backend_version"
 	KeyEdition        = "platform.edition"
@@ -137,6 +154,18 @@ func Definitions() []Definition {
 				"dataset, leaving previews in place: files can be read in the interface and not " +
 				"taken out of it. HDS datasets refuse regardless of this setting.",
 			Fallback: DatasetDownloadAllowed,
+		},
+		{
+			Key:    KeyArtifactsPythonIndex,
+			EnvVar: "NORYX_ARTIFACTS_PYTHON_INDEX",
+			Kind:   KindURL,
+			Label:  "Python package index for workloads",
+			Description: "The simple index every workspace, job and application installs from, " +
+				"injected as PIP_INDEX_URL. Point it at the client's own repository - Artifactory, " +
+				"Nexus, Pulp - so a workload that cannot reach the internet can still install. " +
+				"Empty leaves pip on its own default, which stops working the day outbound access " +
+				"is closed.",
+			Fallback: "",
 		},
 		{
 			Key:    KeyEgressEnforcement,

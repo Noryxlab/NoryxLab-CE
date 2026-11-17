@@ -850,7 +850,10 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 			{Name: "JUPYTER_CONFIG_DIR", Value: profileMountPath + "/jupyter/config"},
 			{Name: "JUPYTERLAB_SETTINGS_DIR", Value: profileMountPath + "/jupyter/lab/user-settings"},
 		}
+		envVars = append(envVars, h.artifactEndpointEnv()...)
 		envVars = append(envVars, datasourceEnv...)
+		// Last, so a project's own secrets can override the platform's
+		// defaults rather than the other way round.
 		envVars = append(envVars, secretEnvRefs(userSecretName, userSecretData)...)
 
 		err = h.runtime.CreatePod(noryxruntime.PodSpec{

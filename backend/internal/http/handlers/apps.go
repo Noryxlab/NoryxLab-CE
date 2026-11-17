@@ -372,7 +372,7 @@ func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID str
 		Args:                    record.Args,
 		Init:                    extractFiller,
 		Secrets:                 appSecretMounts,
-		Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
+		Env:                     append(h.workloadBaseEnv(datasourceEnv), secretEnvRefs(userSecretName, userSecretData)...),
 		Ports:                   []int{record.Port},
 		ReadinessPort:           record.Port,
 		CPURequest:              tier.CPURequest,
@@ -756,7 +756,7 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 			Args:    args,
 			Init:    extractFiller,
 			Secrets: appSecretMounts,
-			Env:     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
+			Env:     append(h.workloadBaseEnv(datasourceEnv), secretEnvRefs(userSecretName, userSecretData)...),
 			Ports:   []int{record.Port},
 			// The service only routes here once something answers on the port.
 			//

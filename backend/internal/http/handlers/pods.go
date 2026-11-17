@@ -93,7 +93,11 @@ func (h Handlers) LaunchPod(w http.ResponseWriter, r *http.Request) {
 	record := pod.New(req.ProjectID, req.PodName, req.Image, req.Command, req.Args, req.Env)
 
 	if h.runtime != nil {
-		env := make([]noryxruntime.EnvVar, 0, len(req.Env))
+		// The declared package endpoint first, so what the caller asked for
+		// wins on a collision: a pod launched with an explicit PIP_INDEX_URL
+		// means somebody decided, and the platform's default should not
+		// silently replace a decision.
+		env := h.artifactEndpointEnv()
 		for k, v := range req.Env {
 			env = append(env, noryxruntime.EnvVar{Name: k, Value: v})
 		}
