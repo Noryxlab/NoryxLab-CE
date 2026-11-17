@@ -246,12 +246,18 @@ spec:
 # reschedule. A client's own Artifactory is the other case ADR-054 describes,
 # and that one is an address, which the same mechanism expresses just as well.
 #
+# Selected by a label rather than by namespace name, deliberately. The first
+# version of this rule named `pulp`, which meant a second endpoint - the
+# conda-forge cache, because Pulp has no conda plugin - would have required
+# editing this file. A labelled namespace instead is as close as this gets to
+# ADR-054's "compile the policy from the declared endpoints" without writing
+# the compiler: declaring an endpoint is labelling its namespace.
+#
 # This policy is unconditional on purpose. An installation that declares no
-# python index has no `pulp` namespace, so the rule selects nothing and admits
+# endpoint has no labelled namespace, so the rule selects nothing and admits
 # nothing; one that declares a client's repository instead gets its own address
-# rule and never applies this file. Making the opening depend on the setting
-# would mean the network and the configuration can disagree, and the symptom
-# of that disagreement is a hang.
+# rule. Making the opening depend on the setting would mean the network and the
+# configuration can disagree, and the symptom of that disagreement is a hang.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -267,7 +273,7 @@ spec:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: pulp
+              noryx.io/artifact-endpoint: "true"
       ports:
         - protocol: TCP
           port: 80

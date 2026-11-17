@@ -32,10 +32,22 @@ import (
 // already has in ~/.config/pip/pip.conf.
 func (h Handlers) artifactEndpointEnv() []noryxruntime.EnvVar {
 	index := h.artifactPythonIndex()
-	if index == "" {
-		return nil
+	var env []noryxruntime.EnvVar
+	if index != "" {
+		env = append(env, noryxruntime.EnvVar{Name: "PIP_INDEX_URL", Value: index})
 	}
-	env := []noryxruntime.EnvVar{{Name: "PIP_INDEX_URL", Value: index}}
+	// conda reads every .condarc key from the environment too, so the alias
+	// needs no file and no image change. One value redirects every channel
+	// name, which is what the images need: Miniforge ships no explicit channel
+	// list, so `conda-forge` keeps meaning conda-forge and only moves house.
+	if alias := h.artifactSetting(settings.KeyArtifactsCondaChannelAlias); alias != "" {
+		env = append(env, noryxruntime.EnvVar{Name: "CONDA_CHANNEL_ALIAS", Value: alias})
+	}
+	// apt has no environment form, so this is only carried into the pod for
+	// the bootstrap to turn into a sources.list.
+	if mirror := h.artifactSetting(settings.KeyArtifactsDebMirror); mirror != "" {
+		env = append(env, noryxruntime.EnvVar{Name: "NORYX_DEB_MIRROR", Value: mirror})
+	}
 	if host := plainHTTPIndexHost(index); host != "" {
 		// pip refuses an index served over plain HTTP unless the host is
 		// trusted explicitly. An in-cluster endpoint is the normal case for
@@ -52,10 +64,14 @@ func (h Handlers) artifactEndpointEnv() []noryxruntime.EnvVar {
 }
 
 func (h Handlers) artifactPythonIndex() string {
+	return h.artifactSetting(settings.KeyArtifactsPythonIndex)
+}
+
+func (h Handlers) artifactSetting(key string) string {
 	if h.settings == nil {
 		return ""
 	}
-	return strings.TrimSpace(h.settings.String(settings.KeyArtifactsPythonIndex))
+	return strings.TrimSpace(h.settings.String(key))
 }
 
 // plainHTTPIndexHost returns the host to trust when, and only when, the index

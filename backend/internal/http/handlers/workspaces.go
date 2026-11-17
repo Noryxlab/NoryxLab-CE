@@ -1521,6 +1521,10 @@ func workspaceBootstrapScript(
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
+	// Before the extracts and the repositories: whatever they do next may want
+	// to install something, and apt pointing at an unreachable archive hangs
+	// rather than refuses.
+	lines = append(lines, debMirrorBootstrapLines()...)
 	lines = append(lines, extractBootstrapLines(projectMountPath, hasExtractManifest, refusedExtractFiles, skippedExtracts)...)
 
 	for _, repo := range attachedRepos {

@@ -518,6 +518,7 @@ func jobBootstrapScript(userArgs []string, attachedRepos []workspaceAttachedRepo
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
 	}
+	lines = append(lines, debMirrorBootstrapLines()...)
 	lines = append(lines, requirementsBootstrapLines()...)
 	// L'arbre des extraits, avant le code : il lit dedans.
 	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "" && !montage.TreeMounted, montage.Refused, montage.Skipped)...)

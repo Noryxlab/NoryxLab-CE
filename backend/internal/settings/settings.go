@@ -109,6 +109,20 @@ const (
 	// declared key here - still small, and auditable.
 	KeyArtifactsPythonIndex = "artifacts.python_index"
 
+	// conda needs no file: every .condarc key has an environment twin, so
+	// `channel_alias` is CONDA_CHANNEL_ALIAS and one value redirects every
+	// channel name without listing any. That matters because the images ship
+	// Miniforge with no explicit channel list - redirecting the alias leaves
+	// `conda-forge` meaning conda-forge, served from somewhere reachable.
+	KeyArtifactsCondaChannelAlias = "artifacts.conda_channel_alias"
+
+	// apt is the one that cannot be an environment variable: there is no env
+	// form of sources.list. The value is the mirror's base, and the workload's
+	// own bootstrap appends its release name - read from /etc/os-release in the
+	// image rather than configured here, so the platform never has to know
+	// which Debian an image is built on.
+	KeyArtifactsDebMirror = "artifacts.deb_mirror"
+
 	// Facts, exposed for visibility and refused for writing.
 	KeyBackendVersion = "platform.backend_version"
 	KeyEdition        = "platform.edition"
@@ -165,6 +179,28 @@ func Definitions() []Definition {
 				"Nexus, Pulp - so a workload that cannot reach the internet can still install. " +
 				"Empty leaves pip on its own default, which stops working the day outbound access " +
 				"is closed.",
+			Fallback: "",
+		},
+		{
+			Key:    KeyArtifactsCondaChannelAlias,
+			EnvVar: "NORYX_ARTIFACTS_CONDA_CHANNEL_ALIAS",
+			Kind:   KindURL,
+			Label:  "conda channel alias for workloads",
+			Description: "Every channel name resolves under this address, injected as " +
+				"CONDA_CHANNEL_ALIAS. Point it at a conda mirror or cache so a workload that " +
+				"cannot reach the internet can still solve an environment. Empty leaves conda " +
+				"on conda-forge directly.",
+			Fallback: "",
+		},
+		{
+			Key:    KeyArtifactsDebMirror,
+			EnvVar: "NORYX_ARTIFACTS_DEB_MIRROR",
+			Kind:   KindURL,
+			Label:  "Debian package mirror for workloads",
+			Description: "The base URL of an apt mirror. The workload's bootstrap writes a " +
+				"sources.list from it, appending the release name it reads from its own image, " +
+				"and sets the default sources aside so apt cannot hang on an unreachable " +
+				"archive. Empty leaves the image's own sources untouched.",
 			Fallback: "",
 		},
 		{

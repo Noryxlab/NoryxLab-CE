@@ -954,6 +954,7 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		"set -e",
 		fmt.Sprintf("mkdir -p %s %s %s", workspaceProjectMountPath, workspaceReposPath, workspaceDatasetsPath),
 	}
+	lines = append(lines, debMirrorBootstrapLines()...)
 	lines = append(lines, requirementsBootstrapLines()...)
 	// L'arbre des extraits, avant que l'application demarre : elle lit dedans.
 	lines = append(lines, extractBootstrapLines(workspaceProjectMountPath, montage.Manifest != "" && !montage.TreeMounted, montage.Refused, montage.Skipped)...)

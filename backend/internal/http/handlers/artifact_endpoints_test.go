@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"testing"
 
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -91,5 +92,55 @@ func TestTheProjectsOwnVariablesComeAfterTheDefaults(t *testing.T) {
 	}
 	if last := combined[len(combined)-1]; last.Name != "PIP_INDEX_URL" || last.Value != "http://chosen/simple/" {
 		t.Fatalf("the caller's value is not last: %v", combined)
+	}
+}
+
+// conda needs no file and no image change: every .condarc key has an
+// environment twin. One alias redirects every channel name, which is what the
+// images need - they ship Miniforge with no explicit channel list.
+func TestTheCondaAliasIsInjectedOnItsOwn(t *testing.T) {
+	h := Handlers{settings: settingsWithRawValue(t, settings.KeyArtifactsCondaChannelAlias,
+		"http://conda-cache.conda-cache.svc.cluster.local")}
+	env := envMap(h.artifactEndpointEnv())
+	if env["CONDA_CHANNEL_ALIAS"] != "http://conda-cache.conda-cache.svc.cluster.local" {
+		t.Fatalf("CONDA_CHANNEL_ALIAS = %q", env["CONDA_CHANNEL_ALIAS"])
+	}
+	// A conda alias must not drag pip's variables in with it: an installation
+	// may well mirror one ecosystem and not the other.
+	if _, present := env["PIP_INDEX_URL"]; present {
+		t.Error("an undeclared python index was injected anyway")
+	}
+	if _, present := env["PIP_TRUSTED_HOST"]; present {
+		t.Error("a trusted host appeared with no index to trust")
+	}
+}
+
+// apt is the leg with no environment form, so the variable exists only for the
+// bootstrap to turn into a sources.list.
+func TestTheDebMirrorIsCarriedForTheBootstrap(t *testing.T) {
+	h := Handlers{settings: settingsWithRawValue(t, settings.KeyArtifactsDebMirror,
+		"http://pulp.pulp.svc.cluster.local/pulp/content/deb")}
+	if got := envMap(h.artifactEndpointEnv())["NORYX_DEB_MIRROR"]; got != "http://pulp.pulp.svc.cluster.local/pulp/content/deb" {
+		t.Fatalf("NORYX_DEB_MIRROR = %q", got)
+	}
+}
+
+// The bootstrap must not touch /etc/apt when nothing is declared, and must say
+// what it did when it does. The guard matters because setting the image's own
+// sources aside is destructive for a workload that could have reached the
+// archive by itself.
+func TestTheAptBootstrapIsGuardedAndSpeaks(t *testing.T) {
+	script := strings.Join(debMirrorBootstrapLines(), "\n")
+	if !strings.Contains(script, `[ -n "${NORYX_DEB_MIRROR:-}" ]`) {
+		t.Error("the apt rewrite is not guarded by the variable being set")
+	}
+	if !strings.Contains(script, "VERSION_CODENAME") {
+		t.Error("the release is not read from the image, so the platform would have to know it")
+	}
+	if !strings.Contains(script, "sources are set aside") {
+		t.Error("the script does not say it replaced the image's sources")
+	}
+	if !strings.Contains(script, "not writable by") {
+		t.Error("a failure to write would pass in silence")
 	}
 }

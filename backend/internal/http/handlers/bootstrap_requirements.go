@@ -79,3 +79,46 @@ func requirementsBootstrapLines() []string {
 		"fi",
 	}
 }
+
+// debMirrorBootstrapLines turns NORYX_DEB_MIRROR into a sources.list.
+//
+// apt is the one artifact leg with no environment form, so unlike pip and
+// conda it cannot be configured by injecting a variable - the file has to
+// exist. Writing it here rather than in the images keeps the platform out of
+// the business of knowing which Debian an image is built on: the release name
+// comes from /etc/os-release in the image itself.
+//
+// The default sources are set aside rather than left alongside. Leaving both
+// would mean apt tries the archive first and **hangs** when a closed workload
+// cannot reach it - the failure shape ADR-054 orders the work to avoid, and
+// the one this project has already paid for three times. A workload that can
+// reach the internet loses nothing by using the mirror.
+//
+// `[trusted=yes]` because Pulp publishes an unsigned Release file unless a
+// signing service is configured. That is a real reduction and it is stated
+// here rather than hidden: the mirror is reached over the cluster network at
+// an address the platform declares, so the trust being placed is in that
+// endpoint, not in a signature.
+func debMirrorBootstrapLines() []string {
+	return []string{
+		`if [ -n "${NORYX_DEB_MIRROR:-}" ] && command -v sudo >/dev/null 2>&1; then`,
+		`  codename=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-}")`,
+		`  if [ -z "$codename" ]; then`,
+		`    echo "[bootstrap] apt mirror declared but this image does not name its release in /etc/os-release; sources left untouched"`,
+		`  else`,
+		`    base="${NORYX_DEB_MIRROR%/}"`,
+		`    if printf '%s\n' \`,
+		`      "deb [trusted=yes] $base/$codename $codename main" \`,
+		`      "deb [trusted=yes] $base/$codename-updates $codename-updates main" \`,
+		`      "deb [trusted=yes] $base/$codename-security $codename-security main" \`,
+		`      | sudo tee /etc/apt/sources.list.d/noryx-mirror.list >/dev/null 2>&1; then`,
+		`      sudo sh -c ': > /etc/apt/sources.list' 2>/dev/null || true`,
+		`      sudo rm -f /etc/apt/sources.list.d/debian.sources 2>/dev/null || true`,
+		`      echo "[bootstrap] apt points at $base for $codename; the image's own sources are set aside"`,
+		`    else`,
+		`      echo "[bootstrap] apt mirror declared but /etc/apt is not writable by $(id -un); sources left untouched"`,
+		`    fi`,
+		`  fi`,
+		`fi`,
+	}
+}
