@@ -170,6 +170,8 @@ spec:
               value: "harbor.example.local/noryx-environments/noryx-vscode:0.1.5"
             - name: NORYX_WORKSPACE_RSTUDIO_IMAGE
               value: "harbor.example.local/noryx-environments/noryx-rstudio:0.1.1"
+            - name: NORYX_WORKSPACE_RUNTIME_IMAGE
+              value: "harbor.example.local/noryx-environments/noryx-runtime:0.1.0"
             - name: NORYX_WORKSPACE_CPU
               value: "500m"
             - name: NORYX_WORKSPACE_CPU_REQUEST

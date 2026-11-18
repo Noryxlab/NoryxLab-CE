@@ -50,6 +50,7 @@ type Config struct {
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceRStudioImage            string
+	WorkspaceRuntimeImage            string
 	WorkspaceCPU                     string
 	WorkspaceCPURequest              string
 	WorkspaceMemory                  string
@@ -258,6 +259,12 @@ func Load() Config {
 	if workspaceRStudioImage == "" {
 		workspaceRStudioImage = "harbor.example.local/noryx-environments/noryx-rstudio:0.1.0"
 	}
+	// The base for an application or a job with no image of its own. It hosts
+	// no IDE, so it is offered as an environment and never as a workspace.
+	workspaceRuntimeImage := os.Getenv("NORYX_WORKSPACE_RUNTIME_IMAGE")
+	if workspaceRuntimeImage == "" {
+		workspaceRuntimeImage = "harbor.example.local/noryx-environments/noryx-runtime:0.1.0"
+	}
 	workspaceCPU := os.Getenv("NORYX_WORKSPACE_CPU")
 	if workspaceCPU == "" {
 		workspaceCPU = "500m"
@@ -404,6 +411,7 @@ func Load() Config {
 		WorkspaceJupyterImage:            workspaceJupyterImage,
 		WorkspaceVSCodeImage:             workspaceVSCodeImage,
 		WorkspaceRStudioImage:            workspaceRStudioImage,
+		WorkspaceRuntimeImage:            workspaceRuntimeImage,
 		WorkspaceCPU:                     workspaceCPU,
 		WorkspaceCPURequest:              workspaceCPURequest,
 		WorkspaceMemory:                  workspaceMemory,

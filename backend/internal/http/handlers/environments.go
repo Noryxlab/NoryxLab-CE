@@ -144,6 +144,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceJupyterImage, systemEnvironmentDefinitions["system-jupyter"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceVSCodeImage, systemEnvironmentDefinitions["system-vscode"])
 		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceRStudioImage, systemEnvironmentDefinitions["system-rstudio"])
+		addSystemEnvironment(itemsByKey, projectFilter, h.workspaceRuntimeImage, systemEnvironmentDefinitions["system-runtime"])
 		// A registered kind offers its own image beside them. The screen that
 		// lists environments is where a workspace is actually started, so a
 		// kind absent from it exists only for whoever calls the API by hand.
@@ -436,6 +437,25 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 		GitRef:         "main",
 		DockerfilePath: "environments/noryx-rstudio/Dockerfile",
 		WorkspaceIDEs:  []string{"rstudio"},
+	},
+	// The base for an application or a job with no image of its own, and the
+	// only system environment with no IDE at all.
+	//
+	// The empty list is the point rather than an omission: an application does
+	// not want an editor, and until this existed the smallest shelf item with
+	// Python in it was noryx-rstudio at 2.58 GB. The accounting service ran on
+	// it, which also meant its base image changed whenever a VS Code extension
+	// moved upstream and the nightly rebuild picked it up.
+	//
+	// So it is offered where an environment is chosen and never where a
+	// workspace IDE is, because a workspace launched on it would start and have
+	// nothing to show.
+	"system-runtime": {
+		BuildID:        "system-runtime",
+		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
+		GitRef:         "main",
+		DockerfilePath: "environments/noryx-runtime/Dockerfile",
+		WorkspaceIDEs:  nil,
 	},
 }
 

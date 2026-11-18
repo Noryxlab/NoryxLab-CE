@@ -243,6 +243,7 @@ func main() {
 			WorkspaceJupyterImage:            cfg.WorkspaceJupyterImage,
 			WorkspaceVSCodeImage:             cfg.WorkspaceVSCodeImage,
 			WorkspaceRStudioImage:            cfg.WorkspaceRStudioImage,
+			WorkspaceRuntimeImage:            cfg.WorkspaceRuntimeImage,
 			WorkspaceNamespace:               cfg.WorkloadNamespace,
 			WorkspaceCPU:                     cfg.WorkspaceCPU,
 			WorkspaceCPURequest:              cfg.WorkspaceCPURequest,

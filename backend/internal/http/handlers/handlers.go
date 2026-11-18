@@ -89,6 +89,7 @@ type Handlers struct {
 	workspaceJupyterImage            string
 	workspaceVSCodeImage             string
 	workspaceRStudioImage            string
+	workspaceRuntimeImage            string
 	workspaceNamespace               string
 	workspaceCPU                     string
 	workspaceCPURequest              string
@@ -179,6 +180,7 @@ type Options struct {
 	WorkspaceJupyterImage            string
 	WorkspaceVSCodeImage             string
 	WorkspaceRStudioImage            string
+	WorkspaceRuntimeImage            string
 	WorkspaceNamespace               string
 	WorkspaceCPU                     string
 	WorkspaceCPURequest              string
@@ -394,6 +396,7 @@ func New(
 		workspaceJupyterImage:            options.WorkspaceJupyterImage,
 		workspaceVSCodeImage:             options.WorkspaceVSCodeImage,
 		workspaceRStudioImage:            options.WorkspaceRStudioImage,
+		workspaceRuntimeImage:            options.WorkspaceRuntimeImage,
 		workspaceNamespace:               options.WorkspaceNamespace,
 		workspaceCPU:                     options.WorkspaceCPU,
 		workspaceCPURequest:              options.WorkspaceCPURequest,
