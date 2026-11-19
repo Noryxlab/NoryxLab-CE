@@ -606,6 +606,8 @@ export const fr = {
       "Cette session a été lancée par quelqu'un d'autre : elle monte ses droits sur les données, pas les vôtres. Lancez la vôtre.",
     egressClosed: "Sans accès direct à Internet : la donnée réglementée de ce projet ferme la sortie réseau. Les paquets et les dépôts passent par les miroirs internes.",
     withheld: "Non monté, faute de droit sur la donnée :",
+    readOnlyCoMount:
+      "Monté en lecture seule, bien que vous ayez le droit d'y écrire : cette session monte aussi de la donnée réglementée, qui ne peut pas être recopiée hors de son périmètre. Écrivez vos résultats dans un dataset réglementé.",
     restartTitle: "Redémarrer le workspace",
     restartWarning: "Le logiciel redémarre ; vos fichiers et vos données montées ne bougent pas. Utile quand une extension ne se charge qu'au démarrage. Comptez une minute avant de pouvoir rouvrir.",
     restarted: "Le workspace redémarre.",

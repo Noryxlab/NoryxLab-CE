@@ -138,6 +138,21 @@ export function LaunchWorkspaceSheet({
           t('workspaces.title'),
         );
       }
+      // Ce qui est monte en lecture seule alors que la personne a le droit
+      // d'y ecrire.
+      //
+      // La regle de co-montage : une session qui lit de la donnee reglementee
+      // ne monte aucun dataset non reglemente en ecriture, sinon un `cp`
+      // suffit a sortir la donnee de son perimetre. Sans ce message, la
+      // premiere nouvelle de la regle est un refus d'ecriture dans un dossier
+      // qui est le sien - ce qui se lit comme une panne.
+      const readOnlyMounts = created?.readOnlyMounts ?? [];
+      if (readOnlyMounts.length > 0) {
+        toast.info(
+          `${readOnlyMounts.join(', ')} — ${t('workspaces.readOnlyCoMount')}`,
+          t('workspaces.title'),
+        );
+      }
       // Et jusqu'ou il atteint le reseau.
       //
       // Un workspace sur de la donnee reglementee n'a pas d'acces direct a

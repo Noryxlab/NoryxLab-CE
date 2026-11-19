@@ -98,6 +98,12 @@ export interface Workspace {
    *  depuis une forge publique echouent, et l'apprendre d'une commande en
    *  echec fait lire un controle voulu comme une plateforme cassee. */
   egressProfile?: string;
+  /** Les datasets que cette session lit sans pouvoir les ecrire, alors que la
+   *  personne en a le droit : la regle de co-montage les a passes en lecture
+   *  seule parce que la session monte aussi de la donnee reglementee. Dit au
+   *  lancement, sinon la premiere nouvelle est une ecriture refusee dans un
+   *  dossier qui est le sien. */
+  readOnlyMounts?: string[];
   createdAt: string;
 }
 

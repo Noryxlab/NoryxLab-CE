@@ -75,6 +75,10 @@ type workspaceAttachedDataset struct {
 	SecretKey string
 	UseSSL    bool
 	ReadOnly  bool
+	// ReadOnlyReason says why the mount is read-only when the person's own
+	// right was not the cause. Empty means the right decided, which is the
+	// ordinary case and needs no explanation.
+	ReadOnlyReason string
 	// Classification carries the dataset's own label - "hds" for regulated
 	// health data - so a decision about what may touch it can be taken where
 	// the workspace is assembled rather than inferred from a bucket name.
@@ -962,10 +966,15 @@ func (h Handlers) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		"regulated":    reglementes,
 		"withheld":     h.attachmentsWithheldFrom(req.ProjectID, identity),
 		"egress":       egressProfile,
+		// What the co-mount rule took from this session, so the trail can
+		// answer "was this writable that day" without re-deriving the rule
+		// from the classifications of the time.
+		"readOnlyForCoMount": readOnlyForCoMount(attachedDatasets),
 	})
 	// Dit au lancement, le seul moment ou quelqu'un regarde.
 	record.Withheld = h.attachmentsWithheldFrom(req.ProjectID, identity)
 	record.EgressProfile = egressProfile
+	record.ReadOnlyMounts = readOnlyForCoMount(attachedDatasets)
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -1162,7 +1171,9 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 		attachedDatasets = append(attachedDatasets, attached)
 	}
 
-	return attachedRepos, attachedDatasets, nil
+	// The last word on what is writable, applied here so that every workload
+	// goes through it: see regulated_comount.go.
+	return attachedRepos, applyRegulatedCoMountRule(attachedDatasets), nil
 }
 
 func nodeReachableKubernetesServiceEndpoint(endpoint string, lookupHost func(string) ([]string, error)) (string, error) {

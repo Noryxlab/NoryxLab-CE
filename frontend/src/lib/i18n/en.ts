@@ -592,6 +592,8 @@ export const en: Translations = {
       "Somebody else launched this session: it mounts their rights over the data, not yours. Launch your own.",
     egressClosed: "No direct internet access: this project's regulated data closes outbound traffic. Packages and repositories go through the internal mirrors.",
     withheld: "Not mounted, for want of a right over the data:",
+    readOnlyCoMount:
+      "Mounted read-only, although you may write them: this session also mounts regulated data, which may not be copied out of its perimeter. Write your results to a regulated dataset.",
     restartTitle: "Restart workspace",
     restartWarning: "The software restarts; your files and mounted data are untouched. Useful when an extension only loads at start-up. Allow a minute before reopening.",
     restarted: "The workspace is restarting.",

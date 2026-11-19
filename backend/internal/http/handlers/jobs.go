@@ -267,6 +267,9 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		"hardwareTier": tier.ID,
 		"datasets":     montes,
 		"regulated":    reglementes,
+		// A job writes without anybody watching, so the trail is the only
+		// place the co-mount rule can be read after the fact.
+		"readOnlyForCoMount": readOnlyForCoMount(attachedDatasets),
 	})
 	writeJSON(w, http.StatusCreated, record)
 }

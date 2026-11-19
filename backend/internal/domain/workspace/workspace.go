@@ -59,6 +59,15 @@ type Workspace struct {
 	// failed command, with no mention of a decision anybody took, is how a
 	// deliberate control reads as a broken platform.
 	EgressProfile string `json:"egressProfile,omitempty"`
+	// ReadOnlyMounts names the datasets this session may read but not write,
+	// although the person holds the right to write them: the co-mount rule
+	// demoted them because the session also mounts regulated data.
+	//
+	// Not stored, like the two above. A mount that is read-only for want of a
+	// right needs no sentence - the person never had it. A mount that is
+	// read-only because of what sits beside it does, otherwise the first news
+	// of the rule is a write that fails in a folder somebody owns.
+	ReadOnlyMounts []string `json:"readOnlyMounts,omitempty"`
 }
 
 func NewJupyter(projectID, name, image, podName, serviceName, cpu, memory, accessURL, accessToken string) Workspace {
