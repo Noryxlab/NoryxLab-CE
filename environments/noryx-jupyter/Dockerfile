@@ -43,6 +43,25 @@ ENV PYTHONUSERBASE=/home/noryx/.noryx-profile/.local \
     NPM_CONFIG_PREFIX=/home/noryx/.noryx-profile/.local \
     PATH=/home/noryx/.noryx-profile/.local/bin:$PATH
 
+# And the same directory again, for a login shell.
+#
+# ENV above is the process environment, which a workload inherits - except when
+# it is started through a login shell, and apps, jobs and scheduled jobs are:
+# the platform runs them as `/bin/sh -lc`, Debian's /etc/profile then sets PATH
+# unconditionally, and this directory is gone. Measured on 2026-11-20:
+#
+#   sh -lc 'echo $PATH'  ->  /usr/local/bin:/usr/bin:/bin:...
+#   sh -c  'echo $PATH'  ->  /home/noryx/.noryx-profile/.local/bin:...
+#
+# So a `pip install --user` whose package carries a console script installed it
+# where the workload could not call it by name - in a job, silently, while the
+# same command worked in a workspace, which is started with `sh <script>` and
+# keeps its environment. Found while building another image, not reported.
+RUN printf '%s\n' \
+      'PATH="/home/noryx/.noryx-profile/.local/bin:$PATH"' \
+      'export PATH' \
+      > /etc/profile.d/90-noryx-profile-bin.sh
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git sudo tini \
  && rm -rf /var/lib/apt/lists/*
