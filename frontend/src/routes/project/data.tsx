@@ -371,7 +371,13 @@ export function ProjectDataPage() {
                 <EmptyState
                   icon={Database}
                   title={t('datasets.empty')}
-                  description={t('datasets.emptyHint')}
+                  /* Sur un projet, l'etat vide doit dire la deuxieme moitie :
+                   * un dataset cree ailleurs reste invisible ici tant qu'il
+                   * n'est pas rattache. Un chercheur d'Essilor a essaye de
+                   * deposer ses scripts dans un projet vide le 2026-11-21 et a
+                   * conclu a un probleme de droits - il n'y avait simplement
+                   * aucune cible. */
+                  description={t('datasets.projectEmptyHint')}
                 />
               }
               rowActions={(dataset) => detachAction('datasets', dataset.id)}

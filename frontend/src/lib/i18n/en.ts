@@ -825,6 +825,8 @@ export const en: Translations = {
     empty: "No datasets",
     emptyHint:
       "Create a dataset to store your files and share them with your team.",
+    projectEmptyHint:
+      "Files are dropped into a dataset, not into the project itself: while none is attached here, there is nowhere to put them. Create one in the catalogue and attach it - an existing dataset only becomes visible in a project once attached. For code, prefer a Git repository.",
     files: "Files",
     filesCount: "Files",
     inThisFolder: "In this folder: {files} files, {size}",
@@ -1279,7 +1281,8 @@ export const en: Translations = {
     orgTitle: "Organization access",
     orgHint:
       "Every member of the organization holds this role on the project. Access adds up: the stronger of a personal role and one inherited from an organization applies.",
-    orgEmpty: "No organization has access to this project.",
+    orgEmpty:
+      "No organization has access to this project: only its owner and the people invited by name can reach it. Granting an organization a role is also what keeps the project reachable when an account is closed.",
     orgPlaceholder: "Choose an organization",
     orgGrant: "Grant",
     orgGranted: "Access granted to the organization.",
@@ -1288,6 +1291,8 @@ export const en: Translations = {
     invite: "Invite",
     inviteTitle: "Invite someone",
     inviteHint: "The person must already have an account on the platform.",
+    inviteNoDirectory:
+      "The list of accounts is reserved to administrators, so no name can be offered here. Grant the access to an organization below - every one of its members then holds the role - or ask an administrator to invite the person by name.",
     userLabel: "User",
     roleViewer: "Viewer",
     roleBasedOn: "Inherits from {base}",

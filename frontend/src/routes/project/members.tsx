@@ -97,7 +97,9 @@ export function ProjectMembersPage() {
 
   const roleOptions = useRoleOptions(locale, t);
 
-
+  // L'annuaire a-t-il pu etre lu ? Une erreur et une liste vide se valent ici :
+  // dans les deux cas il n'y a personne a proposer, et la raison se dit.
+  const directoryUnavailable = !users.isLoading && (users.isError || (users.data ?? []).length === 0);
 
   const invite = useMutation({
     mutationFn: () => projectsApi.invite(projectId as string, { userId, role }),
@@ -245,18 +247,33 @@ export function ProjectMembersPage() {
               <SheetDescription>{t('members.inviteHint')}</SheetDescription>
             </SheetHeader>
             <SheetBody>
-              <Field label={t('members.userLabel')} required>
-                <Select
-                  value={userId}
-                  onValueChange={setUserId}
-                  placeholder={t('common.search')}
-                  options={(users.data ?? []).map((user) => ({
-                    value: user.username ?? user.id,
-                    label: user.username ?? user.id,
-                    hint: user.email ?? undefined,
-                  }))}
-                />
-              </Field>
+              {/* Pourquoi la liste est vide, plutot qu'une liste vide.
+                *
+                * Le choix des personnes se construit depuis l'annuaire, qui
+                * est reserve aux administrateurs : pour un proprietaire de
+                * projet qui ne l'est pas, la requete echoue et le menu ne
+                * propose rien. L'ecran etait donc exact et incomprehensible -
+                * un chercheur d'Essilor en a conclu le 2026-11-21 qu'il lui
+                * manquait un droit, alors que la voie par organisation, juste
+                * en dessous, lui etait ouverte. */}
+              {directoryUnavailable ? (
+                <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {t('members.inviteNoDirectory')}
+                </p>
+              ) : (
+                <Field label={t('members.userLabel')} required>
+                  <Select
+                    value={userId}
+                    onValueChange={setUserId}
+                    placeholder={t('common.search')}
+                    options={(users.data ?? []).map((user) => ({
+                      value: user.username ?? user.id,
+                      label: user.username ?? user.id,
+                      hint: user.email ?? undefined,
+                    }))}
+                  />
+                </Field>
+              )}
               <Field label={t('common.role')}>
                 <Select value={role} onValueChange={setRole} options={roleOptions} />
               </Field>

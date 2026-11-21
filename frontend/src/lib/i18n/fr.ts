@@ -847,6 +847,8 @@ export const fr = {
     empty: "Aucun dataset",
     emptyHint:
       "Créez un dataset pour stocker vos fichiers et les partager avec votre équipe.",
+    projectEmptyHint:
+      "Les fichiers se déposent dans un dataset, pas dans le projet lui-même : tant qu’aucun n’est rattaché ici, il n’y a nulle part où les mettre. Créez-en un au catalogue puis rattachez-le — un dataset existant ne devient visible dans un projet qu’une fois rattaché. Pour du code, préférez un dépôt Git.",
     files: "Fichiers",
     filesCount: "Fichiers",
     inThisFolder: "Dans ce dossier : {files} fichiers, {size}",
@@ -1303,7 +1305,8 @@ export const fr = {
     orgTitle: "Accès par organisation",
     orgHint:
       "Chaque membre de l’organisation obtient ce rôle sur le projet. Les accès s’additionnent : c’est le plus fort qui s’applique, entre le rôle personnel et celui hérité d’une organisation.",
-    orgEmpty: "Aucune organisation n’a d’accès à ce projet.",
+    orgEmpty:
+      "Aucune organisation n’a d’accès à ce projet : seuls son propriétaire et les personnes invitées nommément y accèdent. Donner un rôle à une organisation, c’est aussi ce qui garde le projet joignable quand un compte se ferme.",
     orgPlaceholder: "Choisissez une organisation",
     orgGrant: "Attribuer",
     orgGranted: "Accès attribué à l’organisation.",
@@ -1312,6 +1315,8 @@ export const fr = {
     invite: "Inviter",
     inviteTitle: "Inviter une personne",
     inviteHint: "La personne doit déjà avoir un compte sur la plateforme.",
+    inviteNoDirectory:
+      "La liste des comptes est réservée aux administrateurs : aucun nom ne peut être proposé ici. Donnez l’accès à une organisation ci-dessous — chacun de ses membres tient alors le rôle — ou demandez à un administrateur d’inviter la personne nommément.",
     userLabel: "Utilisateur",
     roleViewer: "Lecteur",
     roleBasedOn: "Hérite de {base}",
