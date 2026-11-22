@@ -29,10 +29,15 @@ import (
 // matters here beyond not repeating code - the backend ships distroless, so a
 // resolver shelling out to `git` would have failed every time, silently, and
 // recorded "unknown" for every run.
+//
+// It carries the repository's own credential, because every repository a
+// project attaches here is private and an anonymous request to one answers
+// 401. A provenance field that is always blank is worse than no field: it
+// looks like an answer.
 
 // jobRepositoriesFrom turns what the resolver mounted into what the record
 // keeps, resolving each ref to the commit it points at now.
-func jobRepositoriesFrom(repos []workspaceAttachedRepo, resolve func(url, ref string) string) []jobdomain.Repository {
+func jobRepositoriesFrom(repos []workspaceAttachedRepo, resolve func(url, ref, token string) string, token func(secretName string) string) []jobdomain.Repository {
 	out := make([]jobdomain.Repository, 0, len(repos))
 	for _, item := range repos {
 		ref := strings.TrimSpace(item.DefaultRef)
@@ -42,7 +47,15 @@ func jobRepositoriesFrom(repos []workspaceAttachedRepo, resolve func(url, ref st
 			Ref:  ref,
 		}
 		if resolve != nil && entry.URL != "" {
-			entry.Commit = resolve(entry.URL, ref)
+			// Le jeton que la plateforme detient deja pour cloner ce depot.
+			// Sans lui, une forge privee repond 401 et le commit reste vide -
+			// mesure sur le DC le 2026-11-22, et c'est le cas de tous les
+			// depots reellement attaches ici.
+			secret := ""
+			if token != nil {
+				secret = token(item.AuthSecretName)
+			}
+			entry.Commit = resolve(entry.URL, ref, secret)
 		}
 		out = append(out, entry)
 	}

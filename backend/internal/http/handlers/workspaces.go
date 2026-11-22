@@ -57,8 +57,13 @@ const (
 )
 
 type workspaceAttachedRepo struct {
-	Name           string
-	URL            string
+	Name string
+	URL  string
+	// AuthSecretName names the credential, where AuthEnvName names the
+	// variable the workload reads it through. The provenance resolver needs
+	// the secret itself: a private forge answers 401 to an anonymous ref
+	// discovery, and every repository attached here is private.
+	AuthSecretName string
 	AuthEnvName    string
 	DefaultRef     string
 	GitAuthorName  string
@@ -1100,6 +1105,7 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 		attachedRepos = append(attachedRepos, workspaceAttachedRepo{
 			Name:           fallbackResourceName(item.Name, item.ID),
 			URL:            strings.TrimSpace(item.URL),
+			AuthSecretName: strings.TrimSpace(item.AuthSecretName),
 			AuthEnvName:    repositoryAuthEnvName(item.AuthSecretName),
 			DefaultRef:     strings.TrimSpace(item.DefaultRef),
 			GitAuthorName:  strings.TrimSpace(item.GitAuthorName),

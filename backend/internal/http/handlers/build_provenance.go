@@ -30,6 +30,23 @@ var commitSHAPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 // binary, no clone, no working copy: one HTTPS GET against a repository the
 // platform is about to hand to the builder anyway.
 func resolveCommitSHA(repository, ref string) string {
+	return resolveCommitSHAAs(repository, ref, "")
+}
+
+// resolveCommitSHAAs is the same request, carrying a credential when there is
+// one to carry.
+//
+// Measured on the DC on 2026-11-22: GitHub answers the anonymous ref
+// advertisement with 200 for a public repository and 401 "Repository not
+// found" for a private one. Every repository a project actually attaches here
+// is private, so a resolver that never authenticates records an empty commit
+// every time - a provenance field that is always blank is worse than none,
+// because it looks like one.
+//
+// The token is the one the platform already holds to clone that repository
+// into a workspace; nothing new is asked of anybody. Sent as a bearer, which
+// is what GitHub, GitLab and Forgejo all accept for this endpoint.
+func resolveCommitSHAAs(repository, ref, token string) string {
 	repository = strings.TrimSpace(repository)
 	lower := strings.ToLower(repository)
 	if repository == "" || !(strings.HasPrefix(lower, "https://") || strings.HasPrefix(lower, "http://")) {
@@ -50,6 +67,9 @@ func resolveCommitSHA(repository, ref string) string {
 		return ""
 	}
 	request.Header.Set("User-Agent", "git/2.0 (noryx-ce)")
+	if token = strings.TrimSpace(token); token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
 	if err != nil {
@@ -58,8 +78,11 @@ func resolveCommitSHA(repository, ref string) string {
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		// 401 on a private repository is the expected case, not a defect.
-		log.Printf("build provenance: %s answered HTTP %d for ref discovery", repository, response.StatusCode)
+		// 401 without a credential is the expected case, not a defect; with
+		// one it means the credential no longer opens that repository, which
+		// is worth the same line rather than a silence.
+		log.Printf("build provenance: %s answered HTTP %d for ref discovery (credential: %v)",
+			repository, response.StatusCode, token != "")
 		return ""
 	}
 

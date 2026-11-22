@@ -10,7 +10,8 @@ import (
 func TestLeCommitEstEnregistreAvecLaReference(t *testing.T) {
 	repos := jobRepositoriesFrom(
 		[]workspaceAttachedRepo{{Name: "analyse", URL: "https://forge/analyse.git", DefaultRef: "main"}},
-		func(url, ref string) string { return "9f1c2ab0000000000000000000000000000000aa" },
+		func(url, ref, token string) string { return "9f1c2ab0000000000000000000000000000000aa" },
+		nil,
 	)
 	if len(repos) != 1 {
 		t.Fatalf("%d depots enregistres", len(repos))
@@ -29,7 +30,8 @@ func TestLeCommitEstEnregistreAvecLaReference(t *testing.T) {
 func TestUneForgeMuetteNEmpechePasLeRun(t *testing.T) {
 	repos := jobRepositoriesFrom(
 		[]workspaceAttachedRepo{{Name: "analyse", URL: "https://forge/analyse.git", DefaultRef: "main"}},
-		func(url, ref string) string { return "" },
+		func(url, ref, token string) string { return "" },
+		nil,
 	)
 	if len(repos) != 1 || repos[0].Commit != "" {
 		t.Fatalf("%+v", repos)
@@ -43,7 +45,7 @@ func TestUneForgeMuetteNEmpechePasLeRun(t *testing.T) {
 // recoit `null` casse la lecture suivante, et une provenance qu'on ne sait plus
 // relire ne vaut pas mieux que pas de provenance.
 func TestSansDepotLaListeEstVideEtNonNulle(t *testing.T) {
-	repos := jobRepositoriesFrom(nil, resolveCommitSHA)
+	repos := jobRepositoriesFrom(nil, resolveCommitSHAAs, nil)
 	if repos == nil {
 		t.Fatal("nil au lieu d'une liste vide")
 	}
@@ -56,14 +58,48 @@ func TestSansDepotLaListeEstVideEtNonNulle(t *testing.T) {
 // ecrire un second. Ce test fige ce choix : un resolveur qui appellerait le
 // binaire git echouerait a tous les coups, le backend etant distroless.
 func TestLeResolveurEstCeluiDesConstructions(t *testing.T) {
-	if got := resolveCommitSHA("https://127.0.0.1:1/absent.git", "main"); got != "" {
+	if got := resolveCommitSHAAs("https://127.0.0.1:1/absent.git", "main", ""); got != "" {
 		t.Fatalf("commit invente : %q", got)
 	}
 	repos := jobRepositoriesFrom(
 		[]workspaceAttachedRepo{{Name: "x", URL: "git@forge:x.git", DefaultRef: "main"}},
-		resolveCommitSHA,
+		resolveCommitSHAAs, nil,
 	)
 	if repos[0].Commit != "" {
 		t.Fatalf("un distant ssh ne peut pas etre resolu sans cle : %q", repos[0].Commit)
+	}
+}
+
+// Le jeton du depot est bien celui que la plateforme detient, et il n'est
+// demande que pour les depots qui en ont un.
+//
+// Mesure sur le DC le 2026-11-22 : GitHub repond 200 a l'annonce de references
+// d'un depot public et 401 « Repository not found » a celle d'un depot prive.
+// Tous les depots attaches ici sont prives, donc sans ce jeton le commit
+// serait vide a chaque fois - un champ de provenance toujours blanc est pire
+// que pas de champ, parce qu'il ressemble a une reponse.
+func TestLeJetonDuDepotEstTransmisAuResolveur(t *testing.T) {
+	vus := map[string]string{}
+	repos := jobRepositoriesFrom(
+		[]workspaceAttachedRepo{
+			{Name: "prive", URL: "https://forge/prive.git", DefaultRef: "main", AuthSecretName: "forge-token"},
+			{Name: "public", URL: "https://forge/public.git", DefaultRef: "main"},
+		},
+		func(url, ref, token string) string { vus[url] = token; return "abc" },
+		func(secretName string) string {
+			if secretName == "forge-token" {
+				return "t0ken"
+			}
+			return ""
+		},
+	)
+	if len(repos) != 2 {
+		t.Fatalf("%d depots", len(repos))
+	}
+	if vus["https://forge/prive.git"] != "t0ken" {
+		t.Errorf("le jeton n'est pas transmis : %q", vus["https://forge/prive.git"])
+	}
+	if vus["https://forge/public.git"] != "" {
+		t.Errorf("un jeton est invente pour un depot qui n'en a pas : %q", vus["https://forge/public.git"])
 	}
 }

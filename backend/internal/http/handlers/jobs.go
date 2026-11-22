@@ -123,7 +123,17 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// « main » repond a « quel code a produit ce chiffre » avec le code
 	// d'aujourd'hui. La resolution est au mieux - une forge muette laisse le
 	// commit vide, ce qui se lit « inconnu » et n'empeche pas le run.
-	record.Repositories = jobRepositoriesFrom(attachedRepos, resolveCommitSHA)
+	record.Repositories = jobRepositoriesFrom(attachedRepos, resolveCommitSHAAs,
+		func(secretName string) string {
+			if strings.TrimSpace(secretName) == "" {
+				return ""
+			}
+			value, err := h.resolveRepositorySecretValueForWorkspace(userID, secretName)
+			if err != nil {
+				return ""
+			}
+			return value
+		})
 
 	// Et les extraits, pour la meme raison exactement.
 	//
