@@ -20,16 +20,47 @@ import (
 // est ici et nulle part ailleurs.
 const samplesPerHour = 12.0
 
+// SetProjectBudget writes an allowance, and forgets the thresholds already
+// announced when the number actually changes.
+//
+// Forgetting them is the whole point. A threshold is announced once per month
+// per project, which is what stops an alert arriving every quarter of an hour;
+// but "75% of 300" and "75% of 1000" are not the same event, and keeping the
+// old row meant an allowance raised or lowered mid-month would cross its new
+// threshold in silence. Only on a real change: saving the same number twice
+// must not produce a second alert for a situation nobody moved.
+//
+// Both statements in one transaction. A reset that landed without its new
+// allowance would re-announce the old one, which is the noise this avoids.
 func (s *Store) SetProjectBudget(item budget.Budget) error {
-	_, err := s.db.Exec(`
+	projectID := strings.TrimSpace(item.ProjectID)
+	previous, existed, err := s.GetProjectBudget(projectID)
+	if err != nil {
+		return err
+	}
+	transaction, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = transaction.Rollback() }()
+
+	if _, err := transaction.Exec(`
 		INSERT INTO project_budgets (project_id, vcpu_hours, updated_by, updated_at)
 		VALUES ($1,$2,$3,$4)
 		ON CONFLICT (project_id) DO UPDATE SET
 			vcpu_hours=EXCLUDED.vcpu_hours,
 			updated_by=EXCLUDED.updated_by,
 			updated_at=EXCLUDED.updated_at`,
-		strings.TrimSpace(item.ProjectID), item.VCPUHours, item.UpdatedBy, time.Now().UTC())
-	return err
+		projectID, item.VCPUHours, item.UpdatedBy, time.Now().UTC()); err != nil {
+		return err
+	}
+	if !existed || previous.VCPUHours != item.VCPUHours {
+		if _, err := transaction.Exec(`DELETE FROM project_budget_alerts WHERE project_id=$1`,
+			projectID); err != nil {
+			return err
+		}
+	}
+	return transaction.Commit()
 }
 
 func (s *Store) GetProjectBudget(projectID string) (budget.Budget, bool, error) {
@@ -45,9 +76,28 @@ func (s *Store) GetProjectBudget(projectID string) (budget.Budget, bool, error) 
 	return item, true, nil
 }
 
+// DeleteProjectBudget puts a project back to unlimited, announcements included.
+//
+// The announcements have to go with it: they record "this project was told it
+// had reached 75%", and a project with no allowance has no threshold to have
+// reached. Leaving them meant an allowance removed and set again the same
+// month would never alert - and now that unlimited is the stated default
+// rather than an absence, removing one is an ordinary gesture rather than a
+// rare one.
 func (s *Store) DeleteProjectBudget(projectID string) error {
-	_, err := s.db.Exec(`DELETE FROM project_budgets WHERE project_id=$1`, strings.TrimSpace(projectID))
-	return err
+	projectID = strings.TrimSpace(projectID)
+	transaction, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = transaction.Rollback() }()
+	if _, err := transaction.Exec(`DELETE FROM project_budgets WHERE project_id=$1`, projectID); err != nil {
+		return err
+	}
+	if _, err := transaction.Exec(`DELETE FROM project_budget_alerts WHERE project_id=$1`, projectID); err != nil {
+		return err
+	}
+	return transaction.Commit()
 }
 
 // ListBudgetStates joins what each project may consume with what it has

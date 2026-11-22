@@ -1474,6 +1474,8 @@ export const fr = {
     samples: "Mesures",
   },
   budgets: {
+    zeroIsUnlimited:
+      "Zéro n’est pas une dotation : c’est l’illimité, qui est déjà le réglage par défaut. Pour y revenir, utilisez « Repasser en illimité » dans le menu de la ligne.",
     title: "Budgets",
     hint: "Ce que chaque projet peut consommer dans le mois, et où il en est. L’unité est le vCPU·heure et non l’euro : la plateforme tourne sur du matériel déjà acheté, un prix à l’heure serait un chiffre inventé par le produit.",
     doesNotStop: "Un budget ne coupe rien",
@@ -1487,20 +1489,22 @@ export const fr = {
     share: "Part",
     remaining: "Restant",
     period: "Mois en cours",
-    noBudget: "Aucune dotation",
+    noBudget: "Illimité",
     noBudgetHint:
-      "Ce projet consomme sans limite déclarée. C’est le réglage par défaut : un budget que personne n’a posé ne doit rien refuser.",
+      "C’est le réglage par défaut, et c’est un état choisi plutôt qu’une donnée manquante : sans dotation, un projet consomme sans plafond. Un budget que personne n’a posé ne doit rien refuser.",
+    unlimitedShare:
+      "Sans plafond, il n’y a pas de part à calculer. La consommation reste mesurée.",
     set: "Définir une dotation",
     setTitle: "Dotation mensuelle de « {project} »",
     setHint:
       "En vCPU·heures, pour un mois calendaire. La consommation est mesurée toutes les cinq minutes par le préleveur, c’est le seul chiffre vrai sans conversion.",
     vcpuHoursLabel: "vCPU·heures par mois",
     saved: "Dotation enregistrée.",
-    clear: "Retirer la dotation",
-    clearTitle: "Retirer la dotation",
+    clear: "Repasser en illimité",
+    clearTitle: "Repasser en illimité",
     clearWarning:
-      "Le projet consommera de nouveau sans limite déclarée, et plus aucune alerte ne sera émise pour lui. La consommation reste mesurée.",
-    cleared: "Dotation retirée.",
+      "Le projet revient au réglage par défaut : plus de plafond, plus d’alerte. La consommation reste mesurée, et les seuils déjà annoncés ce mois-ci sont oubliés — reposer une dotation plus tard alertera de nouveau.",
+    cleared: "Projet repassé en illimité.",
     empty: "Aucun projet",
     emptyHint:
       "Les budgets portent sur des projets ; il n’en existe aucun sur cette installation.",

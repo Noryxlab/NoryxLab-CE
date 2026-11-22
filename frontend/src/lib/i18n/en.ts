@@ -1446,6 +1446,8 @@ export const en: Translations = {
     samples: "Samples",
   },
   budgets: {
+    zeroIsUnlimited:
+      "Zero is not an allowance: it is unlimited, which is already the default. To go back to it, use \"Back to unlimited\" in the row's menu.",
     title: "Budgets",
     hint: "What each project may consume in a month, and where it stands. The unit is vCPU-hours rather than currency: this platform runs on hardware somebody already owns, so a price per hour would be a number the product invented.",
     doesNotStop: "A budget stops nothing",
@@ -1459,20 +1461,22 @@ export const en: Translations = {
     share: "Share",
     remaining: "Remaining",
     period: "Current month",
-    noBudget: "No allowance",
+    noBudget: "Unlimited",
     noBudgetHint:
-      "This project consumes with no declared limit. That is the default: a budget nobody set must never refuse anything.",
+      "That is the default, and it is a chosen state rather than missing data: with no allowance, a project consumes with no ceiling. A budget nobody set must never refuse anything.",
+    unlimitedShare:
+      "With no ceiling there is no share to compute. Consumption is still measured.",
     set: "Set an allowance",
     setTitle: "Monthly allowance for \u201c{project}\u201d",
     setHint:
       "In vCPU-hours, for a calendar month. Consumption is sampled every five minutes by the sampler, which is the only figure here that is true without a conversion.",
     vcpuHoursLabel: "vCPU-hours per month",
     saved: "Allowance saved.",
-    clear: "Remove the allowance",
-    clearTitle: "Remove the allowance",
+    clear: "Back to unlimited",
+    clearTitle: "Back to unlimited",
     clearWarning:
-      "The project will consume with no declared limit again, and no alert will be raised for it. Consumption is still measured.",
-    cleared: "Allowance removed.",
+      "The project goes back to the default: no ceiling, no alert. Consumption is still measured, and the thresholds already announced this month are forgotten - setting an allowance again later will alert again.",
+    cleared: "Project back to unlimited.",
     empty: "No project",
     emptyHint: "Budgets apply to projects, and this installation has none.",
     overBudget: "Over",

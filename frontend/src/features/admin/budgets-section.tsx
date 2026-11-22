@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Info, Wallet } from 'lucide-react';
+import { Infinity as InfinityIcon, Info, Wallet } from 'lucide-react';
 import { SectionHeader } from '@/components/common/page-header';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
@@ -73,6 +73,10 @@ function SetBudgetSheet({
 
   const parsed = Number(value);
   const valid = value.trim() !== '' && Number.isFinite(parsed) && parsed > 0;
+  /* Zero n'est pas une dotation, c'est le retrait - et le formulaire ne le
+   *  fait pas. Sans cette phrase, taper 0 desactive le bouton et n'explique
+   *  rien : on reste devant un champ rempli qui refuse d'etre enregistre. */
+  const zeroTyped = value.trim() !== '' && Number.isFinite(parsed) && parsed === 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -116,6 +120,12 @@ function SetBudgetSheet({
               <p className="text-xs font-medium">{t('budgets.doesNotStop')}</p>
               <p className="text-xs leading-relaxed text-muted-foreground">{t('budgets.doesNotStopHint')}</p>
             </div>
+
+            {zeroTyped ? (
+              <p className="text-xs leading-relaxed text-warning-foreground">
+                {t('budgets.zeroIsUnlimited')}
+              </p>
+            ) : null}
 
             {state && state.consumed > 0 ? (
               <p className="text-xs text-muted-foreground">
@@ -175,9 +185,14 @@ export function BudgetsSection() {
         item.vcpuHours > 0 ? (
           <span className="tabular-nums">{formatNumber(item.vcpuHours, locale)}</span>
         ) : (
-          // Pas un tiret : « aucune dotation » est un etat voulu, et le dire
-          // evite de le lire comme une donnee manquante.
-          <Badge tone="neutral">{t('budgets.noBudget')}</Badge>
+          // L'infini, nomme. Ni un tiret ni « aucune dotation » : l'absence de
+          // plafond est le reglage par defaut et un etat choisi, pas une
+          // donnee qui manque - et une colonne qui se lit comme une donnee
+          // manquante envoie chercher ce qu'il faudrait y mettre.
+          <Badge tone="neutral" title={t('budgets.noBudgetHint')}>
+            <InfinityIcon className="size-3" aria-hidden />
+            {t('budgets.noBudget')}
+          </Badge>
         ),
     },
     {
@@ -210,7 +225,11 @@ export function BudgetsSection() {
             />
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          // Pas de part d'un infini. Le tiret porte sa raison, parce qu'il est
+          // le seul endroit du tableau ou il reste un tiret.
+          <span className="text-xs text-muted-foreground" title={t('budgets.unlimitedShare')}>
+            —
+          </span>
         ),
     },
   ];
