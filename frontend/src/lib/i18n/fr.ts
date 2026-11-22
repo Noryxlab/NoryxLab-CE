@@ -1572,6 +1572,12 @@ export const fr = {
   },
 
   snapshots: {
+    deleteTitle: "Supprimer cet instantané",
+    deleteWarning:
+      "Le manifeste est détruit : plus aucune comparaison ne sera possible avec cet état. Si c’est le dernier instantané du dataset, le contrôle de nuit cesse de le surveiller — ce qui est la façon de le désinscrire, et la seule.",
+    deleted: "Instantané supprimé.",
+    deleteNeedsWrite:
+      "Supprimer demande le droit d’écriture sur le dataset, alors que prendre un instantané demande seulement de pouvoir le lire. Ce n’est pas une incohérence : prendre une empreinte n’apprend rien de plus qu’un listage, tandis que supprimer la dernière arrête la surveillance de nuit.",
     title: "Instantanés",
     hint: "Ce que le dataset contenait à un instant, écrit noir sur blanc : chemin, taille, date, ETag. Aucun octet n’est copié.",
     take: "Prendre un instantané",

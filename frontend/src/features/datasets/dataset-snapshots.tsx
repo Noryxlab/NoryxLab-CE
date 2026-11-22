@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, FileDiff, Info, Moon } from 'lucide-react';
+import { Camera, FileDiff, Info, Moon, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardHeaderText, CardTitle } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
+import { useConfirm } from '@/components/common/confirm-dialog';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
@@ -212,9 +214,24 @@ function SnapshotChanges({ datasetId, snapshot }: { datasetId: string; snapshot:
 export function DatasetSnapshots({ dataset }: { dataset: Dataset }) {
   const t = useT();
   const { locale } = useI18n();
+  const toast = useToast();
+  const invalidate = useInvalidate();
+  const { dialog, ask } = useConfirm();
   const snapshots = useDatasetSnapshots(dataset.id);
   const [taking, setTaking] = React.useState(false);
   const [comparing, setComparing] = React.useState<DatasetSnapshot | null>(null);
+
+  const remove = useMutation({
+    mutationFn: (snapshotId: string) => datasetsApi.removeSnapshot(dataset.id, snapshotId),
+    onSuccess: (_result, snapshotId) => {
+      invalidate(qk.datasetSnapshots(dataset.id));
+      // La comparaison ouverte portait peut-etre sur celui-la : la laisser
+      // afficherait des ecarts contre un etat qui n'existe plus.
+      setComparing((current) => (current?.id === snapshotId ? null : current));
+      toast.success(t('snapshots.deleted'), t('snapshots.title'));
+    },
+    onError: (error) => toast.error(error, t('snapshots.deleteTitle')),
+  });
 
   // Un dataset sans bucket n'a rien a lister : l'API refuse, et le dire ici
   // vaut mieux qu'un bouton qui echoue.
@@ -304,6 +321,39 @@ export function DatasetSnapshots({ dataset }: { dataset: Dataset }) {
               error={snapshots.error}
               onRetry={() => void snapshots.refetch()}
               defaultSort={{ columnId: 'takenAt', direction: 'desc' }}
+              rowActions={(item) => (
+                <>
+                  {/* Seule la suppression ici : « voir les ecarts » est un
+                    *  bouton de la ligne, et le repeter dans le menu ferait
+                    *  croire a deux gestes differents. */}
+                  <DropdownMenuItem
+                    destructive
+                    onSelect={() =>
+                      ask({
+                        title: t('snapshots.deleteTitle'),
+                        description: (
+                          <>
+                            {t('snapshots.deleteWarning')}
+                            {/* Le droit demande, dit avant le clic plutot que
+                              *  par un refus : prendre un instantane ne
+                              *  demandait que la lecture, donc ne pas pouvoir
+                              *  le supprimer surprend. */}
+                            <span className="mt-2 block text-xs text-muted-foreground">
+                              {t('snapshots.deleteNeedsWrite')}
+                            </span>
+                          </>
+                        ),
+                        confirmLabel: t('common.delete'),
+                        destructive: true,
+                        onConfirm: () => remove.mutateAsync(item.id),
+                      })
+                    }
+                  >
+                    <Trash2 aria-hidden />
+                    {t('common.delete')}
+                  </DropdownMenuItem>
+                </>
+              )}
               emptyState={
                 <EmptyState
                   compact
@@ -346,6 +396,7 @@ export function DatasetSnapshots({ dataset }: { dataset: Dataset }) {
       {comparing ? <SnapshotChanges datasetId={dataset.id} snapshot={comparing} /> : null}
 
       <TakeSnapshotSheet dataset={dataset} open={taking} onOpenChange={setTaking} />
+      {dialog}
     </div>
   );
 }

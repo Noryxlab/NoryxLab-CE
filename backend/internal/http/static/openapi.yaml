@@ -11195,3 +11195,39 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/snapshots/{snapshotID}:
+    delete:
+      tags: [Datasets]
+      summary: Remove one snapshot of a dataset
+      description: >-
+        Needs write access to the dataset, not read. Taking a snapshot is open
+        to whoever can read it - a manifest tells them nothing a listing does
+        not. Removing one is the opposite act: a dataset's last snapshot is
+        what enrols it in the nightly drift check, so deleting it stops that
+        check, and that belongs to whoever may change the dataset.
+
+
+        The manifest goes with it. A snapshot identifier belonging to another
+        dataset answers 404 rather than deleting anything.
+      operationId: deleteDatasetSnapshot
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: snapshotID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Snapshot and its manifest removed; the dataset leaves the nightly check if it was its last
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

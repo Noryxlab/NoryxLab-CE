@@ -439,6 +439,12 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/members/{userID}"): ("204", "The personal grant is gone", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("PUT", "/api/v1/admin/budgets/{projectID}"): ("204", "Allowance set, or cleared when zero", None, None),
+    ("DELETE", "/api/v1/datasets/{datasetID}/snapshots/{snapshotID}"): (
+        "204",
+        "Snapshot and its manifest removed; the dataset leaves the nightly check if it was its last",
+        None,
+        None,
+    ),
     ("POST", "/api/v1/datasets/{datasetID}/snapshots"): ("201", "The reading was recorded", "DatasetSnapshot", None),
     ("POST", "/api/v1/flows/{flowID}/runs"): ("201", "The run started", "FlowRun", None),
     # Un rejeu rend le nouveau run, pas l'ancien : un enregistrement de

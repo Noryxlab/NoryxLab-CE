@@ -1543,6 +1543,12 @@ export const en: Translations = {
   },
 
   snapshots: {
+    deleteTitle: "Delete this snapshot",
+    deleteWarning:
+      "The manifest is destroyed: no comparison against that state will be possible again. If it is the dataset's last snapshot, the nightly check stops watching it - which is how a dataset is un-enrolled, and the only way.",
+    deleted: "Snapshot deleted.",
+    deleteNeedsWrite:
+      "Deleting needs write access to the dataset, while taking a snapshot only needs to be able to read it. That is not an inconsistency: a fingerprint tells you nothing a listing does not, while deleting the last one stops the nightly check.",
     title: "Snapshots",
     hint: "What the dataset held at an instant, written down: path, size, date, ETag. Not a byte is copied.",
     take: "Take a snapshot",

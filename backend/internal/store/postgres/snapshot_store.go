@@ -61,6 +61,28 @@ func (s *Store) ListSnapshots(datasetID string) ([]snapshot.Snapshot, error) {
 	return out, rows.Err()
 }
 
+// DeleteSnapshot removes a reading, manifest included.
+//
+// The manifest goes with it through the foreign key's cascade rather than a
+// second statement here: two deletes would leave orphan object rows behind
+// whenever the second one failed, and nothing would ever look for them.
+//
+// Answers whether a row was actually removed, so a caller can tell "deleted"
+// from "there was nothing there" - and so a snapshot identifier belonging to
+// another dataset answers the second rather than the first.
+func (s *Store) DeleteSnapshot(snapshotID, datasetID string) (bool, error) {
+	result, err := s.db.Exec(`DELETE FROM dataset_snapshots WHERE id=$1 AND dataset_id=$2`,
+		strings.TrimSpace(snapshotID), strings.TrimSpace(datasetID))
+	if err != nil {
+		return false, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
+}
+
 func (s *Store) GetSnapshotEntries(snapshotID, datasetID string) ([]snapshot.Entry, bool, error) {
 	var exists string
 	err := s.db.QueryRow(`SELECT id FROM dataset_snapshots WHERE id=$1 AND dataset_id=$2`,

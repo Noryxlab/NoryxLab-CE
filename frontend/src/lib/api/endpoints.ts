@@ -580,6 +580,11 @@ export const datasetsApi = {
    *  value that is about to appear. */
   snapshotChanges: (datasetId: string, snapshotId: string) =>
     api.get<SnapshotComparison>(`${V1}/datasets/${datasetId}/snapshots/${snapshotId}/changes`),
+  /** Removes a snapshot, manifest included. Needs write access rather than
+   *  read: a dataset's last snapshot is what enrols it in the nightly drift
+   *  check, so removing it stops that check. */
+  removeSnapshot: (datasetId: string, snapshotId: string) =>
+    api.delete<void>(`${V1}/datasets/${datasetId}/snapshots/${snapshotId}`),
 };
 
 export const datasourcesApi = {

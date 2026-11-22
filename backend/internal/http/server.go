@@ -163,6 +163,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/datasets/{datasetID}/snapshots", h.TakeDatasetSnapshot)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/snapshots", h.ListDatasetSnapshots)
 	mux.HandleFunc("GET /api/v1/datasets/{datasetID}/snapshots/{snapshotID}/changes", h.CompareDatasetSnapshot)
+	mux.HandleFunc("DELETE /api/v1/datasets/{datasetID}/snapshots/{snapshotID}", h.DeleteDatasetSnapshot)
 	mux.HandleFunc("GET /api/v1/projects/{projectID}/budget", h.GetProjectBudget)
 	mux.HandleFunc("GET /api/v1/admin/budgets", h.ListBudgets)
 	mux.HandleFunc("PUT /api/v1/admin/budgets/{projectID}", h.SetBudget)

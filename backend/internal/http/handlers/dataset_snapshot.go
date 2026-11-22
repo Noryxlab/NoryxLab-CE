@@ -109,6 +109,52 @@ func (h Handlers) TakeDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, record)
 }
 
+// DeleteDatasetSnapshot removes one reading.
+//
+// Writing, not reading, and that is the decision. Taking a snapshot is open to
+// whoever can read the dataset - it learns nothing a listing does not already
+// give them. Removing one is the opposite act: the last snapshot of a dataset
+// is what enrols it in the nightly drift check, so deleting it stops the
+// surveillance. That belongs to whoever may change the dataset.
+func (h Handlers) DeleteDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireIdentity(w, r)
+	if !ok {
+		return
+	}
+	item, found, err := h.datasetStore.GetByID(strings.TrimSpace(r.PathValue("datasetID")))
+	if err != nil || !found || !h.canReadDataset(item, identity) {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
+		return
+	}
+	if !h.canWriteDataset(item, identity) {
+		// Dit en entier : un refus qui n'annonce que « interdit » laisse
+		// chercher le droit manquant, et celui-la n'est pas celui qu'on
+		// attend apres avoir pu prendre l'instantane soi-meme.
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"error": "removing a snapshot needs write access to the dataset: " +
+				"the last snapshot is what enrols it in the nightly drift check, " +
+				"so deleting it stops that check"})
+		return
+	}
+	if h.snapshotStore == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "snapshots need the database store"})
+		return
+	}
+	removed, err := h.snapshotStore.DeleteSnapshot(strings.TrimSpace(r.PathValue("snapshotID")), item.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete the snapshot"})
+		return
+	}
+	if !removed {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "snapshot not found"})
+		return
+	}
+	h.emitAudit(r, identity.UserID(), "dataset.snapshot.deleted", "dataset", item.ID, "", "success", "",
+		map[string]any{"snapshotId": strings.TrimSpace(r.PathValue("snapshotID")),
+			"classification": item.Classification})
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // ListDatasetSnapshots answers with the readings taken of this dataset.
 func (h Handlers) ListDatasetSnapshots(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)

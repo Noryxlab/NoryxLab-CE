@@ -16,4 +16,13 @@ type SnapshotStore interface {
 	GetSnapshotEntries(snapshotID, datasetID string) ([]snapshot.Entry, bool, error)
 	// LatestSnapshot is what the nightly scan compares against.
 	LatestSnapshot(datasetID string) (snapshot.Snapshot, bool, error)
+	// DeleteSnapshot removes one reading and its manifest.
+	//
+	// It has to exist, and not only to undo a mistake. A snapshot is how a
+	// dataset is enrolled in the nightly drift check; with no way to remove
+	// the last one, nothing could ever be un-enrolled, and a dataset
+	// somebody snapshotted once would be listed and reported on for as long
+	// as the installation lives. The dataset is named so an identifier from
+	// another one cannot become a way to delete this one's readings.
+	DeleteSnapshot(snapshotID, datasetID string) (bool, error)
 }
