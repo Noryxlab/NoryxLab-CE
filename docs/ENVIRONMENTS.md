@@ -49,6 +49,38 @@ In the `Environments` tab:
 - edit Dockerfile inline
 - submit a new build revision directly from edited Dockerfile content
 
+## What an environment says it is
+
+Each entry carries a `shape`, which is what the catalogue groups on: what
+somebody gets when they launch it.
+
+| `shape` | What opens |
+| --- | --- |
+| `notebook` | Jupyter — cells, with the result under the code |
+| `editor` | VS Code — a project, a terminal, a debugger |
+| `r` | RStudio — the R console, its plots and its packages |
+| `desktop` | a desktop application in the browser (Slicer, ParaView, the mechanics bench) |
+| `runtime` | nothing to open; a base for a job or an application |
+
+It is **declared, not guessed**. The platform's own images declare theirs, and
+so does each registered workspace kind through its catalogue entry; a project's
+own build falls back on the IDEs it was found to offer, which keeps the
+inference one level deep. Reading a shape off an image name in the interface
+would have put that knowledge in a second place, wrong the first time somebody
+renames an image.
+
+`category` is a different question and stays what it was: `system` for an image
+the platform publishes, `custom` for one a project builds. It says **who
+published it**, not what it is — which is why it was a poor thing to group on.
+
+`runtime` is the one worth saying out loud: a workspace launched on such an
+image starts and has nothing to show. It is offered where an environment is
+chosen and never where a workspace IDE is.
+
+A shape this interface has never heard of — a newer backend against an older
+console — is filed with the runtimes rather than filtered out. An environment
+missing from the screen exists for nobody.
+
 ## The shipped images carry a patch
 
 The VS Code base image withdraws the editor's Download and Upload entries at

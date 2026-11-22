@@ -8,10 +8,10 @@ it.
 Read this before telling anybody, an auditor included, what the platform
 prevents.
 
-## The five paths
+## The six paths
 
 A workspace is a container running the person's own code, with their data
-mounted and a terminal. A file in it can leave by exactly five routes.
+mounted and a terminal. A file in it can leave by exactly six routes.
 
 | Route | Closed? | By what |
 | --- | --- | --- |
@@ -19,6 +19,7 @@ mounted and a terminal. A file in it can leave by exactly five routes.
 | The editor's Download entry | Yes | A build-time patch of the image |
 | A desktop session's clipboard | Yes, outbound | `-SendCutText 0`, `-noclipboard` |
 | The platform's own download and export routes | Optional | `datasets.local_download` |
+| A copy into an unclassified dataset mounted beside it | Yes, since 2026-11-19 | The co-mount rule, ADR-055 |
 | The person's browser session | **No** | Nothing. See the last section |
 
 ## 1. The pod's network
@@ -114,7 +115,37 @@ setting says, because those are bulk and out-of-band. Reading one of its
 objects follows the right since 2026-11-06 (ADR-053): somebody who may read
 the dataset may open its files, and every fetch is named in the trail.
 
-## 6. The person's browser session, which is open
+## 6. The copy into an unclassified dataset mounted beside it
+
+This was the shortest way out, and it was open until 2026-11-19. A session
+mounts every dataset the project attaches, each read-only or writable according
+to the right the person holds. So it could hold a regulated cohort read-only
+and a personal dataset with no classification writable; one `cp` moved patient
+images from the first to the second, and the second was then downloadable
+through the platform **legitimately**, because it carried no classification and
+no rule refused it.
+
+That is how 17 GB of PREMYOM1000 came to sit outside the HDS perimeter on
+EMSE, and it was found by accident.
+
+**The co-mount rule closes it** (ADR-055): when a workload mounts a regulated
+dataset, every mount that is not itself regulated is mounted read-only, and the
+launch says which ones and why. Writing from one regulated dataset into another
+stays allowed — the destination carries the same classification, so its
+project is closed in turn and its bulk download refused the same way. The
+rule is closed under itself.
+
+Two things it does not do, and neither should be glossed over:
+
+- It applies at launch. A session started before the rule arrived keeps the
+  mounts it was given.
+- It prevents, it does not witness. **A write through the mount still leaves no
+  audit entry** — the mount is FUSE and the API is the only place writes are
+  recorded. What sees those is the nightly comparison in
+  [dataset snapshots](DATASET_SNAPSHOTS.md), on the datasets somebody chose to
+  track. "On ne prévient pas, on constate."
+
+## 7. The person's browser session, which is open
 
 A person who may read a file can get it onto their own machine through the
 editor, because the bytes travel on the session they already have: the same

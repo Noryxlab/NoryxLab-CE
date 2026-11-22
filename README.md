@@ -55,6 +55,7 @@ feature waiting for a key.
 | Install NoryxLab Community Edition | [Step-by-step installation guide](docs/INSTALL_CE.md) |
 | Understand infrastructure requirements | [Infrastructure prerequisites](docs/INFRA_PREREQUISITES.md) |
 | Use the platform as a data practitioner | [Projects](docs/PROJECTS.md), [datasets](docs/S3_DATASET_MOUNTS.md), [bulk clinical imports](docs/DATASET_BULK_IMPORT.md) and [workspaces](docs/WORKSPACES.md) |
+| Chain computations and reproduce a result | [Flows](docs/FLOWS.md) and [replaying a run](docs/REPLAYING_A_RUN.md) |
 | Understand project agents and workflows | [Agent model and Enterprise runtime](docs/AGENTS.md) |
 | Integrate with the REST API | [API contract](docs/API.md) and the running platform's `/swagger` |
 | Operate or troubleshoot a deployment | [Operations guides](#operations) |
@@ -160,7 +161,10 @@ installation values in a private operations repository or secret manager.
 - [Pushing data into a dataset](docs/PUSHING_TO_A_DATASET.md) — one page for an external sender
 - [Environments](docs/ENVIRONMENTS.md)
 - [Workspaces](docs/WORKSPACES.md) and [workspace filesystem layout](docs/WORKSPACE_FILESYSTEM_LAYOUT.md)
-- [Jobs and history](docs/JOB_HISTORY.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
+- [Jobs and history](docs/JOB_HISTORY.md), [replaying a run](docs/REPLAYING_A_RUN.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
+- [Flows](docs/FLOWS.md) — a graph of jobs
+- [Dataset snapshots](docs/DATASET_SNAPSHOTS.md) — what a dataset held at an instant, and the nightly drift check
+- [Budgets](docs/BUDGETS.md) — a monthly allowance in vCPU-hours, announced and never enforced
 - [Applications and Production](docs/APPS_V1.md) and [production operations](docs/PRODUCTION.md)
 - [Hardware tiers](docs/HARDWARE_TIERS.md)
 - [Agents, teams and workflows](docs/AGENTS.md) (public model; Enterprise runtime)

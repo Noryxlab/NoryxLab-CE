@@ -15,6 +15,9 @@ The Jobs page keeps a persistent execution history per project.
 - Explicitly deleting a job deletes both its Kubernetes resources and its
   persisted history entry.
 
+A finished run can be re-executed from this record: see
+[Replaying a run](REPLAYING_A_RUN.md).
+
 ## What a job read
 
 A job records the datasets it had mounted at the moment it started —
@@ -55,6 +58,13 @@ record and a guess:
   "Read no data" stays distinguishable from "nobody wrote it down" — which is
   what every run before this reads as, and pretending otherwise would be worse
   than an absence that says so.
+
+Since 2026-11-22 it also records **the digest the image reference resolved
+to** and **each repository at the commit its clone landed on**, which is what
+makes [a replay](REPLAYING_A_RUN.md) a replay rather than a fresh run under an
+old name. And what a run read is named, never frozen: a dataset rewritten since
+gives the same name over different bytes, which is what
+[dataset snapshots](DATASET_SNAPSHOTS.md) detect.
 
 Nothing is backfilled. The runs that already happened cannot be reconstructed.
 

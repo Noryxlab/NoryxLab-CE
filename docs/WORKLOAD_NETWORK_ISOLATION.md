@@ -94,7 +94,7 @@ gets its profile the next time it starts.
 
 Closing egress closes the route that needs nobody at the keyboard. It does
 not close the person's own browser session, and it is not the whole picture:
-`HOW_DATA_LEAVES_A_WORKSPACE.md` lists the five routes, what each one costs to
+`HOW_DATA_LEAVES_A_WORKSPACE.md` lists the six routes, what each one costs to
 close, and the one that stays open.
 
 ## Desktop sessions and the clipboard
