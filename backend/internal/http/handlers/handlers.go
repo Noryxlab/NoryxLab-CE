@@ -112,6 +112,7 @@ type Handlers struct {
 	hardwareTierStore                store.HardwareTierStore
 	quotaStore                       store.QuotaStore
 	usageStore                       store.UsageStore
+	budgetStore                      store.BudgetStore
 	backendVersion                   string
 	edition                          string
 	defaultTheme                     string
@@ -165,7 +166,8 @@ type Options struct {
 	// QuotaStore holds what each project may run at once.
 	QuotaStore store.QuotaStore
 	// UsageStore holds what each project actually consumed.
-	UsageStore store.UsageStore
+	UsageStore  store.UsageStore
+	BudgetStore store.BudgetStore
 	// OIDCAudience is the audience this platform requires in a token.
 	OIDCAudience string
 	// OIDCFrontendClientID is the client whose tokens must carry it.
@@ -419,6 +421,7 @@ func New(
 		hardwareTierStore:                options.HardwareTierStore,
 		quotaStore:                       options.QuotaStore,
 		usageStore:                       options.UsageStore,
+		budgetStore:                      options.BudgetStore,
 		backendVersion:                   options.BackendVersion,
 		edition:                          strings.TrimSpace(options.Edition),
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),

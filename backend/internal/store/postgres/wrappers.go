@@ -32,6 +32,11 @@ type ProjectStore struct{ *Store }
 type AccessStore struct{ *Store }
 type HardwareTierStore struct{ *Store }
 type QuotaStore struct{ *Store }
+
+// BudgetStore : les methodes portent deja les bons noms sur *Store, cette
+// enveloppe existe pour que l'injection reste la meme que pour les autres.
+type BudgetStore struct{ *Store }
+
 type UsageStore struct{ *Store }
 
 func (s *UsageStore) Record(samples []usage.Sample) error { return s.Store.RecordUsageSamples(samples) }

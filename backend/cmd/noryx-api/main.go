@@ -32,6 +32,10 @@ func main() {
 	var hardwareTierStore store.HardwareTierStore = memory.NewHardwareTierStore()
 	var quotaStore store.QuotaStore = memory.NewQuotaStore()
 	var usageStore store.UsageStore = memory.NewUsageStore()
+	// Pas d'equivalent en memoire : sans Postgres il n'y a pas d'echantillons
+	// a totaliser, donc pas de budget a surveiller - et la veille ne demarre
+	// pas plutot que de surveiller zero.
+	var budgetStore store.BudgetStore
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -87,6 +91,7 @@ func main() {
 			hardwareTierStore = &postgres.HardwareTierStore{Store: pg}
 			quotaStore = &postgres.QuotaStore{Store: pg}
 			usageStore = &postgres.UsageStore{Store: pg}
+			budgetStore = &postgres.BudgetStore{Store: pg}
 			// An installation upgrading into editable tiers keeps the four
 			// sizes it already ran, under the same ids: workspaces in flight
 			// refer to them by id.
@@ -235,6 +240,7 @@ func main() {
 			HardwareTierStore:                hardwareTierStore,
 			QuotaStore:                       quotaStore,
 			UsageStore:                       usageStore,
+			BudgetStore:                      budgetStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,
@@ -308,6 +314,7 @@ func main() {
 	h.StartJobWatcher(reaperCtx)
 	h.StartHealthWatcher(reaperCtx)
 	h.StartUsageSampler(reaperCtx)
+	h.StartBudgetWatcher(reaperCtx)
 	h.StartDatasetSizeSampler(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)

@@ -367,6 +367,26 @@ func migrationStatements() []string {
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS repositories_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS rerun_of TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS divergences_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		// Ce qu'un projet a le droit de consommer dans un mois.
+		//
+		// La consommation n'est pas stockee a cote : elle se calcule depuis
+		// usage_samples, pour qu'il n'y ait jamais deux chiffres a tenir a jour
+		// dont on ne saurait lequel croire.
+		`CREATE TABLE IF NOT EXISTS project_budgets (
+			project_id TEXT PRIMARY KEY,
+			vcpu_hours DOUBLE PRECISION NOT NULL DEFAULT 0,
+			updated_by TEXT NOT NULL DEFAULT '',
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		)`,
+		// Ce qui a deja ete annonce, pour ne pas le redire a chaque passage de la
+		// veille. La cle primaire est la garantie : l'insertion est la decision.
+		`CREATE TABLE IF NOT EXISTS project_budget_alerts (
+			project_id TEXT NOT NULL,
+			period TIMESTAMPTZ NOT NULL,
+			threshold INTEGER NOT NULL,
+			announced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			PRIMARY KEY (project_id, period, threshold)
+		)`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			identity TEXT NOT NULL,
