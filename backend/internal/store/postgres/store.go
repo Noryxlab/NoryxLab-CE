@@ -2510,7 +2510,7 @@ func (s *Store) GetEgressRuleByID(id string) (egress.Rule, bool, error) {
 
 func (s *Store) CreateEgressRule(item egress.Rule) error {
 	workloadTypesJSON, _ := json.Marshal(item.WorkloadTypes)
-	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
 		item.ID, item.ProjectID, item.RequesterID, item.SubjectType, item.SubjectID, item.Profile, item.Destination, item.Port, item.Protocol, workloadTypesJSON, item.Justification, item.Status, item.ReviewerID, item.DecisionNote, item.ExpiresAt, item.CreatedAt, item.UpdatedAt,
 	)
 	return err
@@ -3916,7 +3916,7 @@ func (s *Store) GetStorageEndpointByID(id string) (storageendpoint.Endpoint, boo
 }
 
 func (s *Store) CreateStorageEndpoint(item storageendpoint.Endpoint) error {
-	_, err := s.db.Exec(`INSERT INTO storage_endpoints (id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), item.CreatedBy, item.CreatedAt, item.UpdatedAt)
+	_, err := s.db.Exec(`INSERT INTO storage_endpoints (id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), item.CreatedBy, item.CreatedAt, item.UpdatedAt)
 	return err
 }
 
