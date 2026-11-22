@@ -40,6 +40,45 @@ components:
       name: X-Noryx-User
 
   schemas:
+    DatasetSnapshot:
+      type: object
+      properties:
+        id: { type: string }
+        datasetId: { type: string }
+        label: { type: string }
+        takenBy: { type: string }
+        takenAt: { type: string, format: date-time }
+        objects: { type: integer }
+        totalSize: { type: integer }
+        copyDatasetId: { type: string }
+    DatasetSnapshotListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DatasetSnapshot' }
+    DatasetSnapshotEntry:
+      type: object
+      properties:
+        path: { type: string }
+        size: { type: integer }
+        etag: { type: string }
+        lastModified: { type: string, format: date-time }
+    DatasetSnapshotChange:
+      type: object
+      properties:
+        path: { type: string }
+        kind: { type: string }
+        was: { $ref: '#/components/schemas/DatasetSnapshotEntry' }
+        now: { $ref: '#/components/schemas/DatasetSnapshotEntry' }
+    DatasetSnapshotChangesResponse:
+      type: object
+      properties:
+        changes:
+          type: array
+          items: { $ref: '#/components/schemas/DatasetSnapshotChange' }
+        total: { type: integer }
+        identical: { type: boolean }
     BudgetState:
       type: object
       properties:
@@ -10775,6 +10814,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BudgetState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/snapshots:
+    get:
+      tags: [Datasets]
+      summary: The readings taken of this dataset
+      description: >-
+        Manifests themselves are not returned: nothing displays a hundred
+        thousand paths, and handing one out would disclose the shape of a
+        regulated dataset to anybody allowed to list it. Compare instead.
+      operationId: listDatasetSnapshots
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSnapshotListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Datasets]
+      summary: Record what this dataset holds right now
+      description: >-
+        A snapshot is a manifest - path, size, last modification, ETag - and
+        copies nothing. These are regulated datasets, and the platform's job is
+        to provide the tools rather than make second copies of the evidence;
+        duplicating bytes is a separate act behind the `copy-dataset`
+        capability.
+
+
+        What it buys is the question nothing could answer before: has this file
+        changed since? Neither the ontology nor the extract kept a fingerprint,
+        so a dataset could be rewritten under a finished study and the platform
+        would not notice.
+
+
+        Taking one needs only the right to read the dataset: it learns nothing
+        a listing does not already give.
+      operationId: takeDatasetSnapshot
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: The reading was recorded
+          content:
+            DatasetSnapshot:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/datasets/{datasetID}/snapshots/{snapshotID}/changes:
+    get:
+      tags: [Datasets]
+      summary: How this dataset differs from one of its snapshots
+      description: >-
+        This is the answer to "has anything been written outside the API". A
+        write through a mounted bucket leaves no audit entry, so comparing
+        fingerprints is the only thing that sees it. The same comparison runs
+        nightly on every dataset somebody has snapshotted.
+
+
+        A changed ETag at equal size is reported as a modification: an ETag is
+        not a portable checksum, so it can say "these differ" and must never be
+        read as "these are identical". In doubt it reports - the honest answer
+        is that something changed, not that nothing did.
+      operationId: compareDatasetSnapshot
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: datasetID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: snapshotID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSnapshotChangesResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

@@ -185,6 +185,21 @@ ENVELOPES = {
     # Le budget d'un projet, et ce qu'il a consomme. L'unite est la
     # vCPU-heure parce que c'est la seule grandeur mesuree sans conversion :
     # un prix horaire sur du materiel qu'on possede deja serait invente.
+    # Un instantane : ce qu'un dataset portait, sans copier un octet.
+    "DatasetSnapshot": {
+        "id": "string", "datasetId": "string", "label": "string",
+        "takenBy": "string", "takenAt": "date-time",
+        "objects": "integer", "totalSize": "integer", "copyDatasetId": "string",
+    },
+    "DatasetSnapshotListResponse": {"items": "[$DatasetSnapshot]"},
+    "DatasetSnapshotEntry": {"path": "string", "size": "integer", "etag": "string", "lastModified": "date-time"},
+    "DatasetSnapshotChange": {
+        "path": "string", "kind": "string",
+        "was": "$DatasetSnapshotEntry", "now": "$DatasetSnapshotEntry",
+    },
+    "DatasetSnapshotChangesResponse": {
+        "changes": "[$DatasetSnapshotChange]", "total": "integer", "identical": "boolean",
+    },
     "BudgetState": {
         "projectId": "string", "projectName": "string",
         "vcpuHours": "number", "consumed": "number", "percent": "number",
@@ -307,6 +322,8 @@ RESPONSES = {
     ("GET", "/api/v1/apps/{appID}"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
     ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
+    ("GET", "/api/v1/datasets/{datasetID}/snapshots"): "DatasetSnapshotListResponse",
+    ("GET", "/api/v1/datasets/{datasetID}/snapshots/{snapshotID}/changes"): "DatasetSnapshotChangesResponse",
     ("GET", "/api/v1/projects/{projectID}/budget"): "BudgetState",
     ("GET", "/api/v1/workspaces/{workspaceID}"): "Workspace",
     ("GET", "/api/v1/builds/{buildID}"): "Build",
@@ -391,6 +408,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/members/{userID}"): ("204", "The personal grant is gone", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("PUT", "/api/v1/admin/budgets/{projectID}"): ("204", "Allowance set, or cleared when zero", None, None),
+    ("POST", "/api/v1/datasets/{datasetID}/snapshots"): ("201", "The reading was recorded", "DatasetSnapshot", None),
     # Un rejeu rend le nouveau run, pas l'ancien : un enregistrement de
     # provenance qu'un rejeu ecraserait ne serait plus une trace.
     ("POST", "/api/v1/jobs/{jobID}/rerun"): ("201", "The replay was launched, as a new job", None, None),

@@ -372,6 +372,27 @@ func migrationStatements() []string {
 		// La consommation n'est pas stockee a cote : elle se calcule depuis
 		// usage_samples, pour qu'il n'y ait jamais deux chiffres a tenir a jour
 		// dont on ne saurait lequel croire.
+		// Ce qu'un dataset portait a un instant : un manifeste, pas une copie.
+		// Les octets restent ou ils sont - voir le paquet snapshot.
+		`CREATE TABLE IF NOT EXISTS dataset_snapshots (
+			id TEXT PRIMARY KEY,
+			dataset_id TEXT NOT NULL,
+			label TEXT NOT NULL DEFAULT '',
+			taken_by TEXT NOT NULL DEFAULT '',
+			taken_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			objects BIGINT NOT NULL DEFAULT 0,
+			total_size BIGINT NOT NULL DEFAULT 0,
+			copy_dataset_id TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS dataset_snapshots_dataset ON dataset_snapshots (dataset_id, taken_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS dataset_snapshot_objects (
+			snapshot_id TEXT NOT NULL REFERENCES dataset_snapshots(id) ON DELETE CASCADE,
+			path TEXT NOT NULL,
+			size BIGINT NOT NULL DEFAULT 0,
+			etag TEXT NOT NULL DEFAULT '',
+			last_modified TIMESTAMPTZ NOT NULL DEFAULT now(),
+			PRIMARY KEY (snapshot_id, path)
+		)`,
 		`CREATE TABLE IF NOT EXISTS project_budgets (
 			project_id TEXT PRIMARY KEY,
 			vcpu_hours DOUBLE PRECISION NOT NULL DEFAULT 0,
