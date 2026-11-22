@@ -15,9 +15,13 @@ import { ProjectOwner } from '@/features/projects/project-owner';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import { CreateProjectSheet } from '@/features/projects/project-form';
+import { groupByOwner, splitProjects } from '@/features/projects/project-grouping';
+import { SectionHeader } from '@/components/common/page-header';
+import { Building2, ShieldCheck } from 'lucide-react';
 import type { Project } from '@/lib/api/types';
 
 const VIEW_KEY = 'noryx.projects.view';
+const GROUP_KEY = 'noryx.projects.group';
 
 function ResourceCount({ icon: Icon, count, label }: { icon: React.ComponentType<{ className?: string }>; count: number; label: string }) {
   if (!count) return null;
@@ -89,6 +93,29 @@ export function ProjectsPage() {
       return 'grid';
     }
   });
+
+  /* Le groupement par proprietaire, retenu comme l'affichage l'est deja.
+   *
+   *  Separe de la coupe « les miens / les administres », qui n'est pas un
+   *  reglage : celle-la dit ce que la liste veut dire, et la masquer
+   *  remettrait en vrac ce qu'on vient de ranger. */
+  const [grouped, setGrouped] = React.useState(() => {
+    try {
+      return localStorage.getItem(GROUP_KEY) === 'owner';
+    } catch {
+      return false;
+    }
+  });
+
+  function changeGrouping(next: string) {
+    const mode = next === 'owner' ? 'owner' : 'none';
+    setGrouped(mode === 'owner');
+    try {
+      localStorage.setItem(GROUP_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  }
 
   function changeView(next: string) {
     const mode = next === 'list' ? 'list' : 'grid';
@@ -170,6 +197,58 @@ export function ProjectsPage() {
     />
   );
 
+  const { mine, administered } = splitProjects(filtered);
+
+  /** Une liste de projets, en tuiles ou en tableau selon le reglage, et
+   *  groupee par proprietaire quand on l'a demande. */
+  const renderProjects = (rows: Project[]) => {
+    if (rows.length === 0) return null;
+    const blocks = grouped
+      ? groupByOwner(rows)
+      : [{ key: '', label: '', projects: rows }];
+    return (
+      <div className="space-y-4">
+        {blocks.map((block) => (
+          <div key={block.key || 'all'} className="space-y-2">
+            {grouped ? (
+              <div className="flex flex-wrap items-baseline gap-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium">
+                  <Building2 className="size-3.5 text-muted-foreground" aria-hidden />
+                  {block.label || t('projects.ownerNone')}
+                </p>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {block.projects.length}
+                </span>
+                {/* Un projet sans proprietaire n'est pas un detail de
+                  *  presentation : personne n'en repond et personne ne peut le
+                  *  ceder. Dit ici, parce que c'est ici qu'on le decouvre. */}
+                {block.label ? null : (
+                  <span className="text-xs text-muted-foreground">{t('projects.ownerNoneHint')}</span>
+                )}
+              </div>
+            ) : null}
+            {view === 'grid' ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {block.projects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <DataTable
+                  data={block.projects}
+                  columns={columns}
+                  rowKey={(project) => project.id}
+                  defaultSort={{ columnId: 'activity', direction: 'desc' }}
+                />
+              </Card>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -194,6 +273,16 @@ export function ProjectsPage() {
                 className="max-w-xs flex-1"
               />
               <BareSelect
+                value={grouped ? 'owner' : 'none'}
+                onValueChange={changeGrouping}
+                aria-label={t('projects.groupByOwner')}
+                className="w-44"
+                options={[
+                  { value: 'none', label: t('projects.groupByActivity') },
+                  { value: 'owner', label: t('projects.groupByOwner') },
+                ]}
+              />
+              <BareSelect
                 value={view}
                 onValueChange={changeView}
                 aria-label={t('projects.viewMode')}
@@ -210,33 +299,39 @@ export function ProjectsPage() {
             <SkeletonCards />
           ) : data && data.length === 0 ? (
             <Card>{emptyState}</Card>
-          ) : view === 'grid' ? (
-            filtered.length === 0 ? (
-              <Card>
-                <NoResultsState onReset={() => setSearch('')} />
-              </Card>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {filtered.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
-            )
-          ) : (
+          ) : filtered.length === 0 ? (
             <Card>
-              <DataTable
-                data={data}
-                columns={columns}
-                rowKey={(project) => project.id}
-                search={search}
-                onResetSearch={() => setSearch('')}
-                defaultSort={{ columnId: 'activity', direction: 'desc' }}
-                emptyState={emptyState}
-              />
+              <NoResultsState onReset={() => setSearch('')} />
             </Card>
+          ) : (
+            <>
+              {/* Les deux listes ne portent d'intitule que quand il y en a
+                *  deux : pour qui n'administre rien, la page doit ressembler
+                *  exactement a ce qu'elle etait. */}
+              {administered.length > 0 && mine.length > 0 ? (
+                <SectionHeader title={t('projects.mine')} description={t('projects.mineHint')} />
+              ) : null}
+              {renderProjects(mine)}
+
+              {administered.length > 0 ? (
+                <div className="space-y-2 pt-2">
+                  <SectionHeader
+                    title={t('projects.administered')}
+                    description={t('projects.administeredHint')}
+                  />
+                  {/* L'icone dit la meme chose que le texte, pour qui balaie
+                    *  la page sans la lire. */}
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <ShieldCheck className="size-3.5" aria-hidden />
+                    {administered.length}
+                  </p>
+                  {renderProjects(administered)}
+                </div>
+              ) : null}
+            </>
           )}
 
-          {view === 'grid' && filtered.length > 0 ? (
+          {filtered.length > 0 ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <List className="size-3.5" aria-hidden />
               {filtered.length} / {data?.length ?? 0}

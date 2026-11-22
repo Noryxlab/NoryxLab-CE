@@ -446,6 +446,12 @@ export interface Environment {
   projectId: string;
   name: string;
   category: string;
+  /** What somebody gets when they launch it, in one word: notebook, editor,
+   *  r, desktop, or runtime for an image with nothing to open. Declared by
+   *  the platform, which is the only thing that knows - an image name is not
+   *  a shape, and reading one off the other in this interface would put that
+   *  knowledge in a second place. */
+  shape?: string;
   workspaceIdes: string[] | null;
   destinationImage: string;
   latestBuildId: string;

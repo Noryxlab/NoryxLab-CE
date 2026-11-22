@@ -144,6 +144,17 @@ type CatalogueEntry struct {
 	GitRepository  string
 	GitRef         string
 	DockerfilePath string
+	// Shape is what somebody gets when they launch it, in one word, and it is
+	// what the catalogue groups on: "desktop" for a graphical application,
+	// "notebook", "editor", "r", or "runtime" for an image with nothing to
+	// open. Declared here because nothing else knows: a kind's own id is its
+	// name, not its shape, and reading the shape off an image name would put
+	// that knowledge in a second place.
+	//
+	// Empty falls back to what the kind's IDEs imply, which for a kind whose
+	// only IDE is itself means "runtime" - true for a job image and wrong for
+	// a desktop, so a desktop says so.
+	Shape string
 }
 
 // Matches reports whether an image belongs to this kind.

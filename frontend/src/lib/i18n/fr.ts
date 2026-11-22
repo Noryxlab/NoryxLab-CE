@@ -492,6 +492,16 @@ export const fr = {
   },
 
   projects: {
+    mine: "Mes projets",
+    mineHint: "Ceux où vous avez un droit : vous y travaillez.",
+    administered: "Administrés",
+    administeredHint:
+      "Ces projets sont à l’écran parce que vous administrez la plateforme, pas parce que vous y avez un droit. Vous pouvez les ouvrir et agir dessus ; vous n’êtes membre d’aucun, et voir au travers de tous les projets est un pouvoir réel — l’audit l’enregistre.",
+    groupByOwner: "Propriétaire",
+    groupByActivity: "Activité",
+    ownerNone: "Sans propriétaire",
+    ownerNoneHint:
+      "Aucun propriétaire déclaré : personne ne répond de ce projet et personne ne peut le céder. À attribuer depuis sa fiche.",
     deleteHoldsWarning:
       "Ce projet porte encore {count} élément(s), dont {running} en marche. Les supprimer est irréversible.",
     deleteHoldsConfirm:
@@ -772,6 +782,23 @@ export const fr = {
   },
 
   environments: {
+    shapeNotebook: "Carnets",
+    shapeNotebookHint:
+      "Jupyter : on écrit et on exécute cellule par cellule, le résultat reste sous le code.",
+    shapeEditor: "Éditeurs de code",
+    shapeEditorHint:
+      "VS Code : un projet, un terminal, un débogueur. Ce qu’on ouvre pour écrire du logiciel plutôt qu’une analyse.",
+    shapeR: "R",
+    shapeRHint: "RStudio : la console R, ses graphiques et ses paquets.",
+    shapeDesktop: "Bureaux graphiques",
+    shapeDesktopHint:
+      "Une application de bureau dans le navigateur — Slicer, ParaView, le banc mécanique. Elles s’ouvrent en plein écran, pas dans un éditeur.",
+    shapeRuntime: "Exécution seule",
+    shapeRuntimeHint:
+      "Rien à ouvrir : ces images servent de base à un job ou à une application. Un workspace lancé dessus démarrerait et n’aurait rien à montrer.",
+    groupBy: "Grouper par",
+    groupByShape: "Ce qu’on y fait",
+    groupByNone: "Rien",
     buildNeedsProject: "Choisissez le projet de construction au-dessus : une construction consomme son quota et lui est attribuée.",
     buildProject: "Projet de construction",
     buildProjectHint:

@@ -484,6 +484,16 @@ export const en: Translations = {
   },
 
   projects: {
+    mine: "My projects",
+    mineHint: "The ones you hold a grant on: you work in them.",
+    administered: "Administered",
+    administeredHint:
+      "These are on screen because you administer the platform, not because you hold a grant. You can open them and act on them; you are a member of none, and seeing across every project is real power - the audit trail records it.",
+    groupByOwner: "Owner",
+    groupByActivity: "Activity",
+    ownerNone: "No owner",
+    ownerNoneHint:
+      "No declared owner: nobody answers for this project and nobody can hand it over. Assign one from its settings.",
     deleteHoldsWarning:
       "This project still holds {count} item(s), {running} of them running. Deleting them cannot be undone.",
     deleteHoldsConfirm:
@@ -751,6 +761,23 @@ export const en: Translations = {
   },
 
   environments: {
+    shapeNotebook: "Notebooks",
+    shapeNotebookHint:
+      "Jupyter: you write and run a cell at a time, with the result under the code.",
+    shapeEditor: "Code editors",
+    shapeEditorHint:
+      "VS Code: a project, a terminal, a debugger. What you open to write software rather than an analysis.",
+    shapeR: "R",
+    shapeRHint: "RStudio: the R console, its plots and its packages.",
+    shapeDesktop: "Graphical desktops",
+    shapeDesktopHint:
+      "A desktop application in the browser - Slicer, ParaView, the mechanics bench. They open full screen, not inside an editor.",
+    shapeRuntime: "Run only",
+    shapeRuntimeHint:
+      "Nothing to open: these images are a base for a job or an application. A workspace launched on one would start and have nothing to show.",
+    groupBy: "Group by",
+    groupByShape: "What you do in it",
+    groupByNone: "Nothing",
     buildNeedsProject: "Choose the build project above: a build spends that project's quota and is attributed to it.",
     buildProject: "Build project",
     buildProjectHint:

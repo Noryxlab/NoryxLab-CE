@@ -37,10 +37,22 @@ type environmentRevision struct {
 }
 
 type environmentItem struct {
-	ID               string   `json:"id"`
-	ProjectID        string   `json:"projectId"`
-	Name             string   `json:"name"`
-	Category         string   `json:"category"`
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	Name      string `json:"name"`
+	Category  string `json:"category"`
+	// Shape says what somebody gets when they launch this environment, in one
+	// word: a notebook, an editor, R, a graphical desktop, or nothing to open
+	// at all because the image exists to run a job.
+	//
+	// Declared rather than guessed. The catalogue screen had nothing to group
+	// on - "Systeme" and "Personnalise" say who published an image, not what
+	// it is - so Slicer, ParaView and the mechanics bench sat in the same flat
+	// list as a bare Python runtime with an empty IDE column, and choosing one
+	// meant knowing the names already. Deriving the shape from the image name
+	// in the interface would have been a second place where that knowledge
+	// lives, wrong the first time somebody renames an image.
+	Shape            string   `json:"shape"`
 	WorkspaceIDEs    []string `json:"workspaceIdes"`
 	DestinationImage string   `json:"destinationImage"`
 	LatestBuildID    string   `json:"latestBuildId"`
@@ -122,6 +134,9 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 		} else {
 			item.WorkspaceIDEs = mergeWorkspaceIDEs(item.WorkspaceIDEs, deriveWorkspaceIDEs(destination, b.DockerfilePath, b.DockerfileContent))
 		}
+		// Apres la fusion, pas avant : un rebuild peut ajouter un IDE, et la
+		// forme doit suivre la liste finale plutot que celle du premier build.
+		item.Shape = deriveEnvironmentShape(item.WorkspaceIDEs)
 
 		rev := environmentRevision{
 			BuildID:          b.ID,
@@ -163,6 +178,7 @@ func (h Handlers) ListEnvironments(w http.ResponseWriter, r *http.Request) {
 				GitRef:         entry.GitRef,
 				DockerfilePath: entry.DockerfilePath,
 				WorkspaceIDEs:  []string{kind.ID},
+				Shape:          entry.Shape,
 			})
 		}
 	}
@@ -408,17 +424,46 @@ func deriveEnvironmentCategory(destination string) string {
 	return "custom"
 }
 
+// deriveEnvironmentShape reads the shape off the IDEs an environment offers.
+//
+// For a project's own build, which declares nothing: the IDEs were themselves
+// derived from the image and the Dockerfile, so this stays one inference deep
+// rather than adding a second.
+//
+// No IDE means "runtime" and not "desktop", and the difference matters: a
+// desktop environment declares itself as one (see the Enterprise workspace
+// kinds), while an image with nothing to open is a base for a job or an
+// application. Guessing "desktop" here would promise a window that never
+// opens.
+func deriveEnvironmentShape(ides []string) string {
+	for _, ide := range ides {
+		switch strings.ToLower(strings.TrimSpace(ide)) {
+		case "jupyter":
+			return "notebook"
+		case "vscode":
+			return "editor"
+		case "rstudio":
+			return "r"
+		}
+	}
+	return "runtime"
+}
+
 type systemEnvironmentDefinition struct {
 	BuildID        string
 	GitRepository  string
 	GitRef         string
 	DockerfilePath string
 	WorkspaceIDEs  []string
+	// Shape is what the catalogue groups on. Empty means "derive it from the
+	// IDEs", which is what a project's own build gets.
+	Shape string
 }
 
 var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 	"system-jupyter": {
 		BuildID:        "system-jupyter",
+		Shape:          "notebook",
 		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
 		GitRef:         "main",
 		DockerfilePath: "environments/noryx-jupyter/Dockerfile",
@@ -426,6 +471,7 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 	},
 	"system-vscode": {
 		BuildID:        "system-vscode",
+		Shape:          "editor",
 		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
 		GitRef:         "main",
 		DockerfilePath: "environments/noryx-vscode/Dockerfile",
@@ -433,6 +479,7 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 	},
 	"system-rstudio": {
 		BuildID:        "system-rstudio",
+		Shape:          "r",
 		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
 		GitRef:         "main",
 		DockerfilePath: "environments/noryx-rstudio/Dockerfile",
@@ -452,6 +499,7 @@ var systemEnvironmentDefinitions = map[string]systemEnvironmentDefinition{
 	// nothing to show.
 	"system-runtime": {
 		BuildID:        "system-runtime",
+		Shape:          "runtime",
 		GitRepository:  "https://github.com/Noryxlab/NoryxLab-CE.git",
 		GitRef:         "main",
 		DockerfilePath: "environments/noryx-runtime/Dockerfile",
@@ -500,6 +548,13 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 	}
 	if item, ok := items[key]; ok {
 		item.Category = "system"
+		// La forme declaree gagne sur la forme deduite : c'est tout l'interet
+		// de la declarer. Un bureau graphique construit depuis la recette de
+		// la plateforme n'offre aucun IDE reconnu, donc la deduction l'aurait
+		// range avec les images sans rien a ouvrir.
+		if definition.Shape != "" {
+			item.Shape = definition.Shape
+		}
 		// The platform's own image wins, and so does its name.
 		//
 		// Entries are keyed on the repository rather than the reference, so a
@@ -530,6 +585,7 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 		ProjectID:        projectID,
 		Name:             deriveEnvironmentName(image),
 		Category:         "system",
+		Shape:            environmentShapeOf(definition),
 		WorkspaceIDEs:    definition.WorkspaceIDEs,
 		DestinationImage: image,
 		LatestBuildID:    definition.BuildID,
@@ -539,6 +595,15 @@ func addSystemEnvironment(items map[string]*environmentItem, projectID, image st
 		LatestDockerfile: definition.DockerfilePath,
 		Revisions:        []environmentRevision{revision},
 	}
+}
+
+// environmentShapeOf prefers what a definition declares and falls back on its
+// IDEs, so a catalogue entry that forgot to say still lands somewhere true.
+func environmentShapeOf(definition systemEnvironmentDefinition) string {
+	if shape := strings.TrimSpace(definition.Shape); shape != "" {
+		return shape
+	}
+	return deriveEnvironmentShape(definition.WorkspaceIDEs)
 }
 
 func getSystemEnvironmentDefinition(buildID string) (systemEnvironmentDefinition, bool) {

@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Box, Hammer, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { DataTable, type Column } from '@/components/common/data-table';
-import { EmptyState } from '@/components/common/states';
+import { EmptyState, NoResultsState } from '@/components/common/states';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { SearchInput } from '@/components/common/search-input';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,8 @@ import { environmentsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatRelative } from '@/lib/format';
 import { presentIdes } from '@/lib/presenters';
+import { BareSelect } from '@/components/ui/select';
+import { groupByShape, shapeHintKey, shapeLabelKey } from './environment-shape';
 import { slugify } from '@/lib/format';
 import type { Environment, EnvironmentRevision, Project } from '@/lib/api/types';
 
@@ -548,6 +550,14 @@ export function EnvironmentCatalog() {
   const { dialog, ask } = useConfirm();
 
   const [search, setSearch] = React.useState('');
+  /* Groupe par defaut plutot que liste plate.
+   *
+   *  « voir la totalite des env est compliqué » : la liste etait triable par
+   *  type sans jamais etre rangee par type, donc rien ne disait lequel ouvre
+   *  un carnet et lequel n'ouvre rien du tout. Le groupement est le reglage
+   *  par defaut et se defait, parce que chercher un nom precis se fait mieux
+   *  a plat. */
+  const [grouped, setGrouped] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   // Which project a build runs in. Remembered across sheets so a user who
@@ -689,6 +699,68 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
     },
   ];
 
+  const rowActions = (environment: Environment) => (
+    <>
+      {environment.category === 'system' ? null : (
+        <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
+          <Hammer aria-hidden />
+          {t('environments.build')}
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
+        {t('common.open')}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        destructive
+        disabled={environment.category === 'system'}
+        onSelect={() =>
+          ask({
+            title: t('environments.deleteTitle'),
+            description: t('environments.deleteWarning'),
+            confirmLabel: t('common.delete'),
+            destructive: true,
+            confirmationValue: environment.name,
+            confirmationLabel: t('environments.nameLabel'),
+            onConfirm: () => remove.mutateAsync(environment.id),
+          })
+        }
+      >
+        <Trash2 aria-hidden />
+        {t('common.delete')}
+      </DropdownMenuItem>
+    </>
+  );
+
+  /* La recherche s'applique avant le groupement, pas apres.
+   *
+   *  Le tableau sait filtrer tout seul, mais il le fait par groupe : chacun
+   *  afficherait alors son propre « aucun resultat », cinq fois pour une
+   *  recherche qui ne trouve rien. Filtrer ici donne une reponse, une fois. */
+  const visible = React.useMemo(() => {
+    const rows = environments.data ?? [];
+    const query = search.trim().toLowerCase();
+    if (!query) return rows;
+    return rows.filter((environment) =>
+      `${environment.name} ${presentIdes(environment.workspaceIdes)} ${environment.destinationImage}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [environments.data, search]);
+
+  const groups = grouped ? groupByShape(visible) : [];
+
+  const renderTable = (rows: Environment[]) => (
+    <DataTable
+      data={rows}
+      columns={columns}
+      rowKey={(environment) => environment.id}
+      onRowClick={(environment) => setSelectedId(environment.id)}
+      selectedKey={selectedId}
+      defaultSort={{ columnId: 'updatedAt', direction: 'desc' }}
+      rowActions={rowActions}
+    />
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -701,14 +773,46 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
       />
 
       {environments.data && environments.data.length > 0 ? (
-        <SearchInput
-          value={search}
-          onValueChange={setSearch}
-          label={t('common.search')}
-          className="max-w-xs"
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            label={t('common.search')}
+            className="max-w-xs flex-1"
+          />
+          <BareSelect
+            value={grouped ? 'shape' : 'none'}
+            onValueChange={(value) => setGrouped(value === 'shape')}
+            aria-label={t('environments.groupBy')}
+            className="w-48"
+            options={[
+              { value: 'shape', label: t('environments.groupByShape') },
+              { value: 'none', label: t('environments.groupByNone') },
+            ]}
+          />
+        </div>
       ) : null}
 
+      {groups.map(({ shape, items }) => (
+        <Card key={shape}>
+          <CardHeader>
+            <CardHeaderText>
+              <CardTitle>
+                {t(shapeLabelKey(shape))}{' '}
+                <span className="font-normal text-muted-foreground">{items.length}</span>
+              </CardTitle>
+              {/* Chaque groupe dit ce qu'il contient. « Execution seule » sans
+                *  explication se lit comme une categorie vide de sens, alors
+                *  que c'est la seule dont il faut savoir qu'un workspace
+                *  lance dessus n'afficherait rien. */}
+              <CardDescription>{t(shapeHintKey(shape))}</CardDescription>
+            </CardHeaderText>
+          </CardHeader>
+          {renderTable(items)}
+        </Card>
+      ))}
+
+      {grouped ? null : (
       <Card>
         <DataTable
           data={environments.data}
@@ -734,39 +838,33 @@ function Vulnerabilities({ environment }: { environment: Environment }) {
                 </Button>) : null}
             />
           }
-          rowActions={(environment) => (
-            <>
-              {environment.category === 'system' ? null : (
-                <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
-                  <Hammer aria-hidden />
-                  {t('environments.build')}
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onSelect={() => setSelectedId(environment.id)}>
-                {t('common.open')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                destructive
-                disabled={environment.category === 'system'}
-                onSelect={() =>
-                  ask({
-                    title: t('environments.deleteTitle'),
-                    description: t('environments.deleteWarning'),
-                    confirmLabel: t('common.delete'),
-                    destructive: true,
-                    confirmationValue: environment.name,
-                    confirmationLabel: t('environments.nameLabel'),
-                    onConfirm: () => remove.mutateAsync(environment.id),
-                  })
-                }
-              >
-                <Trash2 aria-hidden />
-                {t('common.delete')}
-              </DropdownMenuItem>
-            </>
-          )}
+          rowActions={rowActions}
         />
       </Card>
+      )}
+
+      {/* Un groupement qui ne rend rien, parce que la recherche ne trouve
+        *  personne : dit une fois, sous les groupes, plutot que repete dans
+        *  chacun des cinq. */}
+      {grouped && groups.length === 0 && (environments.data ?? []).length > 0 ? (
+        <Card>
+          <NoResultsState onReset={() => setSearch('')} />
+        </Card>
+      ) : null}
+
+      {grouped && (environments.data ?? []).length === 0 && !environments.isLoading ? (
+        <Card>
+          <EmptyState
+            icon={Box}
+            title={t('environments.empty')}
+            description={t('environments.emptyHint')}
+            action={can('build-environment') ? (<Button variant="primary" onClick={() => setCreating(true)}>
+                <Plus aria-hidden />
+                {t('environments.create')}
+              </Button>) : null}
+          />
+        </Card>
+      ) : null}
 
       <div ref={panelRef} />
       {selected ? (
