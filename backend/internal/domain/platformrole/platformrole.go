@@ -50,6 +50,21 @@ const (
 	DeclareDatasource      Capability = "declare-datasource"
 	DeclareRepository      Capability = "declare-repository"
 	AdministerOrganization Capability = "administer-organization"
+	// CopyDataset is duplicating a dataset's bytes, and it is a capability of
+	// its own because it is the one act here that makes a second copy of the
+	// evidence.
+	//
+	// Everything else in this platform deliberately avoids that: an extract
+	// freezes a selection without copying a byte, a snapshot records
+	// fingerprints and copies nothing. A copy is sometimes the right answer -
+	// a frozen cohort handed to a partner, a dataset about to be rewritten -
+	// but it doubles the storage of regulated data and creates a second place
+	// where it must be governed, found and deleted. That deserves a named
+	// right rather than a side effect of another one.
+	//
+	// Nobody holds it by default, including the supplied user role: an
+	// installation grants it deliberately or not at all.
+	CopyDataset Capability = "copy-dataset"
 )
 
 // All is every capability, in the order the screen shows them: the things a
@@ -67,6 +82,7 @@ var All = []Capability{
 	DeclareRepository,
 	RegisterRegulatedDataset,
 	AttachRegulatedData,
+	CopyDataset,
 	AdministerOrganization,
 }
 
