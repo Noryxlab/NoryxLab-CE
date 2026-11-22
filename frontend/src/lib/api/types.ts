@@ -112,13 +112,47 @@ export interface Job {
   projectId: string;
   name: string;
   image: string;
+  /** The digest the tag resolved to when this run started. It is what makes a
+   *  replay a replay: a tag designates whatever it designates today, and the
+   *  nightly rebuild moves it. */
+  imageDigest?: string;
   command: string[] | null;
   args: string[] | null;
   jobName: string;
+  hardwareTier?: string;
+  ownerUserId?: string;
   status: string;
   createdAt: string;
   completedAt?: string | null;
   resultAvailable: boolean;
+  /** What this run read and which code it executed, recorded as it started. */
+  datasets?: JobDataset[];
+  extracts?: string[];
+  repositories?: JobRepository[];
+  /** The job this one replays, empty for a first run. */
+  rerunOf?: string;
+  /** How a replay differs from what it replays, in words. Empty on a replay
+   *  that is faithful, absent on a run that is not a replay - and the two are
+   *  not the same thing, which is why a screen must not render one as the
+   *  other. */
+  divergences?: string[];
+}
+
+export interface JobDataset {
+  id: string;
+  name: string;
+  bucket?: string;
+  prefix?: string;
+  readOnly: boolean;
+}
+
+export interface JobRepository {
+  name: string;
+  url: string;
+  ref?: string;
+  /** The commit the clone actually landed on. Empty when it could not be
+   *  resolved, which a screen says rather than showing a blank. */
+  commit?: string;
 }
 
 export interface CronJob {
@@ -1827,4 +1861,128 @@ export interface ActivityReport {
   daily: { day: string; people: number; events: number }[];
   actionsShown: number;
   actionsTotal: number;
+}
+
+/* -- flows ----------------------------------------------------------------- */
+
+/** One node of a graph: a job specification plus what it waits for. */
+export interface FlowStep {
+  /** Identifies the step inside its flow and is what dependsOn names. Stable
+   *  across runs, which is what lets a resume say "this one already
+   *  succeeded". */
+  key: string;
+  name?: string;
+  image: string;
+  command?: string[];
+  args?: string[];
+  hardwareTier?: string;
+  dependsOn?: string[];
+}
+
+export interface Flow {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  ownerUserId?: string;
+  steps: FlowStep[];
+  /** How many steps may run at once. A graph that fans out to fifty steps
+   *  must not ask the cluster for fifty pods because its author drew fifty
+   *  boxes. */
+  maxParallel: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FlowRunStatus = 'running' | 'succeeded' | 'failed' | 'cancelled';
+export type FlowStepStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'skipped'
+  | 'reused';
+
+export interface FlowRun {
+  id: string;
+  flowId: string;
+  projectId: string;
+  status: FlowRunStatus | string;
+  startedBy: string;
+  startedAt: string;
+  finishedAt?: string | null;
+  /** The run this one continues, absent on a first run. */
+  resumeOf?: string;
+}
+
+export interface FlowStepRun {
+  runId: string;
+  stepKey: string;
+  status: FlowStepStatus | string;
+  /** The job this step launched, or the job a reused step was satisfied by. */
+  jobId?: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  /** Why the step is in its state when the state alone does not say: which
+   *  upstream failure skipped it, which run it was reused from. */
+  reason?: string;
+}
+
+/* -- dataset snapshots ----------------------------------------------------- */
+
+/** One reading of a dataset: what it held at an instant, not a copy of it. */
+export interface DatasetSnapshot {
+  id: string;
+  datasetId: string;
+  /** What a person calls it: "before the November re-export". */
+  label?: string;
+  takenBy: string;
+  takenAt: string;
+  objects: number;
+  totalSize: number;
+  /** The dataset this snapshot's bytes were copied into, absent when nothing
+   *  was copied - which is the normal case. */
+  copyDatasetId?: string;
+}
+
+export interface SnapshotEntry {
+  path: string;
+  size: number;
+  etag: string;
+  lastModified: string;
+}
+
+export interface SnapshotChange {
+  path: string;
+  kind: 'added' | 'removed' | 'modified';
+  was?: SnapshotEntry;
+  now?: SnapshotEntry;
+}
+
+export interface SnapshotComparison {
+  changes: SnapshotChange[];
+  total: number;
+  /** Said explicitly, because an empty list reads two ways and only one of
+   *  them is true here. */
+  identical: boolean;
+}
+
+/* -- budgets --------------------------------------------------------------- */
+
+/** One project's monthly allowance and what it has used of it.
+ *
+ *  The unit is vCPU-hours, not money: this platform runs on hardware somebody
+ *  already owns, so a price per hour would be a number the product invented. */
+export interface BudgetState {
+  projectId: string;
+  projectName?: string;
+  /** The allowance. Zero means no budget, which is the default - a budget
+   *  nobody set must never refuse anything. */
+  vcpuHours: number;
+  consumed: number;
+  /** Reported even with no budget set: consumption is worth seeing before
+   *  anybody decides what the limit should be. */
+  percent: number;
+  /** First day of the month this covers. */
+  period: string;
 }

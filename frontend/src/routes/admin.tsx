@@ -42,11 +42,17 @@ import { RbacSection } from '@/features/admin/rbac-section';
 import { StorageSection } from '@/features/admin/storage-section';
 import { ComponentCredentialsSection } from '@/features/admin/component-credentials';
 import { ServiceAccountsSection } from '@/features/admin/service-accounts';
+import { BudgetsSection } from '@/features/admin/budgets-section';
 
 const SECTIONS = [
   'overview',
   'identity',
   'activity',
+  // "usage" was linked from the sidebar and absent from this list, so every
+  // click on it rendered the overview instead - a tab that silently led
+  // somewhere else. Budgets sit beside it: both answer "what is this costing".
+  'usage',
+  'budgets',
   'data',
   'network',
   'rbac',
@@ -193,6 +199,9 @@ export function AdminPage() {
         <TabsContent value="usage">
           <PlatformActivitySection />
           <PlatformUsageSection />
+        </TabsContent>
+        <TabsContent value="budgets">
+          <BudgetsSection />
         </TabsContent>
 
         <TabsContent value="settings">

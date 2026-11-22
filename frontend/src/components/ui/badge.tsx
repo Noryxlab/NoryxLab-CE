@@ -51,6 +51,21 @@ export function describeStatus(status: string | null | undefined, locale: 'fr' |
 
   if (!raw) return { tone: 'neutral', label: fr ? 'Inconnu' : 'Unknown', pending: false };
 
+  // Reused before the success test below, which would otherwise swallow it:
+  // a step a resume did not re-run is settled and the dependency is
+  // satisfied, but the run did not execute it and must not say it did.
+  if (raw === 'reused') {
+    return { tone: 'success', label: fr ? 'Réutilisé' : 'Reused', pending: false };
+  }
+
+  // Skipped: a step that will never run because something upstream failed.
+  // Neutral rather than red, and named rather than called "stopped" - the
+  // whole point of the word is to let a reader find the step that broke
+  // among the ones that merely never started.
+  if (raw === 'skipped') {
+    return { tone: 'neutral', label: fr ? 'Ignoré' : 'Skipped', pending: false };
+  }
+
   if (/(^|[^a-z])(running|active|ready|available|healthy|succeeded|success|complete|completed|published)/.test(raw)) {
     const done = /(succeeded|success|complete|completed)/.test(raw);
     return {

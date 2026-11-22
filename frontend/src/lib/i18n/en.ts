@@ -76,6 +76,7 @@ export const en: Translations = {
     overview: "Overview",
     workspaces: "Workspaces",
     jobs: "Jobs",
+    flows: "Flows",
     apps: "Apps",
     apis: "APIs",
     dashboards: "Dashboards",
@@ -96,6 +97,7 @@ export const en: Translations = {
     dataGovernance: "Data governance",
     inventory: "Software and licences",
     storage: "Storage",
+    budgets: "Budgets",
     backToProjects: "All projects",
     documentation: "Documentation",
     apiReference: "API reference",
@@ -636,6 +638,38 @@ export const en: Translations = {
       "A running execution will be interrupted and its history removed.",
     launched: "Job started.",
     scheduled: "Schedule saved.",
+
+    rerun: "Replay",
+    rerunTitle: "Replay this job",
+    rerunHint:
+      "A replay starts from what this run recorded: the image at the digest that actually ran, not at a tag that may have moved since. It creates a new job - the original and its record are kept - and it runs with your rights, not those of the person who launched it.",
+    rerunLaunched: "Replay started.",
+    rerunOf: "Replay of",
+    rerunOfUnknown:
+      "The original job has been deleted since. Its identifier is kept; its content is not.",
+
+    provenance: "What this run read and executed",
+    provenanceHint:
+      "Recorded as it started rather than reconstructed afterwards: that is what makes a replay honest.",
+    provenanceEmpty: "No provenance record",
+    provenanceEmptyHint:
+      "This run predates the provenance record. It can be replayed, but the replay will start from the image tag and the datasets attached today - not necessarily the ones it ran with.",
+    imageDigest: "Image",
+    imageDigestMissing:
+      "No digest was recorded: a replay would start from the tag, whose content may have changed.",
+    datasetsMounted: "Datasets mounted",
+    datasetReadOnly: "read-only",
+    repositoriesAtCommit: "Code executed",
+    commitUnknown: "commit unresolved",
+    commitUnknownHint:
+      "The repository was mounted but the platform could not reach the forge: the code this run executed cannot be identified.",
+
+    divergences: "Differences from the original run",
+    divergencesHint:
+      "Named rather than counted: \"forty-one differences\" sends somebody looking, naming one shows them.",
+    divergencesNone: "Faithful replay",
+    divergencesNoneHint:
+      "Same image digest, same datasets, same commits as the original run.",
   },
 
   apps: {
@@ -1384,6 +1418,146 @@ export const en: Translations = {
     peak: "Peak",
     samples: "Samples",
   },
+  budgets: {
+    title: "Budgets",
+    hint: "What each project may consume in a month, and where it stands. The unit is vCPU-hours rather than currency: this platform runs on hardware somebody already owns, so a price per hour would be a number the product invented.",
+    doesNotStop: "A budget stops nothing",
+    doesNotStopHint:
+      "Going over an allowance suspends no workspace, no job, no application: the platform says so, it does not cut. Making the cost visible is better than killing a computation halfway through.",
+    thresholds: "Alerts at {first}% and {second}%",
+    thresholdsHint:
+      "Two thresholds and not five: an alert that arrives often stops being read. The first is early enough to change course, the second is the fact itself. Each threshold is announced once per month per project, to the administrators.",
+    allowance: "Allowance",
+    consumed: "Consumed",
+    share: "Share",
+    remaining: "Remaining",
+    period: "Current month",
+    noBudget: "No allowance",
+    noBudgetHint:
+      "This project consumes with no declared limit. That is the default: a budget nobody set must never refuse anything.",
+    set: "Set an allowance",
+    setTitle: "Monthly allowance for \u201c{project}\u201d",
+    setHint:
+      "In vCPU-hours, for a calendar month. Consumption is sampled every five minutes by the sampler, which is the only figure here that is true without a conversion.",
+    vcpuHoursLabel: "vCPU-hours per month",
+    saved: "Allowance saved.",
+    clear: "Remove the allowance",
+    clearTitle: "Remove the allowance",
+    clearWarning:
+      "The project will consume with no declared limit again, and no alert will be raised for it. Consumption is still measured.",
+    cleared: "Allowance removed.",
+    empty: "No project",
+    emptyHint: "Budgets apply to projects, and this installation has none.",
+    overBudget: "Over",
+    convertToMoney:
+      "An installation that wants currency sets a price per vCPU-hour: the same budget then reads in euros, with the conversion visible rather than built in.",
+  },
+
+  flows: {
+    title: "Flows",
+    subtitle:
+      "Jobs chained into a graph: \"mesh this, then simulate it, and render both while you are at it\".",
+    empty: "No flow",
+    emptyHint:
+      "A flow chains jobs, each waiting on the ones before it. Every step is an ordinary job: same mounts, same rights, same egress profile, same provenance record.",
+    stepIsAJob: "A step is an ordinary job",
+    stepIsAJobHint:
+      "It goes down the same launch path as any other job, and so gets the same mounts, the same egress profile, the same rights resolution and the same provenance. A pipeline whose steps ran through a path of their own would diverge from ordinary runs, and the day that showed would be the day a result could not be explained.",
+    steps: "Steps",
+    stepsCount: "{count} steps",
+    maxParallel: "At most {count} at once",
+    maxParallelHint:
+      "Bounds how many steps run at once: a graph that fans out to fifty must not ask the cluster for fifty pods because its author drew fifty boxes.",
+    dependsOn: "After",
+    dependsOnNothing: "No dependency: starts immediately.",
+    run: "Run",
+    running: "Running",
+    runs: "Runs",
+    runsEmpty: "Never run",
+    runsEmptyHint: "Run it to watch the graph unfold.",
+    runStarted: "Run started.",
+    resume: "Resume",
+    resumeTitle: "Resume this run",
+    resumeHint:
+      "Steps that already succeeded are not re-run: they are carried over to the new run with the status \"reused\", which is not \"succeeded\" - a run must never claim to have executed something it did not.",
+    resumeOf: "Resumed from",
+    reusedFrom: "Reused from an earlier run",
+    timeline: "Timeline",
+    graph: "Graph",
+    waitingOn: "Waiting on {steps}",
+    skippedBecause: "Not run: a step it depends on failed.",
+    failureStopsDependents: "A failure stops only what depends on it",
+    failureStopsDependentsHint:
+      "Branches that do not need the failed step keep going. Failing the whole graph the instant one step fails would throw away work that was fine - and on a mesh that took forty minutes, that is the difference between a usable tool and one people stop using.",
+    definitionMoved: "The flow has changed since this run",
+    definitionMovedHint:
+      "These steps ran and are no longer part of the graph as it is declared today. A past run is not rewritten when the flow is: it stays the record of what was done, not of what would be done now.",
+    openJob: "Open the job",
+    noJobYet: "No job yet: the step has not started.",
+    createTitle: "Declare a flow",
+    createHint:
+      "Name the graph, then its steps. A step carries a stable key, an image, and the list of steps it waits on.",
+    create: "New flow",
+    nameLabel: "Flow name",
+    namePlaceholder: "Mechanical chain",
+    stepKeyLabel: "Key",
+    stepKeyHint:
+      "Stable across runs: it is what lets a resume say \"this one already succeeded\".",
+    stepNameLabel: "Label",
+    addStep: "Add a step",
+    removeStep: "Remove",
+    saved: "Flow saved.",
+    cycle: "The graph closes on itself",
+    cycleHint:
+      "Validated when saved rather than when run: a cycle discovered halfway through leaves pods behind and somebody waiting, while its author is no longer at the keyboard.",
+    needsDatabase: "Flows need the database",
+    needsDatabaseHint:
+      "This installation runs without one: a graph's state has to survive a redeployment, otherwise a run would die halfway through with pods still going and nothing to reconcile them against.",
+  },
+
+  snapshots: {
+    title: "Snapshots",
+    hint: "What the dataset held at an instant, written down: path, size, date, ETag. Not a byte is copied.",
+    take: "Take a snapshot",
+    taking: "Reading the bucket\u2026",
+    taken: "Snapshot taken.",
+    labelLabel: "Label",
+    labelPlaceholder: "before the November re-export",
+    labelHint: "Optional, but it is what will make it recognisable in six months.",
+    objects: "Objects",
+    totalSize: "Volume",
+    takenAt: "Taken",
+    takenBy: "By",
+    empty: "No snapshot",
+    emptyHint:
+      "A snapshot answers a question nothing else can settle: \"has this file changed since?\". Neither the ontology nor the extracts record a fingerprint, so a dataset can be rewritten under a finished study and nothing in the platform would notice.",
+    enrollsInScan: "And it enrols the dataset in the nightly check",
+    enrollsInScanHint:
+      "The nightly check compares only the datasets somebody has snapshotted - fingerprinting every bucket each night would mean listing all of the platform's data to answer a question nobody asked about most of it. The snapshot is how you say \"this one, I want to know\".",
+    whyNotACopy: "Why it is not a copy",
+    whyNotACopyHint:
+      "Doubling regulated bytes would create a second place to govern, find and delete them. Copying exists as a separate act, behind a separate right that nobody holds today.",
+    changes: "Differences since this snapshot",
+    changesHint: "Compared with the bucket as it stands now.",
+    compare: "Show the differences",
+    comparing: "Listing the bucket\u2026",
+    identical: "No difference",
+    identicalHint: "The dataset is exactly as this snapshot found it.",
+    changeCount: "{count} differences",
+    added: "Added",
+    removed: "Removed",
+    modified: "Modified",
+    etagCaveat: "An ETag says \"these differ\", never \"these are identical\"",
+    etagCaveatHint:
+      "An ETag is not a portable checksum: a multipart upload produces a different one for the same bytes. A matching size with a different ETag is therefore reported as modified - the honest answer is that something changed, not that nothing did.",
+    needsLocalDataset: "Only for datasets on the platform's own storage",
+    needsLocalDatasetHint:
+      "A snapshot is taken by listing the bucket. The platform can only do that on its own object storage, not on a dataset it holds nothing but the address of.",
+    scanAtNight: "Nightly check",
+    scanAtNightHint:
+      "Every night, the tracked datasets are compared with their latest snapshot and any difference is reported to the administrators. A write made through a mount does not cross the API, so the audit trail never sees it: we do not prevent it, we stop ignoring it.",
+  },
+
   people: {
     membershipGrantLabel: "What belonging gives on what the organization owns",
     membershipGrantHint: "Written as a grant to the organization when an object is created for it or transferred to it; never retroactive. “Nothing”: its named administrators decide object by object.",

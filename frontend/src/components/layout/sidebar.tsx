@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   Database,
   Gauge,
+  GitFork,
   Home,
   LayoutDashboard,
   Puzzle,
@@ -23,6 +24,7 @@ import {
   Shield,
   Terminal,
   Users,
+  Wallet,
   Webhook,
   KeyRound,
 } from 'lucide-react';
@@ -64,6 +66,7 @@ function projectItems(projectId: string): NavItem[] {
     { to: base, labelKey: 'nav.overview', icon: Gauge, end: true },
     { to: `${base}/workspaces`, labelKey: 'nav.workspaces', icon: Terminal },
     { to: `${base}/jobs`, labelKey: 'nav.jobs', icon: Activity },
+    { to: `${base}/flows`, labelKey: 'nav.flows', icon: GitFork },
     { to: `${base}/apps`, labelKey: 'nav.apps', icon: AppWindow },
     { to: `${base}/agents`, labelKey: 'nav.agents', icon: Bot, enterpriseOnly: true },
     { to: `${base}/dashboards`, labelKey: 'nav.dashboards', icon: LayoutDashboard },
@@ -116,6 +119,10 @@ const ADMIN_GROUPS: { labelKey: TranslationKey; items: NavItem[] }[] = [
       // interne de la plateforme. Les confondre etait l'erreur d'origine.
       { to: '/admin/component-credentials', labelKey: 'nav.componentCredentials', icon: KeyRound },
       { to: '/admin/usage', labelKey: 'usage.title', icon: Gauge },
+      // A cote de la consommation, pas dans la configuration : on vient y
+      // arbitrer entre projets au vu de ce qu'ils ont pris, et les deux
+      // ecrans se lisent l'un apres l'autre.
+      { to: '/admin/budgets', labelKey: 'nav.budgets', icon: Wallet },
       { to: '/admin/backups', labelKey: 'nav.backups', icon: Archive, enterpriseOnly: true },
     ],
   },

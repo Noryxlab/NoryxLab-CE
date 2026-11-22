@@ -7,6 +7,7 @@ import { ProjectLayout } from '@/routes/project/layout';
 import { ProjectOverviewPage } from '@/routes/project/overview';
 import { WorkspacesPage } from '@/routes/project/workspaces';
 import { JobsPage } from '@/routes/project/jobs';
+import { FlowsPage } from '@/routes/project/flows';
 import { AppsPage } from '@/routes/project/apps';
 import { DashboardsPage } from '@/routes/project/dashboards';
 import { ApisPage } from '@/routes/project/apis';
@@ -41,6 +42,10 @@ export function AppRoutes() {
             <Route index element={<ProjectOverviewPage />} />
             <Route path="workspaces" element={<WorkspacesPage />} />
             <Route path="jobs" element={<JobsPage />} />
+            {/* Les flows vivent a cote des jobs, pas dans un etage a eux : une
+                etape de flow EST un job, et les deux ecrans se lisent
+                ensemble. */}
+            <Route path="flows" element={<FlowsPage />} />
             <Route path="apps" element={<AppsPage />} />
             <Route path="dashboards" element={<DashboardsPage />} />
             <Route path="apis" element={<ApisPage />} />

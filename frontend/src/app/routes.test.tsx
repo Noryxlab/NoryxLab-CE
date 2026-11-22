@@ -26,6 +26,16 @@ describe('routes', () => {
     expect(insideProject).not.toContain('path="agents" element={<Navigate');
   });
 
+  /* Les flows sont une page de projet, pas une page globale.
+   *
+   *  Un graphe tourne dans un projet - il monte ses datasets, depense son
+   *  budget, ecrit dans son espace. Au premier niveau il aurait fallu
+   *  demander « dans lequel ? » apres le clic, et c'est exactement ce que
+   *  l'architecture hybride evite en mettant le projet dans l'URL. */
+  it('sert les flows a l’interieur du projet', () => {
+    expect(projectBlock).toContain('<Route path="flows" element={<FlowsPage />} />');
+  });
+
   it('renvoie l’ancien lien de premier niveau vers les projets', () => {
     const topLevel = source.slice(source.indexOf('</Route>', source.indexOf('path="settings"')));
     expect(topLevel).toContain('<Route path="agents" element={<Navigate to="/projects" replace />} />');

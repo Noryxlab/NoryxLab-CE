@@ -46,9 +46,14 @@ func (h Handlers) TakeDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if h.snapshotStore == nil || h.minioClient == nil || strings.TrimSpace(item.Bucket) == "" {
+	if h.snapshotStore == nil || strings.TrimSpace(item.Bucket) == "" {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": "snapshots need a local dataset and the database store"})
+			"error": "snapshots need a dataset with a bucket and the database store"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 		return
 	}
 	// Le corps est facultatif : un instantane sans libelle est legitime, et
@@ -65,7 +70,7 @@ func (h Handlers) TakeDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
 	if prefix != "" {
 		prefix += "/"
 	}
-	for object := range h.minioClient.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+	for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if object.Err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list the dataset: " + object.Err.Error()})
 			return
@@ -143,8 +148,13 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	if h.snapshotStore == nil || h.minioClient == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "snapshots need a local dataset and the database store"})
+	if h.snapshotStore == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "snapshots need the database store"})
+		return
+	}
+	client, _, err := h.datasetS3Client(item)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 		return
 	}
 	before, found, err := h.snapshotStore.GetSnapshotEntries(strings.TrimSpace(r.PathValue("snapshotID")), item.ID)
@@ -155,7 +165,7 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 
 	ctx, cancel := context.WithTimeout(r.Context(), snapshotListTimeout)
 	defer cancel()
-	now, err := h.listDatasetEntries(ctx, item.Bucket, item.Prefix)
+	now, err := listDatasetEntries(ctx, client, item.Bucket, item.Prefix)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list the dataset: " + err.Error()})
 		return
@@ -170,13 +180,21 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func (h Handlers) listDatasetEntries(ctx context.Context, bucket, prefix string) ([]snapshotdomain.Entry, error) {
+// listDatasetEntries reads a dataset through its own storage client.
+//
+// Its own, not the platform's: a dataset on an external S3 endpoint has its
+// own address and its own credential, and listing it through the internal
+// MinIO client asked that client for a bucket of the same name - which either
+// does not exist or, worse, is somebody else's. The regulated datasets at the
+// customer site are exactly the ones that are external, so this was the case
+// that mattered and the one that would have failed.
+func listDatasetEntries(ctx context.Context, client *minio.Client, bucket, prefix string) ([]snapshotdomain.Entry, error) {
 	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
 	if prefix != "" {
 		prefix += "/"
 	}
 	out := []snapshotdomain.Entry{}
-	for object := range h.minioClient.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+	for object := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if object.Err != nil {
 			return nil, object.Err
 		}

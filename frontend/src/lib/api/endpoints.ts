@@ -23,6 +23,7 @@ import type {
   AuditEvent,
   BackupConfigStatus,
   BackupRun,
+  BudgetState,
   Build,
   Extract,
   ExtractAccess,
@@ -30,6 +31,7 @@ import type {
   CronJob,
   Dataset,
   DatasetAccess,
+  DatasetSnapshot,
   DatasourceAccess,
   DatasetUsage,
   Datasource,
@@ -38,6 +40,11 @@ import type {
   DockerfileResponse,
   EffectiveSetting,
   EgressProfile,
+  SnapshotComparison,
+  Flow,
+  FlowRun,
+  FlowStep,
+  FlowStepRun,
   EgressRule,
   Environment,
   Execution,
@@ -256,6 +263,12 @@ export const projectsApi = {
     api.delete<void>(`${V1}/projects/${projectId}/files/${encodeObjectPath(path)}`),
 
   egressRules: (projectId: string) => api.list<EgressRule>(`${V1}/projects/${projectId}/egress/rules`),
+
+  /** This project's own allowance and what it has used of it. Readable by any
+   *  member: a team that cannot see its consumption cannot change it. Setting
+   *  the allowance is an administrator's act and lives on adminApi, because it
+   *  arbitrates between projects on a shared resource. */
+  budget: (projectId: string) => api.get<BudgetState>(`${V1}/projects/${projectId}/budget`),
 };
 
 export interface CreateWorkspaceInput {
@@ -324,6 +337,13 @@ export const jobsApi = {
    *  missing when they had been fetched successfully. */
   logs: (jobId: string) =>
     api.get<LogsResponse>(`${V1}/jobs/${jobId}/logs`).then((response) => response?.logs ?? ''),
+  /** Replays a finished run from what that run recorded - the image at the
+   *  digest that actually ran, not at a tag that has since moved.
+   *
+   *  The result is a new job, never an update of the old one: a provenance
+   *  record a replay overwrote would no longer be a record. It runs with the
+   *  rights of whoever presses, not those of the original launcher. */
+  rerun: (jobId: string) => api.post<Job>(`${V1}/jobs/${jobId}/rerun`, {}),
 };
 
 export interface CreateCronJobInput extends CreateJobInput {
@@ -336,6 +356,38 @@ export const cronJobsApi = {
     api.list<CronJob>(`${V1}/cronjobs`, projectId ? { params: { projectId } } : undefined),
   create: (input: CreateCronJobInput) => api.post<CronJob>(`${V1}/cronjobs`, input),
   remove: (cronJobId: string) => api.delete<void>(`${V1}/cronjobs/${cronJobId}`),
+};
+
+export interface SaveFlowInput {
+  name: string;
+  description?: string;
+  steps: FlowStep[];
+  maxParallel?: number;
+}
+
+/** Flows: a graph of jobs, and the runs of it.
+ *
+ *  Declaring one asks for the right to launch a job and nothing more - a flow
+ *  is only jobs chained together, and a separate right would protect nothing
+ *  while blocking the useful gesture. */
+export const flowsApi = {
+  list: (projectId: string) => api.list<Flow>(`${V1}/projects/${projectId}/flows`),
+  create: (projectId: string, input: SaveFlowInput) =>
+    api.post<Flow>(`${V1}/projects/${projectId}/flows`, input),
+  update: (projectId: string, flowId: string, input: SaveFlowInput) =>
+    api.put<Flow>(`${V1}/projects/${projectId}/flows/${flowId}`, input),
+  runs: (flowId: string) => api.list<FlowRun>(`${V1}/flows/${flowId}/runs`),
+  /** Starts a run, or resumes one. Resuming carries over what already
+   *  succeeded instead of re-running it - the whole point on a graph where one
+   *  step took forty minutes - and records those steps as "reused" rather than
+   *  "succeeded", so a run never claims to have executed something it did
+   *  not. */
+  start: (flowId: string, resumeOf?: string) =>
+    api.post<FlowRun>(
+      `${V1}/flows/${flowId}/runs${resumeOf ? `?resumeOf=${encodeURIComponent(resumeOf)}` : ''}`,
+      {},
+    ),
+  run: (runId: string) => api.get<{ run: FlowRun; steps: FlowStepRun[] }>(`${V1}/flow-runs/${runId}`),
 };
 
 /** The API validates this set exactly; anything else is rejected with 400. */
@@ -515,6 +567,19 @@ export const datasetsApi = {
 
   readObject: (datasetId: string, path: string) =>
     request<Response>(`${V1}/datasets/${datasetId}/objects/${encodeObjectPath(path)}`, { raw: true }),
+
+  /** Snapshots: what the dataset held at an instant, written down. Nothing is
+   *  copied - the bytes stay where they are, and what the platform keeps is a
+   *  manifest of path, size, ETag and last modification. */
+  snapshots: (datasetId: string) =>
+    api.list<DatasetSnapshot>(`${V1}/datasets/${datasetId}/snapshots`),
+  takeSnapshot: (datasetId: string, label?: string) =>
+    api.post<DatasetSnapshot>(`${V1}/datasets/${datasetId}/snapshots`, { label: label ?? '' }),
+  /** How the dataset differs from that snapshot now. Listing a large bucket
+   *  takes time, so callers show it as work in progress rather than as a
+   *  value that is about to appear. */
+  snapshotChanges: (datasetId: string, snapshotId: string) =>
+    api.get<SnapshotComparison>(`${V1}/datasets/${datasetId}/snapshots/${snapshotId}/changes`),
 };
 
 export const datasourcesApi = {
@@ -918,6 +983,16 @@ export const adminApi = {
   sendPasswordResetEmail: (userId: string) =>
     api.post<{ sent: boolean }>(`${V1}/admin/users/${encodeURIComponent(userId)}/password-reset-email`, {}),
   usage: () => api.get<{ from: string; to: string; items: UsageTotal[] }>(`${V1}/admin/usage`),
+  /** Every project, its allowance and what it has used this month - including
+   *  the projects with no allowance at all, which is the list an administrator
+   *  needs in order to decide where one is worth setting. */
+  budgets: () =>
+    api.get<{ items: BudgetState[] | null; unit: string; period: string }>(`${V1}/admin/budgets`),
+  /** Sets one project's monthly allowance, or clears it. Zero is the removal,
+   *  and the API distinguishes it from a negative value so a typo cannot
+   *  become an absurd limit that alerts without end. */
+  setBudget: (projectId: string, vcpuHours: number) =>
+    api.put<void>(`${V1}/admin/budgets/${encodeURIComponent(projectId)}`, { vcpuHours }),
   /** L'activite, distincte de `usage` qui compte des vCPU-heures. */
   activity: (window: string) =>
     api.get<ActivityReport>(`${V1}/admin/activity?window=${encodeURIComponent(window)}`),

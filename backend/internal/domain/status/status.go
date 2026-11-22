@@ -48,8 +48,22 @@ var Vocabulary = map[string]Kind{
 	"failed":    KindFailed,
 	"unhealthy": KindFailed,
 	"canceled":  KindFailed,
+	// Both spellings, because both are emitted: the agent workflows write
+	// "cancelled" and nothing should have to remember which.
+	"cancelled": KindFailed,
 	"degraded":  KindDegraded,
 	"stopped":   KindStopped,
+	// A flow step that will never run because something it depends on failed.
+	// Read as stopped rather than failed: it is not broken, and a person
+	// looking at a red graph has to be able to see which step actually broke.
+	// The interface still labels it with its own word - calling it "stopped"
+	// to a reader would hide the reason it is not running.
+	"skipped": KindStopped,
+	// A flow step a resume did not re-run because it had already succeeded.
+	// Read as a success, because the dependency is satisfied and there is
+	// nothing to wait for - and labelled as "reused", because the run did not
+	// execute it and must not claim it did.
+	"reused":    KindSuccess,
 	"unchecked": KindUnknown,
 	"missing":   KindUnknown,
 }

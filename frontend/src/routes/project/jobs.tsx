@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { CalendarClock, Play, Plus, Trash2 } from 'lucide-react';
+import { CalendarClock, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
@@ -9,7 +9,7 @@ import { LogViewer } from '@/components/common/log-viewer';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardHeaderText, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import { Badge, StatusBadge, describeStatus } from '@/components/ui/badge';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -36,6 +36,7 @@ import { cronJobsApi, jobsApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatDuration, formatRelative } from '@/lib/format';
 import { CRON_PRESETS, describeCron, presentTier } from '@/lib/presenters';
+import { JobProvenance } from '@/features/jobs/job-provenance';
 import type { CronJob, Job } from '@/lib/api/types';
 
 const TIME_ZONES = ['Europe/Paris', 'UTC', 'Europe/London', 'America/New_York'];
@@ -254,11 +255,28 @@ export function JobsPage() {
   const jobs = useJobs(projectId);
   const crons = useCronJobs(projectId);
   const logs = useJobLogs(selectedJobId ?? undefined);
+  const selectedJob = jobs.data?.find((job) => job.id === selectedJobId) ?? null;
 
   const removeJob = useMutation({
     mutationFn: (jobId: string) => jobsApi.remove(jobId),
     onSuccess: () => invalidate(qk.jobs(projectId), qk.projects),
     onError: (error) => toast.error(error, t('jobs.deleteTitle')),
+  });
+
+  /* Rejouer.
+   *
+   *  Le resultat est un nouveau job, jamais une mise a jour de l'ancien : un
+   *  enregistrement de provenance qu'un rejeu ecraserait ne serait plus une
+   *  trace. On selectionne donc le nouveau run, pour que la personne lise
+   *  tout de suite ce qu'il a repris et en quoi il differe.  */
+  const rerun = useMutation({
+    mutationFn: (jobId: string) => jobsApi.rerun(jobId),
+    onSuccess: (job) => {
+      invalidate(qk.jobs(projectId), qk.projects);
+      setSelectedJobId(job.id);
+      toast.success(t('jobs.rerunLaunched'), t('jobs.title'));
+    },
+    onError: (error) => toast.error(error, t('jobs.rerunTitle')),
   });
 
   const removeCron = useMutation({
@@ -398,6 +416,24 @@ export function JobsPage() {
               <DropdownMenuItem onSelect={() => setSelectedJobId(job.id)}>
                 {t('common.viewLogs')}
               </DropdownMenuItem>
+              {/* Rejouer n'est propose qu'une fois le run termine : relancer
+                *  un calcul qui tourne encore ne reproduit rien, ca double
+                *  simplement la facture.  */}
+              {can('launch-job') && !describeStatus(job.status).pending ? (
+                <DropdownMenuItem
+                  onSelect={() =>
+                    ask({
+                      title: t('jobs.rerunTitle'),
+                      description: t('jobs.rerunHint'),
+                      confirmLabel: t('jobs.rerun'),
+                      onConfirm: () => rerun.mutateAsync(job.id),
+                    })
+                  }
+                >
+                  <RotateCcw aria-hidden />
+                  {t('jobs.rerun')}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 destructive
                 onSelect={() =>
@@ -417,6 +453,8 @@ export function JobsPage() {
           )}
         />
       </Card>
+
+      {selectedJob ? <JobProvenance job={selectedJob} /> : null}
 
       {selectedJobId ? (
         <Card>

@@ -17,6 +17,7 @@ import {
   datasourcesApi,
   egressApi,
   environmentsApi,
+  flowsApi,
   jobsApi,
   ontologiesApi,
   platformApi,
@@ -176,6 +177,16 @@ export const qk = {
   adminBackupStatus: ["admin", "backups", "status"] as const,
   adminBackupRuns: ["admin", "backups", "runs"] as const,
   adminModules: ["admin", "modules"] as const,
+  adminBudgets: ["admin", "budgets"] as const,
+  projectBudget: (projectId: string) =>
+    ["projects", projectId, "budget"] as const,
+  flows: (projectId: string) => ["projects", projectId, "flows"] as const,
+  flowRuns: (flowId: string) => ["flows", flowId, "runs"] as const,
+  flowRun: (runId: string) => ["flow-runs", runId] as const,
+  datasetSnapshots: (datasetId: string) =>
+    ["datasets", datasetId, "snapshots"] as const,
+  snapshotChanges: (datasetId: string, snapshotId: string) =>
+    ["datasets", datasetId, "snapshots", snapshotId, "changes"] as const,
 };
 
 /**
@@ -925,6 +936,74 @@ export const useModules = () =>
     queryKey: qk.adminModules,
     queryFn: adminApi.modules,
     staleTime: 600_000,
+  });
+
+/* -- budgets --------------------------------------------------------------- */
+
+export const useBudgets = () =>
+  useQuery({ queryKey: qk.adminBudgets, queryFn: adminApi.budgets });
+
+export const useProjectBudget = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.projectBudget(projectId ?? ""),
+    queryFn: () => projectsApi.budget(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
+/* -- flows ----------------------------------------------------------------- */
+
+export const useFlows = (projectId: string | undefined) =>
+  useQuery({
+    queryKey: qk.flows(projectId ?? ""),
+    queryFn: () => flowsApi.list(projectId as string),
+    enabled: Boolean(projectId),
+  });
+
+export const useFlowRuns = (flowId: string | undefined) =>
+  useQuery({
+    queryKey: qk.flowRuns(flowId ?? ""),
+    queryFn: () => flowsApi.runs(flowId as string),
+    enabled: Boolean(flowId),
+    // A run in flight is advanced by a scheduler on the server, so the list
+    // only becomes true again by asking. Polled on the run's own status
+    // rather than through describeStatus: that one reads "running" as a
+    // settled state - correct for a workspace, which stays running, and
+    // wrong for a run, which is on its way somewhere.
+    refetchInterval: ({ state }) =>
+      (state.data ?? []).some((run) => run.status === "running") ? 5000 : false,
+  });
+
+export const useFlowRun = (runId: string | undefined) =>
+  useQuery({
+    queryKey: qk.flowRun(runId ?? ""),
+    queryFn: () => flowsApi.run(runId as string),
+    enabled: Boolean(runId),
+    refetchInterval: ({ state }) => (state.data?.run.status === "running" ? 5000 : false),
+  });
+
+/* -- dataset snapshots ----------------------------------------------------- */
+
+export const useDatasetSnapshots = (datasetId: string | undefined) =>
+  useQuery({
+    queryKey: qk.datasetSnapshots(datasetId ?? ""),
+    queryFn: () => datasetsApi.snapshots(datasetId as string),
+    enabled: Boolean(datasetId),
+  });
+
+/** The drift between a snapshot and the bucket as it stands now.
+ *
+ *  Not fetched until asked for: it lists the whole bucket, which on a dataset
+ *  of a hundred thousand objects is a minute of work nobody requested. */
+export const useSnapshotChanges = (
+  datasetId: string | undefined,
+  snapshotId: string | undefined,
+) =>
+  useQuery({
+    queryKey: qk.snapshotChanges(datasetId ?? "", snapshotId ?? ""),
+    queryFn: () => datasetsApi.snapshotChanges(datasetId as string, snapshotId as string),
+    enabled: Boolean(datasetId && snapshotId),
+    staleTime: 0,
+    gcTime: 0,
   });
 
 /** Invalidates every query under a key prefix. */

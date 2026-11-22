@@ -33,7 +33,10 @@ const (
 )
 
 func (h Handlers) StartSnapshotScan(ctx context.Context) {
-	if h.snapshotStore == nil || h.datasetStore == nil || h.minioClient == nil {
+	// Pas de condition sur le client interne : chaque dataset resout le sien,
+	// et une installation dont les seuls datasets sont externes doit etre
+	// surveillee comme les autres.
+	if h.snapshotStore == nil || h.datasetStore == nil {
 		return
 	}
 	log.Printf("snapshot scan started (every %s, datasets with a snapshot only)", snapshotScanInterval)
@@ -69,8 +72,17 @@ func (h Handlers) scanSnapshots(ctx context.Context) {
 		if err != nil || !found {
 			continue
 		}
+		// Chaque dataset par son propre client : les datasets reglementes
+		// sont precisement ceux qui vivent sur un stockage externe, et les
+		// lire par le client interne aurait demande un bucket du meme nom a
+		// la mauvaise machine - donc un ecart imaginaire ou aucun ecart.
+		client, _, err := h.datasetS3Client(item)
+		if err != nil {
+			log.Printf("snapshot scan: no storage client for %s: %v", item.Name, err)
+			continue
+		}
 		listCtx, cancel := context.WithTimeout(ctx, snapshotListTimeout)
-		now, err := h.listDatasetEntries(listCtx, item.Bucket, item.Prefix)
+		now, err := listDatasetEntries(listCtx, client, item.Bucket, item.Prefix)
 		cancel()
 		if err != nil {
 			log.Printf("snapshot scan: cannot list %s: %v", item.Name, err)

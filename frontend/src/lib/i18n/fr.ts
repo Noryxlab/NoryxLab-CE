@@ -79,6 +79,7 @@ export const fr = {
     overview: "Vue d’ensemble",
     workspaces: "Workspaces",
     jobs: "Jobs",
+    flows: "Flows",
     apps: "Applications",
     apis: "API",
     dashboards: "Dashboards",
@@ -99,6 +100,7 @@ export const fr = {
     dataGovernance: "Gouvernance des données",
     inventory: "Logiciels et licences",
     storage: "Stockage",
+    budgets: "Budgets",
     backToProjects: "Tous les projets",
     documentation: "Documentation",
     apiReference: "Référence API",
@@ -652,6 +654,38 @@ export const fr = {
       "L’exécution en cours sera interrompue et son historique supprimé.",
     launched: "Job lancé.",
     scheduled: "Planification enregistrée.",
+
+    rerun: "Rejouer",
+    rerunTitle: "Rejouer ce job",
+    rerunHint:
+      "Le rejeu repart de ce que ce run a enregistré : l’image à l’empreinte qui a réellement tourné, et non à l’étiquette qui a pu bouger depuis. Il crée un nouveau job — l’original et sa trace sont conservés — et il tourne avec vos droits, pas ceux de la personne qui l’avait lancé.",
+    rerunLaunched: "Rejeu lancé.",
+    rerunOf: "Rejeu de",
+    rerunOfUnknown:
+      "Le job d’origine a été supprimé depuis. Son identifiant est conservé, son contenu non.",
+
+    provenance: "Ce que ce run a lu et exécuté",
+    provenanceHint:
+      "Enregistré au démarrage, pas reconstitué après coup : c’est ce qui rend un rejeu honnête.",
+    provenanceEmpty: "Aucune trace de provenance",
+    provenanceEmptyHint:
+      "Ce run est antérieur à l’enregistrement de la provenance. Il peut être rejoué, mais le rejeu repartira de l’étiquette de l’image et des datasets attachés aujourd’hui — pas forcément ceux de l’époque.",
+    imageDigest: "Image",
+    imageDigestMissing:
+      "Aucune empreinte enregistrée : un rejeu repartirait de l’étiquette, qui a pu changer de contenu.",
+    datasetsMounted: "Datasets montés",
+    datasetReadOnly: "lecture seule",
+    repositoriesAtCommit: "Code exécuté",
+    commitUnknown: "commit non résolu",
+    commitUnknownHint:
+      "Le dépôt a été monté mais la plateforme n’a pas pu interroger la forge : le code de ce run n’est pas identifiable.",
+
+    divergences: "Écarts avec le run d’origine",
+    divergencesHint:
+      "Dits plutôt que comptés : « quarante et un écarts » envoie chercher, nommer l’écart le montre.",
+    divergencesNone: "Rejeu fidèle",
+    divergencesNoneHint:
+      "Même empreinte d’image, mêmes datasets, mêmes commits que le run d’origine.",
   },
 
   apps: {
@@ -1412,6 +1446,147 @@ export const fr = {
     peak: "Pic",
     samples: "Mesures",
   },
+  budgets: {
+    title: "Budgets",
+    hint: "Ce que chaque projet peut consommer dans le mois, et où il en est. L’unité est le vCPU·heure et non l’euro : la plateforme tourne sur du matériel déjà acheté, un prix à l’heure serait un chiffre inventé par le produit.",
+    doesNotStop: "Un budget ne coupe rien",
+    doesNotStopHint:
+      "Dépasser sa dotation ne suspend aucun workspace, aucun job, aucune application : la plateforme prévient, elle n’arrête pas. Rendre le coût visible vaut mieux que couper un calcul en cours de route.",
+    thresholds: "Alertes à {first} % et {second} %",
+    thresholdsHint:
+      "Deux seuils et pas cinq : une alerte qui arrive souvent n’est plus lue. Le premier laisse le temps de changer de cap, le second constate. Chaque seuil est annoncé une fois par mois et par projet, aux administrateurs.",
+    allowance: "Dotation",
+    consumed: "Consommé",
+    share: "Part",
+    remaining: "Restant",
+    period: "Mois en cours",
+    noBudget: "Aucune dotation",
+    noBudgetHint:
+      "Ce projet consomme sans limite déclarée. C’est le réglage par défaut : un budget que personne n’a posé ne doit rien refuser.",
+    set: "Définir une dotation",
+    setTitle: "Dotation mensuelle de « {project} »",
+    setHint:
+      "En vCPU·heures, pour un mois calendaire. La consommation est mesurée toutes les cinq minutes par le préleveur, c’est le seul chiffre vrai sans conversion.",
+    vcpuHoursLabel: "vCPU·heures par mois",
+    saved: "Dotation enregistrée.",
+    clear: "Retirer la dotation",
+    clearTitle: "Retirer la dotation",
+    clearWarning:
+      "Le projet consommera de nouveau sans limite déclarée, et plus aucune alerte ne sera émise pour lui. La consommation reste mesurée.",
+    cleared: "Dotation retirée.",
+    empty: "Aucun projet",
+    emptyHint:
+      "Les budgets portent sur des projets ; il n’en existe aucun sur cette installation.",
+    overBudget: "Dépassé",
+    convertToMoney:
+      "Une installation qui veut des euros pose un prix du vCPU·heure : le même budget se lit alors en euros, avec la conversion visible plutôt qu’intégrée.",
+  },
+
+  flows: {
+    title: "Flows",
+    subtitle:
+      "Des jobs enchaînés en graphe : « maille ceci, puis simule-le, et rends les deux en même temps ».",
+    empty: "Aucun flow",
+    emptyHint:
+      "Un flow enchaîne des jobs dont chacun attend ses prédécesseurs. Chaque étape est un job ordinaire : mêmes montages, mêmes droits, même profil de sortie réseau, même trace de provenance.",
+    stepIsAJob: "Une étape est un job ordinaire",
+    stepIsAJobHint:
+      "Elle passe par le même chemin de lancement que n’importe quel job, et reçoit donc les mêmes montages, le même profil réseau, la même résolution de droits et la même provenance. Un pipeline qui aurait son chemin à lui finirait par diverger des exécutions ordinaires, et le jour où ça se verrait serait le jour où un résultat ne s’expliquerait plus.",
+    steps: "Étapes",
+    stepsCount: "{count} étapes",
+    maxParallel: "Au plus {count} en parallèle",
+    maxParallelHint:
+      "Borne le nombre d’étapes simultanées : un graphe qui s’ouvre en cinquante branches ne doit pas demander cinquante pods au cluster parce que son auteur a dessiné cinquante cases.",
+    dependsOn: "Après",
+    dependsOnNothing: "Aucune dépendance : démarre tout de suite.",
+    run: "Lancer",
+    running: "En cours",
+    runs: "Exécutions",
+    runsEmpty: "Jamais exécuté",
+    runsEmptyHint: "Lancez-le pour voir le graphe se dérouler.",
+    runStarted: "Exécution lancée.",
+    resume: "Reprendre",
+    resumeTitle: "Reprendre cette exécution",
+    resumeHint:
+      "Les étapes déjà réussies ne sont pas relancées : elles sont reportées sur la nouvelle exécution avec le statut « réutilisé », qui n’est pas « réussi » — une exécution ne doit jamais prétendre avoir fait tourner ce qu’elle n’a pas fait tourner.",
+    resumeOf: "Reprise de",
+    reusedFrom: "Réutilisé d’une exécution précédente",
+    timeline: "Déroulé",
+    graph: "Graphe",
+    waitingOn: "Attend {steps}",
+    skippedBecause: "Non exécutée : une étape dont elle dépend a échoué.",
+    failureStopsDependents: "Un échec n’arrête que ce qui en dépend",
+    failureStopsDependentsHint:
+      "Les branches qui n’ont pas besoin de l’étape en échec continuent. Faire échouer tout le graphe au premier échec jetterait du travail qui allait bien — sur un maillage de quarante minutes, c’est la différence entre un outil utilisable et un outil qu’on arrête d’utiliser.",
+    definitionMoved: "Le flow a changé depuis cette exécution",
+    definitionMovedHint:
+      "Ces étapes ont tourné et ne figurent plus dans le graphe tel qu'il est déclaré aujourd'hui. Une exécution passée n'est pas réécrite quand le flow l'est : elle reste le compte-rendu de ce qui a été fait, pas de ce qui serait fait maintenant.",
+    openJob: "Voir le job",
+    noJobYet: "Pas encore de job : l’étape n’a pas démarré.",
+    createTitle: "Déclarer un flow",
+    createHint:
+      "Nommez le graphe, puis ses étapes. Une étape porte une clef stable, une image et la liste de celles qu’elle attend.",
+    create: "Nouveau flow",
+    nameLabel: "Nom du flow",
+    namePlaceholder: "Chaîne mécanique",
+    stepKeyLabel: "Clef",
+    stepKeyHint:
+      "Stable d’une exécution à l’autre : c’est elle qui permet à une reprise de dire « celle-là a déjà réussi ».",
+    stepNameLabel: "Libellé",
+    addStep: "Ajouter une étape",
+    removeStep: "Retirer",
+    saved: "Flow enregistré.",
+    cycle: "Le graphe se referme sur lui-même",
+    cycleHint:
+      "Validé à l’enregistrement et non à l’exécution : un cycle découvert en cours de route laisse des pods derrière lui et quelqu’un qui attend, alors que son auteur n’est plus devant le clavier.",
+    needsDatabase: "Les flows demandent la base de données",
+    needsDatabaseHint:
+      "Cette installation tourne sans base : l’état d’un graphe doit survivre à un redéploiement, sans quoi une exécution mourrait à mi-chemin avec des pods encore en marche et rien pour les rapprocher.",
+  },
+
+  snapshots: {
+    title: "Instantanés",
+    hint: "Ce que le dataset contenait à un instant, écrit noir sur blanc : chemin, taille, date, ETag. Aucun octet n’est copié.",
+    take: "Prendre un instantané",
+    taking: "Lecture du bucket…",
+    taken: "Instantané pris.",
+    labelLabel: "Libellé",
+    labelPlaceholder: "avant le réexport de novembre",
+    labelHint: "Facultatif, mais c’est ce qui permettra de le reconnaître dans six mois.",
+    objects: "Objets",
+    totalSize: "Volume",
+    takenAt: "Pris le",
+    takenBy: "Par",
+    empty: "Aucun instantané",
+    emptyHint:
+      "Un instantané répond à une question que rien d’autre ne sait trancher : « ce fichier a-t-il changé depuis ? ». Ni l’ontologie ni les extraits n’enregistrent d’empreinte, donc un dataset peut être réécrit sous une étude terminée sans que la plateforme s’en aperçoive.",
+    enrollsInScan: "Et il inscrit le dataset au contrôle de nuit",
+    enrollsInScanHint:
+      "Le contrôle nocturne ne compare que les datasets dont quelqu’un a pris un instantané — prendre l’empreinte de tous les buckets chaque nuit coûterait un listage complet de toute la donnée de la plateforme pour répondre à une question que personne ne s’est posée sur la plupart d’entre eux. L’instantané est la façon de dire « celui-là, je veux le savoir ».",
+    whyNotACopy: "Pourquoi ce n’est pas une copie",
+    whyNotACopyHint:
+      "Doubler des octets réglementés créerait un deuxième endroit à gouverner, à retrouver et à supprimer. La copie existe comme acte distinct, derrière un droit distinct que personne ne détient aujourd’hui.",
+    changes: "Écarts depuis cet instantané",
+    changesHint: "Comparaison avec le bucket tel qu’il est maintenant.",
+    compare: "Voir les écarts",
+    comparing: "Listage du bucket…",
+    identical: "Aucun écart",
+    identicalHint: "Le dataset est exactement tel que cet instantané l’a trouvé.",
+    changeCount: "{count} écarts",
+    added: "Ajouté",
+    removed: "Supprimé",
+    modified: "Modifié",
+    etagCaveat: "L’ETag dit « ça diffère », jamais « c’est identique »",
+    etagCaveatHint:
+      "Un ETag n’est pas une somme de contrôle portable : un téléversement en plusieurs parties en produit un autre pour les mêmes octets. Une taille identique avec un ETag différent est donc signalée comme modifiée — la réponse honnête est que quelque chose a changé, pas que rien n’a changé.",
+    needsLocalDataset: "Réservé aux datasets du stockage de la plateforme",
+    needsLocalDatasetHint:
+      "Un instantané se prend en listant le bucket. La plateforme ne peut le faire que sur son propre stockage objet, pas sur un dataset dont elle ne détient que l’adresse.",
+    scanAtNight: "Contrôle de nuit",
+    scanAtNightHint:
+      "Chaque nuit, les datasets suivis sont comparés à leur dernier instantané et tout écart est signalé aux administrateurs. Une écriture passée par un montage ne traverse pas l’API, donc l’audit ne la voit pas : on ne l’empêche pas, on cesse de l’ignorer.",
+  },
+
   people: {
     membershipGrantLabel: "Ce que l’appartenance donne sur ce que l’organisation possède",
     membershipGrantHint: "Écrit comme un octroi à l’organisation quand un objet est créé pour elle ou lui est transféré ; jamais rétroactif. « Rien » : ses administrateurs nommés décident objet par objet.",

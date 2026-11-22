@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Database, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { MountedProjects, ProjectMountsSheet } from '@/components/common/project-mounts';
+import { DatasetSnapshots } from './dataset-snapshots';
 import { EmptyState } from '@/components/common/states';
 import { OwnerTransfer, ResourceOwner } from '@/components/common/owner';
 import { SearchInput } from '@/components/common/search-input';
@@ -734,6 +735,9 @@ export function DatasetCatalog({
       {selected ? (
         <>
           <DatasetExplorer dataset={selected} />
+          {/* Les instantanes avant les identifiants et les droits : ils
+            *  parlent du contenu, comme l'explorateur juste au-dessus. */}
+          <DatasetSnapshots dataset={selected} />
           <DatasetCredentials dataset={selected} />
           <DatasetOwnership dataset={selected} />
           <DatasetPermissions dataset={selected} />
