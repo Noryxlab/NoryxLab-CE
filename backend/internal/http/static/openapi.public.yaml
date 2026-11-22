@@ -44,6 +44,76 @@ components:
       name: X-Noryx-User
 
   schemas:
+    FlowStep:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        image: { type: string }
+        command:
+          type: array
+          items: { type: string }
+        args:
+          type: array
+          items: { type: string }
+        hardwareTier: { type: string }
+        dependsOn:
+          type: array
+          items: { type: string }
+    Flow:
+      type: object
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        ownerUserId: { type: string }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/FlowStep' }
+        maxParallel: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    FlowListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Flow' }
+    FlowRun:
+      type: object
+      properties:
+        id: { type: string }
+        flowId: { type: string }
+        projectId: { type: string }
+        status: { type: string }
+        startedBy: { type: string }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        resumeOf: { type: string }
+    FlowRunListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FlowRun' }
+    FlowStepRun:
+      type: object
+      properties:
+        runId: { type: string }
+        stepKey: { type: string }
+        status: { type: string }
+        jobId: { type: string }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        reason: { type: string }
+    FlowRunDetail:
+      type: object
+      properties:
+        run: { $ref: '#/components/schemas/FlowRun' }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/FlowStepRun' }
     DatasetSnapshot:
       type: object
       properties:
@@ -10385,6 +10455,200 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DatasetSnapshotChangesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/flow-runs/{runID}:
+    get:
+      tags: [Platform]
+      summary: One execution, with the state of every step
+      description: >-
+        A step carries why it is where it is when the status alone does not
+        say: which upstream failure skipped it, which run it was reused from.
+        A run containing skipped steps ends failed - a green run with steps
+        that never ran is a lie told by a colour.
+      operationId: getFlowRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRunDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/flows/{flowID}/runs:
+    get:
+      tags: [Platform]
+      summary: The executions of this flow
+      operationId: listFlowRuns
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: flowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRunListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Platform]
+      summary: Run a flow, or resume one
+      description: >-
+        Steps with no unmet dependency start together, bounded by the flow's
+        maxParallel: a graph drawn with fifty boxes must not ask the cluster
+        for fifty pods. A step that fails stops what depends on it,
+        transitively, and leaves independent branches running - on a mesh that
+        took forty minutes, throwing away the branches that were fine is the
+        difference between a usable tool and one people stop using.
+
+
+        `resumeOf` carries over what already succeeded instead of re-running
+        it, and records those steps as `reused` rather than `succeeded`: a run
+        never claims to have executed something it did not. Their job
+        identifier is kept, so the provenance of a reused step still points at
+        the run that actually produced it.
+      operationId: startFlowRun
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: flowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: The run started
+          content:
+            FlowRun:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/flows:
+    get:
+      tags: [Projects]
+      summary: The graphs declared in this project
+      operationId: listFlows
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Projects]
+      summary: Declare or replace a graph of jobs
+      description: >-
+        A flow is steps and the dependencies between them; each step is an
+        ordinary job and goes down the ordinary launch path, so it gets the
+        same mounts, egress profile, rights resolution and provenance. Steps
+        running through a path of their own would diverge from ordinary runs,
+        and the day that showed would be the day a result could not be
+        explained.
+
+
+        The graph is validated here rather than when it runs: a cycle found
+        mid-run leaves pods behind and somebody waiting, while its author is no
+        longer at the keyboard. A cycle is refused and named - "there is a
+        cycle" in thirty steps sends somebody reading thirty.
+
+
+        Declaring one asks the right to launch a job and nothing more: a flow
+        is only jobs in order, and a separate permission would protect nothing
+        while blocking the useful act.
+      operationId: saveFlow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flow'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/flows/{flowID}:
+    put:
+      tags: [Projects]
+      summary: Save Flow
+      operationId: saveFlow
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+        - name: flowID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flow'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

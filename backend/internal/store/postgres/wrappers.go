@@ -39,6 +39,8 @@ type BudgetStore struct{ *Store }
 
 type SnapshotStore struct{ *Store }
 
+type FlowStore struct{ *Store }
+
 type UsageStore struct{ *Store }
 
 func (s *UsageStore) Record(samples []usage.Sample) error { return s.Store.RecordUsageSamples(samples) }

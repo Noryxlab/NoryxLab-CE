@@ -185,6 +185,32 @@ ENVELOPES = {
     # Le budget d'un projet, et ce qu'il a consomme. L'unite est la
     # vCPU-heure parce que c'est la seule grandeur mesuree sans conversion :
     # un prix horaire sur du materiel qu'on possede deja serait invente.
+    # Un flow : un graphe de jobs. A ne pas confondre avec workflow, qui est
+    # ce qu'un agent execute (ADR-046) et n'a pas de graphe.
+    "FlowStep": {
+        "key": "string", "name": "string", "image": "string",
+        "command": "[string]", "args": "[string]",
+        "hardwareTier": "string", "dependsOn": "[string]",
+    },
+    "Flow": {
+        "id": "string", "projectId": "string", "name": "string",
+        "description": "string", "ownerUserId": "string",
+        "steps": "[$FlowStep]", "maxParallel": "integer",
+        "createdAt": "date-time", "updatedAt": "date-time",
+    },
+    "FlowListResponse": {"items": "[$Flow]"},
+    "FlowRun": {
+        "id": "string", "flowId": "string", "projectId": "string",
+        "status": "string", "startedBy": "string",
+        "startedAt": "date-time", "finishedAt": "date-time", "resumeOf": "string",
+    },
+    "FlowRunListResponse": {"items": "[$FlowRun]"},
+    "FlowStepRun": {
+        "runId": "string", "stepKey": "string", "status": "string",
+        "jobId": "string", "startedAt": "date-time", "finishedAt": "date-time",
+        "reason": "string",
+    },
+    "FlowRunDetail": {"run": "$FlowRun", "steps": "[$FlowStepRun]"},
     # Un instantane : ce qu'un dataset portait, sans copier un octet.
     "DatasetSnapshot": {
         "id": "string", "datasetId": "string", "label": "string",
@@ -322,6 +348,11 @@ RESPONSES = {
     ("GET", "/api/v1/apps/{appID}"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
     ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
+    ("GET", "/api/v1/projects/{projectID}/flows"): "FlowListResponse",
+    ("POST", "/api/v1/projects/{projectID}/flows"): "Flow",
+    ("PUT", "/api/v1/projects/{projectID}/flows/{flowID}"): "Flow",
+    ("GET", "/api/v1/flows/{flowID}/runs"): "FlowRunListResponse",
+    ("GET", "/api/v1/flow-runs/{runID}"): "FlowRunDetail",
     ("GET", "/api/v1/datasets/{datasetID}/snapshots"): "DatasetSnapshotListResponse",
     ("GET", "/api/v1/datasets/{datasetID}/snapshots/{snapshotID}/changes"): "DatasetSnapshotChangesResponse",
     ("GET", "/api/v1/projects/{projectID}/budget"): "BudgetState",
@@ -409,6 +440,7 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
     ("PUT", "/api/v1/admin/budgets/{projectID}"): ("204", "Allowance set, or cleared when zero", None, None),
     ("POST", "/api/v1/datasets/{datasetID}/snapshots"): ("201", "The reading was recorded", "DatasetSnapshot", None),
+    ("POST", "/api/v1/flows/{flowID}/runs"): ("201", "The run started", "FlowRun", None),
     # Un rejeu rend le nouveau run, pas l'ancien : un enregistrement de
     # provenance qu'un rejeu ecraserait ne serait plus une trace.
     ("POST", "/api/v1/jobs/{jobID}/rerun"): ("201", "The replay was launched, as a new job", None, None),

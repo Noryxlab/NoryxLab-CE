@@ -65,7 +65,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 		return
 	}
-	h.launchJob(w, r, identity, userID, req, "")
+	_, _ = h.launchJob(w, r, identity, userID, req, "")
 }
 
 // launchJob est ce que CreateJob faisait en entier, separe de la lecture du
@@ -76,37 +76,37 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 // ressemble au premier sans l'etre : deux endroits qui resolvent les montages,
 // deux endroits qui posent les etiquettes, et une divergence qu'on ne verrait
 // que le jour ou un resultat ne retombe pas.
-func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity auth.Identity, userID string, req createJobRequest, rerunOf string) {
+func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity auth.Identity, userID string, req createJobRequest, rerunOf string) (job.Job, bool) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
 	req.Image = strings.TrimSpace(req.Image)
 	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
 	if !tierFound {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})
-		return
+		return job.Job{}, false
 	}
 	if req.ProjectID == "" || req.Image == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId and image are required"})
-		return
+		return job.Job{}, false
 	}
 	if !h.requireProjectRole(w, req.ProjectID, userID, actionLaunch, "job launch") {
-		return
+		return job.Job{}, false
 	}
 	exists, err := h.projectExists(req.ProjectID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to verify project"})
-		return
+		return job.Job{}, false
 	}
 	if !exists {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
-		return
+		return job.Job{}, false
 	}
 
 	imageDigest := h.resolveImageDigest(req.Image)
 	req.Image = pinnedImage(req.Image, imageDigest)
 
 	if !h.withinProjectQuota(w, req.ProjectID, "job", hardwareTierLimits{CPULimit: tier.CPULimit, MemoryLimit: tier.MemoryLimit}) {
-		return
+		return job.Job{}, false
 	}
 
 	jobName := "job-" + shortID()
@@ -123,7 +123,7 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 	attachedRepos, attachedDatasets, err := h.resolveProjectWorkspaceResources(req.ProjectID, identity, true)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project resources"})
-		return
+		return job.Job{}, false
 	}
 	// What this run will read, written on the record before it starts.
 	//
@@ -176,7 +176,7 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 	extractTree, extractFiller, err := h.extractFillFor(jobName, req.Image, montage)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
-		return
+		return job.Job{}, false
 	}
 	montage.TreeMounted = extractTree != nil
 	record.Extracts = montage.Names
@@ -184,12 +184,12 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 	datasourceEnv, err := h.resolveProjectDatasourceEnv(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve project datasources"})
-		return
+		return job.Job{}, false
 	}
 	userSecretData, err := h.workloadEnvData(req.ProjectID, userID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to resolve user secrets"})
-		return
+		return job.Job{}, false
 	}
 	// Always through the bootstrap, the way an app is.
 	//
@@ -221,7 +221,7 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 				},
 			}); err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job bootstrap secret create failed: " + err.Error()})
-				return
+				return job.Job{}, false
 			}
 			secretMounts = append(secretMounts, noryxruntime.SecretMount{
 				SecretName: bootstrapSecretName,
@@ -240,19 +240,19 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 				},
 			}); err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job user secret create failed: " + err.Error()})
-				return
+				return job.Job{}, false
 			}
 		}
 		volumes, err := h.ensureProjectVolume(req.ProjectID)
 		if err != nil {
 			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare project volume: " + err.Error()})
-			return
+			return job.Job{}, false
 		}
 		datasetVolumes, err := h.ensureDatasetVolumeMounts(attachedDatasets)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare direct S3 dataset mounts: " + err.Error()})
-			return
+			return job.Job{}, false
 		}
 
 		// Ce que le projet a attache, et rien d'autre a decider ici.
@@ -287,12 +287,12 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 		if err != nil {
 			_ = h.runtime.DeleteSecret(userSecretName)
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "kubernetes job launch failed: " + err.Error()})
-			return
+			return job.Job{}, false
 		}
 	}
 	if err := h.jobStore.Create(record); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save job"})
-		return
+		return job.Job{}, false
 	}
 	// Ce que cette charge a recu, pour la meme raison qu'un workspace : ce
 	// qu'elle lit ensuite ne passe pas par cette API.
@@ -316,6 +316,7 @@ func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity aut
 		"readOnlyForCoMount": readOnlyForCoMount(attachedDatasets),
 	})
 	writeJSON(w, http.StatusCreated, record)
+	return record, true
 }
 
 func (h Handlers) DeleteJob(w http.ResponseWriter, r *http.Request) {

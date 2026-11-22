@@ -374,6 +374,45 @@ func migrationStatements() []string {
 		// dont on ne saurait lequel croire.
 		// Ce qu'un dataset portait a un instant : un manifeste, pas une copie.
 		// Les octets restent ou ils sont - voir le paquet snapshot.
+		// Un graphe de jobs, et ses executions. Le nom « flow » distingue ce
+		// qui calcule de ce qu'un agent execute (workflow, ADR-046) : deux
+		// choses portant le meme nom seraient confondues au premier debogage.
+		`CREATE TABLE IF NOT EXISTS flows (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			owner_user_id TEXT NOT NULL DEFAULT '',
+			steps_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+			max_parallel INTEGER NOT NULL DEFAULT 3,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		)`,
+		`CREATE INDEX IF NOT EXISTS flows_by_project ON flows (project_id, name)`,
+		`CREATE TABLE IF NOT EXISTS flow_runs (
+			id TEXT PRIMARY KEY,
+			flow_id TEXT NOT NULL,
+			project_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			started_by TEXT NOT NULL DEFAULT '',
+			started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			finished_at TIMESTAMPTZ NULL,
+			resume_of TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS flow_runs_by_flow ON flow_runs (flow_id, started_at DESC)`,
+		// L'etat de chaque etape vit ici et non dans un processus : un
+		// ordonnanceur qui garderait le graphe en memoire le perdrait a la
+		// prochaine livraison, a mi-course, avec des pods encore en vol.
+		`CREATE TABLE IF NOT EXISTS flow_step_runs (
+			run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
+			step_key TEXT NOT NULL,
+			status TEXT NOT NULL,
+			job_id TEXT NOT NULL DEFAULT '',
+			started_at TIMESTAMPTZ NULL,
+			finished_at TIMESTAMPTZ NULL,
+			reason TEXT NOT NULL DEFAULT '',
+			PRIMARY KEY (run_id, step_key)
+		)`,
 		`CREATE TABLE IF NOT EXISTS dataset_snapshots (
 			id TEXT PRIMARY KEY,
 			dataset_id TEXT NOT NULL,

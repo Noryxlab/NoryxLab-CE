@@ -114,6 +114,7 @@ type Handlers struct {
 	usageStore                       store.UsageStore
 	budgetStore                      store.BudgetStore
 	snapshotStore                    store.SnapshotStore
+	flowStore                        store.FlowStore
 	backendVersion                   string
 	edition                          string
 	defaultTheme                     string
@@ -170,6 +171,7 @@ type Options struct {
 	UsageStore    store.UsageStore
 	BudgetStore   store.BudgetStore
 	SnapshotStore store.SnapshotStore
+	FlowStore     store.FlowStore
 	// OIDCAudience is the audience this platform requires in a token.
 	OIDCAudience string
 	// OIDCFrontendClientID is the client whose tokens must carry it.
@@ -425,6 +427,7 @@ func New(
 		usageStore:                       options.UsageStore,
 		budgetStore:                      options.BudgetStore,
 		snapshotStore:                    options.SnapshotStore,
+		flowStore:                        options.FlowStore,
 		backendVersion:                   options.BackendVersion,
 		edition:                          strings.TrimSpace(options.Edition),
 		defaultTheme:                     strings.TrimSpace(options.DefaultTheme),

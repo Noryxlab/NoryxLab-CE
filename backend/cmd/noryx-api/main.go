@@ -37,6 +37,7 @@ func main() {
 	// pas plutot que de surveiller zero.
 	var budgetStore store.BudgetStore
 	var snapshotStore store.SnapshotStore
+	var flowStore store.FlowStore
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
 	var jobStore store.JobStore = memory.NewJobStore()
@@ -94,6 +95,7 @@ func main() {
 			usageStore = &postgres.UsageStore{Store: pg}
 			budgetStore = &postgres.BudgetStore{Store: pg}
 			snapshotStore = &postgres.SnapshotStore{Store: pg}
+			flowStore = &postgres.FlowStore{Store: pg}
 			// An installation upgrading into editable tiers keeps the four
 			// sizes it already ran, under the same ids: workspaces in flight
 			// refer to them by id.
@@ -244,6 +246,7 @@ func main() {
 			UsageStore:                       usageStore,
 			BudgetStore:                      budgetStore,
 			SnapshotStore:                    snapshotStore,
+			FlowStore:                        flowStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,
 			PublicURL:                        cfg.PublicURL,
@@ -319,6 +322,7 @@ func main() {
 	h.StartUsageSampler(reaperCtx)
 	h.StartBudgetWatcher(reaperCtx)
 	h.StartSnapshotScan(reaperCtx)
+	h.StartFlowScheduler(reaperCtx)
 	h.StartDatasetSizeSampler(reaperCtx)
 
 	srv := nhttp.NewServer(cfg, h)

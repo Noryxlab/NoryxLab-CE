@@ -76,7 +76,7 @@ func (h Handlers) RerunJob(w http.ResponseWriter, r *http.Request) {
 		Args:         original.Args,
 		HardwareTier: original.HardwareTier,
 	}
-	h.launchJob(w, r, identity, userID, req, original.ID)
+	_, _ = h.launchJob(w, r, identity, userID, req, original.ID)
 }
 
 // imageAtDigest replaces a tag by the digest that actually ran.
