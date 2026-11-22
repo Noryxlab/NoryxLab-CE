@@ -5583,6 +5583,41 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/jobs/{jobID}/rerun:
+    post:
+      tags: [Workloads]
+      summary: Replay a run from what it recorded
+      description: >-
+        Relaunches a finished job from its own record rather than from the
+        project as it stands today: the image by the digest that actually ran,
+        the same command, arguments and hardware tier. The result is a new job,
+        never an update of the original - a provenance record a replay could
+        overwrite would no longer be a trace.
+
+
+        Mounts are resolved for whoever presses the button, never for the
+        original launcher, so a replay cannot become a way to read somebody
+        else's data. Whatever could not be identical - a dataset no longer
+        attached, a commit that has moved, an image with no recorded digest -
+        is listed in `divergences` on the new job rather than refused or
+        hidden.
+      operationId: rerunJob
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: jobID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: The replay was launched.
+        '403':
+          description: The caller may not launch jobs in that project.
+        '404':
+          description: No such job.
   /api/v1/jobs/{jobID}/logs:
     get:
       tags: [Workloads]

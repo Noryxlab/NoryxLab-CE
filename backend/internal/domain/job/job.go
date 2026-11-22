@@ -59,11 +59,27 @@ type Job struct {
 	// is not an answer. The commit is resolved when the job starts and never
 	// blocks the launch: a forge that does not reply leaves it empty, and an
 	// empty commit says "unknown" rather than pretending.
-	Repositories    []Repository `json:"repositories,omitempty"`
-	CreatedAt       time.Time    `json:"createdAt"`
-	CompletedAt     *time.Time   `json:"completedAt,omitempty"`
-	Result          string       `json:"-"`
-	ResultAvailable bool         `json:"resultAvailable"`
+	Repositories []Repository `json:"repositories,omitempty"`
+	// RerunOf names the run this one replays, empty for a first run.
+	//
+	// Kept so a result can be traced to the one it was meant to reproduce, and
+	// so a chain of replays reads as a chain rather than as unrelated jobs
+	// with similar names.
+	RerunOf string `json:"rerunOf,omitempty"`
+	// Divergences are the ways this replay could not be identical: an image
+	// that no longer resolves to the same digest, a dataset no longer
+	// attached or no longer readable by whoever pressed the button, a commit
+	// that has moved.
+	//
+	// Written down rather than refused. Refusing would make the button
+	// useless the first time anything changed; hiding it would be worse - a
+	// replay that silently reads different data and produces a different
+	// figure is exactly the failure this record exists to prevent.
+	Divergences     []string   `json:"divergences,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	CompletedAt     *time.Time `json:"completedAt,omitempty"`
+	Result          string     `json:"-"`
+	ResultAvailable bool       `json:"resultAvailable"`
 }
 
 // Repository is one checkout, as it was at the moment the job started.

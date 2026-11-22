@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/auth"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/job"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/notify"
 	noryxruntime "github.com/Noryxlab/NoryxLab-CE/backend/internal/runtime"
@@ -58,11 +59,24 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := identity.UserID()
+
 	var req createJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON body"})
 		return
 	}
+	h.launchJob(w, r, identity, userID, req, "")
+}
+
+// launchJob est ce que CreateJob faisait en entier, separe de la lecture du
+// corps de la requete pour qu'un rejeu puisse emprunter exactement le meme
+// chemin.
+//
+// Rejouer par un chemin a lui aurait ete la facon sure de produire un run qui
+// ressemble au premier sans l'etre : deux endroits qui resolvent les montages,
+// deux endroits qui posent les etiquettes, et une divergence qu'on ne verrait
+// que le jour ou un resultat ne retombe pas.
+func (h Handlers) launchJob(w http.ResponseWriter, r *http.Request, identity auth.Identity, userID string, req createJobRequest, rerunOf string) {
 	req.ProjectID = strings.TrimSpace(req.ProjectID)
 	req.Name = strings.TrimSpace(req.Name)
 	req.Image = strings.TrimSpace(req.Image)
@@ -123,6 +137,7 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// « main » repond a « quel code a produit ce chiffre » avec le code
 	// d'aujourd'hui. La resolution est au mieux - une forge muette laisse le
 	// commit vide, ce qui se lit « inconnu » et n'empeche pas le run.
+	record.RerunOf = rerunOf
 	record.Repositories = jobRepositoriesFrom(attachedRepos, resolveCommitSHAAs,
 		func(secretName string) string {
 			if strings.TrimSpace(secretName) == "" {
@@ -134,6 +149,18 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 			}
 			return value
 		})
+
+	// Un rejeu dit en quoi il n'est pas identique.
+	//
+	// Pas un refus : refuser rendrait le bouton inutile des que quoi que ce
+	// soit a bouge. Pas un silence non plus - un rejeu qui lit d'autres
+	// donnees et sort un autre chiffre sans le dire est exactement la panne
+	// que toute cette trace existe pour empecher.
+	if strings.TrimSpace(rerunOf) != "" {
+		if original, found, err := h.jobStore.GetByID(rerunOf); err == nil && found {
+			record.Divergences = compareProvenance(original, record.Datasets, record.Repositories)
+		}
+	}
 
 	// Et les extraits, pour la meme raison exactement.
 	//

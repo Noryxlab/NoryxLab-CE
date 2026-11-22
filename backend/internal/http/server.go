@@ -153,6 +153,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/jobs/{jobID}", h.GetJob)
 	mux.HandleFunc("POST /api/v1/jobs", h.CreateJob)
 	mux.HandleFunc("GET /api/v1/jobs/{jobID}/logs", h.GetJobLogs)
+	mux.HandleFunc("POST /api/v1/jobs/{jobID}/rerun", h.RerunJob)
 	mux.HandleFunc("DELETE /api/v1/jobs/{jobID}", h.DeleteJob)
 	mux.HandleFunc("GET /api/v1/cronjobs", h.ListCronJobs)
 	mux.HandleFunc("POST /api/v1/cronjobs", h.CreateCronJob)

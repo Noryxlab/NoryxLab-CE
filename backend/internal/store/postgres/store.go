@@ -365,6 +365,8 @@ func migrationStatements() []string {
 		// premier rechargement, sans que rien ne le signale.
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS extracts_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS repositories_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS rerun_of TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS divergences_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			identity TEXT NOT NULL,
@@ -1783,7 +1785,7 @@ func (s *Store) DeleteBuild(id string) error {
 }
 
 func (s *Store) ListJobs() ([]job.Job, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, rerun_of, divergences_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1791,8 +1793,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 	out := []job.Job{}
 	for rows.Next() {
 		var item job.Job
-		var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &extractsJSON, &repositoriesJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt, &item.OwnerUserID); err != nil {
+		var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON, divergencesJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &extractsJSON, &repositoriesJSON, &item.RerunOf, &divergencesJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt, &item.OwnerUserID); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -1813,6 +1815,10 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 		if len(repositoriesJSON) > 0 {
 			_ = json.Unmarshal(repositoriesJSON, &item.Repositories)
 		}
+		item.Divergences = []string{}
+		if len(divergencesJSON) > 0 {
+			_ = json.Unmarshal(divergencesJSON, &item.Divergences)
+		}
 		item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 		out = append(out, item)
 	}
@@ -1821,8 +1827,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 
 func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	var item job.Job
-	var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON, divergencesJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, rerun_of, divergences_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.Name,
@@ -1834,6 +1840,8 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 		&datasetsJSON,
 		&extractsJSON,
 		&repositoriesJSON,
+		&item.RerunOf,
+		&divergencesJSON,
 		&item.JobName,
 		&item.Status,
 		&item.Result,
@@ -1865,6 +1873,10 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	if len(repositoriesJSON) > 0 {
 		_ = json.Unmarshal(repositoriesJSON, &item.Repositories)
 	}
+	item.Divergences = []string{}
+	if len(divergencesJSON) > 0 {
+		_ = json.Unmarshal(divergencesJSON, &item.Divergences)
+	}
 	item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 	return item, true, nil
 }
@@ -1875,7 +1887,8 @@ func (s *Store) CreateJob(item job.Job) error {
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
 	extractsJSON, _ := json.Marshal(nonNilStrings(item.Extracts))
 	repositoriesJSON, _ := json.Marshal(nonNilRepositories(item.Repositories))
-	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+	divergencesJSON, _ := json.Marshal(nonNilStrings(item.Divergences))
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, rerun_of, divergences_json, job_name, status, result, completed_at, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
 		item.ID,
 		item.ProjectID,
 		item.Name,
@@ -1887,6 +1900,8 @@ func (s *Store) CreateJob(item job.Job) error {
 		datasetsJSON,
 		extractsJSON,
 		repositoriesJSON,
+		item.RerunOf,
+		divergencesJSON,
 		item.JobName,
 		item.Status,
 		item.Result,
@@ -1930,9 +1945,10 @@ func (s *Store) UpsertJob(item job.Job) error {
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
 	extractsJSON, _ := json.Marshal(nonNilStrings(item.Extracts))
 	repositoriesJSON, _ := json.Marshal(nonNilRepositories(item.Repositories))
+	divergencesJSON, _ := json.Marshal(nonNilStrings(item.Divergences))
 	_, err := s.db.Exec(`
-		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, rerun_of, divergences_json, job_name, status, result, completed_at, created_at, owner_user_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
@@ -1950,6 +1966,8 @@ func (s *Store) UpsertJob(item job.Job) error {
 			-- de statut sans rien savoir de ce que le run a lu ni clone.
 			extracts_json=CASE WHEN EXCLUDED.extracts_json = '[]'::jsonb THEN jobs.extracts_json ELSE EXCLUDED.extracts_json END,
 			repositories_json=CASE WHEN EXCLUDED.repositories_json = '[]'::jsonb THEN jobs.repositories_json ELSE EXCLUDED.repositories_json END,
+			rerun_of=CASE WHEN EXCLUDED.rerun_of = '' THEN jobs.rerun_of ELSE EXCLUDED.rerun_of END,
+			divergences_json=CASE WHEN EXCLUDED.divergences_json = '[]'::jsonb THEN jobs.divergences_json ELSE EXCLUDED.divergences_json END,
 			job_name=EXCLUDED.job_name,
 			status=EXCLUDED.status,
 			result=EXCLUDED.result,
@@ -1969,6 +1987,8 @@ func (s *Store) UpsertJob(item job.Job) error {
 		datasetsJSON,
 		extractsJSON,
 		repositoriesJSON,
+		item.RerunOf,
+		divergencesJSON,
 		item.JobName,
 		item.Status,
 		item.Result,
@@ -2490,7 +2510,7 @@ func (s *Store) GetEgressRuleByID(id string) (egress.Rule, bool, error) {
 
 func (s *Store) CreateEgressRule(item egress.Rule) error {
 	workloadTypesJSON, _ := json.Marshal(item.WorkloadTypes)
-	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+	_, err := s.db.Exec(`INSERT INTO egress_rules (id, project_id, requester_id, subject_type, subject_id, profile, destination, port, protocol, workload_types_json, justification, status, reviewer_id, decision_note, expires_at, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
 		item.ID, item.ProjectID, item.RequesterID, item.SubjectType, item.SubjectID, item.Profile, item.Destination, item.Port, item.Protocol, workloadTypesJSON, item.Justification, item.Status, item.ReviewerID, item.DecisionNote, item.ExpiresAt, item.CreatedAt, item.UpdatedAt,
 	)
 	return err
@@ -3896,7 +3916,7 @@ func (s *Store) GetStorageEndpointByID(id string) (storageendpoint.Endpoint, boo
 }
 
 func (s *Store) CreateStorageEndpoint(item storageendpoint.Endpoint) error {
-	_, err := s.db.Exec(`INSERT INTO storage_endpoints (id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), item.CreatedBy, item.CreatedAt, item.UpdatedAt)
+	_, err := s.db.Exec(`INSERT INTO storage_endpoints (id, name, provider, endpoint_url, region, classification, purpose, use_ssl, default_backup, default_dataset, secret_name, status, status_message, last_checked_at, created_by, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`, item.ID, item.Name, item.Provider, item.EndpointURL, item.Region, item.Classification, item.Purpose, item.UseSSL, item.DefaultBackup, item.DefaultDataset, item.SecretName, item.Status, item.StatusMessage, nullableTime(item.LastCheckedAt), item.CreatedBy, item.CreatedAt, item.UpdatedAt)
 	return err
 }
 
