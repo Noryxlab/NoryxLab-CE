@@ -182,6 +182,15 @@ ENVELOPES = {
     },
     "SMTPSettingsResponse": {"settings": "$SMTPSettings", "configured": "boolean"},
     "SMTPTestResponse": {"sent": "boolean", "recipient": "string"},
+    # Le budget d'un projet, et ce qu'il a consomme. L'unite est la
+    # vCPU-heure parce que c'est la seule grandeur mesuree sans conversion :
+    # un prix horaire sur du materiel qu'on possede deja serait invente.
+    "BudgetState": {
+        "projectId": "string", "projectName": "string",
+        "vcpuHours": "number", "consumed": "number", "percent": "number",
+        "period": "date-time",
+    },
+    "BudgetListResponse": {"items": "[$BudgetState]", "unit": "string", "period": "date-time"},
     "AdminEgressRuleListResponse": {"items": "[$EgressRule]", "profiles": "[string]", "enforced": "boolean"},
     "ProjectEgressRuleListResponse": {"items": "[$EgressRule]", "enforced": "boolean"},
     "DatasetAccessListResponse": {"items": "[$DatasetAccess]", "canManage": "boolean"},
@@ -297,6 +306,8 @@ RESPONSES = {
     ("GET", "/api/v1/projects/{projectID}"): "Project",
     ("GET", "/api/v1/apps/{appID}"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
+    ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
+    ("GET", "/api/v1/projects/{projectID}/budget"): "BudgetState",
     ("GET", "/api/v1/workspaces/{workspaceID}"): "Workspace",
     ("GET", "/api/v1/builds/{buildID}"): "Build",
     ("GET", "/healthz"): "HealthResponse",
@@ -379,6 +390,10 @@ OTHER_RESPONSES = {
     ("DELETE", "/api/v1/projects/{projectID}/organization-roles/{organizationID}"): ("204", "Role removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/members/{userID}"): ("204", "The personal grant is gone", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/variables/{name}"): ("204", "Variable removed", None, None),
+    ("PUT", "/api/v1/admin/budgets/{projectID}"): ("204", "Allowance set, or cleared when zero", None, None),
+    # Un rejeu rend le nouveau run, pas l'ancien : un enregistrement de
+    # provenance qu'un rejeu ecraserait ne serait plus une trace.
+    ("POST", "/api/v1/jobs/{jobID}/rerun"): ("201", "The replay was launched, as a new job", None, None),
     ("DELETE", "/api/v1/extracts/{extractID}"): ("204", "Extract removed", None, None),
     ("DELETE", "/api/v1/projects/{projectID}/tokens/{tokenID}"): ("204", "Token revoked", None, None),
     ("DELETE", "/api/v1/apis/{apiID}"): ("204", "Endpoint removed", None, None),

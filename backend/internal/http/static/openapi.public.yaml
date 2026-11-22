@@ -44,6 +44,23 @@ components:
       name: X-Noryx-User
 
   schemas:
+    BudgetState:
+      type: object
+      properties:
+        projectId: { type: string }
+        projectName: { type: string }
+        vcpuHours: { type: number }
+        consumed: { type: number }
+        percent: { type: number }
+        period: { type: string, format: date-time }
+    BudgetListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetState' }
+        unit: { type: string }
+        period: { type: string, format: date-time }
     PlatformRole:
       type: object
       properties:
@@ -5583,41 +5600,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /api/v1/jobs/{jobID}/rerun:
-    post:
-      tags: [Workloads]
-      summary: Replay a run from what it recorded
-      description: >-
-        Relaunches a finished job from its own record rather than from the
-        project as it stands today: the image by the digest that actually ran,
-        the same command, arguments and hardware tier. The result is a new job,
-        never an update of the original - a provenance record a replay could
-        overwrite would no longer be a trace.
-
-
-        Mounts are resolved for whoever presses the button, never for the
-        original launcher, so a replay cannot become a way to read somebody
-        else's data. Whatever could not be identical - a dataset no longer
-        attached, a commit that has moved, an image with no recorded digest -
-        is listed in `divergences` on the new job rather than refused or
-        hidden.
-      operationId: rerunJob
-      security:
-        - bearerAuth: []
-        - xNoryxUser: []
-      parameters:
-        - name: jobID
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '201':
-          description: The replay was launched.
-        '403':
-          description: The caller may not launch jobs in that project.
-        '404':
-          description: No such job.
   /api/v1/jobs/{jobID}/logs:
     get:
       tags: [Workloads]
@@ -10123,6 +10105,136 @@ paths:
       responses:
         '204':
           description: The personal grant is gone
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/budgets:
+    get:
+      tags: [Admin]
+      summary: Every project's allowance and consumption this month
+      description: >-
+        Lists every project, including those with no allowance. Seeing what a
+        project consumes is what lets somebody decide what its limit should
+        be: a list showing only projects already under a limit cannot answer
+        which ones need one.
+
+
+        Consumption is derived from the usage samples rather than stored
+        beside the allowance - a copied total is a second figure to keep in
+        step, and the day the two disagree nobody knows which to believe. The
+        unit is vCPU-hours because it is the only quantity measured without a
+        conversion.
+      operationId: listBudgets
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/budgets/{projectID}:
+    put:
+      tags: [Admin]
+      summary: Set or clear a project's monthly allowance
+      description: >-
+        Setting a budget arbitrates a shared resource between projects, which
+        is why it is an administrator's act rather than a project member's.
+        Zero clears it; a negative value is refused so a typo cannot become an
+        absurd limit that alerts without end.
+
+
+        Crossing 75% and 100% raises one notice each, once per project per
+        month. Nothing is ever stopped, and the alert says so in its own
+        payload: a cost notice that could be mistaken for a kill is worse than
+        no notice.
+      operationId: setBudget
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Allowance set, or cleared when zero
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/jobs/{jobID}/rerun:
+    post:
+      tags: [Workloads]
+      summary: Replay a run from what it recorded
+      description: >-
+        Relaunches a finished job from its own record rather than from the
+        project as it stands today: the image by the digest that actually ran,
+        the same command, arguments and tier. The result is a new job, never an
+        update of the original - a provenance record a replay could overwrite
+        would no longer be a trace.
+
+
+        Mounts are resolved for whoever presses the button, never for the
+        original launcher, so a replay cannot become a way to read somebody
+        else's data. Whatever could not be identical - a dataset no longer
+        attached, a commit that moved, an image with no recorded digest - is
+        named in `divergences` on the new job rather than refused or hidden.
+      operationId: rerunJob
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: jobID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: The replay was launched, as a new job
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/projects/{projectID}/budget:
+    get:
+      tags: [Projects]
+      summary: This project's allowance and consumption
+      description: >-
+        For the people who work in the project. An allowance of zero means no
+        budget, which is the default and refuses nothing.
+      operationId: getProjectBudget
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: projectID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetState'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
