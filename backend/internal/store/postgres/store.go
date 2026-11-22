@@ -356,6 +356,15 @@ func migrationStatements() []string {
 		`ALTER TABLE apps ADD COLUMN IF NOT EXISTS hardware_tier TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS result TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL`,
+		// Les extraits qu'un run a lus, et les depots qu'il a clones.
+		//
+		// Le code les posait sur l'enregistrement depuis des mois, avec le
+		// commentaire qui dit pourquoi - « c'est ce qui permet de rejouer un
+		// calcul sur les memes octets dans deux ans » - et l'insertion ne les
+		// portait pas. La provenance etait donc exacte en memoire et perdue au
+		// premier rechargement, sans que rien ne le signale.
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS extracts_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS repositories_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			token TEXT PRIMARY KEY,
 			identity TEXT NOT NULL,
@@ -1774,7 +1783,7 @@ func (s *Store) DeleteBuild(id string) error {
 }
 
 func (s *Store) ListJobs() ([]job.Job, error) {
-	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs ORDER BY created_at DESC`)
+	rows, err := s.db.Query(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1782,8 +1791,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 	out := []job.Job{}
 	for rows.Next() {
 		var item job.Job
-		var commandJSON, argsJSON, datasetsJSON []byte
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt, &item.OwnerUserID); err != nil {
+		var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON []byte
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Image, &item.ImageDigest, &item.HardwareTier, &commandJSON, &argsJSON, &datasetsJSON, &extractsJSON, &repositoriesJSON, &item.JobName, &item.Status, &item.Result, &item.CompletedAt, &item.CreatedAt, &item.OwnerUserID); err != nil {
 			return nil, err
 		}
 		if len(commandJSON) > 0 {
@@ -1796,6 +1805,14 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 		if len(datasetsJSON) > 0 {
 			_ = json.Unmarshal(datasetsJSON, &item.Datasets)
 		}
+		item.Extracts = []string{}
+		if len(extractsJSON) > 0 {
+			_ = json.Unmarshal(extractsJSON, &item.Extracts)
+		}
+		item.Repositories = []job.Repository{}
+		if len(repositoriesJSON) > 0 {
+			_ = json.Unmarshal(repositoriesJSON, &item.Repositories)
+		}
 		item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 		out = append(out, item)
 	}
@@ -1804,8 +1821,8 @@ func (s *Store) ListJobs() ([]job.Job, error) {
 
 func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	var item job.Job
-	var commandJSON, argsJSON, datasetsJSON []byte
-	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
+	var commandJSON, argsJSON, datasetsJSON, extractsJSON, repositoriesJSON []byte
+	err := s.db.QueryRow(`SELECT id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id FROM jobs WHERE id=$1`, strings.TrimSpace(id)).Scan(
 		&item.ID,
 		&item.ProjectID,
 		&item.Name,
@@ -1815,6 +1832,8 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 		&commandJSON,
 		&argsJSON,
 		&datasetsJSON,
+		&extractsJSON,
+		&repositoriesJSON,
 		&item.JobName,
 		&item.Status,
 		&item.Result,
@@ -1838,6 +1857,14 @@ func (s *Store) GetJobByID(id string) (job.Job, bool, error) {
 	if len(datasetsJSON) > 0 {
 		_ = json.Unmarshal(datasetsJSON, &item.Datasets)
 	}
+	item.Extracts = []string{}
+	if len(extractsJSON) > 0 {
+		_ = json.Unmarshal(extractsJSON, &item.Extracts)
+	}
+	item.Repositories = []job.Repository{}
+	if len(repositoriesJSON) > 0 {
+		_ = json.Unmarshal(repositoriesJSON, &item.Repositories)
+	}
 	item.ResultAvailable = strings.TrimSpace(item.Result) != ""
 	return item, true, nil
 }
@@ -1846,7 +1873,9 @@ func (s *Store) CreateJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
-	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+	extractsJSON, _ := json.Marshal(nonNilStrings(item.Extracts))
+	repositoriesJSON, _ := json.Marshal(nonNilRepositories(item.Repositories))
+	_, err := s.db.Exec(`INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
 		item.ID,
 		item.ProjectID,
 		item.Name,
@@ -1856,6 +1885,8 @@ func (s *Store) CreateJob(item job.Job) error {
 		commandJSON,
 		argsJSON,
 		datasetsJSON,
+		extractsJSON,
+		repositoriesJSON,
 		item.JobName,
 		item.Status,
 		item.Result,
@@ -1876,13 +1907,32 @@ func nonNilDatasets(items []job.Dataset) []job.Dataset {
 	return items
 }
 
+// Les deux memes garde-fous, pour la meme raison : une colonne JSONB qui recoit
+// `null` au lieu de `[]` fait echouer la lecture suivante, et une provenance
+// qu'on ne sait plus relire ne vaut pas mieux que pas de provenance.
+func nonNilStrings(items []string) []string {
+	if items == nil {
+		return []string{}
+	}
+	return items
+}
+
+func nonNilRepositories(items []job.Repository) []job.Repository {
+	if items == nil {
+		return []job.Repository{}
+	}
+	return items
+}
+
 func (s *Store) UpsertJob(item job.Job) error {
 	commandJSON, _ := json.Marshal(item.Command)
 	argsJSON, _ := json.Marshal(item.Args)
 	datasetsJSON, _ := json.Marshal(nonNilDatasets(item.Datasets))
+	extractsJSON, _ := json.Marshal(nonNilStrings(item.Extracts))
+	repositoriesJSON, _ := json.Marshal(nonNilRepositories(item.Repositories))
 	_, err := s.db.Exec(`
-		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, job_name, status, result, completed_at, created_at, owner_user_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+		INSERT INTO jobs (id, project_id, name, image, image_digest, hardware_tier, command_json, args_json, datasets_json, extracts_json, repositories_json, job_name, status, result, completed_at, created_at, owner_user_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		ON CONFLICT (id) DO UPDATE SET
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
@@ -1895,6 +1945,11 @@ func (s *Store) UpsertJob(item job.Job) error {
 			-- job's status does not know what it read, and a status update
 			-- must not erase the lineage.
 			datasets_json=CASE WHEN EXCLUDED.datasets_json = '[]' THEN jobs.datasets_json ELSE EXCLUDED.datasets_json END,
+			-- Meme garde pour les deux autres moities de la provenance, et pour
+			-- la meme raison : le veilleur reecrit la ligne a chaque changement
+			-- de statut sans rien savoir de ce que le run a lu ni clone.
+			extracts_json=CASE WHEN EXCLUDED.extracts_json = '[]'::jsonb THEN jobs.extracts_json ELSE EXCLUDED.extracts_json END,
+			repositories_json=CASE WHEN EXCLUDED.repositories_json = '[]'::jsonb THEN jobs.repositories_json ELSE EXCLUDED.repositories_json END,
 			job_name=EXCLUDED.job_name,
 			status=EXCLUDED.status,
 			result=EXCLUDED.result,
@@ -1912,6 +1967,8 @@ func (s *Store) UpsertJob(item job.Job) error {
 		commandJSON,
 		argsJSON,
 		datasetsJSON,
+		extractsJSON,
+		repositoriesJSON,
 		item.JobName,
 		item.Status,
 		item.Result,

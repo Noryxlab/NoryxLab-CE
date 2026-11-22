@@ -117,6 +117,13 @@ func (h Handlers) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// which data produced a figure, a platform that can only answer "whatever
 	// was attached to that project today" has not answered.
 	record.Datasets = jobDatasetsFrom(attachedDatasets)
+	// Et le code, au commit ou il etait.
+	//
+	// Un depot est clone sur une reference, et une reference bouge : garder
+	// « main » repond a « quel code a produit ce chiffre » avec le code
+	// d'aujourd'hui. La resolution est au mieux - une forge muette laisse le
+	// commit vide, ce qui se lit « inconnu » et n'empeche pas le run.
+	record.Repositories = jobRepositoriesFrom(attachedRepos, resolveCommitSHA)
 
 	// Et les extraits, pour la meme raison exactement.
 	//

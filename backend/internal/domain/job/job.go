@@ -50,11 +50,31 @@ type Job struct {
 	// the datasets are recorded: a project's attachments change and a result
 	// does not. "Which data produced this figure" is answerable only if the
 	// answer was written down when the run started.
-	Extracts        []string   `json:"extracts,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	CompletedAt     *time.Time `json:"completedAt,omitempty"`
-	Result          string     `json:"-"`
-	ResultAvailable bool       `json:"resultAvailable"`
+	Extracts []string `json:"extracts,omitempty"`
+	// Repositories are the repositories this run cloned, and at which commit.
+	//
+	// The ref is what somebody asked for; the commit is what ran. "main" moves,
+	// so a record that keeps only the ref answers "which code produced this
+	// figure" with the code of today rather than the code of that day - which
+	// is not an answer. The commit is resolved when the job starts and never
+	// blocks the launch: a forge that does not reply leaves it empty, and an
+	// empty commit says "unknown" rather than pretending.
+	Repositories    []Repository `json:"repositories,omitempty"`
+	CreatedAt       time.Time    `json:"createdAt"`
+	CompletedAt     *time.Time   `json:"completedAt,omitempty"`
+	Result          string       `json:"-"`
+	ResultAvailable bool         `json:"resultAvailable"`
+}
+
+// Repository is one checkout, as it was at the moment the job started.
+type Repository struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+	Ref  string `json:"ref,omitempty"`
+	// Commit is the hash the ref pointed at when this run started. Empty when
+	// it could not be resolved, which is a fact worth keeping rather than a
+	// reason to refuse the run.
+	Commit string `json:"commit,omitempty"`
 }
 
 // Dataset is one mount, as it was at the moment the job started.
