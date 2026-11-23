@@ -18,29 +18,41 @@ type App struct {
 	// day they left. The pair matches what datasets and projects already
 	// carry - "user", "organization", or a service account, which is a user
 	// the directory marks as not being a person.
-	OwnerType            string     `json:"ownerType,omitempty"`
-	OwnerID              string     `json:"ownerId,omitempty"`
-	Kind                 string     `json:"kind"`
-	Name                 string     `json:"name"`
-	Slug                 string     `json:"slug"`
-	Image                string     `json:"image"`
-	Command              []string   `json:"command"`
-	Args                 []string   `json:"args"`
-	Port                 int        `json:"port"`
-	PodName              string     `json:"podName"`
-	ServiceName          string     `json:"serviceName"`
-	Status               string     `json:"status"`
-	AccessURL            string     `json:"accessUrl"`
-	AccessMode           string     `json:"accessMode"`
-	AllowedUsers         []string   `json:"allowedUsers,omitempty"`
-	AllowedOrganizations []string   `json:"allowedOrganizations,omitempty"`
-	CreatedAt            time.Time  `json:"createdAt"`
-	HealthMessage        string     `json:"healthMessage,omitempty"`
-	RestartCount         int        `json:"restartCount"`
-	StartedAt            *time.Time `json:"startedAt,omitempty"`
-	Published            bool       `json:"published"`
-	ActiveRevision       int        `json:"activeRevision,omitempty"`
-	PublishedAt          *time.Time `json:"publishedAt,omitempty"`
+	OwnerType            string    `json:"ownerType,omitempty"`
+	OwnerID              string    `json:"ownerId,omitempty"`
+	Kind                 string    `json:"kind"`
+	Name                 string    `json:"name"`
+	Slug                 string    `json:"slug"`
+	Image                string    `json:"image"`
+	Command              []string  `json:"command"`
+	Args                 []string  `json:"args"`
+	Port                 int       `json:"port"`
+	PodName              string    `json:"podName"`
+	ServiceName          string    `json:"serviceName"`
+	Status               string    `json:"status"`
+	AccessURL            string    `json:"accessUrl"`
+	AccessMode           string    `json:"accessMode"`
+	AllowedUsers         []string  `json:"allowedUsers,omitempty"`
+	AllowedOrganizations []string  `json:"allowedOrganizations,omitempty"`
+	CreatedAt            time.Time `json:"createdAt"`
+	HealthMessage        string    `json:"healthMessage,omitempty"`
+	// ImageDigest is the image the running pod actually started from.
+	//
+	// Read from the pod on every listing and never stored, like RestartCount
+	// and StartedAt beside it: it is a fact about what is running, so a stored
+	// copy could only be wrong. Empty when the application is stopped - there
+	// is no pod to ask, and saying nothing is the honest answer.
+	//
+	// It exists because an application pins its image by tag. The image behind
+	// noryx-runtime:0.1.0 changed its user and its interpreter between two
+	// restarts of the accounting application on 2026-11-23, which cost a
+	// morning, and no screen could have hinted at it.
+	ImageDigest    string     `json:"imageDigest,omitempty"`
+	RestartCount   int        `json:"restartCount"`
+	StartedAt      *time.Time `json:"startedAt,omitempty"`
+	Published      bool       `json:"published"`
+	ActiveRevision int        `json:"activeRevision,omitempty"`
+	PublishedAt    *time.Time `json:"publishedAt,omitempty"`
 	// HardwareTier is what the app was launched with. The column has existed
 	// since apps did and was never written or read, so a running application
 	// held a pod that counted for nothing in its project's consumption or its

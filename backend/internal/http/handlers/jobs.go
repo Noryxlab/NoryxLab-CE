@@ -461,6 +461,21 @@ func (h Handlers) syncJobsFromRuntime() {
 		if record.CreatedAt.IsZero() {
 			record.CreatedAt = time.Now().UTC()
 		}
+		// Ce qui a reellement tourne, quand rien ne l'avait enregistre.
+		//
+		// Un job lance par l'API resout son empreinte avant de partir
+		// (ADR-056). Les executions qu'une planification produit sont creees
+		// par Kubernetes : personne n'a rien resolu, et leur image est restee
+		// l'etiquette que la planification nomme. Le pod, lui, sait sur quelle
+		// empreinte il a tourne, et c'est la seule provenance que ces
+		// executions puissent avoir.
+		//
+		// Jamais par-dessus une empreinte deja enregistree : celle du
+		// lancement a ete resolue avant de lancer et vaut mieux qu'une lecture
+		// apres coup, qui rend vide des que le pod a disparu.
+		if digest := strings.TrimSpace(item.ImageDigest); digest != "" && strings.TrimSpace(record.ImageDigest) == "" {
+			record.ImageDigest = digest
+		}
 		if found {
 			record = existing
 			if v := strings.TrimSpace(item.Status); v != "" {
@@ -468,6 +483,12 @@ func (h Handlers) syncJobsFromRuntime() {
 			}
 			if v := strings.TrimSpace(item.Image); v != "" {
 				record.Image = v
+			}
+			// Apres la reprise de l'enregistrement stocke, sinon elle
+			// l'effacerait : `record = existing` remplace tout ce qui
+			// precede.
+			if digest := strings.TrimSpace(item.ImageDigest); digest != "" && strings.TrimSpace(record.ImageDigest) == "" {
+				record.ImageDigest = digest
 			}
 			if item.CompletedAt != nil {
 				record.CompletedAt = item.CompletedAt

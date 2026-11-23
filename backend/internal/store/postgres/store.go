@@ -2033,7 +2033,14 @@ func (s *Store) UpsertJob(item job.Job) error {
 			project_id=EXCLUDED.project_id,
 			name=EXCLUDED.name,
 			image=EXCLUDED.image,
-			image_digest=EXCLUDED.image_digest,
+			-- Meme garde que les lignes de provenance plus bas, et que la
+			-- table des builds. Ce n'est pas un defaut connu aujourd'hui - le
+			-- veilleur repart de l'enregistrement stocke - mais c'est la forme
+			-- exacte de deux pannes trouvees le 2026-11-23 : un upsert qui
+			-- ecrit un champ que son auteur ne porte pas. Une empreinte
+			-- resolue au lancement ne doit pas pouvoir etre effacee par une
+			-- mise a jour de statut.
+			image_digest=CASE WHEN EXCLUDED.image_digest = '' THEN jobs.image_digest ELSE EXCLUDED.image_digest END,
 			hardware_tier=EXCLUDED.hardware_tier,
 			command_json=EXCLUDED.command_json,
 			args_json=EXCLUDED.args_json,

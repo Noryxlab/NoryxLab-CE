@@ -124,11 +124,25 @@ export function AppRuntimeSheet({
                 <code className="min-w-0 flex-1 break-all font-mono text-xs">{app.image}</code>
                 <CopyButton value={app.image} size="sm" variant="ghost" />
               </div>
-              {/* L'avertissement qui manquait le 2026-11-23. */}
+              {/* Ce qui tourne reellement, et non ce que l'etiquette designe.
+                *  C'est la difference qui a coute la matinee du 2026-11-23 :
+                *  l'image derriere `noryx-runtime:0.1.0` avait change
+                *  d'utilisateur et d'interpreteur entre deux demarrages. */}
+              {app.imageDigest ? (
+                <div className="pt-1">
+                  <p className="text-xs font-medium">{t('apps.runtimeRunningDigest')}</p>
+                  <div className="flex items-start gap-2">
+                    <code className="min-w-0 flex-1 break-all font-mono text-xs text-muted-foreground">
+                      {app.imageDigest}
+                    </code>
+                    <CopyButton value={app.imageDigest} size="sm" variant="ghost" />
+                  </div>
+                </div>
+              ) : null}
               {app.image.includes('@') ? null : (
                 <p className="flex items-start gap-1.5 pt-1 text-xs text-muted-foreground">
                   <Info className="mt-px size-3.5 shrink-0" aria-hidden />
-                  {t('apps.runtimeTagMoves')}
+                  {app.imageDigest ? t('apps.runtimeTagMovesTracked') : t('apps.runtimeTagMoves')}
                 </p>
               )}
             </Row>

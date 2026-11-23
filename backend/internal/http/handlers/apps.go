@@ -80,6 +80,9 @@ func (h Handlers) enrichAppRuntimeStatus(item app.App) app.App {
 		status, err := podOperator.GetPodStatus(item.PodName)
 		if err == nil {
 			item.RestartCount = status.RestartCount
+			// Ce que le pod execute reellement, et non ce que son etiquette
+			// designe. Le seul endroit ou la difference est visible.
+			item.ImageDigest = strings.TrimSpace(status.ImageDigest)
 			if !status.StartedAt.IsZero() {
 				startedAt := status.StartedAt
 				item.StartedAt = &startedAt

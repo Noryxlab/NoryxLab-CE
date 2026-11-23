@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -713,7 +714,8 @@ func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
 			Message           string `json:"message"`
 			StartTime         string `json:"startTime"`
 			ContainerStatuses []struct {
-				RestartCount int `json:"restartCount"`
+				RestartCount int    `json:"restartCount"`
+				ImageID      string `json:"imageID"`
 				State        struct {
 					Waiting struct {
 						Reason  string `json:"reason"`
@@ -746,8 +748,14 @@ func (r *Runtime) GetPodStatus(name string) (noryxruntime.PodStatus, error) {
 	}
 	status := noryxruntime.PodStatus{Phase: strings.ToLower(pod.Status.Phase), Reason: pod.Status.Reason, Message: pod.Status.Message}
 	status.StartedAt, _ = time.Parse(time.RFC3339, pod.Status.StartTime)
-	for _, container := range pod.Status.ContainerStatuses {
+	for index, container := range pod.Status.ContainerStatuses {
 		status.RestartCount += container.RestartCount
+		// Le premier conteneur, comme ailleurs : c'est celui que la
+		// plateforme declare, les suivants sont des side-cars qu'elle ajoute
+		// et dont l'empreinte ne dit rien de la charge.
+		if index == 0 {
+			status.ImageDigest = digestFromImageID(container.ImageID)
+		}
 		if status.Reason == "" {
 			status.Reason = firstNonEmpty(container.State.Waiting.Reason, container.State.Terminated.Reason)
 		}
@@ -1710,6 +1718,13 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
+	// Ce qui a reellement tourne, lu sur les pods et non sur les Jobs.
+	//
+	// Un Job porte l'image demandee ; seul le pod porte l'image resolue. Un
+	// appel de plus par balayage, soit un toutes les deux minutes, pour la
+	// seule provenance qu'une execution planifiee possede.
+	digests := r.jobPodDigests()
+
 	out := make([]noryxruntime.JobRuntimeInfo, 0, len(response.Items))
 	for _, item := range response.Items {
 		jobID := strings.TrimSpace(item.Metadata.Labels["noryx.io/job-id"])
@@ -1739,11 +1754,65 @@ func (r *Runtime) ListJobs() ([]noryxruntime.JobRuntimeInfo, error) {
 			JobName:     strings.TrimSpace(item.Metadata.Name),
 			Status:      status,
 			Image:       image,
+			ImageDigest: digests[strings.TrimSpace(item.Metadata.Name)],
 			CreatedAt:   item.Metadata.CreationTimestamp.UTC(),
 			CompletedAt: item.Status.CompletionTime,
 		})
 	}
 	return out, nil
+}
+
+// jobPodDigests maps a Kubernetes Job's name to the digest its pod ran.
+//
+// Keyed on the job name from the pod's own label, and both spellings are read:
+// `job-name` is what Kubernetes has always set, `batch.kubernetes.io/job-name`
+// is what it sets since 1.27. Reading one of the two would work on one half of
+// the clusters this runs on.
+//
+// A failure here costs the digests and nothing else: the sweep that calls this
+// is a status update, and refusing to update a status because a second listing
+// did not answer would trade something that matters for something that is
+// merely useful.
+func (r *Runtime) jobPodDigests() map[string]string {
+	out := map[string]string{}
+	selector := url.QueryEscape("noryx.io/project-id")
+	body, err := r.get(fmt.Sprintf("/api/v1/namespaces/%s/pods?labelSelector=%s", r.workloadNamespace, selector))
+	if err != nil {
+		log.Printf("job digests: cannot list pods: %v", err)
+		return out
+	}
+	var response struct {
+		Items []struct {
+			Metadata struct {
+				Labels map[string]string `json:"labels"`
+			} `json:"metadata"`
+			Status struct {
+				ContainerStatuses []struct {
+					Name    string `json:"name"`
+					ImageID string `json:"imageID"`
+				} `json:"containerStatuses"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		log.Printf("job digests: cannot read the pod list: %v", err)
+		return out
+	}
+	for _, pod := range response.Items {
+		name := strings.TrimSpace(pod.Metadata.Labels["batch.kubernetes.io/job-name"])
+		if name == "" {
+			name = strings.TrimSpace(pod.Metadata.Labels["job-name"])
+		}
+		if name == "" || len(pod.Status.ContainerStatuses) == 0 {
+			continue
+		}
+		// Le premier conteneur, comme partout ailleurs : c'est celui que la
+		// plateforme declare, les autres sont des side-cars qu'elle ajoute.
+		if digest := digestFromImageID(pod.Status.ContainerStatuses[0].ImageID); digest != "" {
+			out[name] = digest
+		}
+	}
+	return out
 }
 
 func (r *Runtime) ListCronJobs() ([]noryxruntime.CronJobRuntimeInfo, error) {

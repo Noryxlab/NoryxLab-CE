@@ -198,6 +198,11 @@ export interface App {
   allowedOrganizations?: string[];
   createdAt: string;
   healthMessage?: string;
+  /** The image the running pod actually started from, read from the pod on
+   *  every listing and never stored - a fact about what is running, so a
+   *  stored copy could only be wrong. Absent when the app is stopped: there
+   *  is no pod to ask. */
+  imageDigest?: string;
   restartCount: number;
   startedAt?: string | null;
   published: boolean;

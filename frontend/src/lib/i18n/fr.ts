@@ -699,6 +699,9 @@ export const fr = {
   },
 
   apps: {
+    runtimeRunningDigest: "Empreinte réellement exécutée",
+    runtimeTagMovesTracked:
+      "Épinglée par étiquette : l’empreinte ci-dessus est celle du pod en marche, lue à chaque affichage. Un redémarrage peut partir sur une autre si la reconstruction nocturne a bougé l’étiquette.",
     runtimeTitle: "Ce sur quoi elle tourne",
     runtimeOn: "Tourne sur",
     runtimeCommand: "Commande lancée",

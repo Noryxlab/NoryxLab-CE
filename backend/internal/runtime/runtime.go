@@ -282,6 +282,16 @@ type PodStatus struct {
 	Message      string    `json:"message,omitempty"`
 	RestartCount int       `json:"restartCount"`
 	StartedAt    time.Time `json:"startedAt,omitempty"`
+	// ImageDigest is the image this pod is actually running, as opposed to the
+	// reference it was asked for.
+	//
+	// An application pins its image by tag, and a tag designates whatever it
+	// designates today: the one behind noryx-runtime:0.1.0 changed its user
+	// and its interpreter between two restarts of the accounting application
+	// on 2026-11-23, and no screen could have hinted at it. Read from the pod
+	// rather than resolved from the registry, because what matters is what is
+	// running and not what the registry would answer now.
+	ImageDigest string `json:"imageDigest,omitempty"`
 	// OutOfMemory reports that the kernel killed this workload for exceeding
 	// its memory limit, now or on its previous life.
 	//
@@ -367,11 +377,24 @@ type BuildDiscovery interface {
 }
 
 type JobRuntimeInfo struct {
-	JobID       string     `json:"jobId"`
-	ProjectID   string     `json:"projectId"`
-	JobName     string     `json:"jobName"`
-	Status      string     `json:"status"`
-	Image       string     `json:"image"`
+	JobID     string `json:"jobId"`
+	ProjectID string `json:"projectId"`
+	JobName   string `json:"jobName"`
+	Status    string `json:"status"`
+	// Image is what the job asked for, which for a scheduled run is whatever
+	// tag its schedule names.
+	Image string `json:"image"`
+	// ImageDigest is what actually ran, read from the pod rather than from the
+	// job's template.
+	//
+	// It is the only provenance a scheduled run has. A job launched through
+	// the API resolves its digest before launching (ADR-056); the runs a
+	// CronJob produces are created by Kubernetes, so nothing resolved
+	// anything and their image stayed a tag - on the workload most likely to
+	// run unattended for months. Empty when the pod is gone, which happens:
+	// a provenance read after the fact is better than none and worse than one
+	// recorded at launch.
+	ImageDigest string     `json:"imageDigest,omitempty"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	CompletedAt *time.Time `json:"completedAt,omitempty"`
 }
