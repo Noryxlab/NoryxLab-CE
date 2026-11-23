@@ -683,6 +683,22 @@ export const en: Translations = {
   },
 
   apps: {
+    runtimeTitle: "What it runs on",
+    runtimeOn: "Runs on",
+    runtimeCommand: "Launch command",
+    runtimeScriptHint:
+      "The script the platform generated, not the line typed at creation: this is what runs, and the original line is not kept.",
+    runtimeNoCommand: "No command recorded: the image starts on its own entrypoint.",
+    runtimeNoEnvironment:
+      "No catalogue environment publishes this image: it was given directly, or the environment has gone since.",
+    runtimeTagMoves:
+      "Pinned by tag, not by digest: the nightly rebuild can point this tag at different content, and a restart would start from that.",
+    runtimeTierDefault: "No size recorded: the platform default.",
+    runtimeTierGone:
+      "The size \"{tier}\" is no longer offered by the platform. A restart will fall back on the default.",
+    runtimePort: "Port",
+    runtimePod: "Pod",
+    runtimePodMissing: "Missing from the record - a restart is impossible until it is restored.",
     usage: "Consultation",
     usageHint: "Who opened this application, over the last {days} days.",
     usageViews: "Views",

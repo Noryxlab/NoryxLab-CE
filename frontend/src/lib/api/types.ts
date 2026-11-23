@@ -186,6 +186,11 @@ export interface App {
   port: number;
   podName: string;
   serviceName: string;
+  /** The machine size it was launched on. On the wire since apps got tiers,
+   *  and missing from this type until 2026-11-23 - so the interface could not
+   *  show what an application runs on, and finding out meant reading the
+   *  database. */
+  hardwareTier?: string;
   status: string;
   accessUrl: string;
   accessMode: string;

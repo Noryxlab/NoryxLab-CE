@@ -699,6 +699,23 @@ export const fr = {
   },
 
   apps: {
+    runtimeTitle: "Ce sur quoi elle tourne",
+    runtimeOn: "Tourne sur",
+    runtimeCommand: "Commande lancée",
+    runtimeScriptHint:
+      "Le script que la plateforme a généré, et non la ligne tapée à la création : c’est celui-ci qui s’exécute, et la ligne d’origine n’est pas conservée.",
+    runtimeNoCommand: "Aucune commande enregistrée : l’image démarre sur son propre point d’entrée.",
+    runtimeNoEnvironment:
+      "Aucun environnement du catalogue ne publie cette image : elle a été donnée directement, ou l’environnement a disparu depuis.",
+    runtimeTagMoves:
+      "Épinglée par étiquette, pas par empreinte : la reconstruction nocturne peut faire désigner un autre contenu à cette étiquette, et un redémarrage repartirait dessus.",
+    runtimeTierDefault: "Aucune taille enregistrée : la valeur par défaut de la plateforme.",
+    runtimeTierGone:
+      "La taille « {tier} » n’est plus proposée par la plateforme. Un redémarrage retombera sur la valeur par défaut.",
+    runtimePort: "Port",
+    runtimePod: "Pod",
+    runtimePodMissing:
+      "Absent de la fiche — le redémarrage est impossible tant qu’il n’est pas rétabli.",
     usage: "Consultation",
     usageHint:
       "Qui a consulté cette application, sur les {days} derniers jours.",

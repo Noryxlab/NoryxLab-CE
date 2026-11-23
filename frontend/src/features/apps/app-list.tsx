@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DataTable, type Column } from '@/components/common/data-table';
+import { AppRuntimeSheet } from './app-runtime';
 import {
   Table,
   TableBody,
@@ -47,14 +48,14 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/components/ui/toast';
 import { apisApi, appsApi, dashboardsApi } from '@/lib/api/endpoints';
-import { useAppLogs, useAppRevisions, useAppUsage, qk, useInvalidate, useCan } from '@/lib/api/queries';
+import { useAppLogs, useAppRevisions, useAppUsage, useEnvironments, useHardwareTiers, qk, useInvalidate, useCan } from '@/lib/api/queries';
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
-import { presentAccessMode } from '@/lib/presenters';
-import { MoreHorizontal, UserCog } from 'lucide-react';
+import { presentAccessMode, presentTier } from '@/lib/presenters';
+import { Info, MoreHorizontal, UserCog } from 'lucide-react';
 import { OwnerTransfer } from '@/components/common/owner';
 import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
-import type { App, AppRevision } from '@/lib/api/types';
+import type { App, AppRevision, Environment, HardwareTier } from '@/lib/api/types';
 
 interface AppListProps {
   projectId: string;
@@ -113,6 +114,23 @@ function AppOwnershipSheet({
   );
 }
 
+/** Le nom de l'environnement qui publie cette image, ou rien. Resolu sur
+ *  l'image complete : c'est ce que le lancement a recu. */
+function environmentName(app: App, environments: Environment[] | undefined): string | undefined {
+  return (environments ?? []).find((item) => item.destinationImage === app.image)?.name;
+}
+
+/** La taille de machine, nommee et chiffree. Une taille enregistree que la
+ *  plateforme n'offre plus est dite comme telle plutot que rendue en brut :
+ *  un redemarrage retombera sur la valeur par defaut. */
+function tierLabel(app: App, tiers: HardwareTier[] | undefined, locale: 'fr' | 'en'): string {
+  if (!app.hardwareTier) return locale === 'fr' ? 'Taille par défaut' : 'Default size';
+  const tier = (tiers ?? []).find((item) => item.id === app.hardwareTier);
+  if (!tier) return `${app.hardwareTier} (${locale === 'fr' ? 'retirée' : 'withdrawn'})`;
+  const presented = presentTier(tier, locale);
+  return `${presented.name} · ${presented.specs}`;
+}
+
 export function AppList({
   projectId,
   variant,
@@ -133,6 +151,12 @@ export function AppList({
   const [logsFor, setLogsFor] = React.useState<App | null>(null);
   const [revisionsFor, setRevisionsFor] = React.useState<App | null>(null);
   const [usageFor, setUsageFor] = React.useState<App | null>(null);
+  const [runtimeFor, setRuntimeFor] = React.useState<App | null>(null);
+  // Le catalogue et les tailles, pour nommer ce que la tuile montre : une
+  // reference d'image complete ne tient pas sur une ligne, et « 1x4 » ne dit
+  // pas ce qu'on reserve.
+  const environments = useEnvironments();
+  const tiers = useHardwareTiers();
   const [transferred, setTransferred] = React.useState<App | null>(null);
 
   const logs = useAppLogs(logsFor?.id);
@@ -269,6 +293,25 @@ export function AppList({
                   <p className="line-clamp-2 text-xs text-warning-foreground">{app.healthMessage}</p>
                 ) : null}
 
+                {/* Ce sur quoi elle tourne, sur la tuile et non dans un
+                  *  panneau a ouvrir : « aucune info sur la ligne qui a permis
+                  *  de la lancer, ni l'env et ou le tier materiel sur lequel
+                  *  elle tourne ». Le 2026-11-23, trouver l'image d'une
+                  *  application a demande de lire la base. */}
+                <button
+                  type="button"
+                  onClick={() => setRuntimeFor(app)}
+                  className="w-full space-y-0.5 rounded border border-border bg-surface-muted px-2 py-1.5 text-left transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  title={t('apps.runtimeTitle')}
+                >
+                  <p className="truncate font-mono text-xs text-muted-foreground">
+                    {environmentName(app, environments.data) ?? app.image}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {tierLabel(app, tiers.data, locale)}
+                  </p>
+                </button>
+
                 <p className="text-xs text-muted-foreground">
                   {formatRelative(app.startedAt ?? app.createdAt, locale)}
                 </p>
@@ -300,6 +343,10 @@ export function AppList({
                   <DropdownMenuContent>
                     <DropdownMenuItem onSelect={() => setLogsFor(app)}>
                       {t('common.viewLogs')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setRuntimeFor(app)}>
+                      <Info aria-hidden />
+                      {t('apps.runtimeTitle')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setUsageFor(app)}>
                       <Eye aria-hidden />
@@ -433,6 +480,12 @@ export function AppList({
           </CardContent>
         </Card>
       ) : null}
+
+      <AppRuntimeSheet
+        app={runtimeFor}
+        open={runtimeFor !== null}
+        onOpenChange={(open) => !open && setRuntimeFor(null)}
+      />
 
       {logsFor ? (
         <Card>
