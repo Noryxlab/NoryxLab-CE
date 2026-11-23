@@ -27,6 +27,11 @@ type recordingRuntime struct {
 	claims []noryxruntime.PersistentVolumeClaimSpec
 	s3     []noryxruntime.S3VolumeSpec
 	jobs   []noryxruntime.JobSpec
+	// Les secrets etaient jetes, et c'est l'objet qui portait le defaut du
+	// 2026-11-23 : un nom assemble a partir d'un nom de pod vide. Un double
+	// qui ne garde pas ce qu'on lui demande d'ecrire ne peut pas temoigner
+	// de ce qui a ete ecrit.
+	secrets []noryxruntime.SecretSpec
 }
 
 func (r *recordingRuntime) CreatePod(spec noryxruntime.PodSpec) error {
@@ -64,8 +69,14 @@ func (r *recordingRuntime) CreateJob(spec noryxruntime.JobSpec) error {
 func (r *recordingRuntime) DeleteJob(string) error                       { return nil }
 func (r *recordingRuntime) CreateCronJob(noryxruntime.CronJobSpec) error { return nil }
 func (r *recordingRuntime) DeleteCronJob(string) error                   { return nil }
-func (r *recordingRuntime) CreateSecret(noryxruntime.SecretSpec) error   { return nil }
-func (r *recordingRuntime) DeleteSecret(string) error                    { return nil }
+func (r *recordingRuntime) CreateSecret(spec noryxruntime.SecretSpec) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.secrets = append(r.secrets, spec)
+	return nil
+}
+
+func (r *recordingRuntime) DeleteSecret(string) error { return nil }
 
 func launchFixture(t *testing.T, storageSize string) (Handlers, *recordingRuntime, project.Project) {
 	t.Helper()

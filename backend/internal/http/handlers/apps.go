@@ -264,6 +264,21 @@ const podDeletionTimeout = 45 * time.Second
 // it is not possible. What must be rebuilt is everything around it - above all
 // the dataset volumes, whose endpoint goes stale.
 func (h Handlers) relaunchApp(record app.App, identity auth.Identity, userID string) error {
+	// Un enregistrement sans nom de pod ne se relance pas, et il faut le dire
+	// ici plutot que trois objets plus loin.
+	//
+	// Tout ce que cette fonction cree porte ce nom : le secret
+	// `<pod>-user-secrets`, le pod, le service. Avec un nom vide, le premier
+	// envoi partait quand meme - `-user-secrets` n'est pas une chaine vide -
+	// et la personne recevait le 422 de Kubernetes avec sa regle de nommage
+	// dedans, qui ne dit rien de ce qui manque vraiment. Le runtime refuse
+	// maintenant ces noms, mais le bon endroit pour s'arreter est avant
+	// d'avoir commence : il n'y a rien a supprimer, rien a recreer sous le
+	// bon nom, et le service porte le meme nom que le pod.
+	if strings.TrimSpace(record.PodName) == "" {
+		return fmt.Errorf("this %s has no pod name recorded, so there is nothing to relaunch: "+
+			"the record is incomplete and the %s has to be created again", record.Kind, record.Kind)
+	}
 	tier, _ := h.resolveHardwareTier(record.HardwareTier)
 
 	_, attachedDatasets, err := h.resolveProjectWorkspaceResources(record.ProjectID, identity, true)

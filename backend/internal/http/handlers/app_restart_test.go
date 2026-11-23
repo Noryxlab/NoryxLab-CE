@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/app"
@@ -144,4 +145,48 @@ type conflictingServiceRuntime struct{ *recordingRuntime }
 
 func (r *conflictingServiceRuntime) CreateService(noryxruntime.ServiceSpec) error {
 	return errors.New("kubernetes api /api/v1/namespaces/noryx-loads/services failed: status=409 body={}")
+}
+
+// Un enregistrement sans nom de pod est refuse en clair, pas par le cluster.
+//
+// Vu le 2026-11-23 sur l'application de comptabilite du bac a sable : le
+// redemarrage assemblait `record.PodName + "-user-secrets"`, obtenait
+// `-user-secrets` - qui n'est pas une chaine vide, donc passait la
+// verification de l'epoque - et la personne recevait le 422 de Kubernetes
+// avec son expression reguliere de nommage dans le corps de la reponse.
+//
+// Deux choses sont verifiees ici : que rien n'est envoye au cluster, et que
+// le message parle de la fiche plutot que d'une regle de nommage. Quelqu'un
+// qui lit « doit commencer par un caractere alphanumerique » va corriger un
+// nom qu'il n'a jamais choisi.
+func TestUnEnregistrementSansNomDePodEstRefuseAvantLeCluster(t *testing.T) {
+	h, runner, item := launchFixture(t, "")
+	h.appStore = memory.NewAppStore()
+
+	record := app.NewWithKind("app", item.ID, "accounting", "accounting",
+		"harbor/rstudio:1", []string{"/bin/sh", "-lc"}, []string{"echo hello"},
+		9000, "", "", "/apps/accounting/")
+	record.OwnerUserID = "member"
+	record.Status = "stopped"
+	if err := h.appStore.Create(record); err != nil {
+		t.Fatal(err)
+	}
+
+	response := restart(t, h, "/api/v1/apps/"+record.ID+"/restart", record.ID)
+
+	if response.Code == http.StatusAccepted {
+		t.Fatal("a record with no pod name must not be relaunched")
+	}
+	if len(runner.pods) != 0 {
+		t.Errorf("%d pod(s) created: nothing must reach the cluster", len(runner.pods))
+	}
+	if len(runner.secrets) != 0 {
+		t.Errorf("%d secret(s) created: the name would have been \"-user-secrets\"", len(runner.secrets))
+	}
+	body := response.Body.String()
+	for _, expected := range []string{"no pod name", "created again"} {
+		if !strings.Contains(body, expected) {
+			t.Errorf("the message must say what is wrong and what to do, got: %s", body)
+		}
+	}
 }

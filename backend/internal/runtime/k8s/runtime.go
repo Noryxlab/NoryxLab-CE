@@ -373,13 +373,16 @@ func podPayload(spec noryxruntime.PodSpec) map[string]any {
 }
 
 func (r *Runtime) CreatePod(spec noryxruntime.PodSpec) error {
+	if err := validateObjectName("pod", spec.PodName); err != nil {
+		return err
+	}
 	_, err := r.post(fmt.Sprintf("/api/v1/namespaces/%s/pods", r.workloadNamespace), podPayload(spec))
 	return err
 }
 
 func (r *Runtime) CreateSecret(spec noryxruntime.SecretSpec) error {
-	if strings.TrimSpace(spec.Name) == "" {
-		return fmt.Errorf("secret name is required")
+	if err := validateObjectName("secret", spec.Name); err != nil {
+		return err
 	}
 	payload := map[string]any{
 		"apiVersion": "v1",
@@ -428,8 +431,8 @@ func (r *Runtime) GetControlSecret(name string) (map[string]string, bool, error)
 }
 
 func (r *Runtime) UpsertControlSecret(spec noryxruntime.SecretSpec) error {
-	if strings.TrimSpace(spec.Name) == "" {
-		return fmt.Errorf("secret name is required")
+	if err := validateObjectName("secret", spec.Name); err != nil {
+		return err
 	}
 	payload := map[string]any{
 		"apiVersion": "v1",
@@ -593,10 +596,10 @@ func (r *Runtime) DeleteSecret(name string) error {
 }
 
 func (r *Runtime) CreatePersistentVolumeClaim(spec noryxruntime.PersistentVolumeClaimSpec) error {
-	name := strings.TrimSpace(spec.Name)
-	if name == "" {
-		return fmt.Errorf("persistentvolumeclaim name is required")
+	if err := validateObjectName("persistentvolumeclaim", spec.Name); err != nil {
+		return err
 	}
+	name := strings.TrimSpace(spec.Name)
 	size := strings.TrimSpace(spec.Size)
 	if size == "" {
 		return fmt.Errorf("persistentvolumeclaim size is required")
@@ -879,6 +882,9 @@ func firstNonEmpty(values ...string) string {
 }
 
 func (r *Runtime) CreateService(spec noryxruntime.ServiceSpec) error {
+	if err := validateObjectName("service", spec.Name); err != nil {
+		return err
+	}
 	metadata := map[string]any{"name": spec.Name}
 	if strings.TrimSpace(spec.OwnerPodName) != "" {
 		uid, err := r.resourceUID(fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", r.workloadNamespace, spec.OwnerPodName))
@@ -1061,6 +1067,9 @@ func kanikoBuildArgs(spec noryxruntime.BuildSpec) ([]string, string) {
 }
 
 func (r *Runtime) CreateJob(spec noryxruntime.JobSpec) error {
+	if err := validateObjectName("job", spec.JobName); err != nil {
+		return err
+	}
 	podSpec := jobPodSpec(spec)
 
 	payload := map[string]any{
@@ -1211,6 +1220,9 @@ func jobPodSpec(spec noryxruntime.JobSpec) map[string]any {
 }
 
 func (r *Runtime) CreateCronJob(spec noryxruntime.CronJobSpec) error {
+	if err := validateObjectName("cronjob", spec.CronJobName); err != nil {
+		return err
+	}
 	labels := isolatedWorkloadLabels(spec.Labels)
 	jobSpec := spec.JobSpec
 	jobSpec.Labels = labels
