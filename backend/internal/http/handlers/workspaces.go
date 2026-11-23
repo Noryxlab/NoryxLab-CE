@@ -1485,22 +1485,25 @@ func workspaceBootstrapScript(
 		fmt.Sprintf("git config --file %s user.name %s", shellQuote(profileMountPath+"/gitconfig"), shellQuote(gitUserName)),
 		fmt.Sprintf("git config --file %s user.email %s", shellQuote(profileMountPath+"/gitconfig"), shellQuote(gitUserEmail)),
 		fmt.Sprintf("ln -sfn %s /home/noryx/.gitconfig", shellQuote(profileMountPath+"/gitconfig")),
-		fmt.Sprintf("if [ -f %s ]; then", workspaceRequirementsFile),
-		fmt.Sprintf("  echo '[bootstrap] requirements detected at %s'", workspaceRequirementsFile),
-		"  echo '[bootstrap] installing requirements into project venv and user site packages'",
-		fmt.Sprintf("  python3 -m venv %s || true", workspaceProjectVenvPath),
-		fmt.Sprintf("  if [ -x %s/bin/pip ]; then", workspaceProjectVenvPath),
-		fmt.Sprintf("    %s/bin/pip install --disable-pip-version-check -r %s > /tmp/noryx-requirements.log 2>&1 || true", workspaceProjectVenvPath, workspaceRequirementsFile),
-		"  fi",
-		fmt.Sprintf("  python3 -m pip install --disable-pip-version-check --user -r %s >> /tmp/noryx-requirements.log 2>&1 || true", workspaceRequirementsFile),
-		fmt.Sprintf("  if [ -x %s/bin/python ]; then", workspaceProjectVenvPath),
-		fmt.Sprintf("    %s/bin/python -m pip list --format=freeze > /tmp/noryx-requirements-installed.txt 2>/dev/null || true", workspaceProjectVenvPath),
-		"  fi",
-		"  python3 -m pip list --format=freeze > /tmp/noryx-requirements-user-installed.txt 2>/dev/null || true",
-		"  echo '[bootstrap] requirements installation completed'",
-		"else",
-		fmt.Sprintf("  echo '[bootstrap] no requirements file found at %s'", workspaceRequirementsFile),
-		"fi",
+	}
+
+	// Les requirements, par la fonction partagee et non par une copie.
+	//
+	// Son commentaire annonce « written once for applications and jobs », et
+	// la copie vivait encore ici, avec ce que l'autre avait corrige : un
+	// `|| true` sur chaque pip et un succes imprime quoi qu'il arrive. Donc un
+	// workspace dont le venv de projet appartenait a root installait dans le
+	// vide, annoncait que tout allait bien, et la personne decouvrait
+	// « not found » une heure plus tard dans son notebook. La panne de
+	// septembre, restee vivante de ce cote-ci pendant que l'autre etait
+	// reparee - une correction appliquee a une moitie d'un code duplique est
+	// une correction qu'on refera.
+	//
+	// Elle apporte aussi le choix de venv : un venv qu'on ne peut pas ecrire
+	// est remplace par un venv a soi plutot que subi.
+	lines = append(lines, requirementsBootstrapLines()...)
+
+	lines = append(lines, []string{
 		// Cleanup legacy symlink shortcuts previously created in /mnt.
 		fmt.Sprintf("rm -f %s/home %s/repos %s/datasets || true", projectMountPath, projectMountPath, projectMountPath),
 		// Take back a profile directory an earlier root wrote into.
@@ -1534,7 +1537,7 @@ func workspaceBootstrapScript(
 		"then",
 		"  echo '[bootstrap] the jupyter config could not be written; continuing without it'",
 		"fi",
-	}
+	}...)
 	if seedFirstProjectExamples {
 		lines = append(lines, workspaceSeedExamplesLines(projectMountPath)...)
 	}
@@ -1725,7 +1728,7 @@ func workspaceBootstrapScript(
 			"if [ \"${NORYX_AUTO_UPDATE_IDE:-0}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
 			"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 			"fi",
-			fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+			fmt.Sprintf(`if [ -x "%s/bin/python" ]; then export PATH="%s/bin:$PATH"; fi`, projectVenvPathExpression(), projectVenvPathExpression()),
 			// pip --user puts console scripts here, and this was missing too.
 			"export PATH=$HOME/.local/bin:$PATH",
 			ideCommandPrefix+"openvscode-server \\",
@@ -1792,7 +1795,7 @@ func workspaceBootstrapScript(
 		"if [ \"${NORYX_AUTO_UPDATE_IDE:-0}\" = \"1\" ] && command -v noryx-sync-ide-tooling >/dev/null 2>&1; then",
 		"  (noryx-sync-ide-tooling >> /tmp/noryx-ide-tooling.log 2>&1 || true) &",
 		"fi",
-		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+		fmt.Sprintf(`if [ -x "%s/bin/python" ]; then export PATH="%s/bin:$PATH"; fi`, projectVenvPathExpression(), projectVenvPathExpression()),
 		// pip --user puts console scripts here, and this was missing too.
 		"export PATH=$HOME/.local/bin:$PATH",
 		ideCommandPrefix+"python3 -m jupyterlab \\",

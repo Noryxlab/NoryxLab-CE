@@ -33,12 +33,24 @@ func TestNormalizeAppSlugRemovesAccents(t *testing.T) {
 func TestAppBootstrapRunsWhatItInstalled(t *testing.T) {
 	script := appBootstrapScript(8501, []string{"streamlit", "run", "app.py", "--server.port", "8501"}, nil, extractMount{})
 	for _, expected := range []string{
-		"export PATH=/mnt/.venv/bin:$PATH",
+		// The venv that goes on PATH is the one the bootstrap chose, named by
+		// the variable rather than by a path written twice. That is the
+		// invariant: a workload whose venv fell back to another directory had
+		// a PATH pointing at a venv the install never reached.
+		`export PATH="${NORYX_PROJECT_VENV:-/mnt/.venv}/bin:$PATH"`,
 		"export PATH=$HOME/.local/bin:$PATH",
 	} {
 		if !strings.Contains(script, expected) {
 			t.Fatalf("app bootstrap missing %q:\n%s", expected, script)
 		}
+	}
+	// And the variable is actually set before it is read: an unset one would
+	// silently fall back to the default, which is the condition this replaced.
+	if !strings.Contains(script, "NORYX_PROJECT_VENV=/mnt/.venv") {
+		t.Fatalf("the bootstrap never chooses a venv:\n%s", script)
+	}
+	if strings.Index(script, "NORYX_PROJECT_VENV=/mnt/.venv") > strings.Index(script, `export PATH="${NORYX_PROJECT_VENV`) {
+		t.Fatal("the venv is chosen after it is put on PATH")
 	}
 	// The launch command becomes the container's process, so a stop signal
 	// reaches the server rather than the shell that started it.

@@ -995,7 +995,7 @@ func appBootstrapScript(port int, launchArgv []string, attachedRepos []workspace
 		// workspace bootstrap has always done this; the app bootstrap did not,
 		// so the same requirements.txt worked in a workspace and failed in an
 		// app with "streamlit: not found" - after installing streamlit.
-		fmt.Sprintf("if [ -x %s/bin/python ]; then export PATH=%s/bin:$PATH; fi", workspaceProjectVenvPath, workspaceProjectVenvPath),
+		fmt.Sprintf(`if [ -x "%s/bin/python" ]; then export PATH="%s/bin:$PATH"; fi`, projectVenvPathExpression(), projectVenvPathExpression()),
 		"export PATH=$HOME/.local/bin:$PATH",
 		fmt.Sprintf("export PORT=%d NORYX_APP_PORT=%d", port, port),
 		// The project directory is the application's working directory.
