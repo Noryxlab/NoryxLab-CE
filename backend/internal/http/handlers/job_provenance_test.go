@@ -103,3 +103,33 @@ func TestLeJetonDuDepotEstTransmisAuResolveur(t *testing.T) {
 		t.Errorf("un jeton est invente pour un depot qui n'en a pas : %q", vus["https://forge/public.git"])
 	}
 }
+
+// La raison d'une lecture seule voyage avec le drapeau.
+//
+// Le 2026-11-25, Cédric (Essilor) possede un bucket non reglemente, l'attache
+// a un projet qui monte aussi de la donnee HDS, et son job echoue en y
+// ecrivant : la regle de co-montage (ADR-055) l'avait passe en lecture seule.
+// Le lancement l'avait enregistre dans l'audit et l'ecran des jobs n'en disait
+// rien - « lecture seule » sans raison envoie le proprietaire d'un dataset
+// chercher un droit qu'il detient deja.
+func TestLaRaisonDUneLectureSeuleVoyageAvecLeDrapeau(t *testing.T) {
+	datasets := jobDatasetsFrom([]workspaceAttachedDataset{
+		{ID: "a", Name: "hds-cohorte", Classification: "hds", ReadOnly: false},
+		{ID: "b", Name: "nonhds-resultats", Classification: "non-hds", ReadOnly: true, ReadOnlyReason: readOnlyReasonRegulatedCoMount},
+		{ID: "c", Name: "lecture-par-droit", Classification: "non-hds", ReadOnly: true},
+	})
+	if len(datasets) != 3 {
+		t.Fatalf("%d datasets enregistres", len(datasets))
+	}
+	if datasets[1].ReadOnlyReason != "regulated-co-mount" {
+		t.Errorf("la raison du co-montage est perdue : %q", datasets[1].ReadOnlyReason)
+	}
+	// Un montage en lecture seule par le droit de la personne n'a pas de
+	// raison a donner : « vous avez Read » n'est pas une surprise.
+	if datasets[2].ReadOnlyReason != "" {
+		t.Errorf("une lecture seule par droit ne doit porter aucune raison, got %q", datasets[2].ReadOnlyReason)
+	}
+	if datasets[0].ReadOnly || datasets[0].ReadOnlyReason != "" {
+		t.Errorf("le dataset reglemente en ecriture ne doit rien porter : %+v", datasets[0])
+	}
+}

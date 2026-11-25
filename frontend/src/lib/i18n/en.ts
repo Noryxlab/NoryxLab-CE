@@ -548,6 +548,7 @@ export const en: Translations = {
   },
 
   workspaces: {
+    readOnlyMountsLabel: "Read-only in this session",
     environmentUnknown: "Environment removed",
     rebuiltSince:
       "The environment was rebuilt since this was started — relaunch to get the new image.",
@@ -615,6 +616,9 @@ export const en: Translations = {
   },
 
   jobs: {
+    readOnlyCoMount:
+      "Mounted read-only although you may write to it: this run also mounts regulated data, which may not be copied out of its perimeter. A job that writes to this dataset will fail. Write your results to a regulated dataset, or run the job from a project that mounts no regulated data.",
+    readOnlyCoMountLaunched: "{names} mounted read-only (regulated co-mount)",
     title: "Jobs",
     subtitle: "One-off and scheduled runs for this project.",
     create: "New job",

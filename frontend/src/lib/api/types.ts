@@ -144,6 +144,11 @@ export interface JobDataset {
   bucket?: string;
   prefix?: string;
   readOnly: boolean;
+  /** Why it was read-only when the person could have written to it. The
+   *  value that matters is 'regulated-co-mount': the run also mounted
+   *  regulated data, so the co-mount rule demoted this one (ADR-055). Absent
+   *  when the reason is simply the person's own right. */
+  readOnlyReason?: string;
 }
 
 export interface JobRepository {

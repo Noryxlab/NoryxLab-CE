@@ -558,6 +558,7 @@ export const fr = {
   },
 
   workspaces: {
+    readOnlyMountsLabel: "En lecture seule dans cette session",
     environmentUnknown: "Environnement retiré",
     rebuiltSince:
       "L’environnement a été reconstruit depuis le lancement — relancez pour obtenir la nouvelle image.",
@@ -629,6 +630,9 @@ export const fr = {
   },
 
   jobs: {
+    readOnlyCoMount:
+      "Monté en lecture seule bien que vous ayez le droit d’y écrire : cette exécution monte aussi de la donnée réglementée, qui ne peut pas être recopiée hors de son périmètre. Un job qui écrit dans ce dataset échouera. Écrivez vos résultats dans un dataset réglementé, ou lancez le job depuis un projet qui ne monte pas de donnée réglementée.",
+    readOnlyCoMountLaunched: "{names} monté en lecture seule (co-montage réglementé)",
     title: "Jobs",
     subtitle: "Exécutions ponctuelles et planifiées de ce projet.",
     create: "Nouveau job",

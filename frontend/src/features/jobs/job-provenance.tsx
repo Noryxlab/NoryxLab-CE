@@ -82,16 +82,24 @@ export function JobProvenance({ job }: { job: Job }) {
               <Row label={t('jobs.datasetsMounted')}>
                 <ul className="space-y-1">
                   {datasets.map((dataset) => (
-                    <li key={dataset.id} className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-medium">{dataset.name}</span>
-                      {dataset.readOnly ? (
-                        <Badge tone="outline">
-                          <Lock className="size-3" aria-hidden />
-                          {t('jobs.datasetReadOnly')}
-                        </Badge>
-                      ) : null}
-                      {dataset.prefix ? (
-                        <code className="font-mono text-xs text-muted-foreground">{dataset.prefix}</code>
+                    <li key={dataset.id} className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{dataset.name}</span>
+                        {dataset.readOnly ? (
+                          <Badge tone={dataset.readOnlyReason === 'regulated-co-mount' ? 'warning' : 'outline'}>
+                            <Lock className="size-3" aria-hidden />
+                            {t('jobs.datasetReadOnly')}
+                          </Badge>
+                        ) : null}
+                        {dataset.prefix ? (
+                          <code className="font-mono text-xs text-muted-foreground">{dataset.prefix}</code>
+                        ) : null}
+                      </div>
+                      {/* Le badge seul envoie le proprietaire d'un dataset chercher
+                        *  un droit qu'il detient deja. La raison est la phrase qui
+                        *  lui dit quoi faire a la place. */}
+                      {dataset.readOnlyReason === 'regulated-co-mount' ? (
+                        <p className="pt-0.5 text-xs leading-relaxed text-muted-foreground">{t('jobs.readOnlyCoMount')}</p>
                       ) : null}
                     </li>
                   ))}

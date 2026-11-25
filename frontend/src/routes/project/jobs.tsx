@@ -110,10 +110,23 @@ function CreateJobSheet({
         ? cronJobsApi.create({ ...payload, schedule, timeZone })
         : jobsApi.create(payload);
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       invalidate(qk.jobs(projectId), qk.cronJobs(projectId), qk.projects);
       onOpenChange(false);
       toast.success(mode === 'schedule' ? t('jobs.scheduled') : t('jobs.launched'), t('jobs.title'));
+      // Ce que la regle de co-montage a pris, dit au moment du lancement et
+      // non decouvert dans le journal d'un job en echec. Le workspace le
+      // disait deja ; le job, qui ecrit sans personne devant, ne le disait
+      // nulle part - et c'est lui qui a surpris Cédric le 2026-11-25.
+      const demoted = ('datasets' in created ? created.datasets ?? [] : []).filter(
+        (dataset) => dataset.readOnlyReason === 'regulated-co-mount',
+      );
+      if (demoted.length > 0) {
+        toast.warning(
+          t('jobs.readOnlyCoMount'),
+          t('jobs.readOnlyCoMountLaunched', { names: demoted.map((dataset) => dataset.name).join(', ') }),
+        );
+      }
     },
     onError: (error) => toast.error(error, t('jobs.createTitle')),
   });

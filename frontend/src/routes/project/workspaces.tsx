@@ -11,6 +11,7 @@ import {
   Square,
   Terminal,
   UserRound,
+  Lock,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { EmptyState, ErrorState } from '@/components/common/states';
@@ -81,6 +82,19 @@ function WorkspaceCard({
           </div>
           <StatusBadge status={workspace.status} locale={locale} />
         </div>
+
+        {/* Ce que la regle de co-montage a pris, sur la carte et non dans un
+          *  toast : le toast du lancement avait disparu quand Cédric a ecrit
+          *  dans son dataset, une heure plus tard, et a ete refuse. */}
+        {workspace.readOnlyMounts && workspace.readOnlyMounts.length > 0 ? (
+          <div className="rounded-md border border-warning-subtle bg-warning-subtle/40 px-2.5 py-2 text-xs">
+            <p className="flex items-center gap-1.5 font-medium text-warning-foreground">
+              <Lock className="size-3.5 shrink-0" aria-hidden />
+              {t('workspaces.readOnlyMountsLabel')} : {workspace.readOnlyMounts.join(', ')}
+            </p>
+            <p className="mt-0.5 leading-relaxed text-muted-foreground">{t('workspaces.readOnlyCoMount')}</p>
+          </div>
+        ) : null}
 
         <dl className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">

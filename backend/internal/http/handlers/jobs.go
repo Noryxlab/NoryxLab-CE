@@ -624,6 +624,9 @@ func jobDatasetsFrom(attached []workspaceAttachedDataset) []job.Dataset {
 			Bucket:   item.Bucket,
 			Prefix:   item.Prefix,
 			ReadOnly: item.ReadOnly,
+			// The reason travels with the flag: "read-only" alone sends the
+			// owner of a dataset looking for a right they already hold.
+			ReadOnlyReason: item.ReadOnlyReason,
 		})
 	}
 	return out

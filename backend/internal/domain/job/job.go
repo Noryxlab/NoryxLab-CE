@@ -105,6 +105,15 @@ type Dataset struct {
 	// result produced beside a writable mount is a different kind of evidence
 	// from one produced beside a read-only one.
 	ReadOnly bool `json:"readOnly"`
+	// ReadOnlyReason says why, when the person could have written to it.
+	//
+	// A mount can be read-only because the person holds Read, or because the
+	// co-mount rule demoted it (ADR-055): the run also mounts regulated data.
+	// The second case is the one that surprises - the person owns the
+	// dataset and is refused - and until 2026-11-25 nothing on the job screen
+	// said it. Cédric found out from a failed job. Empty when the reason is
+	// simply the person's own right.
+	ReadOnlyReason string `json:"readOnlyReason,omitempty"`
 }
 
 func New(projectID, name, image, jobName string, command, args []string) Job {
