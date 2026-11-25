@@ -165,6 +165,14 @@ objects it recognises on both sides, with two confidences:
   ETag already answers for those, and under that limit "same name, same size"
   only names empty `README`s.
 
+Measured through a dataset mount on 2026-11-25: 1 MiB comes back single-part
+(ETag = content MD5), 8 MiB as `…-2`, 64 MiB as `…-13` — the switch is around
+5 MiB. Below it a copy is caught with certainty; above it, only by size and
+name, so **a large file copied under a different name is not reported**.
+Matching on size alone would survive a rename and is deliberately not done:
+a cohort of images at identical dimensions weighs exactly the same object
+after object, and every real finding would drown in the false ones.
+
 The alert is `regulated.copy.detected`, at critical severity, naming both
 paths. What it cannot see, and must never be presented as seeing: a
 **derived** result — an aggregate, a trained model, a de-identified export —

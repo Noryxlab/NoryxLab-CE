@@ -110,6 +110,12 @@ reports the objects it recognises on both, with two confidences:
 | **Same fingerprint** | Identical ETags. For an object uploaded in one part the ETag is the content's MD5, so this is an assertion, not a suspicion. |
 | **Same size and name** | Identical byte size and identical file name, different ETags. That is what a copy of a large file looks like — it is uploaded in parts, and each part changes the ETag. Nothing under 1 MiB is reported this way: small objects are already covered by their fingerprint, and below that limit "same name, same size" only ever names empty `README`s. |
 
+Measured on a running installation on 2026-11-25, writing through the dataset
+mount: an object of 1 MiB comes back with an ETag equal to its content's MD5,
+one of 8 MiB with `…-2` and one of 64 MiB with `…-13`. So the switch to
+multipart happens around 5 MiB. **Below it a copy is recognised with
+certainty; above it, only by its size and name.**
+
 The alert goes to the administrators, names both paths of every object it
 recognised, and says plainly that it knows *what* and not *who* — because
 nothing records who wrote through a mount, which is the entire reason this
@@ -135,6 +141,13 @@ Stated here because "nothing found" must not be read as "nothing left":
   egress rules, and the download from an editor is bounded by who holds `Read`
   — not by this check. See
   [how data leaves a workspace](HOW_DATA_LEAVES_A_WORKSPACE.md).
+- **A large file copied under a different name.** Above roughly 5 MiB the
+  fingerprints cannot match, so the only signal left is the exact size
+  together with the file name; rename the copy and nothing is reported. The
+  signal that would survive a rename — size alone — is the one that lies
+  worst here: a cohort of scans taken at identical dimensions weighs exactly
+  the same, file after file, and matching on that would bury every real
+  finding under thousands of false ones.
 - **A copy laid into a dataset not attached beside the regulated one** is
   outside the compared perimeter. Reaching it takes two steps rather than one,
   and comparing every bucket against every other would cost a full listing of

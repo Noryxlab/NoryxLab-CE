@@ -34,6 +34,13 @@ const (
 	// envoi en une seule partie couvre tout ce qui est petit, donc l'ETag
 	// repond deja pour ces objets ; en dessous de cette limite, « meme nom,
 	// meme taille » ne designe que des README et des __init__.py vides.
+	//
+	// Mesure sur le DC le 25/11/2026, a travers un montage csi-s3/geesefs :
+	// un objet de 1 Mio ressort avec un ETag egal au MD5 du contenu, un de
+	// 8 Mio avec « ...-2 » et un de 64 Mio avec « ...-13 » - donc des parties
+	// d'environ 5 Mio, et la bascule se situe entre 1 et 8 Mio. Cette limite
+	// a 1 Mio couvre donc toute la bande multipart avec de la marge ; entre
+	// 1 et 5 Mio les deux signaux repondent, ce qui ne coute rien.
 	copyProbableMinSize = 1 << 20
 )
 
@@ -50,6 +57,15 @@ type Copy struct {
 
 // CrossMatch finds the objects of an unclassified dataset that look like
 // objects of a regulated one.
+//
+// Ce qu'il faut savoir de sa portee avant de s'y fier : au-dela d'environ
+// 5 Mio une copie est envoyee en plusieurs parties et son ETag ne peut pas
+// retomber sur celui de la source si les deux cotes n'ont pas ete ecrits par
+// le meme client avec la meme taille de partie. Le gros fichier ne se
+// reconnait donc que par « meme taille exacte et meme nom », et **une copie
+// renommee lui echappe**. C'est assume : le signal qui resterait, la taille
+// seule, est precisement celui qui ment sur de l'imagerie medicale, ou une
+// cohorte entiere d'examens aux memes dimensions pese exactement pareil.
 //
 // Order is deterministic - by the path found in the unclassified dataset -
 // because this feeds an alert a person reads and compares with yesterday's.
