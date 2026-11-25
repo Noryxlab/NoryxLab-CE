@@ -164,6 +164,7 @@ installation values in a private operations repository or secret manager.
 - [Jobs and history](docs/JOB_HISTORY.md), [replaying a run](docs/REPLAYING_A_RUN.md) and [scheduled jobs](docs/SCHEDULED_JOBS.md)
 - [Flows](docs/FLOWS.md) — a graph of jobs
 - [Dataset snapshots](docs/DATASET_SNAPSHOTS.md) — what a dataset held at an instant, and the nightly drift check
+- [Writing beside regulated data](docs/WRITING_BESIDE_REGULATED_DATA.md) — why a dataset is read-only next to a regulated one, what to do, and the nightly fingerprint crossing
 - [Budgets](docs/BUDGETS.md) — a monthly allowance in vCPU-hours, announced and never enforced
 - [Applications and Production](docs/APPS_V1.md) and [production operations](docs/PRODUCTION.md)
 - [Hardware tiers](docs/HARDWARE_TIERS.md)
@@ -176,6 +177,8 @@ installation values in a private operations repository or secret manager.
 - [Organisations](docs/ORGANIZATIONS.md)
 - [Credentials and Git access](docs/CREDENTIALS.md)
 - [Workload network isolation](docs/WORKLOAD_NETWORK_ISOLATION.md)
+- [How data leaves a workspace](docs/HOW_DATA_LEAVES_A_WORKSPACE.md) — every route out, and which ones are closed
+- [Writing beside regulated data](docs/WRITING_BESIDE_REGULATED_DATA.md) — the co-mount rule, the right that lifts it, and the nightly crossing
 - [Supported API contract](docs/API.md)
 - [Backend runtime API](docs/BACKEND_RUNTIME_API.md)
 

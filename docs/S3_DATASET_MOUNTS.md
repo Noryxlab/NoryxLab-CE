@@ -27,6 +27,10 @@ size.
 
 - `owner` and `writer` datasets are mounted read/write.
 - `reader` datasets are mounted read-only.
+- an **unclassified** dataset is mounted read-only when the same workload also
+  mounts a regulated one, whatever right the person holds on it — see
+  [writing beside regulated data](WRITING_BESIDE_REGULATED_DATA.md) for the
+  reason, what to do about it, and the capability that lifts it.
 - HDS datasets require EE, the HDS feature gate, and the corresponding dataset
   or organization permission.
 - Each external dataset uses dedicated encrypted S3 credentials. There is no

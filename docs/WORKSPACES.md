@@ -132,6 +132,7 @@ Current implementation baseline:
 - every attached S3 bucket is mounted directly with the cluster S3 CSI driver under `/datasets/<dataset-name>`
 - dataset contents are never pre-copied into the workspace ephemeral filesystem or project PVC
 - datasets granted through the `reader` role are mounted read-only
+- an unclassified dataset is also mounted read-only when the session mounts a regulated one, and the launch says which and why ([writing beside regulated data](WRITING_BESIDE_REGULATED_DATA.md))
 - Enterprise workspaces can mount attached HDS datasets when the HDS feature is enabled
 - `/home/noryx/.noryx-profile` is mounted from user-scoped profile PVC (RWX)
 - active user secrets are exposed through Kubernetes `secretKeyRef` variables named
