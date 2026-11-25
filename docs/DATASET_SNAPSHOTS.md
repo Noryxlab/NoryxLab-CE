@@ -56,6 +56,13 @@ and that there is no other way to un-enrol it.
 > The check currently runs every 24 hours counted from the backend's start, not
 > at a fixed hour, so a rollout moves the time it runs.
 
+**A second check shares the same pass**, and does not need a snapshot: the
+fingerprint crossing of `ADR-060` looks for objects of a regulated dataset
+reappearing in an unclassified dataset attached to the same project. It is the
+counterpart of the `write-beside-regulated-data` capability, it reads live
+listings rather than manifests, and it is described in
+[how data leaves a workspace](HOW_DATA_LEAVES_A_WORKSPACE.md).
+
 ## Comparing
 
 *Show the differences* lists what changed since a snapshot, as `added`,

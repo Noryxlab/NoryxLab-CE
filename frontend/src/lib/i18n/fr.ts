@@ -168,6 +168,8 @@ export const fr = {
     "declare-repository": "Déclarer un dépôt",
     "register-regulated-dataset": "Enregistrer un dataset réglementé",
     "attach-regulated-data": "Rattacher une donnée réglementée à un projet : dataset ou extrait",
+    "write-beside-regulated-data":
+      "Écrire à côté d'une donnée réglementée : les datasets non classés restent inscriptibles dans un workload qui lit du HDS (les copies sont recherchées chaque nuit)",
     "administer-organization": "Administrer une organisation",
   },
   roleMatrix: {

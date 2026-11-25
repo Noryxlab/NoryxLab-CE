@@ -40,16 +40,34 @@ const (
 	// screen showed. A team holding a shared regulated dataset could mount
 	// nothing while the box on their row said they could. Both ask the box
 	// since 2026-11-06.
-	AttachRegulatedData    Capability = "attach-regulated-data"
-	ScanOntology           Capability = "scan-ontology"
-	CreateExtract          Capability = "create-extract"
-	LaunchWorkspace        Capability = "launch-workspace"
-	LaunchJob              Capability = "launch-job"
-	DeployApp              Capability = "deploy-app"
-	BuildEnvironment       Capability = "build-environment"
-	DeclareDatasource      Capability = "declare-datasource"
-	DeclareRepository      Capability = "declare-repository"
-	AdministerOrganization Capability = "administer-organization"
+	AttachRegulatedData Capability = "attach-regulated-data"
+	// WriteBesideRegulatedData lifts the co-mount rule (ADR-055) for one role:
+	// a workload of theirs keeps its unclassified mounts writable while it
+	// also reads regulated data.
+	//
+	// The rule prevents a copy nobody would see, by demoting those mounts to
+	// read-only. It works, and it costs: a researcher who writes results into
+	// their own dataset finds it read-only, for a reason no screen could state
+	// until recently. Stephane, 2026-11-25: "c'est malin, mais personne
+	// comprend et ca casse les pieds."
+	//
+	// So prevention stays the default and the exemption is named. What it is
+	// not is an exemption from being seen: a role holding this box is watched
+	// instead, by the nightly fingerprint crossing (regulated_copy_scan.go),
+	// which reports a regulated object that reappears in an unclassified
+	// dataset of the same project. The trade is explicit - confinement for
+	// detection after the fact - and that is why this is one box a named
+	// person holds rather than a platform-wide setting.
+	WriteBesideRegulatedData Capability = "write-beside-regulated-data"
+	ScanOntology             Capability = "scan-ontology"
+	CreateExtract            Capability = "create-extract"
+	LaunchWorkspace          Capability = "launch-workspace"
+	LaunchJob                Capability = "launch-job"
+	DeployApp                Capability = "deploy-app"
+	BuildEnvironment         Capability = "build-environment"
+	DeclareDatasource        Capability = "declare-datasource"
+	DeclareRepository        Capability = "declare-repository"
+	AdministerOrganization   Capability = "administer-organization"
 	// CopyDataset is duplicating a dataset's bytes, and it is a capability of
 	// its own because it is the one act here that makes a second copy of the
 	// evidence.
@@ -82,6 +100,7 @@ var All = []Capability{
 	DeclareRepository,
 	RegisterRegulatedDataset,
 	AttachRegulatedData,
+	WriteBesideRegulatedData,
 	CopyDataset,
 	AdministerOrganization,
 }

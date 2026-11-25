@@ -31,7 +31,7 @@ func TestAPersonalDatasetBesideRegulatedDataIsReadOnly(t *testing.T) {
 	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
 		mountNamed("hds-for", "hds", true),
 		mountNamed("dataset-local-stef", "", false),
-	})
+	}, false)
 	if !got[1].ReadOnly {
 		t.Fatal("the personal dataset stayed writable beside regulated data")
 	}
@@ -50,7 +50,7 @@ func TestWithoutRegulatedDataNothingIsDemoted(t *testing.T) {
 	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
 		mountNamed("scratch", "", false),
 		mountNamed("public-images", "", false),
-	})
+	}, false)
 	if names := readOnlyNames(got); len(names) != 0 {
 		t.Fatalf("demoted %v in a project that holds nothing regulated", names)
 	}
@@ -68,7 +68,7 @@ func TestARegulatedDestinationStaysWritable(t *testing.T) {
 	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
 		mountNamed("selena", "hds", true),
 		mountNamed("selena-results", "hds", false),
-	})
+	}, false)
 	if got[1].ReadOnly {
 		t.Fatal("a regulated destination was demoted, which sends the write elsewhere")
 	}
@@ -84,7 +84,7 @@ func TestAMountAlreadyReadOnlyIsNotClaimedByTheRule(t *testing.T) {
 	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
 		mountNamed("hds-for", "hds", true),
 		mountNamed("someone-elses", "", true),
-	})
+	}, false)
 	if got[1].ReadOnlyReason != "" {
 		t.Fatalf("the rule claimed a mount the right had already closed: %q", got[1].ReadOnlyReason)
 	}
@@ -100,7 +100,7 @@ func TestTheClassificationIsReadLooselyEnough(t *testing.T) {
 	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
 		mountNamed("cohort", " HDS ", true),
 		mountNamed("scratch", "", false),
-	})
+	}, false)
 	if !got[1].ReadOnly {
 		t.Fatal("an upper-case classification did not trigger the rule")
 	}
@@ -109,11 +109,43 @@ func TestTheClassificationIsReadLooselyEnough(t *testing.T) {
 // An empty list and a list of one must not panic or invent a mount: both are
 // ordinary - a project attaches nothing, or attaches exactly the cohort.
 func TestTheEdgesAreQuiet(t *testing.T) {
-	if got := applyRegulatedCoMountRule(nil); len(got) != 0 {
+	if got := applyRegulatedCoMountRule(nil, false); len(got) != 0 {
 		t.Fatalf("nil produced %v", got)
 	}
-	single := applyRegulatedCoMountRule([]workspaceAttachedDataset{mountNamed("hds-for", "hds", false)})
+	single := applyRegulatedCoMountRule([]workspaceAttachedDataset{mountNamed("hds-for", "hds", false)}, false)
 	if single[0].ReadOnly {
 		t.Fatal("the only regulated dataset demoted itself")
+	}
+}
+
+// La fonction de la matrice, decidee le 2026-11-25 : la ligne qui la porte
+// garde ses montages inscriptibles, et c'est le croisement d'empreintes de
+// nuit qui prend le relais.
+func TestLaFonctionDeLaMatriceRendLEcritureACoteDuReglemente(t *testing.T) {
+	mounts := []workspaceAttachedDataset{
+		mountNamed("hds-for", "hds", true),
+		mountNamed("dataset-local-stef", "", false),
+	}
+	got := applyRegulatedCoMountRule(mounts, true)
+	if len(readOnlyNames(got)) != 1 || readOnlyNames(got)[0] != "hds-for" {
+		t.Fatalf("seule la cohorte devait rester en lecture seule, obtenu %v", readOnlyNames(got))
+	}
+	if got[1].ReadOnlyReason != "" {
+		t.Fatalf("une exemption ne doit laisser aucune raison derriere elle: %q", got[1].ReadOnlyReason)
+	}
+	if len(readOnlyForCoMount(got)) != 0 {
+		t.Fatalf("rien n'a ete pris par la regle, le message de lancement doit se taire: %v", readOnlyForCoMount(got))
+	}
+}
+
+// L'exemption ne touche pas une lecture seule qui vient d'ailleurs : un droit
+// Read sur la donnee reste un droit Read, la fonction ne le promeut pas.
+func TestLExemptionNePromeutPasUnDroitDeLecture(t *testing.T) {
+	got := applyRegulatedCoMountRule([]workspaceAttachedDataset{
+		mountNamed("hds-for", "hds", false),
+		mountNamed("partage-en-lecture", "", true),
+	}, true)
+	if !got[1].ReadOnly {
+		t.Fatal("l'exemption a rendu inscriptible un montage qui ne l'etait pas")
 	}
 }

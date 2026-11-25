@@ -20,6 +20,7 @@ mounted and a terminal. A file in it can leave by exactly six routes.
 | A desktop session's clipboard | Yes, outbound | `-SendCutText 0`, `-noclipboard` |
 | The platform's own download and export routes | Optional | `datasets.local_download` |
 | A copy into an unclassified dataset mounted beside it | Yes, since 2026-11-19 | The co-mount rule, ADR-055 |
+| …for a role holding `write-beside-regulated-data` | Detected, not prevented | The nightly fingerprint crossing, ADR-060 |
 | The person's browser session | **No** | Nothing. See the last section |
 
 ## 1. The pod's network
@@ -135,7 +136,7 @@ stays allowed — the destination carries the same classification, so its
 project is closed in turn and its bulk download refused the same way. The
 rule is closed under itself.
 
-Two things it does not do, and neither should be glossed over:
+Three things it does not do, and none should be glossed over:
 
 - It applies at launch. A session started before the rule arrived keeps the
   mounts it was given.
@@ -144,6 +145,33 @@ Two things it does not do, and neither should be glossed over:
   recorded. What sees those is the nightly comparison in
   [dataset snapshots](DATASET_SNAPSHOTS.md), on the datasets somebody chose to
   track. "On ne prévient pas, on constate."
+- It does not apply to a role holding **`write-beside-regulated-data`**, the
+  capability that lifts it (ADR-060). Nobody holds it by default. What replaces
+  the rule for those who do is the section below, and the trade is explicit:
+  confinement for everybody, or detection after the fact for a named person.
+
+### The nightly fingerprint crossing (ADR-060)
+
+For every pair made of one regulated dataset and one unclassified dataset
+**attached to the same project** — the only situation a single workload could
+have mounted together — the platform lists both each night and reports the
+objects it recognises on both sides, with two confidences:
+
+- **`identical`** — same ETag. For a single-part upload the ETag is the
+  content's MD5, so sharing it is an assertion.
+- **`probable`** — same exact size *and* same file name, different ETag. That
+  is what a multipart copy of a large file looks like, and large files are the
+  ones that matter. Below 1 MiB nothing is suspected on name and size: the
+  ETag already answers for those, and under that limit "same name, same size"
+  only names empty `README`s.
+
+The alert is `regulated.copy.detected`, at critical severity, naming both
+paths. What it cannot see, and must never be presented as seeing: a
+**derived** result — an aggregate, a trained model, a de-identified export —
+carries the fingerprint of nothing; data that leaves by the network or through
+the person's own session never lands in a bucket; and a copy laid into a
+dataset *not* attached beside the regulated one is outside the compared
+perimeter.
 
 ## 7. The person's browser session, which is open
 

@@ -37,8 +37,20 @@ const readOnlyReasonRegulatedCoMount = "regulated-co-mount"
 
 // applyRegulatedCoMountRule demotes to read-only every mount that is not
 // itself regulated, when at least one regulated dataset is in the list.
-func applyRegulatedCoMountRule(items []workspaceAttachedDataset) []workspaceAttachedDataset {
-	if !anyRegulatedDataset(items) {
+//
+// exempt lifts it, for a role holding platformrole.WriteBesideRegulatedData.
+// It is passed in rather than read here because this function is the rule and
+// has to stay answerable from a test with no identity, no store and no
+// platform - and because the decision belongs to the one place that already
+// knows who is launching.
+//
+// An exempt workload is not an unwatched one: the nightly fingerprint
+// crossing (regulated_copy_scan.go) looks for regulated objects reappearing
+// in the unclassified datasets of the same project, and it is what makes
+// handing this box out defensible. Prevention for everybody, detection for
+// those who were given the room to work.
+func applyRegulatedCoMountRule(items []workspaceAttachedDataset, exempt bool) []workspaceAttachedDataset {
+	if exempt || !anyRegulatedDataset(items) {
 		return items
 	}
 	for index := range items {

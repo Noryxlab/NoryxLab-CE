@@ -165,6 +165,8 @@ export const en: Translations = {
     "declare-repository": "Declare a repository",
     "register-regulated-dataset": "Register a regulated dataset",
     "attach-regulated-data": "Attach regulated data to a project: dataset or extract",
+    "write-beside-regulated-data":
+      "Write beside regulated data: unclassified datasets stay writable in a workload that reads HDS (copies are looked for nightly)",
     "administer-organization": "Administer an organization",
   },
   roleMatrix: {

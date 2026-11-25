@@ -1178,8 +1178,10 @@ func (h Handlers) resolveProjectWorkspaceResources(projectID string, identity au
 	}
 
 	// The last word on what is writable, applied here so that every workload
-	// goes through it: see regulated_comount.go.
-	return attachedRepos, applyRegulatedCoMountRule(attachedDatasets), nil
+	// goes through it: see regulated_comount.go. The exemption is read here,
+	// the only place that knows whose workload this is.
+	exempt := h.can(identity, platformrole.WriteBesideRegulatedData)
+	return attachedRepos, applyRegulatedCoMountRule(attachedDatasets, exempt), nil
 }
 
 func nodeReachableKubernetesServiceEndpoint(endpoint string, lookupHost func(string) ([]string, error)) (string, error) {

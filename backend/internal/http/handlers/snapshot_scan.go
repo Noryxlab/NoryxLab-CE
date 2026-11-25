@@ -39,7 +39,7 @@ func (h Handlers) StartSnapshotScan(ctx context.Context) {
 	if h.snapshotStore == nil || h.datasetStore == nil {
 		return
 	}
-	log.Printf("snapshot scan started (every %s, datasets with a snapshot only)", snapshotScanInterval)
+	log.Printf("nightly dataset scan started (every %s: drift on snapshotted datasets, fingerprint crossing on co-mounted pairs)", snapshotScanInterval)
 	go func() {
 		ticker := time.NewTicker(snapshotScanInterval)
 		defer ticker.Stop()
@@ -49,6 +49,11 @@ func (h Handlers) StartSnapshotScan(ctx context.Context) {
 				return
 			case <-ticker.C:
 				h.scanSnapshots(ctx)
+				// Meme passage de nuit, meme raison d'exister : lire les
+				// buckets pour ce que l'API n'a pas vu passer. Le croisement
+				// vient apres la derive parce qu'il est le plus cher des deux
+				// et que l'autre n'a pas a l'attendre.
+				h.scanRegulatedCopies(ctx)
 			}
 		}
 	}()

@@ -204,12 +204,12 @@ object's own permissions screen - it must never become a checkbox, because
 expressing "sees what their team shared" as a capability rebuilds the
 inheritance the previous sections removed.
 
-Functions in rows, roles in columns, yes or no in the cells. Twelve functions,
+Functions in rows, roles in columns, yes or no in the cells. Fifteen functions,
 drawn from what the handlers consult: create a project, launch a workspace,
 launch a job, deploy an application, build an environment, create a dataset,
 scan an ontology, create an extract, declare a data source, declare a
 repository, register a regulated dataset, attach regulated data to a project,
-administer an organization.
+write beside regulated data, copy a dataset, administer an organization.
 
 **Attaching regulated data is one box for both shapes it takes**, a dataset
 and an extract drawn from one. It was governed twice until 2026-11-06, and
@@ -218,6 +218,18 @@ rule written in the code - administer the organisation that owns it, and
 administer the target project. A team holding a shared regulated dataset could
 therefore mount nothing while the box ticked on their row said otherwise. One
 act, one box, and the refusal names it (ADR-049).
+
+**Writing beside regulated data lifts the co-mount rule, and nobody holds it.**
+A workload mounting a regulated dataset gets every unclassified mount
+read-only (ADR-055), which stops a copy nobody would see and also stops a
+researcher writing their own results. `write-beside-regulated-data` returns
+that mount writable — in exchange for being watched: a nightly fingerprint
+crossing reports regulated objects found in the unclassified datasets of the
+same project, alert `regulated.copy.detected` (ADR-060). An installation that
+cannot accept a copy existing for one night must not grant it. `copy-dataset`
+is in the same spirit and also held by nobody: it is the one act here that
+makes a second copy of regulated evidence, and the capability is declared
+while the operation is not written.
 
 Three rows ship. **Administrator** acts on what is not theirs; it is
 the directory's realm role: naming an administrator from a person's page
