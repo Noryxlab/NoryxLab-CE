@@ -913,6 +913,35 @@ export interface DataUsageNode {
   class: string;
 }
 
+/** Le croisement d'empreintes d'ADR-060 : ce qu'une passe de nuit a trouve.
+ *  `identical` est une affirmation (meme ETag, donc memes octets pour un envoi
+ *  en une seule partie), `probable` un rapprochement sur la taille exacte et
+ *  le nom de fichier - la forme qu'a une copie en plusieurs parties. */
+export interface RegulatedCopy {
+  regulatedPath: string;
+  openPath: string;
+  size: number;
+  confidence: 'identical' | 'probable';
+}
+
+export interface RegulatedCopyFinding {
+  regulatedDatasetId: string;
+  regulatedDatasetName: string;
+  openDatasetId: string;
+  openDatasetName: string;
+  projectId: string;
+  identical: number;
+  probable: number;
+  totalSize: number;
+  copies: RegulatedCopy[];
+}
+
+export interface RegulatedCopyScanReport {
+  pairsCompared: number;
+  pairsSkipped: number;
+  findings: RegulatedCopyFinding[];
+}
+
 export interface DataUsageEdge {
   from: string;
   to: string;

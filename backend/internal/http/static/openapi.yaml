@@ -40,6 +40,35 @@ components:
       name: X-Noryx-User
 
   schemas:
+    RegulatedCopy:
+      type: object
+      properties:
+        regulatedPath: { type: string }
+        openPath: { type: string }
+        size: { type: integer }
+        confidence: { type: string }
+    RegulatedCopyFinding:
+      type: object
+      properties:
+        regulatedDatasetId: { type: string }
+        regulatedDatasetName: { type: string }
+        openDatasetId: { type: string }
+        openDatasetName: { type: string }
+        projectId: { type: string }
+        identical: { type: integer }
+        probable: { type: integer }
+        totalSize: { type: integer }
+        copies:
+          type: array
+          items: { $ref: '#/components/schemas/RegulatedCopy' }
+    RegulatedCopyScanReport:
+      type: object
+      properties:
+        pairsCompared: { type: integer }
+        pairsSkipped: { type: integer }
+        findings:
+          type: array
+          items: { $ref: '#/components/schemas/RegulatedCopyFinding' }
     FlowStep:
       type: object
       properties:
@@ -11225,6 +11254,34 @@ paths:
       responses:
         '204':
           description: Snapshot and its manifest removed; the dataset leaves the nightly check if it was its last
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/datasets/regulated-copy-scan:
+    post:
+      tags: [Admin]
+      summary: Cross the fingerprints of regulated and unclassified datasets now
+      description: >-
+        Runs the nightly crossing of ADR-060 on demand and answers with what it
+        found: for every pair made of one regulated dataset and one unclassified
+        dataset attached to the same project, the objects recognised on both
+        sides. Synchronous, and it reads listings rather than bytes. An
+        administrator who has just granted write-beside-regulated-data uses this
+        rather than waiting up to twenty-four hours for the night.
+      operationId: runRegulatedCopyScan
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegulatedCopyScanReport'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

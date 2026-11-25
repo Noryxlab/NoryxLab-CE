@@ -42,6 +42,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("GET /api/v1/user/administered-organizations", h.ListMyAdministeredOrganizations)
 	// Ce que ce role peut creer (ADR-049) : l'interface demande, elle ne devine pas.
 	mux.HandleFunc("GET /api/v1/user/capabilities", h.GetMyCapabilities)
+	mux.HandleFunc("POST /api/v1/admin/datasets/regulated-copy-scan", h.RunRegulatedCopyScan)
 	mux.HandleFunc("GET /api/v1/admin/platform-roles", h.ListPlatformRoles)
 	mux.HandleFunc("PUT /api/v1/admin/platform-roles/{roleKey}", h.UpsertPlatformRole)
 	mux.HandleFunc("DELETE /api/v1/admin/platform-roles/{roleKey}", h.DeletePlatformRole)

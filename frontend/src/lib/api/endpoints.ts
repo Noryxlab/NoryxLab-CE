@@ -81,6 +81,7 @@ import type {
   ProjectToken,
   ProjectVariable,
   RbacMatrixReport,
+  RegulatedCopyScanReport,
   RbacPolicyResponse,
   RbacPolicyRow,
   Repository,
@@ -1108,6 +1109,12 @@ export const adminApi = {
     downloadFile(`${V1}/admin/team-usage.csv?from=${from}&to=${to}`, 'noryx-team-usage.csv'),
   dataUsage: () => api.get<DataUsageReport>(`${V1}/admin/data-usage`),
   downloadDataUsage: () => downloadFile(`${V1}/admin/data-usage.csv`, 'noryx-data-usage.csv'),
+
+  /** Lance le croisement d'empreintes maintenant (ADR-060). Synchrone : la
+   *  passe lit des listages, pas des octets, et une reponse « demarre »
+   *  laisserait la personne devant un journal qu'elle ne peut pas lire. */
+  runRegulatedCopyScan: () =>
+    api.post<RegulatedCopyScanReport>(`${V1}/admin/datasets/regulated-copy-scan`, {}),
 
   rbacMatrix: () => api.get<RbacMatrixReport>(`${V1}/admin/rbac-matrix`),
   downloadRbacMatrix: () => downloadFile(`${V1}/admin/rbac-matrix.csv`, 'noryx-rbac-matrix.csv'),

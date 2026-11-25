@@ -232,6 +232,21 @@ ENVELOPES = {
         "period": "date-time",
     },
     "BudgetListResponse": {"items": "[$BudgetState]", "unit": "string", "period": "date-time"},
+    # Le croisement d'empreintes d'ADR-060 : ce qu'une passe a trouve.
+    "RegulatedCopy": {
+        "regulatedPath": "string", "openPath": "string",
+        "size": "integer", "confidence": "string",
+    },
+    "RegulatedCopyFinding": {
+        "regulatedDatasetId": "string", "regulatedDatasetName": "string",
+        "openDatasetId": "string", "openDatasetName": "string",
+        "projectId": "string", "identical": "integer", "probable": "integer",
+        "totalSize": "integer", "copies": "[$RegulatedCopy]",
+    },
+    "RegulatedCopyScanReport": {
+        "pairsCompared": "integer", "pairsSkipped": "integer",
+        "findings": "[$RegulatedCopyFinding]",
+    },
     "AdminEgressRuleListResponse": {"items": "[$EgressRule]", "profiles": "[string]", "enforced": "boolean"},
     "ProjectEgressRuleListResponse": {"items": "[$EgressRule]", "enforced": "boolean"},
     "DatasetAccessListResponse": {"items": "[$DatasetAccess]", "canManage": "boolean"},
@@ -348,6 +363,7 @@ RESPONSES = {
     ("GET", "/api/v1/apps/{appID}"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
     ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
+    ("POST", "/api/v1/admin/datasets/regulated-copy-scan"): "RegulatedCopyScanReport",
     ("GET", "/api/v1/projects/{projectID}/flows"): "FlowListResponse",
     ("POST", "/api/v1/projects/{projectID}/flows"): "Flow",
     ("PUT", "/api/v1/projects/{projectID}/flows/{flowID}"): "Flow",

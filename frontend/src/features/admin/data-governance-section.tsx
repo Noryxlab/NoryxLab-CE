@@ -22,6 +22,7 @@ import {
 } from '@/lib/api/queries';
 import { adminApi } from '@/lib/api/endpoints';
 import { useI18n, useT } from '@/lib/i18n';
+import { RegulatedCopyScanCard } from './regulated-copy-scan';
 import { formatNumber } from '@/lib/format';
 import type {
   DataUsageEdge,
@@ -163,6 +164,8 @@ export function DataGovernanceSection() {
           value={formatNumber(summary?.workloads, locale)}
         />
       </StatGrid>
+
+      <RegulatedCopyScanCard />
 
       <Card>
         <DataTable

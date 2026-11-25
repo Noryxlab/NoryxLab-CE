@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	snapshotdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/snapshot"
@@ -44,29 +46,65 @@ const (
 	// croisement. On prefere le dire dans le journal plutot que faire tomber
 	// l'API la nuit.
 	regulatedCopyScanMaxObjects = 400_000
+	// Ce que l'on accorde a un declenchement manuel avant de rendre ce qu'on
+	// a. Le scan de nuit, lui, n'a que le timeout par listage.
+	regulatedCopyScanTimeout = 15 * time.Minute
 )
+
+// regulatedCopyReport is what one pass found, for the administrator who asked
+// for it rather than waiting for the night.
+type regulatedCopyReport struct {
+	// PairsCompared is how many (regulated, unclassified) pairs were actually
+	// read. Reported because zero is an answer: it means no project mixes the
+	// two kinds, and the scan has nothing to say rather than nothing to find.
+	PairsCompared int                       `json:"pairsCompared"`
+	PairsSkipped  int                       `json:"pairsSkipped"`
+	Findings      []regulatedCopyPairReport `json:"findings"`
+}
+
+type regulatedCopyPairReport struct {
+	RegulatedDatasetID   string `json:"regulatedDatasetId"`
+	RegulatedDatasetName string `json:"regulatedDatasetName"`
+	OpenDatasetID        string `json:"openDatasetId"`
+	OpenDatasetName      string `json:"openDatasetName"`
+	ProjectID            string `json:"projectId"`
+	Identical            int    `json:"identical"`
+	Probable             int    `json:"probable"`
+	TotalSize            int64  `json:"totalSize"`
+	// Copies is capped: a report that unrolls four thousand pairs of paths is
+	// not read any more than an alert that does.
+	Copies []snapshotdomain.Copy `json:"copies"`
+}
+
+// Ce qu'un rapport rend par paire avant de s'arreter.
+const regulatedCopyReportCopies = 50
 
 // scanRegulatedCopies compares every co-mounted pair and announces what it
 // recognises on both sides.
-func (h Handlers) scanRegulatedCopies(ctx context.Context) {
+//
+// It returns what it found as well as alerting, because an administrator who
+// has just granted write-beside-regulated-data wants the answer on screen and
+// the night is up to twenty-four hours away.
+func (h Handlers) scanRegulatedCopies(ctx context.Context) regulatedCopyReport {
+	report := regulatedCopyReport{Findings: []regulatedCopyPairReport{}}
 	if h.datasetStore == nil || h.projectResourceStore == nil {
-		return
+		return report
 	}
 	items, err := h.datasetStore.ListAll()
 	if err != nil {
 		log.Printf("regulated copy scan: cannot list datasets: %v", err)
-		return
+		return report
 	}
 	regulated, open := splitByRegulation(items)
 	if len(regulated) == 0 || len(open) == 0 {
-		return
+		return report
 	}
 
 	// Les projets d'abord, les octets ensuite : sans paire co-montee il n'y a
 	// aucun listage a payer.
 	pairs := h.coMountedPairs(regulated, open)
 	if len(pairs) == 0 {
-		return
+		return report
 	}
 
 	entries := map[string][]snapshotdomain.Entry{}
@@ -101,18 +139,37 @@ func (h Handlers) scanRegulatedCopies(ctx context.Context) {
 	for _, pair := range pairs {
 		destination, ok := read(pair.open)
 		if !ok {
+			report.PairsSkipped++
 			continue
 		}
 		source, ok := read(pair.regulated)
 		if !ok {
+			report.PairsSkipped++
 			continue
 		}
+		report.PairsCompared++
 		copies := snapshotdomain.CrossMatch(source, destination)
 		if len(copies) == 0 {
 			continue
 		}
-		h.announceRegulatedCopies(pair, copies)
+		report.Findings = append(report.Findings, h.announceRegulatedCopies(pair, copies))
 	}
+	return report
+}
+
+// RunRegulatedCopyScan runs the crossing now, for an administrator.
+//
+// Synchronous on purpose. The pass reads listings, not bytes, over the pairs
+// one project mixes - and an endpoint that answers "started" leaves the person
+// reading the log of a process they cannot see, which is the shape this scan
+// exists to replace.
+func (h Handlers) RunRegulatedCopyScan(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAdminModule(w, r, "datasets"); !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), regulatedCopyScanTimeout)
+	defer cancel()
+	writeJSON(w, http.StatusOK, h.scanRegulatedCopies(ctx))
 }
 
 // coMountedPair is one regulated dataset and one unclassified dataset that a
@@ -182,7 +239,7 @@ func splitByRegulation(items []dataset.Dataset) (regulated, open []dataset.Datas
 	return regulated, open
 }
 
-func (h Handlers) announceRegulatedCopies(pair coMountedPair, copies []snapshotdomain.Copy) {
+func (h Handlers) announceRegulatedCopies(pair coMountedPair, copies []snapshotdomain.Copy) regulatedCopyPairReport {
 	identical, probable := 0, 0
 	examples := make([]string, 0, regulatedCopyScanNamed)
 	var bytes int64
@@ -223,4 +280,20 @@ func (h Handlers) announceRegulatedCopies(pair coMountedPair, copies []snapshotd
 	})
 	log.Printf("regulated copy scan: %s -> %s, %d object(s) (%d identical, %d probable, %d bytes)",
 		pair.regulated.Name, pair.open.Name, len(copies), identical, probable, bytes)
+
+	shown := copies
+	if len(shown) > regulatedCopyReportCopies {
+		shown = shown[:regulatedCopyReportCopies]
+	}
+	return regulatedCopyPairReport{
+		RegulatedDatasetID:   pair.regulated.ID,
+		RegulatedDatasetName: pair.regulated.Name,
+		OpenDatasetID:        pair.open.ID,
+		OpenDatasetName:      pair.open.Name,
+		ProjectID:            pair.projectID,
+		Identical:            identical,
+		Probable:             probable,
+		TotalSize:            bytes,
+		Copies:               shown,
+	}
 }
