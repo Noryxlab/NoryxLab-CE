@@ -100,10 +100,17 @@ func (s *S3) GetRange(ctx context.Context, bucket, key string, offset, length in
 	if err != nil {
 		return nil, translateError(err)
 	}
-	if _, err := object.Stat(); err != nil {
-		object.Close()
-		return nil, translateError(err)
-	}
+	// No Stat here, unlike Get, and the difference is not an oversight.
+	// Calling Stat on an object opened with a range makes minio-go answer
+	// the request itself, after which the reader yields nothing: a 206 goes
+	// out with a Content-Length of 100 and a body of zero bytes, and the
+	// browser reports a framing error rather than a missing file. Seen on a
+	// running installation on 2026-11-26.
+	//
+	// Nothing is lost by leaving it out. A caller asking for part of an
+	// object knows how big it is - it had to, to compute the range - so the
+	// object's absence has already been established by the Stat that produced
+	// that size.
 	return object, nil
 }
 
