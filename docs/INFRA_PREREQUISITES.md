@@ -7,6 +7,12 @@ Noryx CE bootstrap depends on two external VMs:
 
 Without these two VMs, control-plane image pulls (`noryx-backend`, `noryx-frontend`) will fail in Kubernetes.
 
+For a cluster the platform does not install - EKS, GKE, AKS or any other
+managed Kubernetes - the prerequisites are different and are listed in
+[installing on a managed cluster](INSTALLING_ON_A_MANAGED_CLUSTER.md): a
+ReadWriteMany storage class, node pools that can run a FUSE DaemonSet, an
+enforced NetworkPolicy implementation, and S3-compatible object storage.
+
 ## Any OCI registry, not only Harbor
 
 The platform resolves the digest a tag points at through the **standard

@@ -185,6 +185,7 @@ installation values in a private operations repository or secret manager.
 ### Operations
 
 - [Install Community Edition step by step](docs/INSTALL_CE.md)
+- [Installing on a managed cluster](docs/INSTALLING_ON_A_MANAGED_CLUSTER.md) — EKS, GKE and AKS: what the cluster must provide, what degrades without Harbor or Longhorn, and the measured cost of a shared volume
 - [Bootstrap a VM](docs/BOOTSTRAP_VM.md)
 - [Image security and Harbor mirroring](docs/IMAGE_SECURITY.md)
 - [Observability](docs/OBSERVABILITY.md)
