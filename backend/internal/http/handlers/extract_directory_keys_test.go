@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	extractdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/extract"
-	"github.com/minio/minio-go/v7"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 )
 
 // Une cle de dossier ne se monte pas : elle cacherait l'etude.
@@ -69,7 +69,7 @@ func TestUnExtraitMinusculeNEstPasFiltre(t *testing.T) {
 // cle suivante, parce qu'un fichier vide reste un fichier : sans cette
 // seconde condition, un fichier de zero octet disparaitrait de l'etude.
 func TestLeScanReconnaitUneCleDeDossier(t *testing.T) {
-	dossier := minio.ObjectInfo{Key: "SELENA/S1/ANTERION", Size: 0}
+	dossier := objectstore.Object{Path: "SELENA/S1/ANTERION", Size: 0}
 	if !estUneCleDeDossier(dossier, "SELENA/S1/ANTERION/DICOM/f.dcm") {
 		t.Fatal("une cle vide suivie de ce qu'elle prefixe est un dossier")
 	}
@@ -79,7 +79,7 @@ func TestLeScanReconnaitUneCleDeDossier(t *testing.T) {
 	if estUneCleDeDossier(dossier, "SELENA/S2/f.dcm") {
 		t.Fatal("une cle vide que rien ne prolonge est un fichier vide")
 	}
-	plein := minio.ObjectInfo{Key: "SELENA/S1/ANTERION", Size: 12}
+	plein := objectstore.Object{Path: "SELENA/S1/ANTERION", Size: 12}
 	if estUneCleDeDossier(plein, "SELENA/S1/ANTERION/DICOM/f.dcm") {
 		t.Fatal("une cle qui porte des octets est un fichier")
 	}

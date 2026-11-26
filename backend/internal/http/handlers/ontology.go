@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"log"
 	"net/http"
 	"path"
@@ -18,7 +20,6 @@ import (
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/datasource"
 	ontologydomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/ontology"
-	"github.com/minio/minio-go/v7"
 )
 
 const ontologyScanMaxObjects = 50000
@@ -752,12 +753,12 @@ func (h Handlers) scanOntology(w http.ResponseWriter, r *http.Request, projectID
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 			return
 		}
-		client, _, err := h.datasetS3Client(item)
-		if err != nil || client == nil {
+		store, err := h.datasetObjectStore(item)
+		if err != nil || store == nil {
 			writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 			return
 		}
-		manifest, scannedObjects, err = h.buildDatasetOntologyManifest(r.Context(), projectID, item, client, identity.UserID())
+		manifest, scannedObjects, err = h.buildDatasetOntologyManifest(r.Context(), projectID, item, store, identity.UserID())
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "ontology scan failed: " + err.Error()})
 			return
@@ -1272,7 +1273,7 @@ func queryLimit(limit int) int {
 // three sample paths per modality - enough to show what the data looks like,
 // never enough to build an extract from - so the recognised paths are handed back
 // to be stored, and an extract declared next month can still name the same files.
-func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, client *minio.Client, generatedBy string) (ontologyManifest, []ontologydomain.Object, error) {
+func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID string, item dataset.Dataset, store objectstore.Store, generatedBy string) (ontologyManifest, []ontologydomain.Object, error) {
 	prefix := strings.Trim(item.Prefix, "/")
 	if prefix != "" {
 		prefix += "/"
@@ -1309,8 +1310,8 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 	//
 	// Le listing S3 est trie, donc une cle prefixe est immediatement suivie de
 	// ce qu'elle prefixe : une entree d'avance suffit, sans garder la liste.
-	traiter := func(obj minio.ObjectInfo) bool {
-		relPath := obj.Key
+	traiter := func(obj objectstore.Object) bool {
+		relPath := obj.Path
 		if prefix != "" && strings.HasPrefix(relPath, prefix) {
 			relPath = strings.TrimPrefix(relPath, prefix)
 		}
@@ -1400,21 +1401,26 @@ func (h Handlers) buildDatasetOntologyManifest(ctx context.Context, projectID st
 		return true
 	}
 
-	var attente *minio.ObjectInfo
-	for obj := range client.ListObjects(scanCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if obj.Err != nil {
-			return ontologyManifest{}, nil, obj.Err
-		}
-		suivante := obj
-		if attente != nil {
-			if estUneCleDeDossier(*attente, suivante.Key) {
-				directories++
-			} else if !traiter(*attente) {
-				attente = nil
-				break
+	// errAssezScanne arrete le listage quand traiter dit stop : c'est la fin
+	// normale d'un scan qui a atteint son plafond, pas un echec.
+	errAssezScanne := errors.New("scan complete")
+	var attente *objectstore.Object
+	errListage := store.List(scanCtx, item.Bucket, objectstore.ListOptions{Prefix: prefix, Recursive: true},
+		func(obj objectstore.Object) error {
+			suivante := obj
+			if attente != nil {
+				if estUneCleDeDossier(*attente, suivante.Path) {
+					directories++
+				} else if !traiter(*attente) {
+					attente = nil
+					return errAssezScanne
+				}
 			}
-		}
-		attente = &suivante
+			attente = &suivante
+			return nil
+		})
+	if errListage != nil && !errors.Is(errListage, errAssezScanne) {
+		return ontologyManifest{}, nil, errListage
 	}
 	if attente != nil {
 		// La derniere cle ne prefixe rien, par construction.
@@ -1859,11 +1865,11 @@ func stringInSlice(value string, values []string) bool {
 // dossier est vide par definition et qu'un fichier vide se compte comme un
 // fichier. Et prefixe de la cle suivante, parce que le listing est trie :
 // c'est ce qui distingue un dossier d'un fichier qui se trouve etre vide.
-func estUneCleDeDossier(obj minio.ObjectInfo, suivante string) bool {
+func estUneCleDeDossier(obj objectstore.Object, suivante string) bool {
 	if obj.Size != 0 {
 		return false
 	}
-	cle := strings.TrimSuffix(obj.Key, "/")
+	cle := strings.TrimSuffix(obj.Path, "/")
 	return cle != "" && strings.HasPrefix(suivante, cle+"/")
 }
 

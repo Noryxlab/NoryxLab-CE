@@ -3,13 +3,14 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
-	"github.com/minio/minio-go/v7"
 )
 
 // Whether an ontology still describes its source.
@@ -119,7 +120,7 @@ func (h Handlers) GetOntologyFreshness(w http.ResponseWriter, r *http.Request) {
 // because a warning that is always on is a warning nobody reads on the day the
 // study really does gain eleven subjects.
 func (h Handlers) countDatasetObjects(ctx context.Context, item dataset.Dataset) (int, error) {
-	client, _, err := h.datasetS3Client(item)
+	store, err := h.datasetObjectStore(item)
 	if err != nil {
 		return 0, err
 	}
@@ -130,34 +131,47 @@ func (h Handlers) countDatasetObjects(ctx context.Context, item dataset.Dataset)
 	listCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
-	return countListedObjects(client.ListObjects(listCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}))
+	counter := folderAwareCount{}
+	err = store.List(listCtx, item.Bucket, objectstore.ListOptions{Prefix: prefix, Recursive: true}, counter.observe)
+	if err != nil && !errors.Is(err, errCountCeilingReached) {
+		return 0, err
+	}
+	return counter.total(), nil
 }
 
-// countListedObjects counts a listing the way the scan counts it.
+// errCountCeilingReached stops the listing without being a failure: the count
+// has reached the ceiling the scan itself stops at, and walking the rest would
+// cost a full listing to produce a number nobody would use.
+var errCountCeilingReached = errors.New("object ceiling reached")
+
+// folderAwareCount counts a listing the way the scan counts it.
 //
 // One entry of lookahead, exactly as buildDatasetOntologyManifest does it: an
 // S3 listing is sorted, so a directory key is immediately followed by what it
-// prefixes. Kept apart from the client so the arithmetic that caused the bug
-// can be tested without a bucket.
-func countListedObjects(listing <-chan minio.ObjectInfo) (int, error) {
-	count := 0
-	var pending *minio.ObjectInfo
-	for object := range listing {
-		if object.Err != nil {
-			return 0, object.Err
+// prefixes. Kept apart from the store so the arithmetic that caused the bug
+// can be tested without a bucket - which is the whole reason this is a type
+// rather than a loop inside the caller.
+type folderAwareCount struct {
+	count   int
+	pending *objectstore.Object
+}
+
+func (c *folderAwareCount) observe(object objectstore.Object) error {
+	next := object
+	if c.pending != nil && !estUneCleDeDossier(*c.pending, next.Path) {
+		c.count++
+		if c.count > ontologyScanMaxObjects {
+			return errCountCeilingReached
 		}
-		next := object
-		if pending != nil && !estUneCleDeDossier(*pending, next.Key) {
-			count++
-			if count > ontologyScanMaxObjects {
-				return count, nil
-			}
-		}
-		pending = &next
 	}
-	// The last key prefixes nothing, by construction.
-	if pending != nil {
-		count++
+	c.pending = &next
+	return nil
+}
+
+// total adds the last key, which prefixes nothing by construction.
+func (c *folderAwareCount) total() int {
+	if c.pending == nil {
+		return c.count
 	}
-	return count, nil
+	return c.count + 1
 }

@@ -3,12 +3,12 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/minio/minio-go/v7"
 
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 )
@@ -266,8 +266,8 @@ func (h Handlers) TryDatasetPathLayout(w http.ResponseWriter, r *http.Request) {
 // listing stops as soon as it has enough: this answers a form field, it is not
 // a scan.
 func (h Handlers) sampleDatasetPaths(r *http.Request, item datasetdomain.Dataset, wanted int) ([]string, error) {
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		return nil, errDatasetUnreachable(err)
 	}
 	prefix := strings.TrimPrefix(strings.TrimSpace(item.Prefix), "/")
@@ -279,27 +279,31 @@ func (h Handlers) sampleDatasetPaths(r *http.Request, item datasetdomain.Dataset
 
 	paths := make([]string, 0, wanted)
 	examined := 0
-	for obj := range client.ListObjects(ctx, item.Bucket, minioListRecursive(prefix)) {
-		if obj.Err != nil {
-			return nil, obj.Err
-		}
+	// errAssezDeChemins ends the walk once the trial has what it needs: a
+	// sample of a few paths, not an inventory.
+	errAssezDeChemins := errors.New("enough paths")
+	err = store.List(ctx, item.Bucket, listRecursive(prefix), func(obj objectstore.Object) error {
 		examined++
-		relPath := strings.Trim(strings.TrimPrefix(obj.Key, prefix), "/")
+		relPath := strings.Trim(strings.TrimPrefix(obj.Path, prefix), "/")
 		// A zero-byte key that names a directory is not a path anybody reads,
 		// and showing one in a trial would suggest the rule failed on a file.
 		if relPath == "" || (obj.Size == 0 && !strings.Contains(relPath, ".")) {
-			continue
+			return nil
 		}
 		paths = append(paths, relPath)
 		if len(paths) >= wanted || examined > pathLayoutTrialScanCeiling {
-			break
+			return errAssezDeChemins
 		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errAssezDeChemins) {
+		return nil, err
 	}
 	return paths, nil
 }
 
-func minioListRecursive(prefix string) minio.ListObjectsOptions {
-	return minio.ListObjectsOptions{Prefix: prefix, Recursive: true}
+func listRecursive(prefix string) objectstore.ListOptions {
+	return objectstore.ListOptions{Prefix: prefix, Recursive: true}
 }
 
 func contextWithTimeoutFrom(r *http.Request, d time.Duration) (context.Context, context.CancelFunc) {

@@ -103,12 +103,12 @@ func datasetAccessAlert(unreachable []string) healthAlert {
 // datasetIsReachable asks the object store one question, with a deadline, and
 // reads nothing.
 func (h Handlers) datasetIsReachable(item dataset.Dataset) bool {
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), datasetProbeTimeout)
 	defer cancel()
-	exists, err := client.BucketExists(ctx, item.Bucket)
+	exists, err := store.BucketExists(ctx, item.Bucket)
 	return err == nil && exists
 }

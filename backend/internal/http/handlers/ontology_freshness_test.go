@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/minio/minio-go/v7"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 )
 
 // The point of the feature is the arithmetic and the honesty of its edges: a
@@ -80,16 +80,13 @@ func TestFreshnessCountsWhatTheScanCounts(t *testing.T) {
 		{"SELENA/checksums/", 0},
 		{"SELENA/checksums/checksum_20260918.tsv", 128},
 	}
-	listing := make(chan minio.ObjectInfo, len(keys))
+	counter := folderAwareCount{}
 	for _, entry := range keys {
-		listing <- minio.ObjectInfo{Key: entry.key, Size: entry.size}
+		if err := counter.observe(objectstore.Object{Path: entry.key, Size: entry.size}); err != nil {
+			t.Fatalf("observe: %v", err)
+		}
 	}
-	close(listing)
-
-	count, err := countListedObjects(listing)
-	if err != nil {
-		t.Fatalf("count: %v", err)
-	}
+	count := counter.total()
 	// Three files. The four directory markers are not objects, and counting
 	// them is what made every ontology stale from birth.
 	if count != 3 {
@@ -100,15 +97,16 @@ func TestFreshnessCountsWhatTheScanCounts(t *testing.T) {
 // A zero-byte file is a file. The lookahead must not swallow one just because
 // it is empty: only a key that prefixes the next one is a directory marker.
 func TestAnEmptyFileIsNotADirectoryKey(t *testing.T) {
-	listing := make(chan minio.ObjectInfo, 2)
-	listing <- minio.ObjectInfo{Key: "study/subject/empty.txt", Size: 0}
-	listing <- minio.ObjectInfo{Key: "study/subject/scan.dcm", Size: 4096}
-	close(listing)
-
-	count, err := countListedObjects(listing)
-	if err != nil {
-		t.Fatalf("count: %v", err)
+	counter := folderAwareCount{}
+	for _, object := range []objectstore.Object{
+		{Path: "study/subject/empty.txt", Size: 0},
+		{Path: "study/subject/scan.dcm", Size: 4096},
+	} {
+		if err := counter.observe(object); err != nil {
+			t.Fatalf("observe: %v", err)
+		}
 	}
+	count := counter.total()
 	if count != 2 {
 		t.Fatalf("counted %d objects, want 2", count)
 	}
