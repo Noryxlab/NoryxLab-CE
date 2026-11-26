@@ -6,6 +6,8 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/minio/minio-go/v7"
 )
 
 // Le contrat, verifie sur l'implementation en memoire. Une implementation qui
@@ -122,5 +124,40 @@ func TestEcrireRelireCopier(t *testing.T) {
 	content, _ := io.ReadAll(reader)
 	if string(content) != body {
 		t.Fatalf("copie = %q, attendu %q", content, body)
+	}
+}
+
+// Une absence et une illisibilite ne sont pas la meme chose.
+//
+// La question vient du renommage de dataset, ou elle decide si l'on ecrase :
+// lire n'importe quelle erreur comme « absent » laisse un renommage recouvrir
+// un fichier dont l'existence n'a pas pu etre verifiee, ce qui sur une donnee
+// reglementee est une suppression sans trace de ce qui a ete perdu. Elle est
+// tranchee ici, une fois, pour toutes les implementations.
+func TestUneErreurDeLectureNEstPasUneAbsence(t *testing.T) {
+	absent := []minio.ErrorResponse{
+		{Code: "NoSuchKey", StatusCode: 404},
+		{Code: "NoSuchBucket", StatusCode: 404},
+		// Certains magasins repondent 404 sans code : la premiere version de
+		// ce test ne verifiait qu'une des deux formes, et chaque site
+		// d'appel ne verifiait que l'autre.
+		{Code: "", StatusCode: 404},
+	}
+	for _, response := range absent {
+		if !errors.Is(translateError(response), ErrNotFound) {
+			t.Errorf("%+v n'a pas ete reconnu comme une absence", response)
+		}
+	}
+	for _, response := range []minio.ErrorResponse{
+		{Code: "AccessDenied", StatusCode: 403},
+		{Code: "InternalError", StatusCode: 500},
+		{Code: "SlowDown", StatusCode: 503},
+	} {
+		if errors.Is(translateError(response), ErrNotFound) {
+			t.Errorf("%s a ete lu comme une absence ; un renommage ecraserait", response.Code)
+		}
+	}
+	if translateError(nil) != nil {
+		t.Error("une absence d'erreur est devenue une erreur")
 	}
 }

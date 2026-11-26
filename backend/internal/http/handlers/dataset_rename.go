@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
-	"github.com/minio/minio-go/v7"
 )
 
 // Renaming an object inside a dataset.
@@ -72,24 +72,24 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
 	defer cancel()
 
-	source, err := client.StatObject(ctx, item.Bucket, fromKey, minio.StatObjectOptions{})
+	source, err := store.Stat(ctx, item.Bucket, fromKey)
 	if err != nil {
 		// Not a single object: it may be a folder, which is a prefix rather
 		// than a thing. Only then, so a plain rename keeps its exact
 		// behaviour and its one-object audit line.
-		if !isNoSuchKey(err) {
+		if !errors.Is(err, objectstore.ErrNotFound) {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the object to rename could not be read"})
 			return
 		}
-		count, moveErr := h.renameDatasetFolder(ctx, client, item, fromKey, toKey)
+		count, moveErr := h.renameDatasetFolder(ctx, store, item, fromKey, toKey)
 		switch {
 		case errors.Is(moveErr, errNothingToMove):
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "the object to rename does not exist"})
@@ -108,17 +108,15 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// Refused rather than overwritten. A rename that silently replaces another
 	// file destroys something nobody asked about, and on a regulated dataset
 	// that is a deletion with no record of what was lost.
-	if _, err := client.StatObject(ctx, item.Bucket, toKey, minio.StatObjectOptions{}); err == nil {
+	if _, err := store.Stat(ctx, item.Bucket, toKey); err == nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "an object with that name already exists"})
 		return
-	} else if !isNoSuchKey(err) {
+	} else if !errors.Is(err, objectstore.ErrNotFound) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to check the target name"})
 		return
 	}
 
-	if _, err := client.CopyObject(ctx,
-		minio.CopyDestOptions{Bucket: item.Bucket, Object: toKey},
-		minio.CopySrcOptions{Bucket: item.Bucket, Object: fromKey}); err != nil {
+	if err := store.Copy(ctx, item.Bucket, fromKey, item.Bucket, toKey); err != nil {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.renamed", "dataset", item.ID, "",
 			"failure", "copy_failed", datasetRenameAuditDetails(item, fromRel, toRel, source.Size))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "the copy failed, nothing was changed"})
@@ -129,7 +127,7 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// than by the absence of an error: a copy that reported success and landed
 	// short would otherwise be followed by the deletion of the only complete
 	// copy.
-	copied, err := client.StatObject(ctx, item.Bucket, toKey, minio.StatObjectOptions{})
+	copied, err := store.Stat(ctx, item.Bucket, toKey)
 	if err != nil || copied.Size != source.Size {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.renamed", "dataset", item.ID, "",
 			"failure", "copy_unverified", datasetRenameAuditDetails(item, fromRel, toRel, source.Size))
@@ -138,7 +136,7 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := client.RemoveObject(ctx, item.Bucket, fromKey, minio.RemoveObjectOptions{}); err != nil {
+	if err := store.Remove(ctx, item.Bucket, fromKey); err != nil {
 		// The copy stands and the original stands: the caller now has two
 		// files rather than none, which is the right way round to fail, and
 		// the audit line says so rather than leaving somebody to find it.
@@ -158,15 +156,10 @@ func (h Handlers) RenameDatasetObject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// isNoSuchKey says whether the target is genuinely absent, as opposed to
-// unreadable. The difference decides whether a rename may proceed.
-func isNoSuchKey(err error) bool {
-	var response minio.ErrorResponse
-	if errors.As(err, &response) {
-		return response.Code == "NoSuchKey" || response.StatusCode == http.StatusNotFound
-	}
-	return minio.ToErrorResponse(err).Code == "NoSuchKey"
-}
+// The question "is it genuinely absent, as opposed to unreadable" used to be
+// answered here, by inspecting minio-go's error two different ways because
+// neither alone covered both shapes it takes. objectstore.ErrNotFound answers
+// it once, for every implementation, which is most of why that package exists.
 
 func datasetRenameAuditDetails(item dataset.Dataset, from, to string, size int64) map[string]any {
 	details := datasetTransferAuditDetails(item, from, size)
@@ -197,24 +190,29 @@ const maxObjectsPerFolderMove = 10000
 // neither name - which, on study data somebody is reorganising, is the only
 // property worth protecting.
 func (h Handlers) renameDatasetFolder(
-	ctx context.Context, client *minio.Client, item dataset.Dataset, fromKey, toKey string,
+	ctx context.Context, store objectstore.Store, item dataset.Dataset, fromKey, toKey string,
 ) (int, error) {
 	fromPrefix, toPrefix := fromKey+"/", toKey+"/"
 	if strings.HasPrefix(toPrefix, fromPrefix) {
 		return 0, errors.New("a folder cannot be moved inside itself")
 	}
 
-	sources := []minio.ObjectInfo{}
-	for object := range client.ListObjects(ctx, item.Bucket,
-		minio.ListObjectsOptions{Prefix: fromPrefix, Recursive: true}) {
-		if object.Err != nil {
-			return 0, errors.New("the folder could not be listed")
-		}
-		sources = append(sources, object)
-		if len(sources) > maxObjectsPerFolderMove {
-			return 0, errors.New("this folder holds more than " +
-				itoa(maxObjectsPerFolderMove) + " files; move its sub-folders one at a time")
-		}
+	sources := []objectstore.Object{}
+	errTooMany := errors.New("too many objects")
+	listErr := store.List(ctx, item.Bucket, objectstore.ListOptions{Prefix: fromPrefix, Recursive: true},
+		func(object objectstore.Object) error {
+			sources = append(sources, object)
+			if len(sources) > maxObjectsPerFolderMove {
+				return errTooMany
+			}
+			return nil
+		})
+	switch {
+	case errors.Is(listErr, errTooMany):
+		return 0, errors.New("this folder holds more than " +
+			itoa(maxObjectsPerFolderMove) + " files; move its sub-folders one at a time")
+	case listErr != nil:
+		return 0, errors.New("the folder could not be listed")
 	}
 	if len(sources) == 0 {
 		return 0, errNothingToMove
@@ -224,47 +222,45 @@ func (h Handlers) renameDatasetFolder(
 	// merged itself into an existing one, file by file, would be impossible to
 	// undo and impossible to describe afterwards.
 	for _, source := range sources {
-		target := toPrefix + strings.TrimPrefix(source.Key, fromPrefix)
-		if _, err := client.StatObject(ctx, item.Bucket, target, minio.StatObjectOptions{}); err == nil {
+		target := toPrefix + strings.TrimPrefix(source.Path, fromPrefix)
+		if _, err := store.Stat(ctx, item.Bucket, target); err == nil {
 			return 0, errors.New("the destination already holds " +
-				strings.TrimPrefix(source.Key, fromPrefix))
-		} else if !isNoSuchKey(err) {
+				strings.TrimPrefix(source.Path, fromPrefix))
+		} else if !errors.Is(err, objectstore.ErrNotFound) {
 			return 0, errors.New("the destination could not be checked")
 		}
 	}
 
 	copied := []string{}
 	for _, source := range sources {
-		target := toPrefix + strings.TrimPrefix(source.Key, fromPrefix)
-		if _, err := client.CopyObject(ctx,
-			minio.CopyDestOptions{Bucket: item.Bucket, Object: target},
-			minio.CopySrcOptions{Bucket: item.Bucket, Object: source.Key}); err != nil {
-			h.sweepCopies(ctx, client, item, copied)
+		target := toPrefix + strings.TrimPrefix(source.Path, fromPrefix)
+		if err := store.Copy(ctx, item.Bucket, source.Path, item.Bucket, target); err != nil {
+			h.sweepCopies(ctx, store, item, copied)
 			return 0, errors.New("the copy failed at " +
-				strings.TrimPrefix(source.Key, fromPrefix) + "; nothing was moved")
+				strings.TrimPrefix(source.Path, fromPrefix) + "; nothing was moved")
 		}
 		// Verified by size, for the same reason as a single object: a copy
 		// that reported success and landed short must not be followed by the
 		// deletion of the only complete one.
-		landed, err := client.StatObject(ctx, item.Bucket, target, minio.StatObjectOptions{})
+		landed, err := store.Stat(ctx, item.Bucket, target)
 		if err != nil || landed.Size != source.Size {
-			h.sweepCopies(ctx, client, item, append(copied, target))
+			h.sweepCopies(ctx, store, item, append(copied, target))
 			return 0, errors.New("the copy of " +
-				strings.TrimPrefix(source.Key, fromPrefix) + " could not be verified; nothing was moved")
+				strings.TrimPrefix(source.Path, fromPrefix) + " could not be verified; nothing was moved")
 		}
 		copied = append(copied, target)
 	}
 
 	// Every copy stands. Only now do the originals go.
 	for _, source := range sources {
-		if err := client.RemoveObject(ctx, item.Bucket, source.Key, minio.RemoveObjectOptions{}); err != nil {
+		if err := store.Remove(ctx, item.Bucket, source.Path); err != nil {
 			return len(sources), errors.New("the folder was copied but " +
-				strings.TrimPrefix(source.Key, fromPrefix) + " could not be removed; both names now exist")
+				strings.TrimPrefix(source.Path, fromPrefix) + " could not be removed; both names now exist")
 		}
 	}
 	// The folder marker, when the store keeps one. Absent on most, and its
 	// absence is not a failure.
-	_ = client.RemoveObject(ctx, item.Bucket, fromPrefix, minio.RemoveObjectOptions{})
+	_ = store.Remove(ctx, item.Bucket, fromPrefix)
 	return len(sources), nil
 }
 
@@ -274,9 +270,9 @@ var errNothingToMove = errors.New("no object under this prefix")
 
 // sweepCopies removes what a failed move had already written. Best effort: the
 // move has failed either way, and the originals are what matters.
-func (h Handlers) sweepCopies(ctx context.Context, client *minio.Client, item dataset.Dataset, keys []string) {
+func (h Handlers) sweepCopies(ctx context.Context, store objectstore.Store, item dataset.Dataset, keys []string) {
 	for _, key := range keys {
-		_ = client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{})
+		_ = store.Remove(ctx, item.Bucket, key)
 	}
 }
 

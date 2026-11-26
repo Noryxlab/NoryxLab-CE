@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"net/http"
 	"testing"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
-	"github.com/minio/minio-go/v7"
 )
 
 // A rename cannot be used to reach outside the dataset.
@@ -27,26 +25,11 @@ func TestRenameStaysInsideTheDataset(t *testing.T) {
 	}
 }
 
-// An absent target and an unreadable one are not the same thing.
-//
-// The handler proceeds only when the target is genuinely absent. Reading any
-// error as "absent" would let a rename overwrite a file whose existence could
-// not be checked, which on a regulated dataset is a deletion with no record of
-// what was lost.
-func TestNoSuchKeyDistinguishesAbsentFromUnreadable(t *testing.T) {
-	absent := minio.ErrorResponse{Code: "NoSuchKey", StatusCode: http.StatusNotFound}
-	if !isNoSuchKey(absent) {
-		t.Fatal("a missing object was not recognised as missing")
-	}
-	for _, other := range []minio.ErrorResponse{
-		{Code: "AccessDenied", StatusCode: http.StatusForbidden},
-		{Code: "InternalError", StatusCode: http.StatusInternalServerError},
-	} {
-		if isNoSuchKey(other) {
-			t.Fatalf("%s was read as an absent object; a rename would overwrite", other.Code)
-		}
-	}
-}
+// "An absent target and an unreadable one are not the same thing" now lives
+// with the code that decides it: internal/objectstore, TestUneErreurDeLecture
+// NEstPasUneAbsence. The question is unchanged - reading any error as "absent"
+// would let a rename overwrite a file whose existence could not be checked -
+// but it is one implementation's job rather than this handler's.
 
 // The audit line names both halves.
 //

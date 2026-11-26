@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
-	"github.com/minio/minio-go/v7"
 )
 
 // How big a dataset is.
@@ -77,7 +78,7 @@ func (h Handlers) GetDatasetUsage(w http.ResponseWriter, r *http.Request) {
 // measureDataset lists a dataset and adds up what it finds. It reads object
 // metadata - key and size - and never object contents.
 func (h Handlers) measureDataset(ctx context.Context, item dataset.Dataset) (datasetUsage, error) {
-	client, _, err := h.datasetS3Client(item)
+	store, err := h.datasetObjectStore(item)
 	if err != nil {
 		return datasetUsage{}, err
 	}
@@ -89,18 +90,23 @@ func (h Handlers) measureDataset(ctx context.Context, item dataset.Dataset) (dat
 	defer cancel()
 
 	usage := datasetUsage{MeasuredAt: time.Now().UTC()}
-	for object := range client.ListObjects(listCtx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if object.Err != nil {
-			return datasetUsage{}, object.Err
-		}
+	// enough is how the callback says "I have seen what I came for". It
+	// travels back out of List and is swallowed here: stopping early is the
+	// expected end of this walk, not a failure to report.
+	errEnough := errors.New("enough")
+	err = store.List(listCtx, item.Bucket, objectstore.ListOptions{Prefix: prefix, Recursive: true}, func(object objectstore.Object) error {
 		usage.Objects++
 		usage.TotalBytes += object.Size
 		if usage.Objects >= ontologyScanMaxObjects {
 			// Said rather than hidden: a total that stopped counting must not
 			// read as the size of the dataset.
 			usage.Truncated = true
-			break
+			return errEnough
 		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errEnough) {
+		return datasetUsage{}, err
 	}
 	return usage, nil
 }

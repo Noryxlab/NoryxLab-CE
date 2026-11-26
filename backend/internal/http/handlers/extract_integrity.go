@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	"errors"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/minio/minio-go/v7"
 )
 
 // Are the files an extract froze still there?
@@ -54,8 +54,8 @@ func (h Handlers) GetExtractIntegrity(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "the dataset this extract reads is gone"})
 		return
 	}
-	client, _, err := h.datasetS3Client(source)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(source)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -90,8 +90,8 @@ func (h Handlers) GetExtractIntegrity(w http.ResponseWriter, r *http.Request) {
 	missing := []extractIntegrityMissing{}
 	for index := 0; index < len(members) && checked < extractIntegritySample; index += step {
 		member := members[index]
-		if _, err := client.StatObject(ctx, source.Bucket, prefix+member.Path, minio.StatObjectOptions{}); err != nil {
-			if minio.ToErrorResponse(err).StatusCode == http.StatusNotFound {
+		if _, err := store.Stat(ctx, source.Bucket, prefix+member.Path); err != nil {
+			if errors.Is(err, objectstore.ErrNotFound) {
 				missing = append(missing, extractIntegrityMissing{Path: member.Path})
 				checked++
 				continue
