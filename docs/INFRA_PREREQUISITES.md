@@ -7,6 +7,25 @@ Noryx CE bootstrap depends on two external VMs:
 
 Without these two VMs, control-plane image pulls (`noryx-backend`, `noryx-frontend`) will fail in Kubernetes.
 
+## Any OCI registry, not only Harbor
+
+The platform resolves the digest a tag points at through the **standard
+registry API** (`/v2/.../manifests/...`, including the bearer token flow), so
+ECR, Artifact Registry, ACR, GitLab's registry and Harbor are all equivalent
+for the part that matters: a run records the digest that actually executed,
+and the pod runs that digest.
+
+Three things remain specific to Harbor, because the registry standard does not
+cover them. They degrade; nothing fails:
+
+- the **size** of an environment image, shown in the catalogue;
+- **vulnerability counts**, which Harbor produces by scanning with Trivy on
+  push;
+- **deleting** an environment image built by the platform.
+
+Image builds themselves are registry-agnostic: they run Kaniko in the cluster
+and push wherever the credentials point.
+
 ## In-cluster storage baseline
 
 Noryx CE bootstrap installs Longhorn CSI for workspace PVCs.

@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -29,11 +31,15 @@ func TestPinnedImageRunsTheDigestWhenThereIsOne(t *testing.T) {
 	}
 }
 
+// The registry protocol, which every registry speaks - including the ones a
+// client arrives with.
 func TestTheDigestComesFromTheRegistry(t *testing.T) {
-	var asked string
+	var asked, accepted string
 	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		asked = r.Method + " " + r.URL.Path
-		_, _ = w.Write([]byte(`{"digest":"sha256:1234"}`))
+		accepted = r.Header.Get("Accept")
+		w.Header().Set("Docker-Content-Digest", "sha256:1234")
+		_, _ = w.Write([]byte(`{"schemaVersion":2}`))
 	}))
 	defer registry.Close()
 
@@ -43,13 +49,72 @@ func TestTheDigestComesFromTheRegistry(t *testing.T) {
 	if digest != "sha256:1234" {
 		t.Fatalf("digest = %q, want sha256:1234", digest)
 	}
-	// HEAD, not GET: the manifest body is not needed and can be large.
-	// Harbor's API, not the registry protocol: the registry endpoint answers
-	// 401 to basic credentials and expects a bearer token flow, which is how
-	// the first version of this silently resolved nothing in production while
-	// passing against a fake that accepted basic auth.
-	if asked != "GET /api/v2.0/projects/noryx-environments/repositories/jupyter/artifacts/0.1.0" {
+	if asked != "GET /v2/noryx-environments/jupyter/manifests/0.1.0" {
 		t.Errorf("asked %q", asked)
+	}
+	// A multi-architecture image is an index, and a request that does not
+	// accept one is answered 404 by a registry that holds it.
+	if !strings.Contains(accepted, "image.index.v1+json") {
+		t.Errorf("Accept did not offer the index types: %q", accepted)
+	}
+}
+
+// The flow Harbor, Artifact Registry and ACR all use: basic credentials get a
+// 401 and a challenge, and the caller fetches a token and retries. The first
+// version of this treated the 401 as "no digest" and recorded nothing in
+// production while passing against a fake that accepted basic auth.
+func TestTheBearerChallengeIsFollowed(t *testing.T) {
+	var scope, service, realm string
+	var attempts int
+	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			scope, service = r.URL.Query().Get("scope"), r.URL.Query().Get("service")
+			_, _ = w.Write([]byte(`{"token":"issued-token"}`))
+			return
+		}
+		attempts++
+		if r.Header.Get("Authorization") != "Bearer issued-token" {
+			w.Header().Set("Www-Authenticate",
+				`Bearer realm="`+realm+`/token",service="harbor",scope="repository:noryx-environments/jupyter:pull"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Docker-Content-Digest", "sha256:beef")
+		_, _ = w.Write([]byte(`{"schemaVersion":2}`))
+	}))
+	defer registry.Close()
+	realm = registry.URL
+
+	h := Handlers{harborURL: registry.URL, harborUsername: "robot", harborPassword: "secret"}
+	if digest := h.resolveImageDigest(registryHost(registry.URL) + "/noryx-environments/jupyter:0.1.0"); digest != "sha256:beef" {
+		t.Fatalf("digest = %q, want sha256:beef", digest)
+	}
+	if attempts != 2 {
+		t.Errorf("attempts = %d, want one refused and one with the token", attempts)
+	}
+	// Taken from the challenge, not built: a token issued for a scope we
+	// invented authorises nothing, and reads as a second 401.
+	if scope != "repository:noryx-environments/jupyter:pull" || service != "harbor" {
+		t.Errorf("asked for scope %q service %q", scope, service)
+	}
+}
+
+// A registry that omits the header still has to yield a digest: a manifest's
+// digest is the sha256 of those exact bytes, so computing it is as
+// authoritative as being told.
+func TestADigestIsComputedWhenTheHeaderIsMissing(t *testing.T) {
+	body := `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json"}`
+	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer registry.Close()
+
+	sum := sha256.Sum256([]byte(body))
+	want := "sha256:" + hex.EncodeToString(sum[:])
+
+	h := Handlers{harborURL: registry.URL}
+	if digest := h.resolveImageDigest(registryHost(registry.URL) + "/noryx-environments/jupyter:0.1.0"); digest != want {
+		t.Fatalf("digest = %q, want %q", digest, want)
 	}
 }
 
@@ -100,7 +165,8 @@ func TestAnUnparseableReferenceYieldsNoDigest(t *testing.T) {
 // while the tag is launched would be a lie that survives an audit.
 func TestALaunchRunsTheDigestItRecords(t *testing.T) {
 	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"digest":"sha256:deadbeef"}`))
+		w.Header().Set("Docker-Content-Digest", "sha256:deadbeef")
+		_, _ = w.Write([]byte(`{"schemaVersion":2}`))
 	}))
 	defer registry.Close()
 

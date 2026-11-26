@@ -426,7 +426,10 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	// The credential is resolved outside the audit middleware, because that
 	// one emits its event after the handler has returned and reads the request
 	// it was handed: a context value added further in would be out of reach.
-	handler := h.RecordActingCredential(h.AuditMutations(h.EnforceTokenScopes(mux)))
+	// Security headers outermost: they belong on every answer, including the
+	// refusals the layers below produce and the ones that never reach a
+	// handler at all.
+	handler := h.SecurityHeaders(h.RecordActingCredential(h.AuditMutations(h.EnforceTokenScopes(mux))))
 
 	// The platform is also its own client: an agent calling the API as its
 	// owner goes through this same chain, audit included, and reads the same

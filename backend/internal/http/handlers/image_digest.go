@@ -1,15 +1,6 @@
 package handlers
 
-import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-)
+import "strings"
 
 // Pinning what actually ran.
 //
@@ -42,59 +33,15 @@ func (h Handlers) resolveImageDigest(image string) string {
 	if !ok {
 		return ""
 	}
-	// Only our own registry is asked. A public image's digest would be just as
-	// useful, but the credentials here are Harbor's and sending them elsewhere
-	// is not a thing to do by accident.
+	// Only the registry the platform holds credentials for is asked. A public
+	// image's digest would be just as useful, but sending our credentials to
+	// somebody else's host is not a thing to do by accident.
 	if !strings.EqualFold(registry, registryHost(h.harborURL)) {
 		return ""
 	}
-
-	// Harbor's own API rather than the registry's.
-	//
-	// The registry endpoint (/v2/.../manifests/...) speaks the Docker token
-	// flow: basic credentials get a 401 and a WWW-Authenticate header, and the
-	// client is expected to fetch a bearer token and retry. Asking it with
-	// basic auth returns 401 forever - which is what the first version of this
-	// did against the real Harbor, silently recording no digest at all while
-	// every unit test passed against a fake that accepted basic auth.
-	//
-	// Harbor's API takes the credentials the platform already holds, and it is
-	// the same endpoint the environment catalogue already calls successfully.
-	project, repository, ok := splitHarborRepository(repositoryPath)
-	if !ok {
-		return ""
-	}
-	endpoint := fmt.Sprintf("%s/api/v2.0/projects/%s/repositories/%s/artifacts/%s",
-		strings.TrimSuffix(h.harborURL, "/"),
-		url.PathEscape(project),
-		url.PathEscape(repository),
-		url.PathEscape(tag),
-	)
-	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return ""
-	}
-	if user, password := strings.TrimSpace(h.harborUsername), strings.TrimSpace(h.harborPassword); user != "" && password != "" {
-		request.SetBasicAuth(user, password)
-	}
-
-	response, err := h.harborHTTPClient(5 * time.Second).Do(request)
-	if err != nil {
-		log.Printf("image digest: cannot reach the registry for %s: %v", image, err)
-		return ""
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		log.Printf("image digest: registry answered %d for %s", response.StatusCode, image)
-		return ""
-	}
-	var artifact struct {
-		Digest string `json:"digest"`
-	}
-	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&artifact); err != nil {
-		return ""
-	}
-	return strings.TrimSpace(artifact.Digest)
+	// The registry's own API, which every registry speaks - see
+	// registry_digest.go for why this is no longer Harbor's.
+	return h.digestFromRegistry(repositoryPath, tag)
 }
 
 // splitHarborRepository separates the Harbor project from the repository
