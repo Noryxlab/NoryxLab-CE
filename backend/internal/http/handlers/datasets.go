@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/platformrole"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"io"
 	"log"
 	"net/http"
@@ -2007,6 +2008,22 @@ func (h Handlers) datasetAssignmentError(item dataset.Dataset) string {
 		return "HDS dataset management requires NoryxLab Enterprise Edition"
 	}
 	return "dataset owner or global admin role required to assign this dataset"
+}
+
+// datasetObjectStore is what every read of a dataset should go through.
+//
+// The same resolution as datasetS3Client - the dataset's own endpoint and its
+// own credential - behind the interface in internal/objectstore, so a handler
+// does not name minio-go and a test does not need an S3 endpoint.
+func (h Handlers) datasetObjectStore(item dataset.Dataset) (objectstore.Store, error) {
+	if h.datasetStores != nil {
+		return h.datasetStores(item)
+	}
+	client, region, err := h.datasetS3Client(item)
+	if err != nil {
+		return nil, err
+	}
+	return objectstore.NewS3(client, region), nil
 }
 
 func (h Handlers) datasetS3Client(item dataset.Dataset) (*minio.Client, string, error) {

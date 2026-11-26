@@ -3,13 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"net/http"
 	"strings"
 	"time"
 
 	snapshotdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/snapshot"
 	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7"
 )
 
 // Prendre un instantane, et comparer un dataset a l'un des siens.
@@ -51,7 +51,7 @@ func (h Handlers) TakeDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
 			"error": "snapshots need a dataset with a bucket and the database store"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
+	store, err := h.datasetObjectStore(item)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 		return
@@ -64,30 +64,19 @@ func (h Handlers) TakeDatasetSnapshot(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), snapshotListTimeout)
 	defer cancel()
 
-	entries := []snapshotdomain.Entry{}
-	var total int64
-	prefix := strings.Trim(strings.TrimSpace(item.Prefix), "/")
-	if prefix != "" {
-		prefix += "/"
+	// La meme lecture que le scan de nuit et que le croisement, par la meme
+	// fonction. Elle etait recopiee ici, et les deux copies avaient deja
+	// divergé sur un detail qui compte : celle-ci comptait les dossiers de
+	// commodite, l'autre non, donc un instantane pouvait ne pas s'accorder
+	// avec sa propre comparaison du lendemain.
+	entries, err := listDatasetEntries(ctx, store, item.Bucket, item.Prefix)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list the dataset: " + err.Error()})
+		return
 	}
-	for object := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if object.Err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list the dataset: " + object.Err.Error()})
-			return
-		}
-		// Un objet dont la cle finit par "/" est un dossier de commodite, pas
-		// un fichier : le compter ferait varier l'inventaire selon l'outil qui
-		// a depose la donnee.
-		if strings.HasSuffix(object.Key, "/") {
-			continue
-		}
-		entries = append(entries, snapshotdomain.Entry{
-			Path:         object.Key,
-			Size:         object.Size,
-			ETag:         strings.Trim(object.ETag, "\""),
-			LastModified: object.LastModified.UTC(),
-		})
-		total += object.Size
+	var total int64
+	for _, entry := range entries {
+		total += entry.Size
 	}
 
 	record := snapshotdomain.Snapshot{
@@ -198,7 +187,7 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "snapshots need the database store"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
+	store, err := h.datasetObjectStore(item)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": err.Error()})
 		return
@@ -211,7 +200,7 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 
 	ctx, cancel := context.WithTimeout(r.Context(), snapshotListTimeout)
 	defer cancel()
-	now, err := listDatasetEntries(ctx, client, item.Bucket, item.Prefix)
+	now, err := listDatasetEntries(ctx, store, item.Bucket, item.Prefix)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list the dataset: " + err.Error()})
 		return
@@ -234,25 +223,30 @@ func (h Handlers) CompareDatasetSnapshot(w http.ResponseWriter, r *http.Request)
 // does not exist or, worse, is somebody else's. The regulated datasets at the
 // customer site are exactly the ones that are external, so this was the case
 // that mattered and the one that would have failed.
-func listDatasetEntries(ctx context.Context, client *minio.Client, bucket, prefix string) ([]snapshotdomain.Entry, error) {
+func listDatasetEntries(ctx context.Context, store objectstore.Store, bucket, prefix string) ([]snapshotdomain.Entry, error) {
 	prefix = strings.Trim(strings.TrimSpace(prefix), "/")
 	if prefix != "" {
 		prefix += "/"
 	}
 	out := []snapshotdomain.Entry{}
-	for object := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-		if object.Err != nil {
-			return nil, object.Err
-		}
-		if strings.HasSuffix(object.Key, "/") {
-			continue
+	err := store.List(ctx, bucket, objectstore.ListOptions{Prefix: prefix, Recursive: true}, func(object objectstore.Object) error {
+		// A recursive listing should hold no folder markers, but a bucket
+		// written by another tool can carry zero-byte keys ending in a
+		// slash, and counting those as objects makes a manifest disagree
+		// with itself between two listings.
+		if strings.HasSuffix(object.Path, "/") {
+			return nil
 		}
 		out = append(out, snapshotdomain.Entry{
-			Path:         object.Key,
+			Path:         object.Path,
 			Size:         object.Size,
-			ETag:         strings.Trim(object.ETag, "\""),
-			LastModified: object.LastModified.UTC(),
+			ETag:         object.ETag,
+			LastModified: object.LastModified,
 		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return out, nil
 }

@@ -81,13 +81,13 @@ func (h Handlers) scanSnapshots(ctx context.Context) {
 		// sont precisement ceux qui vivent sur un stockage externe, et les
 		// lire par le client interne aurait demande un bucket du meme nom a
 		// la mauvaise machine - donc un ecart imaginaire ou aucun ecart.
-		client, _, err := h.datasetS3Client(item)
+		store, err := h.datasetObjectStore(item)
 		if err != nil {
 			log.Printf("snapshot scan: no storage client for %s: %v", item.Name, err)
 			continue
 		}
 		listCtx, cancel := context.WithTimeout(ctx, snapshotListTimeout)
-		now, err := listDatasetEntries(listCtx, client, item.Bucket, item.Prefix)
+		now, err := listDatasetEntries(listCtx, store, item.Bucket, item.Prefix)
 		cancel()
 		if err != nil {
 			log.Printf("snapshot scan: cannot list %s: %v", item.Name, err)

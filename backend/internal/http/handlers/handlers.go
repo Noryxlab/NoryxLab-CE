@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
+	"github.com/Noryxlab/NoryxLab-CE/backend/internal/objectstore"
 	"strings"
 	"time"
 
@@ -55,18 +57,23 @@ type Handlers struct {
 	// for the one caller inside the process that uses the API as a client: an
 	// agent acting as its owner. A pointer, because Handlers travels by value
 	// and the router is built after it.
-	api                              *apiSurface
-	agentTeamStore                   store.AgentTeamStore
-	notifier                         *notify.Notifier
-	workspaceMaxLifetime             time.Duration
-	passwordLinkLifetime             time.Duration
-	datasetSizeStore                 store.DatasetSizeStore
-	settings                         *settings.Resolver
-	storageEndpointStore             store.StorageEndpointStore
-	runtime                          runtime.Runner
-	authVerifier                     auth.Verifier
-	keycloak                         *keycloak.Client
-	minioClient                      *minio.Client
+	api                  *apiSurface
+	agentTeamStore       store.AgentTeamStore
+	notifier             *notify.Notifier
+	workspaceMaxLifetime time.Duration
+	passwordLinkLifetime time.Duration
+	datasetSizeStore     store.DatasetSizeStore
+	settings             *settings.Resolver
+	storageEndpointStore store.StorageEndpointStore
+	runtime              runtime.Runner
+	authVerifier         auth.Verifier
+	keycloak             *keycloak.Client
+	minioClient          *minio.Client
+	// datasetStores resolves a dataset's object store. Nil in production,
+	// where datasetObjectStore builds one from the dataset's own credentials;
+	// a test sets it to an in-memory store, which is the only way the code
+	// that reads buckets gets exercised at all.
+	datasetStores                    func(dataset.Dataset) (objectstore.Store, error)
 	minioEndpoint                    string
 	minioAccessKey                   string
 	minioSecretKey                   string

@@ -112,14 +112,14 @@ func (h Handlers) scanRegulatedCopies(ctx context.Context) regulatedCopyReport {
 		if known, cached := entries[item.ID]; cached {
 			return known, len(known) > 0
 		}
-		client, _, err := h.datasetS3Client(item)
+		store, err := h.datasetObjectStore(item)
 		if err != nil {
 			log.Printf("regulated copy scan: no storage client for %s: %v", item.Name, err)
 			entries[item.ID] = []snapshotdomain.Entry{}
 			return nil, false
 		}
 		listCtx, cancel := context.WithTimeout(ctx, snapshotListTimeout)
-		found, err := listDatasetEntries(listCtx, client, item.Bucket, item.Prefix)
+		found, err := listDatasetEntries(listCtx, store, item.Bucket, item.Prefix)
 		cancel()
 		if err != nil {
 			log.Printf("regulated copy scan: cannot list %s: %v", item.Name, err)

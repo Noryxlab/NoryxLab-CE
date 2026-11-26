@@ -20,7 +20,7 @@ import (
 // la reapparition d'un appel, et un double de MinIO ne dirait pas lequel des
 // deux clients a ete pris.
 func TestLesInstantanesPassentParLeClientDuDataset(t *testing.T) {
-	for _, name := range []string{"dataset_snapshot.go", "snapshot_scan.go"} {
+	for _, name := range []string{"dataset_snapshot.go", "snapshot_scan.go", "regulated_copy_scan.go"} {
 		source, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatalf("reading %s: %v", name, err)
@@ -31,8 +31,12 @@ func TestLesInstantanesPassentParLeClientDuDataset(t *testing.T) {
 				"h.datasetS3Client(item), otherwise an external dataset is read "+
 				"from the platform's own storage", name)
 		}
-		if !strings.Contains(body, "h.datasetS3Client(item)") {
-			t.Errorf("%s no longer resolves the dataset's own storage client", name)
+		// datasetObjectStore resolves exactly what datasetS3Client did - the
+		// dataset's own endpoint and its own credential - and hands it back
+		// behind internal/objectstore. The name changed; the requirement did
+		// not, and neither did the reason it exists.
+		if !strings.Contains(body, "h.datasetObjectStore(item)") {
+			t.Errorf("%s no longer resolves the dataset's own storage", name)
 		}
 	}
 }
