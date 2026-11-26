@@ -36,10 +36,28 @@ func requirementsBootstrapLines() []string {
 		fmt.Sprintf("  echo '[bootstrap] requirements detected at %s'", file),
 		// Recreer le venv sur le chemin retenu, et non sur le chemin par
 		// defaut : la selection au-dessus a deja ecarte celui qu'on ne peut
-		// pas ecrire. L'appel reste inconditionnel, parce que sur un venv
-		// qu'on possede il repare justement l'interpreteur qui a bouge.
-		fmt.Sprintf("  if python3 -m venv \"$%s\" > /tmp/noryx-venv.log 2>&1; then", projectVenvEnvVar),
-		"    :",
+		// pas ecrire.
+		//
+		// L'appel etait inconditionnel, et pour une bonne raison : sur un venv
+		// qu'on possede, `python3 -m venv` repare l'interpreteur qui a bouge -
+		// le 23/11/2026, l'image derriere noryx-runtime a ete reconstruite
+		// sans /usr/bin/python3, que les liens du venv pointaient.
+		//
+		// Mais cette reparation ne sert presque jamais, et on la payait
+		// toujours : **1 805 ms**, mesures sur le DC le 26/11/2026, sur NFS
+		// comme en local, a chaque demarrage de chaque job, application et
+		// workspace. Demander d'abord a l'interpreteur s'il repond coute le
+		// demarrage d'un python vide et garde la reparation intacte : un lien
+		// qui pointe dans le vide ne s'execute pas, donc le venv est refait.
+		//
+		// pip est verifie avec lui parce que c'est ce dont la suite se sert,
+		// et qu'un venv dont pip a disparu a besoin du meme traitement qu'un
+		// venv dont l'interpreteur a bouge.
+		fmt.Sprintf("  if [ -x \"$%s/bin/python\" ] && [ -x \"$%s/bin/pip\" ] && \"$%s/bin/python\" -c '' 2>/dev/null; then",
+			projectVenvEnvVar, projectVenvEnvVar, projectVenvEnvVar),
+		fmt.Sprintf("    echo \"[bootstrap] the project venv at $%s answers, reusing it\"", projectVenvEnvVar),
+		fmt.Sprintf("  elif python3 -m venv \"$%s\" > /tmp/noryx-venv.log 2>&1; then", projectVenvEnvVar),
+		fmt.Sprintf("    echo \"[bootstrap] the project venv at $%s was created or repaired\"", projectVenvEnvVar),
 		"  else",
 		"    echo '[bootstrap] the project venv could not be created or updated:'",
 		"    tail -n 3 /tmp/noryx-venv.log 2>/dev/null | sed 's/^/[bootstrap]   /'",
