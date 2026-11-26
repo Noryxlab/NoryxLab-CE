@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/minio/minio-go/v7"
 
 	datasetdomain "github.com/Noryxlab/NoryxLab-CE/backend/internal/domain/dataset"
 )
@@ -136,12 +135,12 @@ func (h Handlers) CreateDatasetUploadURL(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": probleme})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
-	url, err := client.PresignedPutObject(r.Context(), item.Bucket, key, datasetUploadURLLifetime)
+	url, err := store.PresignedPut(r.Context(), item.Bucket, key, datasetUploadURLLifetime)
 	if err != nil {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.upload_authorize", "dataset", item.ID, "", "failure", "presign_failed", datasetTransferAuditDetails(item, req.Path, 0))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to authorize direct dataset upload"})
@@ -190,12 +189,12 @@ func (h Handlers) ConfirmDatasetUpload(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path must be a non-empty relative path"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
-	info, err := client.StatObject(r.Context(), item.Bucket, key, minio.StatObjectOptions{})
+	info, err := store.Stat(r.Context(), item.Bucket, key)
 	if err != nil || info.Size != req.Size {
 		details := datasetTransferAuditDetails(item, req.Path, req.Size)
 		details["actualSize"] = info.Size
@@ -266,8 +265,8 @@ func (h Handlers) CreateDatasetUploadURLs(w http.ResponseWriter, r *http.Request
 			"error": fmt.Sprintf("a batch authorises at most %d objects", datasetUploadBatchMax)})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -289,7 +288,7 @@ func (h Handlers) CreateDatasetUploadURLs(w http.ResponseWriter, r *http.Request
 			refused = append(refused, map[string]string{"path": object.Path, "reason": probleme})
 			continue
 		}
-		url, err := client.PresignedPutObject(r.Context(), item.Bucket, key, datasetUploadURLLifetime)
+		url, err := store.PresignedPut(r.Context(), item.Bucket, key, datasetUploadURLLifetime)
 		if err != nil {
 			refused = append(refused, map[string]string{
 				"path": object.Path, "reason": "failed to authorize direct dataset upload"})
@@ -363,8 +362,8 @@ func (h Handlers) ConfirmDatasetUploads(w http.ResponseWriter, r *http.Request) 
 			"error": fmt.Sprintf("a batch confirms at most %d objects", datasetUploadBatchMax)})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -380,7 +379,7 @@ func (h Handlers) ConfirmDatasetUploads(w http.ResponseWriter, r *http.Request) 
 				"path": object.Path, "reason": "path and non-negative size are required"})
 			continue
 		}
-		info, err := client.StatObject(r.Context(), item.Bucket, key, minio.StatObjectOptions{})
+		info, err := store.Stat(r.Context(), item.Bucket, key)
 		if err != nil || info.Size != object.Size {
 			failed = append(failed, map[string]string{
 				"path": object.Path, "reason": "the uploaded object is absent or has an unexpected size"})

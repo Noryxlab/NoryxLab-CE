@@ -369,13 +369,17 @@ func (h Handlers) CreateDataset(w http.ResponseWriter, r *http.Request) {
 	if client != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
-		exists, err := client.BucketExists(ctx, item.Bucket)
+		// Built from the credentials in this request, which are not stored
+		// yet - so the client is constructed here and wrapped, rather than
+		// resolved through datasetObjectStore.
+		store := objectstore.NewS3(client, region)
+		exists, err := store.BucketExists(ctx, item.Bucket)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset bucket check failed: " + err.Error()})
 			return
 		}
 		if !exists && item.Provider == "minio" {
-			err = client.MakeBucket(ctx, item.Bucket, minio.MakeBucketOptions{Region: region})
+			err = store.MakeBucket(ctx, item.Bucket, region)
 			if err != nil {
 				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset bucket creation failed: " + err.Error()})
 				return
@@ -564,8 +568,8 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "write access on this dataset is required"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -585,7 +589,7 @@ func (h Handlers) PutDatasetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), datasetUploadDeadline(size))
 	defer cancel()
-	info, err := client.PutObject(ctx, item.Bucket, fullKey, body, size, minio.PutObjectOptions{ContentType: contentType})
+	info, err := store.Put(ctx, item.Bucket, fullKey, body, size, contentType)
 	if err != nil {
 		// A caller who understated Content-Length is stopped by the reader
 		// above, and that surfaces here as a failed upload. It is the caller's
@@ -632,14 +636,14 @@ func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
 	if item.Prefix != "" {
 		key = strings.Trim(item.Prefix, "/") + "/" + key
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	if _, err := client.PutObject(ctx, item.Bucket, key, bytes.NewReader(nil), 0, minio.PutObjectOptions{ContentType: "application/x-directory"}); err != nil {
+	if _, err := store.Put(ctx, item.Bucket, key, bytes.NewReader(nil), 0, "application/x-directory"); err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset folder creation failed: " + err.Error()})
 		return
 	}
@@ -659,6 +663,11 @@ func (h Handlers) CreateDatasetFolder(w http.ResponseWriter, r *http.Request) {
 // holding this one open indefinitely.
 const datasetDeletePasses = 4
 
+// datasetDeleteBatchSize is what one bulk removal carries. A thousand is what
+// the S3 multi-object delete takes in a single request, so a larger number
+// would be split underneath anyway and a smaller one multiplies round trips.
+const datasetDeleteBatchSize = 1000
+
 func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireIdentity(w, r)
 	if !ok {
@@ -674,8 +683,8 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -691,7 +700,7 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("recursive") != "true" {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
-		if err := client.RemoveObject(ctx, item.Bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		if err := store.Remove(ctx, item.Bucket, key); err != nil {
 			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
 				"failure", "removal_failed", map[string]any{"recursive": false, "path": rel})
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object deletion failed: " + err.Error()})
@@ -737,48 +746,53 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// stops after one wasted listing instead of looping.
 	removed := 0
 	var removedBytes int64
-	var lastErr minio.RemoveObjectError
+	var lastErr *objectstore.RemoveFailure
 	for pass := 0; pass < datasetDeletePasses; pass++ {
 		before := removed
-		lastErr = minio.RemoveObjectError{}
-		objects := make(chan minio.ObjectInfo)
-		go func() {
-			defer close(objects)
-			for object := range client.ListObjects(ctx, item.Bucket,
-				minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
-				if object.Err == nil {
-					objects <- object
-				}
+		lastErr = nil
+		// Removed in batches of a thousand, which is what the protocol
+		// underneath does anyway, and counted as they are handed over: a
+		// figure produced afterwards would be what is left rather than what
+		// went. A batch is held as keys rather than as a channel feeding a
+		// channel - same bound, one goroutine fewer, and an error that stops
+		// the walk instead of a pipeline to drain.
+		batch := make([]string, 0, datasetDeleteBatchSize)
+		var batchBytes int64
+		flush := func() error {
+			if len(batch) == 0 {
+				return nil
 			}
-		}()
-		// Counted as they go by: the listing is consumed by the removal and
-		// cannot be walked twice, and a figure produced afterwards would be
-		// what is left rather than what went.
-		counted := make(chan minio.ObjectInfo)
-		go func() {
-			defer close(counted)
-			for object := range objects {
-				removed++
-				removedBytes += object.Size
-				counted <- object
+			if err := store.RemoveAll(ctx, item.Bucket, batch); err != nil {
+				return err
 			}
-		}()
-		failed := false
-		for removeErr := range client.RemoveObjects(ctx, item.Bucket, counted, minio.RemoveObjectsOptions{}) {
-			if removeErr.Err != nil {
-				lastErr, failed = removeErr, true
-				break
-			}
+			removed += len(batch)
+			removedBytes += batchBytes
+			batch, batchBytes = batch[:0], 0
+			return nil
 		}
-		// Drained so the feeding goroutines finish rather than blocking on a
-		// channel nobody reads again.
-		for range counted {
+		listErr := store.List(ctx, item.Bucket, objectstore.ListOptions{Prefix: prefix, Recursive: true},
+			func(object objectstore.Object) error {
+				batch = append(batch, object.Path)
+				batchBytes += object.Size
+				if len(batch) < datasetDeleteBatchSize {
+					return nil
+				}
+				return flush()
+			})
+		if listErr == nil {
+			listErr = flush()
+		}
+		failed := listErr != nil
+		if failed {
+			if !errors.As(listErr, &lastErr) {
+				lastErr = &objectstore.RemoveFailure{Err: listErr}
+			}
 		}
 		if !failed {
 			break
 		}
 		log.Printf("dataset %s: pass %d of the recursive delete of %q stopped after %d objects on %q: %v",
-			item.ID, pass+1, rel, removed, lastErr.ObjectName, lastErr.Err)
+			item.ID, pass+1, rel, removed, lastErr.Key, lastErr.Err)
 		if ctx.Err() != nil || removed == before {
 			// Partial by definition: some objects are already gone. The count
 			// says how far it got, which is what somebody resuming needs, and
@@ -790,8 +804,8 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 				"classification": item.Classification, "bucket": item.Bucket,
 				"passes": pass + 1,
 			}
-			if lastErr.Err != nil {
-				details["failedObject"] = lastErr.ObjectName
+			if lastErr != nil && lastErr.Err != nil {
+				details["failedObject"] = lastErr.Key
 				details["providerError"] = lastErr.Err.Error()
 			}
 			h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
@@ -810,11 +824,11 @@ func (h Handlers) DeleteDatasetObject(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			writeJSON(w, http.StatusBadGateway, map[string]string{
-				"error": "dataset folder deletion failed: " + lastErr.Err.Error()})
+				"error": "dataset folder deletion failed: " + lastErr.Error()})
 			return
 		}
 	}
-	_ = client.RemoveObject(ctx, item.Bucket, prefix, minio.RemoveObjectOptions{})
+	_ = store.Remove(ctx, item.Bucket, prefix)
 	h.emitAudit(r, identity.UserID(), "dataset.objects.deleted", "dataset", item.ID, "",
 		"success", "", map[string]any{
 			"recursive": true, "path": rel, "objects": removed, "bytes": removedBytes,
@@ -842,8 +856,8 @@ func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset not found"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -867,32 +881,40 @@ func (h Handlers) ListDatasetObjects(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	objects := []datasetObjectItem{}
 	truncated := false
-	for obj := range client.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: false}) {
-		if obj.Err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object listing failed: " + obj.Err.Error()})
-			return
-		}
-		relPath := obj.Key
+	// errPleinePage termine le listage quand la page est pleine : c'est la fin
+	// attendue, pas un echec.
+	errPleinePage := errors.New("page complete")
+	listErr := store.List(ctx, item.Bucket, objectstore.ListOptions{Prefix: prefix, Recursive: false}, func(obj objectstore.Object) error {
+		relPath := obj.Path
 		if base != "" && strings.HasPrefix(relPath, base) {
 			relPath = strings.TrimPrefix(relPath, base)
 		}
 		if relPath == "" || relPath == requested {
-			continue
+			return nil
 		}
 		if len(objects) >= datasetObjectPageSize {
 			// Said out loud rather than silently cut: a folder that shows 2,000
 			// of its 40,000 files and does not say so is a lie about the data.
 			truncated = true
-			break
+			return errPleinePage
 		}
 		objects = append(objects, datasetObjectItem{
 			Path:         relPath,
-			Key:          obj.Key,
+			Key:          obj.Path,
 			Size:         obj.Size,
 			LastModified: obj.LastModified,
-			ContentType:  obj.ContentType,
-			IsPrefix:     strings.HasSuffix(obj.Key, "/"),
+			// ContentType n'est pas renseigne, et ne l'etait pas davantage
+			// avant : S3 ne le rend pas dans un listing, seulement sur un
+			// StatObject. Verifie sur l'instance du 26/11/2026 - le champ
+			// etait absent de chaque objet rendu. Garde dans la reponse
+			// (omitempty) pour ne pas changer le contrat.
+			IsPrefix: strings.HasSuffix(obj.Path, "/"),
 		})
+		return nil
+	})
+	if listErr != nil && !errors.Is(listErr, errPleinePage) {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset object listing failed: " + listErr.Error()})
+		return
 	}
 	// La lecture laisse une trace, comme l'ecriture.
 	//
@@ -991,20 +1013,18 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
 	defer cancel()
-	obj, err := client.GetObject(ctx, item.Bucket, key, minio.GetObjectOptions{})
-	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset download failed"})
-		return
-	}
-	defer obj.Close()
-	info, err := obj.Stat()
+	// Stat first, open second. The object is read to decide the content type
+	// and to answer a Range, and opening it before knowing threw away a full
+	// GET every time a browser asked for a range - which is every time it
+	// plays a video.
+	info, err := store.Stat(ctx, item.Bucket, key)
 	if err != nil {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "failure", "object_not_found", datasetTransferAuditDetails(item, rel, 0))
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "dataset object not found"})
@@ -1063,15 +1083,7 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 	// and no browser sends one for media; answering the first is what every
 	// static file server does and what the specification allows.
 	if start, end, ok := requestedRange(r.Header.Get("Range"), info.Size); ok {
-		if err := obj.Close(); err != nil && !isNotFoundError(err) {
-			log.Printf("dataset %s: closing the full object before serving a range: %v", item.ID, err)
-		}
-		options := minio.GetObjectOptions{}
-		if err := options.SetRange(start, end); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid range"})
-			return
-		}
-		partial, err := client.GetObject(ctx, item.Bucket, key, options)
+		partial, err := store.GetRange(ctx, item.Bucket, key, start, end-start+1)
 		if err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset download failed"})
 			return
@@ -1089,6 +1101,13 @@ func (h Handlers) GetDatasetObject(w http.ResponseWriter, r *http.Request) {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download", "dataset", item.ID, "", "success", "", datasetTransferAuditDetails(item, rel, served))
 		return
 	}
+
+	obj, err := store.Get(ctx, item.Bucket, key)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "dataset download failed"})
+		return
+	}
+	defer obj.Close()
 
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size))
@@ -1169,8 +1188,8 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "between 1 and 100 paths are required"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
@@ -1187,7 +1206,7 @@ func (h Handlers) DownloadDatasetObjects(w http.ResponseWriter, r *http.Request)
 		if rel == "" {
 			continue
 		}
-		obj, err := client.GetObject(ctx, item.Bucket, key, minio.GetObjectOptions{})
+		obj, err := store.Get(ctx, item.Bucket, key)
 		if err != nil {
 			failedObjects++
 			continue
@@ -1256,15 +1275,15 @@ func (h Handlers) CreateDatasetObjectDownloadURL(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "object path is required"})
 		return
 	}
-	client, _, err := h.datasetS3Client(item)
-	if err != nil || client == nil {
+	store, err := h.datasetObjectStore(item)
+	if err != nil || store == nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": datasetS3Error(err)})
 		return
 	}
 	expiry := 15 * time.Minute
 	params := url.Values{}
 	params.Set("response-content-disposition", `attachment; filename="`+strings.ReplaceAll(filepath.Base(rel), `"`, "")+`"`)
-	presignedURL, err := client.PresignedGetObject(r.Context(), item.Bucket, key, expiry, params)
+	presignedURL, err := store.PresignedGet(r.Context(), item.Bucket, key, expiry, params)
 	if err != nil {
 		h.emitAdvancedAudit(r, identity.UserID(), "dataset.object.download_authorize", "dataset", item.ID, "", "failure", "presign_failed", datasetTransferAuditDetails(item, rel, 0))
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to prepare dataset download"})
@@ -1718,14 +1737,21 @@ func (h Handlers) DeleteDataset(w http.ResponseWriter, r *http.Request) {
 	if objectsDestroyed {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 		defer cancel()
-		objects := h.minioClient.ListObjects(ctx, item.Bucket, minio.ListObjectsOptions{Recursive: true})
-		for removeErr := range h.minioClient.RemoveObjects(ctx, item.Bucket, objects, minio.RemoveObjectsOptions{}) {
-			if removeErr.Err != nil {
-				writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete local dataset objects: " + removeErr.Err.Error()})
-				return
-			}
+		store := objectstore.NewS3(h.minioClient, h.minioRegion)
+		keys := []string{}
+		if err := store.List(ctx, item.Bucket, objectstore.ListOptions{Recursive: true},
+			func(object objectstore.Object) error {
+				keys = append(keys, object.Path)
+				return nil
+			}); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to list local dataset objects: " + err.Error()})
+			return
 		}
-		if err := h.minioClient.RemoveBucket(ctx, item.Bucket); err != nil {
+		if err := store.RemoveAll(ctx, item.Bucket, keys); err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete local dataset objects: " + err.Error()})
+			return
+		}
+		if err := store.RemoveBucket(ctx, item.Bucket); err != nil {
 			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed to delete local dataset bucket: " + err.Error()})
 			return
 		}

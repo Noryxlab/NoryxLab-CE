@@ -30,12 +30,15 @@ import (
 type Memory struct {
 	mutex   sync.RWMutex
 	buckets map[string]map[string][]byte
+	// types holds what Put was told, because Stat answers with it and a fake
+	// that always says "" would hide a handler reading the wrong field.
+	types map[string]string
 	// Clock lets a test fix LastModified. Zero means time.Now.
 	Clock func() time.Time
 }
 
 func NewMemory(buckets ...string) *Memory {
-	store := &Memory{buckets: map[string]map[string][]byte{}}
+	store := &Memory{buckets: map[string]map[string][]byte{}, types: map[string]string{}}
 	for _, bucket := range buckets {
 		store.buckets[bucket] = map[string][]byte{}
 	}
@@ -57,6 +60,9 @@ func (m *Memory) Seed(bucket, key string, content []byte) {
 	if m.buckets[bucket] == nil {
 		m.buckets[bucket] = map[string][]byte{}
 	}
+	if m.types == nil {
+		m.types = map[string]string{}
+	}
 	m.buckets[bucket][key] = append([]byte(nil), content...)
 }
 
@@ -67,6 +73,7 @@ func (m *Memory) object(bucket, key string, content []byte) Object {
 		Size:         int64(len(content)),
 		ETag:         hex.EncodeToString(sum[:]),
 		LastModified: m.now(),
+		ContentType:  m.types[bucket+"/"+key],
 	}
 }
 
@@ -138,24 +145,44 @@ func (m *Memory) Get(_ context.Context, bucket, key string) (io.ReadCloser, erro
 	return io.NopCloser(bytes.NewReader(append([]byte(nil), content...))), nil
 }
 
-func (m *Memory) Put(_ context.Context, bucket, key string, body io.Reader, size int64, _ string) error {
+func (m *Memory) GetRange(_ context.Context, bucket, key string, offset, length int64) (io.ReadCloser, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+	content, found := m.buckets[bucket][key]
+	if !found {
+		return nil, ErrNotFound
+	}
+	if offset < 0 || offset > int64(len(content)) {
+		return nil, errors.New("objectstore: range starts outside the object")
+	}
+	end := int64(len(content))
+	if length >= 0 && offset+length < end {
+		end = offset + length
+	}
+	return io.NopCloser(bytes.NewReader(append([]byte(nil), content[offset:end]...))), nil
+}
+
+func (m *Memory) Put(_ context.Context, bucket, key string, body io.Reader, size int64, contentType string) (Object, error) {
 	content, err := io.ReadAll(body)
 	if err != nil {
-		return err
+		return Object{}, err
 	}
 	// The interface says size is the number of bytes. Honouring that here
 	// catches a caller that computed it wrong, which against a real store
 	// shows up as a truncated object nobody notices until it is read.
 	if size >= 0 && int64(len(content)) != size {
-		return errors.New("objectstore: body length does not match the declared size")
+		return Object{}, errors.New("objectstore: body length does not match the declared size")
 	}
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	if m.buckets[bucket] == nil {
-		return ErrNotFound
+		return Object{}, ErrNotFound
 	}
 	m.buckets[bucket][key] = content
-	return nil
+	if contentType != "" {
+		m.types[bucket+"/"+key] = contentType
+	}
+	return m.object(bucket, key, content), nil
 }
 
 func (m *Memory) Remove(_ context.Context, bucket, key string) error {
@@ -168,7 +195,7 @@ func (m *Memory) Remove(_ context.Context, bucket, key string) error {
 func (m *Memory) RemoveAll(ctx context.Context, bucket string, keys []string) error {
 	for _, key := range keys {
 		if err := m.Remove(ctx, bucket, key); err != nil {
-			return err
+			return &RemoveFailure{Key: key, Err: err}
 		}
 	}
 	return nil
@@ -202,6 +229,20 @@ func (m *Memory) MakeBucket(_ context.Context, bucket, _ string) error {
 		return errors.New("objectstore: bucket already exists")
 	}
 	m.buckets[bucket] = map[string][]byte{}
+	return nil
+}
+
+func (m *Memory) RemoveBucket(_ context.Context, bucket string) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	objects, found := m.buckets[bucket]
+	if !found {
+		return ErrNotFound
+	}
+	if len(objects) > 0 {
+		return errors.New("objectstore: the bucket is not empty")
+	}
+	delete(m.buckets, bucket)
 	return nil
 }
 

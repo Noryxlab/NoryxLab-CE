@@ -47,6 +47,11 @@ type Object struct {
 	Size         int64     `json:"size"`
 	ETag         string    `json:"etag"`
 	LastModified time.Time `json:"lastModified"`
+	// ContentType is set by Stat and Put, and is **empty from a listing**: S3
+	// does not return it there, only on a stat of one object. Measured on a
+	// running installation on 2026-11-26, where the explorer had been reading
+	// it off a listing and therefore always showing nothing.
+	ContentType string `json:"contentType,omitempty"`
 }
 
 // ListOptions is how a listing is narrowed.
@@ -82,17 +87,33 @@ type Store interface {
 	// Get hands back a reader the caller closes.
 	Get(ctx context.Context, bucket, key string) (io.ReadCloser, error)
 
-	// Put stores size bytes. The size is required rather than optional: a
-	// store that has to buffer an unknown length to find out is a store that
-	// holds a multi-gigabyte upload in memory.
-	Put(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error
+	// GetRange hands back part of an object, counted from offset, for length
+	// bytes; a negative length means "to the end".
+	//
+	// Here because a browser asks for one. Serving a video or a large image
+	// out of a dataset means answering HTTP Range requests, and a reader that
+	// can only start at zero turns a seek into a full re-download. It is the
+	// one operation in this interface that exists for a protocol rather than
+	// for the platform.
+	GetRange(ctx context.Context, bucket, key string, offset, length int64) (io.ReadCloser, error)
+
+	// Put stores size bytes and answers with the object as stored.
+	//
+	// The size is required rather than optional: a store that has to buffer
+	// an unknown length to find out is a store that holds a multi-gigabyte
+	// upload in memory. And the stored object comes back because the audit
+	// trail of a regulated dataset should record what storage accepted, not
+	// what the caller announced - the two differ exactly when it matters.
+	Put(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) (Object, error)
 
 	// Remove deletes one object. Removing what is not there is not an error:
 	// the caller wanted it gone and it is gone.
 	Remove(ctx context.Context, bucket, key string) error
 
-	// RemoveAll deletes many, and reports the first failure with the key it
-	// failed on - "a deletion failed" sends somebody reading logs.
+	// RemoveAll deletes many, and reports the first failure as a
+	// *RemoveFailure naming the key it stopped on - "a deletion failed" sends
+	// somebody reading logs, and an audit line that cannot name the object is
+	// an audit line that answers nothing.
 	RemoveAll(ctx context.Context, bucket string, keys []string) error
 
 	// Copy duplicates an object server-side, without the bytes travelling
@@ -101,6 +122,10 @@ type Store interface {
 
 	BucketExists(ctx context.Context, bucket string) (bool, error)
 	MakeBucket(ctx context.Context, bucket, region string) error
+	// RemoveBucket deletes an empty bucket. It refuses a bucket that still
+	// holds objects, which is the store's own protection and not ours to
+	// work around: the caller empties it first and finds out if that failed.
+	RemoveBucket(ctx context.Context, bucket string) error
 	ListBuckets(ctx context.Context) ([]string, error)
 
 	// PresignedGet and PresignedPut hand a URL to a browser so bytes travel
@@ -113,3 +138,20 @@ type Store interface {
 	PresignedGet(ctx context.Context, bucket, key string, lifetime time.Duration, parameters url.Values) (*url.URL, error)
 	PresignedPut(ctx context.Context, bucket, key string, lifetime time.Duration) (*url.URL, error)
 }
+
+// RemoveFailure is the object a bulk removal stopped on, and why.
+//
+// Typed rather than a formatted string because the caller writes it into an
+// audit entry as two fields. A deletion that stopped halfway through 50 GiB
+// of health data once left "removal failed" and nothing else in the journal,
+// and the person resuming had no way to know where it got to.
+type RemoveFailure struct {
+	Key string
+	Err error
+}
+
+func (f *RemoveFailure) Error() string {
+	return "failed to remove " + f.Key + ": " + f.Err.Error()
+}
+
+func (f *RemoveFailure) Unwrap() error { return f.Err }

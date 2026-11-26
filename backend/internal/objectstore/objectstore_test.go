@@ -101,7 +101,7 @@ func TestUnAppelantPeutSArreter(t *testing.T) {
 
 func TestUneTailleQuiMentEstRefusee(t *testing.T) {
 	store := NewMemory("ouvert")
-	err := store.Put(context.Background(), "ouvert", "k", strings.NewReader("quatre"), 99, "text/plain")
+	_, err := store.Put(context.Background(), "ouvert", "k", strings.NewReader("quatre"), 99, "text/plain")
 	if err == nil {
 		t.Fatal("une taille declaree fausse doit etre refusee : contre un vrai magasin, c'est un objet tronque que personne ne voit")
 	}
@@ -110,8 +110,14 @@ func TestUneTailleQuiMentEstRefusee(t *testing.T) {
 func TestEcrireRelireCopier(t *testing.T) {
 	store := NewMemory("source", "destination")
 	body := "contenu"
-	if err := store.Put(context.Background(), "source", "a.txt", strings.NewReader(body), int64(len(body)), "text/plain"); err != nil {
+	stored, err := store.Put(context.Background(), "source", "a.txt", strings.NewReader(body), int64(len(body)), "text/plain")
+	if err != nil {
 		t.Fatal(err)
+	}
+	// Ce que le stockage a accepte, pas ce que l'appelant annoncait : c'est
+	// cette valeur que la ligne d'audit d'un dataset reglemente enregistre.
+	if stored.Size != int64(len(body)) || stored.ContentType != "text/plain" {
+		t.Fatalf("Put rend %+v", stored)
 	}
 	if err := store.Copy(context.Background(), "source", "a.txt", "destination", "b.txt"); err != nil {
 		t.Fatal(err)
@@ -159,5 +165,41 @@ func TestUneErreurDeLectureNEstPasUneAbsence(t *testing.T) {
 	}
 	if translateError(nil) != nil {
 		t.Error("une absence d'erreur est devenue une erreur")
+	}
+}
+
+// Une plage, parce qu'un navigateur en demande une : servir une video depuis
+// un dataset, c'est repondre a un Range, et un lecteur qui ne sait partir que
+// de zero transforme chaque deplacement en re-telechargement complet.
+func TestUneLecturePartielleRendExactementLaPlageDemandee(t *testing.T) {
+	store := NewMemory("media")
+	store.Seed("media", "film.bin", []byte("0123456789"))
+
+	cases := []struct {
+		offset, length int64
+		want           string
+	}{
+		{0, 4, "0123"},
+		{4, 3, "456"},
+		// Longueur negative : jusqu'a la fin.
+		{7, -1, "789"},
+		// Une longueur qui deborde s'arrete a la fin plutot que d'echouer,
+		// comme le fait un serveur de fichiers.
+		{8, 100, "89"},
+	}
+	for _, item := range cases {
+		reader, err := store.GetRange(context.Background(), "media", "film.bin", item.offset, item.length)
+		if err != nil {
+			t.Fatalf("offset %d longueur %d: %v", item.offset, item.length, err)
+		}
+		got, _ := io.ReadAll(reader)
+		reader.Close()
+		if string(got) != item.want {
+			t.Errorf("offset %d longueur %d = %q, attendu %q", item.offset, item.length, got, item.want)
+		}
+	}
+
+	if _, err := store.GetRange(context.Background(), "media", "absent", 0, 1); !errors.Is(err, ErrNotFound) {
+		t.Errorf("une plage sur un objet absent doit etre ErrNotFound, obtenu %v", err)
 	}
 }

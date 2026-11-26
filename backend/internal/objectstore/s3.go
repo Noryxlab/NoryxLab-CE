@@ -64,6 +64,7 @@ func (s *S3) Stat(ctx context.Context, bucket, key string) (Object, error) {
 		Size:         info.Size,
 		ETag:         strings.Trim(info.ETag, `"`),
 		LastModified: info.LastModified.UTC(),
+		ContentType:  info.ContentType,
 	}, nil
 }
 
@@ -82,9 +83,44 @@ func (s *S3) Get(ctx context.Context, bucket, key string) (io.ReadCloser, error)
 	return object, nil
 }
 
-func (s *S3) Put(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) error {
-	_, err := s.client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{ContentType: contentType})
-	return translateError(err)
+func (s *S3) GetRange(ctx context.Context, bucket, key string, offset, length int64) (io.ReadCloser, error) {
+	options := minio.GetObjectOptions{}
+	// minio-go words a range as first and last byte, both inclusive, and
+	// takes -1 as "to the end" only on the second. A length of zero would
+	// otherwise ask for one byte, which is the quiet way a range read serves
+	// the wrong thing.
+	last := int64(-1)
+	if length >= 0 {
+		last = offset + length - 1
+	}
+	if err := options.SetRange(offset, last); err != nil {
+		return nil, err
+	}
+	object, err := s.client.GetObject(ctx, bucket, key, options)
+	if err != nil {
+		return nil, translateError(err)
+	}
+	if _, err := object.Stat(); err != nil {
+		object.Close()
+		return nil, translateError(err)
+	}
+	return object, nil
+}
+
+func (s *S3) Put(ctx context.Context, bucket, key string, body io.Reader, size int64, contentType string) (Object, error) {
+	info, err := s.client.PutObject(ctx, bucket, key, body, size, minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		return Object{}, translateError(err)
+	}
+	return Object{
+		Path:         info.Key,
+		Size:         info.Size,
+		ETag:         strings.Trim(info.ETag, `"`),
+		LastModified: info.LastModified.UTC(),
+		// Echoed from the request: an upload result carries no content type,
+		// and the one that was stored is the one we sent.
+		ContentType: contentType,
+	}, nil
 }
 
 func (s *S3) Remove(ctx context.Context, bucket, key string) error {
@@ -106,7 +142,7 @@ func (s *S3) RemoveAll(ctx context.Context, bucket string, keys []string) error 
 	close(objects)
 	for failure := range s.client.RemoveObjects(ctx, bucket, objects, minio.RemoveObjectsOptions{}) {
 		if failure.Err != nil {
-			return errors.New("failed to remove " + failure.ObjectName + ": " + failure.Err.Error())
+			return &RemoveFailure{Key: failure.ObjectName, Err: failure.Err}
 		}
 	}
 	return nil
@@ -130,6 +166,10 @@ func (s *S3) MakeBucket(ctx context.Context, bucket, region string) error {
 		region = s.region
 	}
 	return translateError(s.client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{Region: region}))
+}
+
+func (s *S3) RemoveBucket(ctx context.Context, bucket string) error {
+	return translateError(s.client.RemoveBucket(ctx, bucket))
 }
 
 func (s *S3) ListBuckets(ctx context.Context) ([]string, error) {
