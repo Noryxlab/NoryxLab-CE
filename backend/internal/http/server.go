@@ -384,6 +384,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/admin/storage-endpoints/{endpointID}/test", h.TestAdminStorageEndpoint)
 	mux.HandleFunc("GET /api/v1/admin/organizations", h.ListOrganizations)
 	mux.HandleFunc("POST /api/v1/admin/organizations", h.CreateOrganization)
+	mux.HandleFunc("PATCH /api/v1/admin/organizations/{organizationID}", h.RenameOrganization)
 	mux.HandleFunc("DELETE /api/v1/admin/organizations/{organizationID}", h.DeleteOrganization)
 	// Qui administre ce que l'organisation possede : un droit nomme, pas une
 	// appartenance.

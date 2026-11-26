@@ -147,6 +147,34 @@ func (c *Client) CreateOrganization(name, alias string) (Organization, error) {
 	return Organization{}, fmt.Errorf("created organization was not returned by keycloak")
 }
 
+// RenameOrganization changes what an organization is called, and nothing else.
+//
+// The alias is deliberately left alone. It is not only a slug: an owner is
+// resolved by identifier *or* by alias (see the dataset owner lookup), so an
+// alias that moves can orphan a resource that named it. A display name moves
+// freely because nothing points at it - which is also why renaming is the
+// safe half of what somebody who mistyped actually wants.
+func (c *Client) RenameOrganization(organizationID, name string) (Organization, error) {
+	organizationID = strings.TrimSpace(organizationID)
+	name = strings.TrimSpace(name)
+	if organizationID == "" || name == "" {
+		return Organization{}, fmt.Errorf("organization id and name are required")
+	}
+	// Read first: Keycloak takes a whole representation on update, and a PUT
+	// built from the new name alone would blank the alias and the enabled
+	// flag - which is how a rename becomes an outage.
+	var current Organization
+	path := "organizations/" + url.PathEscape(organizationID)
+	if err := c.adminJSON(http.MethodGet, path, nil, &current); err != nil {
+		return Organization{}, err
+	}
+	current.Name = name
+	if err := c.adminJSON(http.MethodPut, path, current, nil); err != nil {
+		return Organization{}, err
+	}
+	return current, nil
+}
+
 func (c *Client) DeleteOrganization(organizationID string) error {
 	return c.adminJSON(http.MethodDelete, "organizations/"+url.PathEscape(strings.TrimSpace(organizationID)), nil, nil)
 }

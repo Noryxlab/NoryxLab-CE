@@ -4477,6 +4477,36 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
   /api/v1/admin/organizations/{organizationID}:
+    patch:
+      tags: [Admin]
+      summary: Change what an organization is called
+      description: >-
+        Changes the display name only. The alias is left untouched on purpose:
+        an owner is resolved by identifier or by alias, so an alias that moves
+        can orphan a resource that named it, while a display name is pointed at
+        by nothing.
+      operationId: renameOrganization
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: organizationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
     delete:
       tags: [Admin]
       summary: Delete Organization

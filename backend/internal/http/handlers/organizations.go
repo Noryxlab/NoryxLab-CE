@@ -200,6 +200,61 @@ func blockingMembersMessage(names []string) string {
 		"a disabled account is still a member."
 }
 
+type renameOrganizationRequest struct {
+	Name string `json:"name"`
+}
+
+// RenameOrganization changes the name on screen, and only that.
+//
+// Somebody who mistyped a name on creation had two ways out and neither
+// worked: the interface offered no rename at all, and the delete it did not
+// offer either would have been the wrong tool anyway once the organization
+// owns anything. "compta-est should have been Compta-est" is a one-character
+// correction that required an administrator with a database client.
+//
+// It matters more than a typo. The shared sandbox separates clients by one
+// organization each, so creating, naming and correcting organizations is the
+// routine gesture of putting a prospect on the platform.
+//
+// The alias does not move. An owner is resolved by identifier or by alias, so
+// an alias that changes can orphan a resource that named it; a display name
+// is pointed at by nothing. The refusal to rename the alias is therefore not
+// a limitation to apologise for - it is the half that is safe, and it is the
+// half that was asked for.
+func (h Handlers) RenameOrganization(w http.ResponseWriter, r *http.Request) {
+	identity, ok := h.requireAdminModule(w, r, "organizations")
+	if !ok {
+		return
+	}
+	organizationID := strings.TrimSpace(r.PathValue("organizationID"))
+	if organizationID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization id is required"})
+		return
+	}
+	var req renameOrganizationRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON payload"})
+		return
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "a name is required"})
+		return
+	}
+	if h.keycloak == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "the directory is not configured"})
+		return
+	}
+	organization, err := h.keycloak.RenameOrganization(organizationID, name)
+	if err != nil {
+		h.writeKeycloakError(w, "rename organization", err)
+		return
+	}
+	h.emitAdvancedAudit(r, identity.UserID(), "organization.rename", "organization", organizationID, "", "success", "",
+		map[string]any{"name": organization.Name, "alias": organization.Alias})
+	writeJSON(w, http.StatusOK, organization)
+}
+
 func (h Handlers) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	identity, ok := h.requireAdminModule(w, r, "organizations")
 	if !ok {

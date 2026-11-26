@@ -702,6 +702,32 @@ function OrganizationPanel({
     onError: (error) => toast.error(error, t('common.delete')),
   });
 
+  // Renommer et supprimer : les deux gestes qui manquaient a cet ecran.
+  // L'API les servait toutes les deux - la suppression depuis le debut - et
+  // rien ne les appelait, donc une organisation creee avec une faute de
+  // frappe etait definitive.
+  const [renaming, setRenaming] = React.useState(false);
+  const [newName, setNewName] = React.useState(organization.name);
+  const rename = useMutation({
+    mutationFn: () => adminApi.renameOrganization(organization.id, newName.trim()),
+    onSuccess: (updated) => {
+      invalidate(qk.adminOrganizations, qk.adminUsers);
+      setRenaming(false);
+      toast.success(t('people.organizationRenamed'), updated.name);
+    },
+    onError: (error) => toast.error(error, t('people.renameOrganization')),
+  });
+  const removeOrganization = useMutation({
+    mutationFn: () => adminApi.removeOrganization(organization.id),
+    onSuccess: () => {
+      invalidate(qk.adminOrganizations, qk.adminUsers);
+      toast.success(t('people.organizationDeleted'), organization.name);
+    },
+    // Le refus porte la raison - des membres, des equipes, un projet possede -
+    // et c'est elle qu'il faut montrer, pas "echec de la suppression".
+    onError: (error) => toast.error(error, t('people.deleteOrganization')),
+  });
+
   const inside = new Set(people.map((p) => p.username.toLowerCase()));
   const candidates = everyone
     .filter((p) => p.enabled !== false && !inside.has(p.username.toLowerCase()))
@@ -716,10 +742,48 @@ function OrganizationPanel({
             <Building2 className="size-5 text-muted-foreground" />
             {organization.name}
             {organization.alias ? <Badge tone="outline">{organization.alias}</Badge> : null}
+            <span className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setNewName(organization.name);
+                  setRenaming(true);
+                }}
+              >
+                <Pencil aria-hidden />
+                {t('people.renameOrganization')}
+              </Button>
+              <Button
+                variant="ghost"
+                loading={removeOrganization.isPending}
+                onClick={() => removeOrganization.mutate()}
+              >
+                <Trash2 aria-hidden />
+                {t('common.delete')}
+              </Button>
+            </span>
           </CardTitle>
           <CardDescription>
             {t('people.organizationSummary', { people: people.length, teams: (teams.data ?? []).length })}
           </CardDescription>
+          {renaming ? (
+            <div className="flex flex-wrap items-end gap-2 pt-2">
+              <Field label={t('people.renameOrganization')} className="min-w-72" description={t('people.renameKeepsAlias')}>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={120} autoFocus />
+              </Field>
+              <Button
+                variant="primary"
+                disabled={!newName.trim() || newName.trim() === organization.name}
+                loading={rename.isPending}
+                onClick={() => rename.mutate()}
+              >
+                {t('common.save')}
+              </Button>
+              <Button variant="ghost" onClick={() => setRenaming(false)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Creer, en haut. Une equipe ou une personne, depuis leur parent. */}

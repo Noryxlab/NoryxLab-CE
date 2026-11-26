@@ -1045,6 +1045,11 @@ export const adminApi = {
     api.post<Organization>(`${V1}/admin/organizations`, input),
   removeOrganization: (organizationId: string) =>
     api.delete<void>(`${V1}/admin/organizations/${organizationId}`),
+  /** Change le nom affiche, pas l'alias : un proprietaire se resout par
+   *  identifiant ou par alias, donc un alias qui bouge peut orpheliner une
+   *  ressource qui le nommait. */
+  renameOrganization: (organizationId: string, name: string) =>
+    api.patch<Organization>(`${V1}/admin/organizations/${organizationId}`, { name }),
   organizationMembers: (organizationId: string) =>
     api.list<OrganizationMember>(`${V1}/admin/organizations/${organizationId}/members`),
   /** Qui administre ce que l'organisation possede.
