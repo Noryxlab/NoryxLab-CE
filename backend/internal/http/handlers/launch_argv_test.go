@@ -22,12 +22,15 @@ func TestUneLigneShellSExecuteCommeUneLigneShell(t *testing.T) {
 	if len(rendu) != 3 || rendu[0] != "sh" || rendu[1] != "-c" {
 		t.Fatalf("attendu un passage par le shell, obtenu %v", rendu)
 	}
-	// Et la ligne doit etre complete : le `&&` y reste un operateur, pas un
-	// argument cite.
 	ligne := rendu[2]
-	for _, attendu := range []string{"apt-get update", "&&", "--source", "process_next.py"} {
-		if !strings.Contains(ligne, attendu) {
-			t.Errorf("la ligne ne porte pas %q : %s", attendu, ligne)
+	// L'operateur nu : c'est tout l'objet du correctif, le shell doit le lire.
+	if !strings.Contains(ligne, " && ") {
+		t.Errorf("le && a ete cite, donc il reste un argument : %s", ligne)
+	}
+	// Et tout le reste present, chaque mot cite pour son compte.
+	for _, mot := range []string{"apt-get", "libusb-1.0-0", "--source", "/mnt/cron/process_next.py"} {
+		if !strings.Contains(ligne, shellQuote(mot)) {
+			t.Errorf("la ligne ne porte pas %q cite : %s", mot, ligne)
 		}
 	}
 }
@@ -76,5 +79,30 @@ func TestLesBordsSontCalmes(t *testing.T) {
 	}
 	if got := commandWords([]string{" ", "python", "", "x.py"}); strings.Join(got, ",") != "python,x.py" {
 		t.Fatalf("les mots vides survivent : %v", got)
+	}
+}
+
+// Le defaut de la premiere version de ce correctif, trouve sur le cluster et
+// pas en raisonnant : rejoindre les mots avec des espaces reperd les
+// frontieres que le quoting protegeait, et le job meurt sur
+// « sh: 1: Syntax error: word unexpected ».
+func TestUneLigneShellGardeSesArgumentsEntiers(t *testing.T) {
+	rendu := launchWords([]string{
+		"echo", "debut", "&&",
+		"python3", "-c", "import sys; print('ok', sys.argv)", "--titre", "mon etude",
+	})
+	if rendu[0] != "sh" || rendu[1] != "-c" {
+		t.Fatalf("attendu sh -c, obtenu %v", rendu)
+	}
+	ligne := rendu[2]
+	// L'operateur nu, pour que le shell le lise.
+	if !strings.Contains(ligne, " && ") {
+		t.Errorf("l'operateur a ete cite : %s", ligne)
+	}
+	// Et les deux arguments a espaces entiers, chacun dans ses quotes.
+	for _, entier := range []string{"'import sys; print('", "'mon etude'"} {
+		if !strings.Contains(ligne, entier) {
+			t.Errorf("l'argument %q a ete casse : %s", entier, ligne)
+		}
 	}
 }

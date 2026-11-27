@@ -49,7 +49,7 @@ func launchWords(words []string) []string {
 		return []string{"sh", "-c", shellQuote(words[0])}
 	}
 	if containsShellOperator(words) {
-		return []string{"sh", "-c", shellQuote(strings.Join(words, " "))}
+		return []string{"sh", "-c", shellQuote(shellLineFrom(words))}
 	}
 	rendered := make([]string, 0, len(words))
 	for _, word := range words {
@@ -65,12 +65,39 @@ func launchWords(words []string) []string {
 // with a `;` - is an argument and must keep being quoted; a word that *is*
 // `&&` was typed as an operator, because nothing else is spelled that way on
 // its own.
+// shellLineFrom rebuilds the line the caller typed: the operators bare, so
+// the shell reads them, and everything else quoted, so it does not.
+//
+// Joining the words with plain spaces would have been simpler and wrong in
+// the same way the original defect was: `python -c "import sys; print(x)"`
+// comes apart again the moment the shell re-reads it. Proven on a cluster
+// rather than reasoned about - the first version of this fix joined raw, and
+// the job died on `sh: 1: Syntax error: word unexpected`.
+func shellLineFrom(words []string) string {
+	parts := make([]string, 0, len(words))
+	for _, word := range words {
+		if isShellOperator(word) {
+			parts = append(parts, word)
+			continue
+		}
+		parts = append(parts, shellQuote(word))
+	}
+	return strings.Join(parts, " ")
+}
+
 func containsShellOperator(words []string) bool {
 	for _, word := range words {
-		switch word {
-		case "&&", "||", "|", ";", "&", ">", ">>", "<", "2>", "2>&1":
+		if isShellOperator(word) {
 			return true
 		}
+	}
+	return false
+}
+
+func isShellOperator(word string) bool {
+	switch word {
+	case "&&", "||", "|", ";", "&", ">", ">>", "<", "2>", "2>&1":
+		return true
 	}
 	return false
 }
