@@ -77,6 +77,13 @@ internal mirror is for - see ADR-023's rollout.
 refused at t+10s and t+30s. The policy controller programs a pod's firewall
 chain after the pod has an address, so there is a window between the two.
 
+**Measured precisely on 2026-11-27**, by polling once a second from inside
+such a pod: the last successful call out was at **t+1s** and the next one, at
+**t+3s**, was refused. So the window is about two seconds — long enough to
+matter for a job, which starts its command immediately, and too short to
+notice by hand, which is why it is written down rather than left to be
+rediscovered.
+
 It does not matter for a workspace, where the person's shell starts later. It
 matters for a job, which runs its command immediately: a job written to
 exfiltrate in its first second would succeed. Closing that window means
