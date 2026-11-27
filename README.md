@@ -172,6 +172,7 @@ installation values in a private operations repository or secret manager.
 
 ### Identity, Security And API
 
+- [Security policy](SECURITY.md) — how to report a vulnerability, and what we commit to
 - [Keycloak setup](docs/KEYCLOAK_SETUP.md)
 - [RBAC model](docs/RBAC_MODEL.md)
 - [Organisations](docs/ORGANIZATIONS.md)
