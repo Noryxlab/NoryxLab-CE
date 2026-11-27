@@ -25,15 +25,52 @@ func commandWords(argv []string) []string {
 
 // launchWords renders those words for a shell, each still a word.
 //
-// The exception is the one case above: a lone word containing whitespace is a
-// command line, so a shell is interposed for it and only for it.
+// Two exceptions, and both are the same situation seen from different ends:
+// the caller wrote a command line, not an argv.
+//
+//   - a lone word containing whitespace, which is somebody calling the API by
+//     hand with the line they would have typed;
+//   - words that include a shell operator, which is somebody typing that same
+//     line into the interface, where it is split on spaces before it arrives.
+//
+// The second cost a researcher an afternoon on 2026-11-27. The command was
+// `apt-get update && apt-get install -y libusb-1.0-0 && python process.py
+// --source ... --processed ...`, written exactly as it would be in a
+// terminal. Split into words and quoted one by one, `&&` stops being an
+// operator and becomes an argument: apt received the whole line and answered
+// "the command line option --source is not recognized", which names neither
+// the `&&` nor the splitting nor anything the person could act on.
+//
+// Quoting each word stays the default, and it is not a detail to give up: it
+// is what keeps `--title 'my study'` from becoming two arguments. What changes
+// is that a line which cannot possibly be an argv is run as what it is.
 func launchWords(words []string) []string {
 	if len(words) == 1 && strings.ContainsAny(words[0], " \t") {
 		return []string{"sh", "-c", shellQuote(words[0])}
+	}
+	if containsShellOperator(words) {
+		return []string{"sh", "-c", shellQuote(strings.Join(words, " "))}
 	}
 	rendered := make([]string, 0, len(words))
 	for _, word := range words {
 		rendered = append(rendered, shellQuote(word))
 	}
 	return rendered
+}
+
+// containsShellOperator reports whether a word is one of the operators that
+// only mean anything to a shell.
+//
+// Whole words only. A word that *contains* `&&` - a regular expression, a URL
+// with a `;` - is an argument and must keep being quoted; a word that *is*
+// `&&` was typed as an operator, because nothing else is spelled that way on
+// its own.
+func containsShellOperator(words []string) bool {
+	for _, word := range words {
+		switch word {
+		case "&&", "||", "|", ";", "&", ">", ">>", "<", "2>", "2>&1":
+			return true
+		}
+	}
+	return false
 }
