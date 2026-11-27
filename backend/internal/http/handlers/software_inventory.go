@@ -11,8 +11,15 @@ func (h Handlers) GetSoftwareInventory(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requireAdminModule(w, r, "overview"); !ok {
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write(inventory.Raw())
+	// L'inventaire tel que l'installation le vit, et non tel que la version
+	// a ete construite : voir software_inventory_deployed.go.
+	document, err := h.deployedInventory()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write(inventory.Raw())
+		return
+	}
+	writeJSON(w, http.StatusOK, document)
 }
 
 // ExportSoftwareInventoryCSV serves the same content as a spreadsheet.
@@ -24,7 +31,7 @@ func (h Handlers) ExportSoftwareInventoryCSV(w http.ResponseWriter, r *http.Requ
 	if _, ok := h.requireAdminModule(w, r, "overview"); !ok {
 		return
 	}
-	document, err := inventory.Parse()
+	document, err := h.deployedInventory()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to read the software inventory"})
 		return

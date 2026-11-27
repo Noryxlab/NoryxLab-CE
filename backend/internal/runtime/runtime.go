@@ -248,6 +248,13 @@ type DeploymentStatus struct {
 	ReadyReplicas     int    `json:"readyReplicas"`
 	AvailableReplicas int    `json:"availableReplicas"`
 	UpdatedReplicas   int    `json:"updatedReplicas"`
+	// Image is what the first container runs, tag included.
+	//
+	// Here because the software inventory could not answer the one question
+	// a security review asks of it - which version of Keycloak, of
+	// PostgreSQL, of MinIO is actually running - and a deployment's image is
+	// where that answer has always been.
+	Image string `json:"image,omitempty"`
 }
 
 type ServiceStatus struct {
@@ -257,6 +264,10 @@ type ServiceStatus struct {
 
 type Inspector interface {
 	ListDeployments() ([]DeploymentStatus, error)
+	// ClusterVersion is the Kubernetes server version, for the same reason
+	// as DeploymentStatus.Image: an inventory that cannot name it leaves a
+	// reviewer unable to check the distribution for vulnerabilities.
+	ClusterVersion() (string, error)
 	ListServices() ([]ServiceStatus, error)
 }
 

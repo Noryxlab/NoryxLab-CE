@@ -1340,6 +1340,21 @@ func (r *Runtime) DeleteCronJob(name string) error {
 	return r.deleteWithPropagation(fmt.Sprintf("/apis/batch/v1/namespaces/%s/cronjobs/%s", r.workloadNamespace, name))
 }
 
+// ClusterVersion asks the API server what it is.
+func (r *Runtime) ClusterVersion() (string, error) {
+	body, err := r.get("/version")
+	if err != nil {
+		return "", err
+	}
+	var response struct {
+		GitVersion string `json:"gitVersion"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(response.GitVersion), nil
+}
+
 func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
 	body, err := r.get(fmt.Sprintf("/apis/apps/v1/namespaces/%s/deployments", r.controlNamespace))
 	if err != nil {
@@ -1353,6 +1368,13 @@ func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
 			} `json:"metadata"`
 			Spec struct {
 				Replicas int `json:"replicas"`
+				Template struct {
+					Spec struct {
+						Containers []struct {
+							Image string `json:"image"`
+						} `json:"containers"`
+					} `json:"spec"`
+				} `json:"template"`
 			} `json:"spec"`
 			Status struct {
 				ReadyReplicas     int `json:"readyReplicas"`
@@ -1367,12 +1389,17 @@ func (r *Runtime) ListDeployments() ([]noryxruntime.DeploymentStatus, error) {
 
 	out := make([]noryxruntime.DeploymentStatus, 0, len(response.Items))
 	for _, item := range response.Items {
+		image := ""
+		if containers := item.Spec.Template.Spec.Containers; len(containers) > 0 {
+			image = containers[0].Image
+		}
 		out = append(out, noryxruntime.DeploymentStatus{
 			Name:              item.Metadata.Name,
 			Replicas:          item.Spec.Replicas,
 			ReadyReplicas:     item.Status.ReadyReplicas,
 			AvailableReplicas: item.Status.AvailableReplicas,
 			UpdatedReplicas:   item.Status.UpdatedReplicas,
+			Image:             image,
 		})
 	}
 	return out, nil
