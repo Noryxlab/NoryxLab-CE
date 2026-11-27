@@ -418,6 +418,14 @@ export const appsApi = {
   /** Hands an application to a person, a team or an organization. An app is
    *  a service and outlives whoever launched it, so somebody has to be able
    *  to answer for it after they leave. */
+  /** Change qui peut ouvrir une application deja publiee. L'acces etait
+   *  decide une fois, a la creation, et plus jamais - donc une application
+   *  publiee pour une organisation ne pouvait pas s'ouvrir a une deuxieme
+   *  sans etre supprimee et relancee. */
+  setAccess: (
+    appId: string,
+    input: { accessMode: AppAccessMode; allowedUsers?: string[]; allowedOrganizations?: string[] },
+  ) => api.put<App>(`${V1}/apps/${appId}/access`, input),
   setOwner: (appId: string, input: { ownerType: string; ownerId: string }) =>
     api.put<App>(`${V1}/apps/${appId}/owner`, input),
   restart: (appId: string) => api.post<App>(`${V1}/apps/${appId}/restart`),

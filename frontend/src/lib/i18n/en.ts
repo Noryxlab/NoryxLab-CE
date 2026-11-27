@@ -692,6 +692,10 @@ export const en: Translations = {
     runtimeRunningDigest: "Digest actually running",
     runtimeTagMovesTracked:
       "Pinned by tag: the digest above is the one the running pod started from, read on every listing. A restart can land on a different one if the nightly rebuild moved the tag.",
+    access: 'Access',
+    addOrganization: 'Add an organization',
+    noOrganizationYet: 'No organization: nobody but you can open this application.',
+    accessChanged: 'Access changed',
     runtimeTitle: "What it runs on",
     runtimeOn: "Runs on",
     runtimeCommand: "Launch command",

@@ -552,47 +552,23 @@ func (h Handlers) createAppByKind(w http.ResponseWriter, r *http.Request, kind s
 	req.Name = strings.TrimSpace(req.Name)
 	req.Slug = normalizeAppSlug(req.Slug)
 	req.Image = strings.TrimSpace(req.Image)
-	req.AccessMode = strings.ToLower(strings.TrimSpace(req.AccessMode))
-	if req.AccessMode == "" {
-		req.AccessMode = "private"
-	}
-	// A dashboard's access is decided below, not by the caller, so its value is
-	// not judged here.
-	//
-	// The platform stored every dashboard as "project" and then refused that
-	// same value on the way in, which made a stored dashboard impossible to
-	// recreate from what the platform itself had recorded about it.
-	if kind == "dashboard" {
-		req.AccessMode = "project"
-	} else if req.AccessMode != "public" && req.AccessMode != "organization" && req.AccessMode != "users" && req.AccessMode != "private" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "accessMode must be public, organization, users, or private"})
+	// A dashboard's access is decided by its kind, not by the caller - the
+	// platform stored every dashboard as "project" and then refused that same
+	// value on the way in, which made a stored dashboard impossible to
+	// recreate from what the platform itself had recorded about it. That
+	// rule, and every other one about access, now lives in resolveAppAccess.
+	// La meme validation que la modification d'acces, et par la meme
+	// fonction : une regle appliquee ici et pas la-bas est la facon dont une
+	// application finit dans un etat que la creation aurait refuse. La
+	// donnee reglementee en est l'exemple - un projet qui en attache ne peut
+	// pas servir une application publiquement, le jour de la creation comme
+	// le jour ou quelqu'un modifie l'acces.
+	accessMode, allowedUsers, allowedOrganizations, accessValid := h.resolveAppAccess(
+		w, req.ProjectID, kind, req.AccessMode, req.AllowedUsers, req.AllowedOrganizations)
+	if !accessValid {
 		return
 	}
-	// Une donnee reglementee dans le projet interdit la publication publique.
-	if req.AccessMode == publicAppAccessMode {
-		if nom := h.projectHoldsRegulatedDataNamed(req.ProjectID); nom != "" {
-			writeJSON(w, http.StatusConflict, map[string]string{
-				"error": "this project attaches regulated data (" + nom + "): an application here cannot be served publicly",
-			})
-			return
-		}
-	}
-	if req.AccessMode == "organization" && len(req.AllowedOrganizations) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedOrganizations is required for organization access"})
-		return
-	}
-	for index, organizationID := range req.AllowedOrganizations {
-		organization, found := h.resolveOrganization(organizationID)
-		if !found {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "no organization named " + strings.TrimSpace(organizationID)})
-			return
-		}
-		req.AllowedOrganizations[index] = organization.ID
-	}
-	if req.AccessMode == "users" && len(req.AllowedUsers) == 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "allowedUsers is required for users access"})
-		return
-	}
+	req.AccessMode, req.AllowedUsers, req.AllowedOrganizations = accessMode, allowedUsers, allowedOrganizations
 	tier, tierFound := h.resolveHardwareTier(req.HardwareTier)
 	if !tierFound {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown hardwareTier"})

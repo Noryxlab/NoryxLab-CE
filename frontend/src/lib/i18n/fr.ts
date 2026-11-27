@@ -708,6 +708,10 @@ export const fr = {
     runtimeRunningDigest: "Empreinte réellement exécutée",
     runtimeTagMovesTracked:
       "Épinglée par étiquette : l’empreinte ci-dessus est celle du pod en marche, lue à chaque affichage. Un redémarrage peut partir sur une autre si la reconstruction nocturne a bougé l’étiquette.",
+    access: 'Accès',
+    addOrganization: 'Ajouter une organisation',
+    noOrganizationYet: 'Aucune organisation : personne d\'autre que vous ne peut ouvrir cette application.',
+    accessChanged: 'Accès modifié',
     runtimeTitle: "Ce sur quoi elle tourne",
     runtimeOn: "Tourne sur",
     runtimeCommand: "Commande lancée",

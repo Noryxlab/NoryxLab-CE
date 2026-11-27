@@ -37,6 +37,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { AppRuntimeSheet } from './app-runtime';
+import { Field } from '@/components/ui/field';
+import { Select } from '@/components/ui/select';
+import { useOrganizations } from '@/lib/api/queries';
+import type { AppAccessMode } from '@/lib/api/endpoints';
 import {
   Table,
   TableBody,
@@ -52,7 +56,7 @@ import { useAppLogs, useAppRevisions, useAppUsage, useEnvironments, useHardwareT
 import { useI18n, useT } from '@/lib/i18n';
 import { formatDateTime, formatNumber, formatRelative } from '@/lib/format';
 import { presentAccessMode, presentTier } from '@/lib/presenters';
-import { Info, MoreHorizontal, UserCog } from 'lucide-react';
+import { Info, KeyRound, MoreHorizontal, UserCog, X } from 'lucide-react';
 import { OwnerTransfer } from '@/components/common/owner';
 import { Sheet, SheetBody, SheetContent } from '@/components/ui/sheet';
 import type { App, AppRevision, Environment, HardwareTier } from '@/lib/api/types';
@@ -116,6 +120,134 @@ function AppOwnershipSheet({
 
 /** Le nom de l'environnement qui publie cette image, ou rien. Resolu sur
  *  l'image complete : c'est ce que le lancement a recu. */
+/** Qui peut ouvrir une application deja publiee.
+ *
+ *  L'acces etait decide une fois, a la creation. Une application publiee pour
+ *  une organisation ne pouvait pas s'ouvrir a une deuxieme sans etre
+ *  supprimee et relancee - ce qu'on ne fait pas a une production qui tourne,
+ *  avec son URL, ses revisions et son historique, pour ajouter une collegue.
+ *
+ *  La liste est modifiable ici, et pas seulement une organisation comme au
+ *  formulaire de creation : une application sert souvent plusieurs parties,
+ *  et c'est en ajoutant la deuxieme qu'on s'en apercoit. */
+function AppAccessSheet({
+  app,
+  open,
+  onOpenChange,
+  onDone,
+}: {
+  app: App | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const organizations = useOrganizations();
+  const [mode, setMode] = React.useState<AppAccessMode>('private');
+  const [orgs, setOrgs] = React.useState<string[]>([]);
+  const [toAdd, setToAdd] = React.useState('');
+
+  // Repart de l'application a chaque ouverture : la feuille montre ce qui est,
+  // pas ce qu'on avait commence a taper la fois d'avant.
+  React.useEffect(() => {
+    if (!app) return;
+    setMode((app.accessMode ?? 'private') as AppAccessMode);
+    setOrgs(app.allowedOrganizations ?? []);
+    setToAdd('');
+  }, [app]);
+
+  const save = useMutation({
+    mutationFn: () =>
+      appsApi.setAccess(app?.id ?? '', {
+        accessMode: mode,
+        ...(mode === 'organization' ? { allowedOrganizations: orgs } : {}),
+      }),
+    onSuccess: () => {
+      onDone();
+      toast.success(t('apps.accessChanged'), app?.name ?? '');
+      onOpenChange(false);
+    },
+    onError: (error) => toast.error(error, t('apps.access')),
+  });
+
+  const known = organizations.data ?? [];
+  const nameOf = (id: string) => known.find((o) => o.id === id)?.name ?? id;
+  const candidates = known
+    .filter((o) => !orgs.includes(o.id))
+    .map((o) => ({ value: o.id, label: o.name }));
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent title={app?.name ?? t('apps.access')}>
+        <SheetBody className="space-y-4">
+          <Field label={t('apps.accessLabel')}>
+            <Select
+              value={mode}
+              onValueChange={(value) => setMode(value as AppAccessMode)}
+              options={[
+                { value: 'private', label: t('apps.accessPrivate') },
+                { value: 'organization', label: t('apps.accessOrganization') },
+                { value: 'public', label: t('apps.accessPublic') },
+              ]}
+            />
+          </Field>
+
+          {mode === 'organization' ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label={t('apps.addOrganization')} className="min-w-64">
+                  <Select value={toAdd} onValueChange={setToAdd} options={candidates} />
+                </Field>
+                <Button
+                  variant="secondary"
+                  disabled={!toAdd}
+                  onClick={() => {
+                    setOrgs((current) => [...current, toAdd]);
+                    setToAdd('');
+                  }}
+                >
+                  {t('common.add')}
+                </Button>
+              </div>
+              {orgs.length === 0 ? (
+                // Dire pourquoi c'est vide, et ce que ca produirait : une
+                // liste vide n'est pas un acces ouvert, c'est un refus.
+                <p className="text-sm text-muted-foreground">{t('apps.noOrganizationYet')}</p>
+              ) : (
+                <ul className="space-y-1">
+                  {orgs.map((id) => (
+                    <li key={id} className="flex items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm">
+                      <span>{nameOf(id)}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('common.delete')}
+                        onClick={() => setOrgs((current) => current.filter((item) => item !== id))}
+                      >
+                        <X aria-hidden />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          <Button
+            variant="primary"
+            loading={save.isPending}
+            disabled={mode === 'organization' && orgs.length === 0}
+            onClick={() => save.mutate()}
+          >
+            {t('common.save')}
+          </Button>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function environmentName(app: App, environments: Environment[] | undefined): string | undefined {
   return (environments ?? []).find((item) => item.destinationImage === app.image)?.name;
 }
@@ -158,6 +290,7 @@ export function AppList({
   const environments = useEnvironments();
   const tiers = useHardwareTiers();
   const [transferred, setTransferred] = React.useState<App | null>(null);
+  const [accessFor, setAccessFor] = React.useState<App | null>(null);
 
   const logs = useAppLogs(logsFor?.id);
   const revisions = useAppRevisions(revisionsFor?.id);
@@ -355,6 +488,10 @@ export function AppList({
                     <DropdownMenuItem onSelect={() => setRevisionsFor(app)}>
                       <History aria-hidden />
                       {t('apps.revisions')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setAccessFor(app)}>
+                      <KeyRound aria-hidden />
+                      {t('apps.access')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setTransferred(app)}>
                       <UserCog aria-hidden />
@@ -561,6 +698,13 @@ export function AppList({
           />
         </Card>
       ) : null}
+
+      <AppAccessSheet
+        app={accessFor}
+        open={Boolean(accessFor)}
+        onOpenChange={(next) => { if (!next) setAccessFor(null); }}
+        onDone={() => { refresh(); setAccessFor(null); }}
+      />
 
       <AppOwnershipSheet
         app={transferred}

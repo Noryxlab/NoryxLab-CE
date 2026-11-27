@@ -11318,3 +11318,36 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /api/v1/apps/{appID}/access:
+    put:
+      tags: [Workloads]
+      summary: Change who can open a published application
+      description: >-
+        Access used to be decided once, at creation, and never again - so an
+        application published for one organization could not be opened to a
+        second without deleting it and launching it again. The same rules apply
+        as at creation, including the refusal to serve publicly from a project
+        that attaches regulated data. The application's owner, or somebody who
+        administers its project.
+      operationId: setAppAccess
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: appID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'

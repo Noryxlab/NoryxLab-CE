@@ -361,6 +361,7 @@ RESPONSES = {
     ("GET", "/api/v1/repositories/{repositoryID}"): "Repository",
     ("GET", "/api/v1/projects/{projectID}"): "Project",
     ("GET", "/api/v1/apps/{appID}"): "App",
+    ("PUT", "/api/v1/apps/{appID}/access"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
     ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
     ("POST", "/api/v1/admin/datasets/regulated-copy-scan"): "RegulatedCopyScanReport",
