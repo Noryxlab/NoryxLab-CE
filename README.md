@@ -179,6 +179,7 @@ installation values in a private operations repository or secret manager.
 - [Workload network isolation](docs/WORKLOAD_NETWORK_ISOLATION.md)
 - [How data leaves a workspace](docs/HOW_DATA_LEAVES_A_WORKSPACE.md) — every route out, and which ones are closed
 - [Writing beside regulated data](docs/WRITING_BESIDE_REGULATED_DATA.md) — the co-mount rule, the right that lifts it, and the nightly crossing
+- [Training attestations](docs/TRAINING_ATTESTATIONS.md) — a PDF each person uploads to say they were trained; recorded, dated, and enforcing nothing
 - [Supported API contract](docs/API.md)
 - [Backend runtime API](docs/BACKEND_RUNTIME_API.md)
 
