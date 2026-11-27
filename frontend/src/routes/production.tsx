@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { Link } from 'react-router';
 import { useMutation } from '@tanstack/react-query';
-import { ExternalLink, History, Rocket } from 'lucide-react';
+import { ExternalLink, History, KeyRound, Rocket } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { Stat, StatGrid } from '@/components/common/stat';
 import { DataTable, type Column } from '@/components/common/data-table';
 import { EmptyState } from '@/components/common/states';
 import { SearchInput } from '@/components/common/search-input';
 import { CopyButton } from '@/components/common/copy-button';
+import { AppAccessSheet } from '@/features/apps/app-access';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardHeaderText, CardTitle, CardDescription } from '@/components/ui/card';
@@ -32,6 +33,7 @@ export function ProductionPage() {
   const projects = useProjects();
   const [search, setSearch] = React.useState('');
   const [selected, setSelected] = React.useState<App | null>(null);
+  const [accessFor, setAccessFor] = React.useState<App | null>(null);
   const revisions = useAppRevisions(selected?.id);
 
   const projectName = React.useCallback(
@@ -236,6 +238,14 @@ export function ProductionPage() {
                 <History aria-hidden />
                 {t('production.revisionHistory')}
               </DropdownMenuItem>
+              {/* Le mode d'acces etait affiche ici en colonne, et nulle part
+                  modifiable : on lisait "organisation" sans pouvoir dire
+                  laquelle, ni en ajouter une. C'est pourtant d'ici qu'on
+                  administre une application qui sert. */}
+              <DropdownMenuItem onSelect={() => setAccessFor(app)}>
+                <KeyRound aria-hidden />
+                {t('apps.access')}
+              </DropdownMenuItem>
               {app.accessUrl ? (
                 <DropdownMenuItem asChild>
                   <a href={app.accessUrl} target="_blank" rel="noopener noreferrer">
@@ -248,6 +258,13 @@ export function ProductionPage() {
           )}
         />
       </Card>
+
+      <AppAccessSheet
+        app={accessFor}
+        open={Boolean(accessFor)}
+        onOpenChange={(next) => { if (!next) setAccessFor(null); }}
+        onDone={() => { void production.refetch(); setAccessFor(null); }}
+      />
 
       {selected ? (
         <Card>
