@@ -1180,6 +1180,26 @@ func migrationStatements() []string {
 		`CREATE INDEX IF NOT EXISTS workflow_runs_by_workflow ON workflow_runs (workflow_id, started_at DESC)`,
 		// The scheduler's question, every five minutes: what is unfinished.
 		`CREATE INDEX IF NOT EXISTS workflow_runs_unfinished ON workflow_runs (status, started_at)`,
+		// What somebody uploaded to say they were trained to handle
+		// confidential data. The document itself is in object storage; this
+		// row is what the platform knows about it.
+		//
+		// A history rather than one row per person: a re-certification is a
+		// new document, and replacing the old one would lose the answer to
+		// "were they covered in March", which is the question an audit asks.
+		`CREATE TABLE IF NOT EXISTS training_attestations (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			subject TEXT NOT NULL DEFAULT '',
+			file_name TEXT NOT NULL,
+			content_type TEXT NOT NULL DEFAULT 'application/pdf',
+			size BIGINT NOT NULL DEFAULT 0,
+			storage_key TEXT NOT NULL,
+			valid_until TIMESTAMPTZ NULL,
+			uploaded_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS training_attestations_by_user
+			ON training_attestations (user_id, uploaded_at DESC)`,
 	}
 }
 

@@ -232,6 +232,15 @@ ENVELOPES = {
         "period": "date-time",
     },
     "BudgetListResponse": {"items": "[$BudgetState]", "unit": "string", "period": "date-time"},
+    # Une attestation de formation : le document est dans le stockage objet,
+    # ceci est ce que la plateforme en sait.
+    "Attestation": {
+        "id": "string", "userId": "string", "userName": "string",
+        "subject": "string", "fileName": "string", "contentType": "string",
+        "size": "integer", "validUntil": "date-time", "uploadedAt": "date-time",
+        "status": "string",
+    },
+    "AttestationListResponse": {"items": "[$Attestation]"},
     # Le croisement d'empreintes d'ADR-060 : ce qu'une passe a trouve.
     "RegulatedCopy": {
         "regulatedPath": "string", "openPath": "string",
@@ -364,6 +373,9 @@ RESPONSES = {
     ("PUT", "/api/v1/apps/{appID}/access"): "App",
     ("GET", "/api/v1/jobs/{jobID}"): "Job",
     ("GET", "/api/v1/admin/budgets"): "BudgetListResponse",
+    ("GET", "/api/v1/user/attestations"): "AttestationListResponse",
+    ("GET", "/api/v1/admin/attestations"): "AttestationListResponse",
+    ("POST", "/api/v1/user/attestations"): "Attestation",
     ("POST", "/api/v1/admin/datasets/regulated-copy-scan"): "RegulatedCopyScanReport",
     ("GET", "/api/v1/projects/{projectID}/flows"): "FlowListResponse",
     ("POST", "/api/v1/projects/{projectID}/flows"): "Flow",
@@ -442,6 +454,11 @@ RESPONSES = {
 
 # Operations that answer with something other than a JSON 200.
 OTHER_RESPONSES = {
+    # Le document lui-meme, pas une description de document.
+    ("GET", "/api/v1/attestations/{attestationID}/document"): (
+        "200", "The PDF itself", "application/pdf", None),
+    ("DELETE", "/api/v1/attestations/{attestationID}"): (
+        "204", "The attestation and its document are gone", None, None),
     ("DELETE", "/api/v1/builds/{buildID}"): ("204", "Deleted", None, None),
     ("DELETE", "/api/v1/environments/{environmentID}"): ("204", "Deleted", None, None),
     ("DELETE", "/api/v1/datasets/{datasetID}/access/{subjectType}/{subjectID}"): ("204", "Permission removed", None, None),

@@ -37,6 +37,7 @@ func main() {
 	// pas plutot que de surveiller zero.
 	var budgetStore store.BudgetStore
 	var snapshotStore store.SnapshotStore
+	var attestationStore store.AttestationStore
 	var flowStore store.FlowStore
 	var appStore store.AppStore = memory.NewAppStore()
 	var buildStore store.BuildStore = memory.NewBuildStore()
@@ -95,6 +96,7 @@ func main() {
 			usageStore = &postgres.UsageStore{Store: pg}
 			budgetStore = &postgres.BudgetStore{Store: pg}
 			snapshotStore = &postgres.SnapshotStore{Store: pg}
+			attestationStore = &postgres.AttestationStore{Store: pg}
 			flowStore = &postgres.FlowStore{Store: pg}
 			// An installation upgrading into editable tiers keeps the four
 			// sizes it already ran, under the same ids: workspaces in flight
@@ -246,6 +248,7 @@ func main() {
 			UsageStore:                       usageStore,
 			BudgetStore:                      budgetStore,
 			SnapshotStore:                    snapshotStore,
+			AttestationStore:                 attestationStore,
 			FlowStore:                        flowStore,
 			OIDCAudience:                     cfg.OIDCAudience,
 			OIDCFrontendClientID:             cfg.OIDCFrontendClientID,

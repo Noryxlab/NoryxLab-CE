@@ -37,6 +37,12 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 	mux.HandleFunc("POST /api/v1/admin/hardware-tiers", h.SaveHardwareTier)
 	mux.HandleFunc("PUT /api/v1/admin/hardware-tiers/{tierID}", h.SaveHardwareTier)
 	mux.HandleFunc("DELETE /api/v1/admin/hardware-tiers/{tierID}", h.DeleteHardwareTier)
+	// Ce qu'une personne a depose pour dire qu'elle a ete formee a manipuler
+	// de la donnee confidentielle. Rien ici ne refuse quoi que ce soit.
+	mux.HandleFunc("GET /api/v1/user/attestations", h.ListMyAttestations)
+	mux.HandleFunc("POST /api/v1/user/attestations", h.UploadAttestation)
+	mux.HandleFunc("GET /api/v1/attestations/{attestationID}/document", h.DownloadAttestation)
+	mux.HandleFunc("DELETE /api/v1/attestations/{attestationID}", h.DeleteAttestation)
 	mux.HandleFunc("GET /api/v1/user/organizations", h.ListMyOrganizations)
 	// Ou cette personne administre, ce que le jeton ne dit pas.
 	mux.HandleFunc("GET /api/v1/user/administered-organizations", h.ListMyAdministeredOrganizations)
@@ -323,6 +329,7 @@ func NewServer(cfg config.Config, h handlers.Handlers) *http.Server {
 		mux.HandleFunc(method+" /apis/{slug}", h.ProxyApp)
 		mux.HandleFunc(method+" /apis/{slug}/{path...}", h.ProxyApp)
 	}
+	mux.HandleFunc("GET /api/v1/admin/attestations", h.ListAllAttestations)
 	mux.HandleFunc("GET /api/v1/admin/users", h.ListUsers)
 	mux.HandleFunc("POST /api/v1/admin/users", h.CreateUserAccount)
 	mux.HandleFunc("PATCH /api/v1/admin/users/{userID}", h.UpdateUserAccount)

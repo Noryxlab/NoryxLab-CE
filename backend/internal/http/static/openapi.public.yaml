@@ -44,6 +44,25 @@ components:
       name: X-Noryx-User
 
   schemas:
+    Attestation:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        userName: { type: string }
+        subject: { type: string }
+        fileName: { type: string }
+        contentType: { type: string }
+        size: { type: integer }
+        validUntil: { type: string, format: date-time }
+        uploadedAt: { type: string, format: date-time }
+        status: { type: string }
+    AttestationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Attestation' }
     RegulatedCopy:
       type: object
       properties:
@@ -10805,6 +10824,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/admin/attestations:
+    get:
+      tags: [Admin]
+      summary: Who has produced a training attestation
+      description: >-
+        The administrator\u2019s view, with each person named rather than identified. Reading it changes nothing and refuses nothing.
+      operationId: listAllAttestations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttestationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/attestations/{attestationID}:
+    delete:
+      tags: [Platform]
+      summary: Remove an attestation and its document
+      description: >-
+        Its owner or a platform administrator.
+      operationId: deleteAttestation
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: attestationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: The attestation and its document are gone
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/attestations/{attestationID}/document:
+    get:
+      tags: [Platform]
+      summary: Download one attestation document
+      description: >-
+        Its owner or a platform administrator, and nobody else: the document carries a name, an employer and sometimes a date of birth. Somebody else\u2019s identifier answers not found rather than forbidden.
+      operationId: downloadAttestation
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      parameters:
+        - name: attestationID
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: The PDF itself
+          content:
+            application/pdf:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/user/attestations:
+    get:
+      tags: [Account]
+      summary: What this person has uploaded to say they were trained
+      description: >-
+        Newest first. Each carries a status computed from its own date - valid, expired, or undated when nobody said when the training runs out.
+      operationId: listMyAttestations
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttestationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Account]
+      summary: Upload a training attestation as a PDF
+      description: >-
+        Multipart, field "file", with optional "subject" and "validUntil" (a plain date, 2027-03-31). The document must be a PDF, checked on its contents rather than its name, and at most 10 MiB. Nothing is refused anywhere as a result of this: the platform records, it does not yet require.
+      operationId: uploadAttestation
+      security:
+        - bearerAuth: []
+        - xNoryxUser: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attestation'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
