@@ -221,7 +221,7 @@ func (h Handlers) CreateCronJob(w http.ResponseWriter, r *http.Request) {
 			Command:                 command,
 			Args:                    args,
 			Init:                    extractFiller,
-			Env:                     append(datasourceEnv, secretEnvRefs(userSecretName, userSecretData)...),
+			Env:                     append(h.workloadBaseEnv(datasourceEnv), secretEnvRefs(userSecretName, userSecretData)...),
 			CPURequest:              tier.CPURequest,
 			CPULimit:                tier.CPULimit,
 			MemRequest:              tier.MemoryRequest,
