@@ -28,6 +28,7 @@ import { PlatformHealthPanel } from '@/features/admin/platform-health';
 import { SoftwareInventorySection } from '@/features/admin/software-inventory';
 import { HardwareTiersSection } from '@/features/admin/hardware-tiers';
 import { PeopleSection } from '@/features/admin/people';
+import { AttestationsAdminSection } from '@/features/admin/attestations-section';
 import { SmtpSettingsSection } from '@/features/admin/smtp-settings';
 import { AgentGovernanceSection } from '@/features/admin/agent-governance';
 import { PlatformActivitySection } from '@/features/admin/platform-activity';
@@ -114,7 +115,16 @@ function IdentitySection() {
   // Reprise en un seul ecran : les personnes, leurs organisations et leurs
   // equipes etaient trois sections ecrites a des moments differents, sans
   // que rien ne dessine le lien. Voir features/admin/people.tsx.
-  return <PeopleSection />;
+  //
+  // Les attestations de formation sont ici et pas dans une section a elles :
+  // c'est une question de personnes, et une section de plus pour un tableau
+  // est un onglet que personne n'ouvre.
+  return (
+    <div className="space-y-6">
+      <PeopleSection />
+      <AttestationsAdminSection />
+    </div>
+  );
 }
 
 

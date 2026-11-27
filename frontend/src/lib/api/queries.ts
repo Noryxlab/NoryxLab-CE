@@ -150,6 +150,8 @@ export const qk = {
     ["projects", projectId, "team-roles"] as const,
   adminSmtp: ["admin", "smtp"] as const,
   apiTokens: ["user", "api-tokens"] as const,
+  attestations: ["user", "attestations"] as const,
+  adminAttestations: ["admin", "attestations"] as const,
   componentTokens: ["admin", "component-tokens"] as const,
   serviceAccounts: ["admin", "service-accounts"] as const,
   projectOrganizationRoles: (projectId: string) =>
@@ -727,6 +729,12 @@ export const useComponentTokens = () =>
 
 export const useApiTokens = () =>
   useQuery({ queryKey: qk.apiTokens, queryFn: platformApi.apiTokens });
+
+export const useAttestations = () =>
+  useQuery({ queryKey: qk.attestations, queryFn: platformApi.attestations });
+
+export const useAdminAttestations = () =>
+  useQuery({ queryKey: qk.adminAttestations, queryFn: adminApi.attestations });
 
 export const useProjectOrganizationRoles = (projectId: string | undefined) =>
   useQuery({

@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/common/page-header';
 import { ApiTokensSection } from '@/features/account/api-tokens';
+import { AttestationsSection } from '@/features/account/attestations';
 import { SecretCatalog } from '@/features/catalog/secret-catalog';
 import { useT } from '@/lib/i18n';
 
@@ -23,6 +24,7 @@ export function AccountPage() {
   return (
     <div className="space-y-5">
       <PageHeader title={t('account.title')} description={t('account.subtitle')} />
+      <AttestationsSection />
       <ApiTokensSection />
       <SecretCatalog />
     </div>

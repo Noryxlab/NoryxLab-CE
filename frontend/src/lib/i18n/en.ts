@@ -10,6 +10,7 @@ export type Translations = {
 
 export const en: Translations = {
   common: {
+    download: 'Download',
     team: "Team",
     region: "Region",
     prefix: "Prefix",
@@ -1747,6 +1748,9 @@ export const en: Translations = {
   },
 
   admin: {
+    attestationsHint: 'Who has uploaded a training attestation, and how long it runs. This list refuses nothing: it exists so you can see who is covered before deciding to require anything.',
+    attestationsEmpty: 'No attestation',
+    attestationsEmptyHint: 'Nobody has uploaded one yet. Each person does it from their Account screen; nothing is refused without one.',
     visibleAsAdmin: "admin",
     visibleAsAdminHint:
       "On your screen because you administer the platform: you hold no grant of your own on it.",
@@ -2032,6 +2036,19 @@ export const en: Translations = {
   },
 
   account: {
+    attestations: 'Training attestations',
+    attestationsHint: 'Upload the certificate you were given after a course on handling confidential data. The platform records it and blocks nothing: no access depends on it today.',
+    attestationSubject: 'What it covers',
+    attestationSubjectPlaceholder: 'HDS awareness, GDPR…',
+    attestationValidUntil: 'Valid until',
+    attestationValidUntilHint: 'Optional. With no date, the attestation says you took the training, not that you are covered today.',
+    attestationUpload: 'Upload a PDF',
+    attestationUploaded: 'Attestation uploaded',
+    attestationsEmpty: 'No attestation uploaded. Nothing is refused without one; it is a document you make available.',
+    attestationUntil: 'valid until {date}',
+    attestationValid: 'Valid',
+    attestationExpired: 'Expired',
+    attestationUndated: 'No end date',
     title: "My account",
     subtitle: "Your API credentials, your secrets and your preferences.",
   },

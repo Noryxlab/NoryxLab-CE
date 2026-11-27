@@ -942,6 +942,24 @@ export interface RegulatedCopyScanReport {
   findings: RegulatedCopyFinding[];
 }
 
+/** Ce qu'une personne a depose pour dire qu'elle a ete formee a manipuler de
+ *  la donnee confidentielle. Le statut est calcule par la plateforme, pas
+ *  stocke : un document n'expire pas en etant ecrit, il expire quand la date
+ *  passe. `undated` n'est pas « valable pour toujours », c'est « personne n'a
+ *  dit », et les deux se lisent differemment. */
+export interface Attestation {
+  id: string;
+  userId: string;
+  userName?: string;
+  subject?: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  validUntil?: string;
+  uploadedAt: string;
+  status: 'valid' | 'expired' | 'undated';
+}
+
 export interface DataUsageEdge {
   from: string;
   to: string;

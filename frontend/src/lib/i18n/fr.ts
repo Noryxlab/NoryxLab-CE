@@ -13,6 +13,7 @@
  */
 export const fr = {
   common: {
+    download: 'Télécharger',
     team: "Équipe",
     region: "Région",
     prefix: "Préfixe",
@@ -1777,6 +1778,9 @@ export const fr = {
   },
 
   admin: {
+    attestationsHint: 'Qui a déposé une attestation de formation, et jusqu’à quand elle court. Cette liste ne refuse rien : elle existe pour voir qui est couvert avant de décider d’exiger quoi que ce soit.',
+    attestationsEmpty: 'Aucune attestation',
+    attestationsEmptyHint: 'Personne n’a encore déposé d’attestation. Chacun le fait depuis son écran Compte ; rien ne lui est refusé sans.',
     visibleAsAdmin: "admin",
     visibleAsAdminHint:
       "Visible parce que vous administrez la plateforme : vous n’avez aucun droit propre sur cet objet.",
@@ -2066,6 +2070,19 @@ export const fr = {
   },
 
   account: {
+    attestations: 'Attestations de formation',
+    attestationsHint: 'Déposez l’attestation qu’on vous a remise au bout d’une formation à la manipulation de données confidentielles. La plateforme l’enregistre et ne bloque rien : aucun accès n’en dépend aujourd’hui.',
+    attestationSubject: 'Ce que couvre l’attestation',
+    attestationSubjectPlaceholder: 'Sensibilisation HDS, RGPD…',
+    attestationValidUntil: 'Valable jusqu’au',
+    attestationValidUntilHint: 'Facultatif. Sans date, l’attestation dit que vous avez suivi la formation, pas que vous êtes couvert aujourd’hui.',
+    attestationUpload: 'Déposer un PDF',
+    attestationUploaded: 'Attestation déposée',
+    attestationsEmpty: 'Aucune attestation déposée. Rien ne vous est refusé sans, c’est un document que vous mettez à disposition.',
+    attestationUntil: 'valable jusqu’au {date}',
+    attestationValid: 'Valable',
+    attestationExpired: 'Périmée',
+    attestationUndated: 'Sans date de fin',
     title: "Mon compte",
     subtitle:
       "Vos identifiants d’accès à l’API, vos secrets et vos préférences.",

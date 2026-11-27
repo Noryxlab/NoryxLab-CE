@@ -81,6 +81,7 @@ import type {
   ProjectToken,
   ProjectVariable,
   RbacMatrixReport,
+  Attestation,
   RegulatedCopyScanReport,
   RbacPolicyResponse,
   RbacPolicyRow,
@@ -166,6 +167,22 @@ export const platformApi = {
    *  from the token: a realm that does not put the claim in the token, or a
    *  membership granted since sign-in, would otherwise show as none. */
   myOrganizations: () => api.list<Organization>(`${V1}/user/organizations`),
+
+  /** Les attestations de formation de la personne qui regarde. */
+  attestations: () => api.list<Attestation>(`${V1}/user/attestations`),
+  /** Depose un PDF. Multipart, parce que le fichier est le sujet : il pese
+   *  des megaoctets, et tout navigateur sait deja en envoyer un. */
+  uploadAttestation: (input: { file: File; subject?: string; validUntil?: string }) => {
+    const form = new FormData();
+    form.append('file', input.file);
+    if (input.subject) form.append('subject', input.subject);
+    if (input.validUntil) form.append('validUntil', input.validUntil);
+    return api.post<Attestation>(`${V1}/user/attestations`, form);
+  },
+  downloadAttestation: (attestationId: string, fileName: string) =>
+    downloadFile(`${V1}/attestations/${attestationId}/document`, fileName),
+  deleteAttestation: (attestationId: string) =>
+    api.delete<void>(`${V1}/attestations/${attestationId}`),
   /** Ou cette personne administre. Le jeton dit qui elle est, pas ce qu'une
    *  organisation a decide a son sujet, donc la porte se demande au serveur. */
   /** Ce que ce role peut creer. L'interface cache ce qui est refuse en
@@ -1122,6 +1139,10 @@ export const adminApi = {
     downloadFile(`${V1}/admin/team-usage.csv?from=${from}&to=${to}`, 'noryx-team-usage.csv'),
   dataUsage: () => api.get<DataUsageReport>(`${V1}/admin/data-usage`),
   downloadDataUsage: () => downloadFile(`${V1}/admin/data-usage.csv`, 'noryx-data-usage.csv'),
+
+  /** Qui a produit une attestation de formation. Lire cette liste ne refuse
+   *  rien a personne : la plateforme enregistre, elle n'exige pas encore. */
+  attestations: () => api.list<Attestation>(`${V1}/admin/attestations`),
 
   /** Lance le croisement d'empreintes maintenant (ADR-060). Synchrone : la
    *  passe lit des listages, pas des octets, et une reponse « demarre »
